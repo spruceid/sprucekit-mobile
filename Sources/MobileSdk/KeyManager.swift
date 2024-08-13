@@ -49,7 +49,9 @@ public class KeyManager: NSObject {
 
       guard status == errSecSuccess else { return nil }
 
+      // swiftlint:disable force_cast
       let key = item as! SecKey
+      // swiftlint:enable force_cast
 
       return key
     }
@@ -103,14 +105,14 @@ public class KeyManager: NSObject {
       let xDataRaw: Data = fullData.subdata(in: 0..<32)
       let yDataRaw: Data = fullData.subdata(in: 32..<64)
 
-      let x = xDataRaw.base64EncodedUrlSafe
-      let y = yDataRaw.base64EncodedUrlSafe
+      let xCoordinate = xDataRaw.base64EncodedUrlSafe
+      let yCoordinate = yDataRaw.base64EncodedUrlSafe
 
       let jsonObject: [String: Any]  = [
          "kty": "EC",
          "crv": "P-256",
-         "x": x,
-         "y": y
+         "x": xCoordinate,
+         "y": yCoordinate
       ]
 
       guard let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []) else { return nil }
@@ -206,7 +208,7 @@ public class KeyManager: NSObject {
     /**
      * Decrypts the provided payload by a key id and initialization vector.
      */
-    public static func decryptPayload(id: String, iv: [UInt8], payload: [UInt8]) -> [UInt8]? {
+    public static func decryptPayload(id: String, payload: [UInt8]) -> [UInt8]? {
         guard let key = getSecretKey(id: id) else { return nil }
 
         guard let data = CFDataCreate(kCFAllocatorDefault, payload, payload.count) else {

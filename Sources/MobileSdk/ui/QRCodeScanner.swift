@@ -131,8 +131,7 @@ public struct QRCodeScanner: View {
 
     public var body: some View {
         ZStack(alignment: .top) {
-            GeometryReader {
-                let viewSize = $0.size
+            GeometryReader {_ in
                 let size = UIScreen.screenSize
                 ZStack {
                     CameraView(frameSize: CGSize(width: size.width, height: size.height), session: $session)

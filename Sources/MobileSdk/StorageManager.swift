@@ -1,7 +1,8 @@
 // File: Storage Manager
 //
-//    Store and retrieve sensitive data.  Data is stored in the Application Support directory of the app, encrypted in place
-// via the .completeFileProtection option, and marked as excluded from backups so it will not be included in iCloud backps.
+//    Store and retrieve sensitive data.  Data is stored in the Application Support directory of the app, encrypted in
+// place via the .completeFileProtection option, and marked as excluded from backups so it will not be included in
+// iCloud backps.
 
 //
 // Imports
@@ -18,8 +19,8 @@ import Foundation
 
 class StorageManager: NSObject {
    // Local-Method: path()
-   //    Get the path to the application support dir, appending the given file name to it.  We use the application support
-   // directory because its contents are not shared.
+   //    Get the path to the application support dir, appending the given file name to it.  We use the application
+   // support directory because its contents are not shared.
    //
    // Arguments:
    //    file - the name of the file
@@ -29,13 +30,13 @@ class StorageManager: NSObject {
 
    private func path(file: String) -> URL? {
       do {
-         //    Get the applications support dir, and tack the name of the thing we're storing on the end of it.  This does
-         // imply that `file` should be a valid filename.
+         //    Get the applications support dir, and tack the name of the thing we're storing on the end of it.
+         // This does imply that `file` should be a valid filename.
 
-         let asdir = try FileManager.default.url(for:            .applicationSupportDirectory,
-                                                 in:             .userDomainMask,
+         let asdir = try FileManager.default.url(for: .applicationSupportDirectory,
+                                                 in: .userDomainMask,
                                                  appropriateFor: nil,  // Ignored
-                                                 create:         true) // May not exist, make if necessary.
+                                                 create: true) // May not exist, make if necessary.
 
          return asdir.appendingPathComponent(file)
       } catch { // Did the attempt to get the application support dir fail?
@@ -80,8 +81,8 @@ class StorageManager: NSObject {
       guard let file = path(file: key) else { return nil }
 
       do {
-         let d = try Data(contentsOf: file)
-         return d
+         let data = try Data(contentsOf: file)
+         return data
       } catch {
          print("Failed to read '\(file)'.")
       }

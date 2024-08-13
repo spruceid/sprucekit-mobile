@@ -1,7 +1,8 @@
 // File: PlatformContext
 //
-//    Store and retrieve sensitive data.  Data is stored in the Application Support directory of the app, encrypted in place
-// via the .completeFileProtection option, and marked as excluded from backups so it will not be included in iCloud backps.
+//    Store and retrieve sensitive data.  Data is stored in the Application Support directory of the app, encrypted in
+// place via the .completeFileProtection option, and marked as excluded from backups so it will not be included in
+// iCloud backups.
 
 //
 // Imports

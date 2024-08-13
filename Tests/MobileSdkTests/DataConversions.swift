@@ -20,7 +20,9 @@ final class DataConversions: XCTestCase {
     let base64 = sampleData.base64EncodedUrlSafe
 
     // Generated independently
+    // swiftlint:disable line_length
     let expectedBase64String = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU2Nzg5Ky89K0FCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaMDEyMzQ1Njc4OSsvPQ"
+    // swiftlint:enable line_length
 
     XCTAssertEqual(base64, expectedBase64String)
   }

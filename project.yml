@@ -34,6 +34,7 @@ targets:
       path: Info.plist
       properties:
         NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
+        NSCameraUsageDescription: "QR Code Scanner"
     buildToolPlugins:
       - plugin: SwiftLintPlugin
         package: SwiftLint

@@ -6,7 +6,9 @@ Derived/
 DerivedData/
 .swiftpm/configuration/registries.json
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.swiftpm/xcode/xcshareddata/xcschemes/SpruceIDMobileSdk.xcscheme
 .netrc
-WalletSdk.xcodeproj
+MobileSdk.xcodeproj
 build/
 *~
+Info.plist
