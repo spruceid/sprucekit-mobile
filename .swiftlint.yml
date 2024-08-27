@@ -3,3 +3,6 @@ excluded:
 disabled_rules:
   - cyclomatic_complexity
   - todo
+  - file_length
+  - force_try
+  - non_optional_string_data_conversion

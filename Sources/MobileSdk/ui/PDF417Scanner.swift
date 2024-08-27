@@ -1,9 +1,9 @@
 import SwiftUI
 import AVKit
 
-public struct QRCodeScanner: View {
+public struct PDF417Scanner: View {
 
-    var metadataObjectTypes: [AVMetadataObject.ObjectType] = [.qr]
+    var metadataObjectTypes: [AVMetadataObject.ObjectType] = [.pdf417]
     var title: String
     var subtitle: String
     var cancelButtonLabel: String
@@ -12,7 +12,6 @@ public struct QRCodeScanner: View {
     var titleFont: Font?
     var subtitleFont: Font?
     var cancelButtonFont: Font?
-    var guidesColor: Color
     var readerColor: Color
     var textColor: Color
     var backgroundOpacity: Double
@@ -26,7 +25,6 @@ public struct QRCodeScanner: View {
         titleFont: Font? = nil,
         subtitleFont: Font? = nil,
         cancelButtonFont: Font? = nil,
-        guidesColor: Color = .white,
         readerColor: Color = .white,
         textColor: Color = .white,
         backgroundOpacity: Double = 0.75
@@ -39,17 +37,15 @@ public struct QRCodeScanner: View {
         self.titleFont = titleFont
         self.subtitleFont = subtitleFont
         self.cancelButtonFont = cancelButtonFont
-        self.guidesColor = guidesColor
         self.readerColor = readerColor
         self.textColor = textColor
         self.backgroundOpacity = backgroundOpacity
-
     }
 
     func calculateRegionOfInterest() -> CGSize {
         let size = UIScreen.screenSize
 
-        return CGSize(width: size.width * 0.6, height: size.width * 0.6)
+        return CGSize(width: size.width * 0.8, height: size.width * 0.4)
     }
 
     public var body: some View {
@@ -66,21 +62,7 @@ public struct QRCodeScanner: View {
             readerColor: readerColor,
             textColor: textColor,
             backgroundOpacity: backgroundOpacity,
-            regionOfInterest: calculateRegionOfInterest(),
-            scannerGuides: ForEach(0...4, id: \.self) { index in
-                                let rotation = Double(index) * 90
-                                RoundedRectangle(cornerRadius: 2, style: .circular)
-                                    .trim(from: 0.61, to: 0.64)
-                                    .stroke(
-                                        guidesColor,
-                                        style: StrokeStyle(
-                                            lineWidth: 5,
-                                            lineCap: .round,
-                                            lineJoin: .round
-                                            )
-                                        )
-                                    .rotationEffect(.init(degrees: rotation))
-                            }
+            regionOfInterest: calculateRegionOfInterest()
         )
     }
 }
