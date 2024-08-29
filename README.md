@@ -9,10 +9,6 @@ only. We welcome feedback on the usability, architecture, and security of this
 implementation and are committed to a conducting a formal audit with a reputable
 security firm before the v1.0 release.
 
-## Setup
-
-The XCode project is generated using `xcodgen`.
-
 ## Architecture
 
 Our Mobile SDKs use shared code, with most of the logic being written once in
@@ -41,3 +37,7 @@ called in native SDKs.
 ## Configuring Deep Links for same device flows
 
 Click [here](./Sources/MobileSdk/ui/SameDeviceOID4VP.md) to see how to configure the same device OpenID4VP flow.
+
+## Contributing
+
+See [CONTRIBUTING.md](/CONTRIBUTING.md).
