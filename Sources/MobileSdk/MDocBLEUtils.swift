@@ -1,4 +1,5 @@
 import CoreBluetooth
+import SpruceIDMobileSdkRs
 
 let holderStateCharacteristicId = CBUUID(string: "00000001-A123-48CE-896B-4C76973373E6")
 let holderClient2ServerCharacteristicId = CBUUID(string: "00000002-A123-48CE-896B-4C76973373E6")
@@ -18,6 +19,13 @@ enum MdocHolderBleError {
     case bluetooth(CBCentralManager)
 }
 
+enum MdocReaderBleError {
+    /// When communication with the server fails
+    case server(String)
+    /// When Bluetooth is unusable (e.g. unauthorized).
+    case bluetooth(CBCentralManager)
+}
+
 enum MDocBLECallback {
     case done
     case connected
@@ -29,4 +37,17 @@ enum MDocBLECallback {
 
 protocol MDocBLEDelegate: AnyObject {
     func callback(message: MDocBLECallback)
+}
+
+enum MDocReaderBLECallback {
+    case done([String: [String: MDocItem]])
+    case connected
+    case error(MdocReaderBleError)
+    case message(Data)
+    /// Chunks received so far
+    case downloadProgress(Int)
+}
+
+protocol MDocReaderBLEDelegate: AnyObject {
+    func callback(message: MDocReaderBLECallback)
 }

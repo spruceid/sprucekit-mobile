@@ -14,8 +14,7 @@ let package = Package(
             targets: ["SpruceIDMobileSdk"])
     ],
     dependencies: [
-        // .package(url: "https://github.com/spruceid/mobile-sdk-rs.git", .branch("main")),
-        .package(url: "https://github.com/spruceid/mobile-sdk-rs.git", from: "0.0.28"),
+        .package(url: "https://github.com/spruceid/mobile-sdk-rs.git", from: "0.0.29"),
         // .package(path: "../mobile-sdk-rs"),
         .package(url: "https://github.com/apple/swift-algorithms", from: "1.2.0")
     ],

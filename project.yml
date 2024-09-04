@@ -4,7 +4,8 @@ options:
 packages:
   SpruceIDMobileSdkRs:
     url: https://github.com/spruceid/mobile-sdk-rs
-    from: 0.0.27
+    revision: "820008ddd0e20c1c286d49e83967ef9362745902"
+    # from: 0.0.27
     # path: "../mobile-sdk-rs"
   SwiftAlgorithms:
     url: https://github.com/apple/swift-algorithms
@@ -20,7 +21,7 @@ targets:
   MobileSdk:
     type: library.dynamic
     platform: iOS
-    deploymentTarget: "13.0"
+    deploymentTarget: "14.0"
     sources:
       - Sources
     dependencies:

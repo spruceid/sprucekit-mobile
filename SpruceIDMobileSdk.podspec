@@ -14,7 +14,7 @@ Pod::Spec.new do |spec|
   spec.platform     = :ios
   spec.swift_version = '5.9'
 
-  spec.ios.deployment_target  = '13.0'
+  spec.ios.deployment_target  = '14.0'
 
   spec.source        = { :git => "https://github.com/spruceid/mobile-sdk-swift.git", :tag => "#{spec.version}" }
   spec.source_files  = "Sources/MobileSdk/*.swift"

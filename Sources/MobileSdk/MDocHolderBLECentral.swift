@@ -189,6 +189,7 @@ class MDocHolderBLECentral: NSObject {
                 case let .some(byte):
                     throw DataError.unknownDataTransferPrefix(byte: byte)
                 }
+            // Looks like this should just happen after discovering characteristics
             case readerIdentCharacteristicId:
                 self.peripheral?.setNotifyValue(true, for: self.readCharacteristic!)
                 self.peripheral?.setNotifyValue(true, for: self.stateCharacteristic!)
