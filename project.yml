@@ -4,7 +4,8 @@ options:
 packages:
   SpruceIDMobileSdk:
     url: https://github.com/spruceid/mobile-sdk-swift
-    from: 0.0.9
+    # from: 0.0.9
+    revision: 8b80370
     # path: "../mobile-sdk-swift"
 settings:
   ENABLE_USER_SCRIPT_SANDBOXING: YES
