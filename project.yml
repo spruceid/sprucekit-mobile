@@ -4,7 +4,7 @@ options:
 packages:
   SpruceIDMobileSdk:
     url: https://github.com/spruceid/mobile-sdk-swift
-    # from: 0.0.9
+    # from: 0.0.10
     revision: 8b80370
     # path: "../mobile-sdk-swift"
 settings:
@@ -17,7 +17,7 @@ targets:
     type: application
     supportedDestinations: [iOS]
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "16.4"
     sources:
       - path: "Targets/App/Sources"
         createIntermediateGroups: true
@@ -35,7 +35,7 @@ targets:
         CFBundleIconName: "AppIcon"
         CFBundlePackageType: "APPL"
         NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
-        NSCameraUsageDescription: "Secure transmission of mobile DL data"
+        NSCameraUsageDescription: "We need to access your camera for scanning"
         ITSAppUsesNonExemptEncryption: "NO"
         LSRequiresIPhoneOS: true
         UIApplicationSceneManifest:
@@ -46,9 +46,26 @@ targets:
           - armv7
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationPortraitUpsideDown
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
+        UIUserInterfaceStyle: "Light"
+        UIAppFonts:
+          - Inter-Black.ttf
+          - Inter-BlackItalic.ttf
+          - Inter-Bold.ttf
+          - Inter-BoldItalic.ttf
+          - Inter-ExtraBold.ttf
+          - Inter-ExtraBoldItalic.ttf
+          - Inter-ExtraLight.ttf
+          - Inter-ExtraLightItalic.ttf
+          - Inter-Italic.ttf
+          - Inter-Light.ttf
+          - Inter-LightItalic.ttf
+          - Inter-Medium.ttf
+          - Inter-MediumItalic.ttf
+          - Inter-Regular.ttf
+          - Inter-Semibold.ttf
+          - Inter-SemiboldItalic.ttf
+          - Inter-Thin.ttf
+          - Inter-ThinItalic.ttf
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.spruceid.mobile
@@ -56,7 +73,7 @@ targets:
     type: framework
     supportedDestinations: [iOS]
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "16.4"
     sources:
       - path: "Targets/AppAppKit/Sources"
         createIntermediateGroups: true
@@ -68,7 +85,7 @@ targets:
     type: bundle.unit-test
     supportedDestinations: [iOS]
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "16.4"
     sources:
       - path: "Targets/AppAppKit/Tests"
         createIntermediateGroups: true
@@ -82,7 +99,7 @@ targets:
     type: framework
     supportedDestinations: [iOS]
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "16.4"
     sources:
       - path: "Targets/AppUIKit/Sources"
         createIntermediateGroups: true
@@ -96,7 +113,7 @@ targets:
     type: bundle.unit-test
     supportedDestinations: [iOS]
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "16.4"
     sources:
       - path: "Targets/AppUIKit/Tests"
         createIntermediateGroups: true
