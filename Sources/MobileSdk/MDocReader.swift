@@ -88,6 +88,7 @@ public enum BleReaderSessionError {
 
     init(readerBleError: MdocReaderBleError) {
         switch readerBleError {
+
         case .server(let string):
             self = .server(string)
         case .bluetooth(let string):

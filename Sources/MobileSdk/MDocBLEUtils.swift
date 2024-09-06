@@ -51,3 +51,66 @@ enum MDocReaderBLECallback {
 protocol MDocReaderBLEDelegate: AnyObject {
     func callback(message: MDocReaderBLECallback)
 }
+
+/// Return a string describing a BLE characteristic property.
+func MDocCharacteristicPropertyName(_ prop: CBCharacteristicProperties) -> String {
+    return switch prop {
+    case .broadcast: "broadcast"
+    case .read: "read"
+    case .writeWithoutResponse: "write without response"
+    case .write: "write"
+    case .notify: "notify"
+    case .indicate: "indicate"
+    case .authenticatedSignedWrites: "authenticated signed writes"
+    case .extendedProperties: "extended properties"
+    case .notifyEncryptionRequired: "notify encryption required"
+    case .indicateEncryptionRequired: "indicate encryption required"
+    default: "unknown property"
+    }
+}
+
+/// Return a string describing a BLE characteristic.
+func MDocCharacteristicName(_ chr: CBCharacteristic) -> String {
+    return MDocCharacteristicNameFromUUID(chr.uuid)
+}
+
+/// Return a string describing a BLE characteristic given its UUID.
+func MDocCharacteristicNameFromUUID(_ chr: CBUUID) -> String {
+    return switch chr {
+    case holderStateCharacteristicId: "Holder:State"
+    case holderClient2ServerCharacteristicId: "Holder:Client2Server"
+    case holderServer2ClientCharacteristicId: "Holder:Server2Client"
+    case holderL2CAPCharacteristicId: "Holder:L2CAP"
+    case readerStateCharacteristicId: "Reader:State"
+    case readerClient2ServerCharacteristicId: "Reader:Client2Server"
+    case readerServer2ClientCharacteristicId: "Reader:Server2Client"
+    case readerIdentCharacteristicId: "Reader:Ident"
+    case readerL2CAPCharacteristicId: "Reader:L2CAP"
+    default: "Unknown:\(chr)"
+    }
+}
+
+/// Print a description of a BLE characteristic.
+func MDocDesribeCharacteristic(_ chr: CBCharacteristic) {
+    print("        \(MDocCharacteristicName(chr)) ( ", terminator: "")
+
+    if chr.properties.contains(.broadcast) { print("broadcast", terminator: " ") }
+    if chr.properties.contains(.read) { print("read", terminator: " ") }
+    if chr.properties.contains(.writeWithoutResponse) { print("writeWithoutResponse", terminator: " ") }
+    if chr.properties.contains(.write) { print("write", terminator: " ") }
+    if chr.properties.contains(.notify) { print("notify", terminator: " ") }
+    if chr.properties.contains(.indicate) { print("indicate", terminator: " ") }
+    if chr.properties.contains(.authenticatedSignedWrites) { print("authenticatedSignedWrites", terminator: " ") }
+    if chr.properties.contains(.extendedProperties) { print("extendedProperties", terminator: " ") }
+    if chr.properties.contains(.notifyEncryptionRequired) { print("notifyEncryptionRequired", terminator: " ") }
+    if chr.properties.contains(.indicateEncryptionRequired) { print("indicateEncryptionRequired", terminator: " ") }
+    print(")")
+
+    if let descriptors = chr.descriptors {
+        for desc in descriptors {
+            print("          : \(desc.uuid)")
+        }
+    } else {
+        print("          <no descriptors>")
+    }
+}

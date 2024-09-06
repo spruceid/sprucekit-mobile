@@ -43,16 +43,20 @@ public class BLESessionManager {
     var sessionManager: SessionManager?
     var mdoc: MDoc
     var bleManager: MDocHolderBLECentral!
+    var useL2CAP: Bool
 
-    init?(mdoc: MDoc, engagement: DeviceEngagement, callback: BLESessionStateDelegate) {
+    init?(mdoc: MDoc, engagement: DeviceEngagement, callback: BLESessionStateDelegate, useL2CAP: Bool) {
         self.callback = callback
         self.uuid = UUID()
         self.mdoc = mdoc
+        self.useL2CAP = useL2CAP
         do {
             let sessionData = try SpruceIDMobileSdkRs.initialiseSession(document: mdoc.inner,
                                                                         uuid: self.uuid.uuidString)
             self.state = sessionData.state
-            bleManager = MDocHolderBLECentral(callback: self, serviceUuid: CBUUID(nsuuid: self.uuid))
+            bleManager = MDocHolderBLECentral(callback: self,
+                                              serviceUuid: CBUUID(nsuuid: self.uuid),
+                                              useL2CAP: useL2CAP)
             self.callback.update(state: .engagingQRCode(sessionData.qrCodeUri.data(using: .ascii)!))
         } catch {
             print("\(error)")
