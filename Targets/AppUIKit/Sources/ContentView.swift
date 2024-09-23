@@ -28,6 +28,9 @@ public struct ContentView: View {
                     .navigationDestination(for: VerifyMDoc.self) { _ in
                         VerifyMDocView(path: $path)
                     }
+                    .navigationDestination(for: VerifierSettingsHome.self) { _ in
+                        VerifierSettingsHomeView(path: $path)
+                    }
             }
 
         }

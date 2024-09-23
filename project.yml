@@ -7,6 +7,10 @@ packages:
     # from: 0.0.10
     revision: 8b80370
     # path: "../mobile-sdk-swift"
+  SQLite:
+    url: https://github.com/stephencelis/SQLite.swift.git
+    revision: a95fc6df17d108bd99210db5e8a9bac90fe984b8
+    version: 0.15.3
 settings:
   ENABLE_USER_SCRIPT_SANDBOXING: YES
   ENABLE_MODULE_VERIFIER: YES
@@ -105,6 +109,7 @@ targets:
         createIntermediateGroups: true
     dependencies:
       - package: SpruceIDMobileSdk
+      - package: SQLite
     settings:
       base:
         INFOPLIST_FILE: Info.plist

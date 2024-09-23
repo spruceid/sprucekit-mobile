@@ -5,13 +5,16 @@ struct VerifierHomeView: View {
 
     var body: some View {
         VStack {
-            VerifierHomeHeader()
+            VerifierHomeHeader(path: $path)
             VerifierHomeBody(path: $path)
         }
+        .navigationBarBackButtonHidden(true)
     }
 }
 
 struct VerifierHomeHeader: View {
+    @Binding var path: NavigationPath
+
     var body: some View {
         HStack {
             Text("Spruce Verifier")
@@ -19,17 +22,17 @@ struct VerifierHomeHeader: View {
                 .padding(.leading, 36)
                 .foregroundStyle(Color("TextHeader"))
             Spacer()
-//            Button {
-//                // TODO
-//            } label: {
-//                ZStack {
-//                    RoundedRectangle(cornerRadius: 8)
-//                        .foregroundColor(Color("Primary"))
-//                        .frame(width: 36, height: 36)
-//                    Image("User")
-//                }
-//            }
-//            .padding(.trailing, 20)
+            Button {
+                path.append(VerifierSettingsHome())
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .foregroundColor(Color("Primary"))
+                        .frame(width: 36, height: 36)
+                    Image("User")
+                }
+            }
+            .padding(.trailing, 20)
         }
         .padding(.top, 10)
     }
@@ -89,7 +92,6 @@ struct VerifierHomeBody: View {
 
             }
         .padding(.all, 24)
-        .navigationBarBackButtonHidden(true)
     }
 }
 

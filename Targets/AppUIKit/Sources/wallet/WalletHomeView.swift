@@ -8,6 +8,7 @@ struct WalletHomeView: View {
             WalletHomeHeader()
             WalletHomeBody(path: $path)
         }
+        .navigationBarBackButtonHidden(true)
     }
 }
 
@@ -75,7 +76,6 @@ struct WalletHomeBody: View {
 //                }
 //            }
         }
-        .navigationBarBackButtonHidden(true)
     }
 }
 
