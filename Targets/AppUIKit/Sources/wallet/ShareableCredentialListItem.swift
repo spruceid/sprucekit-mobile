@@ -74,7 +74,7 @@ struct ShareableCredentialListItem: View {
 }
 
 struct ShareableCredentialListItemQRCode: View {
-    let credentials: [Credential]
+    let credentials: [SpruceIDMobileSdk.Credential]
     @State private var showingQRCode = false
 
     var body: some View {

@@ -5,7 +5,7 @@ struct WalletHomeView: View {
 
     var body: some View {
         VStack {
-            WalletHomeHeader()
+            WalletHomeHeader(path: $path)
             WalletHomeBody(path: $path)
         }
         .navigationBarBackButtonHidden(true)
@@ -13,6 +13,8 @@ struct WalletHomeView: View {
 }
 
 struct WalletHomeHeader: View {
+    @Binding var path: NavigationPath
+
     var body: some View {
         HStack {
             Text("Spruce Wallet")
@@ -20,17 +22,17 @@ struct WalletHomeHeader: View {
                 .padding(.leading, 36)
                 .foregroundStyle(Color("TextHeader"))
             Spacer()
-//            Button {
-//                // TODO
-//            } label: {
-//                ZStack {
-//                    RoundedRectangle(cornerRadius: 8)
-//                        .foregroundColor(Color("Primary"))
-//                        .frame(width: 36, height: 36)
-//                    Image("User")
-//                }
-//            }
-//            .padding(.trailing, 20)
+            Button {
+                path.append(WalletSettingsHome())
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .foregroundColor(Color("Primary"))
+                        .frame(width: 36, height: 36)
+                    Image("User")
+                }
+            }
+            .padding(.trailing, 20)
         }
         .padding(.top, 10)
     }
@@ -38,11 +40,16 @@ struct WalletHomeHeader: View {
 
 struct WalletHomeBody: View {
     @Binding var path: NavigationPath
+    
+    @State var credentials: [Credential] = []
 
     var body: some View {
         ZStack {
             ScrollView(.vertical, showsIndicators: false) {
                 Section {
+                    ForEach(credentials, id: \.self.id) { credential in
+                        AchievementCredentialItem(rawCredential: credential.rawCredential)
+                    }
                     ForEach(vcs, id: \.self) { vc in
                         GenericCredentialListItem(vc: vc)
                     }
@@ -76,6 +83,9 @@ struct WalletHomeBody: View {
 //                }
 //            }
         }
+        .onAppear(perform: {
+            self.credentials = CredentialDataStore.shared.getAllCredentials()
+        })
     }
 }
 

@@ -8,12 +8,12 @@ class VerificationActivityLogDataStore {
 
     private let verificationActivityLogs = Table("verification_activity_logs")
 
-    private let id = Expression<Int64>("id")
-    private let name = Expression<String>("name")
-    private let credentialTitle = Expression<String>("credential_title")
-    private let expirationDate = Expression<Date>("expiration_date")
-    private let status = Expression<String>("status")
-    private let date = Expression<Date>("date")
+    private let id = SQLite.Expression<Int64>("id")
+    private let name = SQLite.Expression<String>("name")
+    private let credentialTitle = SQLite.Expression<String>("credential_title")
+    private let expirationDate = SQLite.Expression<Date>("expiration_date")
+    private let status = SQLite.Expression<String>("status")
+    private let date = SQLite.Expression<Date>("date")
 
     static let shared = VerificationActivityLogDataStore()
 

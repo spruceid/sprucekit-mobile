@@ -21,7 +21,7 @@ public struct QRSheetView: View {
     @State var proceed = true
     @StateObject var delegate: ShareViewDelegate
 
-    init(credentials: [Credential]) {
+    init(credentials: [SpruceIDMobileSdk.Credential]) {
         let credentialStore = CredentialStore(credentials: credentials)
         self.credentials = credentialStore
         self._delegate = StateObject(wrappedValue: ShareViewDelegate(credentials: credentialStore))

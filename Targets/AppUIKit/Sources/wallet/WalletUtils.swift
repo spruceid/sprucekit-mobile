@@ -40,3 +40,28 @@ func generateMDoc() -> MDoc? {
         return nil
     }
 }
+
+func getGenericJSON(jsonString: String) -> GenericJSON? {
+    if let data = jsonString.data(using: .utf8) {
+        do {
+            return try JSONDecoder().decode(GenericJSON.self, from: data)
+        } catch let error as NSError {
+            print(error)
+        }
+    }
+    return nil
+}
+
+extension String {
+
+    func camelCaseToWords() -> String {
+        return unicodeScalars.reduce("") {
+            if CharacterSet.uppercaseLetters.contains($1) {
+                if $0.count > 0 {
+                    return ($0 + " " + String($1))
+                }
+            }
+            return $0 + String($1)
+        }
+    }
+}

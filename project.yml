@@ -5,7 +5,7 @@ packages:
   SpruceIDMobileSdk:
     url: https://github.com/spruceid/mobile-sdk-swift
     # from: 0.0.10
-    revision: 8b80370
+    revision: 379b4a3d4550df6ab9da0e5be3406d8021dcd253
     # path: "../mobile-sdk-swift"
   SQLite:
     url: https://github.com/stephencelis/SQLite.swift.git
@@ -38,6 +38,15 @@ targets:
         CFBundleDisplayName: "SpruceKit Reference App"
         CFBundleIconName: "AppIcon"
         CFBundlePackageType: "APPL"
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: OID4VP
+            CFBundleURLSchemes:
+              - openid4vp
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: SPRUCEID
+            CFBundleURLSchemes:
+              - spruceid
         NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
         NSCameraUsageDescription: "We need to access your camera for scanning"
         ITSAppUsesNonExemptEncryption: "NO"

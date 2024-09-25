@@ -4,6 +4,18 @@ public struct ContentView: View {
     @State var path: NavigationPath = .init()
 
     public init() {}
+    
+    func handleSpruceIDUrl(url: URL, path: String?, query: String?) {
+        if(query != nil) {
+            self.path.append(
+                AddToWallet(rawCredential: query!.replacingOccurrences(of: "sd-jwt=", with: ""))
+            )
+        }
+    }
+    
+    func handleOid4vpUrl(url: URL, path: String?, query: String?) {
+        // @TODO: integrate with OID4VP flow
+    }
 
     public var body: some View {
         ZStack {
@@ -31,8 +43,30 @@ public struct ContentView: View {
                     .navigationDestination(for: VerifierSettingsHome.self) { _ in
                         VerifierSettingsHomeView(path: $path)
                     }
+                    .navigationDestination(for: WalletSettingsHome.self) { _ in
+                        WalletSettingsHomeView(path: $path)
+                    }
+                    .navigationDestination(for: AddToWallet.self) { addToWalletParams in
+                        AddToWalletView(
+                            path: $path,
+                            rawCredential: addToWalletParams.rawCredential
+                        )
+                    }
             }
-
+        }
+        .onOpenURL { url in
+            let scheme = url.scheme
+            let path = url.path
+            let query = url.query
+            
+            switch scheme {
+            case "spruceid":
+                handleSpruceIDUrl(url: url, path: path, query: query)
+            case "oid4vp":
+                handleOid4vpUrl(url: url, path: path, query: query)
+            default:
+                return
+            }
         }
     }
 }

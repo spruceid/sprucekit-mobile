@@ -28,16 +28,16 @@ struct VerificationActivityLogView: View {
                 Image("Export")
                     .resizable()
                     .frame(width: CGFloat(18), height: CGFloat(18))
-                    .foregroundColor(Color("CTAButton"))
+                    .foregroundColor(Color("CTAButtonBlue"))
                 Text("Export")
                     .font(.customFont(font: .inter, style: .medium, size: .h4))
             }
-            .foregroundColor(Color("CTAButton"))
+            .foregroundColor(Color("CTAButtonBlue"))
             .padding(.vertical, 13)
             .frame(width: UIScreen.screenWidth - 40)
             .overlay(
                 RoundedRectangle(cornerRadius: 100)
-                    .stroke(Color("CTAButton"), lineWidth: 2)
+                    .stroke(Color("CTAButtonBlue"), lineWidth: 2)
             )
         }
     }
