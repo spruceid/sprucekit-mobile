@@ -6,4 +6,5 @@ To generate the XCode project for this:
 - run `xcodegen` at the project root with no arguments
 
 ## Publish to TestFlight
-Push a tag in the format `x.y.z`.
+- Ensure version is bumped in `project.yml` in the format `x.y.z`
+- Push a tag in the format `x.y.z` (same version used on `project.yml`).
