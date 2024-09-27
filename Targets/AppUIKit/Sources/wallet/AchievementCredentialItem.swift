@@ -33,7 +33,7 @@ struct AchievementCredentialItem: View {
     
     @ViewBuilder
     public var listComponent: some View {
-        let achievementName = credential?.dictValue?["achievement"]?.dictValue?["name"]?.toString() ?? ""
+        let achievementName = credential?["name"]?.toString() ?? ""
         let issuerName = credential?.dictValue?["issuer"]?.dictValue?["name"]?.toString() ?? ""
         
         HStack {

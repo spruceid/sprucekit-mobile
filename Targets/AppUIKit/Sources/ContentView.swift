@@ -5,15 +5,22 @@ public struct ContentView: View {
 
     public init() {}
     
-    func handleSpruceIDUrl(url: URL, path: String?, query: String?) {
+    func handleSpruceIDUrl(url: URL) {
+        let query = URLComponents(string: url.absoluteString)?
+            .queryItems?
+            .first(
+                where: {
+                    $0.name == "sd-jwt"
+                }
+            )?.value
         if(query != nil) {
             self.path.append(
-                AddToWallet(rawCredential: query!.replacingOccurrences(of: "sd-jwt=", with: ""))
+                AddToWallet(rawCredential: query!)
             )
         }
     }
     
-    func handleOid4vpUrl(url: URL, path: String?, query: String?) {
+    func handleOid4vpUrl(url: URL) {
         // @TODO: integrate with OID4VP flow
     }
 
@@ -56,14 +63,12 @@ public struct ContentView: View {
         }
         .onOpenURL { url in
             let scheme = url.scheme
-            let path = url.path
-            let query = url.query
             
             switch scheme {
             case "spruceid":
-                handleSpruceIDUrl(url: url, path: path, query: query)
+                handleSpruceIDUrl(url: url)
             case "oid4vp":
-                handleOid4vpUrl(url: url, path: path, query: query)
+                handleOid4vpUrl(url: url)
             default:
                 return
             }

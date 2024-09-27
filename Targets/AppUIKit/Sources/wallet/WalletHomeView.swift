@@ -50,10 +50,10 @@ struct WalletHomeBody: View {
                     ForEach(credentials, id: \.self.id) { credential in
                         AchievementCredentialItem(rawCredential: credential.rawCredential)
                     }
-                    ForEach(vcs, id: \.self) { vc in
-                        GenericCredentialListItem(vc: vc)
-                    }
-                    ShareableCredentialListItem(mdoc: mdocBase64)
+//                    ForEach(vcs, id: \.self) { vc in
+//                        GenericCredentialListItem(vc: vc)
+//                    }
+//                    ShareableCredentialListItem(mdoc: mdocBase64)
                 }
                 .padding(.bottom, 50)
             }

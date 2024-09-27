@@ -59,6 +59,7 @@ targets:
           - armv7
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        UIRequiresFullScreen: true
         UIUserInterfaceStyle: "Light"
         UIAppFonts:
           - Inter-Black.ttf
