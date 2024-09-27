@@ -45,17 +45,27 @@ struct WalletHomeBody: View {
 
     var body: some View {
         ZStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                Section {
-                    ForEach(credentials, id: \.self.id) { credential in
-                        AchievementCredentialItem(rawCredential: credential.rawCredential)
+            if(!credentials.isEmpty) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    Section {
+                        ForEach(credentials, id: \.self.id) { credential in
+                            AchievementCredentialItem(rawCredential: credential.rawCredential)
+                        }
+                        //                    ForEach(vcs, id: \.self) { vc in
+                        //                        GenericCredentialListItem(vc: vc)
+                        //                    }
+                        //                    ShareableCredentialListItem(mdoc: mdocBase64)
                     }
-//                    ForEach(vcs, id: \.self) { vc in
-//                        GenericCredentialListItem(vc: vc)
-//                    }
-//                    ShareableCredentialListItem(mdoc: mdocBase64)
+                    .padding(.bottom, 50)
                 }
-                .padding(.bottom, 50)
+            } else {
+                VStack {
+                    Spacer()
+                    Section {
+                        Image("EmptyWallet")
+                    }
+                    Spacer()
+                }
             }
 //            VStack {
 //                Spacer()
