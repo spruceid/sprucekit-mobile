@@ -35,7 +35,7 @@ targets:
       properties:
         CFBundleVersion: "0.0.3"
         CFBundleShortVersionString: "0.0.3"
-        CFBundleDisplayName: "SpruceKit Reference App"
+        CFBundleDisplayName: "SpruceKit"
         CFBundleIconName: "AppIcon"
         CFBundlePackageType: "APPL"
         CFBundleURLTypes:

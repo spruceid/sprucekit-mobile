@@ -4,8 +4,10 @@ import SpruceIDMobileSdkRs
 
 struct AchievementCredentialItem: View {
     var credential: GenericJSON?
+    var onDelete: (() -> Void)?
     
     @State var sheetOpen: Bool = false
+    @State var optionsOpen: Bool = false
     
     let isoDateFormatter = ISO8601DateFormatter()
     
@@ -18,50 +20,116 @@ struct AchievementCredentialItem: View {
         return dtFormatter
     }()
     
-    init(credential: GenericJSON?) {
+    init(credential: GenericJSON?, onDelete: (() -> Void)? = nil) {
         self.credential = credential
+        self.onDelete = onDelete
     }
     
-    init(rawCredential: String) {
+    init(rawCredential: String, onDelete: (() -> Void)? = nil) {
         do {
             let res = try decodeRevealSdJwt(input: rawCredential)
             self.credential = getGenericJSON(jsonString: res)
         } catch {
             print(error)
         }
+        self.onDelete = onDelete
+    }
+    
+    @ViewBuilder
+    private var listComponentTitleWithOptions: some View {
+
+        let achievementName = credential?["name"]?.toString() ?? ""
+        
+        // Title
+        VStack(alignment: .leading) {
+            HStack {
+                Spacer()
+                Image("ThreeDotsHorizontal")
+                    .frame(height: 12)
+                    .onTapGesture {
+                        optionsOpen = true
+                    }
+            }
+            Text(achievementName)
+                .font(.customFont(font: .inter, style: .semiBold, size: .h2))
+                .foregroundStyle(Color("TextHeader"))
+        }
+        .padding(.leading, 12)
+        .confirmationDialog(
+            Text("Credential Options"),
+            isPresented: $optionsOpen,
+            titleVisibility: .visible,
+            actions: {
+                if(onDelete != nil) {
+                    Button("Delete", role: .destructive) { onDelete?() }
+                }
+                Button("Cancel", role: .cancel) { }
+            }
+        )
+    }
+    
+    @ViewBuilder
+    private var listComponentTitle: some View {
+        let achievementName = credential?["name"]?.toString() ?? ""
+
+        // Title
+        VStack(alignment: .leading) {
+            Text(achievementName)
+                .font(.customFont(font: .inter, style: .semiBold, size: .h2))
+                .foregroundStyle(Color("TextHeader"))
+        }
+        .padding(.leading, 12)
+    }
+    
+    @ViewBuilder
+    private var listComponentDescription: some View {
+        let issuerName = credential?.dictValue?["issuer"]?.dictValue?["name"]?.toString() ?? ""
+
+        // Description
+        VStack(alignment: .leading) {
+            Text(issuerName)
+                .font(.customFont(font: .inter, style: .regular, size: .p))
+                .foregroundStyle(Color("TextBody"))
+                .padding(.top, 6)
+            Spacer()
+            HStack {
+                Image("Valid")
+                Text("Valid")
+                    .font(.customFont(font: .inter, style: .medium, size: .p))
+                    .foregroundStyle(Color("GreenValid"))
+            }
+        }
+        .padding(.leading, 12)
     }
     
     @ViewBuilder
     public var listComponent: some View {
-        let achievementName = credential?["name"]?.toString() ?? ""
-        let issuerName = credential?.dictValue?["issuer"]?.dictValue?["name"]?.toString() ?? ""
-        
         HStack {
             // Leading icon
-            // TODO
             VStack(alignment: .leading) {
-                // Title
-                VStack(alignment: .leading) {
-                    Text(achievementName)
-                        .font(.customFont(font: .inter, style: .semiBold, size: .h2))
-                        .foregroundStyle(Color("TextHeader"))
-                }
-                .padding(.leading, 12)
-                // Description
-                VStack(alignment: .leading) {
-                    Text(issuerName)
-                        .font(.customFont(font: .inter, style: .regular, size: .p))
-                        .foregroundStyle(Color("TextBody"))
-                        .padding(.top, 6)
-                    Spacer()
-                    HStack {
-                        Image("Valid")
-                        Text("Valid")
-                            .font(.customFont(font: .inter, style: .medium, size: .p))
-                            .foregroundStyle(Color("GreenValid"))
-                    }
-                }
-                .padding(.leading, 12)
+                listComponentTitle
+                listComponentDescription
+            }
+            Spacer()
+            // Trailing action button
+        }
+        .frame(height: 100)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color("CredentialBorder"), lineWidth: 1)
+        )
+        .padding(.all, 12)
+    }
+    
+    @ViewBuilder
+    public var listComponentWithOptions: some View {
+        HStack {
+            // Leading icon
+            VStack(alignment: .leading) {
+                listComponentTitleWithOptions
+                listComponentDescription
             }
             Spacer()
             // Trailing action button
@@ -118,7 +186,7 @@ struct AchievementCredentialItem: View {
     
     
     var body: some View {
-        listComponent
+        listComponentWithOptions
             .onTapGesture {
                 sheetOpen = true
             }
