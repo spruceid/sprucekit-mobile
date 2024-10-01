@@ -187,10 +187,10 @@ class MDocHolderBLECentral: NSObject {
         }
     }
 
-    func disconnectFromDevice() {
+    func disconnectFromDevice(session: MdlPresentationSession) {
         let message: Data
         do {
-            message = try terminateSession()
+            message = try session.terminateSession()
         } catch {
             print("\(error)")
             message = Data([0x02])

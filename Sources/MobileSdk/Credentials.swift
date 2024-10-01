@@ -12,12 +12,12 @@ public class CredentialStore {
                                callback: BLESessionStateDelegate,
                                useL2CAP: Bool = true
                                // , trustedReaders: TrustedReaders
-    ) -> BLESessionManager? {
+    ) async -> IsoMdlPresentation? {
         if let firstMdoc = self.credentials.first(where: {$0 is MDoc}) {
-            return BLESessionManager(mdoc: firstMdoc as! MDoc,
+            return await IsoMdlPresentation(mdoc: firstMdoc as! MDoc,
                                      engagement: DeviceEngagement.QRCode,
                                      callback: callback,
-                                     useL2CAP: useL2CAP)
+                                      useL2CAP: useL2CAP)
         } else {
             return nil
         }
