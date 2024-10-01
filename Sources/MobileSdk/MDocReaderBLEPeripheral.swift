@@ -113,16 +113,48 @@ class MDocReaderBLEPeripheral: NSObject {
             /// L2CAP flow.
             case .l2capRead: // We have a read on our L2CAP characteristic, start L2CAP flow.
                 machineState = .l2capAwaitChannelPublished
-                peripheralManager.publishL2CAPChannel(withEncryption: true)
+
+                // Setting the encryption flag here appears to break at least some Android devices; if `withEncryption`
+                // is set, when the Android device calls `.connect()` on the socket it throws a "resource not
+                // available" exception.  The data is already encrypted, so I'm setting it to false, and making Android
+                // recover from the exception and fall back to the old flow if necessary as well.  Support code for
+                // failover is in the next two states, below.
+
+                peripheralManager.publishL2CAPChannel(withEncryption: false)
                 update = true
 
             case .l2capAwaitChannelPublished:
                 if machinePendingState == .l2capChannelPublished {
                     machineState = machinePendingState
+                } else if machinePendingState == .stateSubscribed {
+
+                    // Failover case for Android; we could get this here, or in the published state.  Android devices
+                    // may be unable to connect() on an L2CAP socket (see the comment in .l2capRead, above), and if
+                    // they do they "switch tracks" to the old flow.  We need to notice that's happened and support
+                    // it here.
+
+                    print("Failover to non-L2CAP flow.")
+
+                    if let psm = channelPSM {
+                        peripheralManager.unpublishL2CAPChannel(psm)
+                    }
+                    machineState = machinePendingState
+                    update = true
                 }
 
             case .l2capChannelPublished:
                 if machinePendingState == .l2capStreamOpen {
+                    machineState = machinePendingState
+                    update = true
+                } else if machinePendingState == .stateSubscribed {
+
+                    // See the comments in .l2capRead and .l2capAwaitChannelPublished, above.
+
+                    print("Failover to non-L2CAP flow.")
+
+                    if let psm = channelPSM {
+                        peripheralManager.unpublishL2CAPChannel(psm)
+                    }
                     machineState = machinePendingState
                     update = true
                 }
@@ -223,7 +255,7 @@ class MDocReaderBLEPeripheral: NSObject {
             // 18013-5 doesn't require .indicate, but without it we don't seem to be able to propagate the PSM
             // through to central.
             l2capCharacteristic = CBMutableCharacteristic(type: readerL2CAPCharacteristicId,
-                                                          properties: [.read, .indicate],
+                                                          properties: [.read, .indicate, .notify],
                                                           value: nil,
                                                           permissions: [.readable])
 
@@ -472,7 +504,10 @@ extension MDocReaderBLEPeripheral: CBPeripheralManagerDelegate {
 /// L2CAP Stream delegate functions.
 extension MDocReaderBLEPeripheral: MDocReaderBLEPeriConnDelegate {
     func streamOpen() {
-        machinePendingState = .l2capStreamOpen
+        // This sometimes gets hit multiple times.
+        if machinePendingState == .l2capChannelPublished {
+            machinePendingState = .l2capStreamOpen
+        }
     }
 
     func sentData(_ bytes: Int) {
