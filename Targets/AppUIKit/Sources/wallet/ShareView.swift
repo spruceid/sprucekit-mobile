@@ -21,10 +21,11 @@ public struct QRSheetView: View {
     @State var proceed = true
     @StateObject var delegate: ShareViewDelegate
 
-    init(credentials: [SpruceIDMobileSdk.Credential]) {
+    init(credentials: [SpruceIDMobileSdk.Credential]) async {
         let credentialStore = CredentialStore(credentials: credentials)
         self.credentials = credentialStore
-        self._delegate = StateObject(wrappedValue: ShareViewDelegate(credentials: credentialStore))
+        let viewDelegate = await ShareViewDelegate(credentials: credentialStore)
+        self._delegate = StateObject(wrappedValue: viewDelegate)
     }
 
     @ViewBuilder
@@ -114,10 +115,10 @@ public struct QRSheetView: View {
 
 class ShareViewDelegate: ObservableObject {
     @Published var state: BLESessionState = .connected
-    private var sessionManager: BLESessionManager?
+    private var sessionManager: IsoMdlPresentation?
 
-    init(credentials: CredentialStore) {
-        self.sessionManager = credentials.presentMdocBLE(deviceEngagement: .QRCode, callback: self)!
+    init(credentials: CredentialStore) async {
+        self.sessionManager = await credentials.presentMdocBLE(deviceEngagement: .QRCode, callback: self)!
     }
 
     func cancel() {

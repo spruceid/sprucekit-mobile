@@ -76,6 +76,11 @@ struct ShareableCredentialListItem: View {
 struct ShareableCredentialListItemQRCode: View {
     let credentials: [SpruceIDMobileSdk.Credential]
     @State private var showingQRCode = false
+    @State private var qrSheetView: QRSheetView? = nil
+    
+    func getQRSheetView() async -> QRSheetView {
+        return await QRSheetView(credentials: credentials)
+    }
 
     var body: some View {
         ZStack {
@@ -98,12 +103,15 @@ struct ShareableCredentialListItemQRCode: View {
                     showingQRCode.toggle()
                 }
                 if showingQRCode {
-                    QRSheetView(credentials: credentials)
+                    qrSheetView
 
                     Text("Shares your credential online or \n in-person, wherever accepted.")
                         .font(.customFont(font: .inter, style: .regular, size: .small))
                         .foregroundStyle(Color("TextOnPrimary"))
                         .padding(.vertical, 12)
+                        .task {
+                            qrSheetView = await getQRSheetView()
+                        }
                 }
             }
             .padding(.horizontal, 12)
