@@ -133,14 +133,14 @@ public struct CardListView: View {
     }
 
     public var body: some View {
-        let descriptionValues = credentialPack.get(keys: rendering.descriptionKeys ?? [])
-        let titleValues = credentialPack.get(keys: rendering.titleKeys)
+        let descriptionValues = credentialPack.findCredentialClaims(claimNames: rendering.descriptionKeys ?? [])
+        let titleValues = credentialPack.findCredentialClaims(claimNames: rendering.titleKeys ?? [])
         HStack {
             // Leading icon
             if rendering.leadingIconFormatter != nil {
                 AnyView(
                     rendering.leadingIconFormatter!(
-                        credentialPack.get(keys: rendering.leadingIconKeys ?? [])
+                        credentialPack.findCredentialClaims(claimNames: rendering.leadingIconKeys ?? [])
                     )
                 )
             }
@@ -171,7 +171,7 @@ public struct CardListView: View {
             if rendering.trailingActionButton != nil {
                 AnyView(
                     rendering.trailingActionButton!(
-                        credentialPack.get(keys: rendering.trailingActionKeys ?? [])
+                        credentialPack.findCredentialClaims(claimNames: rendering.trailingActionKeys ?? [])
                     )
                 )
             }
@@ -195,7 +195,7 @@ public struct CardDetailsView: View {
     public var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
             ForEach(rendering.fields, id: \.id) { field in
-                let values = credentialPack.get(keys: field.keys)
+                let values = credentialPack.findCredentialClaims(claimNames: field.keys)
                 if field.formatter != nil {
                     AnyView(field.formatter!(values))
                 } else {

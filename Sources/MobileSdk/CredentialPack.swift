@@ -1,53 +1,78 @@
 import Foundation
+import SpruceIDMobileSdkRs
 import CryptoKit
 
 public class CredentialPack {
 
-    private var credentials: [Credential]
+    private var credentials: [ParsedCredential]
 
+    /// Initialize an empty CredentialPack.
     public init() {
         self.credentials = []
     }
 
-    public init(credentials: [Credential]) {
+    /// Initialize a CredentialPack from existing credentials.
+    public init(credentials: [ParsedCredential]) {
         self.credentials = credentials
     }
 
-    public func addW3CVC(credentialString: String) throws -> [Credential]? {
-        do {
-            let credential = try W3CVC(credentialString: credentialString)
-            self.credentials.append(credential)
-            return self.credentials
-        } catch {
-            throw error
-        }
-    }
-
-    public func addMDoc(mdocBase64: String, keyAlias: String = UUID().uuidString) throws -> [Credential]? {
-        let mdocData = Data(base64Encoded: mdocBase64)!
-        let credential = MDoc(fromMDoc: mdocData, namespaces: [:], keyAlias: keyAlias)!
-        self.credentials.append(credential)
+    /// Add a JwtVc to the CredentialPack.
+    public func addJwtVc(jwtVc: JwtVc) -> [ParsedCredential] {
+        self.credentials.append(ParsedCredential.newJwtVcJson(jwtVc: jwtVc))
         return self.credentials
     }
 
-    public func get(keys: [String]) -> [String: [String: GenericJSON]] {
-        var values: [String: [String: GenericJSON]] = [:]
-        for cred in self.credentials {
-            values[cred.id] = cred.get(keys: keys)
-        }
-
-        return values
+    /// Add a JsonVc to the CredentialPack.
+    public func addJsonVc(jsonVc: JsonVc) -> [ParsedCredential] {
+        self.credentials.append(ParsedCredential.newLdpVc(jsonVc: jsonVc))
+        return self.credentials
     }
 
-    public func get(credentialsIds: [String]) -> [Credential] {
-        return self.credentials.filter { credentialsIds.contains($0.id) }
+    /// Add an Mdoc to the CredentialPack.
+    public func addMDoc(mdoc: Mdoc) -> [ParsedCredential] {
+        self.credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc))
+        return self.credentials
     }
 
-    public func get(credentialId: String) -> Credential? {
-        if let credential = self.credentials.first(where: { $0.id == credentialId }) {
-           return credential
-        } else {
-           return nil
+    /// Find credential claims from all credentials in this CredentialPack.
+    public func findCredentialClaims(claimNames: [String]) -> [Uuid: [String: GenericJSON]] {
+        Dictionary(uniqueKeysWithValues: self.list()
+            .map { credential in
+                var claims: [String: GenericJSON]
+                if let mdoc = credential.asMsoMdoc() {
+                    claims = mdoc.jsonEncodedDetails(containing: claimNames)
+                } else if let jwtVc = credential.asJwtVc() {
+                    claims = jwtVc.credentialClaims(containing: claimNames)
+                } else if let jsonVc = credential.asJsonVc() {
+                    claims = jsonVc.credentialClaims(containing: claimNames)
+                } else {
+                    var type: String
+                    do {
+                        type = try credential.intoGenericForm().type
+                    } catch {
+                        type = "unknown"
+                    }
+                    print("unsupported credential type: \(type)")
+                    claims = [:]
+                }
+                return (credential.id(), claims)
+            })
+    }
+
+    /// Get credentials by id.
+    public func get(credentialsIds: [Uuid]) -> [ParsedCredential] {
+        return self.credentials.filter {
+            credentialsIds.contains($0.id())
         }
+    }
+
+    /// Get a credential by id.
+    public func get(credentialId: Uuid) -> ParsedCredential? {
+        return self.credentials.first(where: { $0.id() == credentialId })
+    }
+
+    /// List all of the credentials in the CredentialPack.
+    public func list() -> [ParsedCredential] {
+        return self.credentials
     }
 }

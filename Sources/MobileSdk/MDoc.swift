@@ -28,4 +28,10 @@ public class MDoc: Credential {
     }
     super.init(id: inner.id())
   }
+
+  public init(Mdoc mdoc: SpruceIDMobileSdkRs.Mdoc) {
+    self.keyAlias = mdoc.keyAlias()
+    self.inner = mdoc
+    super.init(id: inner.id())
+  }
 }
