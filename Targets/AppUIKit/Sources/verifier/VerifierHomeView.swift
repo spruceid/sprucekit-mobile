@@ -50,25 +50,24 @@ struct VerifierHomeBody: View {
                     Spacer()
                 }
 
-                // SprucePass
-                VerifierListItem(
-                    title: "Driver's License Document",
-                    description: "Verifies physical driver's licenses issued by the state of Utopia",
-                    binary: true,
-                    fields: 0
-                ).onTapGesture {
-                    path.append(VerifyDL())
-                }
+//                VerifierListItem(
+//                    title: "Driver's License Document",
+//                    description: "Verifies physical driver's licenses issued by the state of Utopia",
+//                    binary: true,
+//                    fields: 0
+//                ).onTapGesture {
+//                    path.append(VerifyDL())
+//                }
 
                 // Over 21
-                VerifierListItem(
-                    title: "Employment Authorization Document",
-                    description: "Verifies physical Employment Authorization issued by the state of Utopia",
-                    binary: true,
-                    fields: 0
-                ).onTapGesture {
-                    path.append(VerifyEA())
-                }
+//                VerifierListItem(
+//                    title: "Employment Authorization Document",
+//                    description: "Verifies physical Employment Authorization issued by the state of Utopia",
+//                    binary: true,
+//                    fields: 0
+//                ).onTapGesture {
+//                    path.append(VerifyEA())
+//                }
 
                 // VC
                 VerifierListItem(
@@ -108,7 +107,7 @@ struct VerifierListItem: View {
                 Text(title)
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
                     .foregroundStyle(Color("TextHeader"))
-                VerifierListItemTag(binary: binary, fields: fields)
+//                VerifierListItemTag(binary: binary, fields: fields)
                 Spacer()
                 Image("ArrowRight")
             }
