@@ -2,6 +2,7 @@ import CoreBluetooth
 import CoreImage.CIFilterBuiltins
 import SwiftUI
 import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
 import CryptoKit
 
 func generateQRCode(from data: Data) -> UIImage {
@@ -21,7 +22,7 @@ public struct QRSheetView: View {
     @State var proceed = true
     @StateObject var delegate: ShareViewDelegate
 
-    init(credentials: [SpruceIDMobileSdk.Credential]) async {
+    init(credentials: [ParsedCredential]) async {
         let credentialStore = CredentialStore(credentials: credentials)
         self.credentials = credentialStore
         let viewDelegate = await ShareViewDelegate(credentials: credentialStore)

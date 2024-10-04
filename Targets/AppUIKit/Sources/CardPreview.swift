@@ -1,14 +1,13 @@
 import SwiftUI
 import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
 
 struct CardPreviewData {
     var credentialPack = CredentialPack()
 
     init() {
         do {
-            _ = try credentialPack.addW3CVC(credentialString: jsonstring)
-            _ = try credentialPack.addMDoc(mdocBase64: mdocBase64)
-
+            _ = try credentialPack.addJsonVc(jsonVc: JsonVc.newFromJson(utf8JsonString: jsonstring))
         } catch {
             print(error.localizedDescription)
         }
@@ -34,9 +33,7 @@ struct CardPreview: PreviewProvider {
             CardRenderingDetailsField(
                 keys: ["issuanceDate", "expirationDate"],
                 formatter: { (values: [String: [String: GenericJSON]]) in
-                    let w3cvc = values
-                        .first(where: { previewData.credentialPack.get(credentialId: $0.key) is W3CVC })
-                        .map { $0.value } ?? [:]
+                    let w3cvc = values.first.map { $0.value } ?? [:]
 
                     return Text("\(w3cvc["issuanceDate"]?.toString() ?? "") - \(w3cvc["expirationDate"]?.toString() ?? "")")
                 }

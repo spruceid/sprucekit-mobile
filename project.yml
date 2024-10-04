@@ -4,8 +4,8 @@ options:
 packages:
   SpruceIDMobileSdk:
     url: https://github.com/spruceid/mobile-sdk-swift
-    from: 0.0.11
-    #revision: 379b4a3d4550df6ab9da0e5be3406d8021dcd253
+    # from: 0.0.11
+    revision: 76d2b77
     #path: "../mobile-sdk-swift"
   SQLite:
     url: https://github.com/stephencelis/SQLite.swift.git

@@ -27,8 +27,9 @@ struct ShareableCredentialListItem: View {
                       kSecValueRef: secKey] as [String: Any]
             SecItemDelete(query as CFDictionary)
             _ = SecItemAdd(query as CFDictionary, nil)
-            let credentials = try credentialPack.addMDoc(mdocBase64: mdoc, keyAlias: keyAlias)
-            self.mdocId = credentials![0].id
+            let credentials = try credentialPack.addMDoc(mdoc: Mdoc.fromStringifiedDocument(stringifiedDocument: mdoc, keyAlias: keyAlias))
+            let mdoc = credentials.first(where: { $0.asMsoMdoc() != nil })
+            self.mdocId = mdoc?.id()
         } catch {
             print(error.localizedDescription)
             self.mdocId = nil
@@ -74,7 +75,7 @@ struct ShareableCredentialListItem: View {
 }
 
 struct ShareableCredentialListItemQRCode: View {
-    let credentials: [SpruceIDMobileSdk.Credential]
+    let credentials: [ParsedCredential]
     @State private var showingQRCode = false
     @State private var qrSheetView: QRSheetView? = nil
     

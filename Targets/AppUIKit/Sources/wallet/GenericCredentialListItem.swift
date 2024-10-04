@@ -11,7 +11,7 @@ struct GenericCredentialListItem: View {
     init(vc: String) {
         self.vc = vc
         do {
-            _ = try credentialPack.addW3CVC(credentialString: vc)
+            _ = try credentialPack.addJsonVc(jsonVc: JsonVc.newFromJson(utf8JsonString: vc))
         } catch {
             print(error.localizedDescription)
         }
@@ -19,9 +19,7 @@ struct GenericCredentialListItem: View {
 
     @ViewBuilder
     func descriptionFormatter(values: [String: [String: GenericJSON]]) -> some View {
-        let w3cvc = values
-            .first(where: { credentialPack.get(credentialId: $0.key) is W3CVC })
-            .map { $0.value } ?? [:]
+        let w3cvc = values.first.map { $0.value } ?? [:]
 
         VStack(alignment: .leading, spacing: 12) {
             Text(w3cvc["description"]?.toString() ?? "")
@@ -48,9 +46,7 @@ struct GenericCredentialListItem: View {
             rendering: CardRendering.list(CardRenderingListView(
                 titleKeys: ["name"],
                 titleFormatter: { (values) in
-                    let w3cvc = values
-                        .first(where: { credentialPack.get(credentialId: $0.key) is W3CVC })
-                        .map { $0.value } ?? [:]
+                    let w3cvc = values.first.map { $0.value } ?? [:]
                     return VStack(alignment: .leading, spacing: 12) {
 //                        HStack {
 //                            Spacer()
@@ -67,9 +63,7 @@ struct GenericCredentialListItem: View {
                 descriptionFormatter: descriptionFormatter,
                 leadingIconKeys: ["issuer"],
                 leadingIconFormatter: { (values) in
-                    let w3cvc = values
-                        .first(where: { credentialPack.get(credentialId: $0.key) is W3CVC })
-                        .map { $0.value } ?? [:]
+                    let w3cvc = values.first.map { $0.value } ?? [:]
                     let img = w3cvc["issuer"]?.dictValue?["image"]?.toString() ?? ""
 
                     return Image(base64String: img.replacingOccurrences(of: "data:image/png;base64,", with: ""))
@@ -91,9 +85,7 @@ struct GenericCredentialListItem: View {
                     CardRenderingDetailsField(
                         keys: ["credentialSubject"],
                         formatter: { (values) in
-                            let w3cvc = values
-                                .first(where: { credentialPack.get(credentialId: $0.key) is W3CVC })
-                                .map { $0.value } ?? [:]
+                            let w3cvc = values.first.map { $0.value } ?? [:]
                             let credentialSubject = w3cvc["credentialSubject"]?.dictValue ?? [:]
 
                             var portrait = ""
@@ -155,9 +147,7 @@ struct GenericCredentialListItem: View {
                     CardRenderingDetailsField(
                         keys: ["issuanceDate"],
                         formatter: { (values) in
-                            let w3cvc = values
-                                .first(where: { credentialPack.get(credentialId: $0.key) is W3CVC })
-                                .map { $0.value } ?? [:]
+                            let w3cvc = values.first.map { $0.value } ?? [:]
                             return HStack {
                                 VStack(alignment: .leading) {
                                     Text("Issuance Date")
