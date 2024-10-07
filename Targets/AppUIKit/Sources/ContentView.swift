@@ -4,7 +4,7 @@ public struct ContentView: View {
     @State var path: NavigationPath = .init()
 
     public init() {}
-    
+
     func handleSpruceIDUrl(url: URL) {
         let query = URLComponents(string: url.absoluteString)?
             .queryItems?
@@ -13,13 +13,13 @@ public struct ContentView: View {
                     $0.name == "sd-jwt"
                 }
             )?.value
-        if(query != nil) {
+        if query != nil {
             self.path.append(
                 AddToWallet(rawCredential: query!)
             )
         }
     }
-    
+
     func handleOid4vpUrl(url: URL) {
         // @TODO: integrate with OID4VP flow
     }
@@ -59,11 +59,14 @@ public struct ContentView: View {
                             rawCredential: addToWalletParams.rawCredential
                         )
                     }
+                    .navigationDestination(for: DispatchQR.self) { _ in
+                        DispatchQRView(path: $path)
+                    }
             }
         }
         .onOpenURL { url in
             let scheme = url.scheme
-            
+
             switch scheme {
             case "spruceid":
                 handleSpruceIDUrl(url: url)
@@ -77,9 +80,9 @@ public struct ContentView: View {
 }
 
 extension UIScreen {
-   static let screenWidth = UIScreen.main.bounds.size.width
-   static let screenHeight = UIScreen.main.bounds.size.height
-   static let screenSize = UIScreen.main.bounds.size
+    static let screenWidth = UIScreen.main.bounds.size.width
+    static let screenHeight = UIScreen.main.bounds.size.height
+    static let screenSize = UIScreen.main.bounds.size
 }
 
 #Preview {
