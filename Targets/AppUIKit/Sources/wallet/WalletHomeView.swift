@@ -1,4 +1,6 @@
 import SwiftUI
+import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
 
 struct WalletHomeView: View {
     @Binding var path: NavigationPath
@@ -12,16 +14,40 @@ struct WalletHomeView: View {
     }
 }
 
+extension Data {
+  var base64EncodedUrlSafe: String {
+    let string = self.base64EncodedString()
+
+    // Make this URL safe and remove padding
+    return string
+      .replacingOccurrences(of: "+", with: "-")
+      .replacingOccurrences(of: "/", with: "_")
+      .replacingOccurrences(of: "=", with: "")
+  }
+}
+
 struct WalletHomeHeader: View {
     @Binding var path: NavigationPath
 
     var body: some View {
         HStack {
-            Text("Spruce Wallet")
-                .font(.customFont(font: .inter, style: .bold, size: .h0))
+            Text("SpruceKit Demo Wallet")
+                .font(.customFont(font: .inter, style: .bold, size: .h2))
                 .padding(.leading, 36)
                 .foregroundStyle(Color("TextHeader"))
             Spacer()
+            Button {
+                path.append(OID4VCI())
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .foregroundColor(Color("Primary"))
+                        .frame(width: 36, height: 36)
+                    Image("QRCodeReader")
+                        .foregroundColor(Color("SecondaryIconButton"))
+                }
+            }
+            .padding(.trailing, 4)
             Button {
                 path.append(WalletSettingsHome())
             } label: {

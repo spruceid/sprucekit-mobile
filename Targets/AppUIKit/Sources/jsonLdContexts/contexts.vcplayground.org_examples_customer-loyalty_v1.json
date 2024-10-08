@@ -1,0 +1,29 @@
+{
+  "@context": {
+    "@protected": true,
+    "id": "@id",
+    "type": "@type",
+    "CustomerLoyaltyCredential": "https://contexts.vcplayground.org/examples/customer-loyalty/vocab/#CustomerLoyaltyCredential",
+    "CustomerLoyaltyCard": {
+      "@id": "https://contexts.vcplayground.org/examples/customer-loyalty/vocab/#CustomerLoyaltyCard",
+      "@context": {
+        "@protected": true,
+        "id": "@id",
+        "type": "@type",
+        "identifier": "https://schema.org/identifier",
+        "branchCode": "https://schema.org/branchCode"
+      }
+    },
+    "customerLoyaltyCard": "https://contexts.vcplayground.org/examples/customer-loyalty/vocab/#customerLoyaltyCard",
+    "image": {
+      "@id": "https://schema.org/image",
+      "@type": "@id"
+    },
+    "url": {
+      "@id": "https://schema.org/url",
+      "@type": "@id"
+    },
+    "name": "https://schema.org/name",
+    "description": "https://schema.org/description"
+  }
+}
