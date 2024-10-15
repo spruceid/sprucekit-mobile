@@ -11,6 +11,10 @@ packages:
     url: https://github.com/stephencelis/SQLite.swift.git
     revision: a95fc6df17d108bd99210db5e8a9bac90fe984b8
     version: 0.15.3
+  RiveRuntime:
+    url: https://github.com/rive-app/rive-ios
+    revision: fa6c4ee
+    version: 6.1.6
 settings:
   ENABLE_USER_SCRIPT_SANDBOXING: YES
   ENABLE_MODULE_VERIFIER: YES
@@ -32,6 +36,7 @@ targets:
     dependencies:
       - target: AppAppKit
       - target: AppUIKit
+      - package: RiveRuntime
     info:
       path: Info.plist
       properties:
@@ -132,6 +137,7 @@ targets:
     dependencies:
       - package: SpruceIDMobileSdk
       - package: SQLite
+      - package: RiveRuntime
     settings:
       base:
         INFOPLIST_FILE: Info.plist
