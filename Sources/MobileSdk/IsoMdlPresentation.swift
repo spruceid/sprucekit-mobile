@@ -22,14 +22,14 @@ public class IsoMdlPresentation {
     init?(
         mdoc: MDoc, engagement: DeviceEngagement,
         callback: BLESessionStateDelegate, useL2CAP: Bool
-    ) async {
+    ) {
         self.callback = callback
         self.uuid = UUID()
         self.mdoc = mdoc
         self.useL2CAP = useL2CAP
         do {
             self.session =
-                try await SpruceIDMobileSdkRs.initializeMdlPresentationFromBytes(
+                try SpruceIDMobileSdkRs.initializeMdlPresentationFromBytes(
                     mdoc: mdoc.inner, uuid: self.uuid.uuidString)
             bleManager = MDocHolderBLECentral(
                 callback: self,
