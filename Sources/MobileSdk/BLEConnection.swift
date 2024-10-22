@@ -20,9 +20,8 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate {
     func stream(_ aStream: Stream, handle eventCode: Stream.Event) {
         switch eventCode {
         case Stream.Event.openCompleted:
-            // TODO: This is a bit of a hack, but it'll do for now.  There are two streams, one input, one
-            // output, and we get notified about both.  We really only want to start doing things when
-            // both are available.
+            // TODO: There are two streams, one input, one output, and we get notified about both.  We really
+            // only want to start doing things when both are available.
             openCount += 1
 
             if openCount == 2 {
@@ -107,23 +106,26 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate {
         let bytesRead = stream.read(buffer, maxLength: bufLength)
         incomingData.append(buffer, count: bytesRead)
 
-        //    This is an awful hack to work around a hairy problem.  L2CAP is a stream protocol; there's
-        // no framing on data, so there's no way to signal that the data exchange is complete.  In principle
-        // we could build a framing protocol on top, or we could use the State characteristics to signal out
-        // of band, but neither of those are specified by the spec, so we'd be out of compliance.  The State
+        // NOTE: L2CAP is a stream protocol; there's no framing on data, so there's no way to signal that the
+        // data exchange is complete.  In principle we could build a framing protocol on top, or we could use
+        // the State characteristics to signal out of band, but neither of those are specified by the spec, so
+        // we wouldn't be able to count on interoperation with third party readers/holders.  The State
         // signalling is what the non-L2CAP flow uses, but the spec explicitly says it's not used with L2CAP.
         //
-        //    Another thing we could do would be close the connection, but there are two problems with that;
-        // the first is we'd be out of spec compliance again, and the second is that we actually have two
-        // messages going, one in each direction, serially.  If we closed to indicate the length of the first,
-        // we'd have no connection for the second.
+        // Another thing we could do would be close the connection, but there are two problems with that;
+        // the first is that it isn't behavior specified by the spec (and thus, 3rd party readers/holders might
+        // not implement it), and the second is that we actually have two messages going, one in each direction,
+        // serially.  If we closed to indicate the length of the first, we'd have no connection for the second.
+        // A third party reader/holder would be within their rights to assume that if half the connection was
+        // dropped that it was in the process of closing, so even dropping half the stream might cause problems.
         //
-        //    So, we have data coming in, and we don't know how much.  The stream lets us know when more data
+        // So, we have data coming in, and we don't know how much.  The stream lets us know when more data
         // has arrived, the data comes in chunks.  What we do, then, is timestamp when we receive some data,
-        // and then half a second later see if we got any more.  Hopefully the half second delay is small
-        // enough not to annoy the user and large enough to account for noisy radio environments, but the
-        // numbers here are a heuristic, and may need to be tuned.  If we have no recent data, we assume
-        // everything is ok, and declare the transmission complete.
+        // and then shortly thereafter, we see if we got any more.  If there is no recent data, we assume the
+        // transmission is complete and deliver the data.  Until that happens, we accumulate data.
+        //
+        // The delay should account for even a relatively noisy radio environment; BLE packets are quite small,
+        // and are sent at relatively high frequency.
 
         incomingTime = Date(timeIntervalSinceNow: 0)
 
