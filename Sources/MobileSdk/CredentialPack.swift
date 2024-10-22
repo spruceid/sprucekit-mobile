@@ -40,11 +40,23 @@ public class CredentialPack {
             .map { credential in
                 var claims: [String: GenericJSON]
                 if let mdoc = credential.asMsoMdoc() {
-                    claims = mdoc.jsonEncodedDetails(containing: claimNames)
+                    if claimNames.isEmpty {
+                        claims = mdoc.jsonEncodedDetails()
+                    } else {
+                        claims = mdoc.jsonEncodedDetails(containing: claimNames)
+                    }
                 } else if let jwtVc = credential.asJwtVc() {
-                    claims = jwtVc.credentialClaims(containing: claimNames)
+                    if claimNames.isEmpty {
+                        claims = jwtVc.credentialClaims()
+                    } else {
+                        claims = jwtVc.credentialClaims(containing: claimNames)
+                    }
                 } else if let jsonVc = credential.asJsonVc() {
-                    claims = jsonVc.credentialClaims(containing: claimNames)
+                    if claimNames.isEmpty {
+                        claims = jsonVc.credentialClaims()
+                    } else {
+                        claims = jsonVc.credentialClaims(containing: claimNames)
+                    }
                 } else {
                     var type: String
                     do {
