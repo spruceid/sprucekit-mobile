@@ -19,7 +19,7 @@ public class IsoMdlPresentation {
     var bleManager: MDocHolderBLECentral!
     var useL2CAP: Bool
 
-    init?(
+    public init?(
         mdoc: MDoc, engagement: DeviceEngagement,
         callback: BLESessionStateDelegate, useL2CAP: Bool
     ) {
@@ -49,38 +49,14 @@ public class IsoMdlPresentation {
         bleManager.disconnectFromDevice(session: self.session)
     }
 
-    public func submitNamespaces(items: [String: [String: [String]]]) {
+    public func submitNamespaces(items: [String: [String: [String]]], signingKey: SecKey) {
         do {
             let payload = try session.generateResponse(permittedItems: items)
-            let query =
-                [
-                    kSecClass: kSecClassKey,
-                    kSecAttrApplicationLabel: self.mdoc.keyAlias,
-                    kSecReturnRef: true
-                ] as [String: Any]
 
-            // Find and cast the result as a SecKey instance.
-            var item: CFTypeRef?
-            var secKey: SecKey
-            switch SecItemCopyMatching(query as CFDictionary, &item) {
-            case errSecSuccess:
-                // swiftlint:disable force_cast
-                secKey = item as! SecKey
-            // swiftlint:enable force_cast
-            case errSecItemNotFound:
-                self.callback.update(state: .error(.generic("Key not found")))
-                self.cancel()
-                return
-            case let status:
-                self.callback.update(
-                    state: .error(.generic("Keychain read failed: \(status)")))
-                self.cancel()
-                return
-            }
             var error: Unmanaged<CFError>?
             guard
                 let derSignature = SecKeyCreateSignature(
-                    secKey,
+                    signingKey,
                     .ecdsaSignatureMessageX962SHA256,
                     payload as CFData,
                     &error) as Data?
