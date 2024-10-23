@@ -1,0 +1,19 @@
+name: mobile-sdk-kt push
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile-sdk-kt/**"
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MONOREPO_GITHUB_ACCESS_TOKEN }}
+      - name: Push subtree
+        run: |
+          git subtree push --prefix=mobile-sdk-kt/ https://github.com/spruceid/mobile-sdk-kt.git main

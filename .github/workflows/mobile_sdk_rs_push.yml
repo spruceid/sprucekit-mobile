@@ -1,0 +1,19 @@
+name: mobile-sdk-rs push
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile-sdk-rs/**"
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.MONOREPO_GITHUB_ACCESS_TOKEN }}
+      - name: Push subtree
+        run: |
+          git subtree push --prefix=mobile-sdk-rs/ https://github.com/spruceid/mobile-sdk-rs.git main
