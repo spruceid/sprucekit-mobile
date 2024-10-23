@@ -53,7 +53,6 @@ func getGenericJSON(jsonString: String) -> GenericJSON? {
 }
 
 extension String {
-
     func camelCaseToWords() -> String {
         return unicodeScalars.reduce("") {
             if CharacterSet.uppercaseLetters.contains($1) {
@@ -64,4 +63,20 @@ extension String {
             return $0 + String($1)
         }
     }
+    
+    func replaceUnderscores() -> String {
+        return self.replacingOccurrences(of: "_", with: " ")
+    }
+}
+
+extension Data {
+  var base64EncodedUrlSafe: String {
+    let string = self.base64EncodedString()
+
+    // Make this URL safe and remove padding
+    return string
+      .replacingOccurrences(of: "+", with: "-")
+      .replacingOccurrences(of: "/", with: "_")
+      .replacingOccurrences(of: "=", with: "")
+  }
 }

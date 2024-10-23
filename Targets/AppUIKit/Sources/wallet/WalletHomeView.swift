@@ -14,19 +14,6 @@ struct WalletHomeView: View {
     }
 }
 
-extension Data {
-    var base64EncodedUrlSafe: String {
-        let string = self.base64EncodedString()
-
-        // Make this URL safe and remove padding
-        return
-            string
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
-    }
-}
-
 struct WalletHomeHeader: View {
     @Binding var path: NavigationPath
 
@@ -77,18 +64,15 @@ struct WalletHomeBody: View {
                     ScrollView(.vertical, showsIndicators: false) {
                         Section {
                             ForEach(credentials, id: \.self.id) { credential in
-                                AchievementCredentialItem(
-                                    rawCredential: credential.rawCredential,
+                                AnyView(getCredentialItem(
+                                    credential: credential,
                                     onDelete: {
                                         _ = CredentialDataStore.shared.delete(id: credential.id)
                                         self.credentials = CredentialDataStore.shared
                                             .getAllCredentials()
                                     }
-                                )
+                                ))
                             }
-                            //                    ForEach(vcs, id: \.self) { vc in
-                            //                        GenericCredentialListItem(vc: vc)
-                            //                    }
                             //                    ShareableCredentialListItem(mdoc: mdocBase64)
                         }
                         .padding(.bottom, 60)
@@ -122,12 +106,20 @@ struct WalletHomeBody: View {
                     }
                 }
             } else {
-                VStack {
-                    Spacer()
-                    Section {
-                        Image("EmptyWallet")
+                ZStack {
+                    VStack {
+                        Section {
+                            Image("AddFirstCredential")
+                        }
+                        Spacer()
                     }
-                    Spacer()
+                    VStack {
+                        Spacer()
+                        Section {
+                            Image("EmptyWallet")
+                        }
+                        Spacer()
+                    }
                 }
             }
         }

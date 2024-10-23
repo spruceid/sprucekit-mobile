@@ -6,7 +6,7 @@ packages:
     url: https://github.com/spruceid/mobile-sdk-swift
     from: 0.3.0
     # revision: "9376148"
-    # path: "../mobile-sdk-swift"
+    # path: "../wallet-sdk-swift"
   SQLite:
     url: https://github.com/stephencelis/SQLite.swift.git
     revision: a95fc6df17d108bd99210db5e8a9bac90fe984b8

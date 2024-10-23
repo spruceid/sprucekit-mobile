@@ -81,3 +81,7 @@ extension Font {
             return Font.custom(fontName, size: size.rawValue)
         }
 }
+
+let monospacedFont = Font
+            .system(size: 16)
+            .monospaced()

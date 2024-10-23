@@ -64,13 +64,22 @@ struct OID4VCIView: View {
             loading = false
         }
     }
+    
+    func back() {
+        while !path.isEmpty {
+            path.removeLast()
+        }
+    }
 
     var body: some View {
         if loading {
             LoadingView(loadingText: "Loading...")
         } else if err != nil {
-            VStack {
-                Text(err!)
+            ErrorView(
+                errorTitle: "Error Adding Credential",
+                errorDetails: err!
+            ) {
+                back()
             }
         } else if credential == nil {
             ScanningComponent(
@@ -87,8 +96,7 @@ struct OID4VCIView: View {
                 )
             )
         } else {
-            // TODO: display add to wallet for any credential
-            Text(credential!)
+            AddToWalletView(path: _path, rawCredential: credential!)
         }
     }
 }
