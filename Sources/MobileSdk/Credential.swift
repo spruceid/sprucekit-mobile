@@ -10,28 +10,28 @@ open class Credential: Identifiable {
 
     open func get(keys: [String]) -> [String: GenericJSON] {
         if keys.contains("id") {
-            return ["id": GenericJSON.string(self.id)]
+            return ["id": GenericJSON.string(id)]
         } else {
             return [:]
         }
     }
 }
 
-extension Mdoc {
+public extension Mdoc {
     /// Access all of the elements in the mdoc, ignoring namespaces and missing elements that cannot be encoded as JSON.
-    public func jsonEncodedDetails() -> [String: GenericJSON] {
-        self.jsonEncodedDetailsInternal(containing: nil)
+    func jsonEncodedDetails() -> [String: GenericJSON] {
+        jsonEncodedDetailsInternal(containing: nil)
     }
 
     /// Access the specified elements in the mdoc, ignoring namespaces and missing elements that cannot be encoded as
     /// JSON.
-    public func jsonEncodedDetails(containing elementIdentifiers: [String]) -> [String: GenericJSON] {
-        self.jsonEncodedDetailsInternal(containing: elementIdentifiers)
+    func jsonEncodedDetails(containing elementIdentifiers: [String]) -> [String: GenericJSON] {
+        jsonEncodedDetailsInternal(containing: elementIdentifiers)
     }
 
     private func jsonEncodedDetailsInternal(containing elementIdentifiers: [String]?) -> [String: GenericJSON] {
         // Ignore the namespaces.
-        Dictionary(uniqueKeysWithValues: self.details().flatMap {
+        Dictionary(uniqueKeysWithValues: details().flatMap {
             $1.compactMap {
                 let id = $0.identifier
 
@@ -55,10 +55,10 @@ extension Mdoc {
     }
 }
 
-extension JwtVc {
+public extension JwtVc {
     /// Access the W3C VCDM credential (not including the JWT envelope).
-    public func credentialClaims() -> [String: GenericJSON] {
-        if let data = self.credentialAsJsonEncodedUtf8String().data(using: .utf8) {
+    func credentialClaims() -> [String: GenericJSON] {
+        if let data = credentialAsJsonEncodedUtf8String().data(using: .utf8) {
             do {
                 let json = try JSONDecoder().decode(GenericJSON.self, from: data)
                 if let object = json.dictValue {
@@ -75,17 +75,17 @@ extension JwtVc {
     }
 
     /// Access the specified claims from the W3C VCDM credential (not including the JWT envelope).
-    public func credentialClaims(containing claimNames: [String]) -> [String: GenericJSON] {
-        self.credentialClaims().filter { (key, _) in
+    func credentialClaims(containing claimNames: [String]) -> [String: GenericJSON] {
+        credentialClaims().filter { key, _ in
             claimNames.contains(key)
         }
     }
 }
 
-extension JsonVc {
+public extension JsonVc {
     /// Access the W3C VCDM credential
-    public func credentialClaims() -> [String: GenericJSON] {
-        if let data = self.credentialAsJsonEncodedUtf8String().data(using: .utf8) {
+    func credentialClaims() -> [String: GenericJSON] {
+        if let data = credentialAsJsonEncodedUtf8String().data(using: .utf8) {
             do {
                 let json = try JSONDecoder().decode(GenericJSON.self, from: data)
                 if let object = json.dictValue {
@@ -102,8 +102,39 @@ extension JsonVc {
     }
 
     /// Access the specified claims from the W3C VCDM credential.
-    public func credentialClaims(containing claimNames: [String]) -> [String: GenericJSON] {
-        self.credentialClaims().filter { (key, _) in
+    func credentialClaims(containing claimNames: [String]) -> [String: GenericJSON] {
+        credentialClaims().filter { key, _ in
+            claimNames.contains(key)
+        }
+    }
+}
+
+public extension Vcdm2SdJwt {
+    /// Access the SD-JWT decoded credential
+    func credentialClaims() -> [String: GenericJSON] {
+        do {
+            if let data = try revealedClaimsAsJsonString().data(using: .utf8) {
+                do {
+                    let json = try JSONDecoder().decode(GenericJSON.self, from: data)
+                    if let object = json.dictValue {
+                        return object
+                    } else {
+                        print("unexpected format for SD-JWT")
+                    }
+                } catch let error as NSError {
+                    print("failed to decode as JSON: \(error)")
+                }
+            }
+        } catch let error as NSError {
+            print("failed to decode SD-JWT data from UTF-8: \(error)")
+        }
+
+        return [:]
+    }
+
+    /// Access the specified claims from the SD-JWT credential.
+    func credentialClaims(containing claimNames: [String]) -> [String: GenericJSON] {
+        credentialClaims().filter { key, _ in
             claimNames.contains(key)
         }
     }

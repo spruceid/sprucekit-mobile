@@ -8,17 +8,17 @@ public class CredentialStore {
         self.credentials = credentials
     }
 
-    public func presentMdocBLE(deviceEngagement: DeviceEngagement,
+    public func presentMdocBLE(deviceEngagement _: DeviceEngagement,
                                callback: BLESessionStateDelegate,
                                useL2CAP: Bool = true
                                // , trustedReaders: TrustedReaders
     ) async -> IsoMdlPresentation? {
-        if let firstMdoc = self.credentials.first(where: { $0.asMsoMdoc() != nil }) {
+        if let firstMdoc = credentials.first(where: { $0.asMsoMdoc() != nil }) {
             let mdoc = firstMdoc.asMsoMdoc()!
             return await IsoMdlPresentation(mdoc: MDoc(Mdoc: mdoc),
-                                     engagement: DeviceEngagement.QRCode,
-                                     callback: callback,
-                                      useL2CAP: useL2CAP)
+                                            engagement: DeviceEngagement.QRCode,
+                                            callback: callback,
+                                            useL2CAP: useL2CAP)
         } else {
             return nil
         }
