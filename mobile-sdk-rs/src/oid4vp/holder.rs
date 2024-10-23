@@ -23,8 +23,10 @@ use openid4vp::{
     },
     wallet::Wallet as OID4VPWallet,
 };
+use ssi::claims::vc::v1::syntax::JsonPresentation;
 use ssi::dids::DIDWeb;
 use ssi::dids::VerificationMethodDIDResolver;
+use ssi::json_ld::iref::UriBuf;
 use ssi::prelude::AnyJwkMethod;
 use uniffi::deps::{anyhow, log};
 
@@ -271,8 +273,24 @@ impl Holder {
                 //
                 // Currently, this is encoding the entire revealed SD-JWT,
                 // without the selection of individual disclosed fields.
+                //
+                // We need to selectively disclosed fields.
                 let compact: &str = sd_jwt.inner.as_ref();
-                Ok(VpTokenItem::from(compact.to_string()).into())
+                Ok(VpTokenItem::String(compact.to_string()).into())
+            }
+            ParsedCredentialInner::JwtVcJson(vc) => {
+                let id =
+                    UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec()).ok();
+
+                // TODO: determine how the holder ID should be set.
+                let holder_id = None;
+
+                // NOTE: JwtVc types are ALWAYS VCDM 1.1, therefore using the v1::syntax::JsonPresentation
+                // type.
+                let token =
+                    VpTokenItem::from(JsonPresentation::new(id, holder_id, vec![vc.credential()]));
+
+                Ok(token.into())
             }
             _ => Err(OID4VPError::VpTokenParse(format!(
                 "Credential parsing for VP Token is not implemented for {:?}.",
@@ -351,13 +369,12 @@ mod tests {
         let _id = response.0;
         let url = Url::parse(&response.1).expect("failed to parse url");
 
+        println!("Authorization URL: {url:?}");
+
         // Make a request to the OID4VP URL.
         let holder = Holder::new_with_credentials(
             vec![credential],
-            vec![
-                "did:web:localhost%3A3000:oid4vp:client".into(),
-                "did:web:f48e-99-209-178-38.ngrok-free.app:oid4vp:client".into(),
-            ],
+            vec!["did:web:localhost%3A3000:oid4vp:client".into()],
         )
         .await?;
 

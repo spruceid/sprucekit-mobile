@@ -203,7 +203,7 @@ impl TryFrom<SdJwtBuf> for VCDM2SdJwt {
     type Error = SdJwtError;
 
     fn try_from(value: SdJwtBuf) -> Result<Self, Self::Error> {
-        let SdJwtVc(vc) = SdJwtVc::decode_reveal_any(&value)
+        let SdJwtVc(credential) = SdJwtVc::decode_reveal_any(&value)
             .map_err(|e| SdJwtError::SdJwtDecoding(format!("{e:?}")))?
             .into_claims()
             .private;
@@ -212,7 +212,7 @@ impl TryFrom<SdJwtBuf> for VCDM2SdJwt {
             id: Uuid::new_v4(),
             key_alias: None,
             inner: value,
-            credential: vc,
+            credential,
         })
     }
 }
