@@ -20,10 +20,6 @@ public struct ContentView: View {
         }
     }
 
-    func handleOid4vpUrl(url: URL) {
-        // @TODO: integrate with OID4VP flow
-    }
-
     public var body: some View {
         ZStack {
             // Bg color
@@ -65,6 +61,12 @@ public struct ContentView: View {
                     .navigationDestination(for: DispatchQR.self) { _ in
                         DispatchQRView(path: $path)
                     }
+                    .navigationDestination(for: HandleOID4VP.self) { handleOID4VPParams in
+                        HandleOID4VPView(
+                            path: $path,
+                            url: handleOID4VPParams.url
+                        )
+                    }
             }
         }
         .onOpenURL { url in
@@ -73,8 +75,6 @@ public struct ContentView: View {
             switch scheme {
             case "spruceid":
                 handleSpruceIDUrl(url: url)
-            case "oid4vp":
-                handleOid4vpUrl(url: url)
             default:
                 return
             }

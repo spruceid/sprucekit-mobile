@@ -21,7 +21,8 @@ class CredentialDataStore {
     private var db: Connection?
 
     private init() {
-        if let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+        if let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        {
             let dirPath = docDir.appendingPathComponent(Self.DIR_ACTIVITY_LOG_DB)
 
             do {
@@ -48,10 +49,11 @@ class CredentialDataStore {
             return
         }
         do {
-            try database.run(credentials.create { table in
-                table.column(id, primaryKey: .autoincrement)
-                table.column(rawCredential)
-            })
+            try database.run(
+                credentials.create { table in
+                    table.column(id, primaryKey: .autoincrement)
+                    table.column(rawCredential)
+                })
             print("Table Created...")
         } catch {
             print(error)
@@ -90,6 +92,20 @@ class CredentialDataStore {
         return credentials
     }
 
+    func getAllRawCredentials() -> [String] {
+        var credentials: [String] = []
+        guard let database = db else { return [] }
+
+        do {
+            for credential in try database.prepare(self.credentials) {
+                credentials.append(credential[rawCredential])
+            }
+        } catch {
+            print(error)
+        }
+        return credentials
+    }
+
     func delete(id: Int64) -> Bool {
         guard let database = db else {
             return false
@@ -109,7 +125,8 @@ class CredentialDataStore {
             return false
         }
         do {
-            for credential in try database.prepare(self.credentials) where !delete(id: credential[id]) {
+            for credential in try database.prepare(self.credentials)
+            where !delete(id: credential[id]) {
                 return false
             }
         } catch {

@@ -30,7 +30,7 @@ struct AchievementCredentialItem: View {
             let res = try decodeRevealSdJwt(input: rawCredential)
             self.credential = getGenericJSON(jsonString: res)
         } catch {
-            print(error)
+           print(error)
         }
         self.onDelete = onDelete
     }
