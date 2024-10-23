@@ -37,3 +37,7 @@ called in native SDKs.
 ## Configuring Deep Links for same device flows
 
 Click [here](./MobileSdk/src/main/java/com/spruceid/mobile/sdk/ui/SameDeviceOID4VP.md) to see how to configure the same device OpenID4VP flow.
+
+---
+
+Copyright © 2024 Spruce Systems, Inc.
