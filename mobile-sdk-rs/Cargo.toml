@@ -1,0 +1,72 @@
+[package]
+name = "mobile-sdk-rs"
+version = "0.1.0"
+edition = "2021"
+authors = ["Spruce Systems, Inc."]
+license = "Apache-2.0 OR MIT"
+description = "Mobile SDK Rust bindings"
+repository = "https://github.com/spruceid/mobile-sdk-rs/"
+
+[lib]
+crate-type = ["staticlib", "lib", "cdylib"]
+name = "mobile_sdk_rs"
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "uniffi-bindgen.rs"
+
+[dependencies]
+cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", features = [
+    "time",
+] }
+isomdl = { git = "https://github.com/spruceid/isomdl", rev = "1f4f762" }
+oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "d95fe3a" }
+openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "372f5f5" }
+ssi = { version = "0.9", features = ["secp256r1", "secp384r1"] }
+
+async-trait = "0.1"
+base64 = "0.22.0"
+either = "1.13"
+futures = "0.3"
+futures-util = "0.3.31"
+hex = "0.4.3"
+json-syntax = "0.12.5"
+log = { version = "0.4", features = ["std", "serde"] }
+miniz_oxide = "0.7.2"
+num-bigint = "0.4.4"
+num-traits = "0.2.19"
+p256 = { version = "0.13.2", features = ["pkcs8"] }
+pem-rfc7468 = "0.7.0"
+reqwest = { version = "0.11", features = ["blocking"] }
+serde = { version = "1.0.204", features = ["derive"] }
+serde_cbor = "0.11.2"
+serde_json = "1.0.111"
+thiserror = "1.0.56"
+signature = "2.2.0"
+ssi-contexts = "0.1.6"
+time = { version = "0.3.36", features = [
+    "macros",
+    "formatting",
+    "parsing",
+    "serde",
+] }
+time-macros = "0.2.18"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1.40"
+uniffi = { version = "0.28.1", features = ["cli", "tokio"] }
+url = { version = "2.5", features = ["serde"] }
+uuid = { version = "1.6.1", features = ["v4"] }
+w3c-vc-barcodes = { git = "https://github.com/spruceid/w3c-vc-barcodes", rev = "c1c99da" }
+x509-cert = { version = "0.2.5" }
+urlencoding = "2.1.3"
+
+
+[target.'cfg(target_os = "android")'.dependencies]
+android_logger = "0.13"
+
+[dev-dependencies]
+rstest = "0.22.0"
+uniffi = { version = "0.28.1", features = ["bindgen-tests"] }
+
+[build-dependencies]
+uniffi = { version = "0.28.1", features = ["build"] }

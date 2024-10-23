@@ -1,0 +1,7 @@
+plugins {
+    id 'com.android.application' version '8.1.2' apply false
+    id 'com.android.library' version '8.1.2' apply false
+    id 'org.jetbrains.kotlin.android' version '1.9.10' apply false
+    id "com.github.willir.rust.cargo-ndk-android" version "0.3.4" apply false
+    id "com.gradleup.nmcp" version "0.0.4" apply true
+}

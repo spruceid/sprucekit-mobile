@@ -1,0 +1,4 @@
+[bindings.kotlin]
+package_name = "com.spruceid.mobile.sdk.rs"
+# Disabling Android optimisations due to uniffi tests breaking on missing import android
+android = true

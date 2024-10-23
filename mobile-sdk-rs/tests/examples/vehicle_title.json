@@ -1,0 +1,112 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/credentials/v2",
+    "https://w3id.org/vvt/v1",
+    "https://example.gov/utopiadmv/v1"
+  ],
+  "type": ["VerifiableCredential", "VehicleTitleCredential"],
+  "issuer": "did:web:dmv.utopia.example",
+  "credentialStatus": {
+    "id": "https://example.gov/utopiadmv/credentials/status/3#94567",
+    "type": "BitstringStatusListEntry",
+    "statusPurpose": "revocation",
+    "statusListIndex": "94567",
+    "statusListCredential": "https://example.gov/utopiadmv/credentials/status/3"
+  },
+  "credentialSubject": {
+    "type": "VehicleTitle",
+    "vehicle": {
+      "type": "Vehicle",
+      "vehicleIdentificationNumber": "4Y1SL65848Z411439",
+      "manufacturer": {
+        "type": "Organization",
+        "name": "Honda"
+      },
+      "bodyType": "4H",
+      "numberOfAxles": 2,
+      "weight": {
+        "type": "QuantitativeValue",
+        "value": "3000",
+        "unitCode": "LBR"
+      },
+      "vehicleModelDate": "1990",
+      "fuelType": "G",
+      "purchaseDate": "2020-02-01"
+    },
+    "firstSold": {
+      "type": "FirstSaleInformation",
+      "class": "AA",
+      "year": "2020",
+      "month": "BB"
+    },
+    "odometerReading": {
+      "type": "Observation",
+      "observationDate": "2020-02-01",
+      "variableMeasured": "Odometer Mileage",
+      "value": "100000",
+      "unitCode": "1M",
+      "description": "ODOMETER IS NOT THE ACTUAL MILEAGE"
+    },
+    "owner": [
+      {
+        "type": "Person",
+        "name": "USEDCAR COLLECTOR",
+        "address": {
+          "type": "PostalAddress",
+          "streetAddress": "123 LEMON AVE",
+          "addressLocality": "UTOPOLIS",
+          "addressRegion": "UTOPIA",
+          "postalCode": "12345"
+        },
+        "hasCertification": {
+          "type": "Certification",
+          "about": "Driver's License Number",
+          "certificationIdentification": "542426814"
+        },
+        "description": "Primary Owner"
+      },
+      {
+        "type": "Person",
+        "name": "USEDCAR ENTHUSIAST",
+        "hasCertification": {
+          "type": "Certification",
+          "about": "Driver's License Number",
+          "certificationIdentification": "789245168"
+        }
+      }
+    ],
+    "ownerSaleRequirements": "USEDCAR COLLECTOR AND USEDCAR ENTHUSIAST",
+    "feesPaid": {
+      "type": "MonetaryAmount",
+      "currency": "USD",
+      "value": "100"
+    },
+    "validFrom": "2024-02-01",
+    "titleIssueDate": "2024-02-01",
+    "registrationExpirationDate": "2025-02-01",
+    "licensePlateIdentifier": "ABC1234",
+    "equipmentTrustNumber": "12345678",
+    "lienholder": {
+      "type": "Organization",
+      "name": "USEDCAR LIENHOLDER",
+      "address": {
+        "type": "PostalAddress",
+        "streetAddress": "456 LEMON AVE",
+        "addressLocality": "UTOPOLIS",
+        "addressRegion": "UTOPIA",
+        "postalCode": "12345"
+      }
+    },
+    "lienholderReleaseDate": "2020-01-01",
+    "controlNumber": "12345678",
+    "description": "OFF HIGHWAY",
+    "designations": "Original Taxi"
+  },
+  "proof": {
+    "type": "DataIntegrity",
+    "cryptosuite": "ecdsa-rdfc-2019",
+    "verificationMethod": "did:web:dmv.utopia.example#key-1",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "z4peo48uwK2EF4Fta8P...HzQMDYJ34r9gL"
+  }
+}

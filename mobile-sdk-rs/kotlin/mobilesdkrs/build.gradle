@@ -1,0 +1,184 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.github.willir.rust.cargo-ndk-android'
+    id 'maven-publish'
+    id 'signing'
+    id 'com.gradleup.nmcp'
+}
+
+android {
+    namespace 'com.spruceid.mobile.sdk.rs'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 24
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+
+    implementation "net.java.dev.jna:jna:5.13.0@aar"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
+    implementation "androidx.annotation:annotation:1.5.0"
+    implementation "androidx.core:core-ktx:1.9.0"
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0-RC.2'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.6.0'
+}
+
+apply plugin: 'com.github.willir.rust.cargo-ndk-android'
+
+cargoNdk {
+    module = "../"
+    targetDirectory = "target"
+    targets = ["arm", "arm64", "x86", "x86_64"]
+}
+
+afterEvaluate {
+    // The `cargoBuild` task isn't available until after evaluation.
+    android.libraryVariants.configureEach { variant ->
+        def productFlavor = ""
+        variant.productFlavors.each {
+            productFlavor += "${it.name.capitalize()}"
+        }
+        def buildType = "${variant.buildType.name.capitalize()}"
+
+        tasks.named("compileReleaseKotlin") {
+            it.dependsOn(tasks.named("bindGen"))
+        }
+
+        tasks.named("generate${productFlavor}${buildType}Assets") {
+            it.dependsOn(tasks.named("buildCargoNdk${variant.name.capitalize()}"))
+        }
+    }
+}
+
+import org.apache.tools.ant.taskdefs.condition.Os
+tasks.register('bindGen', Exec) {
+    def outDir = "${projectDir}/src/main/java"
+    workingDir "../../"
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        commandLine("cmd", "/c",
+                "cargo build && " + "cargo run --bin uniffi-bindgen generate --library target\\debug\\libmobile_sdk_rs.dll " + "--language kotlin " + "--out-dir " + outDir.replace('/', '\\'))
+    } else {
+        def extension
+        if (Os.isFamily(Os.FAMILY_MAC)) {
+            extension = "dylib"
+        } else {
+            extension = "so"
+        }
+        commandLine("sh", "-c",
+                """\
+                cargo build && \
+                cargo run --bin uniffi-bindgen generate \
+                --library target/debug/libmobile_sdk_rs.$extension \
+                --language kotlin \
+                --out-dir $outDir
+                """)
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/spruceid/mobile-sdk-rs"
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+        mavenLocal()
+    }
+    publications {
+        debug(MavenPublication) {
+            groupId = 'com.spruceid.mobile.sdk.rs'
+            artifactId = "mobilesdkrs"
+            version = System.getenv("VERSION")
+
+            afterEvaluate {
+                from components.release
+            }
+        }
+        release(MavenPublication) {
+            groupId = 'com.spruceid.mobile.sdk.rs'
+            artifactId = "mobilesdkrs"
+            version = System.getenv("VERSION")
+
+            afterEvaluate {
+                from components.release
+            }
+
+            pom {
+                packaging = "aar"
+                name.set("mobilesdkrs")
+                description.set("Rust layer for SpruceID Mobile SDK")
+                url.set("https://github.com/spruceid/mobile-sdk-rs")
+                licenses {
+                    license {
+                        name.set("MIT License")
+                        url.set("https://opensource.org/license/mit/")
+                    }
+                    license {
+                        name.set("Apache License, Version 2.0")
+                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        name.set("Spruce Systems, Inc.")
+                        email.set("hello@spruceid.com")
+                    }
+                }
+                scm {
+                    url.set(pom.url.get())
+                    connection.set("scm:git:${url.get()}.git")
+                    developerConnection.set("scm:git:${url.get()}.git")
+                }
+            }
+        }
+    }
+}
+
+signing {
+    useGpgCmd()
+    sign publishing.publications.release
+}
+
+nmcp {
+    afterEvaluate {
+        publish("release") {
+            it.username.set(System.getenv("MAVEN_USERNAME"))
+            it.password.set(System.getenv("MAVEN_PASSWORD"))
+            it.publicationType.set("AUTOMATIC")
+        }
+    }
+}
