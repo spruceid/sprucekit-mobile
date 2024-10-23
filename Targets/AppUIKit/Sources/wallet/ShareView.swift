@@ -127,11 +127,23 @@ class ShareViewDelegate: ObservableObject {
     }
 
     func submitItems(items: [String: [String: [String: Bool]]]) {
+        let tag = "mdoc_key".data(using: .utf8)!
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrApplicationTag as String: tag,
+            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+            kSecReturnRef as String: true,
+        ]
+        
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let key = item as! SecKey
+      
         self.sessionManager?.submitNamespaces(items: items.mapValues { namespaces in
             return namespaces.mapValues { items in
                 Array(items.filter { $0.value }.keys)
             }
-        })
+        }, signingKey: key)
     }
 }
 

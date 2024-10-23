@@ -34,7 +34,7 @@ func generateMDoc() -> MDoc? {
                   kSecValueRef: secKey] as [String: Any]
         SecItemDelete(query as CFDictionary)
         _ = SecItemAdd(query as CFDictionary, nil)
-        return MDoc(fromMDoc: mdocData, namespaces: [:], keyAlias: "mdoc_key")!
+        return MDoc(fromMDoc: mdocData, keyAlias: "mdoc_key")!
     } catch {
         print("\(error)")
         return nil
