@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#FFF7F7F5</color>
+    <color name="bg">#FFFDFDFC</color>
+    <color name="credential_border">#FFE6E1D6</color>
+    <color name="code_border">#ff949494</color>
+    <color name="green_valid">#FF059669</color>
+    <color name="text_body">#FF57534E</color>
+    <color name="text_header">#FF0C0A09</color>
+    <color name="text_on_primary">#FFA8A29E</color>
+    <color name="verifier_request_badge_binary_border">#FF0C4A6E</color>
+    <color name="verifier_request_badge_binary_fill">#FFF0F9FF</color>
+    <color name="verifier_request_badge_binary_text">#FF0C4A6E</color>
+    <color name="verifier_request_badge_field_border">#FFE7E5E4</color>
+    <color name="verifier_request_badge_field_fill">#FFF7F5F0</color>
+    <color name="verifier_request_badge_field_text">#FF0C0A09</color>
+    <color name="verified_green_valid">#FF047857</color>
+    <color name="verified_red_invalid">#FFBE123C</color>
+    <color name="verifier_close_button">#FF44403C</color>
+    <color name="spruce_blue">#FF2F6AE1</color>
+    <color name="secondary_button_red">#FFE11D48</color>
+    <color name="cta_button_green">#FF087455</color>
+
+    <!--  Design system  -->
+    <color name="color_base_300">#FFE6E1D6</color>
+    <color name="color_base_800">#FF75675C</color>
+    <color name="color_blue_600">#FF2F6AE1</color>
+    <color name="color_stone_50">#FFFAFAF9</color>
+    <color name="color_stone_300">#FFD6D3D1</color>
+    <color name="color_stone_500">#FF78716C</color>
+    <color name="color_stone_600">#FF57534E</color>
+    <color name="color_stone_950">#FF0C0A09</color>
+    <color name="color_emerald_900">#FF084C3A</color>
+    <color name="color_rose_600">#FFE11D48</color>
+    <color name="text_base">#FFFBF9F6</color>
+    <color name="bg_surface_pure_blue">#FFD6D3D1</color>
+    <color name="border_secondary">#FFD6D3D1</color>
+</resources>
