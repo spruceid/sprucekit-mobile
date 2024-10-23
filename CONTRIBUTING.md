@@ -10,6 +10,11 @@ During development, you can simply depend on your local instance of
 Once everything is complete, `mobile-sdk-rs` will need to be published as it
 needs to have the dynamic libraries published.
 
+## Checking CocoaPods linter locally
+The release action also releases the package on CocoaPods, and this release
+has a CocoaPod code verification. You can check your changes locally by 
+running `pod lib lint SpruceIDMobileSdk.podspec`
+
 ## Release
 1. Ensure the dependencies rely on published versions and not commits or
    branches.
