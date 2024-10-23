@@ -34,6 +34,8 @@ which is a manually triggered action.
 
 ## Pre-requisites
 
+### `cargo-ndk`
+
 For developing Kotlin code, install `cargo-ndk`.
 
 ```bash
@@ -52,14 +54,29 @@ rustup target install \
 
 See the `cargo-ndk` [documentation](https://github.com/bbqsrc/cargo-ndk) for more information.
 
+### `cargo-make`
+
+```bash
+cargo install cargo-make
+```
+
+A `Makefile.toml` file is used to provide helpful build commands using `cargo-make`.
+
+Use `cargo make --list-all-steps` command to show all available tasks.
+
 ## Build
 
 ### Kotlin
 
+To package the kotlin code for production distribution, use:
+
 ```bash
-cd kotlin
-./gradlew buildCargoNdkDebug
+cargo make pkg_kotlin
 ```
+
+See [Local Development](#local-development) section below for more information about building locally.
+
+#### Troubleshooting
 
 If you get this error:
 ```
@@ -75,14 +92,19 @@ and try the build again.
 
 ### Swift
 
+
+
 ```bash
-cargo swift package -p ios -n MobileSdkRs --release
+cargo make pkg_swift
 ```
 > **⚠** If you need to call `verify_vcb_qrcode_against_mrz` or `verify_pdf417_barcode` in your iOS app, you **must** build with the `--release` flag to avoid runtime errors when executing these methods.
 
 > You will need `cargo-swift` which you can install with `cargo install cargo-swift`.
 
-## Test
+## Testing
+
+### Kotlin
+
 In order to run the tests you'll need to [install the kotlin compiler](https://kotlinlang.org/docs/command-line.html) and download a copy of JNA
 
 ```
@@ -116,7 +138,7 @@ To locally test integration with `mobile-sdk-kt`, it is preferrable to use a `ma
 To release to `mavenLocal()` you may use the following command:
 
 ```bash
-cd kotlin/ && VERSION=x.y.z ./gradlew publishDebugPublicationToMavenLocal
+VERSION=x.y.z cargo make pkg_kotlin_local
 ```
 
 Where `VERSION` is set to a SemVer (Semantic Versioning). Note that it is possible to use a tagged version, e.g. `0.0.33-SNAPSHOT`, which may be preferrable to denote
@@ -161,6 +183,6 @@ packages:
 
 Finally, run `xcodegen` in `mobile-sdk-swift` to generate the `xcodeproject` file to open in xcode.
 
----
+----
 
 Copyright © 2024 Spruce Systems, Inc.

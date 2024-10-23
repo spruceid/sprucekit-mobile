@@ -1,0 +1,225 @@
+[config]
+skip_core_tasks = true
+
+[env]
+KOTLIN_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}/kotlin"
+KOTLIN_OUT_DIR = "${KOTLIN_DIR}/mobilesdkrs/src/main/java"
+SWIFT_OUT_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}/MobileSdkRs"
+UNIFFI_BINDGEN = "uniffi-bindgen"
+
+[env.development]
+GRADLEW = { source = "${CARGO_MAKE_WORKING_DIRECTORY}/gradlew", condition = { platforms = [
+    "linux",
+    "mac",
+] } }
+GRADLEW_WIN = { source = "${CARGO_MAKE_WORKING_DIRECTORY}/gradlew.bat", condition = { platforms = [
+    "windows",
+] } }
+
+[tasks.default]
+description = "Executes the complete build pipeline including building, generating bindings, packaging, and testing"
+dependencies = ["build", "bindings", "pkg_kotlin", "pkg_swift", "test"]
+
+[tasks.build]
+description = "Builds the Rust library in release mode"
+command = "cargo"
+args = ["build", "--release"]
+
+[tasks.build_debug]
+description = "Builds the Rust library in debug mode"
+command = "cargo"
+args = ["build"]
+
+[tasks.bindings]
+description = "Generates both Kotlin and Swift bindings for the Rust library"
+dependencies = ["kotlin", "swift"]
+
+[tasks.kotlin]
+description = "Generates Kotlin bindings using platform-specific Gradle wrapper"
+dependencies = ["build_debug"]
+cwd = "${KOTLIN_DIR}"
+linux_alias = "kotlin_unix"
+mac_alias = "kotlin_unix"
+windows_alias = "kotlin_windows"
+
+[tasks.kotlin_unix]
+description = "Generates Kotlin bindings on Unix-like systems"
+cwd = "${KOTLIN_DIR}"
+command = "./gradlew"
+args = ["bindGen"]
+
+[tasks.kotlin_windows]
+description = "Generates Kotlin bindings on Windows systems"
+cwd = "${KOTLIN_DIR}"
+command = "gradlew.bat"
+args = ["bindGen"]
+
+[tasks.set_lib_name]
+script_runner = "@shell"
+script = '''
+case "$CARGO_MAKE_RUST_TARGET_OS" in
+  linux)
+    echo "LIB_NAME=libmobile_sdk_rs.so" >> ${CARGO_MAKE_WORKING_DIRECTORY}/.env
+    ;;
+  macos)
+    echo "LIB_NAME=libmobile_sdk_rs.dylib" >> ${CARGO_MAKE_WORKING_DIRECTORY}/.env
+    ;;
+  windows)
+    echo "LIB_NAME=libmobile_sdk_rs.dll" >> ${CARGO_MAKE_WORKING_DIRECTORY}/.env
+    ;;
+  *)
+    echo "Unsupported OS"
+    exit 1
+    ;;
+esac
+'''
+
+[tasks.swift]
+description = "Generates Swift bindings for the Rust library using uniffi-bindgen"
+dependencies = ["build", "set_lib_name"]
+env_files = [".env"]
+command = "cargo"
+args = [
+    "run",
+    "--features=uniffi/cli",
+    "--bin",
+    "${UNIFFI_BINDGEN}",
+    "generate",
+    "--library",
+    "target/release/${LIB_NAME}",
+    "--language",
+    "swift",
+    "--out-dir",
+    "${SWIFT_OUT_DIR}",
+]
+
+[tasks.compile_kotlin]
+description = "Compiles the generated Kotlin code"
+dependencies = ["kotlin"]
+cwd = "${KOTLIN_DIR}"
+linux_alias = "compile_kotlin_unix"
+mac_alias = "compile_kotlin_unix"
+windows_alias = "compile_kotlin_windows"
+
+[tasks.compile_kotlin_unix]
+description = "Compiles Kotlin code on Unix-like systems"
+cwd = "${KOTLIN_DIR}"
+command = "./gradlew"
+args = ["compileDebugKotlin"]
+
+[tasks.compile_kotlin_windows]
+description = "Compiles Kotlin code on Windows systems"
+cwd = "${KOTLIN_DIR}"
+command = "gradlew.bat"
+args = ["compileDebugKotlin"]
+
+[tasks.pkg_kotlin]
+description = "Packages the Kotlin library using platform-specific Gradle wrapper"
+cwd = "${KOTLIN_DIR}"
+linux_alias = "pkg_kotlin_unix"
+mac_alias = "pkg_kotlin_unix"
+windows_alias = "pkg_kotlin_windows"
+
+[tasks.pkg_kotlin_unix]
+description = "Packages the Kotlin library on Unix-like systems"
+cwd = "${KOTLIN_DIR}"
+command = "./gradlew"
+args = ["build"]
+
+[tasks.pkg_kotlin_windows]
+description = "Packages the Kotlin library on Windows systems"
+cwd = "${KOTLIN_DIR}"
+command = "gradlew.bat"
+args = ["build"]
+
+[tasks.pkg_kotlin_local]
+description = "Publishes the Kotlin package to local Maven repository"
+cwd = "${KOTLIN_DIR}"
+linux_alias = "pkg_kotlin_local_unix"
+mac_alias = "pkg_kotlin_local_unix"
+windows_alias = "pkg_kotlin_local_windows"
+
+[tasks.pkg_kotlin_local_unix]
+description = "Publishes the Kotlin package to local Maven repository on Unix-like systems"
+cwd = "${KOTLIN_DIR}"
+command = "./gradlew"
+args = ["publishDebugPublicationToMavenLocal"]
+
+[tasks.pkg_kotlin_local_windows]
+description = "Publishes the Kotlin package to local Maven repository on Windows systems"
+cwd = "${KOTLIN_DIR}"
+command = "gradlew.bat"
+args = ["publishDebugPublicationToMavenLocal"]
+
+[tasks.pkg_swift]
+description = "Packages the Swift library for iOS integration"
+command = "cargo"
+args = ["swift", "package", "-p", "ios", "-n", "MobileSdkRs", "--release"]
+
+[tasks.package]
+description = "Packages both Kotlin and Swift libraries"
+dependencies = ["pkg_kotlin", "pkg_swift"]
+
+[tasks.tests]
+description = "Runs all tests for both Swift and Kotlin implementations"
+dependencies = ["test_swift", "test_kotlin"]
+
+[tasks.test_swift]
+description = "Runs Swift-specific tests"
+dependencies = ["swift"]
+command = "cargo"
+args = ["test"]
+
+[tasks.test_kotlin]
+description = "Runs Kotlin tests using platform-specific Gradle wrapper"
+dependencies = ["compile_kotlin"]
+cwd = "${KOTLIN_DIR}"
+linux_alias = "test_kotlin_unix"
+mac_alias = "test_kotlin_unix"
+windows_alias = "test_kotlin_windows"
+
+[tasks.test_kotlin_unix]
+description = "Runs Kotlin tests on Unix-like systems"
+cwd = "${KOTLIN_DIR}"
+command = "./gradlew"
+args = ["connectedAndroidTest"]
+
+[tasks.test_kotlin_windows]
+description = "Runs Kotlin tests on Windows systems"
+cwd = "${KOTLIN_DIR}"
+command = "gradlew.bat"
+args = ["connectedAndroidTest"]
+
+[tasks.clean]
+description = "Cleans all build artifacts across Cargo, Kotlin, and Swift"
+dependencies = ["clean_cargo", "clean_kotlin", "clean_swift"]
+
+[tasks.clean_cargo]
+description = "Cleans Rust/Cargo build artifacts"
+command = "cargo"
+args = ["clean"]
+
+[tasks.clean_kotlin]
+description = "Cleans Kotlin build artifacts using platform-specific Gradle wrapper"
+cwd = "${KOTLIN_DIR}"
+linux_alias = "clean_kotlin_unix"
+mac_alias = "clean_kotlin_unix"
+windows_alias = "clean_kotlin_windows"
+
+[tasks.clean_kotlin_unix]
+description = "Cleans Kotlin build artifacts on Unix-like systems"
+cwd = "${KOTLIN_DIR}"
+command = "./gradlew"
+args = ["clean"]
+
+[tasks.clean_kotlin_windows]
+description = "Cleans Kotlin build artifacts on Windows systems"
+cwd = "${KOTLIN_DIR}"
+command = "gradlew.bat"
+args = ["clean"]
+
+[tasks.clean_swift]
+description = "Cleans Swift build artifacts and generated files"
+script = ["""
+    rm -rf ${SWIFT_OUT_DIR}/*.swift ${SWIFT_OUT_DIR}/*.h
+    """]
