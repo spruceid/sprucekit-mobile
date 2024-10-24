@@ -58,7 +58,7 @@ import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
-class GenericCredentialItem: ICredentialView {
+class GenericCredentialItem : ICredentialView {
     private var credentialPack: CredentialPack
     private val onDelete: (() -> Unit)?
 
@@ -79,7 +79,7 @@ class GenericCredentialItem: ICredentialView {
             try {
                 if (
                     cred?.asJwtVc() != null ||
-                    cred?.asJsonVc() != null||
+                    cred?.asJsonVc() != null ||
                     cred?.asSdJwt() != null
                 ) {
                     it.second
@@ -94,12 +94,14 @@ class GenericCredentialItem: ICredentialView {
         var description = ""
         try {
             description = credential?.getJSONObject("issuer")?.getString("name").toString()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
 
         if (description.isBlank()) {
             try {
                 description = credential?.getString("description").toString()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
 
         Column {
@@ -121,7 +123,7 @@ class GenericCredentialItem: ICredentialView {
             try {
                 if (
                     cred?.asJwtVc() != null ||
-                    cred?.asJsonVc() != null||
+                    cred?.asJsonVc() != null ||
                     cred?.asSdJwt() != null
                 ) {
                     it.second
@@ -157,7 +159,8 @@ class GenericCredentialItem: ICredentialView {
         var alt = ""
         try {
             alt = credential?.getString("issuer.name").toString()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
 
         Column(
             Modifier.fillMaxHeight(),
@@ -180,7 +183,7 @@ class GenericCredentialItem: ICredentialView {
                     try {
                         if (
                             cred?.asJwtVc() != null ||
-                            cred?.asJsonVc() != null||
+                            cred?.asJsonVc() != null ||
                             cred?.asSdJwt() != null
                         ) {
                             it.second
@@ -197,7 +200,7 @@ class GenericCredentialItem: ICredentialView {
                     if (title.isBlank()) {
                         val arrayTypes = credential?.getJSONArray("type")
                         if (arrayTypes != null) {
-                            for(i in 0 until arrayTypes.length()) {
+                            for (i in 0 until arrayTypes.length()) {
                                 if (arrayTypes.get(i).toString() != "VerifiableCredential") {
                                     title = arrayTypes.get(i).toString().splitCamelCase()
                                     break
@@ -205,7 +208,8 @@ class GenericCredentialItem: ICredentialView {
                             }
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
                 Text(
                     text = title,
                     fontFamily = Inter,
@@ -246,7 +250,7 @@ class GenericCredentialItem: ICredentialView {
                     try {
                         if (
                             cred?.asJwtVc() != null ||
-                            cred?.asJsonVc() != null||
+                            cred?.asJsonVc() != null ||
                             cred?.asSdJwt() != null
                         ) {
                             it.second
@@ -263,7 +267,7 @@ class GenericCredentialItem: ICredentialView {
                     if (title.isBlank()) {
                         val arrayTypes = credential?.getJSONArray("type")
                         if (arrayTypes != null) {
-                            for(i in 0 until arrayTypes.length()) {
+                            for (i in 0 until arrayTypes.length()) {
                                 if (arrayTypes.get(i).toString() != "VerifiableCredential") {
                                     title = arrayTypes.get(i).toString().splitCamelCase()
                                     break
@@ -271,7 +275,8 @@ class GenericCredentialItem: ICredentialView {
                             }
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
 
                 Column {
                     Row(
@@ -337,7 +342,7 @@ class GenericCredentialItem: ICredentialView {
                         onDelete?.invoke()
                     },
                     shape = RoundedCornerShape(5.dp),
-                    colors =  ButtonDefaults.buttonColors(
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
                         contentColor = SecondaryButtonRed,
                     ),
@@ -361,7 +366,7 @@ class GenericCredentialItem: ICredentialView {
                         }
                     },
                     shape = RoundedCornerShape(5.dp),
-                    colors =  ButtonDefaults.buttonColors(
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
                         contentColor = SpruceBlue,
                     ),
@@ -439,7 +444,10 @@ class GenericCredentialItem: ICredentialView {
                                 null
                             }
                         }
-                        genericObjectDisplayer(credential!!, listOf("id", "identifier", "type", "proof", "renderMethod", "@context"))
+                        genericObjectDisplayer(
+                            credential!!,
+                            listOf("id", "identifier", "type", "proof", "renderMethod", "@context")
+                        )
                     }
                 )
             )

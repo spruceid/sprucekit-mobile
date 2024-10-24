@@ -91,7 +91,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                                 }
                                 .padding(start = (level * 4).dp)
                         ) {
-                            genericObjectDisplayer(jsonObject, filter, level+1)
+                            genericObjectDisplayer(jsonObject, filter, level + 1)
                         }
                     }
                 )
@@ -100,7 +100,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                 if (jsonArray != null) {
                     for (i in 0 until jsonArray.length()) {
                         val jsonObjectElem = tryGetJSONObjectFromJSONArray(i, jsonArray)
-                        if(jsonObjectElem != null) {
+                        if (jsonObjectElem != null) {
                             res.add(
                                 Column {
                                     Text(
@@ -129,7 +129,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                                             }
                                             .padding(start = (level * 4).dp)
                                     ) {
-                                        genericObjectDisplayer(jsonObjectElem, filter, level+1)
+                                        genericObjectDisplayer(jsonObjectElem, filter, level + 1)
                                     }
                                 }
                             )
@@ -138,8 +138,9 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                 } else {
                     val value = obj.get(key).toString()
                     if (key.lowercase().contains("image") ||
-                            key.lowercase().contains("portrait") ||
-                        value.contains("data:image")) {
+                        key.lowercase().contains("portrait") ||
+                        value.contains("data:image")
+                    ) {
                         res.add(
                             Column(Modifier.padding(vertical = 10.dp)) {
                                 Text(
@@ -152,9 +153,10 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                                 CredentialImage(value, key)
                             }
                         )
-                    } else if(key.lowercase().contains("date") ||
+                    } else if (key.lowercase().contains("date") ||
                         key.lowercase().contains("from") ||
-                        key.lowercase().contains("until")) {
+                        key.lowercase().contains("until")
+                    ) {
 
                         res.add(
                             Column(Modifier.padding(vertical = 10.dp)) {

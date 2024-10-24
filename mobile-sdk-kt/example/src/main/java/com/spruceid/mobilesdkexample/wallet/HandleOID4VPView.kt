@@ -99,7 +99,7 @@ fun HandleOID4VPView(
                         // TODO: Update to use VDC collection in the future
                         // to detect the type of credential.
                         .newSdJwt(Vcdm2SdJwt.newFromCompactSdJwt(rawCredential.rawCredential))
-                } catch(_: Exception)  {
+                } catch (_: Exception) {
                     null
                 }
             }.filterNotNull()
@@ -127,7 +127,7 @@ fun HandleOID4VPView(
         }
     }
 
-    if(err != null) {
+    if (err != null) {
         ErrorView(
             errorTitle = "Error Presenting Credential",
             errorDetails = err!!,
@@ -141,7 +141,7 @@ fun HandleOID4VPView(
         if (permissionRequest == null) {
             LoadingView(loadingText = "Loading...")
         } else if (permissionResponse == null) {
-            if(permissionRequest!!.credentials().isNotEmpty()) {
+            if (permissionRequest!!.credentials().isNotEmpty()) {
                 CredentialSelector(
                     credentials = permissionRequest!!.credentials(),
                     credentialClaims = credentialClaims,
@@ -261,7 +261,7 @@ fun DataFieldSelector(
                     onCancel()
                 },
                 shape = RoundedCornerShape(6.dp),
-                colors =  ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
                     contentColor = ColorStone950,
                 ),
@@ -287,7 +287,7 @@ fun DataFieldSelector(
                     onContinue()
                 },
                 shape = RoundedCornerShape(6.dp),
-                colors =  ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = ColorEmerald900
                 ),
                 modifier = Modifier
@@ -338,18 +338,20 @@ fun CredentialSelector(
             credentialClaims[credential.id()]?.getString("name").let {
                 return it.toString()
             }
-        } catch(_: Exception) {}
+        } catch (_: Exception) {
+        }
 
         try {
             credentialClaims[credential.id()]?.getJSONArray("type").let {
                 for (i in 0 until it!!.length()) {
                     if (it.get(i).toString() != "VerifiableCredential") {
-                       return it.get(i).toString()
+                        return it.get(i).toString()
                     }
                 }
                 return ""
             }
-        } catch(_: Exception) {}
+        } catch (_: Exception) {
+        }
         return ""
     }
 
@@ -360,7 +362,7 @@ fun CredentialSelector(
             .padding(top = 48.dp)
     ) {
         Text(
-            text = "Select the credential${if(allowMultiple) "(s)" else ""} to share",
+            text = "Select the credential${if (allowMultiple) "(s)" else ""} to share",
             fontFamily = Inter,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
@@ -394,7 +396,7 @@ fun CredentialSelector(
                 CredentialSelectorItem(
                     credential = credential,
                     requestedFields = getRequestedFields(credential),
-                    getCredentialTitle = {cred -> getCredentialTitle(cred)},
+                    getCredentialTitle = { cred -> getCredentialTitle(cred) },
                     isChecked = credential in selectedCredentials,
                     selectCredential = { cred -> selectCredential(cred) },
                     removeCredential = { cred -> removeCredential(cred) },
@@ -413,7 +415,7 @@ fun CredentialSelector(
                     onCancel()
                 },
                 shape = RoundedCornerShape(6.dp),
-                colors =  ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
                     contentColor = ColorStone950,
                 ),
@@ -436,13 +438,13 @@ fun CredentialSelector(
 
             Button(
                 onClick = {
-                    if(selectedCredentials.isNotEmpty()) {
+                    if (selectedCredentials.isNotEmpty()) {
                         onContinue(selectedCredentials)
                     }
                 },
                 shape = RoundedCornerShape(6.dp),
-                colors =  ButtonDefaults.buttonColors(
-                containerColor = if (selectedCredentials.isNotEmpty()) {
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (selectedCredentials.isNotEmpty()) {
                         ColorStone600
                     } else {
                         Color.Gray

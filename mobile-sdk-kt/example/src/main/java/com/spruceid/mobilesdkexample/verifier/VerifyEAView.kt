@@ -58,7 +58,7 @@ fun VerifyEAView(
         }
     }
 
-    when(step) {
+    when (step) {
         VerifyEASteps.STEP_ONE -> {
             ScanningComponent(
                 subtitle = "Scan the front of your\nemployment authorization",
@@ -67,9 +67,11 @@ fun VerifyEAView(
                 onRead = ::onReadStepOne
             )
         }
+
         VerifyEASteps.INTERMEDIATE -> {
             Loader()
         }
+
         VerifyEASteps.STEP_TWO -> {
             ScanningComponent(
                 title = "Scan MRZ",
@@ -79,6 +81,7 @@ fun VerifyEAView(
                 onRead = ::onReadStepTwo
             )
         }
+
         VerifyEASteps.SUCCESS -> {
             VerifierSuccessView(
                 navController = navController,

@@ -35,7 +35,7 @@ fun VerifyVCView(
         }
     }
 
-    if(success == null) {
+    if (success == null) {
         ScanningComponent(
             navController = navController,
             scanningType = ScanningType.QRCODE,

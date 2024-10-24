@@ -81,9 +81,11 @@ fun AddToWalletView(
             Button(
                 onClick = {
                     scope.launch {
-                        rawCredentialsViewModel.saveRawCredential(RawCredentials(
-                            rawCredential = rawCredential
-                        ))
+                        rawCredentialsViewModel.saveRawCredential(
+                            RawCredentials(
+                                rawCredential = rawCredential
+                            )
+                        )
 
                         navController.navigate(Screen.HomeScreen.route) {
                             popUpTo(0)
@@ -91,7 +93,7 @@ fun AddToWalletView(
                     }
                 },
                 shape = RoundedCornerShape(5.dp),
-                colors =  ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = CTAButtonGreen,
                     contentColor = Color.White,
                 ),
@@ -113,7 +115,7 @@ fun AddToWalletView(
                     }
                 },
                 shape = RoundedCornerShape(5.dp),
-                colors =  ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
                     contentColor = SecondaryButtonRed,
                 ),
