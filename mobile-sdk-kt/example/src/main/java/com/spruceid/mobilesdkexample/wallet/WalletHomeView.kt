@@ -46,14 +46,17 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun WalletHomeView(
-        navController: NavController,
-        rawCredentialsViewModel: IRawCredentialsViewModel
+    navController: NavController,
+    rawCredentialsViewModel: IRawCredentialsViewModel
 ) {
-    Column(Modifier.padding(all = 20.dp).padding(top = 20.dp)) {
+    Column(
+        Modifier
+            .padding(all = 20.dp)
+            .padding(top = 20.dp)) {
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
-                rawCredentialsViewModel = rawCredentialsViewModel,
-                navController = navController
+            rawCredentialsViewModel = rawCredentialsViewModel,
+            navController = navController
         )
     }
 }
@@ -62,45 +65,51 @@ fun WalletHomeView(
 fun WalletHomeHeader(navController: NavController) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-                text = "SpruceKit Demo Wallet",
-                fontFamily = Inter,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 20.sp,
-                color = TextHeader
+            text = "SpruceKit Demo Wallet",
+            fontFamily = Inter,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 20.sp,
+            color = TextHeader
         )
         Spacer(Modifier.weight(1f))
         Box(
-                contentAlignment = Alignment.Center,
-                modifier =
-                        Modifier.width(36.dp)
-                                .height(36.dp)
-                                .padding(start = 4.dp)
-                                .clip(shape = RoundedCornerShape(8.dp))
-                                .background(Primary)
-                                .clickable { navController.navigate(Screen.OID4VCIScreen.route) }
+            contentAlignment = Alignment.Center,
+            modifier =
+            Modifier
+                .width(36.dp)
+                .height(36.dp)
+                .padding(start = 4.dp)
+                .clip(shape = RoundedCornerShape(8.dp))
+                .background(Primary)
+                .clickable { navController.navigate(Screen.OID4VCIScreen.route) }
         ) {
             Image(
-                    painter = painterResource(id = R.drawable.scan_qr_code),
-                    contentDescription = stringResource(id = R.string.scan_qr_code),
-                    modifier = Modifier.width(20.dp).height(20.dp)
+                painter = painterResource(id = R.drawable.scan_qr_code),
+                contentDescription = stringResource(id = R.string.scan_qr_code),
+                modifier = Modifier
+                    .width(20.dp)
+                    .height(20.dp)
             )
         }
         Box(
-                contentAlignment = Alignment.Center,
-                modifier =
-                        Modifier.width(36.dp)
-                                .height(36.dp)
-                                .padding(start = 4.dp)
-                                .clip(shape = RoundedCornerShape(8.dp))
-                                .background(Primary)
-                                .clickable {
-                                    navController.navigate(Screen.WalletSettingsHomeScreen.route)
-                                }
+            contentAlignment = Alignment.Center,
+            modifier =
+            Modifier
+                .width(36.dp)
+                .height(36.dp)
+                .padding(start = 4.dp)
+                .clip(shape = RoundedCornerShape(8.dp))
+                .background(Primary)
+                .clickable {
+                    navController.navigate(Screen.WalletSettingsHomeScreen.route)
+                }
         ) {
             Image(
-                    painter = painterResource(id = R.drawable.user),
-                    contentDescription = stringResource(id = R.string.user),
-                    modifier = Modifier.width(20.dp).height(20.dp)
+                painter = painterResource(id = R.drawable.user),
+                contentDescription = stringResource(id = R.string.user),
+                modifier = Modifier
+                    .width(20.dp)
+                    .height(20.dp)
             )
         }
     }
@@ -108,8 +117,8 @@ fun WalletHomeHeader(navController: NavController) {
 
 @Composable
 fun WalletHomeBody(
-        rawCredentialsViewModel: IRawCredentialsViewModel,
-        navController: NavController
+    rawCredentialsViewModel: IRawCredentialsViewModel,
+    navController: NavController
 ) {
     val scope = rememberCoroutineScope()
 
@@ -117,19 +126,23 @@ fun WalletHomeBody(
 
     if (rawCredentials.isNotEmpty()) {
         Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(Modifier.fillMaxWidth().padding(top = 20.dp).padding(bottom = 60.dp)) {
+            LazyColumn(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 20.dp)
+                    .padding(bottom = 60.dp)) {
                 items(rawCredentials) { rawCredential ->
                     credentialDisplaySelector(
                         rawCredential = rawCredential.rawCredential,
                         onDelete = {
                             scope.launch {
                                 rawCredentialsViewModel.deleteRawCredential(
-                                        id = rawCredential.id
+                                    id = rawCredential.id
                                 )
                             }
                         }
                     )
-                    .credentialPreviewAndDetails()
+                        .credentialPreviewAndDetails()
                 }
                 //        item {
                 //            ShareableCredentialListItems(mdocBase64 = mdocBase64)
@@ -138,29 +151,29 @@ fun WalletHomeBody(
 
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
                 Button(
-                        onClick = { navController.navigate(Screen.ScanQRScreen.route) },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors =
-                                ButtonDefaults.buttonColors(
-                                        containerColor = CTAButtonBlue,
-                                        contentColor = Color.White,
-                                )
+                    onClick = { navController.navigate(Screen.ScanQRScreen.route) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = CTAButtonBlue,
+                        contentColor = Color.White,
+                    )
                 ) {
                     Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(8.dp)
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(8.dp)
                     ) {
                         Icon(
-                                painter = painterResource(id = R.drawable.scan_qr_code_white),
-                                contentDescription = "QR Code Icon",
-                                tint = Color.White,
-                                modifier = Modifier.padding(end = 10.dp)
+                            painter = painterResource(id = R.drawable.scan_qr_code_white),
+                            contentDescription = "QR Code Icon",
+                            tint = Color.White,
+                            modifier = Modifier.padding(end = 10.dp)
                         )
                         Text(
-                                text = "Scan to share",
-                                fontFamily = Inter,
-                                fontWeight = FontWeight.Normal,
-                                fontSize = 15.sp,
+                            text = "Scan to share",
+                            fontFamily = Inter,
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 15.sp,
                         )
                     }
                 }

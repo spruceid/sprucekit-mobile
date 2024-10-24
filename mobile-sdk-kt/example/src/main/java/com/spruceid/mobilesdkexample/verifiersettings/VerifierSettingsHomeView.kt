@@ -52,7 +52,7 @@ fun VerifierSettingsHomeView(
     ) {
         VerifierSettingsHomeHeader(
             onBack = {
-                if(subpage != null) {
+                if (subpage != null) {
                     subpage = null
                 } else {
                     navController.popBackStack()
@@ -103,7 +103,7 @@ fun VerifierSettingsHomeBody(
     subpage: VerifierSubSettings?,
     changeSubPage: (VerifierSubSettings?) -> Unit
 ) {
-    if(subpage == null) {
+    if (subpage == null) {
         Column(
             Modifier
                 .padding(horizontal = 20.dp)
@@ -157,7 +157,7 @@ fun VerifierSettingsHomeBody(
                 }
             }
         }
-    } else if(subpage == VerifierSubSettings.VERIFICATION_ACTIVITY_LOG) {
+    } else if (subpage == VerifierSubSettings.VERIFICATION_ACTIVITY_LOG) {
         VerificationActivityLogsScreen()
     }
 }

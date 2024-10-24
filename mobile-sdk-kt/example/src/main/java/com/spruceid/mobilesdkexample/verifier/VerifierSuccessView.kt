@@ -49,7 +49,7 @@ fun VerifierSuccessView(
             .padding(20.dp)
             .padding(top = 40.dp)
     ) {
-        if(success) {
+        if (success) {
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -60,7 +60,8 @@ fun VerifierSuccessView(
                 Column(
                     Modifier
                         .fillMaxHeight()
-                        .padding(20.dp)) {
+                        .padding(20.dp)
+                ) {
                     Spacer(modifier = Modifier.weight(1.0f))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
@@ -90,7 +91,8 @@ fun VerifierSuccessView(
                 Column(
                     Modifier
                         .fillMaxHeight()
-                        .padding(20.dp)) {
+                        .padding(20.dp)
+                ) {
                     Spacer(modifier = Modifier.weight(1.0f))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
@@ -118,7 +120,7 @@ fun VerifierSuccessView(
             color = TextHeader,
             modifier = Modifier.padding(top = 12.dp)
         )
-        
+
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
@@ -126,7 +128,7 @@ fun VerifierSuccessView(
                 navController.popBackStack()
             },
             shape = RoundedCornerShape(5.dp),
-            colors =  ButtonDefaults.buttonColors(
+            colors = ButtonDefaults.buttonColors(
                 containerColor = VerifierCloseButton,
                 contentColor = Color.White,
             ),

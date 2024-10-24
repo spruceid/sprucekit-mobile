@@ -3,6 +3,7 @@ package com.spruceid.mobilesdkexample.credentials
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -55,6 +56,7 @@ fun AddToWalletView(
             Modifier
                 .padding(all = 20.dp)
                 .padding(top = 20.dp)
+                .navigationBarsPadding(),
         ) {
             Text(
                 text = "Review Info",
@@ -81,9 +83,11 @@ fun AddToWalletView(
             Button(
                 onClick = {
                     scope.launch {
-                        rawCredentialsViewModel.saveRawCredential(RawCredentials(
-                            rawCredential = rawCredential
-                        ))
+                        rawCredentialsViewModel.saveRawCredential(
+                            RawCredentials(
+                                rawCredential = rawCredential
+                            )
+                        )
 
                         navController.navigate(Screen.HomeScreen.route) {
                             popUpTo(0)
@@ -91,7 +95,7 @@ fun AddToWalletView(
                     }
                 },
                 shape = RoundedCornerShape(5.dp),
-                colors =  ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = CTAButtonGreen,
                     contentColor = Color.White,
                 ),
@@ -113,7 +117,7 @@ fun AddToWalletView(
                     }
                 },
                 shape = RoundedCornerShape(5.dp),
-                colors =  ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
                     contentColor = SecondaryButtonRed,
                 ),

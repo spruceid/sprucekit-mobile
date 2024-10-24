@@ -35,7 +35,7 @@ fun VerifyDLView(
         }
     }
 
-    if(success == null) {
+    if (success == null) {
         ScanningComponent(
             subtitle = "Scan the\nback of your driver's license",
             navController = navController,

@@ -48,18 +48,20 @@ fun HomeView(
         mutableStateOf(HomeTabs.WALLET)
     }
 
-    Scaffold (
+    Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .background(Bg), horizontalArrangement = Arrangement.SpaceEvenly) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Bg), horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
                 Button(
                     onClick = { tab = HomeTabs.WALLET },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
-                        contentColor = if(tab == HomeTabs.WALLET) Color.Blue else Color.Gray,
+                        contentColor = if (tab == HomeTabs.WALLET) Color.Blue else Color.Gray,
                     )
                 ) {
                     Text(
@@ -75,7 +77,7 @@ fun HomeView(
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
-                        contentColor = if(tab == HomeTabs.VERIFIER) Color.Blue else Color.Gray,
+                        contentColor = if (tab == HomeTabs.VERIFIER) Color.Blue else Color.Gray,
                     )
                 ) {
                     Text(

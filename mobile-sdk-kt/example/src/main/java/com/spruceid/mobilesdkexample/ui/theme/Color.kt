@@ -23,6 +23,7 @@ val VerifierRequestBadgeFieldText = Color(0xFF0C0A09)
 val VerifiedGreenValid = Color(0xFF047857)
 val VerifiedRedInvalid = Color(0xFFBE123C)
 val VerifierCloseButton = Color(0xFF44403C)
+
 // Design system colors
 val ColorBase300 = Color(0xFFE6E1D6)
 val ColorBase800 = Color(0xFF75675C)

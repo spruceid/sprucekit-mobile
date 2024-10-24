@@ -40,6 +40,7 @@ fun MobileSdkTheme(
             val context = LocalContext.current
             dynamicLightColorScheme(context)
         }
+
         else -> LightColorScheme
     }
 

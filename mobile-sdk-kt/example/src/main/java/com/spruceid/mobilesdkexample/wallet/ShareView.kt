@@ -86,7 +86,7 @@ fun ShareView(
             getPermissions().toTypedArray(),
             launcherMultiplePermissions
         )
-        if(isBluetoothEnabled) {
+        if (isBluetoothEnabled) {
             credentialViewModel.present(getBluetoothManager(context)!!)
         }
     }
@@ -94,7 +94,7 @@ fun ShareView(
     when (currentState) {
         PresentmentState.UNINITIALIZED ->
             if (credentials.isNotEmpty()) {
-                if(!isBluetoothEnabled) {
+                if (!isBluetoothEnabled) {
                     Text(
                         text = "Enable Bluetooth to initialize",
                         fontFamily = Inter,
@@ -104,6 +104,7 @@ fun ShareView(
                     )
                 }
             }
+
         PresentmentState.ENGAGING_QR_CODE -> {
             if (session!!.getQrCodeUri().isNotEmpty()) {
                 Image(
@@ -116,6 +117,7 @@ fun ShareView(
                 )
             }
         }
+
         PresentmentState.SELECT_NAMESPACES -> {
             Text(
                 text = "Selecting namespaces...",
@@ -129,6 +131,7 @@ fun ShareView(
                 onCancel = onCancel
             )
         }
+
         PresentmentState.SUCCESS -> Text(
             text = "Successfully presented credential.",
             fontFamily = Inter,
@@ -136,8 +139,9 @@ fun ShareView(
             fontSize = 16.sp,
             modifier = Modifier.padding(vertical = 20.dp)
         )
+
         PresentmentState.ERROR -> Text(
-            text ="Error: $error",
+            text = "Error: $error",
             fontFamily = Inter,
             fontWeight = FontWeight.Normal,
             fontSize = 16.sp,

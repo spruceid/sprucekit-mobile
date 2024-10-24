@@ -17,7 +17,7 @@ const val OPEN_ID4VP_SCHEME = "openid4vp://"
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun DispatchQRView(
-        navController: NavController,
+    navController: NavController,
 ) {
     val scope = rememberCoroutineScope()
 
@@ -35,8 +35,8 @@ fun DispatchQRView(
     }
 
     ScanningComponent(
-            navController = navController,
-            scanningType = ScanningType.QRCODE,
-            onRead = ::onRead
+        navController = navController,
+        scanningType = ScanningType.QRCODE,
+        onRead = ::onRead
     )
 }

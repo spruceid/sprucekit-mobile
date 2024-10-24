@@ -90,6 +90,7 @@ fun VerifierHomeHeader(
         }
     }
 }
+
 @Composable
 fun VerifierHomeBody(
     navController: NavController

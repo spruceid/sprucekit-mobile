@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,7 +60,7 @@ import org.json.JSONObject
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
-class AchievementCredentialItem: ICredentialView {
+class AchievementCredentialItem : ICredentialView {
     private var credentialPack: CredentialPack
     private val onDelete: (() -> Unit)?
 
@@ -80,7 +81,7 @@ class AchievementCredentialItem: ICredentialView {
             try {
                 if (
                     cred?.asJwtVc() != null ||
-                    cred?.asJsonVc() != null||
+                    cred?.asJsonVc() != null ||
                     cred?.asSdJwt() != null
                 ) {
                     it.second
@@ -95,12 +96,14 @@ class AchievementCredentialItem: ICredentialView {
         var description = ""
         try {
             description = credential?.getJSONObject("issuer")?.getString("name").toString()
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
 
         if (description.isBlank()) {
             try {
                 description = credential?.getString("description").toString()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
 
         Column {
@@ -125,7 +128,7 @@ class AchievementCredentialItem: ICredentialView {
                     try {
                         if (
                             cred?.asJwtVc() != null ||
-                            cred?.asJsonVc() != null||
+                            cred?.asJsonVc() != null ||
                             cred?.asSdJwt() != null
                         ) {
                             it.second
@@ -142,7 +145,7 @@ class AchievementCredentialItem: ICredentialView {
                     if (title.isBlank()) {
                         val arrayTypes = credential?.getJSONArray("type")
                         if (arrayTypes != null) {
-                            for(i in 0 until arrayTypes.length()) {
+                            for (i in 0 until arrayTypes.length()) {
                                 if (arrayTypes.get(i).toString() != "VerifiableCredential") {
                                     title = arrayTypes.get(i).toString().splitCamelCase()
                                     break
@@ -150,7 +153,8 @@ class AchievementCredentialItem: ICredentialView {
                             }
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
                 Text(
                     text = title,
                     fontFamily = Inter,
@@ -187,7 +191,7 @@ class AchievementCredentialItem: ICredentialView {
                     try {
                         if (
                             cred?.asJwtVc() != null ||
-                            cred?.asJsonVc() != null||
+                            cred?.asJsonVc() != null ||
                             cred?.asSdJwt() != null
                         ) {
                             it.second
@@ -204,7 +208,7 @@ class AchievementCredentialItem: ICredentialView {
                     if (title.isBlank()) {
                         val arrayTypes = credential?.getJSONArray("type")
                         if (arrayTypes != null) {
-                            for(i in 0 until arrayTypes.length()) {
+                            for (i in 0 until arrayTypes.length()) {
                                 if (arrayTypes.get(i).toString() != "VerifiableCredential") {
                                     title = arrayTypes.get(i).toString().splitCamelCase()
                                     break
@@ -212,7 +216,8 @@ class AchievementCredentialItem: ICredentialView {
                             }
                         }
                     }
-                } catch (_: Exception) {}
+                } catch (_: Exception) {
+                }
 
                 Column {
                     Row(
@@ -256,7 +261,8 @@ class AchievementCredentialItem: ICredentialView {
                 onDismissRequest = {
                     showBottomSheet = false
                 },
-                sheetState = sheetState
+                sheetState = sheetState,
+                modifier = Modifier.navigationBarsPadding(),
             ) {
                 Text(
                     text = "Credential Options",
@@ -274,7 +280,7 @@ class AchievementCredentialItem: ICredentialView {
                         onDelete?.invoke()
                     },
                     shape = RoundedCornerShape(5.dp),
-                    colors =  ButtonDefaults.buttonColors(
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
                         contentColor = SecondaryButtonRed,
                     ),
@@ -298,7 +304,7 @@ class AchievementCredentialItem: ICredentialView {
                         }
                     },
                     shape = RoundedCornerShape(5.dp),
-                    colors =  ButtonDefaults.buttonColors(
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
                         contentColor = SpruceBlue,
                     ),
@@ -324,7 +330,7 @@ class AchievementCredentialItem: ICredentialView {
                 .border(
                     width = 1.dp,
                     color = CredentialBorder,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
                 )
                 .padding(12.dp)
         ) {
@@ -377,9 +383,11 @@ class AchievementCredentialItem: ICredentialView {
                         }
 
                         val awardedDate = credential?.get("awardedDate")?.toString()
-                        val ISO8601DateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]Z")
+                        val ISO8601DateFormat =
+                            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]Z")
                         val parsedDate = OffsetDateTime.parse(awardedDate, ISO8601DateFormat)
-                        val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' h:mm a")
+                        val dateTimeFormatter =
+                            DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' h:mm a")
 
                         val identity = credential?.getJSONArray("credentialSubject.identity")
                         val details = identity?.let {
