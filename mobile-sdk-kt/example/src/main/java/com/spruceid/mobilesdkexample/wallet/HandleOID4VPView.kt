@@ -254,7 +254,8 @@ fun DataFieldSelector(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
+                .padding(vertical = 12.dp)
+                .navigationBarsPadding(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
