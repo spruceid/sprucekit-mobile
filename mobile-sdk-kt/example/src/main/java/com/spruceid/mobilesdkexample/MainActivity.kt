@@ -1,9 +1,8 @@
 package com.spruceid.mobilesdkexample
 
 import android.app.Application
-import android.net.Uri
+import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,19 +17,40 @@ import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobilesdkexample.db.AppDatabase
 import com.spruceid.mobilesdkexample.db.RawCredentialsRepository
+import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.navigation.SetupNavGraph
 import com.spruceid.mobilesdkexample.ui.theme.Bg
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 import com.spruceid.mobilesdkexample.viewmodels.IRawCredentialsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.RawCredentialsViewModelFactory
 import kotlinx.coroutines.launch
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 const val DEFAULT_KEY_ID = "key-1"
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
+
+    override fun onNewIntent(intent: Intent?) {
+        if (intent != null && intent.action == "android.intent.action.VIEW" && intent.data != null) {
+            if (intent.data!!.toString().startsWith("spruceid://?sd-jwt=")) {
+                navController.navigate(
+                    Screen.AddToWalletScreen.route.replace(
+                        "{rawCredential}",
+                        intent.data.toString().replace("spruceid://?sd-jwt=", "")
+                    )
+                )
+            } else if (intent.data!!.toString().startsWith("openid4vp")) {
+                    navController.navigate(
+                        Screen.HandleOID4VP.route.replace(
+                            "{url}",
+                            intent.data.toString().replace("openid4vp://", "")
+                        )
+                    )
+                }
+        } else {
+            super.onNewIntent(intent)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
