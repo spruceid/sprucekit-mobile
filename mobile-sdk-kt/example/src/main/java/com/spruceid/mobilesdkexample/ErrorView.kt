@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,7 +61,8 @@ fun ErrorView(
     }
 
     Box(
-        Modifier.fillMaxSize(),
+        Modifier
+            .fillMaxSize()
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -100,13 +102,14 @@ fun ErrorView(
                     onClose()
                 },
                 shape = RoundedCornerShape(6.dp),
-                colors =  ButtonDefaults.buttonColors(
+                colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
                     contentColor = ColorStone950,
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(30.dp)
+                    .navigationBarsPadding()
                     .border(
                         width = 1.dp,
                         color = BorderSecondary,
@@ -165,7 +168,8 @@ fun ErrorView(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 12.dp),
+                                .padding(vertical = 12.dp)
+                                .navigationBarsPadding(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Button(
@@ -173,7 +177,7 @@ fun ErrorView(
                                     showSheet = false
                                 },
                                 shape = RoundedCornerShape(6.dp),
-                                colors =  ButtonDefaults.buttonColors(
+                                colors = ButtonDefaults.buttonColors(
                                     containerColor = Color.Transparent,
                                     contentColor = ColorStone950,
                                 ),

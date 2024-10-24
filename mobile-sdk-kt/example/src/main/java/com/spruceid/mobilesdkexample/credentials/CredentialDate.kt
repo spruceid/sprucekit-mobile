@@ -28,7 +28,8 @@ fun CredentialDate(dateString: String) {
             val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' h:mm a")
             date = parsedDate.format(dateTimeFormatter)
             return@LaunchedEffect
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
 
         // date only
         try {
@@ -36,16 +37,19 @@ fun CredentialDate(dateString: String) {
             val dateFormat = DateTimeFormatter.ofPattern("MMM dd, yyyy")
             date = dateFormat.format(zonedDateTime)
             return@LaunchedEffect
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
 
         date = dateString
     }
 
-    date?.let { Text(
-        it,
-        fontFamily = Inter,
-        fontWeight = FontWeight.Normal,
-        fontSize = 17.sp,
-        color = ColorStone950,
-    ) }
+    date?.let {
+        Text(
+            it,
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 17.sp,
+            color = ColorStone950,
+        )
+    }
 }

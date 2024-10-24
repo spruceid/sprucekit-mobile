@@ -96,7 +96,7 @@ fun WalletSettingsHomeBody(rawCredentialsViewModel: IRawCredentialsViewModel) {
                 }
             },
             shape = RoundedCornerShape(5.dp),
-            colors =  ButtonDefaults.buttonColors(
+            colors = ButtonDefaults.buttonColors(
                 containerColor = VerifiedRedInvalid,
                 contentColor = Color.White,
             ),

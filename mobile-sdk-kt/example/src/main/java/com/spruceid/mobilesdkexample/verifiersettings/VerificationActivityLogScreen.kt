@@ -85,14 +85,16 @@ fun VerificationActivityLogsScreen() {
                             .padding(bottom = 4.dp),
                     )
                     Text(
-                        text = "${if (log.expirationDate.before(
-                                Date(),
-                            )
-                        ) {
-                            "expired"
-                        } else {
-                            "expires"
-                        }} on ${dateFormatter.format(log.expirationDate)}",
+                        text = "${
+                            if (log.expirationDate.before(
+                                    Date(),
+                                )
+                            ) {
+                                "expired"
+                            } else {
+                                "expires"
+                            }
+                        } on ${dateFormatter.format(log.expirationDate)}",
                         fontFamily = Inter,
                         fontWeight = FontWeight.Normal,
                         fontSize = 14.sp,

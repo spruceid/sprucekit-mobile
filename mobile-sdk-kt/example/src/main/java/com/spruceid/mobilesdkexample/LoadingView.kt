@@ -67,7 +67,7 @@ fun LoadingView(
                         onCancel()
                     },
                     shape = RoundedCornerShape(5.dp),
-                    colors =  ButtonDefaults.buttonColors(
+                    colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
                         contentColor = Color.Black,
                     ),

@@ -16,7 +16,11 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 
 @Composable
-fun NamespaceField(namespace: Map.Entry<String, Boolean>, isChecked: Boolean, onCheck: (Boolean) -> Unit) {
+fun NamespaceField(
+    namespace: Map.Entry<String, Boolean>,
+    isChecked: Boolean,
+    onCheck: (Boolean) -> Unit
+) {
     MobileSdkTheme {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,

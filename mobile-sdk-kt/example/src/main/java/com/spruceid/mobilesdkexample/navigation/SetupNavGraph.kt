@@ -19,45 +19,45 @@ import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
 
 @Composable
 fun SetupNavGraph(
-        navController: NavHostController,
-        rawCredentialsViewModel: IRawCredentialsViewModel
+    navController: NavHostController,
+    rawCredentialsViewModel: IRawCredentialsViewModel
 ) {
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
         composable(
-                route = Screen.HomeScreen.route,
+            route = Screen.HomeScreen.route,
         ) { HomeView(navController, rawCredentialsViewModel) }
         composable(
-                route = Screen.VerifyDLScreen.route,
+            route = Screen.VerifyDLScreen.route,
         ) { VerifyDLView(navController) }
         composable(
-                route = Screen.VerifyEAScreen.route,
+            route = Screen.VerifyEAScreen.route,
         ) { VerifyEAView(navController) }
         composable(
-                route = Screen.VerifyVCScreen.route,
+            route = Screen.VerifyVCScreen.route,
         ) { VerifyVCView(navController) }
         composable(
-                route = Screen.VerifierSettingsHomeScreen.route,
+            route = Screen.VerifierSettingsHomeScreen.route,
         ) { VerifierSettingsHomeView(navController) }
         composable(
-                route = Screen.WalletSettingsHomeScreen.route,
+            route = Screen.WalletSettingsHomeScreen.route,
         ) { WalletSettingsHomeView(navController, rawCredentialsViewModel) }
         composable(
-                route = Screen.AddToWalletScreen.route,
-                deepLinks =
-                        listOf(navDeepLink { uriPattern = "spruceid://?sd-jwt={rawCredential}" })
+            route = Screen.AddToWalletScreen.route,
+            deepLinks =
+            listOf(navDeepLink { uriPattern = "spruceid://?sd-jwt={rawCredential}" })
         ) { backStackEntry ->
             val rawCredential = backStackEntry.arguments?.getString("rawCredential")!!
             AddToWalletView(navController, rawCredential, rawCredentialsViewModel)
         }
         composable(
-                route = Screen.ScanQRScreen.route,
+            route = Screen.ScanQRScreen.route,
         ) { DispatchQRView(navController) }
         composable(
-                route = Screen.OID4VCIScreen.route,
+            route = Screen.OID4VCIScreen.route,
         ) { OID4VCIView(navController, rawCredentialsViewModel) }
         composable(
-                route = Screen.HandleOID4VP.route,
-                deepLinks = listOf(navDeepLink { uriPattern = "openid4vp://{url}" })
+            route = Screen.HandleOID4VP.route,
+            deepLinks = listOf(navDeepLink { uriPattern = "openid4vp://{url}" })
         ) { backStackEntry ->
             var url = backStackEntry.arguments?.getString("url")!!
             if (!url.startsWith("openid4vp")) {

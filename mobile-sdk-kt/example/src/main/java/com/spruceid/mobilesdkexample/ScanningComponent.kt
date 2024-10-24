@@ -48,7 +48,7 @@ fun ScanningComponent(
     title: String = "Scan QR Code",
     subtitle: String = "Please align within the guides",
     onRead: (content: String) -> Unit,
-    isMatch: (content: String) -> Boolean = {_ -> true},
+    isMatch: (content: String) -> Boolean = { _ -> true },
     onCancel: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -84,7 +84,7 @@ fun ScanningComponent(
     }
 
     fun internalOnCancel() {
-        if(onCancel != null) {
+        if (onCancel != null) {
             onCancel()
         } else {
             backHome()
@@ -111,6 +111,7 @@ fun ScanningComponent(
                     textColor = Color.White,
                     backgroundOpacity = 0.5f
                 )
+
                 ScanningType.PDF417 -> PDF417Scanner(
                     title = title,
                     subtitle = subtitle,
@@ -124,6 +125,7 @@ fun ScanningComponent(
                     textColor = Color.White,
                     backgroundOpacity = 0.5f
                 )
+
                 ScanningType.MRZ -> MRZScanner(
                     title = title,
                     subtitle = subtitle,
