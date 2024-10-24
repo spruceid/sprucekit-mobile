@@ -3,6 +3,7 @@ package com.spruceid.mobilesdkexample.credentials
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -55,6 +56,7 @@ fun AddToWalletView(
             Modifier
                 .padding(all = 20.dp)
                 .padding(top = 20.dp)
+                .navigationBarsPadding(),
         ) {
             Text(
                 text = "Review Info",
