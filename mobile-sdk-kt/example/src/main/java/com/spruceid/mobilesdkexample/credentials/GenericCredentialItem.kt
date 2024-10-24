@@ -486,11 +486,10 @@ class GenericCredentialItem : ICredentialView {
                 },
                 modifier = Modifier
                     .fillMaxHeight(0.8f)
-
                     .nestedScroll(rememberNestedScrollInteropConnection()),
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                 containerColor = Bg,
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
             ) {
                 Column(
                     Modifier

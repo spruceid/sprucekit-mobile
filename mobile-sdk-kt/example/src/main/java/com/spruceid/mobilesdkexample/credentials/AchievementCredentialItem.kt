@@ -330,7 +330,7 @@ class AchievementCredentialItem : ICredentialView {
                 .border(
                     width = 1.dp,
                     color = CredentialBorder,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
                 )
                 .padding(12.dp)
         ) {
