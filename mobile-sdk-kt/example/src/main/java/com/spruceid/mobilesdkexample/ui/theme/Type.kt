@@ -1,10 +1,14 @@
 package com.spruceid.mobilesdkexample.ui.theme
 
+import android.os.Build
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.R
@@ -31,13 +35,80 @@ val Inter =
         Font(R.font.inter_thin_italic, FontWeight.Thin, FontStyle.Italic),
     )
 
-// Set of Material typography styles to start with
-val Typography = Typography(
-    bodyLarge = TextStyle(
-        fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
+object BodyMdDefault {
+    const val WEIGHT = 500
+}
+
+val Switzer =
+    FontFamily(
+        Font(
+            R.font.switzer_variable,
+        )
     )
-)
+
+
+// Set of Material typography styles to start with
+val Typography.bodyMdDefault: TextStyle
+    @Composable
+    get() {
+        return TextStyle(
+            fontFamily = Switzer,
+            fontWeight = FontWeight.W500,
+            fontSize = 24.sp,
+            lineHeight = 36.sp
+        )
+    }
+
+val Typography.bodyXsRegular: TextStyle
+    @Composable
+    get() {
+        return TextStyle(
+            fontFamily = Switzer,
+            fontWeight = FontWeight.W400,
+            fontSize = 21.sp,
+            lineHeight = 32.sp
+        )
+    }
+
+val Typography.headerH2: TextStyle
+    @Composable
+    get() {
+        return TextStyle(
+            fontFamily = Switzer,
+            fontWeight = FontWeight.W500,
+            fontSize = 32.sp,
+            lineHeight = 48.sp
+        )
+    }
+
+val Typography.buttonText: TextStyle
+    @Composable
+    get() {
+        return TextStyle(
+            fontFamily = Switzer,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 21.sp,
+            lineHeight = 32.sp
+        )
+    }
+
+val Typography.buttonTextSmall: TextStyle
+    @Composable
+    get() {
+        return TextStyle(
+            fontFamily = Switzer,
+            fontWeight = FontWeight.W500,
+            fontSize = 19.sp,
+            lineHeight = 28.sp
+        )
+    }
+
+
+//        bodyMd = TextStyle(
+//            fontFamily = FontFamily.Default,
+//            fontWeight = FontWeight.Normal,
+//            fontSize = 16.sp,
+//            lineHeight = 24.sp,
+//            letterSpacing = 0.5.sp
+//        )
+//    )
