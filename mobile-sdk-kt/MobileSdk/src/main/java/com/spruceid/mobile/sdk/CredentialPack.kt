@@ -1,23 +1,41 @@
 package com.spruceid.mobile.sdk
 
+import com.spruceid.mobile.sdk.rs.CredentialDecodingException
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
+import com.spruceid.mobile.sdk.rs.StorageManagerInterface
+import com.spruceid.mobile.sdk.rs.Uuid
+import com.spruceid.mobile.sdk.rs.VdcCollection
+import com.spruceid.mobile.sdk.rs.VdcCollectionException
+import org.json.JSONException
 import org.json.JSONObject
+import java.lang.IllegalArgumentException
+import java.util.UUID
 
 /**
- * Collection of BaseCredentials with methods to interact with all instances
+ * A collection of ParsedCredentials with methods to interact with all instances.
+ *
+ * A CredentialPack is a semantic grouping of Credentials for display in the wallet. For example,
+ * the CredentialPack could represent:
+ * - multiple copies of the same credential (for one-time use),
+ * - different encodings of the same credential (JwtVC & JsonVC),
+ * - multiple instances of the same credential type (vehicle title credentials for more than 1
+ *   vehicle).
  */
 class CredentialPack {
+    private val id: UUID
     private val credentials: MutableList<ParsedCredential>
 
     constructor() {
+        id = UUID.randomUUID()
         credentials = mutableListOf()
     }
 
-    constructor(credentialsArray: MutableList<ParsedCredential>) {
+    constructor(id: UUID, credentialsArray: MutableList<ParsedCredential>) {
+        this.id = id
         this.credentials = credentialsArray
     }
 
@@ -123,4 +141,159 @@ class CredentialPack {
      * List all of the credentials in the CredentialPack.
      */
     fun list(): List<ParsedCredential> = this.credentials
+
+    /**
+     * Persists the CredentialPack in the StorageManager, and persists all Credentials in the
+     * VdcCollection.
+     *
+     * If a Credential already exists in the VdcCollection (matching on id), then
+     * it will be skipped without updating.
+     *
+     *
+     */
+    @Throws(SavingException::class)
+    fun save(storage: StorageManagerInterface) {
+        val vdcCollection = VdcCollection(storage)
+        try {
+            list().forEach {
+                if (vdcCollection.get(it.id()) != null) {
+                    vdcCollection.add(it.intoGenericForm())
+                }
+            }
+        } catch (e: VdcCollectionException) {
+            throw SavingException("failed to store credentials in VdcCollection", e)
+        }
+
+        val credentialIds = list()
+            .map { it.id() }
+
+        val contents = CredentialPackContents(id, credentialIds)
+        try {
+            storage.add("${PREFIX}${id}", contents.toBytes())
+        } catch (e:Exception) {
+            throw SavingException("unable to store or update CredentialPack", e)
+        }
+    }
+
+    companion object {
+        private const val PREFIX = "CredentialPack:"
+
+        /**
+         * List all CredentialPacks.
+         *
+         * These can then be individually loaded. For eager loading of all packs, see `loadPacks`.
+         */
+        @Throws(LoadingException::class)
+        fun listPacks(storage: StorageManagerInterface): List<CredentialPackContents> {
+            val contents: Iterable<CredentialPackContents>
+            try {
+                contents =
+                    storage.list()
+                        .filter { it.startsWith(PREFIX) }
+                        .mapNotNull { storage.get(it) }
+                        .map { CredentialPackContents(it) }
+            } catch (e: Exception) {
+                throw LoadingException("unable to list CredentialPacks", e)
+            }
+            return contents
+        }
+
+        /**
+         * Loads all CredentialPacks.
+         */
+        fun loadPacks(storage: StorageManagerInterface): List<CredentialPack> {
+            val vdcCollection = VdcCollection(storage)
+            return listPacks(storage)
+                .map { it.load(vdcCollection) }
+        }
+    }
 }
+
+/**
+ * Metadata for a CredentialPack, as loaded from the StorageManager.
+ */
+class CredentialPackContents {
+    private val ID_KEY = "id"
+    private val CREDENTIALS_KEY = "credentials"
+    private val json: JSONObject
+
+    constructor(byteArray: ByteArray) {
+        this.json = JSONObject(byteArray.decodeToString())
+    }
+
+    constructor(id: UUID, credentials: List<Uuid>) {
+        this.json = JSONObject(buildMap {
+            put(ID_KEY, id)
+            put(CREDENTIALS_KEY, credentials)
+        })
+    }
+
+    /**
+     * Unique identifier for the CredentialPack.
+     */
+    @Throws(LoadingException::class)
+    fun id(): UUID {
+        try {
+            return UUID.fromString(json.getString(ID_KEY))
+        } catch (e: JSONException) {
+            throw LoadingException("'$ID_KEY' does not exist, or is not a String", e)
+        } catch (e: IllegalArgumentException) {
+            throw LoadingException("'$ID_KEY' is not a valid UUID", e)
+        }
+    }
+
+    /**
+     * Identifiers for the credentials in this pack.
+     */
+    @Throws(LoadingException::class)
+    fun credentials(): List<Uuid> {
+        try {
+            val array = json.getJSONArray(CREDENTIALS_KEY)
+            return List(array.length(), { array.getString(it) })
+        } catch (e: JSONException) {
+            throw LoadingException("'$ID_KEY' does not exist, or is not a String", e)
+        } catch (e: IllegalArgumentException) {
+            throw LoadingException("'$ID_KEY' is not a valid UUID", e)
+        }
+    }
+
+    /**
+     * Loads all of the credentials from the VdcCollection into a CredentialPack.
+     */
+    @Throws(LoadingException::class)
+    fun load(vdcCollection: VdcCollection): CredentialPack {
+        val credentials =
+            credentials()
+                .mapNotNull {
+                    try {
+                        val credential = vdcCollection.get(it)
+                        if (credential == null) {
+                            println("WARNING: credential '$it' in pack '${id()}'" +
+                                    " could not be found")
+                        }
+                        credential
+                    } catch (e: Exception) {
+                        println("WARNING: credential '$it' could not be loaded from" +
+                                " storage")
+                        return@mapNotNull null
+                    }
+                }
+                .mapNotNull {
+                    try {
+                        return@mapNotNull ParsedCredential.parseFromCredential(it)
+                    } catch (e: CredentialDecodingException) {
+                        println("WARNING: failed to parse credential '${it.id}'" +
+                                " as a known variant")
+                        return@mapNotNull null
+                    }
+                }
+                .toMutableList()
+
+        return CredentialPack(id(), credentials)
+    }
+
+    fun toBytes(): ByteArray = json.toString().toByteArray()
+}
+
+class LoadingException(message: String, cause: Throwable) : Exception(message, cause)
+class SavingException(message: String, cause: Throwable) : Exception(message, cause)
