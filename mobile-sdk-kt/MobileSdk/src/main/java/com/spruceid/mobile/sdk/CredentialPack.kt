@@ -40,6 +40,36 @@ class CredentialPack {
     }
 
     /**
+     * Try to add a credential and throws a ParsingException if not possible
+     */
+    fun tryAddRawCredential(rawCredential: String): List<ParsedCredential> {
+        try {
+            return this.addJsonVc(JsonVc.newFromJson(rawCredential))
+        } catch (_: Exception) {
+        }
+
+        try {
+            return this.addSdJwt(Vcdm2SdJwt.newFromCompactSdJwt(rawCredential))
+        } catch (_: Exception) {
+        }
+
+        try {
+            return this.addJwtVc(JwtVc.newFromCompactJws(rawCredential))
+        } catch (_: Exception) {
+        }
+
+        try {
+            return this.addMdoc(Mdoc.fromStringifiedDocument(rawCredential, keyAlias = Uuid()))
+        } catch (_: Exception) {
+        }
+
+        throw ParsingException(
+            message = "The credential format is not supported. Credential = $rawCredential",
+            cause = null
+        )
+    }
+
+    /**
      * Add a JwtVc to the CredentialPack.
      */
     fun addJwtVc(jwtVc: JwtVc): List<ParsedCredential> {
@@ -295,5 +325,6 @@ class CredentialPackContents {
     fun toBytes(): ByteArray = json.toString().toByteArray()
 }
 
+class ParsingException(message: String, cause: Throwable?) : Exception(message, cause)
 class LoadingException(message: String, cause: Throwable) : Exception(message, cause)
 class SavingException(message: String, cause: Throwable) : Exception(message, cause)
