@@ -287,8 +287,11 @@ impl Holder {
 
                 // NOTE: JwtVc types are ALWAYS VCDM 1.1, therefore using the v1::syntax::JsonPresentation
                 // type.
-                let token =
-                    VpTokenItem::from(JsonPresentation::new(id, holder_id, vec![vc.credential()]));
+                let token = VpTokenItem::from(JsonPresentation::new(
+                    id,
+                    holder_id,
+                    vec![vc.credential().to_owned()],
+                ));
 
                 Ok(token.into())
             }

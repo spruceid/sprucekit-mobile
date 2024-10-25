@@ -144,8 +144,8 @@ impl JwtVc {
     }
 
     /// Return the internal `AnyJsonCredential` type
-    pub fn credential(&self) -> JsonCredential {
-        self.credential.clone()
+    pub fn credential(&self) -> &JsonCredential {
+        &self.credential
     }
 
     /// Check if the credential satisfies a presentation definition.
