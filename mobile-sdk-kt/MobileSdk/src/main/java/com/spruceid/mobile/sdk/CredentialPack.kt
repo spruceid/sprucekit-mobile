@@ -42,6 +42,7 @@ class CredentialPack {
     /**
      * Try to add a credential and throws a ParsingException if not possible
      */
+    @Throws(ParsingException::class)
     fun tryAddRawCredential(rawCredential: String): List<ParsedCredential> {
         try {
             return this.addJsonVc(JsonVc.newFromJson(rawCredential))
