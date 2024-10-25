@@ -3,6 +3,7 @@ import android.util.Base64
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.StorageManagerInterface
 import java.io.File
+import java.io.FileNotFoundException
 
 class StorageManager(val context: Context) : StorageManagerInterface {
     /// Function: add
@@ -14,7 +15,10 @@ class StorageManager(val context: Context) : StorageManagerInterface {
     /// key - The key to add
     /// value - The value to add under the key
     override fun add(key: String, value: ByteArray) =
-        context.openFileOutput(filename(key), 0).use { it.write(encrypt(value)) }
+        context.openFileOutput(filename(key), 0).use {
+            it.write(encrypt(value))
+            it.close()
+        }
 
 
     /// Function: get
@@ -23,9 +27,16 @@ class StorageManager(val context: Context) : StorageManagerInterface {
     ///
     /// Arguments:
     /// key - The key to retrieve
-    override fun get(key: String): ByteArray {
-        val bytes = ByteArray(0)
-        context.openFileInput(filename(key)).use { it.read(bytes) }
+    override fun get(key: String): ByteArray? {
+        var bytes: ByteArray
+        try {
+            context.openFileInput(filename(key)).use {
+                bytes = it.readBytes()
+                it.close()
+            }
+        } catch (e: FileNotFoundException) {
+            return null
+        }
         return decrypt(bytes)
     }
 
