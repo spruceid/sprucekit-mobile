@@ -128,6 +128,15 @@ fun VerifierHomeBody(
 //            }
 //        )
         VerifierListItem(
+            title = "Mobile Driver's Licence",
+            description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
+            binary = true,
+            fields = 0,
+            modifier = Modifier.clickable {
+                navController.navigate(Screen.VerifyMDocScreen.route)
+            }
+        )
+        VerifierListItem(
             title = "Verifiable Credential",
             description = "Verifies a verifiable credential by reading the verifiable presentation QR code",
             binary = true,
