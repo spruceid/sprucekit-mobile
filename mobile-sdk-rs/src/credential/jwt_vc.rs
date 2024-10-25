@@ -5,13 +5,10 @@ use std::sync::Arc;
 
 use base64::prelude::*;
 use openid4vp::core::presentation_definition::PresentationDefinition;
-use ssi::{
-    claims::{
-        jwt::IntoDecodedJwt,
-        vc::{v1::Credential as _, v2::Credential as _},
-        JwsString,
-    },
-    prelude::AnyJsonCredential,
+use ssi::claims::{
+    jwt::IntoDecodedJwt,
+    vc::v1::{Credential as _, JsonCredential},
+    JwsString,
 };
 use uuid::Uuid;
 
@@ -20,7 +17,7 @@ use uuid::Uuid;
 pub struct JwtVc {
     id: Uuid,
     jws: JwsString,
-    credential: AnyJsonCredential,
+    credential: JsonCredential,
     credential_string: String,
     header_json_string: String,
     payload_json_string: String,
@@ -57,10 +54,7 @@ impl JwtVc {
 
     /// The version of the Verifiable Credential Data Model that this credential conforms to.
     pub fn vcdm_version(&self) -> VcdmVersion {
-        match &self.credential {
-            ssi::claims::vc::AnySpecializedJsonCredential::V1(_) => VcdmVersion::V1,
-            ssi::claims::vc::AnySpecializedJsonCredential::V2(_) => VcdmVersion::V2,
-        }
+        VcdmVersion::V1
     }
 
     /// The type of this credential. Note that if there is more than one type (i.e. `types()`
@@ -71,10 +65,7 @@ impl JwtVc {
 
     /// The types of the credential from the VCDM, excluding the base `VerifiableCredential` type.
     pub fn types(&self) -> Vec<String> {
-        match &self.credential {
-            ssi::claims::vc::AnySpecializedJsonCredential::V1(vc) => vc.additional_types().to_vec(),
-            ssi::claims::vc::AnySpecializedJsonCredential::V2(vc) => vc.additional_types().to_vec(),
-        }
+        self.credential.additional_types().to_vec()
     }
 
     /// Access the W3C VCDM credential as a JSON encoded UTF-8 string.
@@ -153,8 +144,8 @@ impl JwtVc {
     }
 
     /// Return the internal `AnyJsonCredential` type
-    pub fn credential(&self) -> AnyJsonCredential {
-        self.credential.clone()
+    pub fn credential(&self) -> &JsonCredential {
+        &self.credential
     }
 
     /// Check if the credential satisfies a presentation definition.
