@@ -1,5 +1,7 @@
 // use super::request_signer::RequestSignerError;
 
+use super::permission_request::PermissionResponseError;
+
 /// The [OID4VPError] enum represents the errors that can occur
 /// when using the oid4vp foreign library.
 #[derive(thiserror::Error, Debug, uniffi::Error)]
@@ -54,6 +56,8 @@ pub enum OID4VPError {
     RequestSignerNotFound,
     #[error("Failed to initialize metadata: {0}")]
     MetadataInitialization(String),
+    #[error(transparent)]
+    PermissionResponse(#[from] PermissionResponseError),
 }
 
 // Handle unexpected errors when calling a foreign callback
