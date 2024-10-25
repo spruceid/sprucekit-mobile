@@ -1,6 +1,7 @@
 package com.spruceid.mobile.sdk
 
 import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.util.Log
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
@@ -20,7 +21,8 @@ class IsoMdlPresentation(
     val mdoc: Mdoc,
     val keyAlias: String,
     val bluetoothManager: BluetoothManager,
-    val callback: BLESessionStateDelegate
+    val callback: BLESessionStateDelegate,
+    val context: Context
 ) {
     val uuid: UUID = UUID.randomUUID()
     var session: MdlPresentationSession? = null
@@ -39,6 +41,7 @@ class IsoMdlPresentation(
                     "Central",
                     session!!.getBleIdent(),
                     ::updateRequestData,
+                    context,
                     callback
                 )
             this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))

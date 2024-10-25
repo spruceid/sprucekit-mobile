@@ -1,6 +1,7 @@
 package com.spruceid.mobile.sdk
 
 import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.util.Log
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseException
@@ -14,6 +15,7 @@ class IsoMdlReader(
     requestedItems: Map<String, Map<String, Boolean>>,
     trustAnchorRegistry: List<String>?,
     platformBluetooth: BluetoothManager,
+    context: Context
 ) {
     private lateinit var session: MdlSessionManager
     private lateinit var bleManager: Transport
@@ -31,6 +33,7 @@ class IsoMdlReader(
                 "Peripheral",
                 sessionData.bleIdent,
                 null,
+                context,
                 callback,
                 sessionData.request
             )

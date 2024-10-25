@@ -1,4 +1,5 @@
 package com.spruceid.mobile.sdk
+
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
@@ -12,11 +13,12 @@ import java.util.*
  * The responsibility of this class is to advertise data and be available for connection. AKA Holder.
  * 18013-5 section 8.3.3.1.1.4 Table 12.
  */
-class TransportBlePeripheralServerHolder(private var application: String,
-                                         private var bluetoothManager: BluetoothManager,
-                                         private var serviceUUID: UUID): Activity() {
-
-    private var context: Context = this
+class TransportBlePeripheralServerHolder(
+    private var application: String,
+    private var bluetoothManager: BluetoothManager,
+    private var serviceUUID: UUID,
+    private var context: Context
+) {
 
     private var bluetoothAdapter: BluetoothAdapter? = null
 
@@ -56,15 +58,25 @@ class TransportBlePeripheralServerHolder(private var application: String,
          */
         val gattServerCallback: GattServerCallback = object : GattServerCallback() {
             override fun onPeerConnected() {
-                Log.d("TransportBlePeripheralServerHolder.gattServerCallback.onPeerConnected", "Peer Connected")
+                Log.d(
+                    "TransportBlePeripheralServerHolder.gattServerCallback.onPeerConnected",
+                    "Peer Connected"
+                )
             }
+
             override fun onPeerDisconnected() {
-                Log.d("TransportBlePeripheralServerHolder.gattServerCallback.onPeerDisconnected", "Peer Disconnected")
+                Log.d(
+                    "TransportBlePeripheralServerHolder.gattServerCallback.onPeerDisconnected",
+                    "Peer Disconnected"
+                )
                 gattServer.stop()
             }
 
             override fun onMessageSendProgress(progress: Int, max: Int) {
-                Log.d("TransportBlePeripheralServerHolder.gattServerCallback.onMessageSendProgress", "progress:$progress max:$max")
+                Log.d(
+                    "TransportBlePeripheralServerHolder.gattServerCallback.onMessageSendProgress",
+                    "progress:$progress max:$max"
+                )
 
                 blePeripheral.stopAdvertise()
             }
@@ -100,9 +112,17 @@ class TransportBlePeripheralServerHolder(private var application: String,
             return
         }
 
-        gattServer = GattServer(gattServerCallback, context, bluetoothManager, serviceUUID,
-            characteristicStateUuid, characteristicClient2ServerUuid, characteristicServer2ClientUuid,
-            null, characteristicL2CAPUuid)
+        gattServer = GattServer(
+            gattServerCallback,
+            context,
+            bluetoothManager,
+            serviceUUID,
+            characteristicStateUuid,
+            characteristicClient2ServerUuid,
+            characteristicServer2ClientUuid,
+            null,
+            characteristicL2CAPUuid
+        )
 
         blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID, bluetoothAdapter!!)
         blePeripheral.advertise()

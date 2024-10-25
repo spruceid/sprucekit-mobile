@@ -17,11 +17,9 @@ class TransportBleCentralClientHolder(
     private var bluetoothManager: BluetoothManager,
     private var serviceUUID: UUID,
     private var updateRequestData: (data: ByteArray) -> Unit,
+    private var context: Context,
     private var callback: BLESessionStateDelegate?,
-) : Activity() {
-
-    private var context: Context = this
-
+) {
     private var bluetoothAdapter: BluetoothAdapter? = null
 
     private lateinit var previousAdapterName: String
@@ -98,10 +96,17 @@ class TransportBleCentralClientHolder(
                     "progress: $progress max: $max"
                 )
 
-                if(progress == max) {
+                if (progress == max) {
                     callback?.update(mapOf(Pair("success", "")))
                 } else {
-                    callback?.update(mapOf(Pair("uploadProgress", mapOf(Pair("curr", progress), Pair("max", max)))))
+                    callback?.update(
+                        mapOf(
+                            Pair(
+                                "uploadProgress",
+                                mapOf(Pair("curr", progress), Pair("max", max))
+                            )
+                        )
+                    )
                 }
             }
 

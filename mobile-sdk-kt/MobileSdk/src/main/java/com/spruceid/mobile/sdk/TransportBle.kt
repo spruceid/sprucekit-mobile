@@ -1,6 +1,7 @@
 package com.spruceid.mobile.sdk
 
 import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.util.Log
 import java.util.*
 
@@ -30,7 +31,8 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
     fun initialize(
         application: String, serviceUUID: UUID,
         deviceRetrievalOption: String, ident: ByteArray,
-        updateRequestData: (data: ByteArray) -> Unit,
+        updateRequestData: ((data: ByteArray) -> Unit)? = null,
+        context: Context,
         callback: BLESessionStateDelegate?,
         encodedEDeviceKeyBytes: ByteArray
     ) {
@@ -40,15 +42,17 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
          */
         if (deviceRetrievalOption == "Central" && application == "Holder") {
             Log.d("TransportBle.initialize", "-- Selecting Transport Central Client Holder --")
-
-            transportBleCentralClientHolder = TransportBleCentralClientHolder(
-                application,
-                bluetoothManager,
-                serviceUUID,
-                updateRequestData,
-                callback,
-            )
-            transportBleCentralClientHolder.connect(ident)
+            if (updateRequestData != null) {
+                transportBleCentralClientHolder = TransportBleCentralClientHolder(
+                    application,
+                    bluetoothManager,
+                    serviceUUID,
+                    updateRequestData,
+                    context,
+                    callback,
+                )
+                transportBleCentralClientHolder.connect(ident)
+            }
         }
 
         /**
@@ -58,7 +62,12 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
             Log.d("TransportBle.initialize", "-- Selecting Peripheral Server Holder --")
 
             transportBlePeripheralServerHolder =
-                TransportBlePeripheralServerHolder(application, bluetoothManager, serviceUUID)
+                TransportBlePeripheralServerHolder(
+                    application,
+                    bluetoothManager,
+                    serviceUUID,
+                    context
+                )
             transportBlePeripheralServerHolder.start()
         }
 
@@ -73,7 +82,8 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
                     callback,
                     application,
                     bluetoothManager,
-                    serviceUUID
+                    serviceUUID,
+                    context
                 )
             transportBlePeripheralServerReader.start(ident, encodedEDeviceKeyBytes)
         }

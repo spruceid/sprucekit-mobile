@@ -29,11 +29,9 @@ class TransportBlePeripheralServerReader(
     private val callback: BLESessionStateDelegate?,
     private var application: String,
     private var bluetoothManager: BluetoothManager,
-    private var serviceUUID: UUID
-) : Activity() {
-
-    private var context: Context = this
-
+    private var serviceUUID: UUID,
+    private val context: Context
+) {
     private var bluetoothAdapter: BluetoothAdapter? = null
 
     private lateinit var previousAdapterName: String
