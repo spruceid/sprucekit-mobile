@@ -14,7 +14,6 @@ class IsoMdlReader(
     requestedItems: Map<String, Map<String, Boolean>>,
     trustAnchorRegistry: List<String>?,
     platformBluetooth: BluetoothManager,
-    encodedEDeviceKeyBytes: ByteArray
 ) {
     private lateinit var session: MdlSessionManager
     private lateinit var bleManager: Transport
@@ -33,7 +32,7 @@ class IsoMdlReader(
                 sessionData.bleIdent,
                 null,
                 callback,
-                encodedEDeviceKeyBytes
+                sessionData.request
             )
 
         } catch (e: Error) {

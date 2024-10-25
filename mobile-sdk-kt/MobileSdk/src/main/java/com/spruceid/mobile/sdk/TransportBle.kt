@@ -11,6 +11,7 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
 
     private lateinit var transportBleCentralClientHolder: TransportBleCentralClientHolder
     private lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder
+    private lateinit var transportBlePeripheralServerReader: TransportBlePeripheralServerReader
 
     /**
      * Reserved for later matching with available cbor options.
@@ -30,7 +31,8 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
         application: String, serviceUUID: UUID,
         deviceRetrievalOption: String, ident: ByteArray,
         updateRequestData: (data: ByteArray) -> Unit,
-        callback: BLESessionStateDelegate?
+        callback: BLESessionStateDelegate?,
+        encodedEDeviceKeyBytes: ByteArray
     ) {
 
         /**
@@ -59,6 +61,22 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
                 TransportBlePeripheralServerHolder(application, bluetoothManager, serviceUUID)
             transportBlePeripheralServerHolder.start()
         }
+
+        /**
+         * Transport Peripheral Server Reader
+         */
+        if (deviceRetrievalOption == "Peripheral" && application == "Reader") {
+            Log.d("TransportBle.initialize", "-- Selecting Peripheral Server Reader --")
+
+            transportBlePeripheralServerReader =
+                TransportBlePeripheralServerReader(
+                    callback,
+                    application,
+                    bluetoothManager,
+                    serviceUUID
+                )
+            transportBlePeripheralServerReader.start(ident, encodedEDeviceKeyBytes)
+        }
     }
 
     /**
@@ -85,6 +103,10 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
         if (this::transportBlePeripheralServerHolder.isInitialized) {
             transportBlePeripheralServerHolder.stop()
         }
+
+        if (this::transportBlePeripheralServerReader.isInitialized) {
+            transportBlePeripheralServerReader.stop()
+        }
     }
 
     /**
@@ -97,6 +119,10 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
 
         if (this::transportBlePeripheralServerHolder.isInitialized) {
             transportBlePeripheralServerHolder.hardReset()
+        }
+
+        if (this::transportBlePeripheralServerReader.isInitialized) {
+            transportBlePeripheralServerReader.hardReset()
         }
     }
 }

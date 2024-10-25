@@ -21,8 +21,9 @@ class Transport(private var bluetoothManager: BluetoothManager) {
         deviceRetrieval: String,
         deviceRetrievalOption: String,
         ident: ByteArray,
-        updateRequestData: (data: ByteArray) -> Unit,
-        callback: BLESessionStateDelegate?
+        updateRequestData: ((data: ByteArray) -> Unit)? = null,
+        callback: BLESessionStateDelegate?,
+        encodedEDeviceKeyBytes: ByteArray = ByteArray(0)
     ) {
 
         /**
@@ -36,14 +37,17 @@ class Transport(private var bluetoothManager: BluetoothManager) {
             Log.d("Transport.initialize", "-- Selecting BLE Retrieval --")
 
             transportBLE = TransportBle(bluetoothManager)
-            transportBLE.initialize(
-                application,
-                serviceUUID,
-                deviceRetrievalOption,
-                ident,
-                updateRequestData,
-                callback
-            )
+            if (updateRequestData != null) {
+                transportBLE.initialize(
+                    application,
+                    serviceUUID,
+                    deviceRetrievalOption,
+                    ident,
+                    updateRequestData,
+                    callback,
+                    encodedEDeviceKeyBytes
+                )
+            }
         }
 
         /**
