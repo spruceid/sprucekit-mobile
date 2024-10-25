@@ -1,8 +1,11 @@
 use openid4vp::core::authorization_request::AuthorizationRequestObject;
 use openid4vp::core::presentation_definition::PresentationDefinition;
+use openid4vp::core::presentation_submission::{DescriptorMap, PresentationSubmission};
+use openid4vp::core::response::parameters::{VpToken, VpTokenItem};
+use openid4vp::core::response::{AuthorizationResponse, UnencodedAuthorizationResponse};
 
 use crate::common::*;
-use crate::credential::{Credential, ParsedCredential};
+use crate::credential::{Credential, CredentialEncodingError, ParsedCredential};
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -50,22 +53,30 @@ pub enum PermissionRequestError {
     CredentialPresentation(String),
 }
 
+#[derive(uniffi::Error, thiserror::Error, Debug)]
+pub enum PermissionResponseError {
+    #[error("Failed to parse JsonPath: {0}")]
+    JsonPathParse(String),
+    #[error(transparent)]
+    CredentialEncoding(#[from] CredentialEncodingError),
+}
+
 #[derive(Debug, uniffi::Object)]
 pub struct RequestedField {
     /// A unique ID for the requested field
     pub(crate) id: Uuid,
-    pub(crate) name: String,
+    pub(crate) name: Option<String>,
     pub(crate) required: bool,
     pub(crate) retained: bool,
     pub(crate) purpose: Option<String>,
-    pub(crate) constraint_field_id: Option<String>,
+    pub(crate) input_descriptor_id: String,
     // the `raw_field` represents the actual field
     // being selected by the input descriptor JSON path
     // selector.
-    pub(crate) raw_fields: Option<serde_json::Value>,
+    pub(crate) raw_fields: Vec<serde_json::Value>,
 }
 
-impl From<openid4vp::core::input_descriptor::RequestedField> for RequestedField {
+impl<'a> From<openid4vp::core::input_descriptor::RequestedField<'a>> for RequestedField {
     fn from(value: openid4vp::core::input_descriptor::RequestedField) -> Self {
         Self {
             id: value.id,
@@ -73,53 +84,25 @@ impl From<openid4vp::core::input_descriptor::RequestedField> for RequestedField 
             required: value.required,
             retained: value.retained,
             purpose: value.purpose,
-            constraint_field_id: value.constraint_field_id,
-            raw_fields: value.raw_fields,
+            input_descriptor_id: value.input_descriptor_id,
+            raw_fields: value
+                .raw_fields
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect(),
         }
     }
 }
 
 impl RequestedField {
-    /// Construct a new requested field given the required parameters. This method is exposed as
-    /// public, however, it is likely that the `from_definition` method will be used to construct
-    /// requested fields from a presentation definition.
-    ///
-    /// See [RequestedField::from_definition] to return a vector of requested fields
-    /// according to a presentation definition.
-    pub fn new(
-        name: String,
-        required: bool,
-        retained: bool,
-        purpose: Option<String>,
-        constraint_field_id: Option<String>,
-        raw_fields: Option<serde_json::Value>,
-    ) -> Arc<Self> {
-        Arc::new(Self {
-            id: Uuid::new_v4(),
-            name,
-            required,
-            retained,
-            purpose,
-            constraint_field_id,
-            raw_fields,
-        })
-    }
-
     /// Return the unique ID for the request field.
     pub fn id(&self) -> Uuid {
         self.id
     }
 
-    /// Return the constraint field id the requested field belongs to
-    pub fn constraint_field_id(&self) -> Option<String> {
-        self.constraint_field_id.clone()
-    }
-
-    /// Return the stringified JSON raw fields.
-    pub fn raw_fields(&self) -> Option<String> {
-        self.raw_fields
-            .as_ref()
-            .and_then(|value| serde_json::to_string(value).ok())
+    /// Return the input descriptor id the requested field belongs to
+    pub fn input_descriptor_id(&self) -> &String {
+        &self.input_descriptor_id
     }
 }
 
@@ -127,7 +110,7 @@ impl RequestedField {
 #[uniffi::export]
 impl RequestedField {
     /// Return the field name
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> Option<String> {
         self.name.clone()
     }
 
@@ -144,6 +127,14 @@ impl RequestedField {
     /// Return the purpose of the requested field.
     pub fn purpose(&self) -> Option<String> {
         self.purpose.clone()
+    }
+
+    /// Return the stringified JSON raw fields.
+    pub fn raw_fields(&self) -> Vec<String> {
+        self.raw_fields
+            .iter()
+            .filter_map(|value| serde_json::to_string(value).ok())
+            .collect()
     }
 }
 
@@ -186,10 +177,10 @@ impl PermissionRequest {
     /// Construct a new permission response for the given credential.
     pub fn create_permission_response(
         &self,
-        selected_credential: Arc<ParsedCredential>,
+        selected_credentials: Vec<Arc<ParsedCredential>>,
     ) -> Arc<PermissionResponse> {
         Arc::new(PermissionResponse {
-            selected_credential,
+            selected_credentials,
             presentation_definition: self.definition.clone(),
             authorization_request: self.request.clone(),
         })
@@ -209,9 +200,81 @@ impl PermissionRequest {
 /// explicitly setting the permission to true or false, based on the holder's decision.
 #[derive(Debug, Clone, uniffi::Object)]
 pub struct PermissionResponse {
-    pub selected_credential: Arc<ParsedCredential>,
+    pub selected_credentials: Vec<Arc<ParsedCredential>>,
     pub presentation_definition: PresentationDefinition,
     pub authorization_request: AuthorizationRequestObject,
     // TODO: provide an optional internal mapping of `JsonPointer`s
     // for selective disclosure that are selected as part of the requested fields.
+}
+
+impl PermissionResponse {
+    // Construct a DescriptorMap for the presentation submission based on the
+    // credentials returned from the VDC collection.
+    pub fn create_descriptor_map(&self) -> Result<Vec<DescriptorMap>, PermissionResponseError> {
+        let is_singular = self.selected_credentials.len() == 1;
+
+        self.presentation_definition
+            .input_descriptors()
+            // TODO: It is possible for an input descriptor to have multiple credentials,
+            // in which case, it may be expected that the descriptor map will have a nested
+            // path. When creating a descriptor map, it may be better to use a mapping of input descriptor
+            // id to a list of credentials, whereby each descriptor id is mapped to a descriptor map,
+            // with a nested path for each credential it maps onto.
+            //
+            // Currently, each selected credential is provided its own descriptor map associated with
+            // the corresponding input descriptor. It is assumed that each input descriptor corresponds
+            // to a single verifiable credential.
+            .iter()
+            .zip(self.selected_credentials.iter())
+            .enumerate()
+            .map(|(idx, (descriptor, cred))| {
+                let vc_path = if is_singular {
+                    "$.verifiableCredential".to_string()
+                } else {
+                    format!("$.verifiableCredential[{idx}]")
+                }
+                .parse()
+                .map_err(|e| PermissionResponseError::JsonPathParse(format!("{e:?}")))?;
+
+                Ok(DescriptorMap::new(
+                    descriptor.id.to_string(),
+                    cred.format().to_string().as_str(),
+                    vc_path,
+                ))
+            })
+            .collect()
+    }
+
+    /// Create a VP token based on the selected credentials returned in the permission response.
+    pub fn create_vp_token(&self) -> Result<VpToken, PermissionResponseError> {
+        let tokens = self
+            .selected_credentials
+            .iter()
+            .map(|cred| cred.as_vp_token())
+            .collect::<Result<Vec<VpTokenItem>, CredentialEncodingError>>()?;
+
+        Ok(VpToken(tokens))
+    }
+
+    /// Return the authorization response object.
+    pub fn authorization_response(&self) -> Result<AuthorizationResponse, PermissionResponseError> {
+        Ok(AuthorizationResponse::Unencoded(
+            UnencodedAuthorizationResponse(
+                Default::default(),
+                self.create_vp_token()?,
+                self.create_presentation_submission()?,
+            ),
+        ))
+    }
+
+    /// Create a presentation submission based on the selected credentials returned in the permission response.
+    pub fn create_presentation_submission(
+        &self,
+    ) -> Result<PresentationSubmission, PermissionResponseError> {
+        Ok(PresentationSubmission::new(
+            uuid::Uuid::new_v4(),
+            self.presentation_definition.id().clone(),
+            self.create_descriptor_map()?,
+        ))
+    }
 }

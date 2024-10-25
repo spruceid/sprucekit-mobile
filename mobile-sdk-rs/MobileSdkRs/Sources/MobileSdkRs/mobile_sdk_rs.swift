@@ -3211,7 +3211,7 @@ public protocol PermissionRequestProtocol : AnyObject {
     /**
      * Construct a new permission response for the given credential.
      */
-    func createPermissionResponse(selectedCredential: ParsedCredential)  -> PermissionResponse
+    func createPermissionResponse(selectedCredentials: [ParsedCredential])  -> PermissionResponse
     
     /**
      * Return the filtered list of credentials that matched
@@ -3277,10 +3277,10 @@ open class PermissionRequest:
     /**
      * Construct a new permission response for the given credential.
      */
-open func createPermissionResponse(selectedCredential: ParsedCredential) -> PermissionResponse {
+open func createPermissionResponse(selectedCredentials: [ParsedCredential]) -> PermissionResponse {
     return try!  FfiConverterTypePermissionResponse.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_permissionrequest_create_permission_response(self.uniffiClonePointer(),
-        FfiConverterTypeParsedCredential.lower(selectedCredential),$0
+        FfiConverterSequenceTypeParsedCredential.lower(selectedCredentials),$0
     )
 })
 }
@@ -3481,12 +3481,17 @@ public protocol RequestedFieldProtocol : AnyObject {
     /**
      * Return the field name
      */
-    func name()  -> String
+    func name()  -> String?
     
     /**
      * Return the purpose of the requested field.
      */
     func purpose()  -> String?
+    
+    /**
+     * Return the stringified JSON raw fields.
+     */
+    func rawFields()  -> [String]
     
     /**
      * Return the field required status
@@ -3544,8 +3549,8 @@ open class RequestedField:
     /**
      * Return the field name
      */
-open func name() -> String {
-    return try!  FfiConverterString.lift(try! rustCall() {
+open func name() -> String? {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_requestedfield_name(self.uniffiClonePointer(),$0
     )
 })
@@ -3557,6 +3562,16 @@ open func name() -> String {
 open func purpose() -> String? {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_requestedfield_purpose(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the stringified JSON raw fields.
+     */
+open func rawFields() -> [String] {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestedfield_raw_fields(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -5491,6 +5506,8 @@ public enum CredentialEncodingError {
     )
     case SdJwt(SdJwtError
     )
+    case VpToken(String
+    )
 }
 
 
@@ -5512,6 +5529,9 @@ public struct FfiConverterTypeCredentialEncodingError: FfiConverterRustBuffer {
             )
         case 3: return .SdJwt(
             try FfiConverterTypeSdJwtError.read(from: &buf)
+            )
+        case 4: return .VpToken(
+            try FfiConverterString.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -5538,6 +5558,11 @@ public struct FfiConverterTypeCredentialEncodingError: FfiConverterRustBuffer {
         case let .SdJwt(v1):
             writeInt(&buf, Int32(3))
             FfiConverterTypeSdJwtError.write(v1, into: &buf)
+            
+        
+        case let .VpToken(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
             
         }
     }
@@ -6646,6 +6671,8 @@ public enum Oid4vpError {
     case RequestSignerNotFound
     case MetadataInitialization(String
     )
+    case PermissionResponse(PermissionResponseError
+    )
 }
 
 
@@ -6725,6 +6752,9 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
         case 24: return .RequestSignerNotFound
         case 25: return .MetadataInitialization(
             try FfiConverterString.read(from: &buf)
+            )
+        case 26: return .PermissionResponse(
+            try FfiConverterTypePermissionResponseError.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -6857,6 +6887,11 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
         case let .MetadataInitialization(v1):
             writeInt(&buf, Int32(25))
             FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PermissionResponse(v1):
+            writeInt(&buf, Int32(26))
+            FfiConverterTypePermissionResponseError.write(v1, into: &buf)
             
         }
     }
@@ -7194,6 +7229,68 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
 extension PermissionRequestError: Equatable, Hashable {}
 
 extension PermissionRequestError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+public enum PermissionResponseError {
+
+    
+    
+    case JsonPathParse(String
+    )
+    case CredentialEncoding(CredentialEncodingError
+    )
+}
+
+
+public struct FfiConverterTypePermissionResponseError: FfiConverterRustBuffer {
+    typealias SwiftType = PermissionResponseError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PermissionResponseError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .JsonPathParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .CredentialEncoding(
+            try FfiConverterTypeCredentialEncodingError.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PermissionResponseError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .JsonPathParse(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .CredentialEncoding(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeCredentialEncodingError.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+extension PermissionResponseError: Equatable, Hashable {}
+
+extension PermissionResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -9631,7 +9728,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_type() != 60750) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 11132) {
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 23487) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credentials() != 38374) {
@@ -9643,10 +9740,13 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_requested_fields() != 48174) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_name() != 28018) {
+    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_name() != 19474) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_purpose() != 46977) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_raw_fields() != 44847) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_required() != 14409) {
