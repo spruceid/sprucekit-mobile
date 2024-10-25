@@ -2,6 +2,53 @@ import CryptoKit
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import Foundation
+import SwiftUI
+
+// modifier
+struct HideViewModifier: ViewModifier {
+    let isHidden: Bool
+    @ViewBuilder func body(content: Content) -> some View {
+        if isHidden {
+            EmptyView()
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func hide(if isHiddden: Bool) -> some View {
+        ModifiedContent(content: self,
+                        modifier: HideViewModifier(isHidden: isHiddden)
+        )
+    }
+}
+
+struct iOSCheckboxToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button(action: {
+            configuration.isOn.toggle()
+        }, label: {
+            HStack {
+                if configuration.isOn {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 2)
+                            .stroke(Color("ColorBlue600"), lineWidth: 1)
+                            .background(Color("ColorBlue600"))
+                            .frame(width: 20, height: 20)
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.white)
+                    }
+                } else {
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(Color("BorderSecondary"), lineWidth: 1)
+                        .frame(width: 20, height: 20)
+                }
+                configuration.label
+            }
+        })
+    }
+}
 
 let ed25519_2020_10_18 =
     "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"G80iskrv_nE69qbGLSpeOHJgmV4MKIzsy5l5iT6pCww\",\"d\":\"39Ev8-k-jkKunJyFWog3k0OwgPjnKv_qwLhfqXdAXTY\"}"
@@ -19,4 +66,3 @@ let mdocBase64 =
 
 let jsonstring =
     "{\"@context\":[\"https://www.w3.org/2018/credentials/v1\",\"https://w3id.org/security/data-integrity/v2\"],\"id\":\"https://issuer.spruceid/credentials/12345\",\"type\":[\"VerifiableCredential\"],\"issuer\":{\"id\":\"did:key:[...]\",\"image\":\"data:image/\"},\"identifier\":\"12345\",\"name\":\"Drivers License\",\"description\":\"Department of Motor Vehicles\",\"valid\":true,\"issuanceDate\":\"2024-07-10T15:37:15.566Z\",\"expirationDate\":\"2029-12-03T12:19:15.522Z\",\"credentialSubject\":{\"id\":\"did:example:123321\",\"type\":[\"DL\",\"Person\"],\"firstName\":\"Andrew\",\"lastName\":\"Carter\",\"gender\":\"Male\",\"image\":\"data:image/png;base64,i\",\"birthDate\":\"02/17/1996\"},\"proof\":[{\"type\":\"DataIntegrityProof\",\"created\":\"2024-07-10T15:37:15Z\",\"verificationMethod\":\"did:key:zDnaewRaK7eoB9KczSWkm25rVDQhun6oDhNAWkiTCpzTSTSbf#zDnaewRaK7eoB9KczSWkm25rVDQhun6oDhNAWkiTCpzTSTSbf\",\"cryptosuite\":\"ecdsa-rdfc-2019\",\"proofPurpose\":\"assertionMethod\",\"proofValue\":\"z45AXzbvdcvzbzEbbQVKBEoeLZGzLGUPHHJafATVP4HAoRTm6xdmhZbxqSyxW8FW2dCVNkdnKkV3p8sVoLzSCwBhR\"},{\"id\":\"urn:uuid:248ed8f9-e478-49ed-a551-a6cccbb6be67\",\"type\":\"DataIntegrityProof\",\"created\":\"2024-07-10T15:37:16Z\",\"verificationMethod\":\"did:key:zDnaewRaK7eoB9KczSWkm25rVDQhun6oDhNAWkiTCpzTSTSbf#zDnaewRaK7eoB9KczSWkm25rVDQhun6oDhNAWkiTCpzTSTSbf\",\"cryptosuite\":\"ecdsa-sd-2023\",\"proofPurpose\":\"assertionMethod\",\"proofValue\":\"u2V0AhVhABXMk6SgCu6l-AkHocn65wTk6o__\"}]}"
-

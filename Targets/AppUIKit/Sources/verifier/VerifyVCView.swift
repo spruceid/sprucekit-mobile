@@ -33,7 +33,7 @@ struct VerifyVCView: View {
             )
         } else {
             VerifierSuccessView(
-                path: $path, 
+                path: $path,
                 success: success!,
                 content: Text(success! ? "Valid Verifiable Credential" : "Invalid Verifiable Credential")
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))

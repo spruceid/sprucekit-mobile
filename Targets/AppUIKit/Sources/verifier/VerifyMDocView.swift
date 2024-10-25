@@ -67,7 +67,7 @@ public struct MDocReaderView: View {
     @StateObject var delegate: MDocScanViewDelegate
     @Binding var path: NavigationPath
     var onCancel: () -> Void
-    
+
     init(
         uri: String,
         requestedItems: [String: [String: Bool]],
@@ -85,7 +85,7 @@ public struct MDocReaderView: View {
         self.onCancel = onCancel
         self._path = path
     }
-    
+
     @ViewBuilder
     var cancelButton: some View {
         Button("Cancel") {
@@ -96,7 +96,7 @@ public struct MDocReaderView: View {
         .tint(.red)
         .foregroundColor(.red)
     }
-    
+
     public var body: some View {
         VStack {
             switch self.delegate.state {
@@ -165,7 +165,7 @@ public struct MDocReaderView: View {
         .padding(.all, 30)
         .navigationBarBackButtonHidden(true)
     }
-    
+
     func cancel() {
         self.delegate.cancel()
         self.onCancel()
@@ -175,10 +175,10 @@ public struct MDocReaderView: View {
 class MDocScanViewDelegate: ObservableObject {
     @Published var state: BLEReaderSessionState = .advertizing
     private var mdocReader: MDocReader?
-    
+
     init(
         uri: String,
-        requestedItems: [String: [String: Bool]], 
+        requestedItems: [String: [String: Bool]],
         trustAnchorRegistry: [String]?
     ) {
         self.mdocReader = MDocReader(
@@ -188,7 +188,7 @@ class MDocScanViewDelegate: ObservableObject {
             trustAnchorRegistry: trustAnchorRegistry
         )
     }
-    
+
     func cancel() {
         self.mdocReader?.cancel()
     }

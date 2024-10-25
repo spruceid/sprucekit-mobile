@@ -53,7 +53,7 @@ struct VerificationActivityLogView: View {
                         let formatter = DateFormatter()
                         let _ = formatter.dateFormat = "MM/dd/yyyy"
                         let expDate = formatter.date(from: item.expiration_date)!
-                        
+
                         Text(item.name)
                             .font(.customFont(font: .inter, style: .medium, size: .h4))
                             .foregroundColor(Color("TextBody"))

@@ -20,6 +20,12 @@ public struct ContentView: View {
         }
     }
 
+    func handleOid4vpUrl(url: URL) {
+        self.path.append(
+            HandleOID4VP(url: url.absoluteString)
+        )
+    }
+
     public var body: some View {
         ZStack {
             // Bg color
@@ -75,6 +81,8 @@ public struct ContentView: View {
             switch scheme {
             case "spruceid":
                 handleSpruceIDUrl(url: url)
+            case "openid4vp":
+                handleOid4vpUrl(url: url)
             default:
                 return
             }

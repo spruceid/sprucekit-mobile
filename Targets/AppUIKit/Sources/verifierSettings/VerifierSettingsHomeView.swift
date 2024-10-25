@@ -7,11 +7,11 @@ enum VerifierSubSettings {
 }
 struct VerifierSettingsHomeView: View {
     @Binding var path: NavigationPath
-    
+
     @State private var subpage: VerifierSubSettings?
-    
+
     func onBack() {
-        if(subpage != nil) {
+        if subpage != nil {
             subpage = nil
         } else {
             while !path.isEmpty {
@@ -19,7 +19,7 @@ struct VerifierSettingsHomeView: View {
             }
         }
     }
-    
+
     var body: some View {
         VStack {
             VerifierSettingsHomeHeader(onBack: onBack)
@@ -55,9 +55,9 @@ struct VerifierSettingsHomeHeader: View {
 
 struct VerifierSettingsHomeBody: View {
     @Binding var subpage: VerifierSubSettings?
-    
+
     var onBack: () -> Void
-    
+
     @ViewBuilder
     var activityLogButton: some View {
         Button {
@@ -82,7 +82,6 @@ struct VerifierSettingsHomeBody: View {
             .padding(.all, 20.0)
         }
     }
-
 
     var body: some View {
         if subpage == nil {

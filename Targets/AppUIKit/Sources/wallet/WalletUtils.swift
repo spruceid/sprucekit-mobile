@@ -63,7 +63,7 @@ extension String {
             return $0 + String($1)
         }
     }
-    
+
     func replaceUnderscores() -> String {
         return self.replacingOccurrences(of: "_", with: " ")
     }

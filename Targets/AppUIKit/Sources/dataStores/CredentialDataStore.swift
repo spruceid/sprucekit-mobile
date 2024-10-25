@@ -21,8 +21,7 @@ class CredentialDataStore {
     private var db: Connection?
 
     private init() {
-        if let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
-        {
+        if let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             let dirPath = docDir.appendingPathComponent(Self.DIR_ACTIVITY_LOG_DB)
 
             do {

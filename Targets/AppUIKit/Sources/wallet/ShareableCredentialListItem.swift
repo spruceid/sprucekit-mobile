@@ -77,8 +77,8 @@ struct ShareableCredentialListItem: View {
 struct ShareableCredentialListItemQRCode: View {
     let credentials: [ParsedCredential]
     @State private var showingQRCode = false
-    @State private var qrSheetView: QRSheetView? = nil
-    
+    @State private var qrSheetView: QRSheetView?
+
     func getQRSheetView() async -> QRSheetView {
         return await QRSheetView(credentials: credentials)
     }

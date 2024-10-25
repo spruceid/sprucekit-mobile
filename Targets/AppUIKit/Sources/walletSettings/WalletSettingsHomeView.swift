@@ -4,14 +4,13 @@ struct WalletSettingsHome: Hashable {}
 
 struct WalletSettingsHomeView: View {
     @Binding var path: NavigationPath
-    
-    
+
     func onBack() {
         while !path.isEmpty {
             path.removeLast()
         }
     }
-    
+
     var body: some View {
         VStack {
             WalletSettingsHomeHeader(onBack: onBack)
@@ -43,9 +42,9 @@ struct WalletSettingsHomeHeader: View {
 }
 
 struct WalletSettingsHomeBody: View {
-    
+
     var onBack: () -> Void
-    
+
     @ViewBuilder
     var deleteAllCredentials: some View {
         Button {
@@ -61,7 +60,6 @@ struct WalletSettingsHomeBody: View {
         .background(Color("RedInvalid"))
         .cornerRadius(8)
     }
-
 
     var body: some View {
         VStack {

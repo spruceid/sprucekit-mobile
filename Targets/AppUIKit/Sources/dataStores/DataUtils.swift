@@ -15,7 +15,7 @@ func generateCSV(heading: String, rows: String, filename: String) -> URL? {
         fileURL = path.appendingPathComponent(filename)
 
         // append string data to file
-        try stringData.write(to: fileURL, atomically: true , encoding: .utf8)
+        try stringData.write(to: fileURL, atomically: true, encoding: .utf8)
         return fileURL
     } catch {
         print("error generating csv file")

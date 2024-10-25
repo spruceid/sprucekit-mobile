@@ -3,11 +3,11 @@ import SwiftUI
 struct ErrorView: View {
     let errorTitle: String
     let errorDetails: String
-    let closeButtonLabel: String = "Close"
+    var closeButtonLabel: String = "Close"
     let onClose: () -> Void
-    
+
     @State var sheetOpen: Bool = false
-    
+
     var body: some View {
         ZStack {
             VStack {
@@ -27,7 +27,7 @@ struct ErrorView: View {
                     }
             }
             .padding(.horizontal, 20)
-            
+
             VStack {
                 Spacer()
                 Button {
@@ -46,9 +46,9 @@ struct ErrorView: View {
                 )
                 .padding(.top, 10)
             }
-            
+
         } .sheet(isPresented: $sheetOpen) {
-            
+
         } content: {
             VStack {
                 ScrollView {
@@ -65,7 +65,7 @@ struct ErrorView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color("ColorStone300"), lineWidth: 1)
                 )
-                
+
                 Button {
                     sheetOpen = false
                 }  label: {
@@ -81,7 +81,7 @@ struct ErrorView: View {
                         .stroke(Color("BorderSecondary"), lineWidth: 1)
                 )
                 .padding(.top, 10)
-                
+
             }
             .padding(.horizontal, 20)
             .padding(.top, 30)
@@ -99,7 +99,7 @@ struct ErrorViewPreview: PreviewProvider {
             errorTitle: "Error title",
             errorDetails: "Error technical details"
         ) {
-            
+
         }
     }
 }

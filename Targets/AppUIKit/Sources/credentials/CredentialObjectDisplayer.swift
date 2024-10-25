@@ -3,25 +3,25 @@ import SpruceIDMobileSdk
 
 struct CredentialObjectDisplayer: View {
     let display: [AnyView]
-    
-    init(dict: [String : GenericJSON]) {
+
+    init(dict: [String: GenericJSON]) {
         self.display = genericObjectDisplayer(
             object: dict,
             filter: ["id", "identifier", "type", "proof", "renderMethod", "@context"]
         )
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             ForEach(0..<display.count, id: \.self) { index in
                 display[index]
             }
-            
+
         }
     }
 }
 
-func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [], level: Int = 1) -> [AnyView] {
+func genericObjectDisplayer(object: [String: GenericJSON], filter: [String] = [], level: Int = 1) -> [AnyView] {
     var res: [AnyView] = []
     object
         .filter { !filter.contains($0.key) }
@@ -29,7 +29,7 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
         .forEach { (key, value) in
             if let dictValue = value.dictValue {
                 let tmpViews = genericObjectDisplayer(object: dictValue, filter: filter, level: level+1)
-                
+
                 res.append(AnyView(
                     VStack(alignment: .leading) {
                         Text(key.camelCaseToWords().capitalized.replaceUnderscores())
@@ -59,7 +59,7 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
                         }
                     ))
                 }
-                
+
                 res.append(AnyView(
                     VStack(alignment: .leading) {
                         Text(key.camelCaseToWords().capitalized.replaceUnderscores())
@@ -77,8 +77,7 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
                                 .foregroundColor(Color.gray), alignment: .leading)
                     }
                 ))
-                
-                
+
             } else {
                 res.append(AnyView(
                     VStack(alignment: .leading) {

@@ -132,13 +132,13 @@ class ShareViewDelegate: ObservableObject {
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true,
+            kSecReturnRef as String: true
         ]
-        
+
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         let key = item as! SecKey
-      
+
         self.sessionManager?.submitNamespaces(items: items.mapValues { namespaces in
             return namespaces.mapValues { items in
                 Array(items.filter { $0.value }.keys)

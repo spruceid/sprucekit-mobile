@@ -5,7 +5,7 @@ struct LoadingView: View {
     var loadingText: String
     var cancelButtonLabel: String?
     var onCancel: (() -> Void)?
-    
+
     var body: some View {
         ZStack {
             VStack {

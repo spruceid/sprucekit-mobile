@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CredentialImage: View {
     var image: String
-    
+
     var body: some View {
         if image.contains("https://") {
             return AnyView(AsyncImage(url: URL(string: image)) { image in
