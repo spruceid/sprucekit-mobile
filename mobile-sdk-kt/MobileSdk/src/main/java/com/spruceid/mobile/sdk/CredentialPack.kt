@@ -78,7 +78,7 @@ class CredentialPack {
     fun findCredentialClaims(claimNames: List<String>): Map<String, JSONObject> =
         this.list()
             .map { credential ->
-                var claims: JSONObject
+                val claims: JSONObject
                 val mdoc = credential.asMsoMdoc()
                 val jwtVc = credential.asJwtVc()
                 val jsonVc = credential.asJsonVc()
@@ -149,8 +149,6 @@ class CredentialPack {
      *
      * If a Credential already exists in the VdcCollection (matching on id), then
      * it will be skipped without updating.
-     *
-     *
      */
     @Throws(SavingException::class)
     fun save(storage: StorageManagerInterface) {
@@ -170,20 +168,23 @@ class CredentialPack {
             throw SavingException("failed to store credentials in VdcCollection", e)
         }
 
-        val credentialIds = list()
-            .map { it.id() }
-
-        val contents = CredentialPackContents(id, credentialIds)
-        try {
-            storage.add("${PREFIX}${id}", contents.toBytes())
-        } catch (e:Exception) {
-            throw SavingException("unable to store or update CredentialPack", e)
-        }
+        intoContents().save(storage)
     }
 
-    companion object {
-        private const val PREFIX = "CredentialPack:"
+    /**
+     * Remove this CredentialPack from the StorageManager.
+     *
+     * Credentials that are in this pack are __not__ removed from the VdcCollection.
+     */
+    @Throws(SavingException::class)
+    fun remove(storage: StorageManagerInterface) {
+        intoContents().remove(storage)
+    }
 
+    private fun intoContents(): CredentialPackContents =
+        CredentialPackContents(id, list().map { it.id() })
+
+    companion object {
         /**
          * List all CredentialPacks.
          *
@@ -195,7 +196,7 @@ class CredentialPack {
             try {
                 contents =
                     storage.list()
-                        .filter { it.startsWith(PREFIX) }
+                        .filter { it.startsWith(CredentialPackContents.STORAGE_PREFIX) }
                         .mapNotNull { storage.get(it) }
                         .map { CredentialPackContents(it) }
             } catch (e: Exception) {
@@ -219,48 +220,39 @@ class CredentialPack {
  * Metadata for a CredentialPack, as loaded from the StorageManager.
  */
 class CredentialPackContents {
-    private val ID_KEY = "id"
-    private val CREDENTIALS_KEY = "credentials"
-    private val json: JSONObject
+    companion object {
+        internal const val STORAGE_PREFIX = "CredentialPack:"
+        private const val ID_KEY = "id"
+        private const val CREDENTIALS_KEY = "credentials"
+    }
+    val id: UUID
+    val credentials: List<Uuid>
 
+    @Throws(LoadingException::class)
     constructor(byteArray: ByteArray) {
-        this.json = JSONObject(byteArray.decodeToString())
+        val json = JSONObject(byteArray.decodeToString())
+
+        try {
+            id = UUID.fromString(json.getString(ID_KEY))
+        } catch (e: JSONException) {
+            throw LoadingException("'$ID_KEY' does not exist, or is not a String", e)
+        } catch (e: IllegalArgumentException) {
+            throw LoadingException("'$ID_KEY' is not a valid UUID", e)
+        }
+
+        try {
+            val array = json.getJSONArray(CREDENTIALS_KEY)
+            credentials = List(array.length(), { array.getString(it) })
+        } catch (e: JSONException) {
+            throw LoadingException("'$ID_KEY' does not exist, or is not a String", e)
+        } catch (e: IllegalArgumentException) {
+            throw LoadingException("'$ID_KEY' is not a valid UUID", e)
+        }
     }
 
     constructor(id: UUID, credentials: List<Uuid>) {
-        this.json = JSONObject(buildMap {
-            put(ID_KEY, id)
-            put(CREDENTIALS_KEY, credentials)
-        })
-    }
-
-    /**
-     * Unique identifier for the CredentialPack.
-     */
-    @Throws(LoadingException::class)
-    fun id(): UUID {
-        try {
-            return UUID.fromString(json.getString(ID_KEY))
-        } catch (e: JSONException) {
-            throw LoadingException("'$ID_KEY' does not exist, or is not a String", e)
-        } catch (e: IllegalArgumentException) {
-            throw LoadingException("'$ID_KEY' is not a valid UUID", e)
-        }
-    }
-
-    /**
-     * Identifiers for the credentials in this pack.
-     */
-    @Throws(LoadingException::class)
-    fun credentials(): List<Uuid> {
-        try {
-            val array = json.getJSONArray(CREDENTIALS_KEY)
-            return List(array.length(), { array.getString(it) })
-        } catch (e: JSONException) {
-            throw LoadingException("'$ID_KEY' does not exist, or is not a String", e)
-        } catch (e: IllegalArgumentException) {
-            throw LoadingException("'$ID_KEY' is not a valid UUID", e)
-        }
+        this.id = id
+        this.credentials = credentials
     }
 
     /**
@@ -269,12 +261,12 @@ class CredentialPackContents {
     @Throws(LoadingException::class)
     fun load(vdcCollection: VdcCollection): CredentialPack {
         val credentials =
-            credentials()
+            credentials
                 .mapNotNull {
                     try {
                         val credential = vdcCollection.get(it)
                         if (credential == null) {
-                            Log.w("sprucekit", "credential '$it' in pack '${id()}'" +
+                            Log.w("sprucekit", "credential '$it' in pack '${id}'" +
                                     " could not be found")
                             Log.d("sprucekit", "VdcCollection: ${vdcCollection.allEntries()}")
                         }
@@ -296,10 +288,33 @@ class CredentialPackContents {
                 }
                 .toMutableList()
 
-        return CredentialPack(id(), credentials)
+        return CredentialPack(id, credentials)
     }
 
-    fun toBytes(): ByteArray = json.toString().toByteArray()
+    @Throws(SavingException::class)
+    internal fun save(storage: StorageManagerInterface) {
+        try {
+            storage.add(storageKey(), toBytes())
+        } catch (e: Exception) {
+            throw SavingException("unable to store or update CredentialPack", e)
+        }
+    }
+
+    @Throws(SavingException::class)
+    internal fun remove(storage: StorageManagerInterface) {
+        try {
+            storage.remove(storageKey())
+        } catch (e: Exception) {
+            throw SavingException("unable to remove CredentialPack", e)
+        }
+    }
+
+    private fun storageKey(): String = "$STORAGE_PREFIX${id}"
+
+    private fun toBytes(): ByteArray = JSONObject(buildMap {
+        put(ID_KEY, id)
+        put(CREDENTIALS_KEY, credentials)
+    }).toString().toByteArray()
 }
 
 class LoadingException(message: String, cause: Throwable) : Exception(message, cause)
