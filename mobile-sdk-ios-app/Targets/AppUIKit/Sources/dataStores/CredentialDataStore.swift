@@ -6,6 +6,7 @@ struct Credential: Hashable {
     let rawCredential: String
 }
 
+// TODO: Completely remove CredentialDataStore after confirming if credentials will be migrated
 class CredentialDataStore {
 
     static let DIR_ACTIVITY_LOG_DB = "CredentialDB"

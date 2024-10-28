@@ -10,7 +10,7 @@ import SpruceIDMobileSdkRs
 /// - different encodings of the same credential (JwtVC & JsonVC),
 /// - multiple instances of the same credential type (vehicle title credentials for more than 1 vehicle).
 public class CredentialPack {
-    private var id: UUID
+    public let id: UUID
     private var credentials: [ParsedCredential]
 
     /// Initialize an empty CredentialPack.
@@ -31,22 +31,25 @@ public class CredentialPack {
         return credentials
     }
 
+    /**
+     * Try to add a credential and throws a ParsingException if not possible
+     */
     public func tryAddRawCredential(rawCredential: String) throws -> [ParsedCredential] {
-    if let credentials = try? addJwtVc(jwtVc: JwtVc.newFromCompactJws(jws: rawCredential)) {
-        return credentials
+        if let credentials = try? addJwtVc(jwtVc: JwtVc.newFromCompactJws(jws: rawCredential)) {
+            return credentials
+        }
+        else if let credentials = try? addJsonVc(jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential)) {
+            return credentials
+        }
+        else if let credentials = try? addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {
+            return credentials
+        }
+        else if let credentials = try? addMDoc(mdoc: Mdoc.fromStringifiedDocument(stringifiedDocument: rawCredential, keyAlias: UUID().uuidString)) {
+            return credentials
+        } else {
+            throw CredentialPackError.credentialParsing(reason: "Couldn't parse credential: \(rawCredential)")
+        }
     }
-    else if let credentials = try? addJsonVc(jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential)) {
-        return credentials
-    }
-    else if let credentials = try? addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {
-        return credentials
-    }
-    else if let credentials = try? addMDoc(mdoc: Mdoc.fromStringifiedDocument(stringifiedDocument: rawCredential, keyAlias: UUID().uuidString)) {
-        return credentials
-    } else {
-        throw CredentialPackError.credentialParsing(reason: "Couldn't parse credential: \(rawCredential)")
-    }
-}
 
     /// Add a JsonVc to the CredentialPack.
     public func addJsonVc(jsonVc: JsonVc) -> [ParsedCredential] {
