@@ -151,7 +151,7 @@ public class CredentialPack {
 
 /// Metadata for a CredentialPack, as loaded from the StorageManager.
 struct CredentialPackContents {
-    private static let storagePrefix = "CredentialPack/"
+    private static let storagePrefix = "CredentialPack:"
     private let idKey = "id"
     private let credentialsKey = "credentials"
     let id: UUID
