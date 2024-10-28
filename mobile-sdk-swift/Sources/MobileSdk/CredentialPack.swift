@@ -130,8 +130,7 @@ public class CredentialPack {
 
     /// Remove this CredentialPack from the StorageManager.
     ///
-    /// Credentials that are part of this pack are __not__ removed from the VdcCollection. This function has the same
-    /// effect as `CredentialPackContents.remove()`.
+    /// Credentials that are in this pack __are__ removed from the VdcCollection.
     public func remove(storageManager: StorageManagerInterface) throws {
         try self.intoContents().remove(storageManager: storageManager)
     }
@@ -265,9 +264,17 @@ struct CredentialPackContents {
 
     /// Remove this CredentialPack from the StorageManager.
     ///
-    /// Credentials that are part of this pack are __not__ removed from the VdcCollection. This function has the same
-    /// effect as `CredentialPack.remove()`.
-    public func remove(storageManager: StorageManagerInterface) throws {
+    /// Credentials that are in this pack __are__ removed from the VdcCollection.
+    private func remove(storageManager: StorageManagerInterface) throws {
+        let vdcCollection = VdcCollection(engine: storageManager)
+        self.credentials.forEach { credential in
+            do {
+                try vdcCollection.delete(id: credential)
+            } catch {
+                print("failed to remove Credential '\(credential)' from the VdcCollection")
+            }
+        }
+
         do {
             try storageManager.remove(key: self.storageKey())
         } catch {
