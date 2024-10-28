@@ -114,7 +114,7 @@ public class CredentialPack {
     ///
     /// If a credential already exists in the VdcCollection (matching on id), then it will be skipped without updating.
     public func save(storageManager: StorageManagerInterface) throws {
-        var vdcCollection = VdcCollection(engine: storageManager)
+        let vdcCollection = VdcCollection(engine: storageManager)
         for credential in list() {
             do {
                 if (try vdcCollection.get(id: credential.id())) == nil {
@@ -265,7 +265,7 @@ struct CredentialPackContents {
     /// Remove this CredentialPack from the StorageManager.
     ///
     /// Credentials that are in this pack __are__ removed from the VdcCollection.
-    private func remove(storageManager: StorageManagerInterface) throws {
+    func remove(storageManager: StorageManagerInterface) throws {
         let vdcCollection = VdcCollection(engine: storageManager)
         self.credentials.forEach { credential in
             do {
