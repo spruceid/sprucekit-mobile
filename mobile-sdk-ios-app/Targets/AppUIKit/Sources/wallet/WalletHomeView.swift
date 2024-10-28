@@ -55,23 +55,28 @@ struct WalletHomeHeader: View {
 struct WalletHomeBody: View {
     @Binding var path: NavigationPath
 
-    @State var credentials: [Credential] = []
+    @State var credentialPacks: [CredentialPack] = []
+    let storageManager = StorageManager()
 
     var body: some View {
         ZStack {
-            if !credentials.isEmpty {
+            if !credentialPacks.isEmpty {
                 ZStack {
                     ScrollView(.vertical, showsIndicators: false) {
                         Section {
-                            ForEach(credentials, id: \.self.id) { credential in
-                                AnyView(getCredentialItem(
-                                    credential: credential,
+                            ForEach(credentialPacks, id: \.self.id) { credentialPack in
+                                GenericCredentialItem(
+                                    credentialPack: credentialPack,
                                     onDelete: {
-                                        _ = CredentialDataStore.shared.delete(id: credential.id)
-                                        self.credentials = CredentialDataStore.shared
-                                            .getAllCredentials()
+                                        do {
+                                            try credentialPack.remove(storageManager: storageManager)
+                                            self.credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
+                                        } catch {
+                                            // TODO: display error message
+                                            print(error)
+                                        }
                                     }
-                                ))
+                                )
                             }
                             //                    ShareableCredentialListItem(mdoc: mdocBase64)
                         }
@@ -124,7 +129,14 @@ struct WalletHomeBody: View {
             }
         }
         .onAppear(perform: {
-            self.credentials = CredentialDataStore.shared.getAllCredentials()
+            Task {
+                do {
+                    self.credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
+                } catch {
+                    // TODO: display error message
+                    print(error)
+                }
+            }
         })
     }
 }

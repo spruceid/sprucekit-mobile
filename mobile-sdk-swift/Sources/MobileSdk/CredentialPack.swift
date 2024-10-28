@@ -10,7 +10,7 @@ import SpruceIDMobileSdkRs
 /// - different encodings of the same credential (JwtVC & JsonVC),
 /// - multiple instances of the same credential type (vehicle title credentials for more than 1 vehicle).
 public class CredentialPack {
-    private var id: UUID
+    public let id: UUID
     private var credentials: [ParsedCredential]
 
     /// Initialize an empty CredentialPack.
@@ -29,6 +29,26 @@ public class CredentialPack {
     public func addJwtVc(jwtVc: JwtVc) -> [ParsedCredential] {
         credentials.append(ParsedCredential.newJwtVcJson(jwtVc: jwtVc))
         return credentials
+    }
+
+    /**
+     * Try to add a credential and throws a ParsingException if not possible
+     */
+    public func tryAddRawCredential(rawCredential: String) throws -> [ParsedCredential] {
+        if let credentials = try? addJwtVc(jwtVc: JwtVc.newFromCompactJws(jws: rawCredential)) {
+            return credentials
+        }
+        else if let credentials = try? addJsonVc(jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential)) {
+            return credentials
+        }
+        else if let credentials = try? addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {
+            return credentials
+        }
+        else if let credentials = try? addMDoc(mdoc: Mdoc.fromStringifiedDocument(stringifiedDocument: rawCredential, keyAlias: UUID().uuidString)) {
+            return credentials
+        } else {
+            throw CredentialPackError.credentialParsing(reason: "Couldn't parse credential: \(rawCredential)")
+        }
     }
 
     /// Add a JsonVc to the CredentialPack.
@@ -236,7 +256,7 @@ struct CredentialPackContents {
         }
     }
 
-    func save(storageManager: StorageManagerInterface) throws {
+    public func save(storageManager: StorageManagerInterface) throws {
         let bytes = try self.toBytes()
         do {
             try storageManager.add(key: self.storageKey(), value: bytes)
@@ -265,7 +285,7 @@ struct CredentialPackContents {
     /// Remove this CredentialPack from the StorageManager.
     ///
     /// Credentials that are in this pack __are__ removed from the VdcCollection.
-    func remove(storageManager: StorageManagerInterface) throws {
+    public func remove(storageManager: StorageManagerInterface) throws {
         let vdcCollection = VdcCollection(engine: storageManager)
         self.credentials.forEach { credential in
             do {
@@ -318,4 +338,6 @@ enum CredentialPackError: Error {
     case credentialNotFound(id: Uuid)
     /// The credential could not be loaded from storage.
     case credentialLoading(reason: Error)
+    /// The raw credential could not be parsed.
+    case credentialParsing(reason: String)
 }

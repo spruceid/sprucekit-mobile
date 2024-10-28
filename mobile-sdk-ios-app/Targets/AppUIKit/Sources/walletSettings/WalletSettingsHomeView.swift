@@ -1,4 +1,5 @@
 import SwiftUI
+import SpruceIDMobileSdk
 
 struct WalletSettingsHome: Hashable {}
 
@@ -44,11 +45,21 @@ struct WalletSettingsHomeHeader: View {
 struct WalletSettingsHomeBody: View {
 
     var onBack: () -> Void
+    
+    let storageManager = StorageManager()
 
     @ViewBuilder
     var deleteAllCredentials: some View {
         Button {
-            _ = CredentialDataStore.shared.deleteAll()
+            do {
+                let credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
+                try credentialPacks.forEach { credentialPack in
+                    try credentialPack.remove(storageManager: storageManager)
+                }
+            } catch {
+                // TODO: display error message
+                print(error)
+            }
         }  label: {
             Text("Delete all added credentials")
                 .frame(width: UIScreen.screenWidth)

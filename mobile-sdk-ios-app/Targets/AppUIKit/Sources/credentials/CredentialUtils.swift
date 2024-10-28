@@ -2,18 +2,6 @@ import SwiftUI
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 
-// Get the credential and doesn't throws an error if can't parse
-func getCredentialItem(credential: Credential, onDelete: (() -> Void)? = nil) -> any ICredentialView {
-    do {
-        return try credentialDisplayerSelector(
-            rawCredential: credential.rawCredential,
-            onDelete: onDelete
-        )
-    } catch {
-        return GenericCredentialItem(credentialPack: CredentialPack(), onDelete: onDelete)
-    }
-
-}
 
 // Get credential and throws error if can't parse
 func credentialDisplayerSelector(rawCredential: String, onDelete: (() -> Void)? = nil) throws -> any ICredentialView {

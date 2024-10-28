@@ -12,7 +12,7 @@ import SpruceIDMobileSdkRs
 // manager is intended to link.
 
 /// Store and retrieve sensitive data.
-class StorageManager: NSObject, StorageManagerInterface {
+public class StorageManager: NSObject, StorageManagerInterface {
     /// Get the path to the application support dir, appending the given file name to it.
     ///
     /// We use the application support directory because its contents are not shared.
@@ -71,7 +71,7 @@ class StorageManager: NSObject, StorageManagerInterface {
     ///
     /// - Returns: a boolean indicating success
 
-    func add(key: Key, value: Value) throws {
+    public func add(key: Key, value: Value) throws {
         guard let file = path(file: key) else { throw StorageManagerError.InternalError }
 
         do {
@@ -88,7 +88,7 @@ class StorageManager: NSObject, StorageManagerInterface {
     ///
     /// - Returns: optional data potentially containing the value associated with the key; may be `nil`
 
-    func get(key: Key) throws -> Value? {
+    public func get(key: Key) throws -> Value? {
         guard let file = path(file: key) else { throw StorageManagerError.InternalError }
 
         do {
@@ -115,7 +115,7 @@ class StorageManager: NSObject, StorageManagerInterface {
     ///
     /// - Returns: a list of items in storage
 
-    func list() throws -> [Key] {
+    public func list() throws -> [Key] {
         guard let asdir = path(file: "")?.path else { return [String]() }
 
         do {
@@ -134,7 +134,7 @@ class StorageManager: NSObject, StorageManagerInterface {
     ///
     /// - Returns: a boolean indicating success; at present, there is no failure path, but this may change
 
-    func remove(key: Key) throws {
+    public func remove(key: Key) throws {
         guard let file = path(file: key) else { return }
 
         do {

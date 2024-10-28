@@ -9,7 +9,6 @@ struct HandleOID4VP: Hashable {
 struct HandleOID4VPView: View {
     @Binding var path: NavigationPath
     var url: String
-    @State var rawCredentials: [String] = CredentialDataStore.shared.getAllRawCredentials()
 
     @State private var holder: Holder?
     @State private var permissionRequest: PermissionRequest?
@@ -18,26 +17,19 @@ struct HandleOID4VPView: View {
     @State private var credentialClaims: [String: [String: GenericJSON]] = [:]
 
     @State private var err: String?
+    
+    let storageManager = StorageManager()
 
     func presentCredential() async {
         do {
-            let credentials = rawCredentials.map { rawCredential in
-                // TODO: Update to use VDC collection in the future
-                // to detect the type of credential.
-                do {
-                    return try ParsedCredential.newSdJwt(sdJwtVc: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential))
-                } catch {
-                    return nil
-                }
-            }.compactMap { $0 }
-
-            let credentialPack = CredentialPack()
-
-            credentials.forEach { credential in
-                _ = credentialPack.addSdJwt(sdJwt: credential.asSdJwt()!)
+            let credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
+            var credentials: [ParsedCredential] = []
+            credentialPacks.forEach { credentialPack in
+                credentials += credentialPack.list()
+                credentialClaims = credentialClaims.merging(
+                    credentialPack.findCredentialClaims(claimNames: ["name", "type"])
+                ) { (_, new) in new }
             }
-
-            credentialClaims = credentialPack.findCredentialClaims(claimNames: ["name", "type"])
 
             holder = try await Holder.newWithCredentials(
                 providedCredentials: credentials, trustedDids: trustedDids)

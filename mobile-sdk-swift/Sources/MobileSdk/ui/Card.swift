@@ -134,7 +134,7 @@ public struct CardListView: View {
 
     public var body: some View {
         let descriptionValues = credentialPack.findCredentialClaims(claimNames: rendering.descriptionKeys ?? [])
-        let titleValues = credentialPack.findCredentialClaims(claimNames: rendering.titleKeys ?? [])
+        let titleValues = credentialPack.findCredentialClaims(claimNames: rendering.titleKeys)
         HStack {
             // Leading icon
             if rendering.leadingIconFormatter != nil {
