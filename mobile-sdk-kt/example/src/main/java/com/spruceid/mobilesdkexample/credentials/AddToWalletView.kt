@@ -29,7 +29,6 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.ErrorView
-import com.spruceid.mobilesdkexample.db.RawCredentials
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.CTAButtonGreen
 import com.spruceid.mobilesdkexample.ui.theme.Inter
@@ -37,15 +36,12 @@ import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 import com.spruceid.mobilesdkexample.ui.theme.SecondaryButtonRed
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
-import com.spruceid.mobilesdkexample.viewmodels.IRawCredentialsViewModel
-import com.spruceid.mobilesdkexample.viewmodels.RawCredentialsViewModelPreview
 import kotlinx.coroutines.launch
 
 @Composable
 fun AddToWalletView(
     navController: NavHostController,
     rawCredential: String,
-    rawCredentialsViewModel: IRawCredentialsViewModel
 ) {
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -166,7 +162,6 @@ fun AddToWalletPreview() {
         AddToWalletView(
             navController = navController,
             rawCredential = "{}",
-            rawCredentialsViewModel = RawCredentialsViewModelPreview()
         )
     }
 }

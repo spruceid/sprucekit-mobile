@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.credentials
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -65,7 +64,6 @@ class GenericCredentialItem : ICredentialView {
     private val onDelete: (() -> Unit)?
 
     constructor(credentialPack: CredentialPack, onDelete: (() -> Unit)? = null) {
-        Log.d("LOG", credentialPack.list().toString())
         this.credentialPack = credentialPack
         this.onDelete = onDelete
     }
@@ -343,6 +341,7 @@ class GenericCredentialItem : ICredentialView {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 Button(
                     onClick = {
+                        showBottomSheet = false
                         onDelete?.invoke()
                     },
                     shape = RoundedCornerShape(5.dp),

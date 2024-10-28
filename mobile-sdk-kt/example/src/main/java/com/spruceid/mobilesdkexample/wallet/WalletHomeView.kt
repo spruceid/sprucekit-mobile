@@ -1,7 +1,6 @@
 package com.spruceid.mobilesdkexample.wallet
 
 import StorageManager
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,10 +22,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.toMutableStateList
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,23 +43,15 @@ import com.spruceid.mobilesdkexample.ui.theme.CTAButtonBlue
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.Primary
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
-import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
-import com.spruceid.mobilesdkexample.viewmodels.IRawCredentialsViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 
 @Composable
-fun WalletHomeView(
-    navController: NavController,
-    rawCredentialsViewModel: IRawCredentialsViewModel
-) {
+fun WalletHomeView(navController: NavController) {
     Column(
         Modifier
             .padding(all = 20.dp)
             .padding(top = 20.dp)) {
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
-            rawCredentialsViewModel = rawCredentialsViewModel,
             navController = navController
         )
     }
@@ -123,16 +112,12 @@ fun WalletHomeHeader(navController: NavController) {
 }
 
 @Composable
-fun WalletHomeBody(
-    rawCredentialsViewModel: IRawCredentialsViewModel,
-    navController: NavController
-) {
-    val scope = rememberCoroutineScope()
-
+fun WalletHomeBody(navController: NavController) {
     val context = LocalContext.current
     val storageManager = StorageManager(context = context)
-    val credentialPacks = MutableStateFlow(CredentialPack.loadPacks(storageManager)).collectAsState()
-
+    val credentialPacks = remember {
+        mutableStateOf(CredentialPack.loadPacks(storageManager))
+    }
 
     if (credentialPacks.value.isNotEmpty()) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -145,14 +130,11 @@ fun WalletHomeBody(
                     GenericCredentialItem(
                         credentialPack = credentialPack,
                         onDelete = {
-//                            scope.launch {
-//                                rawCredentialsViewModel.deleteRawCredential(
-//                                    id = rawCredential.id
-//                                )
-//                            }
+                            credentialPack.remove(storageManager)
+                            credentialPacks.value = CredentialPack.loadPacks(storageManager)
                         }
                     )
-                        .credentialPreviewAndDetails()
+                    .credentialPreviewAndDetails()
                 }
                 //        item {
                 //            ShareableCredentialListItems(mdocBase64 = mdocBase64)

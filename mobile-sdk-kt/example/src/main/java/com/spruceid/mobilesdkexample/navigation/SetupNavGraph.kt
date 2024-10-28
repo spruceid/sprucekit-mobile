@@ -11,21 +11,17 @@ import com.spruceid.mobilesdkexample.verifier.VerifyDLView
 import com.spruceid.mobilesdkexample.verifier.VerifyEAView
 import com.spruceid.mobilesdkexample.verifier.VerifyVCView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
-import com.spruceid.mobilesdkexample.viewmodels.IRawCredentialsViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VPView
 import com.spruceid.mobilesdkexample.wallet.OID4VCIView
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
 
 @Composable
-fun SetupNavGraph(
-    navController: NavHostController,
-    rawCredentialsViewModel: IRawCredentialsViewModel
-) {
+fun SetupNavGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
         composable(
             route = Screen.HomeScreen.route,
-        ) { HomeView(navController, rawCredentialsViewModel) }
+        ) { HomeView(navController) }
         composable(
             route = Screen.VerifyDLScreen.route,
         ) { VerifyDLView(navController) }
@@ -40,21 +36,21 @@ fun SetupNavGraph(
         ) { VerifierSettingsHomeView(navController) }
         composable(
             route = Screen.WalletSettingsHomeScreen.route,
-        ) { WalletSettingsHomeView(navController, rawCredentialsViewModel) }
+        ) { WalletSettingsHomeView(navController) }
         composable(
             route = Screen.AddToWalletScreen.route,
             deepLinks =
             listOf(navDeepLink { uriPattern = "spruceid://?sd-jwt={rawCredential}" })
         ) { backStackEntry ->
             val rawCredential = backStackEntry.arguments?.getString("rawCredential")!!
-            AddToWalletView(navController, rawCredential, rawCredentialsViewModel)
+            AddToWalletView(navController, rawCredential)
         }
         composable(
             route = Screen.ScanQRScreen.route,
         ) { DispatchQRView(navController) }
         composable(
             route = Screen.OID4VCIScreen.route,
-        ) { OID4VCIView(navController, rawCredentialsViewModel) }
+        ) { OID4VCIView(navController) }
         composable(
             route = Screen.HandleOID4VP.route,
             deepLinks = listOf(navDeepLink { uriPattern = "openid4vp://{url}" })
@@ -63,7 +59,7 @@ fun SetupNavGraph(
             if (!url.startsWith("openid4vp")) {
                 url = "openid4vp://$url"
             }
-            HandleOID4VPView(navController, rawCredentialsViewModel, url)
+            HandleOID4VPView(navController, url)
         }
     }
 }
