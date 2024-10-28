@@ -13,8 +13,8 @@ class CredentialPackTest {
         val packContents = CredentialPackContents(uuid, credentials)
 
         try {
-            assertEquals(uuid, packContents.id())
-            assertEquals(credentials, packContents.credentials())
+            assertEquals(uuid, packContents.id)
+            assertEquals(credentials, packContents.credentials)
         } catch (e: Exception) {
             e.printStackTrace()
             throw e
