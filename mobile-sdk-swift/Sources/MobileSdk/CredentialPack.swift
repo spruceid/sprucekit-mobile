@@ -125,9 +125,15 @@ public class CredentialPack {
             }
         }
 
-        try CredentialPackContents(id: self.id, credentials: self.credentials.map { credential in
-            credential.id()
-        }).save(storageManager: storageManager)
+        try self.intoContents().save(storageManager: storageManager)
+    }
+
+    /// Remove this CredentialPack from the StorageManager.
+    ///
+    /// Credentials that are part of this pack are __not__ removed from the VdcCollection. This function has the same
+    /// effect as `CredentialPackContents.remove()`.
+    public func remove(storageManager: StorageManagerInterface) throws {
+        try self.intoContents().remove(storageManager: storageManager)
     }
 
     /// Loads all CredentialPacks from the StorageManager.
@@ -135,6 +141,12 @@ public class CredentialPack {
         try CredentialPackContents.list(storageManager: storageManager).map { contents in
             try contents.load(vdcCollection: VdcCollection(engine: storageManager))
         }
+    }
+
+    private func intoContents() -> CredentialPackContents {
+        CredentialPackContents(id: self.id, credentials: self.credentials.map { credential in
+            credential.id()
+        })
     }
 }
 
@@ -228,7 +240,7 @@ struct CredentialPackContents {
     func save(storageManager: StorageManagerInterface) throws {
         let bytes = try self.toBytes()
         do {
-            try storageManager.add(key: "\(Self.storagePrefix)\(self.id)", value: bytes)
+            try storageManager.add(key: self.storageKey(), value: bytes)
         } catch {
             throw CredentialPackError.storage(reason: error)
         }
@@ -250,6 +262,22 @@ struct CredentialPackContents {
             throw CredentialPackError.contentsEncoding(reason: error)
         }
     }
+
+    /// Remove this CredentialPack from the StorageManager.
+    ///
+    /// Credentials that are part of this pack are __not__ removed from the VdcCollection. This function has the same
+    /// effect as `CredentialPack.remove()`.
+    public func remove(storageManager: StorageManagerInterface) throws {
+        do {
+            try storageManager.remove(key: self.storageKey())
+        } catch {
+            throw CredentialPackError.removing(reason: error)
+        }
+    }
+
+    private func storageKey() -> String {
+        "\(Self.storagePrefix)\(self.id)"
+    }
 }
 
 enum CredentialPackError: Error {
@@ -257,6 +285,8 @@ enum CredentialPackError: Error {
     case missing(file: String)
     /// Failed to list CredentialPackContents from storage.
     case listing(reason: Error)
+    /// Failed to remove CredentialPackContents from storage.
+    case removing(reason: Error)
     /// Failed to save CredentialPackContents to storage.
     case storage(reason: Error)
     /// Failed to store a new credential when saving a CredentialPack.
