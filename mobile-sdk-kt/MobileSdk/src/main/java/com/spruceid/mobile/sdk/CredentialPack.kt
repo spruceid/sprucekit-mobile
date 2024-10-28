@@ -1,5 +1,6 @@
 package com.spruceid.mobile.sdk
 
+import android.util.Log
 import com.spruceid.mobile.sdk.rs.CredentialDecodingException
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
@@ -145,7 +146,7 @@ class CredentialPack {
                     } catch (e: Error) {
                         type = "unknown"
                     }
-                    print("unsupported credential type: $type")
+                    Log.e("sprucekit", "unsupported credential type: $type")
                     claims = JSONObject()
                 }
 
@@ -187,8 +188,13 @@ class CredentialPack {
         val vdcCollection = VdcCollection(storage)
         try {
             list().forEach {
-                if (vdcCollection.get(it.id()) != null) {
+                if (vdcCollection.get(it.id()) == null) {
+                    Log.d("sprucekit", "Saving credential '${it.id()}' " +
+                            "to the VdcCollection")
                     vdcCollection.add(it.intoGenericForm())
+                } else {
+                    Log.d("sprucekit", "Skipped saving credential '${it.id()}' " +
+                            "to the VdcCollection as it already exists")
                 }
             }
         } catch (e: VdcCollectionException) {
@@ -299,12 +305,13 @@ class CredentialPackContents {
                     try {
                         val credential = vdcCollection.get(it)
                         if (credential == null) {
-                            println("WARNING: credential '$it' in pack '${id()}'" +
+                            Log.w("sprucekit", "credential '$it' in pack '${id()}'" +
                                     " could not be found")
+                            Log.d("sprucekit", "VdcCollection: ${vdcCollection.allEntries()}")
                         }
                         credential
                     } catch (e: Exception) {
-                        println("WARNING: credential '$it' could not be loaded from" +
+                        Log.w("sprucekit" ,"credential '$it' could not be loaded from" +
                                 " storage")
                         return@mapNotNull null
                     }
@@ -313,7 +320,7 @@ class CredentialPackContents {
                     try {
                         return@mapNotNull ParsedCredential.parseFromCredential(it)
                     } catch (e: CredentialDecodingException) {
-                        println("WARNING: failed to parse credential '${it.id}'" +
+                        Log.w("sprucekit", "failed to parse credential '${it.id}'" +
                                 " as a known variant")
                         return@mapNotNull null
                     }
