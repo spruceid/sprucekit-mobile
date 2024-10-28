@@ -341,6 +341,7 @@ class GenericCredentialItem : ICredentialView {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 Button(
                     onClick = {
+                        showBottomSheet = false
                         onDelete?.invoke()
                     },
                     shape = RoundedCornerShape(5.dp),
