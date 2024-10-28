@@ -37,14 +37,14 @@ public class CredentialPack {
     public func tryAddRawCredential(rawCredential: String) throws -> [ParsedCredential] {
         if let credentials = try? addJwtVc(jwtVc: JwtVc.newFromCompactJws(jws: rawCredential)) {
             return credentials
-        }
-        else if let credentials = try? addJsonVc(jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential)) {
+        } else if let credentials = try? addJsonVc(jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential)) {
             return credentials
-        }
-        else if let credentials = try? addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {
+        } else if let credentials = try? addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {
             return credentials
-        }
-        else if let credentials = try? addMDoc(mdoc: Mdoc.fromStringifiedDocument(stringifiedDocument: rawCredential, keyAlias: UUID().uuidString)) {
+        } else if let credentials = try? addMDoc(mdoc: Mdoc.fromStringifiedDocument(
+            stringifiedDocument: rawCredential,
+            keyAlias: UUID().uuidString)
+        ) {
             return credentials
         } else {
             throw CredentialPackError.credentialParsing(reason: "Couldn't parse credential: \(rawCredential)")
