@@ -93,7 +93,17 @@ public class StorageManager: NSObject, StorageManagerInterface {
 
         do {
             return try Data(contentsOf: file)
+        } catch let error as CocoaError {
+            switch error.code.rawValue {
+            // File not found:
+            case 260:
+                return nil
+            default:
+                print("uncaught error \(error.localizedDescription)")
+                throw StorageManagerError.InternalError
+            }
         } catch {
+            print("uncaught error \(error.localizedDescription)")
             throw StorageManagerError.InternalError
         }
     }
