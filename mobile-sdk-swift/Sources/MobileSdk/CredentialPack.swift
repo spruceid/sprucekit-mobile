@@ -117,7 +117,7 @@ public class CredentialPack {
         var vdcCollection = VdcCollection(engine: storageManager)
         for credential in list() {
             do {
-                if (try vdcCollection.get(id: credential.id())) != nil {
+                if (try vdcCollection.get(id: credential.id())) == nil {
                     try vdcCollection.add(credential: try credential.intoGenericForm())
                 }
             } catch {
