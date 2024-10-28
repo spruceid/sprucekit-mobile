@@ -174,7 +174,7 @@ class CredentialPack {
     /**
      * Remove this CredentialPack from the StorageManager.
      *
-     * Credentials that are in this pack are __not__ removed from the VdcCollection.
+     * Credentials that are in this pack __are__ removed from the VdcCollection.
      */
     @Throws(SavingException::class)
     fun remove(storage: StorageManagerInterface) {
@@ -302,6 +302,16 @@ class CredentialPackContents {
 
     @Throws(SavingException::class)
     internal fun remove(storage: StorageManagerInterface) {
+        val vdcCollection = VdcCollection(storage)
+        credentials.forEach {
+            try {
+                Log.d("sprucekit", "removing Credential '$it'")
+                vdcCollection.delete(it)
+            } catch (e: Exception) {
+                Log.w("sprucekit", "failed to remove Credential '$it': $e")
+            }
+        }
+
         try {
             storage.remove(storageKey())
         } catch (e: Exception) {
