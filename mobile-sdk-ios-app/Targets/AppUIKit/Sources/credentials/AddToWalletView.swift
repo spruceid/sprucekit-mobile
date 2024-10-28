@@ -38,10 +38,15 @@ struct AddToWalletView: View {
     }
 
     func addToWallet() {
-        _ = CredentialDataStore.shared.insert(
-            rawCredential: rawCredential
-        )
-        back()
+        do {
+            let credentialPack = try addCredential(credentialPack: CredentialPack(), rawCredential: rawCredential)
+            try credentialPack.save(storageManager: StorageManager())
+            back()
+        } catch {
+            print(error)
+            errorDetails = "Error: \(error)"
+            presentError = true
+        }
     }
 
     var body: some View {
