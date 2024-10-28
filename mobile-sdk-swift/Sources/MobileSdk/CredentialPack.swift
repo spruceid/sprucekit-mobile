@@ -31,6 +31,23 @@ public class CredentialPack {
         return credentials
     }
 
+    public func tryAddRawCredential(rawCredential: String) throws -> [ParsedCredential] {
+    if let credentials = try? addJwtVc(jwtVc: JwtVc.newFromCompactJws(jws: rawCredential)) {
+        return credentials
+    }
+    else if let credentials = try? addJsonVc(jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential)) {
+        return credentials
+    }
+    else if let credentials = try? addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {
+        return credentials
+    }
+    else if let credentials = try? addMDoc(mdoc: Mdoc.fromStringifiedDocument(stringifiedDocument: rawCredential, keyAlias: UUID().uuidString)) {
+        return credentials
+    } else {
+        throw CredentialPackError.credentialParsing(reason: "Couldn't parse credential: \(rawCredential)")
+    }
+}
+
     /// Add a JsonVc to the CredentialPack.
     public func addJsonVc(jsonVc: JsonVc) -> [ParsedCredential] {
         credentials.append(ParsedCredential.newLdpVc(jsonVc: jsonVc))
@@ -318,4 +335,6 @@ enum CredentialPackError: Error {
     case credentialNotFound(id: Uuid)
     /// The credential could not be loaded from storage.
     case credentialLoading(reason: Error)
+    /// The raw credential could not be parsed.
+    case credentialParsing(reason: String)
 }
