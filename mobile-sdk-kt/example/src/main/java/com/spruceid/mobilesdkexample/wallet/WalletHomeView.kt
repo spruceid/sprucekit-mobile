@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.wallet
 
+import StorageManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,41 +22,36 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.CTAButtonBlue
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.Primary
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
-import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
-import com.spruceid.mobilesdkexample.viewmodels.IRawCredentialsViewModel
-import kotlinx.coroutines.launch
 
 @Composable
-fun WalletHomeView(
-    navController: NavController,
-    rawCredentialsViewModel: IRawCredentialsViewModel
-) {
+fun WalletHomeView(navController: NavController) {
     Column(
         Modifier
             .padding(all = 20.dp)
             .padding(top = 20.dp)) {
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
-            rawCredentialsViewModel = rawCredentialsViewModel,
             navController = navController
         )
     }
@@ -116,33 +112,29 @@ fun WalletHomeHeader(navController: NavController) {
 }
 
 @Composable
-fun WalletHomeBody(
-    rawCredentialsViewModel: IRawCredentialsViewModel,
-    navController: NavController
-) {
-    val scope = rememberCoroutineScope()
+fun WalletHomeBody(navController: NavController) {
+    val context = LocalContext.current
+    val storageManager = StorageManager(context = context)
+    val credentialPacks = remember {
+        mutableStateOf(CredentialPack.loadPacks(storageManager))
+    }
 
-    val rawCredentials by rawCredentialsViewModel.rawCredentials.collectAsState()
-
-    if (rawCredentials.isNotEmpty()) {
+    if (credentialPacks.value.isNotEmpty()) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 Modifier
                     .fillMaxWidth()
                     .padding(top = 20.dp)
                     .padding(bottom = 60.dp)) {
-                items(rawCredentials) { rawCredential ->
-                    credentialDisplaySelector(
-                        rawCredential = rawCredential.rawCredential,
+                items(credentialPacks.value) { credentialPack ->
+                    GenericCredentialItem(
+                        credentialPack = credentialPack,
                         onDelete = {
-                            scope.launch {
-                                rawCredentialsViewModel.deleteRawCredential(
-                                    id = rawCredential.id
-                                )
-                            }
+                            credentialPack.remove(storageManager)
+                            credentialPacks.value = CredentialPack.loadPacks(storageManager)
                         }
                     )
-                        .credentialPreviewAndDetails()
+                    .credentialPreviewAndDetails()
                 }
                 //        item {
                 //            ShareableCredentialListItems(mdocBase64 = mdocBase64)

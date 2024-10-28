@@ -26,7 +26,6 @@ import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
-import com.spruceid.mobilesdkexample.viewmodels.IRawCredentialsViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request
@@ -42,7 +41,6 @@ import org.json.JSONObject
 @Composable
 fun OID4VCIView(
     navController: NavHostController,
-    rawCredentialsViewModel: IRawCredentialsViewModel
 ) {
     var loading by remember {
         mutableStateOf(false)
@@ -170,7 +168,6 @@ fun OID4VCIView(
         AddToWalletView(
             navController = navController,
             rawCredential = credential!!,
-            rawCredentialsViewModel = rawCredentialsViewModel,
         )
     }
 }
