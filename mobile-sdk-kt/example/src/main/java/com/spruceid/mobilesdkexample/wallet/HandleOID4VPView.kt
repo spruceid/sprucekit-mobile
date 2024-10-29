@@ -146,7 +146,7 @@ fun HandleOID4VPView(
                                 // TODO: support multiple presentation
                                 selectedCredential = selectedCredentials.first()
                                 permissionResponse = permissionRequest!!.createPermissionResponse(
-                                    selectedCredential!!
+                                    listOf(selectedCredential!!)
                                 )
                             } catch (e: Exception) {
                                 err = e.localizedMessage
@@ -195,7 +195,7 @@ fun DataFieldSelector(
     val bullet = "\u2022"
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
     val mockDataField = requestedFields.map { field ->
-        field.name().replaceFirstChar(Char::titlecase)
+        field.name()?.replaceFirstChar(Char::titlecase) ?: ""
     }
 
     Column(
@@ -479,7 +479,7 @@ fun CredentialSelectorItem(
     val bullet = "\u2022"
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
     val mockDataField = requestedFields.map { field ->
-        field.name().replaceFirstChar(Char::titlecase)
+        field.name()?.replaceFirstChar(Char::titlecase) ?: ""
     }
 
     Column(
