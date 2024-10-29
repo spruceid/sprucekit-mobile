@@ -41,7 +41,3 @@ Click [here](./Sources/MobileSdk/ui/SameDeviceOID4VP.md) to see how to configure
 ## Contributing
 
 See [CONTRIBUTING.md](/CONTRIBUTING.md).
-
----
-
-Copyright © 2024 Spruce Systems, Inc.
