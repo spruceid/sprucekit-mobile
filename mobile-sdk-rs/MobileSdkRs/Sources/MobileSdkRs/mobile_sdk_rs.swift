@@ -966,7 +966,7 @@ public func FfiConverterTypeCredentialRequest_lower(_ value: CredentialRequest) 
 
 public protocol DelegatedVerifierProtocol : AnyObject {
     
-    func pollVerificationStatus(uri: Url) async throws  -> DelegatedVerifierStatus
+    func pollVerificationStatus(url: String) async throws  -> DelegatedVerifierStatusResponse
     
     /**
      * Initialize a delegated verification request.
@@ -978,7 +978,7 @@ public protocol DelegatedVerifierProtocol : AnyObject {
      * Provide the `uri` to the [Verifier::poll_verification_status] method to
      * check the status of the presentation.
      */
-    func requestDelegatedVerification(url: Url) async throws  -> DelegateInitializationResponse
+    func requestDelegatedVerification(url: String) async throws  -> DelegateInitializationResponse
     
 }
 
@@ -1021,11 +1021,11 @@ open class DelegatedVerifier:
     }
 
     
-public static func newClient()async throws  -> DelegatedVerifier {
+public static func newClient(baseUrl: Url)async throws  -> DelegatedVerifier {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_delegatedverifier_new_client(
+                uniffi_mobile_sdk_rs_fn_constructor_delegatedverifier_new_client(FfiConverterTypeUrl.lower(baseUrl)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
@@ -1038,19 +1038,19 @@ public static func newClient()async throws  -> DelegatedVerifier {
     
 
     
-open func pollVerificationStatus(uri: Url)async throws  -> DelegatedVerifierStatus {
+open func pollVerificationStatus(url: String)async throws  -> DelegatedVerifierStatusResponse {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_delegatedverifier_poll_verification_status(
                     self.uniffiClonePointer(),
-                    FfiConverterTypeUrl.lower(uri)
+                    FfiConverterString.lower(url)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterTypeDelegatedVerifierStatus.lift,
+            liftFunc: FfiConverterTypeDelegatedVerifierStatusResponse.lift,
             errorHandler: FfiConverterTypeOid4vpVerifierError.lift
         )
 }
@@ -1065,13 +1065,13 @@ open func pollVerificationStatus(uri: Url)async throws  -> DelegatedVerifierStat
      * Provide the `uri` to the [Verifier::poll_verification_status] method to
      * check the status of the presentation.
      */
-open func requestDelegatedVerification(url: Url)async throws  -> DelegateInitializationResponse {
+open func requestDelegatedVerification(url: String)async throws  -> DelegateInitializationResponse {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_delegatedverifier_request_delegated_verification(
                     self.uniffiClonePointer(),
-                    FfiConverterTypeUrl.lower(url)
+                    FfiConverterString.lower(url)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
@@ -5035,12 +5035,12 @@ public struct DelegateInitializationResponse {
      * This is the authorization request URL to be presented in
      * a QR code to the holder.
      */
-    public var authQuery: Url
+    public var authQuery: String
     /**
      * This is the status URL to check the presentation status
      * from the delegated verifier.
      */
-    public var uri: Url
+    public var uri: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -5048,11 +5048,11 @@ public struct DelegateInitializationResponse {
         /**
          * This is the authorization request URL to be presented in
          * a QR code to the holder.
-         */authQuery: Url, 
+         */authQuery: String, 
         /**
          * This is the status URL to check the presentation status
          * from the delegated verifier.
-         */uri: Url) {
+         */uri: String) {
         self.authQuery = authQuery
         self.uri = uri
     }
@@ -5082,14 +5082,14 @@ public struct FfiConverterTypeDelegateInitializationResponse: FfiConverterRustBu
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DelegateInitializationResponse {
         return
             try DelegateInitializationResponse(
-                authQuery: FfiConverterTypeUrl.read(from: &buf), 
-                uri: FfiConverterTypeUrl.read(from: &buf)
+                authQuery: FfiConverterString.read(from: &buf), 
+                uri: FfiConverterString.read(from: &buf)
         )
     }
 
     public static func write(_ value: DelegateInitializationResponse, into buf: inout [UInt8]) {
-        FfiConverterTypeUrl.write(value.authQuery, into: &buf)
-        FfiConverterTypeUrl.write(value.uri, into: &buf)
+        FfiConverterString.write(value.authQuery, into: &buf)
+        FfiConverterString.write(value.uri, into: &buf)
     }
 }
 
@@ -7430,6 +7430,8 @@ public enum Oid4vpVerifierError {
     
     case HttpClient(String
     )
+    case Url(String
+    )
 }
 
 
@@ -7446,6 +7448,9 @@ public struct FfiConverterTypeOid4vpVerifierError: FfiConverterRustBuffer {
         case 1: return .HttpClient(
             try FfiConverterString.read(from: &buf)
             )
+        case 2: return .Url(
+            try FfiConverterString.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -7460,6 +7465,11 @@ public struct FfiConverterTypeOid4vpVerifierError: FfiConverterRustBuffer {
         
         case let .HttpClient(v1):
             writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Url(v1):
+            writeInt(&buf, Int32(2))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -10007,10 +10017,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_asynchttpclient_http_client() != 44924) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_poll_verification_status() != 22723) {
+    if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_poll_verification_status() != 35131) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_request_delegated_verification() != 37221) {
+    if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_request_delegated_verification() != 37161) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_holder_authorization_request() != 45396) {
@@ -10235,7 +10245,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_get() != 52546) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 35610) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 15415) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 41846) {
