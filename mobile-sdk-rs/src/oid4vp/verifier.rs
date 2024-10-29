@@ -7,15 +7,19 @@ use std::sync::Arc;
 pub enum Oid4vpVerifierError {
     #[error("HTTP client error: {0}")]
     HttpClient(String),
+    #[error("Invalid URL: {0}")]
+    Url(String),
 }
 
 #[derive(Debug, uniffi::Object)]
 pub struct DelegatedVerifier {
+    base_url: Url,
+
     /// HTTP Request Client
     pub(crate) client: openid4vp::core::util::ReqwestClient,
 }
 
-#[derive(Debug, Serialize, Deserialize, uniffi::Enum)]
+#[derive(Debug, Serialize, Deserialize, uniffi::Enum, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum DelegatedVerifierStatus {
     Initiated,
@@ -37,20 +41,20 @@ pub struct DelegatedVerifierStatusResponse {
 pub struct DelegateInitializationResponse {
     /// This is the authorization request URL to be presented in
     /// a QR code to the holder.
-    pub auth_query: Url,
+    pub auth_query: String,
     /// This is the status URL to check the presentation status
     /// from the delegated verifier.
-    pub uri: Url,
+    pub uri: String,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
 impl DelegatedVerifier {
     #[uniffi::constructor]
-    pub async fn new_client() -> Result<Arc<Self>, Oid4vpVerifierError> {
+    pub async fn new_client(base_url: Url) -> Result<Arc<Self>, Oid4vpVerifierError> {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| Oid4vpVerifierError::HttpClient(format!("{e:?}")))?;
 
-        Ok(Arc::new(Self { client }))
+        Ok(Arc::new(Self { base_url, client }))
     }
 
     /// Initialize a delegated verification request.
@@ -63,11 +67,16 @@ impl DelegatedVerifier {
     /// check the status of the presentation.
     pub async fn request_delegated_verification(
         &self,
-        url: Url,
+        url: &str,
     ) -> Result<DelegateInitializationResponse, Oid4vpVerifierError> {
+        let uri = self
+            .base_url
+            .join(url)
+            .map_err(|e| Oid4vpVerifierError::Url(format!("{e:?}")))?;
+
         self.client
             .as_ref()
-            .get(url)
+            .get(uri)
             .send()
             .await
             .map_err(|e| Oid4vpVerifierError::HttpClient(format!("{e:?}")))?
@@ -78,8 +87,13 @@ impl DelegatedVerifier {
 
     pub async fn poll_verification_status(
         &self,
-        uri: Url,
-    ) -> Result<DelegatedVerifierStatus, Oid4vpVerifierError> {
+        url: &str,
+    ) -> Result<DelegatedVerifierStatusResponse, Oid4vpVerifierError> {
+        let uri = self
+            .base_url
+            .join(url)
+            .map_err(|e| Oid4vpVerifierError::Url(format!("{e:?}")))?;
+
         self.client
             .as_ref()
             .get(uri)
@@ -89,5 +103,63 @@ impl DelegatedVerifier {
             .json()
             .await
             .map_err(|e| Oid4vpVerifierError::HttpClient(format!("{e:?}")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::credential::vcdm2_sd_jwt::VCDM2SdJwt;
+    use crate::credential::*;
+    use crate::oid4vp::holder::*;
+
+    // NOTE: This requires an instance of credible to be accessible
+    const BASE_URL: &str = "http://localhost:3003";
+    const DELEGATED_VERIFIER_URL: &str = "/api2/verifier/1/delegate";
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_delegated_verification() -> Result<(), Oid4vpVerifierError> {
+        let verifier =
+            DelegatedVerifier::new_client(BASE_URL.parse().expect("Failed to parse Base URL"))
+                .await
+                .expect("Failed to create verifier");
+
+        let DelegateInitializationResponse { uri, auth_query } = verifier
+            .request_delegated_verification(DELEGATED_VERIFIER_URL)
+            .await
+            .expect("Failed to request delegated verification");
+
+        let DelegatedVerifierStatusResponse { status, .. } =
+            verifier.poll_verification_status(&uri).await?;
+
+        assert_eq!(status, DelegatedVerifierStatus::Initiated);
+
+        // Create a Holder instance to complete the verification
+        let example_sd_jwt = include_str!("../../tests/examples/sd_vc.jwt");
+        let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt(example_sd_jwt.into())
+            .expect("failed to parse sd_jwt");
+        let credential = ParsedCredential::new_sd_jwt(sd_jwt);
+
+        let trusted_dids = vec!["did:web:localhost%3A3003:colofwd_signer_service".to_string()];
+
+        let holder = Holder::new_with_credentials(vec![credential], trusted_dids)
+            .await
+            .expect("failed to create oid4vp holder");
+
+        let url = format!("openid4vp://?{auth_query}")
+            .parse()
+            .expect("failed to parse auth_query");
+
+        let request = holder
+            .authorization_request(url)
+            .await
+            .expect("authorization request failed");
+
+        request.credentials().iter().for_each(|c| {
+            println!("Credential: {:?}", c);
+        });
+
+        Ok(())
     }
 }
