@@ -70,6 +70,3 @@ uniffi = { version = "0.28.1", features = ["bindgen-tests"] }
 
 [build-dependencies]
 uniffi = { version = "0.28.1", features = ["build"] }
-
-[patch."https://github.com/spruceid/openid4vp"]
-openid4vp = { path = "../../openid4vp" }
