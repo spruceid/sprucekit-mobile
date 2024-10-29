@@ -41,6 +41,20 @@ fun String.splitCamelCase() = replace(
 
 fun String.removeUnderscores() = replace("_", "")
 
+
+
+fun String.isDate(): Boolean {
+    return lowercase().contains("date") ||
+            lowercase().contains("from") ||
+            lowercase().contains("until")
+}
+
+fun String.isImage(): Boolean {
+    return lowercase().contains("image") ||
+            lowercase().contains("portrait") ||
+            contains("data:image")
+}
+
 @Composable
 fun BitmapImage(
     byteArray: ByteArray,
