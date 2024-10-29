@@ -44,7 +44,7 @@ fun HomeView(
     verificationMethodsViewModel: VerificationMethodsViewModel
 ) {
     var tab by remember {
-        mutableStateOf(HomeTabs.VERIFIER)
+        mutableStateOf(HomeTabs.WALLET)
     }
 
     Scaffold(
