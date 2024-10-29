@@ -29,6 +29,7 @@ pub struct DelegatedVerifierStatusResponse {
     /// The status of the verification request.
     pub status: DelegatedVerifierStatus,
     /// JSON-encoded string of the presentation
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub presentation: Option<String>,
 }
 
