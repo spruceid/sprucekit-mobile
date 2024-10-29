@@ -40,3 +40,27 @@ class RawCredentialsRepository(private val rawCredentialsDao: RawCredentialsDao)
         return rawCredentialsDao.deleteRawCredential(id = id)
     }
 }
+
+class VerificationMethodsRepository(private val verificationMethodsDao: VerificationMethodsDao) {
+    val verificationMethods: List<VerificationMethods> = verificationMethodsDao.getAllVerificationMethods()
+
+    @WorkerThread
+    suspend fun insertVerificationMethod(verificationMethod: VerificationMethods) {
+        verificationMethodsDao.insertVerificationMethod(verificationMethod)
+    }
+
+    @WorkerThread
+    suspend fun getVerificationMethods(): List<VerificationMethods> {
+        return verificationMethodsDao.getAllVerificationMethods()
+    }
+
+    @WorkerThread
+    suspend fun deleteAllVerificationMethods(): Int {
+        return verificationMethodsDao.deleteAllVerificationMethods()
+    }
+
+    @WorkerThread
+    suspend fun deleteVerificationMethod(id: Long): Int {
+        return verificationMethodsDao.deleteVerificationMethod(id = id)
+    }
+}
