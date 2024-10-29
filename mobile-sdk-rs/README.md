@@ -160,7 +160,3 @@ packages:
 ```
 
 Finally, run `xcodegen` in `mobile-sdk-swift` to generate the `xcodeproject` file to open in xcode.
-
----
-
-Copyright © 2024 Spruce Systems, Inc.
