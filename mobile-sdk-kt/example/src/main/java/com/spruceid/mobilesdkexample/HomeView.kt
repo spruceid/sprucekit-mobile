@@ -30,6 +30,7 @@ import com.spruceid.mobilesdkexample.ui.theme.Bg
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 import com.spruceid.mobilesdkexample.verifier.VerifierHomeView
+import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.wallet.WalletHomeView
 
 enum class HomeTabs {
@@ -38,9 +39,12 @@ enum class HomeTabs {
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun HomeView(navController: NavController) {
+fun HomeView(
+    navController: NavController,
+    verificationMethodsViewModel: VerificationMethodsViewModel
+) {
     var tab by remember {
-        mutableStateOf(HomeTabs.WALLET)
+        mutableStateOf(HomeTabs.VERIFIER)
     }
 
     Scaffold(
@@ -90,17 +94,11 @@ fun HomeView(navController: NavController) {
             if (tab == HomeTabs.WALLET) {
                 WalletHomeView(navController)
             } else {
-                VerifierHomeView(navController = navController)
+                VerifierHomeView(
+                    navController = navController,
+                    verificationMethodsViewModel = verificationMethodsViewModel
+                )
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HomeViewPreview() {
-    val navController: NavHostController = rememberNavController()
-    MobileSdkTheme {
-        HomeView(navController)
     }
 }

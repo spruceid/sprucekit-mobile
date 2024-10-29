@@ -28,9 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +43,7 @@ import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.CTAButtonBlue
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.Primary
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
@@ -80,8 +84,9 @@ fun WalletHomeHeader(navController: NavController) {
                 .clickable { navController.navigate(Screen.OID4VCIScreen.route) }
         ) {
             Image(
-                painter = painterResource(id = R.drawable.scan_qr_code),
-                contentDescription = stringResource(id = R.string.scan_qr_code),
+                painter = painterResource(id = R.drawable.qrcode_scanner),
+                contentDescription = stringResource(id = R.string.qrcode_scanner),
+                colorFilter = ColorFilter.tint(ColorStone400),
                 modifier = Modifier
                     .width(20.dp)
                     .height(20.dp)
@@ -155,10 +160,9 @@ fun WalletHomeBody(navController: NavController) {
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(8.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.scan_qr_code_white),
-                            contentDescription = "QR Code Icon",
-                            tint = Color.White,
+                        Image(
+                            painter = painterResource(id = R.drawable.qrcode_scanner),
+                            contentDescription = stringResource(id = R.string.qrcode_scanner),
                             modifier = Modifier.padding(end = 10.dp)
                         )
                         Text(
