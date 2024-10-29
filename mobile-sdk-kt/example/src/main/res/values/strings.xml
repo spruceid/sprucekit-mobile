@@ -18,4 +18,6 @@
     <string name="collapse">Click to collapse</string>
     <string name="error">Error</string>
     <string name="add_first_credential">Click on the button to add your first credential</string>
+    <string name="delegated_oid4vp_qrcode">Read this QR Code to start the verification</string>
+
 </resources>
