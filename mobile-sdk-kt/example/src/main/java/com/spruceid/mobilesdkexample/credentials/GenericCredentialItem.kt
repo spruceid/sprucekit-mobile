@@ -447,7 +447,7 @@ class GenericCredentialItem : ICredentialView {
                                 null
                             }
                         }
-                        genericObjectDisplayer(
+                    genericObjectDisplayer(
                             credential!!,
                             listOf("id", "identifier", "type", "proof", "renderMethod", "@context")
                         )
@@ -456,7 +456,10 @@ class GenericCredentialItem : ICredentialView {
             )
         )
 
-        Box(Modifier.fillMaxWidth()) {
+        Box(Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+        ) {
             BaseCard(
                 credentialPack = credentialPack,
                 rendering = detailsRendering.toCardRendering()
@@ -495,7 +498,7 @@ class GenericCredentialItem : ICredentialView {
                 Column(
                     Modifier
                         .fillMaxSize()
-                        .padding(12.dp)
+                        .padding(24.dp)
                 ) {
                     Text(
                         text = "Review Info",
@@ -507,8 +510,10 @@ class GenericCredentialItem : ICredentialView {
                         modifier = Modifier
                             .fillMaxWidth()
                     )
+                    // Header
                     credentialListItem()
 
+                    // Body
                     credentialDetails()
                 }
             }
