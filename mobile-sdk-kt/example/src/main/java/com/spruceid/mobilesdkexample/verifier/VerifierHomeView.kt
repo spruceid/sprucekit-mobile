@@ -136,6 +136,15 @@ fun VerifierHomeBody(
                 navController.navigate(Screen.VerifyVCScreen.route)
             }
         )
+        VerifierListItem(
+            title = "Delegated Verification",
+            description = "Delegated verification tmp description",
+            binary = false,
+            fields = 10,
+            modifier = Modifier.clickable {
+                navController.navigate(Screen.VerifyDelegatedOid4vpScreen.route)
+            }
+        )
     }
 }
 
