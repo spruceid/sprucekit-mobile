@@ -15,6 +15,10 @@ jobs:
         with:
           app-id: ${{ vars.MONOREPO_GH_APP_ID }}
           private-key: ${{ secrets.MONOREPO_GH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            sprucekit-mobile
+            mobile-sdk-rs
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
