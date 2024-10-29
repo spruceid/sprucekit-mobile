@@ -8,6 +8,7 @@ import androidx.navigation.navDeepLink
 import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.verifier.VerifyDLView
+import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
 import com.spruceid.mobilesdkexample.verifier.VerifyEAView
 import com.spruceid.mobilesdkexample.verifier.VerifyVCView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
@@ -31,6 +32,9 @@ fun SetupNavGraph(navController: NavHostController) {
         composable(
             route = Screen.VerifyVCScreen.route,
         ) { VerifyVCView(navController) }
+        composable(
+            route = Screen.VerifyDelegatedOid4vpScreen.route,
+        ) { VerifyDelegatedOid4vpView(navController) }
         composable(
             route = Screen.VerifierSettingsHomeScreen.route,
         ) { VerifierSettingsHomeView(navController) }
