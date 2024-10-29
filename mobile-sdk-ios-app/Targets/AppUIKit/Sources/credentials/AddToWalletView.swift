@@ -18,7 +18,6 @@ struct AddToWalletView: View {
     init(path: Binding<NavigationPath>, rawCredential: String) {
         self._path = path
         self.rawCredential = rawCredential
-
         do {
             credentialItem = try credentialDisplayerSelector(rawCredential: rawCredential)
             errorDetails = ""
@@ -38,10 +37,16 @@ struct AddToWalletView: View {
     }
 
     func addToWallet() {
-        _ = CredentialDataStore.shared.insert(
-            rawCredential: rawCredential
-        )
-        back()
+        do {
+            let credentialPack = CredentialPack()
+            _ = try credentialPack.tryAddRawCredential(rawCredential: rawCredential)
+            try credentialPack.save(storageManager: StorageManager())
+            back()
+        } catch {
+            print(error)
+            errorDetails = "Error: \(error)"
+            presentError = true
+        }
     }
 
     var body: some View {
