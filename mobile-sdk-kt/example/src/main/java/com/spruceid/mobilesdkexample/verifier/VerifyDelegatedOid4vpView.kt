@@ -54,9 +54,9 @@ fun VerifyDelegatedOid4vpView(
 ) {
     val scope = rememberCoroutineScope()
 
-    var verificationMethod by remember { mutableStateOf<VerificationMethods?>(null) }
-    var url by remember { mutableStateOf<Url?>(null) }
-    var baseUrl by remember { mutableStateOf<String?>(null) }
+    lateinit var verificationMethod: VerificationMethods
+    lateinit var url: Url
+    lateinit var baseUrl: String
 
     var step by remember { mutableStateOf(VerifyDelegatedOid4vpViewSteps.LOADING_QRCODE) }
     var status by remember { mutableStateOf(DelegatedVerifierStatus.INITIATED) }
@@ -64,18 +64,15 @@ fun VerifyDelegatedOid4vpView(
     var errorTitle by remember { mutableStateOf<String?>(null) }
     var errorDescription by remember { mutableStateOf<String?>(null) }
 
-    var verifier by remember { mutableStateOf<DelegatedVerifier?>(null) }
-    var authQuery by remember { mutableStateOf<String?>(null) }
-    var uri by remember { mutableStateOf<String?>(null) }
+    lateinit var verifier: DelegatedVerifier
+    lateinit var authQuery: String
+    lateinit var uri : String
     var presentation by remember { mutableStateOf<String?>(null) }
 
     fun monitorStatus(status: DelegatedVerifierStatus) {
         scope.launch {
-            val res =
-                    verifier!!.pollVerificationStatus(
-                            "$uri?status=${status.toString().lowercase()}"
-                    )
-            when (res.status) {
+            val res = verifier.pollVerificationStatus("$uri?status=${status.toString().lowercase()}")
+            when(res.status) {
                 DelegatedVerifierStatus.INITIATED -> monitorStatus(res.status)
                 DelegatedVerifierStatus.PENDING -> {
                     // display loading view
@@ -99,16 +96,22 @@ fun VerifyDelegatedOid4vpView(
                     verificationMethodsViewModel.getVerificationMethod(verificationId.toLong())
 
             // Verification method base url
-            url = Url(verificationMethod!!.url)
-            baseUrl = "${url!!.protocol.name}://${url!!.host}"
+            url = Url(verificationMethod.url)
+            baseUrl = "${url.protocol.name}://${url.host}"
 
             // Delegated Verifier
-            verifier = DelegatedVerifier.newClient(baseUrl!!)
+            verifier = DelegatedVerifier.newClient(baseUrl)
 
             // Get initial parameters to delegate verification
+<<<<<<< HEAD
             val delegatedInitializationResponse =
                     verifier?.requestDelegatedVerification(url!!.encodedPathAndQuery)
             authQuery = "openid4vp://?${delegatedInitializationResponse!!.authQuery}"
+=======
+            val delegatedInitializationResponse = verifier.requestDelegatedVerification(url.encodedPathAndQuery)
+            authQuery = "openid4vp://?${delegatedInitializationResponse.authQuery}"
+
+>>>>>>> cd5dc46 (Replace null with lateinit)
             uri = delegatedInitializationResponse.uri
 
             // Display QR Code
@@ -142,9 +145,18 @@ fun VerifyDelegatedOid4vpView(
                 )
             }
             VerifyDelegatedOid4vpViewSteps.PRESENTING_QRCODE -> {
+<<<<<<< HEAD
                 if (authQuery != null) {
                     DelegatedVerifierDisplayQRCodeView(payload = authQuery!!, onClose = { back() })
                 }
+=======
+                DelegatedVerifierDisplayQRCodeView(
+                    payload = authQuery,
+                    onClose = {
+                        back()
+                    }
+                )
+>>>>>>> cd5dc46 (Replace null with lateinit)
             }
             VerifyDelegatedOid4vpViewSteps.GETTING_STATUS -> {
                 LoadingView(
