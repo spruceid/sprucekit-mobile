@@ -125,7 +125,7 @@ mod tests {
                 .await
                 .expect("Failed to create verifier");
 
-        let DelegateInitializationResponse { auth_query, uri } = verifier
+        let DelegateInitializationResponse { uri, auth_query } = verifier
             .request_delegated_verification(DELEGATED_VERIFIER_URL)
             .await
             .expect("Failed to request delegated verification");

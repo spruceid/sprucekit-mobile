@@ -66,13 +66,14 @@ fun VerifyDelegatedOid4vpView(
 
     lateinit var verifier: DelegatedVerifier
     var authQuery by remember { mutableStateOf<String?>(null) }
-    lateinit var uri : String
+    lateinit var uri: String
     var presentation by remember { mutableStateOf<String?>(null) }
 
     fun monitorStatus(status: DelegatedVerifierStatus) {
         scope.launch {
-            val res = verifier.pollVerificationStatus("$uri?status=${status.toString().lowercase()}")
-            when(res.status) {
+            val res =
+                    verifier.pollVerificationStatus("$uri?status=${status.toString().lowercase()}")
+            when (res.status) {
                 DelegatedVerifierStatus.INITIATED -> monitorStatus(res.status)
                 DelegatedVerifierStatus.PENDING -> {
                     // display loading view
@@ -97,13 +98,15 @@ fun VerifyDelegatedOid4vpView(
 
             // Verification method base url
             url = Url(verificationMethod.url)
-            baseUrl = "${url.protocol.name}://${url.host}"
+
+            baseUrl = "${url.protocol.name}://${url.host}:${url.port}"
 
             // Delegated Verifier
             verifier = DelegatedVerifier.newClient(baseUrl)
 
             // Get initial parameters to delegate verification
-            val delegatedInitializationResponse = verifier.requestDelegatedVerification(url.encodedPathAndQuery)
+            val delegatedInitializationResponse =
+                    verifier.requestDelegatedVerification(url.encodedPathAndQuery)
             authQuery = "openid4vp://?${delegatedInitializationResponse.authQuery}"
 
             uri = delegatedInitializationResponse.uri
@@ -139,29 +142,9 @@ fun VerifyDelegatedOid4vpView(
                 )
             }
             VerifyDelegatedOid4vpViewSteps.PRESENTING_QRCODE -> {
-<<<<<<< HEAD
-<<<<<<< HEAD
                 if (authQuery != null) {
                     DelegatedVerifierDisplayQRCodeView(payload = authQuery!!, onClose = { back() })
                 }
-=======
-                DelegatedVerifierDisplayQRCodeView(
-                    payload = authQuery,
-                    onClose = {
-                        back()
-                    }
-                )
->>>>>>> cd5dc46 (Replace null with lateinit)
-=======
-                if (authQuery != null) {
-                    DelegatedVerifierDisplayQRCodeView(
-                        payload = authQuery!!,
-                        onClose = {
-                            back()
-                        }
-                    )
-                }
->>>>>>> 2e86629 (Undo authQuery to lateinit)
             }
             VerifyDelegatedOid4vpViewSteps.GETTING_STATUS -> {
                 LoadingView(
