@@ -36,6 +36,9 @@ interface VerificationMethodsDao {
     @Query("SELECT * FROM verification_methods")
     fun getAllVerificationMethods(): List<VerificationMethods>
 
+    @Query("SELECT * FROM verification_methods WHERE id = :id")
+    fun getVerificationMethod(id: Long): VerificationMethods
+
     @Query("DELETE FROM verification_methods")
     fun deleteAllVerificationMethods(): Int
 

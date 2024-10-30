@@ -55,6 +55,11 @@ class VerificationMethodsRepository(private val verificationMethodsDao: Verifica
     }
 
     @WorkerThread
+    suspend fun getVerificationMethod(id: Long): VerificationMethods {
+        return verificationMethodsDao.getVerificationMethod(id)
+    }
+
+    @WorkerThread
     suspend fun deleteAllVerificationMethods(): Int {
         return verificationMethodsDao.deleteAllVerificationMethods()
     }

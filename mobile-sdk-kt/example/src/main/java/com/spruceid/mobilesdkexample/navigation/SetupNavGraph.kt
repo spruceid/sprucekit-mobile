@@ -44,7 +44,14 @@ fun SetupNavGraph(
         ) { VerifyVCView(navController) }
         composable(
             route = Screen.VerifyDelegatedOid4vpScreen.route,
-        ) { VerifyDelegatedOid4vpView(navController) }
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id")!!
+            VerifyDelegatedOid4vpView(
+                navController,
+                verificationId = id,
+                verificationMethodsViewModel
+            )
+        }
         composable(
             route = Screen.VerifierSettingsHomeScreen.route,
         ) {

@@ -178,7 +178,12 @@ fun VerifierHomeBody(
                 description = verificationMethod.description,
                 type = getBadgeType(verificationMethod.type),
                 modifier = Modifier.clickable {
-                    navController.navigate(Screen.VerifyDelegatedOid4vpScreen.route)
+                    navController.navigate(
+                        Screen.VerifyDelegatedOid4vpScreen.route.replace(
+                            "{id}",
+                            verificationMethod.id.toString()
+                        )
+                    )
                 }
             )
         }

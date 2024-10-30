@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.verifier
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
@@ -16,6 +15,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,17 +26,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.rs.DelegatedVerifier
+import com.spruceid.mobile.sdk.rs.DelegatedVerifierStatus
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
+import com.spruceid.mobilesdkexample.db.VerificationMethods
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.BorderSecondary
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-
-enum class VerifyDelegatedOid4vpViewStatus {
-    INITIATED, PENDING, SUCCESS, FAILED
-}
+import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
+import io.ktor.http.Url
+import kotlinx.coroutines.launch
 
 enum class VerifyDelegatedOid4vpViewSteps {
     LOADING_QRCODE, PRESENTING_QRCODE, GETTING_STATUS, DISPLAYING_CREDENTIAL
@@ -44,35 +45,73 @@ enum class VerifyDelegatedOid4vpViewSteps {
 
 @Composable
 fun VerifyDelegatedOid4vpView(
-    navController: NavController
+    navController: NavController,
+    verificationId: String,
+    verificationMethodsViewModel: VerificationMethodsViewModel
 ) {
+    val scope = rememberCoroutineScope()
+
+    var verificationMethod by remember { mutableStateOf<VerificationMethods?>(null) }
+    var url by remember { mutableStateOf<Url?>(null) }
+    var baseUrl by remember { mutableStateOf<String?>(null) }
+
     var step by remember { mutableStateOf(VerifyDelegatedOid4vpViewSteps.LOADING_QRCODE) }
-    var status by remember { mutableStateOf(VerifyDelegatedOid4vpViewStatus.INITIATED) }
-    var verifier by remember { mutableStateOf<DelegatedVerifier?>(null) }
+    var status by remember { mutableStateOf(DelegatedVerifierStatus.INITIATED) }
+    var loading by remember { mutableStateOf<String?>(null) }
     var errorTitle by remember { mutableStateOf<String?>(null) }
     var errorDescription by remember { mutableStateOf<String?>(null) }
+
+    var verifier by remember { mutableStateOf<DelegatedVerifier?>(null) }
     var authQuery by remember { mutableStateOf<String?>(null) }
     var uri by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf<String?>(null) }
     var presentation by remember { mutableStateOf<String?>(null) }
 
+    fun monitorStatus(status: DelegatedVerifierStatus) {
+        scope.launch {
+            val res = verifier!!.pollVerificationStatus("$uri?status=${status.toString().lowercase()}")
+            when(res.status) {
+                DelegatedVerifierStatus.INITIATED -> monitorStatus(res.status)
+                DelegatedVerifierStatus.PENDING -> {
+                    // display loading view
+                    // call next status monitor
+                }
+                DelegatedVerifierStatus.FAILED -> {
+                    // display error view
+                }
+                DelegatedVerifierStatus.SUCCESS -> {
+                    // display credential
+                    // res.presentation
+                }
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
-        verifier = DelegatedVerifier.newClient()
         try {
-            // uri = verifier?.requestDelegatedVerification(url = "url")
-            uri = "oid4vp://MockQrCodeInformation"
+            // Verification method from db
+            verificationMethod = verificationMethodsViewModel.getVerificationMethod(verificationId.toLong())
+
+            // Verification method base url
+            url = Url(verificationMethod!!.url)
+            baseUrl = "${url!!.protocol.name}://${url!!.host}"
+
+            // Delegated Verifier
+            verifier = DelegatedVerifier.newClient(baseUrl!!)
+
+            // Get initial parameters to delegate verification
+            val delegatedInitializationResponse = verifier?.requestDelegatedVerification(url!!.encodedPathAndQuery)
+            authQuery = "openid4vp://?${delegatedInitializationResponse!!.authQuery}"
+            uri = delegatedInitializationResponse.uri
+
+            // Display QR Code
             step = VerifyDelegatedOid4vpViewSteps.PRESENTING_QRCODE
-            // call function to start monitoring status (status.INITIATED)
+
+            // Call method to start monitoring status
+            monitorStatus(status)
         } catch (e: Exception) {
             errorTitle = "Failed getting QR Code"
             errorDescription = e.localizedMessage
         }
-    }
-
-    fun monitorStatus(status: VerifyDelegatedOid4vpViewStatus) {
-        // get status
-        // if failed -> set error
-        // else -> update variables, call monitorStatus with next status
     }
 
     fun back() {
@@ -101,9 +140,9 @@ fun VerifyDelegatedOid4vpView(
                 )
             }
             VerifyDelegatedOid4vpViewSteps.PRESENTING_QRCODE -> {
-                if (uri != null) {
+                if (authQuery != null) {
                     DelegatedVerifierDisplayQRCodeView(
-                        payload = uri!!,
+                        payload = authQuery!!,
                         onClose = {
                             back()
                         }
