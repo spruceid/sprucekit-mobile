@@ -40,14 +40,17 @@ import io.ktor.http.Url
 import kotlinx.coroutines.launch
 
 enum class VerifyDelegatedOid4vpViewSteps {
-    LOADING_QRCODE, PRESENTING_QRCODE, GETTING_STATUS, DISPLAYING_CREDENTIAL
+    LOADING_QRCODE,
+    PRESENTING_QRCODE,
+    GETTING_STATUS,
+    DISPLAYING_CREDENTIAL
 }
 
 @Composable
 fun VerifyDelegatedOid4vpView(
-    navController: NavController,
-    verificationId: String,
-    verificationMethodsViewModel: VerificationMethodsViewModel
+        navController: NavController,
+        verificationId: String,
+        verificationMethodsViewModel: VerificationMethodsViewModel
 ) {
     val scope = rememberCoroutineScope()
 
@@ -68,8 +71,11 @@ fun VerifyDelegatedOid4vpView(
 
     fun monitorStatus(status: DelegatedVerifierStatus) {
         scope.launch {
-            val res = verifier!!.pollVerificationStatus("$uri?status=${status.toString().lowercase()}")
-            when(res.status) {
+            val res =
+                    verifier!!.pollVerificationStatus(
+                            "$uri?status=${status.toString().lowercase()}"
+                    )
+            when (res.status) {
                 DelegatedVerifierStatus.INITIATED -> monitorStatus(res.status)
                 DelegatedVerifierStatus.PENDING -> {
                     // display loading view
@@ -89,7 +95,8 @@ fun VerifyDelegatedOid4vpView(
     LaunchedEffect(Unit) {
         try {
             // Verification method from db
-            verificationMethod = verificationMethodsViewModel.getVerificationMethod(verificationId.toLong())
+            verificationMethod =
+                    verificationMethodsViewModel.getVerificationMethod(verificationId.toLong())
 
             // Verification method base url
             url = Url(verificationMethod!!.url)
@@ -99,7 +106,8 @@ fun VerifyDelegatedOid4vpView(
             verifier = DelegatedVerifier.newClient(baseUrl!!)
 
             // Get initial parameters to delegate verification
-            val delegatedInitializationResponse = verifier?.requestDelegatedVerification(url!!.encodedPathAndQuery)
+            val delegatedInitializationResponse =
+                    verifier?.requestDelegatedVerification(url!!.encodedPathAndQuery)
             authQuery = "openid4vp://?${delegatedInitializationResponse!!.authQuery}"
             uri = delegatedInitializationResponse.uri
 
@@ -115,47 +123,34 @@ fun VerifyDelegatedOid4vpView(
     }
 
     fun back() {
-        navController.navigate(Screen.HomeScreen.route) {
-            popUpTo(0)
-        }
+        navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
     }
 
     if (errorTitle != null && errorDescription != null) {
         ErrorView(
-            errorTitle = errorTitle!!,
-            errorDetails = errorDescription!!,
-            onClose = {
-                back()
-            }
+                errorTitle = errorTitle!!,
+                errorDetails = errorDescription!!,
+                onClose = { back() }
         )
     } else {
-        when(step) {
+        when (step) {
             VerifyDelegatedOid4vpViewSteps.LOADING_QRCODE -> {
                 LoadingView(
-                    loadingText = "Getting QR Code",
-                    cancelButtonLabel = "Cancel",
-                    onCancel = {
-                        back()
-                    }
+                        loadingText = "Getting QR Code",
+                        cancelButtonLabel = "Cancel",
+                        onCancel = { back() }
                 )
             }
             VerifyDelegatedOid4vpViewSteps.PRESENTING_QRCODE -> {
                 if (authQuery != null) {
-                    DelegatedVerifierDisplayQRCodeView(
-                        payload = authQuery!!,
-                        onClose = {
-                            back()
-                        }
-                    )
+                    DelegatedVerifierDisplayQRCodeView(payload = authQuery!!, onClose = { back() })
                 }
             }
             VerifyDelegatedOid4vpViewSteps.GETTING_STATUS -> {
                 LoadingView(
-                    loadingText = "Verifying status - $status",
-                    cancelButtonLabel = "Cancel",
-                    onCancel = {
-                        back()
-                    }
+                        loadingText = "Verifying status - $status",
+                        cancelButtonLabel = "Cancel",
+                        onCancel = { back() }
                 )
             }
             VerifyDelegatedOid4vpViewSteps.DISPLAYING_CREDENTIAL -> {
@@ -166,50 +161,47 @@ fun VerifyDelegatedOid4vpView(
 }
 
 @Composable
-fun DelegatedVerifierDisplayQRCodeView(
-    payload: String,
-    onClose: () -> Unit
-) {
-    Column (
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 60.dp)
-            .padding(bottom = 40.dp)
-            .padding(horizontal = 30.dp)
-            .navigationBarsPadding(),
-        horizontalAlignment = Alignment.CenterHorizontally
+fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
+    Column(
+            modifier =
+                    Modifier.fillMaxWidth()
+                            .padding(top = 60.dp)
+                            .padding(bottom = 40.dp)
+                            .padding(horizontal = 30.dp)
+                            .navigationBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
-            painter = rememberQrBitmapPainter(payload, size = 300.dp),
-            contentDescription = stringResource(id = com.spruceid.mobilesdkexample.R.string.delegated_oid4vp_qrcode),
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
+                painter = rememberQrBitmapPainter(payload, size = 300.dp),
+                contentDescription =
+                        stringResource(
+                                id = com.spruceid.mobilesdkexample.R.string.delegated_oid4vp_qrcode
+                        ),
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth().weight(1f),
         )
 
         Button(
-            onClick = {
-                onClose()
-            },
-            shape = RoundedCornerShape(6.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = ColorStone950,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 1.dp,
-                    color = BorderSecondary,
-                    shape = RoundedCornerShape(6.dp)
-                )
+                onClick = { onClose() },
+                shape = RoundedCornerShape(6.dp),
+                colors =
+                        ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = ColorStone950,
+                        ),
+                modifier =
+                        Modifier.fillMaxWidth()
+                                .border(
+                                        width = 1.dp,
+                                        color = BorderSecondary,
+                                        shape = RoundedCornerShape(6.dp)
+                                )
         ) {
             Text(
-                text = "Cancel",
-                fontFamily = Inter,
-                fontWeight = FontWeight.SemiBold,
-                color = ColorStone950,
+                    text = "Cancel",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorStone950,
             )
         }
     }
