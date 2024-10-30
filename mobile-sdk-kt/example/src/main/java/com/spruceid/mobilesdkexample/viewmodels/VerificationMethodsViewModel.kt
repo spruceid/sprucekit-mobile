@@ -29,6 +29,10 @@ class VerificationMethodsViewModel(private val verificationMethodsRepository: Ve
         _verificationMethods.value = verificationMethodsRepository.getVerificationMethods()
     }
 
+    suspend fun getVerificationMethod(id: Long): VerificationMethods {
+        return verificationMethodsRepository.getVerificationMethod(id)
+    }
+
     suspend fun deleteAllVerificationMethods() {
         verificationMethodsRepository.deleteAllVerificationMethods()
         _verificationMethods.value = verificationMethodsRepository.getVerificationMethods()
