@@ -29,6 +29,9 @@ const val keyBase64 =
 
 val trustedDids = MutableList(1) { "did:web:companion.ler-sandbox.spruceid.xyz:oid4vp:client" }
 
+val delegatedVerifierBaseUrl = "https://credible.ler-sandbox.spruceid.xyz/oid4vp"
+val delegatedVerifierUrl = "/api2/verifier/1/delegate"
+
 fun String.splitCamelCase() = replace(
     String.format(
         "%s|%s|%s",

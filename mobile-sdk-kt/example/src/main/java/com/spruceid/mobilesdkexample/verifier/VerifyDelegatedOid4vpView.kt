@@ -9,10 +9,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.rs.DelegateInitializationResponse
 import com.spruceid.mobile.sdk.rs.DelegatedVerifier
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.utils.delegatedVerifierBaseUrl
+import com.spruceid.mobilesdkexample.utils.delegatedVerifierUrl
 
 enum class VerifyDelegatedOid4vpViewStatus {
     INITIATED, PENDING, SUCCESS, FAILED
@@ -37,9 +40,18 @@ fun VerifyDelegatedOid4vpView(
     var presentation by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        verifier = DelegatedVerifier.newClient()
+        verifier = DelegatedVerifier.newClient(delegatedVerifierBaseUrl)
         try {
-            verifier?.requestDelegatedVerification(url = "https://cdn-icons-png.flaticon.com/512/2202/2202112.png")
+            val init = verifier?.requestDelegatedVerification(delegatedVerifierUrl)
+
+            if (init == null) {
+                errorTitle = "Failed to initialize delegated verifier"
+                errorDescription = "Initialization response is null"
+                return@LaunchedEffect
+            }
+
+            authQuery = init.authQuery
+            uri = init.uri
         } catch (e: Exception) {
             errorTitle = "Failed getting QR Code"
             errorDescription = e.localizedMessage
