@@ -65,7 +65,7 @@ fun VerifyDelegatedOid4vpView(
     var errorDescription by remember { mutableStateOf<String?>(null) }
 
     lateinit var verifier: DelegatedVerifier
-    lateinit var authQuery: String
+    var authQuery by remember { mutableStateOf<String?>(null) }
     lateinit var uri : String
     var presentation by remember { mutableStateOf<String?>(null) }
 
@@ -103,15 +103,9 @@ fun VerifyDelegatedOid4vpView(
             verifier = DelegatedVerifier.newClient(baseUrl)
 
             // Get initial parameters to delegate verification
-<<<<<<< HEAD
-            val delegatedInitializationResponse =
-                    verifier?.requestDelegatedVerification(url!!.encodedPathAndQuery)
-            authQuery = "openid4vp://?${delegatedInitializationResponse!!.authQuery}"
-=======
             val delegatedInitializationResponse = verifier.requestDelegatedVerification(url.encodedPathAndQuery)
             authQuery = "openid4vp://?${delegatedInitializationResponse.authQuery}"
 
->>>>>>> cd5dc46 (Replace null with lateinit)
             uri = delegatedInitializationResponse.uri
 
             // Display QR Code
@@ -146,6 +140,7 @@ fun VerifyDelegatedOid4vpView(
             }
             VerifyDelegatedOid4vpViewSteps.PRESENTING_QRCODE -> {
 <<<<<<< HEAD
+<<<<<<< HEAD
                 if (authQuery != null) {
                     DelegatedVerifierDisplayQRCodeView(payload = authQuery!!, onClose = { back() })
                 }
@@ -157,6 +152,16 @@ fun VerifyDelegatedOid4vpView(
                     }
                 )
 >>>>>>> cd5dc46 (Replace null with lateinit)
+=======
+                if (authQuery != null) {
+                    DelegatedVerifierDisplayQRCodeView(
+                        payload = authQuery!!,
+                        onClose = {
+                            back()
+                        }
+                    )
+                }
+>>>>>>> 2e86629 (Undo authQuery to lateinit)
             }
             VerifyDelegatedOid4vpViewSteps.GETTING_STATUS -> {
                 LoadingView(
