@@ -93,7 +93,7 @@ fun VerifyDelegatedOid4vpView(
                     DelegatedVerifierStatus.FAILURE -> {
                         // display error view
                         errorTitle = "Error Verifying Credential"
-                        errorDescription = "An internal server error occurred. Please, try again."
+                        errorDescription = res.toString()
                     }
                     DelegatedVerifierStatus.SUCCESS -> {
                         // display credential
