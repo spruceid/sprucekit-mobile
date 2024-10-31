@@ -3,21 +3,28 @@ import SQLite
 
 struct VerificationMethod: Hashable {
     let id: Int64
-    let rawCredential: String
+    let type: String
+    let name: String
+    let description: String
+    let verifierName: String
+    let url: String
 }
 
-// TODO: Completely remove CredentialDataStore after confirming if credentials will be migrated
-class CredentialDataStore {
+class VerificationMethodDataStore {
 
-    static let DIR_ACTIVITY_LOG_DB = "CredentialDB"
-    static let STORE_NAME = "credentials.sqlite3"
+    static let DIR_ACTIVITY_LOG_DB = "VerificationMethodDB"
+    static let STORE_NAME = "verification_methods.sqlite3"
 
-    private let credentials = Table("credentials")
+    private let verificationMethods = Table("verification_methods")
 
     private let id = SQLite.Expression<Int64>("id")
-    private let rawCredential = SQLite.Expression<String>("raw_credential")
-
-    static let shared = CredentialDataStore()
+    private let type = SQLite.Expression<String>("type")
+    private let name = SQLite.Expression<String>("name")
+    private let description = SQLite.Expression<String>("description")
+    private let verifierName = SQLite.Expression<String>("verifierName")
+    private let url = SQLite.Expression<String>("url")
+    
+    static let shared = VerificationMethodDataStore()
 
     private var db: Connection?
 
@@ -50,9 +57,13 @@ class CredentialDataStore {
         }
         do {
             try database.run(
-                credentials.create { table in
+                verificationMethods.create { table in
                     table.column(id, primaryKey: .autoincrement)
-                    table.column(rawCredential)
+                    table.column(type)
+                    table.column(name)
+                    table.column(description)
+                    table.column(verifierName)
+                    table.column(url)
                 })
             print("Table Created...")
         } catch {
@@ -60,10 +71,22 @@ class CredentialDataStore {
         }
     }
 
-    func insert(rawCredential: String) -> Int64? {
+    func insert(
+        type: String,
+        name: String,
+        description: String,
+        verifierName: String,
+        url: String
+    ) -> Int64? {
         guard let database = db else { return nil }
 
-        let insert = credentials.insert(self.rawCredential <- rawCredential)
+        let insert = verificationMethods.insert(
+            self.type <- type,
+            self.name <- name,
+            self.description <- description,
+            self.verifierName <- verifierName,
+            self.url <- url
+        )
         do {
             let rowID = try database.run(insert)
             return rowID
@@ -73,37 +96,27 @@ class CredentialDataStore {
         }
     }
 
-    func getAllCredentials() -> [Credential] {
-        var credentials: [Credential] = []
+    func getAllVerificationMethods() -> [VerificationMethod] {
+        var verificationMethods: [VerificationMethod] = []
         guard let database = db else { return [] }
 
         do {
-            for credential in try database.prepare(self.credentials) {
-                credentials.append(
-                    Credential(
-                        id: credential[id],
-                        rawCredential: credential[rawCredential]
+            for verificationMethod in try database.prepare(self.verificationMethods) {
+                verificationMethods.append(
+                    VerificationMethod(
+                        id: verificationMethod[id],
+                        type: verificationMethod[type],
+                        name: verificationMethod[name],
+                        description: verificationMethod[description],
+                        verifierName: verificationMethod[verifierName],
+                        url: verificationMethod[url]
                     )
                 )
             }
         } catch {
             print(error)
         }
-        return credentials
-    }
-
-    func getAllRawCredentials() -> [String] {
-        var credentials: [String] = []
-        guard let database = db else { return [] }
-
-        do {
-            for credential in try database.prepare(self.credentials) {
-                credentials.append(credential[rawCredential])
-            }
-        } catch {
-            print(error)
-        }
-        return credentials
+        return verificationMethods
     }
 
     func delete(id: Int64) -> Bool {
@@ -111,7 +124,7 @@ class CredentialDataStore {
             return false
         }
         do {
-            let filter = credentials.filter(self.id == id)
+            let filter = verificationMethods.filter(self.id == id)
             try database.run(filter.delete())
             return true
         } catch {
@@ -125,8 +138,8 @@ class CredentialDataStore {
             return false
         }
         do {
-            for credential in try database.prepare(self.credentials)
-            where !delete(id: credential[id]) {
+            for verificationMethod in try database.prepare(self.verificationMethods)
+            where !delete(id: verificationMethod[id]) {
                 return false
             }
         } catch {
