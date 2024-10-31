@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.verifier
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
@@ -70,23 +71,41 @@ fun VerifyDelegatedOid4vpView(
     var presentation by remember { mutableStateOf<String?>(null) }
 
     fun monitorStatus(status: DelegatedVerifierStatus) {
-        scope.launch {
-            val res =
+        try {
+            Log.d("AAA", "Called monitorStatus($status)")
+
+            scope.launch {
+                val res =
                     verifier.pollVerificationStatus("$uri?status=${status.toString().lowercase()}")
-            when (res.status) {
-                DelegatedVerifierStatus.INITIATED -> monitorStatus(res.status)
-                DelegatedVerifierStatus.PENDING -> {
-                    // display loading view
-                    // call next status monitor
-                }
-                DelegatedVerifierStatus.FAILED -> {
-                    // display error view
-                }
-                DelegatedVerifierStatus.SUCCESS -> {
-                    // display credential
-                    // res.presentation
+                when (res.status) {
+                    DelegatedVerifierStatus.INITIATED -> {
+                        Log.d("AAA", "monitorStatus($status) res = $res")
+                        monitorStatus(res.status)
+                    }
+                    DelegatedVerifierStatus.PENDING -> {
+                        Log.d("AAA", "monitorStatus($status) res = $res")
+                        // display loading view
+                        loading = "Requesting data..."
+                        step = VerifyDelegatedOid4vpViewSteps.GETTING_STATUS
+                        // call next status monitor
+                        monitorStatus(res.status)
+                    }
+                    DelegatedVerifierStatus.FAILURE -> {
+                        // display error view
+                        errorTitle = "Error Verifying Credential"
+                        errorDescription = "An internal server error occurred. Please, try again."
+                    }
+                    DelegatedVerifierStatus.SUCCESS -> {
+                        // display credential
+                        step = VerifyDelegatedOid4vpViewSteps.DISPLAYING_CREDENTIAL
+                        // res.presentation
+                        Log.d("AAA", "SUCCESS monitorStatus($status) res = $res")
+                    }
                 }
             }
+        } catch (e: Exception) {
+            errorTitle = "Error Verifying Credential"
+            errorDescription = e.localizedMessage
         }
     }
 
@@ -148,7 +167,7 @@ fun VerifyDelegatedOid4vpView(
             }
             VerifyDelegatedOid4vpViewSteps.GETTING_STATUS -> {
                 LoadingView(
-                        loadingText = "Verifying status - $status",
+                        loadingText = loading ?: "Requesting data...",
                         cancelButtonLabel = "Cancel",
                         onCancel = { back() }
                 )
@@ -164,11 +183,12 @@ fun VerifyDelegatedOid4vpView(
 fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
     Column(
             modifier =
-                    Modifier.fillMaxWidth()
-                            .padding(top = 60.dp)
-                            .padding(bottom = 40.dp)
-                            .padding(horizontal = 30.dp)
-                            .navigationBarsPadding(),
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 60.dp)
+                .padding(bottom = 40.dp)
+                .padding(horizontal = 30.dp)
+                .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
@@ -178,7 +198,9 @@ fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
                                 id = com.spruceid.mobilesdkexample.R.string.delegated_oid4vp_qrcode
                         ),
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxWidth().weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
         )
 
         Button(
@@ -190,12 +212,13 @@ fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
                                 contentColor = ColorStone950,
                         ),
                 modifier =
-                        Modifier.fillMaxWidth()
-                                .border(
-                                        width = 1.dp,
-                                        color = BorderSecondary,
-                                        shape = RoundedCornerShape(6.dp)
-                                )
+                Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = BorderSecondary,
+                        shape = RoundedCornerShape(6.dp)
+                    )
         ) {
             Text(
                     text = "Cancel",
