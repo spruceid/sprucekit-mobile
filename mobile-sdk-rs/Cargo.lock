@@ -1535,9 +1535,9 @@ dependencies = [
 
 [[package]]
 name = "did-web"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3aa9e83a2cff453f1f14d7e5408ddfa2e2638e7ac432af2016a2dad0a809d421"
+checksum = "1f44395292400d7415bbc912e0d4d9fe71cdc306341f3df69c74c457d873f0b6"
 dependencies = [
  "http 0.2.12",
  "reqwest 0.11.27",
@@ -1973,9 +1973,9 @@ checksum = "9e5c1b78ca4aae1ac06c48a526a655760685149f0d465d21f37abfe57ce075c6"
 
 [[package]]
 name = "futures-lite"
-version = "2.3.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52527eb5074e35e9339c6b4e8d12600c7128b68fb25dcb9fa9dec18f7c25f3a5"
+checksum = "3f1fa2f9765705486b33fd2acf1577f8ec449c2ba1f318ae5447697b7c08d210"
 dependencies = [
  "fastrand",
  "futures-core",
@@ -5225,9 +5225,9 @@ checksum = "728dde2f51db62c4667686139f2958b59ab920f8d9d8531b59fc5a01ef0a3896"
 
 [[package]]
 name = "ssi-core"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82c18e4896fd1404939334e990dbf5ec56ffbb094fa175326d503cad3dc5c709"
+checksum = "1736eba3e90c21fc492870501995a07a6ad83bfef7a5af80a7a75e9d7c8a8834"
 dependencies = [
  "async-trait",
  "pin-project",
@@ -5451,9 +5451,9 @@ dependencies = [
 
 [[package]]
 name = "ssi-dids-core"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49868a0797b481ba748186a78946bdfd3db3c0d737701f887d157e5c14ae3b2a"
+checksum = "90cf14742931846557cedc7dae3f4eb8e4e2198e038ed8339495ce1b977f3f3e"
 dependencies = [
  "async-trait",
  "iref",
