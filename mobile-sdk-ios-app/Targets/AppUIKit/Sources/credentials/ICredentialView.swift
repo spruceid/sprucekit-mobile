@@ -16,11 +16,12 @@ protocol ICredentialView: View {
 
 struct CredentialViewSelector: View {
     let credentialItem: any ICredentialView
-
+    
+    
     init(credentialPack: CredentialPack, onDelete: (() -> Void)? = nil) {
         self.credentialItem = GenericCredentialItem(credentialPack: credentialPack, onDelete: onDelete)
     }
-
+    
     var body: some View {
         AnyView(credentialItem)
     }

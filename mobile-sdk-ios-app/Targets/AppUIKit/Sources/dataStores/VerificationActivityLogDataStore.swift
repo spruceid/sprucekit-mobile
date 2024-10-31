@@ -2,27 +2,27 @@ import Foundation
 import SQLite
 
 class VerificationActivityLogDataStore {
-
+    
     static let DIR_ACTIVITY_LOG_DB = "ActivityLogDB"
     static let STORE_NAME = "verification_activity_logs.sqlite3"
-
+    
     private let verificationActivityLogs = Table("verification_activity_logs")
-
+    
     private let id = SQLite.Expression<Int64>("id")
     private let name = SQLite.Expression<String>("name")
     private let credentialTitle = SQLite.Expression<String>("credential_title")
     private let expirationDate = SQLite.Expression<Date>("expiration_date")
     private let status = SQLite.Expression<String>("status")
     private let date = SQLite.Expression<Date>("date")
-
+    
     static let shared = VerificationActivityLogDataStore()
-
+    
     private var db: Connection?
-
+    
     private init() {
         if let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             let dirPath = docDir.appendingPathComponent(Self.DIR_ACTIVITY_LOG_DB)
-
+            
             do {
                 try FileManager.default.createDirectory(
                     atPath: dirPath.path,
@@ -41,7 +41,7 @@ class VerificationActivityLogDataStore {
             db = nil
         }
     }
-
+    
     private func createTable() {
         guard let database = db else {
             return
@@ -60,15 +60,15 @@ class VerificationActivityLogDataStore {
             print(error)
         }
     }
-
+    
     func insert(name: String, credentialTitle: String, expirationDate: Date, status: String, date: Date) -> Int64? {
         guard let database = db else { return nil }
-
+        
         let insert = verificationActivityLogs.insert(self.name <- name,
-                                  self.credentialTitle <- credentialTitle,
-                                  self.expirationDate <- expirationDate,
-                                  self.status <- status,
-                                  self.date <- date)
+                                                     self.credentialTitle <- credentialTitle,
+                                                     self.expirationDate <- expirationDate,
+                                                     self.status <- status,
+                                                     self.date <- date)
         do {
             let rowID = try database.run(insert)
             return rowID
@@ -77,15 +77,15 @@ class VerificationActivityLogDataStore {
             return nil
         }
     }
-
+    
     func getAllVerificationActivityLogs() -> [VerificationActivityLog] {
         var verificationActivityLogs: [VerificationActivityLog] = []
         guard let database = db else { return [] }
-
+        
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "MM/dd/yyyy"
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-
+        
         do {
             for verificationActivityLog in try database.prepare(self.verificationActivityLogs) {
                 verificationActivityLogs.append(
@@ -104,7 +104,7 @@ class VerificationActivityLogDataStore {
         }
         return verificationActivityLogs
     }
-
+    
     func delete(id: Int64) -> Bool {
         guard let database = db else {
             return false
@@ -118,7 +118,7 @@ class VerificationActivityLogDataStore {
             return false
         }
     }
-
+    
     func deleteAll() -> Bool {
         guard let database = db else {
             return false

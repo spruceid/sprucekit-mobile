@@ -12,12 +12,13 @@ struct AddToWalletView: View {
     var credential: GenericJSON?
     @State var presentError: Bool
     @State var errorDetails: String
-
+    
     let credentialItem: (any ICredentialView)?
-
+    
     init(path: Binding<NavigationPath>, rawCredential: String) {
         self._path = path
         self.rawCredential = rawCredential
+        
         do {
             credentialItem = try credentialDisplayerSelector(rawCredential: rawCredential)
             errorDetails = ""
@@ -29,30 +30,24 @@ struct AddToWalletView: View {
             credentialItem = nil
         }
     }
-
+    
     func back() {
         while !path.isEmpty {
             path.removeLast()
         }
     }
-
+    
     func addToWallet() {
-        do {
-            let credentialPack = CredentialPack()
-            _ = try credentialPack.tryAddRawCredential(rawCredential: rawCredential)
-            try credentialPack.save(storageManager: StorageManager())
-            back()
-        } catch {
-            print(error)
-            errorDetails = "Error: \(error)"
-            presentError = true
-        }
+        _ = CredentialDataStore.shared.insert(
+            rawCredential: rawCredential
+        )
+        back()
     }
-
+    
     var body: some View {
         ZStack {
-            if !presentError && credentialItem != nil {
-                VStack {
+            if(!presentError && credentialItem != nil){
+                VStack{
                     Text("Review Info")
                         .font(.customFont(font: .inter, style: .bold, size: .h0))
                         .padding(.horizontal, 20)
@@ -104,7 +99,7 @@ struct AddToWalletView: View {
 
 struct AddToWalletPreview: PreviewProvider {
     @State static var path: NavigationPath = .init()
-
+    
     static var previews: some View {
         AddToWalletView(path: $path, rawCredential: "")
     }

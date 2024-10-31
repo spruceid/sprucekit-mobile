@@ -21,26 +21,26 @@ public struct QRSheetView: View {
     var credentials: CredentialStore
     @State var proceed = true
     @StateObject var delegate: ShareViewDelegate
-
+    
     init(credentials: [ParsedCredential]) async {
         let credentialStore = CredentialStore(credentials: credentials)
         self.credentials = credentialStore
         let viewDelegate = await ShareViewDelegate(credentials: credentialStore)
         self._delegate = StateObject(wrappedValue: viewDelegate)
     }
-
+    
     @ViewBuilder
     var cancelButton: some View {
         Button("Cancel") {
             self.delegate.cancel()
             proceed = false
         }
-            .padding(10)
-            .buttonStyle(.bordered)
-            .tint(.red)
-            .foregroundColor(.red)
+        .padding(10)
+        .buttonStyle(.bordered)
+        .tint(.red)
+        .foregroundColor(.red)
     }
-
+    
     public var body: some View {
         VStack {
             if proceed {
@@ -55,32 +55,32 @@ public struct QRSheetView: View {
                     let message = switch error {
                     case .bluetooth(let central):
                         switch central.state {
-                                case .poweredOff:
-                                    "Is Powered Off."
-                                case .unsupported:
-                                    "Is Unsupported."
-                                case .unauthorized:
-                                    switch CBManager.authorization {
-                                    case .denied:
-                                        "Authorization denied"
-                                    case .restricted:
-                                        "Authorization restricted"
-                                    case .allowedAlways:
-                                        "Authorized"
-                                    case .notDetermined:
-                                        "Authorization not determined"
-                                    @unknown default:
-                                        "Unknown authorization error"
-                                    }
-                                case .unknown:
-                                    "Unknown"
-                                case .resetting:
-                                    "Resetting"
+                        case .poweredOff:
+                            "Is Powered Off."
+                        case .unsupported:
+                            "Is Unsupported."
+                        case .unauthorized:
+                            switch CBManager.authorization {
+                            case .denied:
+                                "Authorization denied"
+                            case .restricted:
+                                "Authorization restricted"
+                            case .allowedAlways:
+                                "Authorized"
+                            case .notDetermined:
+                                "Authorization not determined"
+                            @unknown default:
+                                "Unknown authorization error"
+                            }
+                        case .unknown:
+                            "Unknown"
+                        case .resetting:
+                            "Resetting"
                         case .poweredOn:
-                           "Impossible"
+                            "Impossible"
                         @unknown default:
-                                    "Error"
-                                }
+                            "Error"
+                        }
                     case .peripheral(let error):
                         error
                     case .generic(let error):
@@ -117,28 +117,28 @@ public struct QRSheetView: View {
 class ShareViewDelegate: ObservableObject {
     @Published var state: BLESessionState = .connected
     private var sessionManager: IsoMdlPresentation?
-
+    
     init(credentials: CredentialStore) async {
         self.sessionManager = await credentials.presentMdocBLE(deviceEngagement: .QRCode, callback: self)!
     }
-
+    
     func cancel() {
         self.sessionManager?.cancel()
     }
-
+    
     func submitItems(items: [String: [String: [String: Bool]]]) {
         let tag = "mdoc_key".data(using: .utf8)!
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true
+            kSecReturnRef as String: true,
         ]
-
+        
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
         let key = item as! SecKey
-
+        
         self.sessionManager?.submitNamespaces(items: items.mapValues { namespaces in
             return namespaces.mapValues { items in
                 Array(items.filter { $0.value }.keys)

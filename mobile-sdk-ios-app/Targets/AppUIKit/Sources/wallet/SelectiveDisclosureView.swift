@@ -8,7 +8,7 @@ public struct SelectiveDisclosureView: View {
     @State private var itemsRequests: [ItemsRequest]
     @Binding var proceed: Bool
     @StateObject var delegate: ShareViewDelegate
-
+    
     init(itemsRequests: [ItemsRequest], delegate: ShareViewDelegate, proceed: Binding<Bool>) {
         self.itemsRequests = itemsRequests
         self._delegate = StateObject(wrappedValue: delegate)
@@ -27,7 +27,7 @@ public struct SelectiveDisclosureView: View {
         self.itemsSelected = defaultSelected
         self._proceed = proceed
     }
-
+    
     public var body: some View {
         Button("Select items") {
             showingSDSheet.toggle()
@@ -59,7 +59,7 @@ struct SDSheetView: View {
     @Binding var proceed: Bool
     let onProceed: () -> Void
     let onCancel: () -> Void
-
+    
     public var body: some View {
         NavigationStack {
             Form {
@@ -95,19 +95,19 @@ struct SDSheetView: View {
             })
         }
     }
-
+    
     private func binding(docType: String, namespace: String, item: String) -> Binding<Bool> {
-            return .init(
-                get: { self.itemsSelected[docType]![namespace]![item]! },
-                set: { self.itemsSelected[docType]![namespace]![item] = $0 })
-        }
-
+        return .init(
+            get: { self.itemsSelected[docType]![namespace]![item]! },
+            set: { self.itemsSelected[docType]![namespace]![item] = $0 })
+    }
+    
 }
 
 struct ItemToggle: View {
     @Binding var selected: Bool
     let name: String
-
+    
     public var body: some View {
         Toggle(name, isOn: $selected)
     }

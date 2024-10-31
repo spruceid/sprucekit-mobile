@@ -3,25 +3,25 @@ import SwiftUI
 import SpruceIDMobileSdk
 
 extension Image {
-  init?(base64String: String) {
-    guard let data = Data(base64Encoded: base64String) else { return nil }
-    #if os(macOS)
-    guard let image = NSImage(data: data) else { return nil }
-    self.init(nsImage: image)
-    #elseif os(iOS)
-    guard let image = UIImage(data: data) else { return nil }
-    self.init(uiImage: image)
-    #else
-    return nil
-    #endif
-  }
+    init?(base64String: String) {
+        guard let data = Data(base64Encoded: base64String) else { return nil }
+#if os(macOS)
+        guard let image = NSImage(data: data) else { return nil }
+        self.init(nsImage: image)
+#elseif os(iOS)
+        guard let image = UIImage(data: data) else { return nil }
+        self.init(uiImage: image)
+#else
+        return nil
+#endif
+    }
 }
 
 func generateMDoc() -> MDoc? {
     do {
         let mdocData = Data(base64Encoded: mdocBase64)!
         let key = try P256.Signing.PrivateKey(pemRepresentation: keyPEM)
-
+        
         let attributes = [kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
                          kSecAttrKeyClass: kSecAttrKeyClassPrivate] as [String: Any]
         let secKey = SecKeyCreateWithData(key.x963Representation as CFData,
@@ -63,20 +63,20 @@ extension String {
             return $0 + String($1)
         }
     }
-
+    
     func replaceUnderscores() -> String {
         return self.replacingOccurrences(of: "_", with: " ")
     }
 }
 
 extension Data {
-  var base64EncodedUrlSafe: String {
-    let string = self.base64EncodedString()
-
-    // Make this URL safe and remove padding
-    return string
-      .replacingOccurrences(of: "+", with: "-")
-      .replacingOccurrences(of: "/", with: "_")
-      .replacingOccurrences(of: "=", with: "")
-  }
+    var base64EncodedUrlSafe: String {
+        let string = self.base64EncodedString()
+        
+        // Make this URL safe and remove padding
+        return string
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
 }
