@@ -105,8 +105,11 @@ impl VCDM2SdJwt {
         // without the selection of individual disclosed fields.
         //
         // We need to selectively disclosed fields.
-        let compact: &str = self.inner.as_ref();
-        VpTokenItem::String(compact.to_string())
+        let object = serde_json::to_string(&self.credential)
+            // SAFETY: we are serializing a JSON value (SpecializedJsonCredential),
+            // so this should always be valid.
+            .unwrap();
+        VpTokenItem::String(object)
     }
 }
 
