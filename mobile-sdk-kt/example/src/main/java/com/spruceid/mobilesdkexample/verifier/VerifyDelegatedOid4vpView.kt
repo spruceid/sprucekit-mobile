@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.verifier
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
@@ -72,18 +71,14 @@ fun VerifyDelegatedOid4vpView(
 
     fun monitorStatus(status: DelegatedVerifierStatus) {
         try {
-            Log.d("AAA", "Called monitorStatus($status)")
-
             scope.launch {
                 val res =
                     verifier.pollVerificationStatus("$uri?status=${status.toString().lowercase()}")
                 when (res.status) {
                     DelegatedVerifierStatus.INITIATED -> {
-                        Log.d("AAA", "monitorStatus($status) res = $res")
                         monitorStatus(res.status)
                     }
                     DelegatedVerifierStatus.PENDING -> {
-                        Log.d("AAA", "monitorStatus($status) res = $res")
                         // display loading view
                         loading = "Requesting data..."
                         step = VerifyDelegatedOid4vpViewSteps.GETTING_STATUS
@@ -98,8 +93,7 @@ fun VerifyDelegatedOid4vpView(
                     DelegatedVerifierStatus.SUCCESS -> {
                         // display credential
                         step = VerifyDelegatedOid4vpViewSteps.DISPLAYING_CREDENTIAL
-                        // res.presentation
-                        Log.d("AAA", "SUCCESS monitorStatus($status) res = $res")
+                        presentation = res.oid4vp?.vpToken
                     }
                 }
             }
@@ -107,6 +101,10 @@ fun VerifyDelegatedOid4vpView(
             errorTitle = "Error Verifying Credential"
             errorDescription = e.localizedMessage
         }
+    }
+
+    fun back() {
+        navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
     }
 
     LaunchedEffect(Unit) {
@@ -141,10 +139,6 @@ fun VerifyDelegatedOid4vpView(
         }
     }
 
-    fun back() {
-        navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
-    }
-
     if (errorTitle != null && errorDescription != null) {
         ErrorView(
                 errorTitle = errorTitle!!,
@@ -173,7 +167,12 @@ fun VerifyDelegatedOid4vpView(
                 )
             }
             VerifyDelegatedOid4vpViewSteps.DISPLAYING_CREDENTIAL -> {
-                Text("presentation")
+                if (presentation != null) {
+                    VerifierCredentialSuccessView(
+                        rawCredential = presentation!!,
+                        onClose = { back() },
+                    )
+                }
             }
         }
     }

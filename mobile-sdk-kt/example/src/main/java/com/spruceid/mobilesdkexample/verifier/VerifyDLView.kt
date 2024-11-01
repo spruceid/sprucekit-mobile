@@ -43,7 +43,7 @@ fun VerifyDLView(
             onRead = ::onRead
         )
     } else {
-        VerifierSuccessView(
+        VerifierBinarySuccessView(
             navController = navController,
             success = success!!,
             description = if (success!!) "Valid Driver's License" else "Invalid Driver's License"

@@ -21,4 +21,5 @@
     <string name="add_first_credential">Click on the button to add your first credential</string>
     <string name="delegated_oid4vp_qrcode">Read this QR Code to start the verification</string>
     <string name="arrow_triangle_right">Start flow</string>
+    <string name="arrow_circle">Restart</string>
 </resources>
