@@ -166,7 +166,7 @@ mod tests {
         request.credentials().iter().for_each(|c| {
             println!("Credential: {:?}", c);
         });
-        
+
         let response = request.create_permission_response(request.credentials());
 
         let url = holder.submit_permission_response(response).await;
