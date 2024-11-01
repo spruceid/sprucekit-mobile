@@ -10,16 +10,16 @@ struct DispatchQRView: View {
     @State var verificationRequest: String?
     @State var err: String?
     @State var success: Bool?
-
+    
     @Binding var path: NavigationPath
-
+    
     func getVerificationRequest(verificationRequestOffer: String) {
         loading = true
         Task {
             do {
                 print("Reading URL: \(verificationRequestOffer)")
                 if verificationRequestOffer.hasPrefix(OPEN_ID4VP_SCHEME) {
-                        path.append(HandleOID4VP(url: verificationRequestOffer))
+                    path.append(HandleOID4VP(url: verificationRequestOffer))
                 } else {
                     print(
                         "The QR code you have scanned is not recognized as a verification request")
@@ -29,7 +29,7 @@ struct DispatchQRView: View {
             }
         }
     }
-
+    
     var body: some View {
         VStack {
             if loading {
