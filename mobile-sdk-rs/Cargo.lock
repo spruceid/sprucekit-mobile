@@ -3615,7 +3615,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 [[package]]
 name = "openid4vp"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=ab9a643#ab9a643b67a50efbedcee269ba1fb0dfffb06403"
+source = "git+https://github.com/spruceid/openid4vp?rev=ad3974c#ad3974c5d19c94ecefb4b83427886ff1c480c194"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3643,7 +3643,7 @@ dependencies = [
 [[package]]
 name = "openid4vp-frontend"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=ab9a643#ab9a643b67a50efbedcee269ba1fb0dfffb06403"
+source = "git+https://github.com/spruceid/openid4vp?rev=ad3974c#ad3974c5d19c94ecefb4b83427886ff1c480c194"
 dependencies = [
  "serde",
  "serde_json",

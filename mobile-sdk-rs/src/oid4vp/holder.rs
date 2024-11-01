@@ -41,6 +41,7 @@ pub struct Holder {
     pub(crate) client: openid4vp::core::util::ReqwestClient,
 
     /// A list of trusted DIDs.
+    #[allow(dead_code)]
     pub(crate) trusted_dids: Vec<String>,
 
     /// Provide optional credentials to the holder instance.
@@ -97,6 +98,7 @@ impl Holder {
     pub async fn authorization_request(
         &self,
         url: Url,
+        // Callback here to allow for review of untrusted DIDs.
     ) -> Result<Arc<PermissionRequest>, OID4VPError> {
         let request = self
             .validate_request(url)
@@ -220,11 +222,15 @@ impl RequestVerifier for Holder {
         let resolver: VerificationMethodDIDResolver<DIDWeb, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDWeb);
 
+        // NOTE: This is temporary solution that will allow any DID to be
+        // trusted. This will be replaced by the trust manager in the future.
+        let client_id = decoded_request.client_id();
+
         verify_with_resolver(
             &self.metadata,
             decoded_request,
             request_jwt,
-            Some(self.trusted_dids.as_slice()),
+            Some(&[client_id.0.clone()]),
             &resolver,
         )
         .await?;

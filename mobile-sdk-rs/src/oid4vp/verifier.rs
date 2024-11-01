@@ -14,7 +14,6 @@ pub enum Oid4vpVerifierError {
 #[derive(Debug, uniffi::Object)]
 pub struct DelegatedVerifier {
     base_url: Url,
-
     /// HTTP Request Client
     pub(crate) client: openid4vp::core::util::ReqwestClient,
 }
@@ -24,7 +23,7 @@ pub struct DelegatedVerifier {
 pub enum DelegatedVerifierStatus {
     Initiated,
     Pending,
-    Failed,
+    Failure,
     Success,
 }
 
@@ -32,9 +31,17 @@ pub enum DelegatedVerifierStatus {
 pub struct DelegatedVerifierStatusResponse {
     /// The status of the verification request.
     pub status: DelegatedVerifierStatus,
-    /// JSON-encoded string of the presentation
+    /// OID4VP presentation
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub presentation: Option<String>,
+    pub oid4vp: Option<DelegatedVerifierOid4vpResponse>,
+}
+
+#[derive(Debug, Serialize, Deserialize, uniffi::Record)]
+pub struct DelegatedVerifierOid4vpResponse {
+    /// Presented SD-JWT.
+    pub vp_token: String,
+    // TODO: add presentation_submission
+    // pub presentation_submission: PresentationSubmission
 }
 
 #[derive(Debug, Serialize, Deserialize, uniffi::Record)]
@@ -130,7 +137,7 @@ mod tests {
             .await
             .expect("Failed to request delegated verification");
 
-        let DelegatedVerifierStatusResponse { status, .. } =
+        let DelegatedVerifierStatusResponse { status, oid4vp } =
             verifier.poll_verification_status(&uri).await?;
 
         assert_eq!(status, DelegatedVerifierStatus::Initiated);
@@ -159,6 +166,22 @@ mod tests {
         request.credentials().iter().for_each(|c| {
             println!("Credential: {:?}", c);
         });
+        
+        let response = request.create_permission_response(request.credentials());
+
+        let url = holder.submit_permission_response(response).await;
+
+        println!("Received URL: {url:?}");
+
+        // Sleep for 5 seconds
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+
+        let DelegatedVerifierStatusResponse { status, oid4vp } =
+            verifier.poll_verification_status(&uri).await?;
+
+        assert_eq!(status, DelegatedVerifierStatus::Success);
+
+        println!("Presentation: {oid4vp:?}");
 
         Ok(())
     }
