@@ -50,9 +50,11 @@ fileprivate extension ForeignBytes {
 
 fileprivate extension Data {
     init(rustBuffer: RustBuffer) {
-        // TODO: This copies the buffer. Can we read directly from a
-        // Rust buffer?
-        self.init(bytes: rustBuffer.data!, count: Int(rustBuffer.len))
+        self.init(
+            bytesNoCopy: rustBuffer.data!,
+            count: Int(rustBuffer.len),
+            deallocator: .none
+        )
     }
 }
 
@@ -153,7 +155,7 @@ fileprivate func writeDouble(_ writer: inout [UInt8], _ value: Double) {
 }
 
 // Protocol for types that transfer other types across the FFI. This is
-// analogous go the Rust trait of the same name.
+// analogous to the Rust trait of the same name.
 fileprivate protocol FfiConverter {
     associatedtype FfiType
     associatedtype SwiftType
@@ -253,18 +255,19 @@ fileprivate extension RustCallStatus {
 }
 
 private func rustCall<T>(_ callback: (UnsafeMutablePointer<RustCallStatus>) -> T) throws -> T {
-    try makeRustCall(callback, errorHandler: nil)
+    let neverThrow: ((RustBuffer) throws -> Never)? = nil
+    return try makeRustCall(callback, errorHandler: neverThrow)
 }
 
-private func rustCallWithError<T>(
-    _ errorHandler: @escaping (RustBuffer) throws -> Error,
+private func rustCallWithError<T, E: Swift.Error>(
+    _ errorHandler: @escaping (RustBuffer) throws -> E,
     _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T) throws -> T {
     try makeRustCall(callback, errorHandler: errorHandler)
 }
 
-private func makeRustCall<T>(
+private func makeRustCall<T, E: Swift.Error>(
     _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T,
-    errorHandler: ((RustBuffer) throws -> Error)?
+    errorHandler: ((RustBuffer) throws -> E)?
 ) throws -> T {
     uniffiEnsureInitialized()
     var callStatus = RustCallStatus.init()
@@ -273,9 +276,9 @@ private func makeRustCall<T>(
     return returnedVal
 }
 
-private func uniffiCheckCallStatus(
+private func uniffiCheckCallStatus<E: Swift.Error>(
     callStatus: RustCallStatus,
-    errorHandler: ((RustBuffer) throws -> Error)?
+    errorHandler: ((RustBuffer) throws -> E)?
 ) throws {
     switch callStatus.code {
         case CALL_SUCCESS:
@@ -5721,25 +5724,25 @@ public struct FfiConverterTypeCredentialDecodingError: FfiConverterRustBuffer {
 
         
         case 1: return .MsoMdoc(
-            : try FfiConverterTypeMdocInitError.read(from: &buf)
+            try FfiConverterTypeMdocInitError.read(from: &buf)
             )
         case 2: return .JsonVc(
-            : try FfiConverterTypeJsonVcInitError.read(from: &buf)
+            try FfiConverterTypeJsonVcInitError.read(from: &buf)
             )
         case 3: return .JwtVc(
-            : try FfiConverterTypeJwtVcInitError.read(from: &buf)
+            try FfiConverterTypeJwtVcInitError.read(from: &buf)
             )
         case 4: return .SdJwt(
-            : try FfiConverterTypeSdJwtError.read(from: &buf)
+            try FfiConverterTypeSdJwtError.read(from: &buf)
             )
         case 5: return .UnsupportedCredentialFormat(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 6: return .Serialization(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 7: return .Deserialization(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -5753,39 +5756,39 @@ public struct FfiConverterTypeCredentialDecodingError: FfiConverterRustBuffer {
 
         
         
-        case let .MsoMdoc():
+        case let .MsoMdoc(v1):
             writeInt(&buf, Int32(1))
-            FfiConverterTypeMdocInitError.write(, into: &buf)
+            FfiConverterTypeMdocInitError.write(v1, into: &buf)
             
         
-        case let .JsonVc():
+        case let .JsonVc(v1):
             writeInt(&buf, Int32(2))
-            FfiConverterTypeJsonVcInitError.write(, into: &buf)
+            FfiConverterTypeJsonVcInitError.write(v1, into: &buf)
             
         
-        case let .JwtVc():
+        case let .JwtVc(v1):
             writeInt(&buf, Int32(3))
-            FfiConverterTypeJwtVcInitError.write(, into: &buf)
+            FfiConverterTypeJwtVcInitError.write(v1, into: &buf)
             
         
-        case let .SdJwt():
+        case let .SdJwt(v1):
             writeInt(&buf, Int32(4))
-            FfiConverterTypeSdJwtError.write(, into: &buf)
+            FfiConverterTypeSdJwtError.write(v1, into: &buf)
             
         
-        case let .UnsupportedCredentialFormat():
+        case let .UnsupportedCredentialFormat(v1):
             writeInt(&buf, Int32(5))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Serialization():
+        case let .Serialization(v1):
             writeInt(&buf, Int32(6))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Deserialization():
+        case let .Deserialization(v1):
             writeInt(&buf, Int32(7))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         }
     }
@@ -5794,7 +5797,11 @@ public struct FfiConverterTypeCredentialDecodingError: FfiConverterRustBuffer {
 
 extension CredentialDecodingError: Equatable, Hashable {}
 
-extension CredentialDecodingError: Error { }
+extension CredentialDecodingError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum CredentialEncodingError {
@@ -5823,16 +5830,16 @@ public struct FfiConverterTypeCredentialEncodingError: FfiConverterRustBuffer {
 
         
         case 1: return .MsoMdoc(
-            : try FfiConverterTypeMdocEncodingError.read(from: &buf)
+            try FfiConverterTypeMdocEncodingError.read(from: &buf)
             )
         case 2: return .JsonVc(
-            : try FfiConverterTypeJsonVcEncodingError.read(from: &buf)
+            try FfiConverterTypeJsonVcEncodingError.read(from: &buf)
             )
         case 3: return .SdJwt(
-            : try FfiConverterTypeSdJwtError.read(from: &buf)
+            try FfiConverterTypeSdJwtError.read(from: &buf)
             )
         case 4: return .VpToken(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -5846,24 +5853,24 @@ public struct FfiConverterTypeCredentialEncodingError: FfiConverterRustBuffer {
 
         
         
-        case let .MsoMdoc():
+        case let .MsoMdoc(v1):
             writeInt(&buf, Int32(1))
-            FfiConverterTypeMdocEncodingError.write(, into: &buf)
+            FfiConverterTypeMdocEncodingError.write(v1, into: &buf)
             
         
-        case let .JsonVc():
+        case let .JsonVc(v1):
             writeInt(&buf, Int32(2))
-            FfiConverterTypeJsonVcEncodingError.write(, into: &buf)
+            FfiConverterTypeJsonVcEncodingError.write(v1, into: &buf)
             
         
-        case let .SdJwt():
+        case let .SdJwt(v1):
             writeInt(&buf, Int32(3))
-            FfiConverterTypeSdJwtError.write(, into: &buf)
+            FfiConverterTypeSdJwtError.write(v1, into: &buf)
             
         
-        case let .VpToken():
+        case let .VpToken(v1):
             writeInt(&buf, Int32(4))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         }
     }
@@ -5872,7 +5879,11 @@ public struct FfiConverterTypeCredentialEncodingError: FfiConverterRustBuffer {
 
 extension CredentialEncodingError: Equatable, Hashable {}
 
-extension CredentialEncodingError: Error { }
+extension CredentialEncodingError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -5963,14 +5974,14 @@ extension CredentialFormat: Equatable, Hashable {}
 
 
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum CredentialPresentationError {
+
     
-    case decoding(String
+    
+    case Decoding(String
     )
-    case jsonPath(String
+    case JsonPath(String
     )
 }
 
@@ -5981,27 +5992,34 @@ public struct FfiConverterTypeCredentialPresentationError: FfiConverterRustBuffe
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CredentialPresentationError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
+
         
-        case 1: return .decoding(try FfiConverterString.read(from: &buf)
-        )
+
         
-        case 2: return .jsonPath(try FfiConverterString.read(from: &buf)
-        )
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
+        case 1: return .Decoding(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .JsonPath(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: CredentialPresentationError, into buf: inout [UInt8]) {
         switch value {
+
+        
+
         
         
-        case let .decoding(v1):
+        case let .Decoding(v1):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .jsonPath(v1):
+        case let .JsonPath(v1):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(v1, into: &buf)
             
@@ -6010,19 +6028,13 @@ public struct FfiConverterTypeCredentialPresentationError: FfiConverterRustBuffe
 }
 
 
-public func FfiConverterTypeCredentialPresentationError_lift(_ buf: RustBuffer) throws -> CredentialPresentationError {
-    return try FfiConverterTypeCredentialPresentationError.lift(buf)
-}
-
-public func FfiConverterTypeCredentialPresentationError_lower(_ value: CredentialPresentationError) -> RustBuffer {
-    return FfiConverterTypeCredentialPresentationError.lower(value)
-}
-
-
-
 extension CredentialPresentationError: Equatable, Hashable {}
 
-
+extension CredentialPresentationError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -6093,15 +6105,19 @@ extension DelegatedVerifierStatus: Equatable, Hashable {}
 
 
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum DidError {
+
     
-    case serializationError
-    case generateError
-    case resolutionError
-    case missingVerificationMethod
+    
+    case SerializationError(message: String)
+    
+    case GenerateError(message: String)
+    
+    case ResolutionError(message: String)
+    
+    case MissingVerificationMethod(message: String)
+    
 }
 
 
@@ -6111,56 +6127,59 @@ public struct FfiConverterTypeDidError: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DidError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
+
         
-        case 1: return .serializationError
+
         
-        case 2: return .generateError
+        case 1: return .SerializationError(
+            message: try FfiConverterString.read(from: &buf)
+        )
         
-        case 3: return .resolutionError
+        case 2: return .GenerateError(
+            message: try FfiConverterString.read(from: &buf)
+        )
         
-        case 4: return .missingVerificationMethod
+        case 3: return .ResolutionError(
+            message: try FfiConverterString.read(from: &buf)
+        )
         
+        case 4: return .MissingVerificationMethod(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: DidError, into buf: inout [UInt8]) {
         switch value {
+
         
+
         
-        case .serializationError:
+        case .SerializationError(_ /* message is ignored*/):
             writeInt(&buf, Int32(1))
-        
-        
-        case .generateError:
+        case .GenerateError(_ /* message is ignored*/):
             writeInt(&buf, Int32(2))
-        
-        
-        case .resolutionError:
+        case .ResolutionError(_ /* message is ignored*/):
             writeInt(&buf, Int32(3))
-        
-        
-        case .missingVerificationMethod:
+        case .MissingVerificationMethod(_ /* message is ignored*/):
             writeInt(&buf, Int32(4))
+
         
         }
     }
 }
 
 
-public func FfiConverterTypeDidError_lift(_ buf: RustBuffer) throws -> DidError {
-    return try FfiConverterTypeDidError.lift(buf)
-}
-
-public func FfiConverterTypeDidError_lower(_ value: DidError) -> RustBuffer {
-    return FfiConverterTypeDidError.lower(value)
-}
-
-
-
 extension DidError: Equatable, Hashable {}
 
-
+extension DidError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -6325,14 +6344,18 @@ public struct FfiConverterTypeHttpClientError: FfiConverterRustBuffer {
 
 extension HttpClientError: Equatable, Hashable {}
 
-extension HttpClientError: Error { }
+extension HttpClientError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum JsonVcEncodingError {
+
     
-    case jsonBytesEncoding
+    
+    case JsonBytesEncoding
 }
 
 
@@ -6342,18 +6365,24 @@ public struct FfiConverterTypeJsonVcEncodingError: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> JsonVcEncodingError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
+
         
-        case 1: return .jsonBytesEncoding
+
         
-        default: throw UniffiInternalError.unexpectedEnumCase
+        case 1: return .JsonBytesEncoding
+
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: JsonVcEncodingError, into buf: inout [UInt8]) {
         switch value {
+
+        
+
         
         
-        case .jsonBytesEncoding:
+        case .JsonBytesEncoding:
             writeInt(&buf, Int32(1))
         
         }
@@ -6361,19 +6390,13 @@ public struct FfiConverterTypeJsonVcEncodingError: FfiConverterRustBuffer {
 }
 
 
-public func FfiConverterTypeJsonVcEncodingError_lift(_ buf: RustBuffer) throws -> JsonVcEncodingError {
-    return try FfiConverterTypeJsonVcEncodingError.lift(buf)
-}
-
-public func FfiConverterTypeJsonVcEncodingError_lower(_ value: JsonVcEncodingError) -> RustBuffer {
-    return FfiConverterTypeJsonVcEncodingError.lower(value)
-}
-
-
-
 extension JsonVcEncodingError: Equatable, Hashable {}
 
-
+extension JsonVcEncodingError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum JsonVcInitError {
@@ -6435,7 +6458,11 @@ public struct FfiConverterTypeJsonVcInitError: FfiConverterRustBuffer {
 
 extension JsonVcInitError: Equatable, Hashable {}
 
-extension JsonVcInitError: Error { }
+extension JsonVcInitError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum JwtVcInitError {
@@ -6521,20 +6548,24 @@ public struct FfiConverterTypeJwtVcInitError: FfiConverterRustBuffer {
 
 extension JwtVcInitError: Equatable, Hashable {}
 
-extension JwtVcInitError: Error { }
+extension JwtVcInitError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum KeyTransformationError {
+
     
-    case toPkcs8(value: String
+    
+    case ToPkcs8(value: String
     )
-    case fromPkcs8(value: String
+    case FromPkcs8(value: String
     )
-    case fromSec1(value: String
+    case FromSec1(value: String
     )
-    case toSec1(value: String
+    case ToSec1(value: String
     )
 }
 
@@ -6545,43 +6576,50 @@ public struct FfiConverterTypeKeyTransformationError: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> KeyTransformationError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
+
         
-        case 1: return .toPkcs8(value: try FfiConverterString.read(from: &buf)
-        )
+
         
-        case 2: return .fromPkcs8(value: try FfiConverterString.read(from: &buf)
-        )
-        
-        case 3: return .fromSec1(value: try FfiConverterString.read(from: &buf)
-        )
-        
-        case 4: return .toSec1(value: try FfiConverterString.read(from: &buf)
-        )
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
+        case 1: return .ToPkcs8(
+            value: try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .FromPkcs8(
+            value: try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .FromSec1(
+            value: try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .ToSec1(
+            value: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: KeyTransformationError, into buf: inout [UInt8]) {
         switch value {
+
+        
+
         
         
-        case let .toPkcs8(value):
+        case let .ToPkcs8(value):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(value, into: &buf)
             
         
-        case let .fromPkcs8(value):
+        case let .FromPkcs8(value):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(value, into: &buf)
             
         
-        case let .fromSec1(value):
+        case let .FromSec1(value):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(value, into: &buf)
             
         
-        case let .toSec1(value):
+        case let .ToSec1(value):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(value, into: &buf)
             
@@ -6590,19 +6628,13 @@ public struct FfiConverterTypeKeyTransformationError: FfiConverterRustBuffer {
 }
 
 
-public func FfiConverterTypeKeyTransformationError_lift(_ buf: RustBuffer) throws -> KeyTransformationError {
-    return try FfiConverterTypeKeyTransformationError.lift(buf)
-}
-
-public func FfiConverterTypeKeyTransformationError_lower(_ value: KeyTransformationError) -> RustBuffer {
-    return FfiConverterTypeKeyTransformationError.lower(value)
-}
-
-
-
 extension KeyTransformationError: Equatable, Hashable {}
 
-
+extension KeyTransformationError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum MdlReaderResponseError {
@@ -6674,7 +6706,11 @@ public struct FfiConverterTypeMDLReaderResponseError: FfiConverterRustBuffer {
 
 extension MdlReaderResponseError: Equatable, Hashable {}
 
-extension MdlReaderResponseError: Error { }
+extension MdlReaderResponseError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum MdlReaderSessionError {
@@ -6722,7 +6758,11 @@ public struct FfiConverterTypeMDLReaderSessionError: FfiConverterRustBuffer {
 
 extension MdlReaderSessionError: Equatable, Hashable {}
 
-extension MdlReaderSessionError: Error { }
+extension MdlReaderSessionError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -6815,12 +6855,12 @@ extension MDocItem: Equatable, Hashable {}
 
 
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum MdocEncodingError {
+
     
-    case documentCborEncoding
+    
+    case DocumentCborEncoding
 }
 
 
@@ -6830,18 +6870,24 @@ public struct FfiConverterTypeMdocEncodingError: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdocEncodingError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
+
         
-        case 1: return .documentCborEncoding
+
         
-        default: throw UniffiInternalError.unexpectedEnumCase
+        case 1: return .DocumentCborEncoding
+
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: MdocEncodingError, into buf: inout [UInt8]) {
         switch value {
+
+        
+
         
         
-        case .documentCborEncoding:
+        case .DocumentCborEncoding:
             writeInt(&buf, Int32(1))
         
         }
@@ -6849,19 +6895,13 @@ public struct FfiConverterTypeMdocEncodingError: FfiConverterRustBuffer {
 }
 
 
-public func FfiConverterTypeMdocEncodingError_lift(_ buf: RustBuffer) throws -> MdocEncodingError {
-    return try FfiConverterTypeMdocEncodingError.lift(buf)
-}
-
-public func FfiConverterTypeMdocEncodingError_lower(_ value: MdocEncodingError) -> RustBuffer {
-    return FfiConverterTypeMdocEncodingError.lower(value)
-}
-
-
-
 extension MdocEncodingError: Equatable, Hashable {}
 
-
+extension MdocEncodingError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum MdocInitError {
@@ -6947,7 +6987,11 @@ public struct FfiConverterTypeMdocInitError: FfiConverterRustBuffer {
 
 extension MdocInitError: Equatable, Hashable {}
 
-extension MdocInitError: Error { }
+extension MdocInitError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 /**
@@ -7020,74 +7064,74 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
 
         
         case 1: return .UnexpectedUniFfiCallbackError(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 2: return .RequestValidation(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 3: return .PresentationDefinitionResolution(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 4: return .Token(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 5: return .UnsupportedResponseMode(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 6: return .ResponseSubmission(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 7: return .CredentialCallback(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 8: return .PresentationSubmissionCreation(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 9: return .InvalidDidUrl(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 10: return .DidKeyGenerateUrl(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 11: return .CredentialEncodingError(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 12: return .CredentialDecodingError(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 13: return .JsonSyntaxParse(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 14: return .VdcCollection(
-            : try FfiConverterTypeVdcCollectionError.read(from: &buf)
+            try FfiConverterTypeVdcCollectionError.read(from: &buf)
             )
         case 15: return .HttpClientInitialization(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 16: return .SigningAlgorithmNotFound(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 17: return .InvalidClientIdScheme(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 18: return .InputDescriptorNotFound
         case 19: return .VpTokenParse(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 20: return .VpTokenCreate(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 21: return .JwkParse(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 22: return .VdcCollectionNotInitialized
         case 23: return .AuthorizationRequestNotFound
         case 24: return .RequestSignerNotFound
         case 25: return .MetadataInitialization(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 26: return .PermissionResponse(
-            : try FfiConverterTypePermissionResponseError.read(from: &buf)
+            try FfiConverterTypePermissionResponseError.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -7101,108 +7145,108 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
 
         
         
-        case let .UnexpectedUniFfiCallbackError():
+        case let .UnexpectedUniFfiCallbackError(v1):
             writeInt(&buf, Int32(1))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .RequestValidation():
+        case let .RequestValidation(v1):
             writeInt(&buf, Int32(2))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PresentationDefinitionResolution():
+        case let .PresentationDefinitionResolution(v1):
             writeInt(&buf, Int32(3))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Token():
+        case let .Token(v1):
             writeInt(&buf, Int32(4))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .UnsupportedResponseMode():
+        case let .UnsupportedResponseMode(v1):
             writeInt(&buf, Int32(5))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .ResponseSubmission():
+        case let .ResponseSubmission(v1):
             writeInt(&buf, Int32(6))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .CredentialCallback():
+        case let .CredentialCallback(v1):
             writeInt(&buf, Int32(7))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PresentationSubmissionCreation():
+        case let .PresentationSubmissionCreation(v1):
             writeInt(&buf, Int32(8))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InvalidDidUrl():
+        case let .InvalidDidUrl(v1):
             writeInt(&buf, Int32(9))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .DidKeyGenerateUrl():
+        case let .DidKeyGenerateUrl(v1):
             writeInt(&buf, Int32(10))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .CredentialEncodingError():
+        case let .CredentialEncodingError(v1):
             writeInt(&buf, Int32(11))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .CredentialDecodingError():
+        case let .CredentialDecodingError(v1):
             writeInt(&buf, Int32(12))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .JsonSyntaxParse():
+        case let .JsonSyntaxParse(v1):
             writeInt(&buf, Int32(13))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .VdcCollection():
+        case let .VdcCollection(v1):
             writeInt(&buf, Int32(14))
-            FfiConverterTypeVdcCollectionError.write(, into: &buf)
+            FfiConverterTypeVdcCollectionError.write(v1, into: &buf)
             
         
-        case let .HttpClientInitialization():
+        case let .HttpClientInitialization(v1):
             writeInt(&buf, Int32(15))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .SigningAlgorithmNotFound():
+        case let .SigningAlgorithmNotFound(v1):
             writeInt(&buf, Int32(16))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InvalidClientIdScheme():
+        case let .InvalidClientIdScheme(v1):
             writeInt(&buf, Int32(17))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
         case .InputDescriptorNotFound:
             writeInt(&buf, Int32(18))
         
         
-        case let .VpTokenParse():
+        case let .VpTokenParse(v1):
             writeInt(&buf, Int32(19))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .VpTokenCreate():
+        case let .VpTokenCreate(v1):
             writeInt(&buf, Int32(20))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .JwkParse():
+        case let .JwkParse(v1):
             writeInt(&buf, Int32(21))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
         case .VdcCollectionNotInitialized:
@@ -7217,14 +7261,14 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(24))
         
         
-        case let .MetadataInitialization():
+        case let .MetadataInitialization(v1):
             writeInt(&buf, Int32(25))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PermissionResponse():
+        case let .PermissionResponse(v1):
             writeInt(&buf, Int32(26))
-            FfiConverterTypePermissionResponseError.write(, into: &buf)
+            FfiConverterTypePermissionResponseError.write(v1, into: &buf)
             
         }
     }
@@ -7233,7 +7277,11 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
 
 extension Oid4vpError: Equatable, Hashable {}
 
-extension Oid4vpError: Error { }
+extension Oid4vpError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum Oid4vciError {
@@ -7369,7 +7417,11 @@ public struct FfiConverterTypeOid4vciError: FfiConverterRustBuffer {
 
 extension Oid4vciError: Equatable, Hashable {}
 
-extension Oid4vciError: Error { }
+extension Oid4vciError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum Oid4vpVerifierError {
@@ -7394,10 +7446,10 @@ public struct FfiConverterTypeOid4vpVerifierError: FfiConverterRustBuffer {
 
         
         case 1: return .HttpClient(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 2: return .Url(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -7411,14 +7463,14 @@ public struct FfiConverterTypeOid4vpVerifierError: FfiConverterRustBuffer {
 
         
         
-        case let .HttpClient():
+        case let .HttpClient(v1):
             writeInt(&buf, Int32(1))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Url():
+        case let .Url(v1):
             writeInt(&buf, Int32(2))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         }
     }
@@ -7427,7 +7479,11 @@ public struct FfiConverterTypeOid4vpVerifierError: FfiConverterRustBuffer {
 
 extension Oid4vpVerifierError: Equatable, Hashable {}
 
-extension Oid4vpVerifierError: Error { }
+extension Oid4vpVerifierError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -7500,41 +7556,41 @@ extension Outcome: Equatable, Hashable {}
 
 
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum PermissionRequestError {
+
+    
     
     /**
      * Permission denied for requested presentation.
      */
-    case permissionDenied
+    case PermissionDenied
     /**
      * RwLock error
      */
-    case rwLockError
+    case RwLockError
     /**
      * Credential not found for input descriptor id.
      */
-    case credentialNotFound(String
+    case CredentialNotFound(String
     )
     /**
      * Input descriptor not found for input descriptor id.
      */
-    case inputDescriptorNotFound(String
+    case InputDescriptorNotFound(String
     )
     /**
      * Invalid selected credential for requested field. Selected
      * credential does not match optional credentials.
      */
-    case invalidSelectedCredential(String,String
+    case InvalidSelectedCredential(String,String
     )
     /**
      * Credential Presentation Error
      *
      * failed to present the credential.
      */
-    case credentialPresentation(String
+    case CredentialPresentation(String
     )
 }
 
@@ -7545,56 +7601,62 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PermissionRequestError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
+
         
-        case 1: return .permissionDenied
+
         
-        case 2: return .rwLockError
-        
-        case 3: return .credentialNotFound(try FfiConverterString.read(from: &buf)
-        )
-        
-        case 4: return .inputDescriptorNotFound(try FfiConverterString.read(from: &buf)
-        )
-        
-        case 5: return .invalidSelectedCredential(try FfiConverterString.read(from: &buf), try FfiConverterString.read(from: &buf)
-        )
-        
-        case 6: return .credentialPresentation(try FfiConverterString.read(from: &buf)
-        )
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
+        case 1: return .PermissionDenied
+        case 2: return .RwLockError
+        case 3: return .CredentialNotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .InputDescriptorNotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .InvalidSelectedCredential(
+            try FfiConverterString.read(from: &buf), 
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .CredentialPresentation(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: PermissionRequestError, into buf: inout [UInt8]) {
         switch value {
+
+        
+
         
         
-        case .permissionDenied:
+        case .PermissionDenied:
             writeInt(&buf, Int32(1))
         
         
-        case .rwLockError:
+        case .RwLockError:
             writeInt(&buf, Int32(2))
         
         
-        case let .credentialNotFound(v1):
+        case let .CredentialNotFound(v1):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .inputDescriptorNotFound(v1):
+        case let .InputDescriptorNotFound(v1):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .invalidSelectedCredential(v1,v2):
+        case let .InvalidSelectedCredential(v1,v2):
             writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             FfiConverterString.write(v2, into: &buf)
             
         
-        case let .credentialPresentation(v1):
+        case let .CredentialPresentation(v1):
             writeInt(&buf, Int32(6))
             FfiConverterString.write(v1, into: &buf)
             
@@ -7603,28 +7665,22 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
 }
 
 
-public func FfiConverterTypePermissionRequestError_lift(_ buf: RustBuffer) throws -> PermissionRequestError {
-    return try FfiConverterTypePermissionRequestError.lift(buf)
-}
-
-public func FfiConverterTypePermissionRequestError_lower(_ value: PermissionRequestError) -> RustBuffer {
-    return FfiConverterTypePermissionRequestError.lower(value)
-}
-
-
-
 extension PermissionRequestError: Equatable, Hashable {}
 
+extension PermissionRequestError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
-
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum PermissionResponseError {
+
     
-    case jsonPathParse(String
+    
+    case JsonPathParse(String
     )
-    case credentialEncoding(CredentialEncodingError
+    case CredentialEncoding(CredentialEncodingError
     )
 }
 
@@ -7635,27 +7691,34 @@ public struct FfiConverterTypePermissionResponseError: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PermissionResponseError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
+
         
-        case 1: return .jsonPathParse(try FfiConverterString.read(from: &buf)
-        )
+
         
-        case 2: return .credentialEncoding(try FfiConverterTypeCredentialEncodingError.read(from: &buf)
-        )
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
+        case 1: return .JsonPathParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .CredentialEncoding(
+            try FfiConverterTypeCredentialEncodingError.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: PermissionResponseError, into buf: inout [UInt8]) {
         switch value {
+
+        
+
         
         
-        case let .jsonPathParse(v1):
+        case let .JsonPathParse(v1):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .credentialEncoding(v1):
+        case let .CredentialEncoding(v1):
             writeInt(&buf, Int32(2))
             FfiConverterTypeCredentialEncodingError.write(v1, into: &buf)
             
@@ -7664,19 +7727,13 @@ public struct FfiConverterTypePermissionResponseError: FfiConverterRustBuffer {
 }
 
 
-public func FfiConverterTypePermissionResponseError_lift(_ buf: RustBuffer) throws -> PermissionResponseError {
-    return try FfiConverterTypePermissionResponseError.lift(buf)
-}
-
-public func FfiConverterTypePermissionResponseError_lower(_ value: PermissionResponseError) -> RustBuffer {
-    return FfiConverterTypePermissionResponseError.lower(value)
-}
-
-
-
 extension PermissionResponseError: Equatable, Hashable {}
 
-
+extension PermissionResponseError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum PopError {
@@ -7756,7 +7813,11 @@ public struct FfiConverterTypePopError: FfiConverterRustBuffer {
 
 extension PopError: Equatable, Hashable {}
 
-extension PopError: Error { }
+extension PopError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum RequestError {
@@ -7804,15 +7865,19 @@ public struct FfiConverterTypeRequestError: FfiConverterRustBuffer {
 
 extension RequestError: Equatable, Hashable {}
 
-extension RequestError: Error { }
+extension RequestError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
 public enum ResponseError {
+
     
-    case missingSignature
-    case generic(value: String
+    
+    case MissingSignature
+    case Generic(value: String
     )
 }
 
@@ -7823,25 +7888,31 @@ public struct FfiConverterTypeResponseError: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ResponseError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
+
         
-        case 1: return .missingSignature
+
         
-        case 2: return .generic(value: try FfiConverterString.read(from: &buf)
-        )
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
+        case 1: return .MissingSignature
+        case 2: return .Generic(
+            value: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: ResponseError, into buf: inout [UInt8]) {
         switch value {
+
+        
+
         
         
-        case .missingSignature:
+        case .MissingSignature:
             writeInt(&buf, Int32(1))
         
         
-        case let .generic(value):
+        case let .Generic(value):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(value, into: &buf)
             
@@ -7850,19 +7921,13 @@ public struct FfiConverterTypeResponseError: FfiConverterRustBuffer {
 }
 
 
-public func FfiConverterTypeResponseError_lift(_ buf: RustBuffer) throws -> ResponseError {
-    return try FfiConverterTypeResponseError.lift(buf)
-}
-
-public func FfiConverterTypeResponseError_lower(_ value: ResponseError) -> RustBuffer {
-    return FfiConverterTypeResponseError.lower(value)
-}
-
-
-
 extension ResponseError: Equatable, Hashable {}
 
-
+extension ResponseError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum SdJwtError {
@@ -7894,19 +7959,19 @@ public struct FfiConverterTypeSdJwtError: FfiConverterRustBuffer {
 
         
         case 1: return .SdJwtVcInitError(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 2: return .SdJwtDecoding(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 3: return .InvalidSdJwt(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 4: return .Serialization(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 5: return .CredentialEncoding(
-            : try FfiConverterString.read(from: &buf)
+            try FfiConverterString.read(from: &buf)
             )
         case 6: return .CredentialClaimMissing
 
@@ -7921,29 +7986,29 @@ public struct FfiConverterTypeSdJwtError: FfiConverterRustBuffer {
 
         
         
-        case let .SdJwtVcInitError():
+        case let .SdJwtVcInitError(v1):
             writeInt(&buf, Int32(1))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .SdJwtDecoding():
+        case let .SdJwtDecoding(v1):
             writeInt(&buf, Int32(2))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InvalidSdJwt():
+        case let .InvalidSdJwt(v1):
             writeInt(&buf, Int32(3))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Serialization():
+        case let .Serialization(v1):
             writeInt(&buf, Int32(4))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
-        case let .CredentialEncoding():
+        case let .CredentialEncoding(v1):
             writeInt(&buf, Int32(5))
-            FfiConverterString.write(, into: &buf)
+            FfiConverterString.write(v1, into: &buf)
             
         
         case .CredentialClaimMissing:
@@ -7956,7 +8021,11 @@ public struct FfiConverterTypeSdJwtError: FfiConverterRustBuffer {
 
 extension SdJwtError: Equatable, Hashable {}
 
-extension SdJwtError: Error { }
+extension SdJwtError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum SessionError {
@@ -8004,7 +8073,11 @@ public struct FfiConverterTypeSessionError: FfiConverterRustBuffer {
 
 extension SessionError: Equatable, Hashable {}
 
-extension SessionError: Error { }
+extension SessionError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum SignatureError {
@@ -8068,7 +8141,11 @@ public struct FfiConverterTypeSignatureError: FfiConverterRustBuffer {
 
 extension SignatureError: Equatable, Hashable {}
 
-extension SignatureError: Error { }
+extension SignatureError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 /**
@@ -8158,7 +8235,11 @@ public struct FfiConverterTypeStorageManagerError: FfiConverterRustBuffer {
 
 extension StorageManagerError: Equatable, Hashable {}
 
-extension StorageManagerError: Error { }
+extension StorageManagerError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum TerminationError {
@@ -8206,7 +8287,11 @@ public struct FfiConverterTypeTerminationError: FfiConverterRustBuffer {
 
 extension TerminationError: Equatable, Hashable {}
 
-extension TerminationError: Error { }
+extension TerminationError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum VcbVerificationError {
@@ -8260,7 +8345,11 @@ public struct FfiConverterTypeVCBVerificationError: FfiConverterRustBuffer {
 
 extension VcbVerificationError: Equatable, Hashable {}
 
-extension VcbVerificationError: Error { }
+extension VcbVerificationError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum VcVerificationError {
@@ -8308,7 +8397,11 @@ public struct FfiConverterTypeVCVerificationError: FfiConverterRustBuffer {
 
 extension VcVerificationError: Equatable, Hashable {}
 
-extension VcVerificationError: Error { }
+extension VcVerificationError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum VpError {
@@ -8378,7 +8471,11 @@ public struct FfiConverterTypeVPError: FfiConverterRustBuffer {
 
 extension VpError: Equatable, Hashable {}
 
-extension VpError: Error { }
+extension VpError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -8479,13 +8576,13 @@ public struct FfiConverterTypeVdcCollectionError: FfiConverterRustBuffer {
         case 1: return .SerializeFailed
         case 2: return .DeserializeFailed
         case 3: return .StoreFailed(
-            : try FfiConverterTypeStorageManagerError.read(from: &buf)
+            try FfiConverterTypeStorageManagerError.read(from: &buf)
             )
         case 4: return .LoadFailed(
-            : try FfiConverterTypeStorageManagerError.read(from: &buf)
+            try FfiConverterTypeStorageManagerError.read(from: &buf)
             )
         case 5: return .DeleteFailed(
-            : try FfiConverterTypeStorageManagerError.read(from: &buf)
+            try FfiConverterTypeStorageManagerError.read(from: &buf)
             )
 
          default: throw UniffiInternalError.unexpectedEnumCase
@@ -8507,19 +8604,19 @@ public struct FfiConverterTypeVdcCollectionError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(2))
         
         
-        case let .StoreFailed():
+        case let .StoreFailed(v1):
             writeInt(&buf, Int32(3))
-            FfiConverterTypeStorageManagerError.write(, into: &buf)
+            FfiConverterTypeStorageManagerError.write(v1, into: &buf)
             
         
-        case let .LoadFailed():
+        case let .LoadFailed(v1):
             writeInt(&buf, Int32(4))
-            FfiConverterTypeStorageManagerError.write(, into: &buf)
+            FfiConverterTypeStorageManagerError.write(v1, into: &buf)
             
         
-        case let .DeleteFailed():
+        case let .DeleteFailed(v1):
             writeInt(&buf, Int32(5))
-            FfiConverterTypeStorageManagerError.write(, into: &buf)
+            FfiConverterTypeStorageManagerError.write(v1, into: &buf)
             
         }
     }
@@ -8528,7 +8625,11 @@ public struct FfiConverterTypeVdcCollectionError: FfiConverterRustBuffer {
 
 extension VdcCollectionError: Equatable, Hashable {}
 
-extension VdcCollectionError: Error { }
+extension VdcCollectionError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -9514,7 +9615,7 @@ fileprivate func uniffiRustCallAsync<F, T>(
     completeFunc: (UInt64, UnsafeMutablePointer<RustCallStatus>) -> F,
     freeFunc: (UInt64) -> (),
     liftFunc: (F) throws -> T,
-    errorHandler: ((RustBuffer) throws -> Error)?
+    errorHandler: ((RustBuffer) throws -> Swift.Error)?
 ) async throws -> T {
     // Make sure to call uniffiEnsureInitialized() since future creation doesn't have a
     // RustCallStatus param, so doesn't use makeRustCall()
@@ -9852,9 +9953,9 @@ private enum InitializationResult {
     case contractVersionMismatch
     case apiChecksumMismatch
 }
-// Use a global variables to perform the versioning checks. Swift ensures that
+// Use a global variable to perform the versioning checks. Swift ensures that
 // the code inside is only computed once.
-private var initializationResult: InitializationResult {
+private var initializationResult: InitializationResult = {
     // Get the bindings contract version from our ComponentInterface
     let bindings_contract_version = 26
     // Get the scaffolding contract version by calling the into the dylib
@@ -10227,7 +10328,7 @@ private var initializationResult: InitializationResult {
     uniffiCallbackInitStorageManagerInterface()
     uniffiCallbackInitSyncHttpClient()
     return InitializationResult.ok
-}
+}()
 
 private func uniffiEnsureInitialized() {
     switch initializationResult {
