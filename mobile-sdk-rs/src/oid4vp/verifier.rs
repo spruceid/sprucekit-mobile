@@ -182,7 +182,7 @@ mod tests {
         assert_eq!(status, DelegatedVerifierStatus::Success);
         assert!(oid4vp.is_some());
 
-        println!("Presentation: {oid4vp:?}");
+        println!("Presentation: {:?}", oid4vp);
 
         Ok(())
     }

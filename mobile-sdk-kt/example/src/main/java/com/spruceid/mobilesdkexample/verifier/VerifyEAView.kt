@@ -83,7 +83,7 @@ fun VerifyEAView(
         }
 
         VerifyEASteps.SUCCESS -> {
-            VerifierSuccessView(
+            VerifierBinarySuccessView(
                 navController = navController,
                 success = success!!,
                 description = if (success!!) "Valid Employment Authorization" else "Invalid Employment Authorization"

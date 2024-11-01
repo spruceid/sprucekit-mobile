@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.verifiersettings
 
+import android.widget.Space
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,9 +9,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +37,10 @@ import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.TextBody
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
+import com.spruceid.mobilesdkexample.ui.theme.VerifiedRedInvalid
+import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 enum class VerifierSubSettings {
     VERIFICATION_ACTIVITY_LOG,
@@ -38,7 +48,8 @@ enum class VerifierSubSettings {
 
 @Composable
 fun VerifierSettingsHomeView(
-    navController: NavController
+    navController: NavController,
+    verificationMethodsViewModel: VerificationMethodsViewModel
 ) {
 
     var subpage by remember {
@@ -61,6 +72,7 @@ fun VerifierSettingsHomeView(
         )
         VerifierSettingsHomeBody(
             subpage = subpage,
+            verificationMethodsViewModel = verificationMethodsViewModel,
             changeSubPage = { sp ->
                 subpage = sp
             }
@@ -101,13 +113,15 @@ fun VerifierSettingsHomeHeader(
 @Composable
 fun VerifierSettingsHomeBody(
     subpage: VerifierSubSettings?,
+    verificationMethodsViewModel: VerificationMethodsViewModel,
     changeSubPage: (VerifierSubSettings?) -> Unit
 ) {
     if (subpage == null) {
         Column(
             Modifier
                 .padding(horizontal = 20.dp)
-                .padding(top = 10.dp),
+                .padding(top = 10.dp)
+                .navigationBarsPadding(),
         ) {
             Box(
                 Modifier
@@ -155,6 +169,29 @@ fun VerifierSettingsHomeBody(
                         color = TextBody,
                     )
                 }
+            }
+            Spacer(Modifier.weight(1f))
+            Button(
+                onClick = {
+                    GlobalScope.launch {
+                        verificationMethodsViewModel.deleteAllVerificationMethods()
+                    }
+                },
+                shape = RoundedCornerShape(5.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = VerifiedRedInvalid,
+                    contentColor = Color.White,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 30.dp)
+            ) {
+                Text(
+                    text = "Delete all added verification methods",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                )
             }
         }
     } else if (subpage == VerifierSubSettings.VERIFICATION_ACTIVITY_LOG) {

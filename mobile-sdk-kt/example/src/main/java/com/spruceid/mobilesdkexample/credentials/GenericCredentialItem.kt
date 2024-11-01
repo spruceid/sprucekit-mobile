@@ -60,7 +60,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class GenericCredentialItem : ICredentialView {
-    private var credentialPack: CredentialPack
+    override var credentialPack: CredentialPack
     private val onDelete: (() -> Unit)?
 
     constructor(credentialPack: CredentialPack, onDelete: (() -> Unit)? = null) {

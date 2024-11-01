@@ -61,7 +61,7 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
 class AchievementCredentialItem : ICredentialView {
-    private var credentialPack: CredentialPack
+    override var credentialPack: CredentialPack
     private val onDelete: (() -> Unit)?
 
     constructor(credentialPack: CredentialPack, onDelete: (() -> Unit)? = null) {
