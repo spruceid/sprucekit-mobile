@@ -39,9 +39,9 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
                                         tmpViews[index]
                                     }
                                 }
-                                .padding(.leading, CGFloat(level * 12))
+                                .padding(.leading, CGFloat(12))
                             ))
-                            .padding(.leading, level > 1 ? CGFloat(level * 12) : 0)
+                            .padding(.leading, level > 1 ? CGFloat(12) : 0)
                         }
                     ))
                 } else {
@@ -52,7 +52,7 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
                                     tmpViews[index]
                                 }
                             }
-                            .padding(.leading, CGFloat(level * 12))
+                            .padding(.leading, CGFloat(12))
                         }
                     ))
                 }
@@ -79,9 +79,9 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
                                     }
                                 }
                             }
-                            .padding(.leading, CGFloat(level * 12))
+                            .padding(.leading, CGFloat(12))
                         ))
-                        .padding(.leading, level > 1 ? CGFloat(level * 12) : 0)
+                        .padding(.leading, level > 1 ? CGFloat(12) : 0)
                     }
                 ))
                 
