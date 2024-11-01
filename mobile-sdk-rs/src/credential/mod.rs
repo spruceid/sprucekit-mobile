@@ -9,7 +9,9 @@ use crate::{oid4vp::permission_request::RequestedField, CredentialType, KeyAlias
 use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
-use openid4vp::core::presentation_definition::PresentationDefinition;
+use openid4vp::core::{
+    presentation_definition::PresentationDefinition, response::parameters::VpTokenItem,
+};
 use serde::{Deserialize, Serialize};
 use vcdm2_sd_jwt::{SdJwtError, VCDM2SdJwt};
 
@@ -253,6 +255,18 @@ impl ParsedCredential {
             }
         }
     }
+
+    /// Return a VP Token for the credential.
+    pub fn as_vp_token(&self) -> Result<VpTokenItem, CredentialEncodingError> {
+        match &self.inner {
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => Ok(sd_jwt.as_vp_token()),
+            ParsedCredentialInner::JwtVcJson(vc) => Ok(vc.as_vp_token()),
+            _ => Err(CredentialEncodingError::VpToken(format!(
+                "Credential encoding for VP Token is not implemented for {:?}.",
+                self.inner,
+            ))),
+        }
+    }
 }
 
 impl TryFrom<Credential> for Arc<ParsedCredential> {
@@ -292,6 +306,8 @@ pub enum CredentialEncodingError {
     JsonVc(#[from] JsonVcEncodingError),
     #[error("SD-JWT encoding error: {0}")]
     SdJwt(#[from] SdJwtError),
+    #[error("VP Token encoding error: {0}")]
+    VpToken(String),
 }
 
 #[derive(Debug, uniffi::Error, thiserror::Error)]
