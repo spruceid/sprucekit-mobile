@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">SpruceKit Demo</string>
+    <string name="app_name">SpruceKit Showcase</string>
     <string name="user">User profile</string>
     <string name="scan_qr_code">Scan QR Code</string>
     <string name="valid">Valid</string>

@@ -17,7 +17,7 @@ struct VerifierHomeHeader: View {
 
     var body: some View {
         HStack {
-            Text("SpruceKit Demo Verifier")
+            Text("Verifier")
                 .font(.customFont(font: .inter, style: .bold, size: .h2))
                 .padding(.leading, 36)
                 .foregroundStyle(Color("TextHeader"))

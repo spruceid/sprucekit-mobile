@@ -61,7 +61,7 @@ fun WalletHomeView(navController: NavController) {
 fun WalletHomeHeader(navController: NavController) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = "SpruceKit Demo Wallet",
+            text = "Wallet",
             fontFamily = Inter,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
