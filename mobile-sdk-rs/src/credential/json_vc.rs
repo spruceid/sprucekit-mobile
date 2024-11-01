@@ -129,7 +129,7 @@ impl JsonVc {
         }
 
         // Check the JSON-encoded credential against the definition.
-        definition.check_credential_validation(&self.raw)
+        definition.is_credential_match(&self.raw)
     }
 
     /// Returns the requested fields given a presentation definition.
