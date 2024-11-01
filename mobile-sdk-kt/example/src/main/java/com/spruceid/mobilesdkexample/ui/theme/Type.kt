@@ -54,8 +54,8 @@ val Typography.bodyMdDefault: TextStyle
         return TextStyle(
             fontFamily = Switzer,
             fontWeight = FontWeight.W500,
-            fontSize = 24.sp,
-            lineHeight = 36.sp
+            fontSize = 18.sp,
+            lineHeight = 27.sp
         )
     }
 
@@ -65,8 +65,8 @@ val Typography.bodyXsRegular: TextStyle
         return TextStyle(
             fontFamily = Switzer,
             fontWeight = FontWeight.W400,
-            fontSize = 21.sp,
-            lineHeight = 32.sp
+            fontSize = 16.sp,
+            lineHeight = 24.sp
         )
     }
 
@@ -76,8 +76,8 @@ val Typography.headerH2: TextStyle
         return TextStyle(
             fontFamily = Switzer,
             fontWeight = FontWeight.W500,
-            fontSize = 32.sp,
-            lineHeight = 48.sp
+            fontSize = 24.sp,
+            lineHeight = 30.sp
         )
     }
 
@@ -87,8 +87,8 @@ val Typography.buttonText: TextStyle
         return TextStyle(
             fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 21.sp,
-            lineHeight = 32.sp
+            fontSize = 16.sp,
+            lineHeight = 24.sp
         )
     }
 
@@ -98,8 +98,8 @@ val Typography.buttonTextSmall: TextStyle
         return TextStyle(
             fontFamily = Switzer,
             fontWeight = FontWeight.W500,
-            fontSize = 19.sp,
-            lineHeight = 28.sp
+            fontSize = 14.sp,
+            lineHeight = 21.sp
         )
     }
 

@@ -45,6 +45,7 @@ import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePrimaryContrast
 import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePureWhite
 import com.spruceid.mobilesdkexample.ui.theme.BorderSecondary
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase800
@@ -121,12 +122,12 @@ fun VerifierMDocResultView(
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .weight(1f),
-                Arrangement.spacedBy(21.dp)
+                Arrangement.spacedBy(18.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                    BitmapImage(portraitBytes, "Holder's Portrait", Modifier)
+                    //BitmapImage(portraitBytes, "Holder's Portrait", Modifier)
                     Text(
-                        text = "Mobile Driver's License",
+                        text = "Driver's License",
                         color = ColorStone950,
                         style = MaterialTheme.typography.headerH2
                     )
@@ -137,7 +138,7 @@ fun VerifierMDocResultView(
                     )
                 }
                 HorizontalDivider(color = ColorStone200)
-                Column(verticalArrangement = Arrangement.spacedBy(21.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
                         text = "Status",
                         color = ColorStone600,
@@ -150,17 +151,17 @@ fun VerifierMDocResultView(
                             .clip(RoundedCornerShape(8.dp))
                             .background(color = ColorEmerald700)
                             .border(width = 1.dp, color = ColorBase900)
-                            .padding(horizontal = 16.dp, vertical = 7.dp),
+                            .padding(horizontal = 12.dp, vertical = 5.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Row()
+                        Row(verticalAlignment = Alignment.CenterVertically)
                         {
                             Icon(
                                 painter = painterResource(id = R.drawable.valid_check),
                                 contentDescription = "Valid Checkmark",
                                 tint = Color.White,
                             )
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "VALID",
                                 color = TextBase,
@@ -269,20 +270,20 @@ fun VerifierMDocResultView(
                     }
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     modifier = Modifier
                         .fillMaxWidth(),
-                    shape = RoundedCornerShape(11.dp),
+                    shape = RoundedCornerShape(8.dp),
                     onClick = { navController.popBackStack() },
                     colors = ButtonColors(
-                        containerColor = Color.Black, contentColor = TextBase,
+                        containerColor = BgSurfacePrimaryContrast, contentColor = TextBase,
                         disabledContainerColor = Color.Black,
                         disabledContentColor = TextBase
                     )
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 26.dp, vertical = 13.dp),
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     )
                     {
@@ -291,7 +292,7 @@ fun VerifierMDocResultView(
                             contentDescription = "Rescan Icon",
                             tint = Color.White,
                         )
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Rescan",
                             color = TextBase,
@@ -316,7 +317,7 @@ fun VerifierMDocResultView(
                     )
 
                 ) {
-                    Row(modifier = Modifier.padding(horizontal = 26.dp, vertical = 13.dp))
+                    Row(modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp))
                     {
                         Text(
                             text = "Close",
