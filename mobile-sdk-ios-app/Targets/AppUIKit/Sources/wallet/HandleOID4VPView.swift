@@ -71,7 +71,7 @@ struct HandleOID4VPView: View {
                             do {
                                 selectedCredential = selectedCredentials.first
                                 permissionResponse = permissionRequest!.createPermissionResponse(
-                                    selectedCredential: selectedCredential!
+                                    selectedCredentials: selectedCredentials
                                 )
                             } catch {
                                 err = error.localizedDescription
@@ -115,7 +115,7 @@ struct DataFieldSelector: View {
 
     init(requestedFields: [RequestedField], onContinue: @escaping () -> Void, onCancel: @escaping () -> Void) {
         self.requestedFields = requestedFields.map { field in
-            field.name().capitalized
+            field.name()!.capitalized
         }
         self.onContinue = onContinue
         self.onCancel = onCancel
@@ -298,7 +298,7 @@ struct CredentialSelectorItem: View {
     ) {
         self.credential = credential
         self.requestedFields = requestedFields.map { field in
-            field.name().capitalized
+            field.name()!.capitalized
         }
         self.getCredentialTitle = getCredentialTitle
         self._isChecked = isChecked
