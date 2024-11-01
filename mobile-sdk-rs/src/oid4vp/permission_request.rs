@@ -229,9 +229,9 @@ impl PermissionResponse {
             .enumerate()
             .map(|(idx, (descriptor, cred))| {
                 let vc_path = if is_singular {
-                    "$.verifiableCredential".to_string()
+                    "$".to_string()
                 } else {
-                    format!("$.verifiableCredential[{idx}]")
+                    format!("$[{idx}]")
                 }
                 .parse()
                 .map_err(|e| PermissionResponseError::JsonPathParse(format!("{e:?}")))?;
@@ -259,11 +259,10 @@ impl PermissionResponse {
     /// Return the authorization response object.
     pub fn authorization_response(&self) -> Result<AuthorizationResponse, PermissionResponseError> {
         Ok(AuthorizationResponse::Unencoded(
-            UnencodedAuthorizationResponse(
-                Default::default(),
-                self.create_vp_token()?,
-                self.create_presentation_submission()?,
-            ),
+            UnencodedAuthorizationResponse {
+                vp_token: self.create_vp_token()?,
+                presentation_submission: self.create_presentation_submission()?,
+            },
         ))
     }
 
