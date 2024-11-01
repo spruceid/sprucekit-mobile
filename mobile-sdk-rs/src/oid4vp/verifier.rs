@@ -137,7 +137,7 @@ mod tests {
             .await
             .expect("Failed to request delegated verification");
 
-        let DelegatedVerifierStatusResponse { status, oid4vp } =
+        let DelegatedVerifierStatusResponse { status, .. } =
             verifier.poll_verification_status(&uri).await?;
 
         assert_eq!(status, DelegatedVerifierStatus::Initiated);
@@ -182,7 +182,7 @@ mod tests {
         assert_eq!(status, DelegatedVerifierStatus::Success);
         assert!(oid4vp.is_some());
 
-        println!("Presentation: {oid4vp:?}");
+        println!("Presentation: {:?}", oid4vp);
 
         Ok(())
     }
