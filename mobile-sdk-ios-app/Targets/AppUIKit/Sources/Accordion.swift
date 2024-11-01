@@ -37,11 +37,15 @@ struct AccordionHeader: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack() {
+            HStack(alignment: .center) {
                 Text(title.camelCaseToWords().capitalized.replaceUnderscores())
-                    .font(.customFont(font: .inter, style: .bold, size: .h4))
+                    .font(.customFont(font: .inter, style: .regular, size: .h4))
                     .foregroundStyle(Color("TextBody"))
-                Image(systemName: "chevron.right").rotationEffect(degrees)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .rotationEffect(degrees)
+                    .foregroundColor(Color("TextBody"))
+                    .padding(.trailing, 4)
             }
             .onTapGesture {
                 withAnimation {

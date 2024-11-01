@@ -39,8 +39,9 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
                                         tmpViews[index]
                                     }
                                 }
+                                .padding(.leading, CGFloat(level * 12))
                             ))
-                            .padding(.leading, CGFloat(level * 12))
+                            .padding(.leading, level > 1 ? CGFloat(level * 12) : 0)
                         }
                     ))
                 } else {
@@ -78,8 +79,9 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
                                     }
                                 }
                             }
+                            .padding(.leading, CGFloat(level * 12))
                         ))
-                        .padding(.leading, CGFloat(level * 12))
+                        .padding(.leading, level > 1 ? CGFloat(level * 12) : 0)
                     }
                 ))
                 
@@ -88,7 +90,7 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
                 res.append(AnyView(
                     VStack(alignment: .leading) {
                         Text(key.camelCaseToWords().capitalized.replaceUnderscores())
-                            .font(.customFont(font: .inter, style: .regular, size: .p))
+                            .font(.customFont(font: .inter, style: .regular, size: .h4))
                             .foregroundStyle(Color("TextBody"))
                         if key.lowercased().contains("image") ||
                             key.lowercased().contains("portrait") ||
