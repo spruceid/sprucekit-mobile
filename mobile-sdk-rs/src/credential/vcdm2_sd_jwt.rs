@@ -275,8 +275,8 @@ pub(crate) mod tests {
             decode_reveal_sd_jwt(sd_jwt_input.to_string()).expect("failed to decode SD-JWT");
 
         // Check the output JSON string structure
-        assert!(output.contains("\"identityHash\":\"john.smith@example.com\""));
-        assert!(output.contains("\"awardedDate\":\"2024-09-23T18:12:12+0000\""));
+        assert!(output.contains("\"identityHash\":\"john.smith@spruce.com\""));
+        assert!(output.contains("\"awardedDate\":\"2024-10-23T09:34:30+0000\""));
     }
 
     pub async fn generate_sd_jwt() -> SdJwtBuf {

@@ -964,6 +964,172 @@ public func FfiConverterTypeCredentialRequest_lower(_ value: CredentialRequest) 
 
 
 
+public protocol DelegatedVerifierProtocol : AnyObject {
+    
+    func pollVerificationStatus(url: String) async throws  -> DelegatedVerifierStatusResponse
+    
+    /**
+     * Initialize a delegated verification request.
+     *
+     * This method will respond with a uniffi::Record object that contains the
+     * `auth_query` to be presented via QR code to the holder, and a `uri` to
+     * check the status of the presentation from the delegated verifier.
+     *
+     * Provide the `uri` to the [Verifier::poll_verification_status] method to
+     * check the status of the presentation.
+     */
+    func requestDelegatedVerification(url: String) async throws  -> DelegateInitializationResponse
+    
+}
+
+open class DelegatedVerifier:
+    DelegatedVerifierProtocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// This constructor can be used to instantiate a fake object.
+    /// - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    ///
+    /// - Warning:
+    ///     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_delegatedverifier(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_delegatedverifier(pointer, $0) }
+    }
+
+    
+public static func newClient(baseUrl: Url)async throws  -> DelegatedVerifier {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_delegatedverifier_new_client(FfiConverterTypeUrl.lower(baseUrl)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeDelegatedVerifier.lift,
+            errorHandler: FfiConverterTypeOid4vpVerifierError.lift
+        )
+}
+    
+
+    
+open func pollVerificationStatus(url: String)async throws  -> DelegatedVerifierStatusResponse {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_delegatedverifier_poll_verification_status(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(url)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeDelegatedVerifierStatusResponse.lift,
+            errorHandler: FfiConverterTypeOid4vpVerifierError.lift
+        )
+}
+    
+    /**
+     * Initialize a delegated verification request.
+     *
+     * This method will respond with a uniffi::Record object that contains the
+     * `auth_query` to be presented via QR code to the holder, and a `uri` to
+     * check the status of the presentation from the delegated verifier.
+     *
+     * Provide the `uri` to the [Verifier::poll_verification_status] method to
+     * check the status of the presentation.
+     */
+open func requestDelegatedVerification(url: String)async throws  -> DelegateInitializationResponse {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_delegatedverifier_request_delegated_verification(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(url)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeDelegateInitializationResponse.lift,
+            errorHandler: FfiConverterTypeOid4vpVerifierError.lift
+        )
+}
+    
+
+}
+
+public struct FfiConverterTypeDelegatedVerifier: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = DelegatedVerifier
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> DelegatedVerifier {
+        return DelegatedVerifier(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: DelegatedVerifier) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DelegatedVerifier {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: DelegatedVerifier, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+public func FfiConverterTypeDelegatedVerifier_lift(_ pointer: UnsafeMutableRawPointer) throws -> DelegatedVerifier {
+    return try FfiConverterTypeDelegatedVerifier.lift(pointer)
+}
+
+public func FfiConverterTypeDelegatedVerifier_lower(_ value: DelegatedVerifier) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeDelegatedVerifier.lower(value)
+}
+
+
+
+
 public protocol GrantsProtocol : AnyObject {
     
 }
@@ -4864,6 +5030,148 @@ public func FfiConverterTypeCredentialResponse_lower(_ value: CredentialResponse
 }
 
 
+public struct DelegateInitializationResponse {
+    /**
+     * This is the authorization request URL to be presented in
+     * a QR code to the holder.
+     */
+    public var authQuery: String
+    /**
+     * This is the status URL to check the presentation status
+     * from the delegated verifier.
+     */
+    public var uri: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * This is the authorization request URL to be presented in
+         * a QR code to the holder.
+         */authQuery: String, 
+        /**
+         * This is the status URL to check the presentation status
+         * from the delegated verifier.
+         */uri: String) {
+        self.authQuery = authQuery
+        self.uri = uri
+    }
+}
+
+
+
+extension DelegateInitializationResponse: Equatable, Hashable {
+    public static func ==(lhs: DelegateInitializationResponse, rhs: DelegateInitializationResponse) -> Bool {
+        if lhs.authQuery != rhs.authQuery {
+            return false
+        }
+        if lhs.uri != rhs.uri {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(authQuery)
+        hasher.combine(uri)
+    }
+}
+
+
+public struct FfiConverterTypeDelegateInitializationResponse: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DelegateInitializationResponse {
+        return
+            try DelegateInitializationResponse(
+                authQuery: FfiConverterString.read(from: &buf), 
+                uri: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DelegateInitializationResponse, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.authQuery, into: &buf)
+        FfiConverterString.write(value.uri, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeDelegateInitializationResponse_lift(_ buf: RustBuffer) throws -> DelegateInitializationResponse {
+    return try FfiConverterTypeDelegateInitializationResponse.lift(buf)
+}
+
+public func FfiConverterTypeDelegateInitializationResponse_lower(_ value: DelegateInitializationResponse) -> RustBuffer {
+    return FfiConverterTypeDelegateInitializationResponse.lower(value)
+}
+
+
+public struct DelegatedVerifierStatusResponse {
+    /**
+     * The status of the verification request.
+     */
+    public var status: DelegatedVerifierStatus
+    /**
+     * JSON-encoded string of the presentation
+     */
+    public var presentation: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The status of the verification request.
+         */status: DelegatedVerifierStatus, 
+        /**
+         * JSON-encoded string of the presentation
+         */presentation: String?) {
+        self.status = status
+        self.presentation = presentation
+    }
+}
+
+
+
+extension DelegatedVerifierStatusResponse: Equatable, Hashable {
+    public static func ==(lhs: DelegatedVerifierStatusResponse, rhs: DelegatedVerifierStatusResponse) -> Bool {
+        if lhs.status != rhs.status {
+            return false
+        }
+        if lhs.presentation != rhs.presentation {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(status)
+        hasher.combine(presentation)
+    }
+}
+
+
+public struct FfiConverterTypeDelegatedVerifierStatusResponse: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DelegatedVerifierStatusResponse {
+        return
+            try DelegatedVerifierStatusResponse(
+                status: FfiConverterTypeDelegatedVerifierStatus.read(from: &buf), 
+                presentation: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DelegatedVerifierStatusResponse, into buf: inout [UInt8]) {
+        FfiConverterTypeDelegatedVerifierStatus.write(value.status, into: &buf)
+        FfiConverterOptionString.write(value.presentation, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeDelegatedVerifierStatusResponse_lift(_ buf: RustBuffer) throws -> DelegatedVerifierStatusResponse {
+    return try FfiConverterTypeDelegatedVerifierStatusResponse.lift(buf)
+}
+
+public func FfiConverterTypeDelegatedVerifierStatusResponse_lower(_ value: DelegatedVerifierStatusResponse) -> RustBuffer {
+    return FfiConverterTypeDelegatedVerifierStatusResponse.lower(value)
+}
+
+
 /**
  * Simple representation of an mdoc data element.
  */
@@ -5727,6 +6035,75 @@ extension CredentialPresentationError: Foundation.LocalizedError {
         String(reflecting: self)
     }
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum DelegatedVerifierStatus {
+    
+    case initiated
+    case pending
+    case failed
+    case success
+}
+
+
+public struct FfiConverterTypeDelegatedVerifierStatus: FfiConverterRustBuffer {
+    typealias SwiftType = DelegatedVerifierStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DelegatedVerifierStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .initiated
+        
+        case 2: return .pending
+        
+        case 3: return .failed
+        
+        case 4: return .success
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DelegatedVerifierStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .initiated:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .pending:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .failed:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .success:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+public func FfiConverterTypeDelegatedVerifierStatus_lift(_ buf: RustBuffer) throws -> DelegatedVerifierStatus {
+    return try FfiConverterTypeDelegatedVerifierStatus.lift(buf)
+}
+
+public func FfiConverterTypeDelegatedVerifierStatus_lower(_ value: DelegatedVerifierStatus) -> RustBuffer {
+    return FfiConverterTypeDelegatedVerifierStatus.lower(value)
+}
+
+
+
+extension DelegatedVerifierStatus: Equatable, Hashable {}
+
+
 
 
 public enum DidError {
@@ -7041,6 +7418,68 @@ public struct FfiConverterTypeOid4vciError: FfiConverterRustBuffer {
 extension Oid4vciError: Equatable, Hashable {}
 
 extension Oid4vciError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+public enum Oid4vpVerifierError {
+
+    
+    
+    case HttpClient(String
+    )
+    case Url(String
+    )
+}
+
+
+public struct FfiConverterTypeOid4vpVerifierError: FfiConverterRustBuffer {
+    typealias SwiftType = Oid4vpVerifierError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vpVerifierError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .HttpClient(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .Url(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Oid4vpVerifierError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .HttpClient(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Url(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+extension Oid4vpVerifierError: Equatable, Hashable {}
+
+extension Oid4vpVerifierError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -9578,6 +10017,12 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_asynchttpclient_http_client() != 44924) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_poll_verification_status() != 35131) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_request_delegated_verification() != 37161) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_holder_authorization_request() != 45396) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -9798,6 +10243,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_get() != 52546) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 15415) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 41846) {
