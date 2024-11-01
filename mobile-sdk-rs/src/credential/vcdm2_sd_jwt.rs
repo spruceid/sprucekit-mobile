@@ -3,7 +3,9 @@ use crate::{oid4vp::permission_request::RequestedField, CredentialType, KeyAlias
 
 use std::sync::Arc;
 
-use openid4vp::core::presentation_definition::PresentationDefinition;
+use openid4vp::core::{
+    presentation_definition::PresentationDefinition, response::parameters::VpTokenItem,
+};
 use ssi::{
     claims::{
         sd_jwt::SdJwtBuf,
@@ -71,7 +73,7 @@ impl VCDM2SdJwt {
         };
 
         // Check the JSON-encoded credential against the definition.
-        definition.check_credential_validation(&json)
+        definition.is_credential_match(&json)
     }
 
     /// Return the requested fields for the SD-JWT credential.
@@ -92,6 +94,19 @@ impl VCDM2SdJwt {
             .map(Into::into)
             .map(Arc::new)
             .collect()
+    }
+
+    /// Return the credential as a VpToken
+    pub fn as_vp_token(&self) -> VpTokenItem {
+        // TODO: need to provide the "filtered" (disclosed) fields of the
+        // credential to be encoded into the VpToken.
+        //
+        // Currently, this is encoding the entire revealed SD-JWT,
+        // without the selection of individual disclosed fields.
+        //
+        // We need to selectively disclosed fields.
+        let compact: &str = self.inner.as_ref();
+        VpTokenItem::String(compact.to_string())
     }
 }
 
@@ -260,8 +275,8 @@ pub(crate) mod tests {
             decode_reveal_sd_jwt(sd_jwt_input.to_string()).expect("failed to decode SD-JWT");
 
         // Check the output JSON string structure
-        assert!(output.contains("\"identityHash\":\"john.smith@example.com\""));
-        assert!(output.contains("\"awardedDate\":\"2024-09-23T18:12:12+0000\""));
+        assert!(output.contains("\"identityHash\":\"john.smith@spruce.com\""));
+        assert!(output.contains("\"awardedDate\":\"2024-10-23T09:34:30+0000\""));
     }
 
     pub async fn generate_sd_jwt() -> SdJwtBuf {

@@ -4,11 +4,16 @@ use crate::{oid4vp::permission_request::RequestedField, CredentialType, KeyAlias
 use std::sync::Arc;
 
 use base64::prelude::*;
-use openid4vp::core::presentation_definition::PresentationDefinition;
-use ssi::claims::{
-    jwt::IntoDecodedJwt,
-    vc::v1::{Credential as _, JsonCredential},
-    JwsString,
+use openid4vp::core::{
+    presentation_definition::PresentationDefinition, response::parameters::VpTokenItem,
+};
+use ssi::{
+    claims::{
+        jwt::IntoDecodedJwt,
+        vc::v1::{Credential as _, JsonCredential, JsonPresentation},
+        JwsString,
+    },
+    json_ld::iref::UriBuf,
 };
 use uuid::Uuid;
 
@@ -170,7 +175,7 @@ impl JwtVc {
         };
 
         // Check the JSON-encoded credential against the definition.
-        definition.check_credential_validation(&json)
+        definition.is_credential_match(&json)
     }
 
     /// Returns the requested fields given a presentation definition.
@@ -191,6 +196,22 @@ impl JwtVc {
             .map(Into::into)
             .map(Arc::new)
             .collect()
+    }
+
+    /// Return the credential as a VpToken
+    pub fn as_vp_token(&self) -> VpTokenItem {
+        let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec()).ok();
+
+        // TODO: determine how the holder ID should be set.
+        let holder_id = None;
+
+        // NOTE: JwtVc types are ALWAYS VCDM 1.1, therefore using the v1::syntax::JsonPresentation
+        // type.
+        VpTokenItem::from(JsonPresentation::new(
+            id,
+            holder_id,
+            vec![self.credential.clone()],
+        ))
     }
 }
 
