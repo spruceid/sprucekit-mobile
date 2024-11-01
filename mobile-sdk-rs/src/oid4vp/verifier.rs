@@ -180,7 +180,7 @@ mod tests {
             verifier.poll_verification_status(&uri).await?;
 
         assert_eq!(status, DelegatedVerifierStatus::Success);
-        assert!(oid4vp.is_some())
+        assert!(oid4vp.is_some());
 
         println!("Presentation: {oid4vp:?}");
 
