@@ -21,7 +21,7 @@ cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", featur
 ] }
 isomdl = { git = "https://github.com/spruceid/isomdl", rev = "1f4f762" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "d95fe3a" }
-openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "372f5f5" }
+openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "4a76572" }
 ssi = { version = "0.9", features = ["secp256r1", "secp384r1"] }
 
 async-trait = "0.1"
@@ -41,7 +41,7 @@ reqwest = { version = "0.11", features = ["blocking"] }
 serde = { version = "1.0.204", features = ["derive"] }
 serde_cbor = "0.11.2"
 serde_json = "1.0.111"
-thiserror = "1.0.56"
+thiserror = "1.0.65"
 signature = "2.2.0"
 ssi-contexts = "0.1.6"
 time = { version = "0.3.36", features = [
