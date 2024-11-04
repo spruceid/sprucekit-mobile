@@ -1,14 +1,10 @@
-name: mobile-sdk-rs CI
+name: Monorepo CI
 
 on:
   push:
     branches: [main]
-    paths:
-      - "mobile-sdk-rs/**"
   pull_request:
     branches: [main]
-    paths:
-      - "mobile-sdk-rs/**"
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,7 +12,7 @@ env:
   CLASSPATH: "./jna-5.14.0.jar:./kotlinx-coroutines-core-jvm-1.6.4.jar"
 
 jobs:
-  rust:
+  core-rust:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,15 +32,14 @@ jobs:
         run: wget https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.6.4/kotlinx-coroutines-core-jvm-1.6.4.jar
       - name: Test
         run: cargo test
-
       - name: Fmt
         run: cargo fmt -- --check
       - name: Clippy
         run: cargo clippy
 
-  kotlin:
+  core-kotlin:
     runs-on: ubuntu-latest
-    needs: rust
+    needs: core-rust
     defaults:
       run:
         working-directory: ./mobile-sdk-rs
@@ -57,7 +52,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: "true"
-
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-ndk
@@ -65,7 +59,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@v1
       - name: Run tests
@@ -74,9 +67,9 @@ jobs:
           arguments: test
           build-root-directory: ./mobile-sdk-rs/kotlin
 
-  swift:
+  core-swift:
     runs-on: macos-latest
-    needs: rust
+    needs: core-rust
     defaults:
       run:
         working-directory: ./mobile-sdk-rs
@@ -89,12 +82,51 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: "true"
-
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-swift
-
       - name: Generate Swift package
         run: cargo swift package -p ios -n MobileSdkRs
       - name: Fail if generated swift code needs update
         run: git diff --exit-code MobileSdkRs/Sources/MobileSdkRs/mobile_sdk_rs.swift
+
+  kotlin-sdk:
+    runs-on: ubuntu-latest
+    needs: core-kotlin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Java JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: "18"
+          distribution: "temurin"
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v1
+      - name: lint
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: lintDebug
+          build-root-directory: ./mobile-sdk-kt
+      - name: test
+        uses: gradle/gradle-build-action@v2
+        with:
+          arguments: test
+          build-root-directory: ./mobile-sdk-kt
+
+  swift-sdk:
+    runs-on: macos-14
+    needs: core-swift
+    defaults:
+      run:
+        working-directory: ./mobile-sdk-swift
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install swiftlint
+      - name: Test
+        uses: mxcl/xcodebuild@v2
+        with:
+          platform: iOS
+          working-directory: ./mobile-sdk-swift
+      - name: Lint
+        run: swiftlint lint --strict
