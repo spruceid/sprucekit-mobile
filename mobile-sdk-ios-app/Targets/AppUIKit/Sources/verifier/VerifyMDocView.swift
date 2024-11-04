@@ -13,9 +13,9 @@ struct VerifyMDoc: Hashable {}
 
 public struct VerifyMDocView: View {
     @Binding var path: NavigationPath
-
+    
     @State private var scanned: String?
-
+    
     public var body: some View {
         let issuer_cert = """
             -----BEGIN CERTIFICATE-----
@@ -56,7 +56,7 @@ public struct VerifyMDocView: View {
             )
         }
     }
-
+    
     func onCancel() {
         self.scanned = nil
         path.removeLast()
@@ -67,7 +67,7 @@ public struct MDocReaderView: View {
     @StateObject var delegate: MDocScanViewDelegate
     @Binding var path: NavigationPath
     var onCancel: () -> Void
-
+    
     init(
         uri: String,
         requestedItems: [String: [String: Bool]],
@@ -85,7 +85,7 @@ public struct MDocReaderView: View {
         self.onCancel = onCancel
         self._path = path
     }
-
+    
     @ViewBuilder
     var cancelButton: some View {
         Button("Cancel") {
@@ -96,7 +96,7 @@ public struct MDocReaderView: View {
         .tint(.red)
         .foregroundColor(.red)
     }
-
+    
     public var body: some View {
         VStack {
             switch self.delegate.state {
@@ -110,32 +110,32 @@ public struct MDocReaderView: View {
                 let message = switch error {
                 case .bluetooth(let central):
                     switch central.state {
-                            case .poweredOff:
-                                "Is Powered Off."
-                            case .unsupported:
-                                "Is Unsupported."
-                            case .unauthorized:
-                                switch CBManager.authorization {
-                                case .denied:
-                                    "Authorization denied"
-                                case .restricted:
-                                    "Authorization restricted"
-                                case .allowedAlways:
-                                    "Authorized"
-                                case .notDetermined:
-                                    "Authorization not determined"
-                                @unknown default:
-                                    "Unknown authorization error"
-                                }
-                            case .unknown:
-                                "Unknown"
-                            case .resetting:
-                                "Resetting"
+                    case .poweredOff:
+                        "Is Powered Off."
+                    case .unsupported:
+                        "Is Unsupported."
+                    case .unauthorized:
+                        switch CBManager.authorization {
+                        case .denied:
+                            "Authorization denied"
+                        case .restricted:
+                            "Authorization restricted"
+                        case .allowedAlways:
+                            "Authorized"
+                        case .notDetermined:
+                            "Authorization not determined"
+                        @unknown default:
+                            "Unknown authorization error"
+                        }
+                    case .unknown:
+                        "Unknown"
+                    case .resetting:
+                        "Resetting"
                     case .poweredOn:
-                       "Impossible"
+                        "Impossible"
                     @unknown default:
-                                "Error"
-                            }
+                        "Error"
+                    }
                 case .server(let error):
                     error
                 case .generic(let error):
@@ -156,16 +156,16 @@ public struct MDocReaderView: View {
                     path: $path,
                     success: true,
                     content: Text("\(items["org.iso.18013.5.1"]!)")
-                            .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                            .foregroundStyle(Color("TextHeader"))
-                            .padding(.top, 20)
+                        .font(.customFont(font: .inter, style: .semiBold, size: .h1))
+                        .foregroundStyle(Color("TextHeader"))
+                        .padding(.top, 20)
                 )
             }
         }
         .padding(.all, 30)
         .navigationBarBackButtonHidden(true)
     }
-
+    
     func cancel() {
         self.delegate.cancel()
         self.onCancel()
@@ -175,10 +175,10 @@ public struct MDocReaderView: View {
 class MDocScanViewDelegate: ObservableObject {
     @Published var state: BLEReaderSessionState = .advertizing
     private var mdocReader: MDocReader?
-
+    
     init(
         uri: String,
-        requestedItems: [String: [String: Bool]],
+        requestedItems: [String: [String: Bool]], 
         trustAnchorRegistry: [String]?
     ) {
         self.mdocReader = MDocReader(
@@ -188,7 +188,7 @@ class MDocScanViewDelegate: ObservableObject {
             trustAnchorRegistry: trustAnchorRegistry
         )
     }
-
+    
     func cancel() {
         self.mdocReader?.cancel()
     }

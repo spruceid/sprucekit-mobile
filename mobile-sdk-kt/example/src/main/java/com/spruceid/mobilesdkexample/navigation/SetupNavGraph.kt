@@ -7,21 +7,32 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
+import com.spruceid.mobilesdkexample.verifier.AddVerificationMethodView
 import com.spruceid.mobilesdkexample.verifier.VerifyDLView
+import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
 import com.spruceid.mobilesdkexample.verifier.VerifyEAView
 import com.spruceid.mobilesdkexample.verifier.VerifyVCView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
+import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VPView
 import com.spruceid.mobilesdkexample.wallet.OID4VCIView
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
 
 @Composable
-fun SetupNavGraph(navController: NavHostController) {
+fun SetupNavGraph(
+    navController: NavHostController,
+    verificationMethodsViewModel: VerificationMethodsViewModel
+) {
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
         composable(
             route = Screen.HomeScreen.route,
-        ) { HomeView(navController) }
+        ) {
+            HomeView(
+                navController,
+                verificationMethodsViewModel = verificationMethodsViewModel
+            )
+        }
         composable(
             route = Screen.VerifyDLScreen.route,
         ) { VerifyDLView(navController) }
@@ -32,8 +43,31 @@ fun SetupNavGraph(navController: NavHostController) {
             route = Screen.VerifyVCScreen.route,
         ) { VerifyVCView(navController) }
         composable(
+            route = Screen.VerifyDelegatedOid4vpScreen.route,
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("id")!!
+            VerifyDelegatedOid4vpView(
+                navController,
+                verificationId = id,
+                verificationMethodsViewModel
+            )
+        }
+        composable(
             route = Screen.VerifierSettingsHomeScreen.route,
-        ) { VerifierSettingsHomeView(navController) }
+        ) {
+            VerifierSettingsHomeView(
+                navController,
+                verificationMethodsViewModel = verificationMethodsViewModel
+            )
+        }
+        composable(
+            route = Screen.AddVerificationMethodScreen.route,
+        ) {
+            AddVerificationMethodView(
+                navController,
+                verificationMethodsViewModel = verificationMethodsViewModel
+            )
+        }
         composable(
             route = Screen.WalletSettingsHomeScreen.route,
         ) { WalletSettingsHomeView(navController) }

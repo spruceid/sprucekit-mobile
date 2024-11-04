@@ -12,38 +12,43 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
+import com.spruceid.mobilesdkexample.ui.theme.ColorPurple600
+import com.spruceid.mobilesdkexample.ui.theme.ColorTerracotta600
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.Primary
 import com.spruceid.mobilesdkexample.ui.theme.TextBody
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.ui.theme.TextOnPrimary
-import com.spruceid.mobilesdkexample.ui.theme.VerifierRequestBadgeBinaryBorder
-import com.spruceid.mobilesdkexample.ui.theme.VerifierRequestBadgeBinaryFill
-import com.spruceid.mobilesdkexample.ui.theme.VerifierRequestBadgeBinaryText
-import com.spruceid.mobilesdkexample.ui.theme.VerifierRequestBadgeFieldBorder
-import com.spruceid.mobilesdkexample.ui.theme.VerifierRequestBadgeFieldFill
-import com.spruceid.mobilesdkexample.ui.theme.VerifierRequestBadgeFieldText
+import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 
 @Composable
 fun VerifierHomeView(
-    navController: NavController
+    navController: NavController,
+    verificationMethodsViewModel: VerificationMethodsViewModel
 ) {
     Column(
         Modifier
@@ -51,7 +56,10 @@ fun VerifierHomeView(
             .padding(top = 20.dp)
     ) {
         VerifierHomeHeader(navController = navController)
-        VerifierHomeBody(navController = navController)
+        VerifierHomeBody(
+            navController = navController,
+            verificationMethodsViewModel = verificationMethodsViewModel
+        )
     }
 }
 
@@ -61,7 +69,7 @@ fun VerifierHomeHeader(
 ) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-            text = "SpruceKit Demo Verifier",
+            text = "Verifier",
             fontFamily = Inter,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
@@ -93,22 +101,50 @@ fun VerifierHomeHeader(
 
 @Composable
 fun VerifierHomeBody(
-    navController: NavController
+    navController: NavController,
+    verificationMethodsViewModel: VerificationMethodsViewModel
 ) {
-    Text(
-        text = "REQUESTS",
-        fontFamily = Inter,
-        fontWeight = FontWeight.Bold,
-        fontSize = 14.sp,
-        color = TextOnPrimary,
+    val verificationMethods = remember { verificationMethodsViewModel.verificationMethods }
+
+    fun getBadgeType(verificationType: String): VerifierListItemTagType {
+        if (verificationType == "DelegatedVerification") {
+            return VerifierListItemTagType.DISPLAY_QR_CODE
+        } else {
+            return VerifierListItemTagType.SCAN_QR_CODE
+        }
+    }
+
+    Row(
         modifier = Modifier
             .padding(top = 20.dp)
-    )
-    Column(
+    ) {
+        Text(
+            text = "VERIFICATIONS",
+            fontFamily = Inter,
+            fontWeight = FontWeight.Bold,
+            fontSize = 14.sp,
+            color = TextOnPrimary
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = "+ New Verification",
+            fontFamily = Inter,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+            color = ColorBlue600,
+            modifier = Modifier.clickable {
+                navController.navigate(Screen.AddVerificationMethodScreen.route)
+            }
+        )
+    }
+
+    LazyColumn(
         Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-    ) {
+            .padding(top = 20.dp)
+            .padding(bottom = 60.dp)) {
+
+        item {
 //        VerifierListItem(
 //            title = "Driver's License Document",
 //            description = "Verifies physical driver's licenses issued by the state of Utopia",
@@ -127,24 +163,42 @@ fun VerifierHomeBody(
 //                navController.navigate(Screen.VerifyEAScreen.route)
 //            }
 //        )
-        VerifierListItem(
-            title = "Verifiable Credential",
-            description = "Verifies a verifiable credential by reading the verifiable presentation QR code",
-            binary = true,
-            fields = 0,
-            modifier = Modifier.clickable {
-                navController.navigate(Screen.VerifyVCScreen.route)
-            }
-        )
+            VerifierListItem(
+                title = "Verifiable Credential",
+                description = "Verifies a verifiable credential by reading the verifiable presentation QR code",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyVCScreen.route)
+                }
+            )
+        }
+        items(verificationMethods.value) { verificationMethod ->
+            VerifierListItem(
+                title = verificationMethod.verifierName,
+                description = verificationMethod.description,
+                type = getBadgeType(verificationMethod.type),
+                modifier = Modifier.clickable {
+                    navController.navigate(
+                        Screen.VerifyDelegatedOid4vpScreen.route.replace(
+                            "{id}",
+                            verificationMethod.id.toString()
+                        )
+                    )
+                }
+            )
+        }
     }
+}
+
+enum class VerifierListItemTagType {
+    DISPLAY_QR_CODE, SCAN_QR_CODE
 }
 
 @Composable
 fun VerifierListItem(
     title: String,
     description: String,
-    binary: Boolean,
-    fields: Int,
+    type: VerifierListItemTagType,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -160,15 +214,10 @@ fun VerifierListItem(
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
                 color = TextHeader,
-                modifier = Modifier.weight(2f)
+                modifier = Modifier.weight(4f)
             )
-//            VerifierListItemTag(binary = binary, fields = fields)
             Spacer(modifier = Modifier.weight(1f))
-            Image(
-                painter = painterResource(id = R.drawable.arrow_right),
-                contentDescription = stringResource(id = R.string.arrow_right),
-                modifier = Modifier.width(24.dp)
-            )
+            VerifierListItemTag(type = type)
         }
         Text(
             text = description,
@@ -177,50 +226,69 @@ fun VerifierListItem(
             fontSize = 14.sp,
             color = TextBody,
         )
-        HorizontalDivider()
     }
+    HorizontalDivider()
 }
 
 @Composable
 fun VerifierListItemTag(
-    binary: Boolean,
-    fields: Int
+    type: VerifierListItemTagType
 ) {
-    if (binary) {
-        Text(
-            text = "Binary",
-            fontFamily = Inter,
-            fontWeight = FontWeight.Normal,
-            fontSize = 12.sp,
-            color = VerifierRequestBadgeBinaryText,
-            modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = VerifierRequestBadgeBinaryBorder,
-                    shape = RoundedCornerShape(8.dp)
+    when(type) {
+        VerifierListItemTagType.DISPLAY_QR_CODE -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(shape = RoundedCornerShape(100.dp))
+                    .background(ColorPurple600)
+                    .padding(vertical = 2.dp)
+                    .padding(horizontal = 8.dp),
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.qrcode),
+                    contentDescription = stringResource(id = R.string.arrow_triangle_right),
                 )
-                .clip(shape = RoundedCornerShape(8.dp, 8.dp, 8.dp, 8.dp))
-                .background(VerifierRequestBadgeBinaryFill)
-                .padding(vertical = 2.dp)
-                .padding(horizontal = 8.dp),
-        )
-    } else {
-        Text(
-            text = "$fields Fields",
-            fontFamily = Inter,
-            fontWeight = FontWeight.Normal,
-            fontSize = 12.sp,
-            color = VerifierRequestBadgeFieldText,
-            modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = VerifierRequestBadgeFieldBorder,
-                    shape = RoundedCornerShape(8.dp)
+                Text(
+                    text = "Display",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 1.dp)
                 )
-                .clip(shape = RoundedCornerShape(8.dp, 8.dp, 8.dp, 8.dp))
-                .background(VerifierRequestBadgeFieldFill)
-                .padding(vertical = 2.dp)
-                .padding(horizontal = 8.dp),
-        )
+                Image(
+                    painter = painterResource(id = R.drawable.arrow_triangle_right),
+                    contentDescription = stringResource(id = R.string.arrow_triangle_right),
+                )
+            }
+
+        }
+        VerifierListItemTagType.SCAN_QR_CODE -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(shape = RoundedCornerShape(100.dp))
+                    .background(ColorTerracotta600)
+                    .padding(vertical = 2.dp)
+                    .padding(horizontal = 8.dp),
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.qrcode_scanner),
+                    contentDescription = stringResource(id = R.string.arrow_triangle_right),
+                )
+                Text(
+                    text = "Scan",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 1.dp)
+                )
+                Image(
+                    painter = painterResource(id = R.drawable.arrow_triangle_right),
+                    contentDescription = stringResource(id = R.string.arrow_triangle_right),
+                )
+            }
+        }
     }
 }

@@ -2,7 +2,7 @@ import SwiftUI
 
 struct VerifierHomeView: View {
     @Binding var path: NavigationPath
-
+    
     var body: some View {
         VStack {
             VerifierHomeHeader(path: $path)
@@ -14,10 +14,10 @@ struct VerifierHomeView: View {
 
 struct VerifierHomeHeader: View {
     @Binding var path: NavigationPath
-
+    
     var body: some View {
         HStack {
-            Text("SpruceKit Demo Verifier")
+            Text("Verifier")
                 .font(.customFont(font: .inter, style: .bold, size: .h2))
                 .padding(.leading, 36)
                 .foregroundStyle(Color("TextHeader"))
@@ -169,7 +169,7 @@ struct VerifierListItemTag: View {
 
 struct VerifierHomeViewPreview: PreviewProvider {
     @State static var path: NavigationPath = .init()
-
+    
     static var previews: some View {
         VerifierHomeView(path: $path)
     }

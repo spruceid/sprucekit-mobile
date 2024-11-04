@@ -6,25 +6,25 @@ struct Credential: Hashable {
     let rawCredential: String
 }
 
-// TODO: Completely remove CredentialDataStore after confirming if credentials will be migrated
 class CredentialDataStore {
-
+    
     static let DIR_ACTIVITY_LOG_DB = "CredentialDB"
     static let STORE_NAME = "credentials.sqlite3"
-
+    
     private let credentials = Table("credentials")
-
+    
     private let id = SQLite.Expression<Int64>("id")
     private let rawCredential = SQLite.Expression<String>("raw_credential")
-
+    
     static let shared = CredentialDataStore()
-
+    
     private var db: Connection?
-
+    
     private init() {
-        if let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+        if let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        {
             let dirPath = docDir.appendingPathComponent(Self.DIR_ACTIVITY_LOG_DB)
-
+            
             do {
                 try FileManager.default.createDirectory(
                     atPath: dirPath.path,
@@ -43,7 +43,7 @@ class CredentialDataStore {
             db = nil
         }
     }
-
+    
     private func createTable() {
         guard let database = db else {
             return
@@ -59,10 +59,10 @@ class CredentialDataStore {
             print(error)
         }
     }
-
+    
     func insert(rawCredential: String) -> Int64? {
         guard let database = db else { return nil }
-
+        
         let insert = credentials.insert(self.rawCredential <- rawCredential)
         do {
             let rowID = try database.run(insert)
@@ -72,11 +72,11 @@ class CredentialDataStore {
             return nil
         }
     }
-
+    
     func getAllCredentials() -> [Credential] {
         var credentials: [Credential] = []
         guard let database = db else { return [] }
-
+        
         do {
             for credential in try database.prepare(self.credentials) {
                 credentials.append(
@@ -91,11 +91,11 @@ class CredentialDataStore {
         }
         return credentials
     }
-
+    
     func getAllRawCredentials() -> [String] {
         var credentials: [String] = []
         guard let database = db else { return [] }
-
+        
         do {
             for credential in try database.prepare(self.credentials) {
                 credentials.append(credential[rawCredential])
@@ -105,7 +105,7 @@ class CredentialDataStore {
         }
         return credentials
     }
-
+    
     func delete(id: Int64) -> Bool {
         guard let database = db else {
             return false
@@ -119,7 +119,7 @@ class CredentialDataStore {
             return false
         }
     }
-
+    
     func deleteAll() -> Bool {
         guard let database = db else {
             return false

@@ -2,9 +2,9 @@ import SwiftUI
 
 public struct ContentView: View {
     @State var path: NavigationPath = .init()
-
+    
     public init() {}
-
+    
     func handleSpruceIDUrl(url: URL) {
         let query = URLComponents(string: url.absoluteString)?
             .queryItems?
@@ -19,13 +19,13 @@ public struct ContentView: View {
             )
         }
     }
-
+    
     func handleOid4vpUrl(url: URL) {
         self.path.append(
             HandleOID4VP(url: url.absoluteString)
         )
     }
-
+    
     public var body: some View {
         ZStack {
             // Bg color
@@ -77,7 +77,7 @@ public struct ContentView: View {
         }
         .onOpenURL { url in
             let scheme = url.scheme
-
+            
             switch scheme {
             case "spruceid":
                 handleSpruceIDUrl(url: url)

@@ -10,11 +10,11 @@ struct VerificationActivityLog: Hashable {
 }
 
 struct VerificationActivityLogView: View {
-
+    
     var onBack: () -> Void
-
+    
     let verificationActivityLogsReq: [VerificationActivityLog] = VerificationActivityLogDataStore.shared.getAllVerificationActivityLogs()
-
+    
     @ViewBuilder
     var shareButton: some View {
         let activityLogs = verificationActivityLogsReq.map {"\($0.name),\($0.credential_title),\($0.expiration_date),\($0.status),\($0.date)\n"}.joined()
@@ -41,7 +41,7 @@ struct VerificationActivityLogView: View {
             )
         }
     }
-
+    
     var body: some View {
         VStack {
             ScrollView(.vertical, showsIndicators: false) {
@@ -53,7 +53,7 @@ struct VerificationActivityLogView: View {
                         let formatter = DateFormatter()
                         let _ = formatter.dateFormat = "MM/dd/yyyy"
                         let expDate = formatter.date(from: item.expiration_date)!
-
+                        
                         Text(item.name)
                             .font(.customFont(font: .inter, style: .medium, size: .h4))
                             .foregroundColor(Color("TextBody"))

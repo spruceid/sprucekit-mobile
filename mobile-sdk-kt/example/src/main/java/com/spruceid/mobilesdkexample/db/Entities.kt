@@ -19,3 +19,13 @@ data class RawCredentials(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val rawCredential: String,
 )
+
+@Entity(tableName = "verification_methods")
+data class VerificationMethods(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val type: String,
+    val name: String,
+    val description: String,
+    val verifierName: String,
+    val url: String,
+)

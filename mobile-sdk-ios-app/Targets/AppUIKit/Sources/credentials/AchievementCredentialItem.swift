@@ -5,36 +5,37 @@ import SpruceIDMobileSdkRs
 struct AchievementCredentialItem: ICredentialView {
     let credentialPack: CredentialPack
     let onDelete: (() -> Void)?
-
+    
     @State var sheetOpen: Bool = false
     @State var optionsOpen: Bool = false
-
+    
     init(rawCredential: String, onDelete: (() -> Void)? = nil) {
         self.onDelete = onDelete
         self.credentialPack = CredentialPack()
-        if let _ = try? self.credentialPack.addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {} else {
+        if let _ = try? self.credentialPack.addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {}
+        else {
             print("Couldn't parse SdJwt credential: \(rawCredential)")
         }
     }
-
+    
     init(credentialPack: CredentialPack, onDelete: (() -> Void)? = nil) {
         self.onDelete = onDelete
         self.credentialPack = credentialPack
     }
-
+    
     @ViewBuilder
     func descriptionFormatter(values: [String: [String: GenericJSON]]) -> some View {
         let credential = values.first(where: {
             credentialPack.get(credentialId: $0.key)?.asSdJwt() != nil
         }).map { $0.value } ?? [:]
-
+        
         var description = ""
         if let issuerName = credential["issuer"]?.dictValue?["name"]?.toString() {
             description = issuerName
         } else if let descriptionString = credential["description"]?.toString() {
             description = descriptionString
         }
-
+        
         return VStack(alignment: .leading, spacing: 12) {
             Text(description)
                 .font(.customFont(font: .inter, style: .regular, size: .p))
@@ -43,7 +44,7 @@ struct AchievementCredentialItem: ICredentialView {
         }
         .padding(.leading, 12)
     }
-
+    
     @ViewBuilder
     func listItem() -> some View {
         Card(
@@ -54,7 +55,7 @@ struct AchievementCredentialItem: ICredentialView {
                     let credential = values.first(where: {
                         credentialPack.get(credentialId: $0.key)?.asSdJwt() != nil
                     }).map { $0.value } ?? [:]
-
+                    
                     var title = credential["name"]?.toString()
                     if title == nil {
                         credential["type"]?.arrayValue?.forEach {
@@ -64,7 +65,7 @@ struct AchievementCredentialItem: ICredentialView {
                             }
                         }
                     }
-
+                    
                     return VStack(alignment: .leading, spacing: 12) {
                         Text(title ?? "")
                             .font(.customFont(font: .inter, style: .semiBold, size: .h1))
@@ -77,7 +78,7 @@ struct AchievementCredentialItem: ICredentialView {
             ))
         )
     }
-
+    
     @ViewBuilder
     func listItemWithOptions() -> some View {
         Card(
@@ -88,7 +89,7 @@ struct AchievementCredentialItem: ICredentialView {
                     let credential = values.first(where: {
                         credentialPack.get(credentialId: $0.key)?.asSdJwt() != nil
                     }).map { $0.value } ?? [:]
-
+                    
                     var title = credential["name"]?.toString()
                     if title == nil {
                         credential["type"]?.arrayValue?.forEach {
@@ -98,7 +99,7 @@ struct AchievementCredentialItem: ICredentialView {
                             }
                         }
                     }
-
+                    
                     return ZStack(alignment: .topLeading) {
                         HStack(alignment: .top) {
                             Spacer()
@@ -130,14 +131,14 @@ struct AchievementCredentialItem: ICredentialView {
             isPresented: $optionsOpen,
             titleVisibility: .visible,
             actions: {
-                if onDelete != nil {
+                if(onDelete != nil) {
                     Button("Delete", role: .destructive) { onDelete?() }
                 }
                 Button("Cancel", role: .cancel) { }
             }
         )
     }
-
+    
     @ViewBuilder
     public func credentialDetails() -> any View {
         Card(
@@ -150,18 +151,18 @@ struct AchievementCredentialItem: ICredentialView {
                             let credential = values.first(where: {
                                 credentialPack.get(credentialId: $0.key)?.asSdJwt() != nil
                             }).map { $0.value } ?? [:]
-
+                            
                             let awardedDate = credential["awardedDate"]?.toString() ?? ""
-
+                            
                             let identity = credential["credentialSubject"]?.dictValue?["identity"]?.arrayValue
-
+                            
                             let details = identity?.map {
                                 return (
                                     $0.dictValue?["identityType"]?.toString() ?? "",
                                     $0.dictValue?["identityHash"]?.toString() ?? ""
                                 )
                             }
-
+                            
                             return VStack(alignment: .leading, spacing: 12) {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 20) {
@@ -191,12 +192,12 @@ struct AchievementCredentialItem: ICredentialView {
         )
         .padding(.all, 12)
     }
-
+    
     @ViewBuilder
     public func credentialListItem(withOptions: Bool = false) -> any View {
         VStack {
             VStack {
-                if withOptions {
+                if(withOptions){
                     listItemWithOptions()
                 } else {
                     listItem()
@@ -208,10 +209,10 @@ struct AchievementCredentialItem: ICredentialView {
                     .stroke(Color("CredentialBorder"), lineWidth: 1)
             )
             .padding(.all, 12)
-
+            
         }
     }
-
+    
     @ViewBuilder
     public func credentialPreviewAndDetails() -> any View {
         AnyView(credentialListItem(withOptions: true))
@@ -219,7 +220,7 @@ struct AchievementCredentialItem: ICredentialView {
                 sheetOpen.toggle()
             }
             .sheet(isPresented: $sheetOpen) {
-
+                
             } content: {
                 VStack {
                     Text("Review Info")
@@ -235,7 +236,7 @@ struct AchievementCredentialItem: ICredentialView {
                 .presentationBackgroundInteraction(.automatic)
             }
     }
-
+    
     var body: some View {
         AnyView(credentialPreviewAndDetails())
     }

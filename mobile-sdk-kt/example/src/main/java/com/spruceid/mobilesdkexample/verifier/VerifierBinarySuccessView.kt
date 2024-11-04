@@ -38,7 +38,7 @@ import com.spruceid.mobilesdkexample.ui.theme.VerifiedRedInvalid
 import com.spruceid.mobilesdkexample.ui.theme.VerifierCloseButton
 
 @Composable
-fun VerifierSuccessView(
+fun VerifierBinarySuccessView(
     navController: NavController,
     success: Boolean,
     description: String
@@ -147,10 +147,10 @@ fun VerifierSuccessView(
 
 @Preview(showBackground = true)
 @Composable
-fun VerifierSuccessViewPreview() {
+fun VerifierBinarySuccessViewPreview() {
     val navController: NavHostController = rememberNavController()
     MobileSdkTheme {
-        VerifierSuccessView(
+        VerifierBinarySuccessView(
             navController = navController,
             success = true,
             description = "Valid"

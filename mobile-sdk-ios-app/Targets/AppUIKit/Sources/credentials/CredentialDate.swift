@@ -3,7 +3,7 @@ import SwiftUI
 struct CredentialDate: View {
     let dateString: String
     let parsedDate: String
-
+    
     let dateTimeFormatter = {
         let dtFormatter = DateFormatter()
         dtFormatter.dateStyle = .medium
@@ -12,7 +12,7 @@ struct CredentialDate: View {
         dtFormatter.timeZone = .gmt
         return dtFormatter
     }()
-
+    
     let dateOnlyFormatter = {
         let dtFormatter = DateFormatter()
         dtFormatter.dateStyle = .medium
@@ -21,21 +21,22 @@ struct CredentialDate: View {
         dtFormatter.timeZone = .gmt
         return dtFormatter
     }()
-
+    
     let genericDateOnlyFormatter = {
         let dtFormatter = DateFormatter()
         dtFormatter.locale = Locale(identifier: "en_US_POSIX") // set locale to reliable US_POSIX
         dtFormatter.dateFormat = "yyyy-MM-dd"
         return dtFormatter
     }()
-
+    
     let genericDateTimeFormatter = {
         let dtFormatter = DateFormatter()
         dtFormatter.locale = Locale(identifier: "en_US_POSIX") // set locale to reliable US_POSIX
         dtFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
         return dtFormatter
     }()
-
+    
+    
     init(dateString: String) {
         self.dateString = dateString
         if let iso8681Date = ISO8601DateFormatter().date(from: dateString
@@ -51,7 +52,7 @@ struct CredentialDate: View {
             self.parsedDate = dateString
         }
     }
-
+    
     var body: some View {
         Text(parsedDate)
     }

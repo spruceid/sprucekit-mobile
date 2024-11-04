@@ -5,10 +5,10 @@ import SpruceIDMobileSdkRs
 struct GenericCredentialItem: ICredentialView {
     let credentialPack: CredentialPack
     let onDelete: (() -> Void)?
-
+    
     @State var sheetOpen: Bool = false
     @State var optionsOpen: Bool = false
-
+    
     init(rawCredential: String, onDelete: (() -> Void)? = nil) {
         self.onDelete = onDelete
         do {
@@ -18,26 +18,26 @@ struct GenericCredentialItem: ICredentialView {
             self.credentialPack = CredentialPack()
         }
     }
-
+    
     init(credentialPack: CredentialPack, onDelete: (() -> Void)? = nil) {
         self.onDelete = onDelete
         self.credentialPack = credentialPack
     }
-
+    
     @ViewBuilder
     func descriptionFormatter(values: [String: [String: GenericJSON]]) -> some View {
         let credential = values.first(where: {
             let credential = credentialPack.get(credentialId: $0.key)
             return credential?.asJwtVc() != nil || credential?.asJsonVc() != nil || credential?.asSdJwt() != nil
         }).map { $0.value } ?? [:]
-
+        
         var description = ""
         if let issuerName = credential["issuer"]?.dictValue?["name"]?.toString() {
             description = issuerName
         } else if let descriptionString = credential["description"]?.toString() {
             description = descriptionString
         }
-
+        
         return VStack(alignment: .leading, spacing: 12) {
             Text(description)
                 .font(.customFont(font: .inter, style: .regular, size: .p))
@@ -46,17 +46,17 @@ struct GenericCredentialItem: ICredentialView {
         }
         .padding(.leading, 12)
     }
-
+    
     @ViewBuilder
     func leadingIconFormatter(values: [String: [String: GenericJSON]]) -> some View {
         let credential = values.first(where: {
             let credential = credentialPack.get(credentialId: $0.key)
             return credential?.asJwtVc() != nil || credential?.asJsonVc() != nil || credential?.asSdJwt() != nil
         }).map { $0.value } ?? [:]
-
+        
         let issuerImg = credential["issuer"]?.dictValue?["image"]
         var stringValue = ""
-
+        
         if let dictValue = issuerImg?.dictValue {
             if let imageValue = dictValue["image"]?.toString() {
                 stringValue = imageValue
@@ -68,10 +68,10 @@ struct GenericCredentialItem: ICredentialView {
         } else {
             stringValue = issuerImg?.toString() ?? ""
         }
-
+        
         return CredentialImage(image: stringValue)
     }
-
+    
     @ViewBuilder
     func listItem() -> some View {
         Card(
@@ -83,7 +83,7 @@ struct GenericCredentialItem: ICredentialView {
                         let credential = credentialPack.get(credentialId: $0.key)
                         return credential?.asJwtVc() != nil || credential?.asJsonVc() != nil || credential?.asSdJwt() != nil
                     }).map { $0.value } ?? [:]
-
+                    
                     var title = credential["name"]?.toString()
                     if title == nil {
                         credential["type"]?.arrayValue?.forEach {
@@ -93,7 +93,7 @@ struct GenericCredentialItem: ICredentialView {
                             }
                         }
                     }
-
+                    
                     return VStack(alignment: .leading, spacing: 12) {
                         Text(title ?? "")
                             .font(.customFont(font: .inter, style: .semiBold, size: .h1))
@@ -108,7 +108,7 @@ struct GenericCredentialItem: ICredentialView {
             ))
         )
     }
-
+    
     @ViewBuilder
     func listItemWithOptions() -> some View {
         Card(
@@ -120,7 +120,7 @@ struct GenericCredentialItem: ICredentialView {
                         let credential = credentialPack.get(credentialId: $0.key)
                         return credential?.asJwtVc() != nil || credential?.asJsonVc() != nil || credential?.asSdJwt() != nil
                     }).map { $0.value } ?? [:]
-
+                    
                     var title = credential["name"]?.toString()
                     if title == nil {
                         credential["type"]?.arrayValue?.forEach {
@@ -130,7 +130,7 @@ struct GenericCredentialItem: ICredentialView {
                             }
                         }
                     }
-
+                    
                     return ZStack(alignment: .topLeading) {
                         HStack(alignment: .top) {
                             Spacer()
@@ -164,14 +164,14 @@ struct GenericCredentialItem: ICredentialView {
             isPresented: $optionsOpen,
             titleVisibility: .visible,
             actions: {
-                if onDelete != nil {
+                if(onDelete != nil) {
                     Button("Delete", role: .destructive) { onDelete?() }
                 }
                 Button("Cancel", role: .cancel) { }
             }
         )
     }
-
+    
     @ViewBuilder
     public func credentialDetails() -> any View {
         Card(
@@ -185,21 +185,21 @@ struct GenericCredentialItem: ICredentialView {
                                 let credential = credentialPack.get(credentialId: $0.key)
                                 return credential?.asJwtVc() != nil || credential?.asJsonVc() != nil || credential?.asSdJwt() != nil
                             }).map { $0.value } ?? [:]
-
+                            
                             return CredentialObjectDisplayer(dict: credential)
-                            .padding(.horizontal, 4)
+                                .padding(.horizontal, 4)
                         })
                 ]
             ))
         )
         .padding(.all, 12)
     }
-
+    
     @ViewBuilder
     public func credentialListItem(withOptions: Bool = false) -> any View {
         VStack {
             VStack {
-                if withOptions {
+                if(withOptions){
                     listItemWithOptions()
                 } else {
                     listItem()
@@ -211,10 +211,10 @@ struct GenericCredentialItem: ICredentialView {
                     .stroke(Color("CredentialBorder"), lineWidth: 1)
             )
             .padding(.all, 12)
-
+            
         }
     }
-
+    
     @ViewBuilder
     public func credentialPreviewAndDetails() -> any View {
         AnyView(credentialListItem(withOptions: true))
@@ -222,7 +222,7 @@ struct GenericCredentialItem: ICredentialView {
                 sheetOpen.toggle()
             }
             .sheet(isPresented: $sheetOpen) {
-
+                
             } content: {
                 VStack {
                     Text("Review Info")
@@ -238,7 +238,7 @@ struct GenericCredentialItem: ICredentialView {
                 .presentationBackgroundInteraction(.automatic)
             }
     }
-
+    
     var body: some View {
         AnyView(credentialPreviewAndDetails())
     }

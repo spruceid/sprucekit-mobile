@@ -27,11 +27,14 @@
     <color name="color_blue_600">#FF2F6AE1</color>
     <color name="color_stone_50">#FFFAFAF9</color>
     <color name="color_stone_300">#FFD6D3D1</color>
+    <color name="color_stone_400">#FFA8A29E</color>
     <color name="color_stone_500">#FF78716C</color>
     <color name="color_stone_600">#FF57534E</color>
     <color name="color_stone_950">#FF0C0A09</color>
     <color name="color_emerald_900">#FF084C3A</color>
     <color name="color_rose_600">#FFE11D48</color>
+    <color name="color_purple_600">#FF926CE6</color>
+    <color name="color_terracotta_600">#FFE1674C</color>
     <color name="text_base">#FFFBF9F6</color>
     <color name="bg_surface_pure_blue">#FFD6D3D1</color>
     <color name="border_secondary">#FFD6D3D1</color>

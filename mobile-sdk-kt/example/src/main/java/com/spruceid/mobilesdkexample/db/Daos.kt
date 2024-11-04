@@ -27,3 +27,21 @@ interface RawCredentialsDao {
     @Query("DELETE FROM raw_credentials WHERE id = :id")
     fun deleteRawCredential(id: Long): Int
 }
+
+@Dao
+interface VerificationMethodsDao {
+    @Insert
+    suspend fun insertVerificationMethod(verificationMethod: VerificationMethods)
+
+    @Query("SELECT * FROM verification_methods")
+    fun getAllVerificationMethods(): List<VerificationMethods>
+
+    @Query("SELECT * FROM verification_methods WHERE id = :id")
+    fun getVerificationMethod(id: Long): VerificationMethods
+
+    @Query("DELETE FROM verification_methods")
+    fun deleteAllVerificationMethods(): Int
+
+    @Query("DELETE FROM verification_methods WHERE id = :id")
+    fun deleteVerificationMethod(id: Long): Int
+}

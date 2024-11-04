@@ -5103,15 +5103,70 @@ public func FfiConverterTypeDelegateInitializationResponse_lower(_ value: Delega
 }
 
 
+public struct DelegatedVerifierOid4vpResponse {
+    /**
+     * Presented SD-JWT.
+     */
+    public var vpToken: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Presented SD-JWT.
+         */vpToken: String) {
+        self.vpToken = vpToken
+    }
+}
+
+
+
+extension DelegatedVerifierOid4vpResponse: Equatable, Hashable {
+    public static func ==(lhs: DelegatedVerifierOid4vpResponse, rhs: DelegatedVerifierOid4vpResponse) -> Bool {
+        if lhs.vpToken != rhs.vpToken {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(vpToken)
+    }
+}
+
+
+public struct FfiConverterTypeDelegatedVerifierOid4vpResponse: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DelegatedVerifierOid4vpResponse {
+        return
+            try DelegatedVerifierOid4vpResponse(
+                vpToken: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DelegatedVerifierOid4vpResponse, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.vpToken, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeDelegatedVerifierOid4vpResponse_lift(_ buf: RustBuffer) throws -> DelegatedVerifierOid4vpResponse {
+    return try FfiConverterTypeDelegatedVerifierOid4vpResponse.lift(buf)
+}
+
+public func FfiConverterTypeDelegatedVerifierOid4vpResponse_lower(_ value: DelegatedVerifierOid4vpResponse) -> RustBuffer {
+    return FfiConverterTypeDelegatedVerifierOid4vpResponse.lower(value)
+}
+
+
 public struct DelegatedVerifierStatusResponse {
     /**
      * The status of the verification request.
      */
     public var status: DelegatedVerifierStatus
     /**
-     * JSON-encoded string of the presentation
+     * OID4VP presentation
      */
-    public var presentation: String?
+    public var oid4vp: DelegatedVerifierOid4vpResponse?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -5120,10 +5175,10 @@ public struct DelegatedVerifierStatusResponse {
          * The status of the verification request.
          */status: DelegatedVerifierStatus, 
         /**
-         * JSON-encoded string of the presentation
-         */presentation: String?) {
+         * OID4VP presentation
+         */oid4vp: DelegatedVerifierOid4vpResponse?) {
         self.status = status
-        self.presentation = presentation
+        self.oid4vp = oid4vp
     }
 }
 
@@ -5134,7 +5189,7 @@ extension DelegatedVerifierStatusResponse: Equatable, Hashable {
         if lhs.status != rhs.status {
             return false
         }
-        if lhs.presentation != rhs.presentation {
+        if lhs.oid4vp != rhs.oid4vp {
             return false
         }
         return true
@@ -5142,7 +5197,7 @@ extension DelegatedVerifierStatusResponse: Equatable, Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(status)
-        hasher.combine(presentation)
+        hasher.combine(oid4vp)
     }
 }
 
@@ -5152,13 +5207,13 @@ public struct FfiConverterTypeDelegatedVerifierStatusResponse: FfiConverterRustB
         return
             try DelegatedVerifierStatusResponse(
                 status: FfiConverterTypeDelegatedVerifierStatus.read(from: &buf), 
-                presentation: FfiConverterOptionString.read(from: &buf)
+                oid4vp: FfiConverterOptionTypeDelegatedVerifierOid4vpResponse.read(from: &buf)
         )
     }
 
     public static func write(_ value: DelegatedVerifierStatusResponse, into buf: inout [UInt8]) {
         FfiConverterTypeDelegatedVerifierStatus.write(value.status, into: &buf)
-        FfiConverterOptionString.write(value.presentation, into: &buf)
+        FfiConverterOptionTypeDelegatedVerifierOid4vpResponse.write(value.oid4vp, into: &buf)
     }
 }
 
@@ -6043,7 +6098,7 @@ public enum DelegatedVerifierStatus {
     
     case initiated
     case pending
-    case failed
+    case failure
     case success
 }
 
@@ -6059,7 +6114,7 @@ public struct FfiConverterTypeDelegatedVerifierStatus: FfiConverterRustBuffer {
         
         case 2: return .pending
         
-        case 3: return .failed
+        case 3: return .failure
         
         case 4: return .success
         
@@ -6079,7 +6134,7 @@ public struct FfiConverterTypeDelegatedVerifierStatus: FfiConverterRustBuffer {
             writeInt(&buf, Int32(2))
         
         
-        case .failed:
+        case .failure:
             writeInt(&buf, Int32(3))
         
         
@@ -8852,6 +8907,27 @@ fileprivate struct FfiConverterOptionTypeCredentialInfo: FfiConverterRustBuffer 
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeCredentialInfo.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+fileprivate struct FfiConverterOptionTypeDelegatedVerifierOid4vpResponse: FfiConverterRustBuffer {
+    typealias SwiftType = DelegatedVerifierOid4vpResponse?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDelegatedVerifierOid4vpResponse.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDelegatedVerifierOid4vpResponse.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }

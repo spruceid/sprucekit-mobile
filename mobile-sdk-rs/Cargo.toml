@@ -1,6 +1,6 @@
 [package]
 name = "mobile-sdk-rs"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["Spruce Systems, Inc."]
 license = "Apache-2.0 OR MIT"
@@ -21,8 +21,8 @@ cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", featur
 ] }
 isomdl = { git = "https://github.com/spruceid/isomdl", rev = "1f4f762" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "d95fe3a" }
-openid4vp = { git = "https://github.com/spruceid/openid4vp" }
-ssi = { version = "0.9", features = ["secp256r1", "secp384r1"] }
+openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "ad3974c" }
+ssi = { version = "0.10", features = ["secp256r1", "secp384r1"] }
 
 async-trait = "0.1"
 base64 = "0.22.0"
@@ -56,7 +56,7 @@ tracing = "0.1.40"
 uniffi = { version = "0.28.1", features = ["cli", "tokio"] }
 url = { version = "2.5", features = ["serde"] }
 uuid = { version = "1.6.1", features = ["v4"] }
-w3c-vc-barcodes = { git = "https://github.com/spruceid/w3c-vc-barcodes", rev = "c1c99da" }
+w3c-vc-barcodes = { git = "https://github.com/spruceid/w3c-vc-barcodes", rev = "9aeb38d" }
 x509-cert = { version = "0.2.5" }
 urlencoding = "2.1.3"
 
