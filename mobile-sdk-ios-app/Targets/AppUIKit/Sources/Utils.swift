@@ -61,6 +61,18 @@ extension Optional {
     }
 }
 
+func generateQRCode(from data: Data) -> UIImage {
+    let context = CIContext()
+    let filter = CIFilter.qrCodeGenerator()
+    filter.message = data
+    if let outputImage = filter.outputImage {
+        if let cgimg = context.createCGImage(outputImage, from: outputImage.extent) {
+            return UIImage(cgImage: cgimg)
+        }
+    }
+    return UIImage(systemName: "xmark.circle") ?? UIImage()
+}
+
 let ed25519_2020_10_18 =
 "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"G80iskrv_nE69qbGLSpeOHJgmV4MKIzsy5l5iT6pCww\",\"d\":\"39Ev8-k-jkKunJyFWog3k0OwgPjnKv_qwLhfqXdAXTY\"}"
 

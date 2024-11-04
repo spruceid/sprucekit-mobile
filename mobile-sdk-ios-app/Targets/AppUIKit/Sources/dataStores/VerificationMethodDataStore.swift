@@ -118,6 +118,29 @@ class VerificationMethodDataStore {
         }
         return verificationMethods
     }
+    
+    func getVerificationMethod(rowId: Int64) -> VerificationMethod? {
+        guard let database = db else { return nil }
+
+        do {
+            for verificationMethod in try database.prepare(self.verificationMethods) {
+                let elemId = verificationMethod[id]
+                if  elemId == rowId {
+                    return VerificationMethod(
+                        id: verificationMethod[id],
+                        type: verificationMethod[type],
+                        name: verificationMethod[name],
+                        description: verificationMethod[description],
+                        verifierName: verificationMethod[verifierName],
+                        url: verificationMethod[url]
+                    )
+                }
+            }
+        } catch {
+            print(error)
+        }
+        return nil
+    }
 
     func delete(id: Int64) -> Bool {
         guard let database = db else {
