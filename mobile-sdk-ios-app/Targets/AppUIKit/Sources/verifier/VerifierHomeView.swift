@@ -42,6 +42,15 @@ struct VerifierHomeBody: View {
     @Binding var path: NavigationPath
     
     @State var verificationMethods: [VerificationMethod] = []
+    
+    func getBadgeType(verificationType: String) -> VerifierListItemTagType {
+        switch verificationType {
+        case "DelegatedVerification":
+            return VerifierListItemTagType.DISPLAY_QR_CODE
+        default:
+            return VerifierListItemTagType.SCAN_QR_CODE
+        }
+    }
 
     var body: some View {
             ScrollView(.vertical, showsIndicators: false) {
@@ -54,7 +63,7 @@ struct VerifierHomeBody: View {
                         .font(.customFont(font: .inter, style: .semiBold, size: .h4))
                         .foregroundStyle(Color("ColorBlue600"))
                         .onTapGesture {
-                            // redirect to scanner
+                            path.append(AddVerificationMethod())
                         }
                 }
 
@@ -93,6 +102,17 @@ struct VerifierHomeBody: View {
                     type: VerifierListItemTagType.SCAN_QR_CODE
                 ).onTapGesture {
                     path.append(VerifyMDoc())
+                }
+                
+                ForEach(verificationMethods, id: \.self.id) { verificationMethod in
+                    VerifierListItem(
+                        title: verificationMethod.verifierName,
+                        description: verificationMethod.description,
+                        type: getBadgeType(verificationType: verificationMethod.type)
+                    ).onTapGesture {
+                        // TODO
+                        // path.append(...)
+                    }
                 }
 
             }

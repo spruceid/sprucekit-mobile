@@ -50,6 +50,17 @@ struct iOSCheckboxToggleStyle: ToggleStyle {
     }
 }
 
+extension Optional {
+    enum Error: Swift.Error {
+        case unexpectedNil
+    }
+
+    func unwrap() throws -> Wrapped {
+        if let self { return self }
+        else { throw Error.unexpectedNil }
+    }
+}
+
 let ed25519_2020_10_18 =
 "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"G80iskrv_nE69qbGLSpeOHJgmV4MKIzsy5l5iT6pCww\",\"d\":\"39Ev8-k-jkKunJyFWog3k0OwgPjnKv_qwLhfqXdAXTY\"}"
 
