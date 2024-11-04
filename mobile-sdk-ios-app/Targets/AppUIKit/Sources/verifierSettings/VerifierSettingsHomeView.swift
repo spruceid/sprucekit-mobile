@@ -83,12 +83,30 @@ struct VerifierSettingsHomeBody: View {
         }
     }
     
+    @ViewBuilder
+    var deleteAllVerificationMethodsButton: some View {
+        Button {
+            _ = VerificationMethodDataStore.shared.deleteAll()
+        }  label: {
+            Text("Delete all added verification methods")
+                .frame(width: UIScreen.screenWidth)
+                .padding(.horizontal, -20)
+                .font(.customFont(font: .inter, style: .medium, size: .h4))
+        }
+        .foregroundColor(.white)
+        .padding(.vertical, 13)
+        .background(Color("RedInvalid"))
+        .cornerRadius(8)
+    }
+    
     
     var body: some View {
         if subpage == nil {
             VStack {
-                ScrollView(.vertical, showsIndicators: false) {
+                VStack {
                     activityLogButton
+                    Spacer()
+                    deleteAllVerificationMethodsButton
                 }
             }
             .padding(.all, 24)
