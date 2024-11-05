@@ -41,75 +41,101 @@ struct VerifierHomeHeader: View {
 struct VerifierHomeBody: View {
     @Binding var path: NavigationPath
     
-    var body: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            HStack {
-                Text("REQUESTS")
-                    .font(.customFont(font: .inter, style: .bold, size: .p))
-                    .foregroundStyle(Color("TextOnPrimary"))
-                Spacer()
-            }
-            
-            //                VerifierListItem(
-            //                    title: "Driver's License Document",
-            //                    description: "Verifies physical driver's licenses issued by the state of Utopia",
-            //                    binary: true,
-            //                    fields: 0
-            //                ).onTapGesture {
-            //                    path.append(VerifyDL())
-            //                }
-            
-            // Over 21
-            //                VerifierListItem(
-            //                    title: "Employment Authorization Document",
-            //                    description: "Verifies physical Employment Authorization issued by the state of Utopia",
-            //                    binary: true,
-            //                    fields: 0
-            //                ).onTapGesture {
-            //                    path.append(VerifyEA())
-            //                }
-            
-            // VC
-            VerifierListItem(
-                title: "Verifiable Credential",
-                description: "Verifies a Verifiable credential by reading the Verifiable Presentation QR Code",
-                binary: true,
-                fields: 0
-            ).onTapGesture {
-                path.append(VerifyVC())
-            }
-            
-            // MDoc
-            VerifierListItem(
-                title: "MDoc",
-                description: "Verifies a MDoc by reading the Presentation QR Code",
-                binary: true,
-                fields: 0
-            ).onTapGesture {
-                path.append(VerifyMDoc())
-            }
-            
+    @State var verificationMethods: [VerificationMethod] = []
+    
+    func getBadgeType(verificationType: String) -> VerifierListItemTagType {
+        switch verificationType {
+        case "DelegatedVerification":
+            return VerifierListItemTagType.DISPLAY_QR_CODE
+        default:
+            return VerifierListItemTagType.SCAN_QR_CODE
         }
-        .padding(.all, 24)
+    }
+
+    var body: some View {
+            ScrollView(.vertical, showsIndicators: false) {
+                HStack {
+                    Text("VERIFICATIONS")
+                        .font(.customFont(font: .inter, style: .bold, size: .p))
+                        .foregroundStyle(Color("TextOnPrimary"))
+                    Spacer()
+                    Text("+ New Verification")
+                        .font(.customFont(font: .inter, style: .semiBold, size: .h4))
+                        .foregroundStyle(Color("ColorBlue600"))
+                        .onTapGesture {
+                            path.append(AddVerificationMethod())
+                        }
+                }
+
+//                VerifierListItem(
+//                    title: "Driver's License Document",
+//                    description: "Verifies physical driver's licenses issued by the state of Utopia",
+//                    binary: true,
+//                    fields: 0
+//                ).onTapGesture {
+//                    path.append(VerifyDL())
+//                }
+
+                // Over 21
+//                VerifierListItem(
+//                    title: "Employment Authorization Document",
+//                    description: "Verifies physical Employment Authorization issued by the state of Utopia",
+//                    binary: true,
+//                    fields: 0
+//                ).onTapGesture {
+//                    path.append(VerifyEA())
+//                }
+
+                // VC
+                VerifierListItem(
+                    title: "Verifiable Credential",
+                    description: "Verifies a Verifiable credential by reading the Verifiable Presentation QR Code",
+                    type: VerifierListItemTagType.SCAN_QR_CODE
+                ).onTapGesture {
+                    path.append(VerifyVC())
+                }
+
+                // MDoc
+                VerifierListItem(
+                    title: "MDoc",
+                    description: "Verifies a MDoc by reading the Presentation QR Code",
+                    type: VerifierListItemTagType.SCAN_QR_CODE
+                ).onTapGesture {
+                    path.append(VerifyMDoc())
+                }
+                
+                ForEach(verificationMethods, id: \.self.id) { verificationMethod in
+                    VerifierListItem(
+                        title: verificationMethod.verifierName,
+                        description: verificationMethod.description,
+                        type: getBadgeType(verificationType: verificationMethod.type)
+                    ).onTapGesture {
+                        // TODO
+                        // path.append(...)
+                    }
+                }
+
+            }
+            .onAppear(perform: {
+                self.verificationMethods = VerificationMethodDataStore.shared.getAllVerificationMethods()
+            })
+            .padding(.all, 24)
     }
 }
 
 struct VerifierListItem: View {
-    
     let title: String
     let description: String
-    let binary: Bool
-    let fields: Int
-    
+    let type: VerifierListItemTagType
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center) {
                 Text(title)
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
                     .foregroundStyle(Color("TextHeader"))
-                //                VerifierListItemTag(binary: binary, fields: fields)
                 Spacer()
-                Image("ArrowRight")
+                VerifierListItemTag(type: type)
             }
             Text(description)
             Divider()
@@ -118,35 +144,46 @@ struct VerifierListItem: View {
     }
 }
 
+enum VerifierListItemTagType {
+    case DISPLAY_QR_CODE
+    case SCAN_QR_CODE
+}
+
 struct VerifierListItemTag: View {
-    let binary: Bool
-    let fields: Int
-    
+    let type: VerifierListItemTagType
+
     var body: some View {
-        if binary {
-            Text("Binary")
-                .foregroundStyle(Color("VerifierRequestBadgeBinaryText"))
-                .padding(.vertical, 4)
-                .padding(.horizontal, 12)
-                .background(Color("VerifierRequestBadgeBinaryFill"))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color("VerifierRequestBadgeBinaryBorder"), lineWidth: 1)
-                )
-        } else {
-            Text("\(fields) Fields")
-                .foregroundStyle(Color("VerifierRequestBadgeFieldText"))
-                .padding(.vertical, 4)
-                .padding(.horizontal, 12)
-                .background(Color("VerifierRequestBadgeFieldFill"))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color("VerifierRequestBadgeFieldBorder"), lineWidth: 1)
-                )
+        switch type {
+        case VerifierListItemTagType.DISPLAY_QR_CODE:
+            HStack {
+                Image("QRCode")
+                    .resizable()
+                    .frame(width: 16, height: 16)
+                Text("Display")
+                    .font(.customFont(font: .inter, style: .semiBold, size: .p))
+                    .foregroundStyle(Color.white)
+                Image("ArrowTriangleRight")
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(Color("ColorPurple600"))
+            .cornerRadius(100)
+        case VerifierListItemTagType.SCAN_QR_CODE:
+            HStack {
+                Image("QRCodeReader")
+                    .resizable()
+                    .frame(width: 16, height: 16)
+                    .foregroundColor(Color.white)
+                Text("Scan")
+                    .font(.customFont(font: .inter, style: .semiBold, size: .p))
+                    .foregroundStyle(Color.white)
+                Image("ArrowTriangleRight")
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(Color("ColorTerracotta600"))
+            .cornerRadius(100)
         }
-        
     }
 }
 
