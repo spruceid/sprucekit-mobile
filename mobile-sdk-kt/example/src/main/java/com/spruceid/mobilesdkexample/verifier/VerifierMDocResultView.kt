@@ -2,7 +2,6 @@ package com.spruceid.mobilesdkexample.verifier
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,8 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.HorizontalDivider
@@ -32,30 +29,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.decapitalize
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.rs.MDocItem
-import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePrimaryContrast
 import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePureWhite
 import com.spruceid.mobilesdkexample.ui.theme.BorderSecondary
-import com.spruceid.mobilesdkexample.ui.theme.ColorBase800
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase900
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
-import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.TextBase
 import com.spruceid.mobilesdkexample.ui.theme.TextPrimary
 import com.spruceid.mobilesdkexample.ui.theme.bodyMdDefault
@@ -63,7 +51,6 @@ import com.spruceid.mobilesdkexample.ui.theme.bodyXsRegular
 import com.spruceid.mobilesdkexample.ui.theme.buttonText
 import com.spruceid.mobilesdkexample.ui.theme.buttonTextSmall
 import com.spruceid.mobilesdkexample.ui.theme.headerH2
-import com.spruceid.mobilesdkexample.utils.BitmapImage
 
 fun getDiscriminant(element: MDocItem): String =
     when (element) {

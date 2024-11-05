@@ -2,7 +2,6 @@ package com.spruceid.mobilesdkexample.verifier
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,9 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,9 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.R
-import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorPurple600
@@ -163,6 +158,14 @@ fun VerifierHomeBody(
 //                navController.navigate(Screen.VerifyEAScreen.route)
 //            }
 //        )
+            VerifierListItem(
+                title = "Mobile Driver's Licence",
+                description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyMDocScreen.route)
+                }
+            )
             VerifierListItem(
                 title = "Verifiable Credential",
                 description = "Verifies a verifiable credential by reading the verifiable presentation QR code",
