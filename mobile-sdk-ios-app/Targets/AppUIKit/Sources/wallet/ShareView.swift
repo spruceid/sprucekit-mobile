@@ -5,18 +5,6 @@ import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import CryptoKit
 
-func generateQRCode(from data: Data) -> UIImage {
-    let context = CIContext()
-    let filter = CIFilter.qrCodeGenerator()
-    filter.message = data
-    if let outputImage = filter.outputImage {
-        if let cgimg = context.createCGImage(outputImage, from: outputImage.extent) {
-            return UIImage(cgImage: cgimg)
-        }
-    }
-    return UIImage(systemName: "xmark.circle") ?? UIImage()
-}
-
 public struct QRSheetView: View {
     var credentials: CredentialStore
     @State var proceed = true

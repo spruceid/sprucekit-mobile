@@ -110,8 +110,7 @@ struct VerifierHomeBody: View {
                         description: verificationMethod.description,
                         type: getBadgeType(verificationType: verificationMethod.type)
                     ).onTapGesture {
-                        // TODO
-                        // path.append(...)
+                        path.append(VerifyDelegatedOid4vp(id: verificationMethod.id))
                     }
                 }
 

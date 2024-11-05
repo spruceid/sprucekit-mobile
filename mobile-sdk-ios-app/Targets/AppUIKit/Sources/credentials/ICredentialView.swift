@@ -6,6 +6,7 @@ enum CredentialError: Error {
 }
 
 protocol ICredentialView: View {
+    var credentialPack: CredentialPack  { get } 
     // component used to display the credential in a list with multiple components
     func credentialListItem(withOptions: Bool) -> any View
     // component used to display only details of the credential

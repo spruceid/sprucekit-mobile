@@ -49,6 +49,12 @@ public struct ContentView: View {
                     .navigationDestination(for: VerifyMDoc.self) { _ in
                         VerifyMDocView(path: $path)
                     }
+                    .navigationDestination(for: VerifyDelegatedOid4vp.self) { verifyDelegatedOid4vpParams in
+                        VerifyDelegatedOid4vpView(
+                            path: $path,
+                            verificationId: verifyDelegatedOid4vpParams.id
+                        )
+                    }
                     .navigationDestination(for: VerifierSettingsHome.self) { _ in
                         VerifierSettingsHomeView(path: $path)
                     }
