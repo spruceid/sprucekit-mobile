@@ -1,7 +1,9 @@
 package com.spruceid.mobile.sdk
 
+import android.app.Application
 import android.bluetooth.BluetoothManager
 import android.util.Log
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
@@ -15,7 +17,7 @@ import java.security.KeyStore
 import java.security.Signature
 import java.util.UUID
 
-class CredentialsViewModel : ViewModel() {
+class CredentialsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _credentials = MutableStateFlow<ArrayList<ParsedCredential>>(arrayListOf())
     val credentials = _credentials.asStateFlow()
@@ -44,7 +46,7 @@ class CredentialsViewModel : ViewModel() {
         _credentials.value.add(credential)
     }
 
-    private fun firstMdoc(): Mdoc  {
+    private fun firstMdoc(): Mdoc {
         val mdoc = _credentials.value
             .map { credential -> credential.asMsoMdoc() }
             .firstOrNull()
@@ -103,6 +105,7 @@ class CredentialsViewModel : ViewModel() {
                 "Central",
                 _session.value!!.getBleIdent(),
                 ::updateRequestData,
+                getApplication<Application>().applicationContext,
                 null
             )
     }
@@ -116,7 +119,7 @@ class CredentialsViewModel : ViewModel() {
 
     fun submitNamespaces(allowedNamespaces: Map<String, Map<String, List<String>>>) {
         val mdoc = this.firstMdoc()
-        if(allowedNamespaces.isEmpty()) {
+        if (allowedNamespaces.isEmpty()) {
             val e = Error("Select at least one namespace")
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
             _currState.value = PresentmentState.ERROR

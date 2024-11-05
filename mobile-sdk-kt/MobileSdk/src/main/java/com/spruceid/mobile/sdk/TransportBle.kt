@@ -1,6 +1,7 @@
 package com.spruceid.mobile.sdk
 
 import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.util.Log
 import java.util.*
 
@@ -11,6 +12,7 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
 
     private lateinit var transportBleCentralClientHolder: TransportBleCentralClientHolder
     private lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder
+    private lateinit var transportBlePeripheralServerReader: TransportBlePeripheralServerReader
 
     /**
      * Reserved for later matching with available cbor options.
@@ -29,8 +31,10 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
     fun initialize(
         application: String, serviceUUID: UUID,
         deviceRetrievalOption: String, ident: ByteArray,
-        updateRequestData: (data: ByteArray) -> Unit,
-        callback: BLESessionStateDelegate?
+        updateRequestData: ((data: ByteArray) -> Unit)? = null,
+        context: Context,
+        callback: BLESessionStateDelegate?,
+        encodedEDeviceKeyBytes: ByteArray
     ) {
 
         /**
@@ -38,15 +42,17 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
          */
         if (deviceRetrievalOption == "Central" && application == "Holder") {
             Log.d("TransportBle.initialize", "-- Selecting Transport Central Client Holder --")
-
-            transportBleCentralClientHolder = TransportBleCentralClientHolder(
-                application,
-                bluetoothManager,
-                serviceUUID,
-                updateRequestData,
-                callback,
-            )
-            transportBleCentralClientHolder.connect(ident)
+            if (updateRequestData != null) {
+                transportBleCentralClientHolder = TransportBleCentralClientHolder(
+                    application,
+                    bluetoothManager,
+                    serviceUUID,
+                    updateRequestData,
+                    context,
+                    callback,
+                )
+                transportBleCentralClientHolder.connect(ident)
+            }
         }
 
         /**
@@ -56,8 +62,30 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
             Log.d("TransportBle.initialize", "-- Selecting Peripheral Server Holder --")
 
             transportBlePeripheralServerHolder =
-                TransportBlePeripheralServerHolder(application, bluetoothManager, serviceUUID)
+                TransportBlePeripheralServerHolder(
+                    application,
+                    bluetoothManager,
+                    serviceUUID,
+                    context
+                )
             transportBlePeripheralServerHolder.start()
+        }
+
+        /**
+         * Transport Peripheral Server Reader
+         */
+        if (deviceRetrievalOption == "Peripheral" && application == "Reader") {
+            Log.d("TransportBle.initialize", "-- Selecting Peripheral Server Reader --")
+
+            transportBlePeripheralServerReader =
+                TransportBlePeripheralServerReader(
+                    callback,
+                    application,
+                    bluetoothManager,
+                    serviceUUID,
+                    context
+                )
+            transportBlePeripheralServerReader.start(ident, encodedEDeviceKeyBytes)
         }
     }
 
@@ -85,6 +113,10 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
         if (this::transportBlePeripheralServerHolder.isInitialized) {
             transportBlePeripheralServerHolder.stop()
         }
+
+        if (this::transportBlePeripheralServerReader.isInitialized) {
+            transportBlePeripheralServerReader.stop()
+        }
     }
 
     /**
@@ -97,6 +129,10 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
 
         if (this::transportBlePeripheralServerHolder.isInitialized) {
             transportBlePeripheralServerHolder.hardReset()
+        }
+
+        if (this::transportBlePeripheralServerReader.isInitialized) {
+            transportBlePeripheralServerReader.hardReset()
         }
     }
 }

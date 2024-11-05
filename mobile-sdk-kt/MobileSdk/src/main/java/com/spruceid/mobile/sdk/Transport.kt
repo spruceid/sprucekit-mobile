@@ -1,6 +1,7 @@
 package com.spruceid.mobile.sdk
 
 import android.bluetooth.BluetoothManager
+import android.content.Context
 import android.util.Log
 import java.util.*
 
@@ -21,8 +22,10 @@ class Transport(private var bluetoothManager: BluetoothManager) {
         deviceRetrieval: String,
         deviceRetrievalOption: String,
         ident: ByteArray,
-        updateRequestData: (data: ByteArray) -> Unit,
-        callback: BLESessionStateDelegate?
+        updateRequestData: ((data: ByteArray) -> Unit)? = null,
+        context: Context,
+        callback: BLESessionStateDelegate?,
+        encodedEDeviceKeyBytes: ByteArray = ByteArray(0)
     ) {
 
         /**
@@ -42,7 +45,9 @@ class Transport(private var bluetoothManager: BluetoothManager) {
                 deviceRetrievalOption,
                 ident,
                 updateRequestData,
-                callback
+                context,
+                callback,
+                encodedEDeviceKeyBytes
             )
         }
 

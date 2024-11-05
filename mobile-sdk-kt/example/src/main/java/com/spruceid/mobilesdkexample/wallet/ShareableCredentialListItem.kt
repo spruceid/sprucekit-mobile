@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.wallet
 
+import android.app.Application
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,12 +29,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -188,12 +191,15 @@ fun ShareableCredentialListItem(credential: ParsedCredential) {
 
 @Composable
 fun ShareableCredentialListItemQRCode(credential: ParsedCredential) {
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
     var showQRCode by remember {
         mutableStateOf(false)
     }
 
     fun newCredentialViewModel(): CredentialsViewModel {
-        val credentialViewModel = CredentialsViewModel()
+        val credentialViewModel = ViewModelProvider.AndroidViewModelFactory(application)
+            .create(CredentialsViewModel::class.java)
         credentialViewModel.storeCredential(credential)
         return credentialViewModel
     }

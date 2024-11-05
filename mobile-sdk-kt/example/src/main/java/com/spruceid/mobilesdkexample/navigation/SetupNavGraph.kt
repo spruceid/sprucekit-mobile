@@ -11,6 +11,7 @@ import com.spruceid.mobilesdkexample.verifier.AddVerificationMethodView
 import com.spruceid.mobilesdkexample.verifier.VerifyDLView
 import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
 import com.spruceid.mobilesdkexample.verifier.VerifyEAView
+import com.spruceid.mobilesdkexample.verifier.VerifyMDocView
 import com.spruceid.mobilesdkexample.verifier.VerifyVCView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
@@ -42,6 +43,9 @@ fun SetupNavGraph(
         composable(
             route = Screen.VerifyVCScreen.route,
         ) { VerifyVCView(navController) }
+        composable(
+            route = Screen.VerifyMDocScreen.route,
+        ) { VerifyMDocView(navController) }
         composable(
             route = Screen.VerifyDelegatedOid4vpScreen.route,
         ) { backStackEntry ->

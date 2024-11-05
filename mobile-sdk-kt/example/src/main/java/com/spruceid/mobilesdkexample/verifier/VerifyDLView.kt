@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun VerifyDLView(
-    navController: NavController
+    navController: NavController,
 ) {
     var success by remember {
         mutableStateOf<Boolean?>(null)
