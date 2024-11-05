@@ -58,6 +58,40 @@ struct VerifyDelegatedOid4vpView: View {
         }
     }
     
+    func monitorStatus(status: DelegatedVerifierStatus) async {
+        do {
+            let res = try await verifier?.pollVerificationStatus(url: "\(uri.unwrap())?status=\(status)")
+            
+            if let newStatus = res?.status {
+                switch newStatus {
+                case DelegatedVerifierStatus.initiated:
+                    await monitorStatus(status: status)
+                case DelegatedVerifierStatus.pending:
+                    // display loading view
+                    loading = "Requesting data..."
+                    step = VerifyDelegatedOid4vpViewSteps.gettingStatus
+                    // call next status monitor
+                    await monitorStatus(status: newStatus)
+                case DelegatedVerifierStatus.failure:
+                    // display error view
+                    errorTitle = "Error Verifying Credential"
+                    errorDescription = "\(try res.unwrap())"
+                case DelegatedVerifierStatus.success:
+                    // display credential
+                    step = VerifyDelegatedOid4vpViewSteps.displayingCredential
+                    presentation = res?.oid4vp?.vpToken
+                }
+            } else {
+                // if can't find res.status, call monitorStatus
+                // with the same parameters
+                await monitorStatus(status: status)
+            }
+        } catch {
+            errorTitle = "Error Verifying Credential"
+            errorDescription = error.localizedDescription
+        }
+    }
+    
     func initiateVerification() {
         Task {
             do {
@@ -80,7 +114,7 @@ struct VerifyDelegatedOid4vpView: View {
                 step = VerifyDelegatedOid4vpViewSteps.presentingQrCode
                 
                 // Call method to start monitoring status
-                // monitorStatus(status)
+                await monitorStatus(status: status)
             } catch {
                 errorTitle = "Failed getting QR Code"
                 errorDescription = error.localizedDescription
@@ -125,7 +159,10 @@ struct VerifyDelegatedOid4vpView: View {
                     )
                 case .displayingCredential:
                     if let presentationUnwrapped = presentation {
-                        Text(presentationUnwrapped)
+                        VerifierCredentialSuccessView(
+                            rawCredential: presentationUnwrapped,
+                            onClose: onBack
+                        )
                     }
                 }
             }
