@@ -42,7 +42,7 @@ fun VerifyVCView(
             onRead = ::onRead
         )
     } else {
-        VerifierSuccessView(
+        VerifierBinarySuccessView(
             navController = navController,
             success = success!!,
             description = if (success!!) "Valid Verifiable Credential" else "Invalid Verifiable Credential"

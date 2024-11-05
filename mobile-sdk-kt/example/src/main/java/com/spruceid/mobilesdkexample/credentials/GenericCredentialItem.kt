@@ -60,7 +60,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class GenericCredentialItem : ICredentialView {
-    private var credentialPack: CredentialPack
+    override var credentialPack: CredentialPack
     private val onDelete: (() -> Unit)?
 
     constructor(credentialPack: CredentialPack, onDelete: (() -> Unit)? = null) {
@@ -341,6 +341,7 @@ class GenericCredentialItem : ICredentialView {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 Button(
                     onClick = {
+                        showBottomSheet = false
                         onDelete?.invoke()
                     },
                     shape = RoundedCornerShape(5.dp),
@@ -446,7 +447,7 @@ class GenericCredentialItem : ICredentialView {
                                 null
                             }
                         }
-                        genericObjectDisplayer(
+                    genericObjectDisplayer(
                             credential!!,
                             listOf("id", "identifier", "type", "proof", "renderMethod", "@context")
                         )
@@ -455,7 +456,10 @@ class GenericCredentialItem : ICredentialView {
             )
         )
 
-        Box(Modifier.fillMaxWidth()) {
+        Box(Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+        ) {
             BaseCard(
                 credentialPack = credentialPack,
                 rendering = detailsRendering.toCardRendering()
@@ -494,7 +498,7 @@ class GenericCredentialItem : ICredentialView {
                 Column(
                     Modifier
                         .fillMaxSize()
-                        .padding(12.dp)
+                        .padding(24.dp)
                 ) {
                     Text(
                         text = "Review Info",
@@ -506,8 +510,10 @@ class GenericCredentialItem : ICredentialView {
                         modifier = Modifier
                             .fillMaxWidth()
                     )
+                    // Header
                     credentialListItem()
 
+                    // Body
                     credentialDetails()
                 }
             }

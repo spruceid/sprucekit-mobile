@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.walletsettings
 
+import StorageManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -12,30 +13,28 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.ui.theme.VerifiedRedInvalid
-import com.spruceid.mobilesdkexample.viewmodels.IRawCredentialsViewModel
-import kotlinx.coroutines.launch
 
 @Composable
-fun WalletSettingsHomeView(
-    navController: NavController,
-    rawCredentialsViewModel: IRawCredentialsViewModel
-) {
+fun WalletSettingsHomeView(navController: NavController) {
     Column(
         Modifier
             .padding(all = 20.dp)
@@ -46,7 +45,7 @@ fun WalletSettingsHomeView(
                 navController.popBackStack()
             }
         )
-        WalletSettingsHomeBody(rawCredentialsViewModel)
+        WalletSettingsHomeBody()
     }
 }
 
@@ -81,8 +80,12 @@ fun WalletSettingsHomeHeader(
 }
 
 @Composable
-fun WalletSettingsHomeBody(rawCredentialsViewModel: IRawCredentialsViewModel) {
-    val scope = rememberCoroutineScope()
+fun WalletSettingsHomeBody() {
+    val context = LocalContext.current
+    val storageManager = StorageManager(context = context)
+    val credentialPacks = remember {
+        mutableStateOf(CredentialPack.loadPacks(storageManager))
+    }
 
     Column(
         Modifier
@@ -91,8 +94,8 @@ fun WalletSettingsHomeBody(rawCredentialsViewModel: IRawCredentialsViewModel) {
     ) {
         Button(
             onClick = {
-                scope.launch {
-                    rawCredentialsViewModel.deleteAllRawCredentials()
+                credentialPacks.value.forEach { credentialPack ->
+                    credentialPack.remove(storageManager)
                 }
             },
             shape = RoundedCornerShape(5.dp),

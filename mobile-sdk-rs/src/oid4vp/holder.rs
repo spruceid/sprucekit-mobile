@@ -9,7 +9,6 @@ use std::sync::Arc;
 use openid4vp::core::authorization_request::parameters::ClientIdScheme;
 use openid4vp::core::credential_format::{ClaimFormatDesignation, ClaimFormatPayload};
 use openid4vp::core::presentation_definition::PresentationDefinition;
-use openid4vp::core::response::parameters::VpTokenItem;
 use openid4vp::{
     core::{
         authorization_request::{
@@ -18,8 +17,6 @@ use openid4vp::{
             AuthorizationRequestObject,
         },
         metadata::WalletMetadata,
-        presentation_submission::{DescriptorMap, PresentationSubmission},
-        response::{parameters::VpToken, AuthorizationResponse, UnencodedAuthorizationResponse},
     },
     wallet::Wallet as OID4VPWallet,
 };
@@ -44,6 +41,7 @@ pub struct Holder {
     pub(crate) client: openid4vp::core::util::ReqwestClient,
 
     /// A list of trusted DIDs.
+    #[allow(dead_code)]
     pub(crate) trusted_dids: Vec<String>,
 
     /// Provide optional credentials to the holder instance.
@@ -100,6 +98,7 @@ impl Holder {
     pub async fn authorization_request(
         &self,
         url: Url,
+        // Callback here to allow for review of untrusted DIDs.
     ) -> Result<Arc<PermissionRequest>, OID4VPError> {
         let request = self
             .validate_request(url)
@@ -120,49 +119,12 @@ impl Holder {
         &self,
         response: Arc<PermissionResponse>,
     ) -> Result<Option<Url>, OID4VPError> {
-        // Create a descriptor map for the presentation submission based on the credentials
-        // returned from the selection response.
-        let Some(input_descriptor_id) = response
-            .presentation_definition
-            .input_descriptors()
-            .first()
-            .map(|d| d.id().to_owned())
-        else {
-            // NOTE: We may wish to add a more generic `BadRequest` error type
-            // we should always expect to have at least one input descriptor.
-            return Err(OID4VPError::InputDescriptorNotFound);
-        };
-
-        let descriptor_map =
-            self.create_descriptor_map(&response.selected_credential, input_descriptor_id);
-
-        let presentation_submission_id = uuid::Uuid::new_v4();
-        let presentation_definition_id = response.presentation_definition.id().clone();
-
-        // // Create a presentation submission.
-        let presentation_submission = PresentationSubmission::new(
-            presentation_submission_id,
-            presentation_definition_id,
-            vec![descriptor_map],
-        );
-
-        let vp_token = self
-            .create_verifiable_presentation(&response.selected_credential)
-            .await?;
-
-        let response = self
-            .submit_response(
-                response.authorization_request.clone(),
-                AuthorizationResponse::Unencoded(UnencodedAuthorizationResponse(
-                    Default::default(),
-                    vp_token,
-                    presentation_submission,
-                )),
-            )
-            .await
-            .map_err(|e| OID4VPError::ResponseSubmission(format!("{e:?}")))?;
-
-        Ok(response)
+        self.submit_response(
+            response.authorization_request.clone(),
+            response.authorization_response()?,
+        )
+        .await
+        .map_err(|e| OID4VPError::ResponseSubmission(format!("{e:?}")))
     }
 }
 
@@ -223,20 +185,6 @@ impl Holder {
         Ok(credentials)
     }
 
-    // Construct a DescriptorMap for the presentation submission based on the
-    // credentials returned from the VDC collection.
-    fn create_descriptor_map(
-        &self,
-        credential: &Arc<ParsedCredential>,
-        input_descriptor_id: String,
-    ) -> DescriptorMap {
-        DescriptorMap::new(
-            input_descriptor_id,
-            credential.format().to_string().as_str(),
-            "$.verifiableCredential".into(),
-        )
-    }
-
     // Internal method for returning the `PermissionRequest` for an oid4vp request.
     async fn permission_request(
         &self,
@@ -259,27 +207,6 @@ impl Holder {
             request,
         ))
     }
-
-    async fn create_verifiable_presentation(
-        &self,
-        credential: &Arc<ParsedCredential>,
-    ) -> Result<VpToken, OID4VPError> {
-        match &credential.inner {
-            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
-                // TODO: need to provide the "filtered" (disclosed) fields of the
-                // credential to be encoded into the VpToken.
-                //
-                // Currently, this is encoding the entire revealed SD-JWT,
-                // without the selection of individual disclosed fields.
-                let compact: &str = sd_jwt.inner.as_ref();
-                Ok(VpTokenItem::from(compact.to_string()).into())
-            }
-            _ => Err(OID4VPError::VpTokenParse(format!(
-                "Credential parsing for VP Token is not implemented for {:?}.",
-                credential,
-            ))),
-        }
-    }
 }
 
 #[async_trait::async_trait]
@@ -295,11 +222,15 @@ impl RequestVerifier for Holder {
         let resolver: VerificationMethodDIDResolver<DIDWeb, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDWeb);
 
+        // NOTE: This is temporary solution that will allow any DID to be
+        // trusted. This will be replaced by the trust manager in the future.
+        let client_id = decoded_request.client_id();
+
         verify_with_resolver(
             &self.metadata,
             decoded_request,
             request_jwt,
-            Some(self.trusted_dids.as_slice()),
+            Some(&[client_id.0.clone()]),
             &resolver,
         )
         .await?;
@@ -351,33 +282,31 @@ mod tests {
         let _id = response.0;
         let url = Url::parse(&response.1).expect("failed to parse url");
 
+        println!("Authorization URL: {url:?}");
+
         // Make a request to the OID4VP URL.
         let holder = Holder::new_with_credentials(
             vec![credential],
-            vec![
-                "did:web:localhost%3A3000:oid4vp:client".into(),
-                "did:web:f48e-99-209-178-38.ngrok-free.app:oid4vp:client".into(),
-            ],
+            vec!["did:web:localhost%3A3000:oid4vp:client".into()],
         )
         .await?;
 
         let permission_request = holder.authorization_request(url).await?;
 
-        let mut parsed_credentials = permission_request.credentials();
+        let parsed_credentials = permission_request.credentials();
 
         assert_eq!(parsed_credentials.len(), 1);
 
-        let selected_credential = parsed_credentials
-            .pop()
-            .expect("failed to retrieve a parsed credential matching the presentation definition");
+        for credential in parsed_credentials.iter() {
+            let requested_fields = permission_request.requested_fields(&credential);
 
-        let requested_fields = permission_request.requested_fields(&selected_credential);
+            println!("Requested Fields: {requested_fields:?}");
 
-        println!("Requested Fields: {requested_fields:?}");
+            assert!(requested_fields.len() > 0);
+        }
 
-        assert!(requested_fields.len() > 0);
-
-        let response = permission_request.create_permission_response(selected_credential);
+        // NOTE: passing `parsed_credentials` as `selected_credentials`.
+        let response = permission_request.create_permission_response(parsed_credentials);
 
         holder.submit_permission_response(response).await?;
 

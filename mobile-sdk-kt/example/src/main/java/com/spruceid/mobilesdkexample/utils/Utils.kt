@@ -29,6 +29,9 @@ const val keyBase64 =
 
 val trustedDids = MutableList(1) { "did:web:companion.ler-sandbox.spruceid.xyz:oid4vp:client" }
 
+val delegatedVerifierBaseUrl = "https://credible.ler-sandbox.spruceid.xyz/oid4vp"
+val delegatedVerifierUrl = "/api2/verifier/1/delegate"
+
 fun String.splitCamelCase() = replace(
     String.format(
         "%s|%s|%s",
@@ -40,6 +43,20 @@ fun String.splitCamelCase() = replace(
     .replaceFirstChar(Char::titlecase)
 
 fun String.removeUnderscores() = replace("_", "")
+
+
+
+fun String.isDate(): Boolean {
+    return lowercase().contains("date") ||
+            lowercase().contains("from") ||
+            lowercase().contains("until")
+}
+
+fun String.isImage(): Boolean {
+    return lowercase().contains("image") ||
+            lowercase().contains("portrait") ||
+            contains("data:image")
+}
 
 @Composable
 fun BitmapImage(

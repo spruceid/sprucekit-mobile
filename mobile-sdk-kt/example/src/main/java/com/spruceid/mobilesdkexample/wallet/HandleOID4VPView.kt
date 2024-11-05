@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.wallet
 
+import StorageManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -7,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -22,7 +22,6 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ParagraphStyle
@@ -50,7 +50,6 @@ import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PermissionRequest
 import com.spruceid.mobile.sdk.rs.PermissionResponse
 import com.spruceid.mobile.sdk.rs.RequestedField
-import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -66,7 +65,6 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.TextBase
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.utils.trustedDids
-import com.spruceid.mobilesdkexample.viewmodels.IRawCredentialsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -75,12 +73,15 @@ import org.json.JSONObject
 @Composable
 fun HandleOID4VPView(
     navController: NavController,
-    rawCredentialsViewModel: IRawCredentialsViewModel,
     url: String
 ) {
     val scope = rememberCoroutineScope()
 
-    val rawCredentials by rawCredentialsViewModel.rawCredentials.collectAsState()
+    val context = LocalContext.current
+    val storageManager = StorageManager(context = context)
+    val credentialPacks = remember {
+        mutableStateOf(CredentialPack.loadPacks(storageManager))
+    }
 
     var credentialClaims by remember { mutableStateOf(mapOf<String, JSONObject>()) }
     var holder by remember { mutableStateOf<Holder?>(null) }
@@ -94,24 +95,12 @@ fun HandleOID4VPView(
 
     LaunchedEffect(Unit) {
         try {
-            val credentials = rawCredentials.map { rawCredential ->
-                try {
-                    ParsedCredential
-                        // TODO: Update to use VDC collection in the future
-                        // to detect the type of credential.
-                        .newSdJwt(Vcdm2SdJwt.newFromCompactSdJwt(rawCredential.rawCredential))
-                } catch (_: Exception) {
-                    null
+            val credentials = mutableListOf<ParsedCredential>()
+            credentialPacks.value
+                .forEach { credentialPack ->
+                    credentials.addAll(credentialPack.list())
+                    credentialClaims += credentialPack.findCredentialClaims(listOf("name", "type"))
                 }
-            }.filterNotNull()
-
-            val credentialPack = CredentialPack()
-
-            credentials.forEach { credential ->
-                credential.asSdJwt()?.let { credentialPack.addSdJwt(it) }
-            }
-
-            credentialClaims = credentialPack.findCredentialClaims(listOf("name", "type"))
 
             withContext(Dispatchers.IO) {
                 holder = Holder.newWithCredentials(credentials, trustedDids);
@@ -157,7 +146,7 @@ fun HandleOID4VPView(
                                 // TODO: support multiple presentation
                                 selectedCredential = selectedCredentials.first()
                                 permissionResponse = permissionRequest!!.createPermissionResponse(
-                                    selectedCredential!!
+                                    listOf(selectedCredential!!)
                                 )
                             } catch (e: Exception) {
                                 err = e.localizedMessage
@@ -206,7 +195,7 @@ fun DataFieldSelector(
     val bullet = "\u2022"
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
     val mockDataField = requestedFields.map { field ->
-        field.name().replaceFirstChar(Char::titlecase)
+        field.name()?.replaceFirstChar(Char::titlecase) ?: ""
     }
 
     Column(
@@ -490,7 +479,7 @@ fun CredentialSelectorItem(
     val bullet = "\u2022"
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
     val mockDataField = requestedFields.map { field ->
-        field.name().replaceFirstChar(Char::titlecase)
+        field.name()?.replaceFirstChar(Char::titlecase) ?: ""
     }
 
     Column(
@@ -506,7 +495,8 @@ fun CredentialSelectorItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(end = 8.dp),
+                .padding(end = 8.dp)
+                .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
@@ -528,9 +518,9 @@ fun CredentialSelectorItem(
                 fontFamily = Inter,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
-                color = ColorStone950
+                color = ColorStone950,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(Modifier.weight(1f))
             if (expanded) {
                 Image(
                     painter = painterResource(id = R.drawable.collapse),
