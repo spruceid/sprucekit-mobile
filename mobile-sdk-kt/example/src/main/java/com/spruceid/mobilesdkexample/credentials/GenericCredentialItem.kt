@@ -449,7 +449,7 @@ class GenericCredentialItem : ICredentialView {
                         }
                     genericObjectDisplayer(
                             credential!!,
-                            listOf("id", "identifier", "type", "proof", "renderMethod", "@context")
+                            listOf("type", "hashed", "salt", "proof", "renderMethod", "@context")
                         )
                     }
                 )
