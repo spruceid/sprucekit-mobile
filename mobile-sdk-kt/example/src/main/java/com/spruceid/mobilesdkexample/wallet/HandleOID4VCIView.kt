@@ -39,8 +39,9 @@ import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
-fun OID4VCIView(
+fun HandleOID4VCIView(
     navController: NavHostController,
+    url: String
 ) {
     var loading by remember {
         mutableStateOf(false)
