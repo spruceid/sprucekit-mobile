@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "mobile-sdk-swift/**"
+  workflow_dispatch:
 
 jobs:
   push:

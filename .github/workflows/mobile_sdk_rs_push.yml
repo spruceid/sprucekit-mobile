@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "mobile-sdk-rs/**"
+  workflow_dispatch:
 
 jobs:
   push:
