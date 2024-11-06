@@ -85,8 +85,7 @@ struct HandleOID4VCIView: View {
                 ) {
                     back()
                 }
-            }
-            else if credential != nil {
+            } else if credential != nil {
                 AddToWalletView(path: _path, rawCredential: credential!)
             }
             

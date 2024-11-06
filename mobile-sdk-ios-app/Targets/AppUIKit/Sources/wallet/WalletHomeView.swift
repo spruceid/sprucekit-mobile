@@ -8,7 +8,7 @@ struct WalletHomeView: View {
     var body: some View {
         VStack {
             WalletHomeHeader(path: $path)
-            WalletHomeBody(path: $path)
+            WalletHomeBody()
         }
         .navigationBarBackButtonHidden(true)
     }
@@ -53,8 +53,6 @@ struct WalletHomeHeader: View {
 }
 
 struct WalletHomeBody: View {
-    @Binding var path: NavigationPath
-
     @State var credentialPacks: [CredentialPack] = []
     let storageManager = StorageManager()
 
