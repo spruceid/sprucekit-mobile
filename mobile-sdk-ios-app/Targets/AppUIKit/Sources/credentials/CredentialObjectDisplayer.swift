@@ -7,7 +7,7 @@ struct CredentialObjectDisplayer: View {
     init(dict: [String : GenericJSON]) {
         self.display = genericObjectDisplayer(
             object: dict,
-            filter: ["id", "identifier", "type", "proof", "renderMethod", "@context"]
+            filter: ["type", "hashed", "salt", "proof", "renderMethod", "@context"]
         )
     }
     

@@ -36,7 +36,7 @@ struct HandleOID4VPView: View {
 
             permissionRequest = try await holder!.authorizationRequest(url: Url(url))
         } catch {
-            print("Error: \(error)")
+            err = error.localizedDescription
         }
     }
 
