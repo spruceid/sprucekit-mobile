@@ -70,8 +70,11 @@ public struct ContentView: View {
                             rawCredential: addToWalletParams.rawCredential
                         )
                     }
-                    .navigationDestination(for: OID4VCI.self) { _ in
-                        OID4VCIView(path: $path)
+                    .navigationDestination(for: HandleOID4VCI.self) { handleOID4VCIParams in
+                        HandleOID4VCIView(
+                            path: $path,
+                            url: handleOID4VCIParams.url
+                        )
                     }
                     .navigationDestination(for: DispatchQR.self) { _ in
                         DispatchQRView(path: $path)

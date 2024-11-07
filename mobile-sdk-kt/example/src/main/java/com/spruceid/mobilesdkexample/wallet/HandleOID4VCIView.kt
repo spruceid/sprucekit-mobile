@@ -2,15 +2,14 @@ package com.spruceid.mobilesdkexample.wallet
 
 import android.content.Context
 import android.util.Base64
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.AsyncHttpClient
 import com.spruceid.mobile.sdk.rs.DidMethod
@@ -22,8 +21,6 @@ import com.spruceid.mobile.sdk.rs.generatePopPrepare
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
-import com.spruceid.mobilesdkexample.ScanningComponent
-import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
 import io.ktor.client.HttpClient
@@ -33,14 +30,12 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.readBytes
 import io.ktor.http.HttpMethod
 import io.ktor.util.toMap
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
 import org.json.JSONObject
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
-fun OID4VCIView(
+fun HandleOID4VCIView(
     navController: NavHostController,
+    url: String
 ) {
     var loading by remember {
         mutableStateOf(false)
@@ -53,7 +48,7 @@ fun OID4VCIView(
     }
     val ctx = LocalContext.current
 
-    fun getCredential(credentialOffer: String) {
+    LaunchedEffect(Unit) {
         loading = true
         val client = HttpClient(CIO)
         val oid4vciSession = Oid4vci.newWithAsyncClient(client = object : AsyncHttpClient {
@@ -72,77 +67,74 @@ fun OID4VCIView(
                     body = res.readBytes()
                 )
             }
-
         })
 
-        GlobalScope.async {
-            try {
-                oid4vciSession.initiateWithOffer(
-                    credentialOffer = credentialOffer,
-                    clientId = "skit-demo-wallet",
-                    redirectUrl = "https://spruceid.com"
+        try {
+            oid4vciSession.initiateWithOffer(
+                credentialOffer = url,
+                clientId = "skit-demo-wallet",
+                redirectUrl = "https://spruceid.com"
+            )
+
+            val nonce = oid4vciSession.exchangeToken()
+
+            val metadata = oid4vciSession.getMetadata()
+
+            val keyManager = KeyManager()
+            keyManager.generateSigningKey(id = "reference-app/default-signing")
+            val jwk = keyManager.getJwk(id = "reference-app/default-signing")
+
+            val signingInput = jwk?.let {
+                generatePopPrepare(
+                    audience = metadata.issuer(),
+                    nonce = nonce,
+                    didMethod = DidMethod.JWK,
+                    publicJwk = jwk,
+                    durationInSecs = null
                 )
-
-                val nonce = oid4vciSession.exchangeToken()
-
-                val metadata = oid4vciSession.getMetadata()
-
-                val keyManager = KeyManager()
-                keyManager.generateSigningKey(id = "reference-app/default-signing")
-                val jwk = keyManager.getJwk(id = "reference-app/default-signing")
-
-                val signingInput = jwk?.let {
-                    generatePopPrepare(
-                        audience = metadata.issuer(),
-                        nonce = nonce,
-                        didMethod = DidMethod.JWK,
-                        publicJwk = jwk,
-                        durationInSecs = null
-                    )
-                }
-
-                val signature = signingInput?.let {
-                    keyManager.signPayload(
-                        id = "reference-app/default-signing",
-                        payload = signingInput
-                    )
-                }
-
-                val pop = signingInput?.let {
-                    signature?.let {
-                        generatePopComplete(
-                            signingInput = signingInput,
-                            signature = Base64.encodeToString(
-                                signature,
-                                Base64.URL_SAFE
-                                        or Base64.NO_PADDING
-                                        or Base64.NO_WRAP
-                            ).toByteArray()
-                        )
-                    }
-                }
-
-                oid4vciSession.setContextMap(getVCPlaygroundOID4VCIContext(ctx = ctx))
-
-                val credentials = pop?.let {
-                    oid4vciSession.exchangeCredential(proofsOfPossession = listOf(pop))
-                }
-
-                credentials?.forEach { cred ->
-                    cred.payload.toString(Charsets.UTF_8).let {
-                        // Removes the renderMethod to avoid storage issues
-                        // TODO: Remove this when replace the storage component
-                        val json = JSONObject(it)
-                        json.remove("renderMethod")
-                        credential = json.toString()
-                    }
-                }
-            } catch (e: Exception) {
-                err = e.localizedMessage
-                e.printStackTrace()
             }
-            loading = false
+
+            val signature = signingInput?.let {
+                keyManager.signPayload(
+                    id = "reference-app/default-signing",
+                    payload = signingInput
+                )
+            }
+
+            val pop = signingInput?.let {
+                signature?.let {
+                    generatePopComplete(
+                        signingInput = signingInput,
+                        signature = Base64.encodeToString(
+                            signature,
+                            Base64.URL_SAFE
+                                    or Base64.NO_PADDING
+                                    or Base64.NO_WRAP
+                        ).toByteArray()
+                    )
+                }
+            }
+
+            oid4vciSession.setContextMap(getVCPlaygroundOID4VCIContext(ctx = ctx))
+
+            val credentials = pop?.let {
+                oid4vciSession.exchangeCredential(proofsOfPossession = listOf(pop))
+            }
+
+            credentials?.forEach { cred ->
+                cred.payload.toString(Charsets.UTF_8).let {
+                    // Removes the renderMethod to avoid storage issues
+                    // TODO: Optimize credential decrypt and display
+                    val json = JSONObject(it)
+                    json.remove("renderMethod")
+                    credential = json.toString()
+                }
+            }
+        } catch (e: Exception) {
+            err = e.localizedMessage
+            e.printStackTrace()
         }
+        loading = false
     }
 
     if (loading) {
@@ -157,14 +149,7 @@ fun OID4VCIView(
                 }
             }
         )
-    } else if (credential == null) {
-        ScanningComponent(
-            title = "Scan to Add Credential",
-            navController = navController,
-            scanningType = ScanningType.QRCODE,
-            onRead = ::getCredential
-        )
-    } else {
+    } else if (credential != null) {
         AddToWalletView(
             navController = navController,
             rawCredential = credential!!,

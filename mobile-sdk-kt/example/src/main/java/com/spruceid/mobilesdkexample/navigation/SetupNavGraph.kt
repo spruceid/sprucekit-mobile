@@ -16,8 +16,8 @@ import com.spruceid.mobilesdkexample.verifier.VerifyVCView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
+import com.spruceid.mobilesdkexample.wallet.HandleOID4VCIView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VPView
-import com.spruceid.mobilesdkexample.wallet.OID4VCIView
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
 
 @Composable
@@ -87,8 +87,11 @@ fun SetupNavGraph(
             route = Screen.ScanQRScreen.route,
         ) { DispatchQRView(navController) }
         composable(
-            route = Screen.OID4VCIScreen.route,
-        ) { OID4VCIView(navController) }
+            route = Screen.HandleOID4VCI.route,
+        ) { backStackEntry ->
+            val url = backStackEntry.arguments?.getString("url")!!
+            HandleOID4VCIView(navController, url)
+        }
         composable(
             route = Screen.HandleOID4VP.route,
             deepLinks = listOf(navDeepLink { uriPattern = "openid4vp://{url}" })

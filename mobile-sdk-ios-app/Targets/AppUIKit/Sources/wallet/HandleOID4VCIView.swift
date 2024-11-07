@@ -2,15 +2,18 @@ import SwiftUI
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 
-struct OID4VCI: Hashable {}
+struct HandleOID4VCI: Hashable {
+    var url: String
+}
 
-struct OID4VCIView: View {
+struct HandleOID4VCIView: View {
     @State var loading: Bool = false
     @State var err: String?
     @State var credential: String?
     @State var credentialPack: CredentialPack?
     
     @Binding var path: NavigationPath
+    let url: String
     
     func getCredential(credentialOffer: String) {
         loading = true
@@ -72,32 +75,23 @@ struct OID4VCIView: View {
     }
     
     var body: some View {
-        if loading {
-            LoadingView(loadingText: "Loading...")
-        } else if err != nil {
-            ErrorView(
-                errorTitle: "Error Adding Credential",
-                errorDetails: err!
-            ) {
-                back()
+        ZStack {
+            if loading {
+                LoadingView(loadingText: "Loading...")
+            } else if err != nil {
+                ErrorView(
+                    errorTitle: "Error Adding Credential",
+                    errorDetails: err!
+                ) {
+                    back()
+                }
+            } else if credential != nil {
+                AddToWalletView(path: _path, rawCredential: credential!)
             }
-        } else if credential == nil {
-            ScanningComponent(
-                path: $path,
-                scanningParams: Scanning(
-                    title: "Scan to Add Credential",
-                    scanningType: .qrcode,
-                    onCancel: {
-                        path.removeLast()
-                    },
-                    onRead: { code in
-                        getCredential(credentialOffer: code)
-                    }
-                )
-            )
-        } else {
-            AddToWalletView(path: _path, rawCredential: credential!)
-        }
+            
+        }.onAppear(perform: {
+            getCredential(credentialOffer: url)
+        })
     }
 }
 

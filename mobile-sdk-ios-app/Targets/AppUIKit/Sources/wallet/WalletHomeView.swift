@@ -8,7 +8,7 @@ struct WalletHomeView: View {
     var body: some View {
         VStack {
             WalletHomeHeader(path: $path)
-            WalletHomeBody(path: $path)
+            WalletHomeBody()
         }
         .navigationBarBackButtonHidden(true)
     }
@@ -25,7 +25,7 @@ struct WalletHomeHeader: View {
                 .foregroundStyle(Color("TextHeader"))
             Spacer()
             Button {
-                path.append(OID4VCI())
+                path.append(DispatchQR())
             } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
@@ -53,8 +53,6 @@ struct WalletHomeHeader: View {
 }
 
 struct WalletHomeBody: View {
-    @Binding var path: NavigationPath
-
     @State var credentialPacks: [CredentialPack] = []
     let storageManager = StorageManager()
 
@@ -80,35 +78,8 @@ struct WalletHomeBody: View {
                             }
                             //                    ShareableCredentialListItem(mdoc: mdocBase64)
                         }
-                        .padding(.bottom, 60)
                     }
                     .padding(.top, 20)
-
-                    VStack {
-                        Spacer()
-                        Button(action: {
-                            path.append(DispatchQR())
-                        }) {
-                            HStack {
-                                Image("QRCodeReader")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 20, height: 20)
-                                    .foregroundColor(.white)
-                                Text("Scan to share")
-                                    .font(.system(size: 15))
-                                    .fontWeight(.regular)
-                                    .foregroundColor(.white)
-                            }
-                            .padding(14)
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                Color("CTAButtonBlue")
-                            )
-                            .cornerRadius(100)
-                        }
-                        .padding()
-                    }
                 }
             } else {
                 ZStack {
