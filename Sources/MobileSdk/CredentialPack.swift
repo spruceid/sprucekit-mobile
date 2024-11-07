@@ -236,6 +236,21 @@ struct CredentialPackContents {
         return CredentialPack(id: self.id, credentials: credentials)
     }
 
+    /// Clears all CredentialPacks.
+    public static func clear(storageManager: StorageManagerInterface) throws {
+        do {
+            try storageManager.list()
+                .filter { file in
+                    file.hasPrefix(Self.storagePrefix)
+                }
+                .forEach { file in
+                    try storageManager.remove(key: file)
+                }
+        } catch {
+            throw CredentialPackError.clearing(reason: error)
+        }
+    }
+
     /// Lists all CredentialPacks.
     ///
     /// These can then be individually loaded. For eager loading of all packs, see `CredentialPack.loadAll`.
@@ -312,6 +327,8 @@ enum CredentialPackError: Error {
     case missing(file: String)
     /// Failed to list CredentialPackContents from storage.
     case listing(reason: Error)
+    /// Failed to clear CredentialPacks from storage.
+    case clearing(reason: Error)
     /// Failed to remove CredentialPackContents from storage.
     case removing(reason: Error)
     /// Failed to save CredentialPackContents to storage.
