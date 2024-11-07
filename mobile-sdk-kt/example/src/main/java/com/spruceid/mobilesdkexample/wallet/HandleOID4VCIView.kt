@@ -124,7 +124,7 @@ fun HandleOID4VCIView(
             credentials?.forEach { cred ->
                 cred.payload.toString(Charsets.UTF_8).let {
                     // Removes the renderMethod to avoid storage issues
-                    // TODO: Remove this when replace the storage component
+                    // TODO: Optimize credential decrypt and display
                     val json = JSONObject(it)
                     json.remove("renderMethod")
                     credential = json.toString()
