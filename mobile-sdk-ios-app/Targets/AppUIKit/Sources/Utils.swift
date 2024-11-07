@@ -73,6 +73,25 @@ func generateQRCode(from data: Data) -> UIImage {
     return UIImage(systemName: "xmark.circle") ?? UIImage()
 }
 
+func generateTxtFile(content: String, filename: String) -> URL? {
+    var fileURL: URL!
+    do {
+        let path = try FileManager.default.url(for: .documentDirectory,
+                                               in: .allDomainsMask,
+                                               appropriateFor: nil,
+                                               create: false)
+
+        fileURL = path.appendingPathComponent(filename)
+
+        // append content to file
+        try content.write(to: fileURL, atomically: true , encoding: .utf8)
+        return fileURL
+    } catch {
+        print("error generating .txt file")
+    }
+    return nil
+}
+
 let ed25519_2020_10_18 =
 "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"G80iskrv_nE69qbGLSpeOHJgmV4MKIzsy5l5iT6pCww\",\"d\":\"39Ev8-k-jkKunJyFWog3k0OwgPjnKv_qwLhfqXdAXTY\"}"
 

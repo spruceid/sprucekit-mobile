@@ -111,6 +111,18 @@ struct AchievementCredentialItem: ICredentialView {
                             .onTapGesture {
                                 optionsOpen = true
                             }
+                            .confirmationDialog(
+                                Text("Credential Options"),
+                                isPresented: $optionsOpen,
+                                titleVisibility: .visible,
+                                actions: {
+                                    CredentialOptionsDialogActions(
+                                        onDelete: onDelete,
+                                        exportFileName: "\(title ?? "credential").txt",
+                                        credentialPack: credentialPack
+                                    )
+                                }
+                            )
                         }
                         .padding(.trailing, -12)
                         HStack {
@@ -125,17 +137,6 @@ struct AchievementCredentialItem: ICredentialView {
                 descriptionKeys: ["description", "issuer"],
                 descriptionFormatter: descriptionFormatter
             ))
-        )
-        .confirmationDialog(
-            Text("Credential Options"),
-            isPresented: $optionsOpen,
-            titleVisibility: .visible,
-            actions: {
-                if(onDelete != nil) {
-                    Button("Delete", role: .destructive) { onDelete?() }
-                }
-                Button("Cancel", role: .cancel) { }
-            }
         )
     }
     
