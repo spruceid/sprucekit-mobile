@@ -17,9 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
@@ -27,13 +24,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,7 +36,6 @@ import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.navigation.Screen
-import com.spruceid.mobilesdkexample.ui.theme.CTAButtonBlue
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.Primary
@@ -55,9 +48,7 @@ fun WalletHomeView(navController: NavController) {
             .padding(all = 20.dp)
             .padding(top = 20.dp)) {
         WalletHomeHeader(navController = navController)
-        WalletHomeBody(
-            navController = navController
-        )
+        WalletHomeBody()
     }
 }
 
@@ -81,7 +72,7 @@ fun WalletHomeHeader(navController: NavController) {
                 .padding(start = 4.dp)
                 .clip(shape = RoundedCornerShape(8.dp))
                 .background(Primary)
-                .clickable { navController.navigate(Screen.OID4VCIScreen.route) }
+                .clickable { navController.navigate(Screen.ScanQRScreen.route) }
         ) {
             Image(
                 painter = painterResource(id = R.drawable.qrcode_scanner),
@@ -117,7 +108,7 @@ fun WalletHomeHeader(navController: NavController) {
 }
 
 @Composable
-fun WalletHomeBody(navController: NavController) {
+fun WalletHomeBody() {
     val context = LocalContext.current
     val storageManager = StorageManager(context = context)
     val credentialPacks = remember {
@@ -130,7 +121,7 @@ fun WalletHomeBody(navController: NavController) {
                 Modifier
                     .fillMaxWidth()
                     .padding(top = 20.dp)
-                    .padding(bottom = 60.dp)) {
+            ) {
                 items(credentialPacks.value) { credentialPack ->
                     GenericCredentialItem(
                         credentialPack = credentialPack,
@@ -144,35 +135,6 @@ fun WalletHomeBody(navController: NavController) {
                 //        item {
                 //            ShareableCredentialListItems(mdocBase64 = mdocBase64)
                 //        }
-            }
-
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                Button(
-                    onClick = { navController.navigate(Screen.ScanQRScreen.route) },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors =
-                    ButtonDefaults.buttonColors(
-                        containerColor = CTAButtonBlue,
-                        contentColor = Color.White,
-                    )
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(8.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.qrcode_scanner),
-                            contentDescription = stringResource(id = R.string.qrcode_scanner),
-                            modifier = Modifier.padding(end = 10.dp)
-                        )
-                        Text(
-                            text = "Scan to share",
-                            fontFamily = Inter,
-                            fontWeight = FontWeight.Normal,
-                            fontSize = 15.sp,
-                        )
-                    }
-                }
             }
         }
     } else {
