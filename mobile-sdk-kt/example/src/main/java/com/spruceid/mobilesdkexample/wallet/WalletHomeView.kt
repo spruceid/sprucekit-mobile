@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.wallet
 
-import StorageManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,25 +13,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.navigation.Screen
@@ -40,15 +37,19 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.Primary
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 
 @Composable
-fun WalletHomeView(navController: NavController) {
+fun WalletHomeView(
+    navController: NavController,
+    credentialPacksViewModel: CredentialPacksViewModel
+) {
     Column(
         Modifier
             .padding(all = 20.dp)
             .padding(top = 20.dp)) {
         WalletHomeHeader(navController = navController)
-        WalletHomeBody()
+        WalletHomeBody(credentialPacksViewModel = credentialPacksViewModel)
     }
 }
 
@@ -108,26 +109,22 @@ fun WalletHomeHeader(navController: NavController) {
 }
 
 @Composable
-fun WalletHomeBody() {
-    val context = LocalContext.current
-    val storageManager = StorageManager(context = context)
-    val credentialPacks = remember {
-        mutableStateOf(CredentialPack.loadPacks(storageManager))
-    }
+fun WalletHomeBody(credentialPacksViewModel: CredentialPacksViewModel) {
+    val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
 
-    if (credentialPacks.value.isNotEmpty()) {
+    if (credentialPacks.isNotEmpty()) {
         Box(modifier = Modifier.fillMaxSize()) {
-            LazyColumn(
+            Column(
                 Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(top = 20.dp)
             ) {
-                items(credentialPacks.value) { credentialPack ->
+                credentialPacks.forEach { credentialPack ->
                     GenericCredentialItem(
                         credentialPack = credentialPack,
                         onDelete = {
-                            credentialPack.remove(storageManager)
-                            credentialPacks.value = CredentialPack.loadPacks(storageManager)
+                            credentialPacksViewModel.deleteCredentialPack(credentialPack)
                         }
                     )
                     .credentialPreviewAndDetails()

@@ -20,16 +20,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobilesdkexample.ui.theme.Bg
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 import com.spruceid.mobilesdkexample.verifier.VerifierHomeView
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.wallet.WalletHomeView
 
@@ -41,7 +38,8 @@ enum class HomeTabs {
 @Composable
 fun HomeView(
     navController: NavController,
-    verificationMethodsViewModel: VerificationMethodsViewModel
+    verificationMethodsViewModel: VerificationMethodsViewModel,
+    credentialPacksViewModel: CredentialPacksViewModel
 ) {
     var tab by remember {
         mutableStateOf(HomeTabs.WALLET)
@@ -92,7 +90,10 @@ fun HomeView(
     ) {
         Box(modifier = Modifier.padding(bottom = 30.dp)) {
             if (tab == HomeTabs.WALLET) {
-                WalletHomeView(navController)
+                WalletHomeView(
+                    navController,
+                    credentialPacksViewModel = credentialPacksViewModel
+                )
             } else {
                 VerifierHomeView(
                     navController = navController,
