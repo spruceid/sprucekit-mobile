@@ -20,7 +20,6 @@ struct VerifyDLView: View {
                         path.removeLast()
                     },
                     onRead: { code in
-                        print(code)
                         Task {
                             do {
                                 try await verifyPdf417Barcode(payload: code)

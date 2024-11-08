@@ -67,26 +67,22 @@ struct VerifierHomeBody: View {
                         }
                 }
 
-//                VerifierListItem(
-//                    title: "Driver's License Document",
-//                    description: "Verifies physical driver's licenses issued by the state of Utopia",
-//                    binary: true,
-//                    fields: 0
-//                ).onTapGesture {
-//                    path.append(VerifyDL())
-//                }
+                VerifierListItem(
+                    title: "Driver's License Document",
+                    description: "Verifies physical driver's licenses issued by the state of Utopia",
+                    type: VerifierListItemTagType.SCAN_QR_CODE
+                ).onTapGesture {
+                    path.append(VerifyDL())
+                }
 
-                // Over 21
-//                VerifierListItem(
-//                    title: "Employment Authorization Document",
-//                    description: "Verifies physical Employment Authorization issued by the state of Utopia",
-//                    binary: true,
-//                    fields: 0
-//                ).onTapGesture {
-//                    path.append(VerifyEA())
-//                }
+                VerifierListItem(
+                    title: "Employment Authorization Document",
+                    description: "Verifies physical Employment Authorization issued by the state of Utopia",
+                    type: VerifierListItemTagType.SCAN_QR_CODE
+                ).onTapGesture {
+                    path.append(VerifyEA())
+                }
 
-                // VC
                 VerifierListItem(
                     title: "Verifiable Credential",
                     description: "Verifies a Verifiable credential by reading the Verifiable Presentation QR Code",
@@ -95,10 +91,9 @@ struct VerifierHomeBody: View {
                     path.append(VerifyVC())
                 }
 
-                // MDoc
                 VerifierListItem(
-                    title: "MDoc",
-                    description: "Verifies a MDoc by reading the Presentation QR Code",
+                    title: "Mobile Driver's License",
+                    description: "Verifies an ISO formatted mobile driver's license by reading a QR code",
                     type: VerifierListItemTagType.SCAN_QR_CODE
                 ).onTapGesture {
                     path.append(VerifyMDoc())
