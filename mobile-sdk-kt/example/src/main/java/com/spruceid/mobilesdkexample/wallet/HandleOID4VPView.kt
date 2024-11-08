@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.wallet
 
-import StorageManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ParagraphStyle
@@ -44,7 +42,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.rs.Holder
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PermissionRequest
@@ -65,6 +62,7 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.TextBase
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.utils.trustedDids
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -73,15 +71,11 @@ import org.json.JSONObject
 @Composable
 fun HandleOID4VPView(
     navController: NavController,
-    url: String
+    url: String,
+    credentialPacksViewModel: CredentialPacksViewModel
 ) {
     val scope = rememberCoroutineScope()
-
-    val context = LocalContext.current
-    val storageManager = StorageManager(context = context)
-    val credentialPacks = remember {
-        mutableStateOf(CredentialPack.loadPacks(storageManager))
-    }
+    val credentialPacks = credentialPacksViewModel.credentialPacks
 
     var credentialClaims by remember { mutableStateOf(mapOf<String, JSONObject>()) }
     var holder by remember { mutableStateOf<Holder?>(null) }

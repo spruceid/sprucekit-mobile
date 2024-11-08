@@ -18,6 +18,8 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.navigation.SetupNavGraph
 import com.spruceid.mobilesdkexample.ui.theme.Bg
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModelFactory
 
@@ -69,7 +71,15 @@ class MainActivity : ComponentActivity() {
                         VerificationMethodsViewModelFactory((application as MainApplication).verificationMethodsRepository)
                      }
 
-                    SetupNavGraph(navController, verificationMethodsViewModel = verificationMethodsViewModel)
+                    val credentialPacksViewModel: CredentialPacksViewModel by viewModels {
+                        CredentialPacksViewModelFactory(application as MainApplication)
+                    }
+
+                    SetupNavGraph(
+                        navController,
+                        verificationMethodsViewModel = verificationMethodsViewModel,
+                        credentialPacksViewModel = credentialPacksViewModel
+                    )
                 }
             }
         }

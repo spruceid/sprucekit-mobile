@@ -23,6 +23,7 @@ import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request
@@ -30,12 +31,12 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.readBytes
 import io.ktor.http.HttpMethod
 import io.ktor.util.toMap
-import org.json.JSONObject
 
 @Composable
 fun HandleOID4VCIView(
     navController: NavHostController,
-    url: String
+    url: String,
+    credentialPacksViewModel: CredentialPacksViewModel
 ) {
     var loading by remember {
         mutableStateOf(false)
@@ -123,11 +124,7 @@ fun HandleOID4VCIView(
 
             credentials?.forEach { cred ->
                 cred.payload.toString(Charsets.UTF_8).let {
-                    // Removes the renderMethod to avoid storage issues
-                    // TODO: Optimize credential decrypt and display
-                    val json = JSONObject(it)
-                    json.remove("renderMethod")
-                    credential = json.toString()
+                    credential = it
                 }
             }
         } catch (e: Exception) {
@@ -153,6 +150,7 @@ fun HandleOID4VCIView(
         AddToWalletView(
             navController = navController,
             rawCredential = credential!!,
+            credentialPacksViewModel = credentialPacksViewModel
         )
     }
 }
