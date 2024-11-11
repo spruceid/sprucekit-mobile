@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobile.sdk.rs.verifyVcbQrcodeAgainstMrz
+import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import kotlinx.coroutines.GlobalScope
@@ -69,7 +70,9 @@ fun VerifyEAView(
         }
 
         VerifyEASteps.INTERMEDIATE -> {
-            Loader()
+            LoadingView(
+                loadingText = "Verifying..."
+            )
         }
 
         VerifyEASteps.STEP_TWO -> {
