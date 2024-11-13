@@ -34,47 +34,51 @@ import io.ktor.util.toMap
 
 @Composable
 fun HandleOID4VCIView(
-    navController: NavHostController,
-    url: String,
-    credentialPacksViewModel: CredentialPacksViewModel
+        navController: NavHostController,
+        url: String,
+        credentialPacksViewModel: CredentialPacksViewModel
 ) {
-    var loading by remember {
-        mutableStateOf(false)
-    }
-    var err by remember {
-        mutableStateOf<String?>(null)
-    }
-    var credential by remember {
-        mutableStateOf<String?>(null)
-    }
+    var loading by remember { mutableStateOf(false) }
+    var err by remember { mutableStateOf<String?>(null) }
+    var credential by remember { mutableStateOf<String?>(null) }
     val ctx = LocalContext.current
 
     LaunchedEffect(Unit) {
         loading = true
         val client = HttpClient(CIO)
-        val oid4vciSession = Oid4vci.newWithAsyncClient(client = object : AsyncHttpClient {
-            override suspend fun httpClient(request: HttpRequest): HttpResponse {
-                val res = client.request(request.url) {
-                    method = HttpMethod(request.method)
-                    for ((k, v) in request.headers) {
-                        headers[k] = v
-                    }
-                    setBody(request.body)
-                }
+        val oid4vciSession =
+                Oid4vci.newWithAsyncClient(
+                        client =
+                                object : AsyncHttpClient {
+                                    override suspend fun httpClient(
+                                            request: HttpRequest
+                                    ): HttpResponse {
+                                        val res =
+                                                client.request(request.url) {
+                                                    method = HttpMethod(request.method)
+                                                    for ((k, v) in request.headers) {
+                                                        headers[k] = v
+                                                    }
+                                                    setBody(request.body)
+                                                }
 
-                return HttpResponse(
-                    statusCode = res.status.value.toUShort(),
-                    headers = res.headers.toMap().mapValues { it.value.joinToString() },
-                    body = res.readBytes()
+                                        return HttpResponse(
+                                                statusCode = res.status.value.toUShort(),
+                                                headers =
+                                                        res.headers.toMap().mapValues {
+                                                            it.value.joinToString()
+                                                        },
+                                                body = res.readBytes()
+                                        )
+                                    }
+                                }
                 )
-            }
-        })
 
         try {
             oid4vciSession.initiateWithOffer(
-                credentialOffer = url,
-                clientId = "skit-demo-wallet",
-                redirectUrl = "https://spruceid.com"
+                    credentialOffer = url,
+                    clientId = "skit-demo-wallet",
+                    redirectUrl = "https://spruceid.com"
             )
 
             val nonce = oid4vciSession.exchangeToken()
@@ -85,47 +89,49 @@ fun HandleOID4VCIView(
             keyManager.generateSigningKey(id = "reference-app/default-signing")
             val jwk = keyManager.getJwk(id = "reference-app/default-signing")
 
-            val signingInput = jwk?.let {
-                generatePopPrepare(
-                    audience = metadata.issuer(),
-                    nonce = nonce,
-                    didMethod = DidMethod.JWK,
-                    publicJwk = jwk,
-                    durationInSecs = null
-                )
-            }
+            val signingInput =
+                    jwk?.let {
+                        generatePopPrepare(
+                                audience = metadata.issuer(),
+                                nonce = nonce,
+                                didMethod = DidMethod.JWK,
+                                publicJwk = jwk,
+                                durationInSecs = null
+                        )
+                    }
 
-            val signature = signingInput?.let {
-                keyManager.signPayload(
-                    id = "reference-app/default-signing",
-                    payload = signingInput
-                )
-            }
+            val signature =
+                    signingInput?.let {
+                        keyManager.signPayload(
+                                id = "reference-app/default-signing",
+                                payload = signingInput
+                        )
+                    }
 
-            val pop = signingInput?.let {
-                signature?.let {
-                    generatePopComplete(
-                        signingInput = signingInput,
-                        signature = Base64.encodeToString(
-                            signature,
-                            Base64.URL_SAFE
-                                    or Base64.NO_PADDING
-                                    or Base64.NO_WRAP
-                        ).toByteArray()
-                    )
-                }
-            }
+            val pop =
+                    signingInput?.let {
+                        signature?.let {
+                            generatePopComplete(
+                                    signingInput = signingInput,
+                                    signature =
+                                            Base64.encodeToString(
+                                                            signature,
+                                                            Base64.URL_SAFE or
+                                                                    Base64.NO_PADDING or
+                                                                    Base64.NO_WRAP
+                                                    )
+                                                    .toByteArray()
+                            )
+                        }
+                    }
 
             oid4vciSession.setContextMap(getVCPlaygroundOID4VCIContext(ctx = ctx))
 
-            val credentials = pop?.let {
-                oid4vciSession.exchangeCredential(proofsOfPossession = listOf(pop))
-            }
+            val credentials =
+                    pop?.let { oid4vciSession.exchangeCredential(proofsOfPossession = listOf(pop)) }
 
             credentials?.forEach { cred ->
-                cred.payload.toString(Charsets.UTF_8).let {
-                    credential = it
-                }
+                cred.payload.toString(Charsets.UTF_8).let { credential = it }
             }
         } catch (e: Exception) {
             err = e.localizedMessage
@@ -138,82 +144,100 @@ fun HandleOID4VCIView(
         LoadingView(loadingText = "Loading...")
     } else if (err != null) {
         ErrorView(
-            errorTitle = "Error Adding Credential",
-            errorDetails = err!!,
-            onClose = {
-                navController.navigate(Screen.HomeScreen.route) {
-                    popUpTo(0)
-                }
-            }
+                errorTitle = "Error Adding Credential",
+                errorDetails = err!!,
+                onClose = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } }
         )
     } else if (credential != null) {
         AddToWalletView(
-            navController = navController,
-            rawCredential = credential!!,
-            credentialPacksViewModel = credentialPacksViewModel
+                navController = navController,
+                rawCredential = credential!!,
+                credentialPacksViewModel = credentialPacksViewModel
         )
     }
 }
-
 
 fun getVCPlaygroundOID4VCIContext(ctx: Context): Map<String, String> {
     val context = mutableMapOf<String, String>()
 
     context["https://contexts.vcplayground.org/examples/alumni/v1.json"] =
-        ctx.resources.openRawResource(R.raw.contexts_vcplayground_org_examples_alumni_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
+            ctx.resources
+                    .openRawResource(R.raw.contexts_vcplayground_org_examples_alumni_v1)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
 
     context["https://w3id.org/first-responder/v1"] =
-        ctx.resources.openRawResource(R.raw.w3id_org_first_responder_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
+            ctx.resources
+                    .openRawResource(R.raw.w3id_org_first_responder_v1)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
 
     context["https://w3id.org/vdl/aamva/v1"] =
-        ctx.resources.openRawResource(R.raw.w3id_org_vdl_aamva_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
+            ctx.resources
+                    .openRawResource(R.raw.w3id_org_vdl_aamva_v1)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
 
     context["https://w3id.org/citizenship/v3"] =
-        ctx.resources.openRawResource(R.raw.w3id_org_citizenship_v3)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
+            ctx.resources
+                    .openRawResource(R.raw.w3id_org_citizenship_v3)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
 
     context["https://contexts.vcplayground.org/examples/movie-ticket/v1.json"] =
-        ctx.resources.openRawResource(R.raw.contexts_vcplayground_org_examples_movie_ticket_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
+            ctx.resources
+                    .openRawResource(R.raw.contexts_vcplayground_org_examples_movie_ticket_v1)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
 
     context["https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"] =
-        ctx.resources.openRawResource(R.raw.purl_imsglobal_org_spec_ob_v3p0_context_3_0_2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
+            ctx.resources
+                    .openRawResource(R.raw.purl_imsglobal_org_spec_ob_v3p0_context_3_0_2)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
 
     context["https://contexts.vcplayground.org/examples/food-safety-certification/v1.json"] =
-        ctx.resources.openRawResource(R.raw.contexts_vcplayground_org_examples_food_safety_certification_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
+            ctx.resources
+                    .openRawResource(
+                            R.raw.contexts_vcplayground_org_examples_food_safety_certification_v1
+                    )
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
 
     context["https://contexts.vcplayground.org/examples/gs1-8110-coupon/v2.json"] =
-        ctx.resources.openRawResource(R.raw.contexts_vcplayground_org_examples_gs1_8110_coupon_v2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
+            ctx.resources
+                    .openRawResource(R.raw.contexts_vcplayground_org_examples_gs1_8110_coupon_v2)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
 
     context["https://contexts.vcplayground.org/examples/customer-loyalty/v1.json"] =
-        ctx.resources.openRawResource(R.raw.contexts_vcplayground_org_examples_customer_loyalty_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
+            ctx.resources
+                    .openRawResource(R.raw.contexts_vcplayground_org_examples_customer_loyalty_v1)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
+
+    context["https://w3id.org/citizenship/v4rc1"] =
+            ctx.resources
+                    .openRawResource(R.raw.w3id_org_citizenship_v4rc1)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
+
+    context["https://w3id.org/vc/render-method/v2rc1"] =
+            ctx.resources
+                    .openRawResource(R.raw.w3id_org_vc_render_method_v2rc1)
+                    .bufferedReader()
+                    .readLines()
+                    .joinToString("")
 
     return context
 }
-
-
