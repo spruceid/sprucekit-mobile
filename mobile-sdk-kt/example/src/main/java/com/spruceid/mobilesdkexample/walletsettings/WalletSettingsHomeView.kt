@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.ui.theme.VerifiedRedInvalid
@@ -34,16 +35,20 @@ fun WalletSettingsHomeView(
     navController: NavController,
     credentialPacksViewModel: CredentialPacksViewModel
 ) {
+    fun back() {
+        navController.navigate(
+            Screen.HomeScreen.route.replace("{tab}", "wallet")
+        ) {
+            popUpTo(0)
+        }
+    }
+
     Column(
         Modifier
             .padding(all = 20.dp)
             .padding(top = 20.dp)
     ) {
-        WalletSettingsHomeHeader(
-            onBack = {
-                navController.popBackStack()
-            }
-        )
+        WalletSettingsHomeHeader(onBack = ::back)
         WalletSettingsHomeBody(credentialPacksViewModel)
     }
 }

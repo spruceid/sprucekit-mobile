@@ -39,7 +39,9 @@ fun DispatchQRView(
     var loading by remember { mutableStateOf(false) }
 
     fun back() {
-        navController.navigate(Screen.HomeScreen.route) {
+        navController.navigate(
+            Screen.HomeScreen.route.replace("{tab}", "wallet")
+        ) {
             popUpTo(0)
         }
     }
@@ -84,7 +86,6 @@ fun DispatchQRView(
         LoadingView(loadingText = "Loading...")
     } else {
         ScanningComponent(
-            navController = navController,
             scanningType = ScanningType.QRCODE,
             onRead = ::onRead,
             onCancel = ::back

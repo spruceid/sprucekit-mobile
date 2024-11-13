@@ -13,6 +13,7 @@ import com.spruceid.mobile.sdk.rs.verifyVcbQrcodeAgainstMrz
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
+import com.spruceid.mobilesdkexample.navigation.Screen
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
@@ -59,13 +60,21 @@ fun VerifyEAView(
         }
     }
 
+    fun back() {
+        navController.navigate(
+            Screen.HomeScreen.route.replace("{tab}", "verifier")
+        ) {
+            popUpTo(0)
+        }
+    }
+
     when (step) {
         VerifyEASteps.STEP_ONE -> {
             ScanningComponent(
                 subtitle = "Scan the front of your\nemployment authorization",
-                navController = navController,
                 scanningType = ScanningType.QRCODE,
-                onRead = ::onReadStepOne
+                onRead = ::onReadStepOne,
+                onCancel = ::back
             )
         }
 
@@ -79,17 +88,17 @@ fun VerifyEAView(
             ScanningComponent(
                 title = "Scan MRZ",
                 subtitle = "Scan the back of your document",
-                navController = navController,
                 scanningType = ScanningType.MRZ,
-                onRead = ::onReadStepTwo
+                onRead = ::onReadStepTwo,
+                onCancel = ::back
             )
         }
 
         VerifyEASteps.SUCCESS -> {
             VerifierBinarySuccessView(
-                navController = navController,
                 success = success!!,
-                description = if (success!!) "Valid Employment Authorization" else "Invalid Employment Authorization"
+                description = if (success!!) "Valid Employment Authorization" else "Invalid Employment Authorization",
+                onClose = ::back
             )
         }
     }

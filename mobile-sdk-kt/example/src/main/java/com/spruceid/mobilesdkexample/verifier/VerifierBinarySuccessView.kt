@@ -26,9 +26,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
@@ -39,9 +36,9 @@ import com.spruceid.mobilesdkexample.ui.theme.VerifierCloseButton
 
 @Composable
 fun VerifierBinarySuccessView(
-    navController: NavController,
     success: Boolean,
-    description: String
+    description: String,
+    onClose: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -124,9 +121,7 @@ fun VerifierBinarySuccessView(
         Spacer(modifier = Modifier.weight(1f))
 
         Button(
-            onClick = {
-                navController.popBackStack()
-            },
+            onClick = onClose,
             shape = RoundedCornerShape(5.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = VerifierCloseButton,
@@ -148,12 +143,10 @@ fun VerifierBinarySuccessView(
 @Preview(showBackground = true)
 @Composable
 fun VerifierBinarySuccessViewPreview() {
-    val navController: NavHostController = rememberNavController()
     MobileSdkTheme {
         VerifierBinarySuccessView(
-            navController = navController,
             success = true,
             description = "Valid"
-        )
+        ) {}
     }
 }

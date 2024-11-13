@@ -1,6 +1,6 @@
 package com.spruceid.mobilesdkexample.navigation
 
-const val HOME_SCREEN_PATH = "home"
+const val HOME_SCREEN_PATH = "home/{tab}"
 const val VERIFY_DL_PATH = "verify_dl"
 const val VERIFY_EA_PATH = "verify_ea"
 const val VERIFY_VC_PATH = "verify_vc"

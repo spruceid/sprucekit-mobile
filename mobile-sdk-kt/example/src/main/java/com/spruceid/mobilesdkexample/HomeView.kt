@@ -51,11 +51,16 @@ enum class HomeTabs {
 @Composable
 fun HomeView(
     navController: NavController,
+    initialTab: String,
     verificationMethodsViewModel: VerificationMethodsViewModel,
     credentialPacksViewModel: CredentialPacksViewModel
 ) {
     var tab by remember {
-        mutableStateOf(HomeTabs.WALLET)
+        if (initialTab == "verifier") {
+            mutableStateOf(HomeTabs.VERIFIER)
+        } else {
+            mutableStateOf(HomeTabs.WALLET)
+        }
     }
 
     Scaffold(

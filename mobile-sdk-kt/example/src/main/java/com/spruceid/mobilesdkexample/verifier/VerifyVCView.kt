@@ -11,6 +11,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobile.sdk.rs.verifyJwtVp
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
+import com.spruceid.mobilesdkexample.navigation.Screen
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
@@ -35,17 +36,25 @@ fun VerifyVCView(
         }
     }
 
+    fun back() {
+        navController.navigate(
+            Screen.HomeScreen.route.replace("{tab}", "verifier")
+        ) {
+            popUpTo(0)
+        }
+    }
+
     if (success == null) {
         ScanningComponent(
-            navController = navController,
             scanningType = ScanningType.QRCODE,
-            onRead = ::onRead
+            onRead = ::onRead,
+            onCancel = ::back
         )
     } else {
         VerifierBinarySuccessView(
-            navController = navController,
             success = success!!,
-            description = if (success!!) "Valid Verifiable Credential" else "Invalid Verifiable Credential"
+            description = if (success!!) "Valid Verifiable Credential" else "Invalid Verifiable Credential",
+            onClose = ::back
         )
     }
 }

@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -43,13 +42,12 @@ enum class ScanningType {
 @ExperimentalPermissionsApi
 @Composable
 fun ScanningComponent(
-    navController: NavController,
     scanningType: ScanningType,
     title: String = "Scan QR Code",
     subtitle: String = "Please align within the guides",
     onRead: (content: String) -> Unit,
     isMatch: (content: String) -> Boolean = { _ -> true },
-    onCancel: (() -> Unit)? = null
+    onCancel: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -79,18 +77,6 @@ fun ScanningComponent(
         },
     )
 
-    fun backHome() {
-        navController.popBackStack()
-    }
-
-    fun internalOnCancel() {
-        if (onCancel != null) {
-            onCancel()
-        } else {
-            backHome()
-        }
-    }
-
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -104,7 +90,7 @@ fun ScanningComponent(
                     cancelButtonLabel = "Cancel",
                     onRead = onRead,
                     isMatch = isMatch,
-                    onCancel = ::internalOnCancel,
+                    onCancel = onCancel,
                     fontFamily = Inter,
                     readerColor = Color.White,
                     guidesColor = Color.White,
@@ -118,7 +104,7 @@ fun ScanningComponent(
                     cancelButtonLabel = "Cancel",
                     onRead = onRead,
                     isMatch = isMatch,
-                    onCancel = ::internalOnCancel,
+                    onCancel = onCancel,
                     fontFamily = Inter,
                     readerColor = Color.White,
                     guidesColor = Color.White,
@@ -132,7 +118,7 @@ fun ScanningComponent(
                     cancelButtonLabel = "Cancel",
                     onRead = onRead,
                     isMatch = isMatch,
-                    onCancel = ::internalOnCancel,
+                    onCancel = onCancel,
                     fontFamily = Inter,
                     readerColor = Color.White,
                     guidesColor = Color.White,
@@ -144,9 +130,7 @@ fun ScanningComponent(
             AlertDialog(
                 containerColor = Color.White,
                 shape = RoundedCornerShape(8.dp),
-                onDismissRequest = {
-                    backHome()
-                },
+                onDismissRequest = onCancel,
                 title = {
                     Text(
                         "Camera permission denied",
@@ -189,9 +173,7 @@ fun ScanningComponent(
                 },
                 dismissButton = {
                     Button(
-                        onClick = {
-                            backHome()
-                        },
+                        onClick = onCancel,
                         colors =
                         ButtonDefaults.buttonColors(
                             containerColor = Color.Transparent,

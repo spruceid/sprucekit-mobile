@@ -31,11 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobilesdkexample.R
-import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePrimaryContrast
 import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePureWhite
 import com.spruceid.mobilesdkexample.ui.theme.BorderSecondary
@@ -77,8 +74,8 @@ fun mDocArrayToByteArray(repr: MDocItem.Array): ByteArray =
 
 @Composable
 fun VerifierMDocResultView(
-    navController: NavController,
-    result: Map<String, Map<String, MDocItem>>
+    result: Map<String, Map<String, MDocItem>>,
+    onClose: () -> Unit
 ) {
     val givenName = getDiscriminant(result["org.iso.18013.5.1"]?.get("given_name")!!)
     val familyName = getDiscriminant(result["org.iso.18013.5.1"]?.get("family_name")!!)
@@ -262,7 +259,7 @@ fun VerifierMDocResultView(
                     modifier = Modifier
                         .fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    onClick = { navController.popBackStack() },
+                    onClick = onClose,
                     colors = ButtonColors(
                         containerColor = BgSurfacePrimaryContrast, contentColor = TextBase,
                         disabledContainerColor = Color.Black,
@@ -292,11 +289,7 @@ fun VerifierMDocResultView(
                         .fillMaxWidth()
                         .border(width = 1.dp, color = BorderSecondary),
                     shape = RoundedCornerShape(8.dp),
-                    onClick = {
-                        navController.navigate(Screen.HomeScreen.route) {
-                            popUpTo(0)
-                        }
-                    },
+                    onClick = onClose,
                     colors = ButtonColors(
                         containerColor = BgSurfacePureWhite, contentColor = TextPrimary,
                         disabledContainerColor = BgSurfacePureWhite,
@@ -344,5 +337,5 @@ fun MDocVerifyPreview() {
                 "veteran" to MDocItem.Integer(1)
             )
         )
-    VerifierMDocResultView(rememberNavController(), example)
+    VerifierMDocResultView(example) {}
 }
