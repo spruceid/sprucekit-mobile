@@ -1,4 +1,4 @@
-package com.spruceid.mobilesdkexample.verifier
+package com.spruceid.mobilesdkexample
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.VectorConverter
