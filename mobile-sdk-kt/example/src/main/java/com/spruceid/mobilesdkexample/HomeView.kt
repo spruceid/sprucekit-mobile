@@ -32,13 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.spruceid.mobilesdkexample.ui.theme.Bg
-import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue300
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue500
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue900
-import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
-import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.verifier.VerifierHomeView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
@@ -63,78 +59,9 @@ fun HomeView(
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Row(
-                    modifier = Modifier
-                        .clip(shape = RoundedCornerShape(14.dp))
-                        .background(ColorBlue900)
-                        .padding(horizontal = 4.dp)
-                ) {
-                    Button(
-                        onClick = { tab = HomeTabs.WALLET },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (tab == HomeTabs.WALLET) ColorBlue500 else Color.Transparent,
-                            contentColor = if (tab == HomeTabs.WALLET) Color.White else ColorBlue300,
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(id = R.drawable.wallet),
-                                contentDescription = stringResource(id = R.string.wallet),
-                                colorFilter = ColorFilter.tint(
-                                    if (tab == HomeTabs.WALLET) Color.White else ColorBlue300,
-                                ),
-                                modifier = Modifier
-                                    .width(20.dp)
-                                    .height(20.dp)
-                                    .padding(end = 3.dp)
-                            )
-                            Text(
-                                text = "Wallet",
-                                fontFamily = Switzer,
-                                fontWeight = FontWeight.Normal,
-                                fontSize = 14.sp,
-                            )
-                        }
-                    }
-
-                    Button(
-                        onClick = { tab = HomeTabs.VERIFIER },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (tab == HomeTabs.VERIFIER) ColorBlue500 else Color.Transparent,
-                            contentColor = if (tab == HomeTabs.VERIFIER) Color.White else ColorBlue300,
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = painterResource(id = R.drawable.qrcode_scanner),
-                                contentDescription = stringResource(id = R.string.verifier),
-                                colorFilter = ColorFilter.tint(
-                                    if (tab == HomeTabs.VERIFIER) Color.White else ColorBlue300,
-                                ),
-                                modifier = Modifier
-                                    .width(20.dp)
-                                    .height(20.dp)
-                                    .padding(end = 3.dp)
-                            )
-                            Text(
-                                text = "Verifier",
-                                fontFamily = Switzer,
-                                fontWeight = FontWeight.Normal,
-                                fontSize = 14.sp,
-                            )
-                        }
-                    }
-                }
+            HomeBottomTabs(tab) { newTab ->
+                tab = newTab
             }
-
         },
         modifier = Modifier.navigationBarsPadding()
     ) {
@@ -149,6 +76,84 @@ fun HomeView(
                     navController = navController,
                     verificationMethodsViewModel = verificationMethodsViewModel
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun HomeBottomTabs(
+    tab: HomeTabs,
+    changeTabs: (HomeTabs) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(shape = RoundedCornerShape(14.dp))
+                .background(ColorBlue900)
+                .padding(horizontal = 4.dp)
+        ) {
+            Button(
+                onClick = { changeTabs(HomeTabs.WALLET) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (tab == HomeTabs.WALLET) ColorBlue500 else Color.Transparent,
+                    contentColor = if (tab == HomeTabs.WALLET) Color.White else ColorBlue300,
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(id = R.drawable.wallet),
+                        contentDescription = stringResource(id = R.string.wallet),
+                        colorFilter = ColorFilter.tint(
+                            if (tab == HomeTabs.WALLET) Color.White else ColorBlue300,
+                        ),
+                        modifier = Modifier
+                            .width(20.dp)
+                            .height(20.dp)
+                            .padding(end = 3.dp)
+                    )
+                    Text(
+                        text = "Wallet",
+                        fontFamily = Switzer,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+
+            Button(
+                onClick = { changeTabs(HomeTabs.VERIFIER) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (tab == HomeTabs.VERIFIER) ColorBlue500 else Color.Transparent,
+                    contentColor = if (tab == HomeTabs.VERIFIER) Color.White else ColorBlue300,
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(id = R.drawable.qrcode_scanner),
+                        contentDescription = stringResource(id = R.string.verifier),
+                        colorFilter = ColorFilter.tint(
+                            if (tab == HomeTabs.VERIFIER) Color.White else ColorBlue300,
+                        ),
+                        modifier = Modifier
+                            .width(20.dp)
+                            .height(20.dp)
+                            .padding(end = 3.dp)
+                    )
+                    Text(
+                        text = "Verifier",
+                        fontFamily = Switzer,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 14.sp,
+                    )
+                }
             }
         }
     }
