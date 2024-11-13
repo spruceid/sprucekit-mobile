@@ -24,7 +24,10 @@
     <!--  Design system  -->
     <color name="color_base_300">#FFE6E1D6</color>
     <color name="color_base_800">#FF75675C</color>
+    <color name="color_blue_300">#FF98C7F8</color>
+    <color name="color_blue_500">#FF4389F2</color>
     <color name="color_blue_600">#FF2F6AE1</color>
+    <color name="color_blue_900">#FF243F84</color>
     <color name="color_stone_50">#FFFAFAF9</color>
     <color name="color_stone_300">#FFD6D3D1</color>
     <color name="color_stone_400">#FFA8A29E</color>
