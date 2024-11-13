@@ -12,6 +12,7 @@ struct AddToWalletView: View {
     var credential: GenericJSON?
     @State var presentError: Bool
     @State var errorDetails: String
+    @State var storing = false
     
     let credentialItem: (any ICredentialView)?
     
@@ -38,6 +39,7 @@ struct AddToWalletView: View {
     }
     
     func addToWallet() {
+        storing = true
         do {
             let credentialPack = CredentialPack()
             _ = try credentialPack.tryAddRawCredential(rawCredential: rawCredential)
@@ -48,12 +50,24 @@ struct AddToWalletView: View {
             errorDetails = "Error: \(error)"
             presentError = true
         }
+        storing = false
     }
     
     
     var body: some View {
         ZStack {
-            if(!presentError && credentialItem != nil){
+            if presentError {
+                ErrorView(
+                    errorTitle: "Unable to Parse Credential",
+                    errorDetails: errorDetails
+                ) {
+                    back()
+                }
+            } else if storing {
+                LoadingView(
+                    loadingText: "Storing credential..."
+                )
+            } else if credentialItem != nil {
                 VStack{
                     Text("Review Info")
                         .font(.customFont(font: .inter, style: .bold, size: .h0))
@@ -92,12 +106,6 @@ struct AddToWalletView: View {
                     .padding(.vertical, 13)
                     .cornerRadius(8)
                 }
-            } else {
-                ErrorView(
-                    errorTitle: "Unable to Parse Credential",
-                    errorDetails: errorDetails) {
-                        back()
-                    }
             }
         }
         .navigationBarBackButtonHidden(true)

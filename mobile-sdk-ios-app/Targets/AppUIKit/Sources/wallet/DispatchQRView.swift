@@ -25,8 +25,8 @@ struct DispatchQRView: View {
             } else if payload.hasPrefix(OID4VCI_SCHEME) {
                 path.append(HandleOID4VCI(url: payload))
             } else if payload.hasPrefix(HTTPS_SCHEME) || payload.hasPrefix(HTTP_SCHEME) {
-                if let url = URL(string: payload), UIApplication.shared.canOpenURL(url) {
-                    UIApplication.shared.open(url)
+                if let url = URL(string: payload), await UIApplication.shared.canOpenURL(url) {
+                    await UIApplication.shared.open(url)
                     onBack()
                 }
             } else {
