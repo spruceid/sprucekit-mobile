@@ -84,8 +84,8 @@ fun VerifierHomeHeader(
                 }
         ) {
             Image(
-                painter = painterResource(id = R.drawable.user),
-                contentDescription = stringResource(id = R.string.user),
+                painter = painterResource(id = R.drawable.cog),
+                contentDescription = stringResource(id = R.string.cog),
                 modifier = Modifier
                     .width(20.dp)
                     .height(20.dp)
