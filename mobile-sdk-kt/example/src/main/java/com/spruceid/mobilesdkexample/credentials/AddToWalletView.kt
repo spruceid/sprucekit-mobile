@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.ErrorView
+import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.CTAButtonGreen
 import com.spruceid.mobilesdkexample.ui.theme.Inter
@@ -32,6 +33,8 @@ import com.spruceid.mobilesdkexample.ui.theme.SecondaryButtonRed
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
 @Composable
@@ -42,6 +45,7 @@ fun AddToWalletView(
 ) {
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
+    var storing by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
@@ -57,13 +61,22 @@ fun AddToWalletView(
 
     fun saveCredential() {
         scope.launch {
-            val credentialPack = CredentialPack()
-            try {
-                credentialPack.tryAddRawCredential(rawCredential)
-                credentialPacksViewModel.saveCredentialPack(credentialPack)
+            storing = true
+            var error: String? = null
+            this.async(Dispatchers.Default) {
+                try {
+                    val credentialPack = CredentialPack()
+                    credentialPack.tryAddRawCredential(rawCredential)
+                    credentialPacksViewModel.saveCredentialPack(credentialPack)
+                } catch (e: Exception) {
+                    error = e.localizedMessage
+                }
+            }.await()
+            if (error == null) {
                 back()
-            } catch (e: Exception) {
-                err = e.localizedMessage
+            } else {
+                err = error
+                storing = false
             }
         }
     }
@@ -75,6 +88,10 @@ fun AddToWalletView(
             onClose = {
                 back()
             }
+        )
+    } else if (storing) {
+        LoadingView(
+            loadingText = "Storing credential..."
         )
     } else if (credentialItem != null) {
         Column(

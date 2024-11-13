@@ -9,6 +9,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobile.sdk.CredentialPack
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -17,10 +19,16 @@ class CredentialPacksViewModel(application: Application) : AndroidViewModel(appl
     private val storageManager = StorageManager(context = (application as Context))
     private val _credentialPacks = MutableStateFlow(listOf<CredentialPack>())
     val credentialPacks = _credentialPacks.asStateFlow()
+    private val _loading = MutableStateFlow(false)
+    val loading = _loading.asStateFlow()
 
     init {
         viewModelScope.launch {
-            _credentialPacks.value = CredentialPack.loadPacks(storageManager)
+            _loading.value = true
+            this.async(Dispatchers.Default) {
+                _credentialPacks.value = CredentialPack.loadPacks(storageManager)
+            }.await()
+            _loading.value = false
         }
     }
 
