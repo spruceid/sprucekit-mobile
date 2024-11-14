@@ -84,12 +84,6 @@ struct WalletHomeBody: View {
             } else {
                 ZStack {
                     VStack {
-                        Section {
-                            Image("AddFirstCredential")
-                        }
-                        Spacer()
-                    }
-                    VStack {
                         Spacer()
                         Section {
                             Image("EmptyWallet")
