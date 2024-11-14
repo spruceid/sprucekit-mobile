@@ -30,6 +30,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.navigation.Screen
@@ -111,41 +112,48 @@ fun WalletHomeHeader(navController: NavController) {
 @Composable
 fun WalletHomeBody(credentialPacksViewModel: CredentialPacksViewModel) {
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
+    val loadingCredentialPacks by credentialPacksViewModel.loading.collectAsState()
 
-    if (credentialPacks.isNotEmpty()) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(top = 20.dp)
-            ) {
-                credentialPacks.forEach { credentialPack ->
-                    GenericCredentialItem(
-                        credentialPack = credentialPack,
-                        onDelete = {
-                            credentialPacksViewModel.deleteCredentialPack(credentialPack)
-                        }
-                    )
-                    .credentialPreviewAndDetails()
+    if (!loadingCredentialPacks) {
+        if (credentialPacks.isNotEmpty()) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = 20.dp)
+                ) {
+                    credentialPacks.forEach { credentialPack ->
+                        GenericCredentialItem(
+                            credentialPack = credentialPack,
+                            onDelete = {
+                                credentialPacksViewModel.deleteCredentialPack(credentialPack)
+                            }
+                        )
+                            .credentialPreviewAndDetails()
+                    }
+                    //        item {
+                    //            ShareableCredentialListItems(mdocBase64 = mdocBase64)
+                    //        }
                 }
-                //        item {
-                //            ShareableCredentialListItems(mdocBase64 = mdocBase64)
-                //        }
+            }
+        } else {
+            Box(Modifier.fillMaxSize()) {
+                Column(
+                    Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.empty_wallet),
+                        contentDescription = stringResource(id = R.string.empty_wallet),
+                    )
+                }
             }
         }
     } else {
-        Box(Modifier.fillMaxSize()) {
-            Column(
-                Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.empty_wallet),
-                    contentDescription = stringResource(id = R.string.empty_wallet),
-                )
-            }
-        }
+        LoadingView(
+            loadingText = ""
+        )
     }
 }

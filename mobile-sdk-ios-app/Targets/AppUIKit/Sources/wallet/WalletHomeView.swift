@@ -55,10 +55,15 @@ struct WalletHomeHeader: View {
 struct WalletHomeBody: View {
     @State var credentialPacks: [CredentialPack] = []
     let storageManager = StorageManager()
+    @State var loading = false
 
     var body: some View {
         ZStack {
-            if !credentialPacks.isEmpty {
+            if loading {
+                LoadingView(
+                    loadingText: ""
+                )
+            } else if !credentialPacks.isEmpty {
                 ZStack {
                     ScrollView(.vertical, showsIndicators: false) {
                         Section {
@@ -95,12 +100,14 @@ struct WalletHomeBody: View {
         }
         .onAppear(perform: {
             Task {
+                loading = true
                 do {
                     self.credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
                 } catch {
                     // TODO: display error message
                     print(error)
                 }
+                loading = false
             }
         })
     }
