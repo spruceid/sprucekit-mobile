@@ -2,8 +2,10 @@ package com.spruceid.mobilesdkexample.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
@@ -30,9 +32,16 @@ fun SetupNavGraph(
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
         composable(
             route = Screen.HomeScreen.route,
-        ) {
+            arguments = listOf(
+                navArgument("tab") {
+                    type = NavType.StringType; defaultValue = "wallet"
+                }
+            ),
+        ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getString("tab")!!
             HomeView(
                 navController,
+                initialTab = tab,
                 verificationMethodsViewModel = verificationMethodsViewModel,
                 credentialPacksViewModel = credentialPacksViewModel
             )

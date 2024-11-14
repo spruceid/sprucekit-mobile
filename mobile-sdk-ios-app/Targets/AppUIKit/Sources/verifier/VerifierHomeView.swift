@@ -29,7 +29,7 @@ struct VerifierHomeHeader: View {
                     RoundedRectangle(cornerRadius: 8)
                         .foregroundColor(Color("Primary"))
                         .frame(width: 36, height: 36)
-                    Image("User")
+                    Image("Cog")
                 }
             }
             .padding(.trailing, 20)

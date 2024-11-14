@@ -139,12 +139,6 @@ fun WalletHomeBody(credentialPacksViewModel: CredentialPacksViewModel) {
             }
         } else {
             Box(Modifier.fillMaxSize()) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(
-                        painter = painterResource(id = R.drawable.add_first_credential),
-                        contentDescription = stringResource(id = R.string.add_first_credential),
-                    )
-                }
                 Column(
                     Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,

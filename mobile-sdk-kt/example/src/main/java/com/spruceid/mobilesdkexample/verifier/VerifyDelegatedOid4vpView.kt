@@ -104,7 +104,11 @@ fun VerifyDelegatedOid4vpView(
     }
 
     fun back() {
-        navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+        navController.navigate(
+            Screen.HomeScreen.route.replace("{tab}", "verifier")
+        ) {
+            popUpTo(0)
+        }
     }
 
     LaunchedEffect(Unit) {

@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.verifiersettings
 
-import android.widget.Space
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.TextBody
 import com.spruceid.mobilesdkexample.ui.theme.TextHeader
@@ -66,7 +66,11 @@ fun VerifierSettingsHomeView(
                 if (subpage != null) {
                     subpage = null
                 } else {
-                    navController.popBackStack()
+                    navController.navigate(
+                        Screen.HomeScreen.route.replace("{tab}", "verifier")
+                    ) {
+                        popUpTo(0)
+                    }
                 }
             }
         )

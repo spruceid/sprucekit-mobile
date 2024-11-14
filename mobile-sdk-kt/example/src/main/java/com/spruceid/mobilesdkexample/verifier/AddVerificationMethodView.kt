@@ -30,7 +30,9 @@ fun AddVerificationMethodView(
     var qrcode by remember { mutableStateOf<String?>(null) }
 
     fun back() {
-        navController.navigate(Screen.HomeScreen.route) {
+        navController.navigate(
+            Screen.HomeScreen.route.replace("{tab}", "verifier")
+        ) {
             popUpTo(0)
         }
     }
@@ -68,9 +70,9 @@ fun AddVerificationMethodView(
     } else if (qrcode == null) {
         ScanningComponent(
             subtitle = "Scan Verification QR Code",
-            navController = navController,
             scanningType = ScanningType.QRCODE,
-            onRead = ::onRead
+            onRead = ::onRead,
+            onCancel = ::back
         )
     } else {
         LoadingView(
