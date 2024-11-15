@@ -12,8 +12,8 @@ android {
         applicationId = "com.spruceid.mobilesdkexample"
         minSdk = 26
         targetSdk = 34
-        versionCode = 13
-        versionName = "1.0.0+13"
+        versionCode = 14
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -24,7 +24,10 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
     compileOptions {
