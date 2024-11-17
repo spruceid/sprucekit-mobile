@@ -20,9 +20,9 @@ cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", featur
     "time",
 ] }
 isomdl = { git = "https://github.com/spruceid/isomdl", rev = "1f4f762" }
-oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "d95fe3a" }
-openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "ad3974c" }
-ssi = { version = "0.10", features = ["secp256r1", "secp384r1"] }
+oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "199cbbe" }
+openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "349cb7d" }
+ssi = { version = "0.10.1", features = ["secp256r1", "secp384r1"] }
 
 async-trait = "0.1"
 base64 = "0.22.0"
@@ -70,3 +70,6 @@ uniffi = { version = "0.28.1", features = ["bindgen-tests"] }
 
 [build-dependencies]
 uniffi = { version = "0.28.1", features = ["build"] }
+
+[patch.crates-io]
+ssi = { git = "https://github.com/spruceid/ssi", rev = "3b3d21c" }

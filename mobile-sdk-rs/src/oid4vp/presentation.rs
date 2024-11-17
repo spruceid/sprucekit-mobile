@@ -336,7 +336,7 @@ impl<'a> PresentationOptions<'a> {
     }
 
     /// Sign a verifiable presentation as a data integrity document, returning a `AnyDataIntegrity` enum.
-    pub async fn sign_presentation(
+    pub async fn sign_data_integrity_doc(
         &self,
         // NOTE: the presentation is `unsecured` at this point.
         presentation: DataIntegrityDocument,

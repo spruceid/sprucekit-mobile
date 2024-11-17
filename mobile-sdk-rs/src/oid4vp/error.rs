@@ -1,6 +1,8 @@
 // use super::request_signer::RequestSignerError;
 
-use super::permission_request::PermissionResponseError;
+use crate::credential::CredentialEncodingError;
+
+use super::{permission_request::PermissionRequestError, presentation::PresentationError};
 
 /// The [OID4VPError] enum represents the errors that can occur
 /// when using the oid4vp foreign library.
@@ -57,7 +59,13 @@ pub enum OID4VPError {
     #[error("Failed to initialize metadata: {0}")]
     MetadataInitialization(String),
     #[error(transparent)]
-    PermissionResponse(#[from] PermissionResponseError),
+    PermissionRequest(#[from] PermissionRequestError),
+    #[error(transparent)]
+    Presentation(#[from] PresentationError),
+    #[error(transparent)]
+    CredentialEncoding(#[from] CredentialEncodingError),
+    #[error("Failed to parse JsonPath: {0}")]
+    JsonPathParse(String),
 }
 
 // Handle unexpected errors when calling a foreign callback

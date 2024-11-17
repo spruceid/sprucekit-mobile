@@ -1,13 +1,28 @@
-use super::{Credential, CredentialFormat, VcdmVersion};
-use crate::{oid4vp::permission_request::RequestedField, CredentialType, KeyAlias};
+use super::{Credential, CredentialEncodingError, CredentialFormat, VcdmVersion};
+use crate::{
+    oid4vp::{
+        error::OID4VPError,
+        presentation::{CredentialPresentation, PresentationOptions},
+    },
+    CredentialType, KeyAlias,
+};
 
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
-use openid4vp::core::presentation_definition::PresentationDefinition;
+use openid4vp::core::{
+    credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
+    response::parameters::VpTokenItem,
+};
 use serde_json::Value as Json;
 use ssi::{
-    claims::vc::{v1::Credential as _, v2::Credential as _},
-    prelude::AnyJsonCredential,
+    claims::vc::{
+        syntax::IdOr,
+        v1::{Credential as _, JsonPresentation as JsonPresentationV1},
+        v2::{syntax::JsonPresentation as JsonPresentationV2, Credential as _},
+        AnySpecializedJsonCredential,
+    },
+    json_ld::iref::UriBuf,
+    prelude::{AnyJsonCredential, DataIntegrityDocument},
 };
 use uuid::Uuid;
 
@@ -118,38 +133,129 @@ impl JsonVc {
         }))
     }
 
-    /// Check if the credential satisfies a presentation definition.
-    pub fn check_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
-        // If the credential does not match the definition requested format,
-        // then return false.
-        if !definition.format().is_empty()
-            && !definition.contains_format(CredentialFormat::LdpVc.to_string().as_str())
-        {
-            return false;
-        }
+    pub fn format() -> CredentialFormat {
+        CredentialFormat::LdpVc
+    }
+}
 
-        // Check the JSON-encoded credential against the definition.
-        definition.is_credential_match(&self.raw)
+impl CredentialPresentation for JsonVc {
+    type Credential = Json;
+    type CredentialFormat = ClaimFormatDesignation;
+    type PresentationFormat = ClaimFormatDesignation;
+
+    fn credential(&self) -> &Self::Credential {
+        &self.raw
     }
 
-    /// Returns the requested fields given a presentation definition.
-    pub fn requested_fields(
+    fn presentation_format(&self) -> Self::PresentationFormat {
+        ClaimFormatDesignation::LdpVp
+    }
+
+    fn credential_format(&self) -> Self::CredentialFormat {
+        ClaimFormatDesignation::LdpVc
+    }
+
+    fn create_descriptor_map(
         &self,
-        definition: &PresentationDefinition,
-    ) -> Vec<Arc<RequestedField>> {
-        let Ok(json) = serde_json::to_value(&self.parsed) else {
-            // NOTE: if we cannot convert the credential to a JSON value, then we cannot
-            // check the presentation definition, so we return false.
-            log::debug!("credential could not be converted to JSON: {self:?}");
-            return Vec::new();
+        input_descriptor_id: impl Into<String>,
+        index: Option<usize>,
+    ) -> Result<DescriptorMap, OID4VPError> {
+        let path = match index {
+            Some(idx) => format!("$.verifiableCredential[{idx}]"),
+            None => "$.verifiableCredential".into(),
+        }
+        .parse()
+        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
+
+        let id = input_descriptor_id.into();
+
+        Ok(
+            DescriptorMap::new(id.clone(), self.presentation_format(), "$".parse().unwrap())
+                .set_path_nested(DescriptorMap::new(id, self.credential_format(), path)),
+        )
+    }
+
+    /// Return the credential as a VpToken
+    async fn as_vp_token_item<'a>(
+        &self,
+        options: &'a PresentationOptions<'a>,
+    ) -> Result<VpTokenItem, OID4VPError> {
+        let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec())
+            .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing ID: {e:?}")))?;
+
+        // Check the signer supports the requested vp format crypto suite.
+        options.supports_cryptosuite(ClaimFormatDesignation::LdpVp)?;
+
+        let vp_token_item = match &self.parsed {
+            AnySpecializedJsonCredential::V1(cred_v1) => {
+                let holder_id: UriBuf = options.signer.did().parse().map_err(|e| {
+                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
+                })?;
+
+                let presentation_v1 = JsonPresentationV1::new(
+                    Some(id.clone()),
+                    Some(holder_id.clone()),
+                    vec![cred_v1.clone()],
+                );
+
+                // let json = serde_json::to_value(&presentation_v1).map_err(|e| {
+                //     CredentialEncodingError::VpToken(format!("Error encoding VP: {e:?}"))
+                // })?;
+
+                let credentials = serde_json::to_value(vec![cred_v1.clone()]).map_err(|e| {
+                    CredentialEncodingError::VpToken(format!("Error encoding VP: {e:?}"))
+                })?;
+
+                let mut properties = BTreeMap::new();
+                properties.insert("id".to_string(), json_syntax::Value::from(id.to_string()));
+                properties.insert(
+                    "holder".to_string(),
+                    json_syntax::Value::from(holder_id.to_string()),
+                );
+                properties.insert(
+                    "verifiableCredential".to_string(),
+                    json_syntax::Value::from_serde_json(credentials),
+                );
+
+                let data_integrity = options
+                    .sign_data_integrity_doc(DataIntegrityDocument {
+                        context: Some(presentation_v1.context.as_ref().clone()),
+                        types: ssi::OneOrMany::Many(
+                            presentation_v1.types.to_json_ld_types().into(),
+                        ),
+                        properties: presentation_v1.additional_properties,
+                    })
+                    .await?;
+
+                println!("data_integrity: {:?}", data_integrity);
+
+                VpTokenItem::from(data_integrity)
+            }
+            AnySpecializedJsonCredential::V2(cred_v2) => {
+                let holder_id = IdOr::Id(options.signer.did().parse().map_err(|e| {
+                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
+                })?);
+
+                let presentation_v2 =
+                    JsonPresentationV2::new(Some(id), vec![holder_id], vec![cred_v2.clone()]);
+
+                let data_integrity = options
+                    .sign_data_integrity_doc(DataIntegrityDocument {
+                        context: Some(presentation_v2.context.as_ref().clone()),
+                        types: ssi::OneOrMany::Many(
+                            presentation_v2.types.to_json_ld_types().into(),
+                        ),
+                        properties: presentation_v2.additional_properties.clone(),
+                    })
+                    .await?;
+
+                println!("data_integrity: {:?}", data_integrity);
+
+                VpTokenItem::from(data_integrity)
+            }
         };
 
-        definition
-            .requested_fields(&json)
-            .into_iter()
-            .map(Into::into)
-            .map(Arc::new)
-            .collect()
+        Ok(vp_token_item)
     }
 }
 
