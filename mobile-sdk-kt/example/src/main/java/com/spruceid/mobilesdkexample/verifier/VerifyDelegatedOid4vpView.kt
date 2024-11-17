@@ -73,7 +73,9 @@ fun VerifyDelegatedOid4vpView(
         try {
             scope.launch {
                 val res =
-                    verifier.pollVerificationStatus("$uri?status=${status.toString().lowercase()}")
+                        verifier.pollVerificationStatus(
+                                "$uri?status=${status.toString().lowercase()}"
+                        )
                 when (res.status) {
                     DelegatedVerifierStatus.INITIATED -> {
                         monitorStatus(res.status)
@@ -169,8 +171,8 @@ fun VerifyDelegatedOid4vpView(
             VerifyDelegatedOid4vpViewSteps.DISPLAYING_CREDENTIAL -> {
                 if (presentation != null) {
                     VerifierCredentialSuccessView(
-                        rawCredential = presentation!!,
-                        onClose = { back() },
+                            rawCredential = presentation!!,
+                            onClose = { back() },
                     )
                 }
             }
@@ -182,12 +184,11 @@ fun VerifyDelegatedOid4vpView(
 fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
     Column(
             modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 60.dp)
-                .padding(bottom = 40.dp)
-                .padding(horizontal = 30.dp)
-                .navigationBarsPadding(),
+                    Modifier.fillMaxWidth()
+                            .padding(top = 60.dp)
+                            .padding(bottom = 40.dp)
+                            .padding(horizontal = 30.dp)
+                            .navigationBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
@@ -197,9 +198,7 @@ fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
                                 id = com.spruceid.mobilesdkexample.R.string.delegated_oid4vp_qrcode
                         ),
                 contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                modifier = Modifier.fillMaxWidth().weight(1f),
         )
 
         Button(
@@ -211,13 +210,12 @@ fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
                                 contentColor = ColorStone950,
                         ),
                 modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = 1.dp,
-                        color = BorderSecondary,
-                        shape = RoundedCornerShape(6.dp)
-                    )
+                        Modifier.fillMaxWidth()
+                                .border(
+                                        width = 1.dp,
+                                        color = BorderSecondary,
+                                        shape = RoundedCornerShape(6.dp)
+                                )
         ) {
             Text(
                     text = "Cancel",
