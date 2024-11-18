@@ -160,13 +160,6 @@ fun HandleOID4VCIView(
 fun getVCPlaygroundOID4VCIContext(ctx: Context): Map<String, String> {
     val context = mutableMapOf<String, String>()
 
-    context["https://contexts.vcplayground.org/examples/alumni/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.contexts_vcplayground_org_examples_alumni_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
     context["https://w3id.org/first-responder/v1"] =
         ctx.resources
             .openRawResource(R.raw.w3id_org_first_responder_v1)
@@ -188,39 +181,9 @@ fun getVCPlaygroundOID4VCIContext(ctx: Context): Map<String, String> {
             .readLines()
             .joinToString("")
 
-    context["https://contexts.vcplayground.org/examples/movie-ticket/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.contexts_vcplayground_org_examples_movie_ticket_v1)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
     context["https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"] =
         ctx.resources
             .openRawResource(R.raw.purl_imsglobal_org_spec_ob_v3p0_context_3_0_2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://contexts.vcplayground.org/examples/food-safety-certification/v1.json"] =
-        ctx.resources
-            .openRawResource(
-                R.raw.contexts_vcplayground_org_examples_food_safety_certification_v1
-            )
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://contexts.vcplayground.org/examples/gs1-8110-coupon/v2.json"] =
-        ctx.resources
-            .openRawResource(R.raw.contexts_vcplayground_org_examples_gs1_8110_coupon_v2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://contexts.vcplayground.org/examples/customer-loyalty/v1.json"] =
-        ctx.resources
-            .openRawResource(R.raw.contexts_vcplayground_org_examples_customer_loyalty_v1)
             .bufferedReader()
             .readLines()
             .joinToString("")
@@ -239,9 +202,86 @@ fun getVCPlaygroundOID4VCIContext(ctx: Context): Map<String, String> {
             .readLines()
             .joinToString("")
 
-    context["https://contexts.vcplayground.org/examples/movie-ticket-vcdm-v2/v1.json"] =
+    context["https://examples.vcplayground.org/contexts/alumni/v2.json"] =
         ctx.resources
-            .openRawResource(R.raw.contexts_vcplayground_org_examples_movie_ticket_vcdm_v2_v1)
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_alumni_v2)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/first-responder/v1.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_first_responder_v1)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/shim-render-method-term/v1.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_shim_render_method_term_v1)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/shim-VCv1.1-common-example-terms/v1.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_shim_vcv1_1_common_example_terms_v1)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/utopia-natcert/v1.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_utopia_natcert_v1)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://www.w3.org/ns/controller/v1"] =
+        ctx.resources
+            .openRawResource(R.raw.w3_org_ns_controller_v1)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/movie-ticket/v2.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_movie_ticket_v2)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/food-safety-certification/v1.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_food_safety_certification_v1)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/academic-course-credential/v1.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_academic_course_credential_v1)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/gs1-8110-coupon/v2.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_gs1_8110_coupon_v2)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/customer-loyalty/v1.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_customer_loyalty_v1)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
+    context["https://examples.vcplayground.org/contexts/movie-ticket-vcdm-v2/v1.json"] =
+        ctx.resources
+            .openRawResource(R.raw.examples_vcplayground_org_contexts_movie_ticket_vcdm_v2_v1)
             .bufferedReader()
             .readLines()
             .joinToString("")
