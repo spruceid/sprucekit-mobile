@@ -1,7 +1,7 @@
 use super::error::OID4VPError;
 use super::presentation::{PresentationError, PresentationOptions, PresentationSigner};
 use crate::common::*;
-use crate::credential::{Credential, CredentialEncodingError, ParsedCredential};
+use crate::credential::{Credential, ParsedCredential};
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -30,9 +30,6 @@ pub enum PermissionRequestError {
     /// Permission denied for requested presentation.
     #[error("Permission denied for requested presentation.")]
     PermissionDenied,
-
-    #[error(transparent)]
-    CredentialEncoding(#[from] CredentialEncodingError),
 
     /// Credential not found for input descriptor id.
     #[error("Credential not found for input descriptor id: {0}")]

@@ -198,10 +198,6 @@ impl CredentialPresentation for JsonVc {
                     vec![cred_v1.clone()],
                 );
 
-                // let json = serde_json::to_value(&presentation_v1).map_err(|e| {
-                //     CredentialEncodingError::VpToken(format!("Error encoding VP: {e:?}"))
-                // })?;
-
                 let credentials = serde_json::to_value(vec![cred_v1.clone()]).map_err(|e| {
                     CredentialEncodingError::VpToken(format!("Error encoding VP: {e:?}"))
                 })?;
@@ -223,7 +219,7 @@ impl CredentialPresentation for JsonVc {
                         types: ssi::OneOrMany::Many(
                             presentation_v1.types.to_json_ld_types().into(),
                         ),
-                        properties: presentation_v1.additional_properties,
+                        properties,
                     })
                     .await?;
 

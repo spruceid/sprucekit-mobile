@@ -28,10 +28,6 @@ pub enum OID4VPError {
     InvalidDIDUrl(String),
     #[error("Failed to generate DID key URL: {0}")]
     DIDKeyGenerateUrl(String),
-    #[error("Failed to encode credential: {0}")]
-    CredentialEncodingError(String),
-    #[error("Failed to decode credential: {0}")]
-    CredentialDecodingError(String),
     #[error("Failed to parse JSON syntax: {0}")]
     JsonSyntaxParse(String),
     #[error(transparent)]
