@@ -7119,10 +7119,6 @@ public enum Oid4vpError {
     )
     case DidKeyGenerateUrl(String
     )
-    case CredentialEncodingError(String
-    )
-    case CredentialDecodingError(String
-    )
     case JsonSyntaxParse(String
     )
     case VdcCollection(VdcCollectionError
@@ -7196,53 +7192,47 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
         case 10: return .DidKeyGenerateUrl(
             try FfiConverterString.read(from: &buf)
             )
-        case 11: return .CredentialEncodingError(
+        case 11: return .JsonSyntaxParse(
             try FfiConverterString.read(from: &buf)
             )
-        case 12: return .CredentialDecodingError(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 13: return .JsonSyntaxParse(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 14: return .VdcCollection(
+        case 12: return .VdcCollection(
             try FfiConverterTypeVdcCollectionError.read(from: &buf)
             )
-        case 15: return .HttpClientInitialization(
+        case 13: return .HttpClientInitialization(
             try FfiConverterString.read(from: &buf)
             )
-        case 16: return .SigningAlgorithmNotFound(
+        case 14: return .SigningAlgorithmNotFound(
             try FfiConverterString.read(from: &buf)
             )
-        case 17: return .InvalidClientIdScheme(
+        case 15: return .InvalidClientIdScheme(
             try FfiConverterString.read(from: &buf)
             )
-        case 18: return .InputDescriptorNotFound
-        case 19: return .VpTokenParse(
+        case 16: return .InputDescriptorNotFound
+        case 17: return .VpTokenParse(
             try FfiConverterString.read(from: &buf)
             )
-        case 20: return .VpTokenCreate(
+        case 18: return .VpTokenCreate(
             try FfiConverterString.read(from: &buf)
             )
-        case 21: return .JwkParse(
+        case 19: return .JwkParse(
             try FfiConverterString.read(from: &buf)
             )
-        case 22: return .VdcCollectionNotInitialized
-        case 23: return .AuthorizationRequestNotFound
-        case 24: return .RequestSignerNotFound
-        case 25: return .MetadataInitialization(
+        case 20: return .VdcCollectionNotInitialized
+        case 21: return .AuthorizationRequestNotFound
+        case 22: return .RequestSignerNotFound
+        case 23: return .MetadataInitialization(
             try FfiConverterString.read(from: &buf)
             )
-        case 26: return .PermissionRequest(
+        case 24: return .PermissionRequest(
             try FfiConverterTypePermissionRequestError.read(from: &buf)
             )
-        case 27: return .Presentation(
+        case 25: return .Presentation(
             try FfiConverterTypePresentationError.read(from: &buf)
             )
-        case 28: return .CredentialEncoding(
+        case 26: return .CredentialEncoding(
             try FfiConverterTypeCredentialEncodingError.read(from: &buf)
             )
-        case 29: return .JsonPathParse(
+        case 27: return .JsonPathParse(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -7307,94 +7297,84 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .CredentialEncodingError(v1):
+        case let .JsonSyntaxParse(v1):
             writeInt(&buf, Int32(11))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .CredentialDecodingError(v1):
-            writeInt(&buf, Int32(12))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
-        case let .JsonSyntaxParse(v1):
-            writeInt(&buf, Int32(13))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
         case let .VdcCollection(v1):
-            writeInt(&buf, Int32(14))
+            writeInt(&buf, Int32(12))
             FfiConverterTypeVdcCollectionError.write(v1, into: &buf)
             
         
         case let .HttpClientInitialization(v1):
-            writeInt(&buf, Int32(15))
+            writeInt(&buf, Int32(13))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .SigningAlgorithmNotFound(v1):
-            writeInt(&buf, Int32(16))
+            writeInt(&buf, Int32(14))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .InvalidClientIdScheme(v1):
-            writeInt(&buf, Int32(17))
+            writeInt(&buf, Int32(15))
             FfiConverterString.write(v1, into: &buf)
             
         
         case .InputDescriptorNotFound:
-            writeInt(&buf, Int32(18))
+            writeInt(&buf, Int32(16))
         
         
         case let .VpTokenParse(v1):
-            writeInt(&buf, Int32(19))
+            writeInt(&buf, Int32(17))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .VpTokenCreate(v1):
-            writeInt(&buf, Int32(20))
+            writeInt(&buf, Int32(18))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .JwkParse(v1):
-            writeInt(&buf, Int32(21))
+            writeInt(&buf, Int32(19))
             FfiConverterString.write(v1, into: &buf)
             
         
         case .VdcCollectionNotInitialized:
-            writeInt(&buf, Int32(22))
+            writeInt(&buf, Int32(20))
         
         
         case .AuthorizationRequestNotFound:
-            writeInt(&buf, Int32(23))
+            writeInt(&buf, Int32(21))
         
         
         case .RequestSignerNotFound:
-            writeInt(&buf, Int32(24))
+            writeInt(&buf, Int32(22))
         
         
         case let .MetadataInitialization(v1):
-            writeInt(&buf, Int32(25))
+            writeInt(&buf, Int32(23))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .PermissionRequest(v1):
-            writeInt(&buf, Int32(26))
+            writeInt(&buf, Int32(24))
             FfiConverterTypePermissionRequestError.write(v1, into: &buf)
             
         
         case let .Presentation(v1):
-            writeInt(&buf, Int32(27))
+            writeInt(&buf, Int32(25))
             FfiConverterTypePresentationError.write(v1, into: &buf)
             
         
         case let .CredentialEncoding(v1):
-            writeInt(&buf, Int32(28))
+            writeInt(&buf, Int32(26))
             FfiConverterTypeCredentialEncodingError.write(v1, into: &buf)
             
         
         case let .JsonPathParse(v1):
-            writeInt(&buf, Int32(29))
+            writeInt(&buf, Int32(27))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -7692,8 +7672,6 @@ public enum PermissionRequestError {
      * Permission denied for requested presentation.
      */
     case PermissionDenied
-    case CredentialEncoding(CredentialEncodingError
-    )
     /**
      * Credential not found for input descriptor id.
      */
@@ -7741,35 +7719,32 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
 
         
         case 1: return .PermissionDenied
-        case 2: return .CredentialEncoding(
-            try FfiConverterTypeCredentialEncodingError.read(from: &buf)
-            )
-        case 3: return .CredentialNotFound(
+        case 2: return .CredentialNotFound(
             try FfiConverterString.read(from: &buf)
             )
-        case 4: return .InputDescriptorNotFound(
+        case 3: return .InputDescriptorNotFound(
             try FfiConverterString.read(from: &buf)
             )
-        case 5: return .InvalidSelectedCredential(
+        case 4: return .InvalidSelectedCredential(
             try FfiConverterString.read(from: &buf), 
             try FfiConverterString.read(from: &buf)
             )
-        case 6: return .CredentialPresentation(
+        case 5: return .CredentialPresentation(
             try FfiConverterString.read(from: &buf)
             )
-        case 7: return .RwLock(
+        case 6: return .RwLock(
             try FfiConverterString.read(from: &buf)
             )
-        case 8: return .PresentationSigning(
+        case 7: return .PresentationSigning(
             try FfiConverterString.read(from: &buf)
             )
-        case 9: return .CryptographicSuite(
+        case 8: return .CryptographicSuite(
             try FfiConverterString.read(from: &buf)
             )
-        case 10: return .VerificationMethod(
+        case 9: return .VerificationMethod(
             try FfiConverterString.read(from: &buf)
             )
-        case 11: return .Presentation(
+        case 10: return .Presentation(
             try FfiConverterTypePresentationError.read(from: &buf)
             )
 
@@ -7788,54 +7763,49 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(1))
         
         
-        case let .CredentialEncoding(v1):
-            writeInt(&buf, Int32(2))
-            FfiConverterTypeCredentialEncodingError.write(v1, into: &buf)
-            
-        
         case let .CredentialNotFound(v1):
-            writeInt(&buf, Int32(3))
+            writeInt(&buf, Int32(2))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .InputDescriptorNotFound(v1):
-            writeInt(&buf, Int32(4))
+            writeInt(&buf, Int32(3))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .InvalidSelectedCredential(v1,v2):
-            writeInt(&buf, Int32(5))
+            writeInt(&buf, Int32(4))
             FfiConverterString.write(v1, into: &buf)
             FfiConverterString.write(v2, into: &buf)
             
         
         case let .CredentialPresentation(v1):
-            writeInt(&buf, Int32(6))
+            writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .RwLock(v1):
-            writeInt(&buf, Int32(7))
+            writeInt(&buf, Int32(6))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .PresentationSigning(v1):
-            writeInt(&buf, Int32(8))
+            writeInt(&buf, Int32(7))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .CryptographicSuite(v1):
-            writeInt(&buf, Int32(9))
+            writeInt(&buf, Int32(8))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .VerificationMethod(v1):
-            writeInt(&buf, Int32(10))
+            writeInt(&buf, Int32(9))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .Presentation(v1):
-            writeInt(&buf, Int32(11))
+            writeInt(&buf, Int32(10))
             FfiConverterTypePresentationError.write(v1, into: &buf)
             
         }
