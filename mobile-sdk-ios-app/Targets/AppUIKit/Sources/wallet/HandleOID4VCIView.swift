@@ -106,12 +106,6 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     var context: [String: String] = [:]
 
     var path = Bundle.main.path(
-        forResource: "contexts.vcplayground.org_examples_alumni_v1",
-        ofType: "json")
-    context["https://contexts.vcplayground.org/examples/alumni/v1.json"] =
-        try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
         forResource: "w3id.org_first-responder_v1", ofType: "json")
     context["https://w3id.org/first-responder/v1"] = try String(
         contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -127,37 +121,9 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
         contentsOfFile: path!, encoding: String.Encoding.utf8)
 
     path = Bundle.main.path(
-        forResource: "contexts.vcplayground.org_examples_movie-ticket_v1",
-        ofType: "json")
-    context["https://contexts.vcplayground.org/examples/movie-ticket/v1.json"] =
-        try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
         forResource: "purl.imsglobal.org_spec_ob_v3p0_context-3.0.2",
         ofType: "json")
     context["https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"] =
-        try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource:
-            "contexts.vcplayground.org_examples_food-safety-certification_v1",
-        ofType: "json")
-    context[
-        "https://contexts.vcplayground.org/examples/food-safety-certification/v1.json"
-    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource: "contexts.vcplayground.org_examples_gs1-8110-coupon_v2",
-        ofType: "json")
-    context[
-        "https://contexts.vcplayground.org/examples/gs1-8110-coupon/v2.json"] =
-        try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
-
-    path = Bundle.main.path(
-        forResource: "contexts.vcplayground.org_examples_customer-loyalty_v1",
-        ofType: "json")
-    context[
-        "https://contexts.vcplayground.org/examples/customer-loyalty/v1.json"] =
         try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
 
     path = Bundle.main.path(
@@ -172,10 +138,98 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
 
     path = Bundle.main.path(
         forResource:
-            "contexts.vcplayground.org_examples_movie-ticket-vcdm-v2_v1",
+            "examples.vcplayground.org_contexts_alumni_v2",
         ofType: "json")
     context[
-        "https://contexts.vcplayground.org/examples/movie-ticket-vcdm-v2/v1.json"
+        "https://examples.vcplayground.org/contexts/alumni/v2.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_first-responder_v1",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/first-responder/v1.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_shim-render-method-term_v1",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/shim-render-method-term/v1.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_shim-VCv1.1-common-example-terms_v1",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/shim-VCv1.1-common-example-terms/v1.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_utopia-natcert_v1",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/utopia-natcert/v1.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "w3.org_ns_controller_v1",
+        ofType: "json")
+    context[
+        "https://www.w3.org/ns/controller/v1"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_movie-ticket_v2",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/movie-ticket/v2.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_food-safety-certification_v1",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/food-safety-certification/v1.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_academic-course-credential_v1",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/academic-course-credential/v1.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_gs1-8110-coupon_v2",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/gs1-8110-coupon/v2.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_customer-loyalty_v1",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/customer-loyalty/v1.json"
+    ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
+
+    path = Bundle.main.path(
+        forResource:
+            "examples.vcplayground.org_contexts_movie-ticket-vcdm-v2_v1",
+        ofType: "json")
+    context[
+        "https://examples.vcplayground.org/contexts/movie-ticket-vcdm-v2/v1.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
 
     return context

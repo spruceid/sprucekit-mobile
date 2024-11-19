@@ -19,14 +19,17 @@
       "@id": "https://schema.org/location",
       "@type": "@id"
     },
-    "startDate": "https://schema.org/startDate",
+    "startDate": {
+      "@id": "https://schema.org/startDate",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
     "ticketNumber": "https://schema.org/ticketNumber",
     "ticketedSeat": "https://schema.org/ticketedSeat",
     "ticketToken": "https://schema.org/ticketToken",
     "seatNumber": "https://schema.org/seatNumber",
     "seatRow": "https://schema.org/seatRow",
     "seatSection": "https://schema.org/seatSection",
-    "address": "https://schema.org/PostalAddress",
+    "address": "https://schema.org/address",
     "addressLocality": "https://schema.org/addressLocality",
     "addressRegion": "https://schema.org/addressRegion",
     "postalCode": "https://schema.org/postalCode",
