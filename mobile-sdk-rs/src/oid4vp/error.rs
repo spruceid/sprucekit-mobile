@@ -62,6 +62,8 @@ pub enum OID4VPError {
     CredentialEncoding(#[from] CredentialEncodingError),
     #[error("Failed to parse JsonPath: {0}")]
     JsonPathParse(String),
+    #[error("Empty Credential Subject. Failed to convert `Object` to `NonEmptyObject`: {0}")]
+    EmptyCredentialSubject(String),
 }
 
 // Handle unexpected errors when calling a foreign callback

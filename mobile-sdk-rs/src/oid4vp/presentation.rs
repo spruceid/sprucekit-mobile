@@ -19,9 +19,7 @@ use ssi::{
     crypto::algorithm::SignatureAlgorithmType,
     dids::{VerificationMethodDIDResolver, DIDJWK},
     json_ld::IriBuf,
-    prelude::{
-        AnyDataIntegrity, AnySuite, CryptographicSuite, DataIntegrityDocument, ProofOptions,
-    },
+    prelude::{AnyJsonPresentation, AnySuite, CryptographicSuite, DataIntegrity, ProofOptions},
     verification_methods::{MessageSigner, ProofPurpose},
     xsd::DateTimeStamp,
     JWK,
@@ -42,7 +40,6 @@ pub enum PresentationError {
     #[error("Failed to parse public JsonWebKey: {0}")]
     JWK(String),
 }
-
 /// Credential Presentation trait defines the set of standard methods
 /// each credential format must implement.
 pub trait CredentialPresentation {
@@ -335,12 +332,12 @@ impl<'a> PresentationOptions<'a> {
         Ok(())
     }
 
-    /// Sign a verifiable presentation as a data integrity document, returning a `AnyDataIntegrity` enum.
-    pub async fn sign_data_integrity_doc(
+    /// Sign a JSON presentation type for a v1 OR v2 credential.
+    pub async fn sign_presentation(
         &self,
         // NOTE: the presentation is `unsecured` at this point.
-        presentation: DataIntegrityDocument,
-    ) -> Result<AnyDataIntegrity, PresentationError> {
+        presentation: AnyJsonPresentation,
+    ) -> Result<DataIntegrity<AnyJsonPresentation, AnySuite>, PresentationError> {
         let resolver = VerificationMethodDIDResolver::new(DIDJWK);
 
         let proof_options = ProofOptions::new(

@@ -7,7 +7,7 @@ use crate::{
     CredentialType, KeyAlias,
 };
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::sync::Arc;
 
 use openid4vp::core::{
     credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
@@ -16,15 +16,35 @@ use openid4vp::core::{
 use serde_json::Value as Json;
 use ssi::{
     claims::vc::{
-        syntax::IdOr,
+        syntax::{IdOr, NonEmptyObject, NonEmptyVec},
         v1::{Credential as _, JsonPresentation as JsonPresentationV1},
-        v2::{syntax::JsonPresentation as JsonPresentationV2, Credential as _},
-        AnySpecializedJsonCredential,
+        v2::{
+            syntax::JsonPresentation as JsonPresentationV2, Credential as _,
+            JsonCredential as JsonCredentialV2,
+        },
     },
     json_ld::iref::UriBuf,
-    prelude::{AnyJsonCredential, DataIntegrityDocument},
+    prelude::{AnyJsonCredential, AnyJsonPresentation},
 };
 use uuid::Uuid;
+
+#[derive(Debug, uniffi::Error, thiserror::Error)]
+pub enum JsonVcInitError {
+    #[error("failed to decode a W3C VCDM (v1 or v2) Credential from JSON")]
+    CredentialDecoding,
+    #[error("failed to encode the credential as a UTF-8 string")]
+    CredentialStringEncoding,
+    #[error("failed to decode JSON from bytes")]
+    JsonBytesDecoding,
+    #[error("failed to decode JSON from a UTF-8 string")]
+    JsonStringDecoding,
+}
+
+#[derive(Debug, uniffi::Error, thiserror::Error)]
+pub enum JsonVcEncodingError {
+    #[error("failed to encode JSON as bytes")]
+    JsonBytesEncoding,
+}
 
 #[derive(uniffi::Object, Debug, Clone)]
 /// A verifiable credential secured as JSON.
@@ -186,72 +206,36 @@ impl CredentialPresentation for JsonVc {
         // Check the signer supports the requested vp format crypto suite.
         options.supports_cryptosuite(ClaimFormatDesignation::LdpVp)?;
 
-        let vp_token_item = match &self.parsed {
-            AnySpecializedJsonCredential::V1(cred_v1) => {
+        let unsigned_presentation = match self.parsed.clone() {
+            AnyJsonCredential::V1(cred_v1) => {
                 let holder_id: UriBuf = options.signer.did().parse().map_err(|e| {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?;
 
-                let presentation_v1 = JsonPresentationV1::new(
-                    Some(id.clone()),
-                    Some(holder_id.clone()),
-                    vec![cred_v1.clone()],
-                );
+                let unsigned_presentation_v1 =
+                    JsonPresentationV1::new(Some(id.clone()), Some(holder_id), vec![cred_v1]);
 
-                let credentials = serde_json::to_value(vec![cred_v1.clone()]).map_err(|e| {
-                    CredentialEncodingError::VpToken(format!("Error encoding VP: {e:?}"))
-                })?;
-
-                let mut properties = BTreeMap::new();
-                properties.insert("id".to_string(), json_syntax::Value::from(id.to_string()));
-                properties.insert(
-                    "holder".to_string(),
-                    json_syntax::Value::from(holder_id.to_string()),
-                );
-                properties.insert(
-                    "verifiableCredential".to_string(),
-                    json_syntax::Value::from_serde_json(credentials),
-                );
-
-                let data_integrity = options
-                    .sign_data_integrity_doc(DataIntegrityDocument {
-                        context: Some(presentation_v1.context.as_ref().clone()),
-                        types: ssi::OneOrMany::Many(
-                            presentation_v1.types.to_json_ld_types().into(),
-                        ),
-                        properties,
-                    })
-                    .await?;
-
-                println!("data_integrity: {:?}", data_integrity);
-
-                VpTokenItem::from(data_integrity)
+                AnyJsonPresentation::V1(unsigned_presentation_v1)
             }
-            AnySpecializedJsonCredential::V2(cred_v2) => {
+            AnyJsonCredential::V2(cred_v2) => {
+                // Convert inner type of `Object` -> `NonEmptyObject`.
+                let cred_v2 = try_map_subjects(cred_v2, NonEmptyObject::try_from_object)
+                    .map_err(|e| OID4VPError::EmptyCredentialSubject(format!("{e:?}")))?;
+
                 let holder_id = IdOr::Id(options.signer.did().parse().map_err(|e| {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?);
 
-                let presentation_v2 =
-                    JsonPresentationV2::new(Some(id), vec![holder_id], vec![cred_v2.clone()]);
+                let unsigned_presentation_v2 =
+                    JsonPresentationV2::new(Some(id), vec![holder_id], vec![cred_v2]);
 
-                let data_integrity = options
-                    .sign_data_integrity_doc(DataIntegrityDocument {
-                        context: Some(presentation_v2.context.as_ref().clone()),
-                        types: ssi::OneOrMany::Many(
-                            presentation_v2.types.to_json_ld_types().into(),
-                        ),
-                        properties: presentation_v2.additional_properties.clone(),
-                    })
-                    .await?;
-
-                println!("data_integrity: {:?}", data_integrity);
-
-                VpTokenItem::from(data_integrity)
+                AnyJsonPresentation::V2(unsigned_presentation_v2)
             }
         };
 
-        Ok(vp_token_item)
+        let signed_presentation = options.sign_presentation(unsigned_presentation).await?;
+
+        Ok(VpTokenItem::from(signed_presentation))
     }
 }
 
@@ -263,20 +247,38 @@ impl TryFrom<Credential> for Arc<JsonVc> {
     }
 }
 
-#[derive(Debug, uniffi::Error, thiserror::Error)]
-pub enum JsonVcInitError {
-    #[error("failed to decode a W3C VCDM (v1 or v2) Credential from JSON")]
-    CredentialDecoding,
-    #[error("failed to encode the credential as a UTF-8 string")]
-    CredentialStringEncoding,
-    #[error("failed to decode JSON from bytes")]
-    JsonBytesDecoding,
-    #[error("failed to decode JSON from a UTF-8 string")]
-    JsonStringDecoding,
-}
-
-#[derive(Debug, uniffi::Error, thiserror::Error)]
-pub enum JsonVcEncodingError {
-    #[error("failed to encode JSON as bytes")]
-    JsonBytesEncoding,
+// NOTE: This is an temporary solution to convert an inner type of a credential,
+// i.e. `Object` -> `NonEmptyObject`.
+//
+// This should be removed once fixed in ssi crate.
+#[deprecated(
+    since = "0.1.0",
+    note = "This is a temporary solution to convert an inner type of a credential, i.e. `Object` -> `NonEmptyObject`."
+)]
+fn try_map_subjects<T, U, E>(
+    cred: JsonCredentialV2<T>,
+    f: impl FnMut(T) -> Result<U, E>,
+) -> Result<JsonCredentialV2<U>, E> {
+    Ok(JsonCredentialV2 {
+        context: cred.context,
+        id: cred.id,
+        types: cred.types,
+        credential_subjects: NonEmptyVec::try_from_vec(
+            cred.credential_subjects
+                .into_iter()
+                .map(f)
+                .collect::<Result<_, _>>()?,
+        )
+        // SAFETY: `cred.credential_subjects` is non-empty.
+        .unwrap(),
+        issuer: cred.issuer,
+        valid_from: cred.valid_from,
+        valid_until: cred.valid_until,
+        credential_status: cred.credential_status,
+        terms_of_use: cred.terms_of_use,
+        evidence: cred.evidence,
+        credential_schema: cred.credential_schema,
+        refresh_services: cred.refresh_services,
+        extra_properties: cred.extra_properties,
+    })
 }
