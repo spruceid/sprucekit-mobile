@@ -251,10 +251,6 @@ impl TryFrom<Credential> for Arc<JsonVc> {
 // i.e. `Object` -> `NonEmptyObject`.
 //
 // This should be removed once fixed in ssi crate.
-#[deprecated(
-    since = "0.1.0",
-    note = "This is a temporary solution to convert an inner type of a credential, i.e. `Object` -> `NonEmptyObject`."
-)]
 fn try_map_subjects<T, U, E>(
     cred: JsonCredentialV2<T>,
     f: impl FnMut(T) -> Result<U, E>,
