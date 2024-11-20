@@ -25,9 +25,9 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
-import com.spruceid.mobilesdkexample.ui.theme.VerifiedRedInvalid
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 
 @Composable
@@ -75,7 +75,7 @@ fun WalletSettingsHomeHeader(
             fontFamily = Inter,
             fontWeight = FontWeight.SemiBold,
             fontSize = 24.sp,
-            color = TextHeader,
+            color = ColorStone950,
             modifier = Modifier.padding(start = 10.dp)
         )
         Spacer(Modifier.weight(1f))
@@ -96,7 +96,7 @@ fun WalletSettingsHomeBody(credentialPacksViewModel: CredentialPacksViewModel) {
             },
             shape = RoundedCornerShape(5.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = VerifiedRedInvalid,
+                containerColor = ColorRose600,
                 contentColor = Color.White,
             ),
             modifier = Modifier

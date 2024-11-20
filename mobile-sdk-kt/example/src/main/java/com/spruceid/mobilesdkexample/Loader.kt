@@ -26,9 +26,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
-import com.spruceid.mobilesdkexample.ui.theme.Primary
-import com.spruceid.mobilesdkexample.ui.theme.SpruceBlue
 
 @Composable
 fun Loader() {
@@ -57,7 +57,7 @@ fun Indicator(
     size: Dp = 107.dp,
     // angle (length) of indicator arc
     sweepAngle: Float = 90f,
-    color: Color = Primary,
+    color: Color = ColorBase150,
     strokeWidth: Dp = 6.dp,
 ) {
     val transition = rememberInfiniteTransition("Infinite loader indicator")
@@ -88,7 +88,7 @@ fun Indicator(
             .size(size)
             .padding(strokeWidth / 2),
     ) {
-        drawCircle(SpruceBlue, style = stroke)
+        drawCircle(ColorBlue600, style = stroke)
         drawArc(
             color,
             // arc start angle

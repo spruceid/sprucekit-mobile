@@ -20,11 +20,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
-import com.spruceid.mobilesdkexample.ui.theme.CodeBorder
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.SpruceBlue
-import com.spruceid.mobilesdkexample.ui.theme.TextBody
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,7 +46,7 @@ fun VerificationActivityLogsScreen() {
                 fontFamily = Inter,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 17.sp,
-                color = TextHeader,
+                color = ColorStone950,
                 modifier = Modifier.padding(bottom = 4.dp),
             )
         }
@@ -57,7 +57,7 @@ fun VerificationActivityLogsScreen() {
                     fontFamily = Inter,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp,
-                    color = TextHeader,
+                    color = ColorStone950,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
                 Text(
@@ -65,7 +65,7 @@ fun VerificationActivityLogsScreen() {
                     fontFamily = Inter,
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
-                    color = TextBody,
+                    color = ColorStone600,
                     modifier = Modifier.padding(bottom = 4.dp),
                 )
                 Row(
@@ -79,7 +79,7 @@ fun VerificationActivityLogsScreen() {
                         fontFamily = Inter,
                         fontWeight = FontWeight.Normal,
                         fontSize = 14.sp,
-                        color = TextBody,
+                        color = ColorStone600,
                         modifier =
                         Modifier
                             .padding(bottom = 4.dp),
@@ -98,7 +98,7 @@ fun VerificationActivityLogsScreen() {
                         fontFamily = Inter,
                         fontWeight = FontWeight.Normal,
                         fontSize = 14.sp,
-                        color = TextBody,
+                        color = ColorStone600,
                         modifier = Modifier.padding(bottom = 4.dp),
                     )
                 }
@@ -109,7 +109,7 @@ fun VerificationActivityLogsScreen() {
                     fontSize = 14.sp,
                     fontStyle = FontStyle.Italic,
                     textAlign = TextAlign.End,
-                    color = CodeBorder,
+                    color = ColorStone300,
                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                 )
                 HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp))
@@ -126,7 +126,7 @@ fun VerificationActivityLogsScreen() {
                     .padding(20.dp),
                 colors =
                 ButtonDefaults.buttonColors(
-                    containerColor = SpruceBlue,
+                    containerColor = ColorBlue600,
                     contentColor = Color.White,
                 ),
             ) {

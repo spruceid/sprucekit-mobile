@@ -25,7 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.CredentialsViewModel
-import com.spruceid.mobilesdkexample.ui.theme.Bg
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,7 +48,7 @@ fun SelectiveDisclosureView(
             .fillMaxHeight(0.8f),
         sheetState = selectNamespacesSheetState,
         dragHandle = null,
-        containerColor = Bg,
+        containerColor = ColorBase1,
         shape = RoundedCornerShape(8.dp)
     ) {
         Column(

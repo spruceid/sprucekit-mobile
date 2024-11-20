@@ -31,8 +31,8 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.spruceid.mobile.sdk.ui.MRZScanner
 import com.spruceid.mobile.sdk.ui.PDF417Scanner
 import com.spruceid.mobile.sdk.ui.QRCodeScanner
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.Primary
 
 enum class ScanningType {
     QRCODE, PDF417, MRZ
@@ -154,7 +154,7 @@ fun ScanningComponent(
                         },
                         colors =
                         ButtonDefaults.buttonColors(
-                            containerColor = Primary,
+                            containerColor = ColorBase150,
                             contentColor = Color.White,
                         ),
                         modifier =
@@ -177,7 +177,7 @@ fun ScanningComponent(
                         colors =
                         ButtonDefaults.buttonColors(
                             containerColor = Color.Transparent,
-                            contentColor = Primary,
+                            contentColor = ColorBase150,
                         ),
                     ) {
                         Text(
@@ -185,7 +185,7 @@ fun ScanningComponent(
                             fontFamily = Inter,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
-                            color = Primary,
+                            color = ColorBase150,
                         )
                     }
                 },

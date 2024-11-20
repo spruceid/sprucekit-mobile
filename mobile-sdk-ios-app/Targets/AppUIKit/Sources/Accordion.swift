@@ -40,11 +40,11 @@ struct AccordionHeader: View {
             HStack(alignment: .center) {
                 Text(title.camelCaseToWords().capitalized.replaceUnderscores())
                     .font(.customFont(font: .inter, style: .regular, size: .h4))
-                    .foregroundStyle(Color("TextBody"))
+                    .foregroundStyle(Color("ColorStone600"))
                 Spacer()
                 Image(systemName: "chevron.right")
                     .rotationEffect(degrees)
-                    .foregroundColor(Color("TextBody"))
+                    .foregroundColor(Color("ColorStone600"))
                     .padding(.trailing, 4)
             }
             .onTapGesture {

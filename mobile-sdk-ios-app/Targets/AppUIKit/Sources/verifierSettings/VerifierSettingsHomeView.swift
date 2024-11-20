@@ -43,7 +43,7 @@ struct VerifierSettingsHomeHeader: View {
             Text("Verifier Setting")
                 .font(.customFont(font: .inter, style: .bold, size: .h0))
                 .padding(.leading, 10)
-                .foregroundStyle(Color("TextHeader"))
+                .foregroundStyle(Color("ColorStone950"))
             Spacer()
         }
         .onTapGesture {
@@ -68,11 +68,11 @@ struct VerifierSettingsHomeBody: View {
                     HStack {
                         Image("List")
                         Text("Verification Activity Log").frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundColor(Color("TextHeader"))
+                            .foregroundColor(Color("ColorStone950"))
                             .font(.customFont(font: .inter, style: .medium, size: .p))
                     }
                     Text("View and export verification history").frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundColor(Color("TextBody"))
+                        .foregroundColor(Color("ColorStone600"))
                         .font(.customFont(font: .inter, style: .regular, size: .p))
                         .padding(.top, 1.0)
                 }
@@ -95,7 +95,7 @@ struct VerifierSettingsHomeBody: View {
         }
         .foregroundColor(.white)
         .padding(.vertical, 13)
-        .background(Color("RedInvalid"))
+        .background(Color("ColorRose700"))
         .cornerRadius(8)
     }
     

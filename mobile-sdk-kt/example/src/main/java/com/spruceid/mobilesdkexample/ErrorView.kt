@@ -39,7 +39,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.spruceid.mobilesdkexample.ui.theme.BorderSecondary
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
@@ -112,7 +111,7 @@ fun ErrorView(
                     .navigationBarsPadding()
                     .border(
                         width = 1.dp,
-                        color = BorderSecondary,
+                        color = ColorStone300,
                         shape = RoundedCornerShape(6.dp)
                     )
             ) {
@@ -185,7 +184,7 @@ fun ErrorView(
                                     .fillMaxWidth()
                                     .border(
                                         width = 1.dp,
-                                        color = BorderSecondary,
+                                        color = ColorStone300,
                                         shape = RoundedCornerShape(6.dp)
                                     )
                                     .weight(1f)

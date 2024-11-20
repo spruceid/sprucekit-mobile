@@ -38,7 +38,7 @@ struct VerifyDLView: View {
                 success: success!,
                 content: Text(success! ? "Valid Driver's License" : "Invalid Driver's License")
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                    .foregroundStyle(Color("TextHeader"))
+                    .foregroundStyle(Color("ColorStone950"))
                     .padding(.top, 20)
             )
         }

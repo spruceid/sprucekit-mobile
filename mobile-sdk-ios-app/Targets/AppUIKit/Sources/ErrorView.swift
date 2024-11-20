@@ -15,13 +15,13 @@ struct ErrorView: View {
                     .padding(.top, 30)
                 Text(errorTitle)
                     .font(.customFont(font: .inter, style: .bold, size: .h1))
-                    .foregroundColor(Color("RedInvalid"))
+                    .foregroundColor(Color("ColorRose700"))
                     .padding(.vertical, 10)
                 Text("View technical details")
                     .font(.customFont(font: .inter, style: .regular, size: .h4))
                     .underline()
                     .multilineTextAlignment(.center)
-                    .foregroundColor(Color("TextBody"))
+                    .foregroundColor(Color("ColorStone600"))
                     .onTapGesture {
                         sheetOpen = true
                     }
@@ -38,11 +38,11 @@ struct ErrorView: View {
                         .padding(.horizontal, -20)
                         .font(.customFont(font: .inter, style: .medium, size: .h4))
                 }
-                .foregroundColor(Color("TextHeader"))
+                .foregroundColor(Color("ColorStone950"))
                 .padding(.vertical, 13)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color("BorderSecondary"), lineWidth: 1)
+                        .stroke(Color("ColorStone300"), lineWidth: 1)
                 )
                 .padding(.top, 10)
             }
@@ -74,11 +74,11 @@ struct ErrorView: View {
                         .padding(.horizontal, -20)
                         .font(.customFont(font: .inter, style: .medium, size: .h4))
                 }
-                .foregroundColor(Color("TextHeader"))
+                .foregroundColor(Color("ColorStone950"))
                 .padding(.vertical, 13)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color("BorderSecondary"), lineWidth: 1)
+                        .stroke(Color("ColorStone300"), lineWidth: 1)
                 )
                 .padding(.top, 10)
                 

@@ -33,7 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.spruceid.mobilesdkexample.ui.theme.Bg
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue300
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue500
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue900
@@ -93,7 +93,7 @@ fun HomeBottomTabs(
     tab: HomeTabs,
     changeTabs: (HomeTabs) -> Unit
 ) {
-    BottomAppBar(containerColor = Bg) {
+    BottomAppBar(containerColor = ColorBase1) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center
