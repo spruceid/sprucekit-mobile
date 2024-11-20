@@ -27,10 +27,10 @@ import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.navigation.Screen
-import com.spruceid.mobilesdkexample.ui.theme.CTAButtonGreen
+import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.SecondaryButtonRed
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import kotlinx.coroutines.Dispatchers
@@ -106,7 +106,7 @@ fun AddToWalletView(
                 fontFamily = Inter,
                 fontWeight = FontWeight.Bold,
                 fontSize = 24.sp,
-                color = TextHeader,
+                color = ColorStone950,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 20.dp),
@@ -128,7 +128,7 @@ fun AddToWalletView(
                 },
                 shape = RoundedCornerShape(5.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = CTAButtonGreen,
+                    containerColor = ColorEmerald700,
                     contentColor = Color.White,
                 ),
                 modifier = Modifier
@@ -149,7 +149,7 @@ fun AddToWalletView(
                 shape = RoundedCornerShape(5.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
-                    contentColor = SecondaryButtonRed,
+                    contentColor = ColorRose600,
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -158,7 +158,7 @@ fun AddToWalletView(
                     text = "Close",
                     fontFamily = Inter,
                     fontWeight = FontWeight.SemiBold,
-                    color = SecondaryButtonRed,
+                    color = ColorRose600,
                 )
             }
         }

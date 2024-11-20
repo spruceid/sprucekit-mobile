@@ -33,16 +33,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobilesdkexample.R
-import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePrimaryContrast
-import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePureWhite
-import com.spruceid.mobilesdkexample.ui.theme.BorderSecondary
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase900
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.TextBase
-import com.spruceid.mobilesdkexample.ui.theme.TextPrimary
 import com.spruceid.mobilesdkexample.ui.theme.bodyMdDefault
 import com.spruceid.mobilesdkexample.ui.theme.bodyXsRegular
 import com.spruceid.mobilesdkexample.ui.theme.buttonText
@@ -148,7 +147,7 @@ fun VerifierMDocResultView(
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "VALID",
-                                color = TextBase,
+                                color = ColorBase50,
                                 style = MaterialTheme.typography.bodyMdDefault
                             )
                         }
@@ -261,9 +260,9 @@ fun VerifierMDocResultView(
                     shape = RoundedCornerShape(8.dp),
                     onClick = onClose,
                     colors = ButtonColors(
-                        containerColor = BgSurfacePrimaryContrast, contentColor = TextBase,
+                        containerColor = ColorStone700, contentColor = ColorBase50,
                         disabledContainerColor = Color.Black,
-                        disabledContentColor = TextBase
+                        disabledContentColor = ColorBase50
                     )
                 ) {
                     Row(
@@ -279,7 +278,7 @@ fun VerifierMDocResultView(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Rescan",
-                            color = TextBase,
+                            color = ColorBase50,
                             style = MaterialTheme.typography.buttonText
                         )
                     }
@@ -287,13 +286,13 @@ fun VerifierMDocResultView(
                 Button(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(width = 1.dp, color = BorderSecondary),
+                        .border(width = 1.dp, color = ColorStone300),
                     shape = RoundedCornerShape(8.dp),
                     onClick = onClose,
                     colors = ButtonColors(
-                        containerColor = BgSurfacePureWhite, contentColor = TextPrimary,
-                        disabledContainerColor = BgSurfacePureWhite,
-                        disabledContentColor = TextPrimary
+                        containerColor = ColorBase1, contentColor = ColorStone950,
+                        disabledContainerColor = ColorBase1,
+                        disabledContentColor = ColorStone950
                     )
 
                 ) {
@@ -301,7 +300,7 @@ fun VerifierMDocResultView(
                     {
                         Text(
                             text = "Close",
-                            color = TextPrimary,
+                            color = ColorStone950,
                             style = MaterialTheme.typography.buttonTextSmall
                         )
                     }

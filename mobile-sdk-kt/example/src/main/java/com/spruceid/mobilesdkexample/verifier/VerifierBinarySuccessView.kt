@@ -27,12 +27,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose700
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone700
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
-import com.spruceid.mobilesdkexample.ui.theme.VerifiedGreenValid
-import com.spruceid.mobilesdkexample.ui.theme.VerifiedRedInvalid
-import com.spruceid.mobilesdkexample.ui.theme.VerifierCloseButton
 
 @Composable
 fun VerifierBinarySuccessView(
@@ -52,7 +52,7 @@ fun VerifierBinarySuccessView(
                     .fillMaxWidth()
                     .height(250.dp)
                     .clip(shape = RoundedCornerShape(8.dp))
-                    .background(VerifiedGreenValid)
+                    .background(ColorEmerald900)
             ) {
                 Column(
                     Modifier
@@ -83,7 +83,7 @@ fun VerifierBinarySuccessView(
                     .fillMaxWidth()
                     .height(250.dp)
                     .clip(shape = RoundedCornerShape(8.dp))
-                    .background(VerifiedRedInvalid)
+                    .background(ColorRose700)
             ) {
                 Column(
                     Modifier
@@ -114,7 +114,7 @@ fun VerifierBinarySuccessView(
             fontFamily = Inter,
             fontWeight = FontWeight.SemiBold,
             fontSize = 26.sp,
-            color = TextHeader,
+            color = ColorStone950,
             modifier = Modifier.padding(top = 12.dp)
         )
 
@@ -124,7 +124,7 @@ fun VerifierBinarySuccessView(
             onClick = onClose,
             shape = RoundedCornerShape(5.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = VerifierCloseButton,
+                containerColor = ColorStone700,
                 contentColor = Color.White,
             ),
             modifier = Modifier

@@ -34,10 +34,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.TextBody
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
-import com.spruceid.mobilesdkexample.ui.theme.VerifiedRedInvalid
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -106,7 +106,7 @@ fun VerifierSettingsHomeHeader(
             fontFamily = Inter,
             fontWeight = FontWeight.SemiBold,
             fontSize = 24.sp,
-            color = TextHeader,
+            color = ColorStone950,
             modifier = Modifier.padding(start = 10.dp)
         )
         Spacer(Modifier.weight(1f))
@@ -153,7 +153,7 @@ fun VerifierSettingsHomeBody(
                                 fontFamily = Inter,
                                 fontWeight = FontWeight.Medium,
                                 fontSize = 14.sp,
-                                color = TextBody,
+                                color = ColorStone600,
                                 modifier = Modifier.padding(bottom = 5.dp, top = 5.dp),
                             )
                         }
@@ -170,7 +170,7 @@ fun VerifierSettingsHomeBody(
                         fontFamily = Inter,
                         fontWeight = FontWeight.Normal,
                         fontSize = 14.sp,
-                        color = TextBody,
+                        color = ColorStone600,
                     )
                 }
             }
@@ -183,7 +183,7 @@ fun VerifierSettingsHomeBody(
                 },
                 shape = RoundedCornerShape(5.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = VerifiedRedInvalid,
+                    containerColor = ColorRose600,
                     contentColor = Color.White,
                 ),
                 modifier = Modifier

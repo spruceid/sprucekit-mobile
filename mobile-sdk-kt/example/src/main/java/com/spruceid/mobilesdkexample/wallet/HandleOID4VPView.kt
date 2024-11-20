@@ -51,16 +51,14 @@ import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
-import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePureBlue
-import com.spruceid.mobilesdkexample.ui.theme.BorderSecondary
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.TextBase
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.utils.trustedDids
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import kotlinx.coroutines.Dispatchers
@@ -208,7 +206,7 @@ fun DataFieldSelector(
             fontFamily = Inter,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
-            color = TextHeader,
+            color = ColorStone950,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp),
@@ -254,7 +252,7 @@ fun DataFieldSelector(
                     .fillMaxWidth()
                     .border(
                         width = 1.dp,
-                        color = BorderSecondary,
+                        color = ColorStone300,
                         shape = RoundedCornerShape(6.dp)
                     )
                     .weight(1f)
@@ -287,7 +285,7 @@ fun DataFieldSelector(
                     text = "Approve",
                     fontFamily = Inter,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextBase,
+                    color = ColorBase50,
                 )
             }
         }
@@ -351,7 +349,7 @@ fun CredentialSelector(
             fontFamily = Inter,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
-            color = TextHeader,
+            color = ColorStone950,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp),
@@ -409,7 +407,7 @@ fun CredentialSelector(
                     .fillMaxWidth()
                     .border(
                         width = 1.dp,
-                        color = BorderSecondary,
+                        color = ColorStone300,
                         shape = RoundedCornerShape(6.dp)
                     )
                     .weight(1f)
@@ -452,7 +450,7 @@ fun CredentialSelector(
                     text = "Continue",
                     fontFamily = Inter,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextBase,
+                    color = ColorBase50,
                 )
             }
         }
@@ -503,8 +501,8 @@ fun CredentialSelectorItem(
                     }
                 },
                 colors = CheckboxDefaults.colors(
-                    checkedColor = BgSurfacePureBlue,
-                    uncheckedColor = BorderSecondary
+                    checkedColor = ColorBlue600,
+                    uncheckedColor = ColorStone300
                 )
             )
             Text(

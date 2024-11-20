@@ -34,10 +34,10 @@ import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.Primary
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 
 @Composable
@@ -48,7 +48,8 @@ fun WalletHomeView(
     Column(
         Modifier
             .padding(all = 20.dp)
-            .padding(top = 20.dp)) {
+            .padding(top = 20.dp)
+    ) {
         WalletHomeHeader(navController = navController)
         WalletHomeBody(credentialPacksViewModel = credentialPacksViewModel)
     }
@@ -62,7 +63,7 @@ fun WalletHomeHeader(navController: NavController) {
             fontFamily = Inter,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
-            color = TextHeader
+            color = ColorStone950
         )
         Spacer(Modifier.weight(1f))
         Box(
@@ -73,7 +74,7 @@ fun WalletHomeHeader(navController: NavController) {
                 .height(36.dp)
                 .padding(start = 4.dp)
                 .clip(shape = RoundedCornerShape(8.dp))
-                .background(Primary)
+                .background(ColorBase150)
                 .clickable { navController.navigate(Screen.ScanQRScreen.route) }
         ) {
             Image(
@@ -93,7 +94,7 @@ fun WalletHomeHeader(navController: NavController) {
                 .height(36.dp)
                 .padding(start = 4.dp)
                 .clip(shape = RoundedCornerShape(8.dp))
-                .background(Primary)
+                .background(ColorBase150)
                 .clickable {
                     navController.navigate(Screen.WalletSettingsHomeScreen.route)
                 }

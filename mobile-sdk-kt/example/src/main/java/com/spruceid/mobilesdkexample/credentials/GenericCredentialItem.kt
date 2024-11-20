@@ -47,13 +47,13 @@ import com.spruceid.mobile.sdk.ui.CardRenderingDetailsView
 import com.spruceid.mobile.sdk.ui.CardRenderingListView
 import com.spruceid.mobile.sdk.ui.toCardRendering
 import com.spruceid.mobilesdkexample.R
-import com.spruceid.mobilesdkexample.ui.theme.Bg
-import com.spruceid.mobilesdkexample.ui.theme.CredentialBorder
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.SecondaryButtonRed
-import com.spruceid.mobilesdkexample.ui.theme.SpruceBlue
-import com.spruceid.mobilesdkexample.ui.theme.TextBody
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.utils.addCredential
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import kotlinx.coroutines.launch
@@ -111,7 +111,7 @@ class GenericCredentialItem : ICredentialView {
                 fontFamily = Inter,
                 fontWeight = FontWeight.Normal,
                 fontSize = 14.sp,
-                color = TextBody
+                color = ColorStone600
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -216,7 +216,7 @@ class GenericCredentialItem : ICredentialView {
                     fontFamily = Inter,
                     fontWeight = FontWeight.Medium,
                     fontSize = 20.sp,
-                    color = TextHeader,
+                    color = ColorStone950,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             },
@@ -300,7 +300,7 @@ class GenericCredentialItem : ICredentialView {
                         fontFamily = Inter,
                         fontWeight = FontWeight.Medium,
                         fontSize = 20.sp,
-                        color = TextHeader,
+                        color = ColorStone950,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                 }
@@ -334,7 +334,7 @@ class GenericCredentialItem : ICredentialView {
                     fontFamily = Inter,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
-                    color = TextHeader,
+                    color = ColorStone950,
                     modifier = Modifier
                         .fillMaxWidth()
                 )
@@ -347,7 +347,7 @@ class GenericCredentialItem : ICredentialView {
                     shape = RoundedCornerShape(5.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
-                        contentColor = SecondaryButtonRed,
+                        contentColor = ColorRose600,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -356,7 +356,7 @@ class GenericCredentialItem : ICredentialView {
                         text = "Delete",
                         fontFamily = Inter,
                         fontWeight = FontWeight.Normal,
-                        color = SecondaryButtonRed,
+                        color = ColorRose600,
                     )
                 }
 
@@ -371,7 +371,7 @@ class GenericCredentialItem : ICredentialView {
                     shape = RoundedCornerShape(5.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
-                        contentColor = SpruceBlue,
+                        contentColor = ColorBlue600,
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -380,7 +380,7 @@ class GenericCredentialItem : ICredentialView {
                         text = "Cancel",
                         fontFamily = Inter,
                         fontWeight = FontWeight.Bold,
-                        color = SpruceBlue,
+                        color = ColorBlue600,
                     )
                 }
             }
@@ -394,7 +394,7 @@ class GenericCredentialItem : ICredentialView {
                 .padding(vertical = 10.dp)
                 .border(
                     width = 1.dp,
-                    color = CredentialBorder,
+                    color = ColorBase300,
                     shape = RoundedCornerShape(8.dp)
                 )
                 .padding(12.dp)
@@ -414,7 +414,7 @@ class GenericCredentialItem : ICredentialView {
                 .padding(vertical = 10.dp)
                 .border(
                     width = 1.dp,
-                    color = CredentialBorder,
+                    color = ColorBase300,
                     shape = RoundedCornerShape(8.dp)
                 )
                 .padding(12.dp)
@@ -447,7 +447,7 @@ class GenericCredentialItem : ICredentialView {
                                 null
                             }
                         }
-                    genericObjectDisplayer(
+                        genericObjectDisplayer(
                             credential!!,
                             listOf("type", "hashed", "salt", "proof", "renderMethod", "@context")
                         )
@@ -456,9 +456,10 @@ class GenericCredentialItem : ICredentialView {
             )
         )
 
-        Box(Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
         ) {
             BaseCard(
                 credentialPack = credentialPack,
@@ -492,7 +493,7 @@ class GenericCredentialItem : ICredentialView {
                     .fillMaxHeight(0.8f)
                     .nestedScroll(rememberNestedScrollInteropConnection()),
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = Bg,
+                containerColor = ColorBase1,
                 shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
             ) {
                 Column(
@@ -506,7 +507,7 @@ class GenericCredentialItem : ICredentialView {
                         fontFamily = Inter,
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp,
-                        color = TextHeader,
+                        color = ColorStone950,
                         modifier = Modifier
                             .fillMaxWidth()
                     )

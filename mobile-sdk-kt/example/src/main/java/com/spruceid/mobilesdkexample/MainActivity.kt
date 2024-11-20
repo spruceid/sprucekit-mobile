@@ -16,7 +16,7 @@ import com.spruceid.mobilesdkexample.db.AppDatabase
 import com.spruceid.mobilesdkexample.db.VerificationMethodsRepository
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.navigation.SetupNavGraph
-import com.spruceid.mobilesdkexample.ui.theme.Bg
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModelFactory
@@ -36,13 +36,13 @@ class MainActivity : ComponentActivity() {
                     )
                 )
             } else if (intent.data!!.toString().startsWith("openid4vp")) {
-                    navController.navigate(
-                        Screen.HandleOID4VP.route.replace(
-                            "{url}",
-                            intent.data.toString().replace("openid4vp://", "")
-                        )
+                navController.navigate(
+                    Screen.HandleOID4VP.route.replace(
+                        "{url}",
+                        intent.data.toString().replace("openid4vp://", "")
                     )
-                }
+                )
+            }
         } else {
             super.onNewIntent(intent)
         }
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier
                         .fillMaxSize(),
-                    color = Bg,
+                    color = ColorBase1,
                 ) {
                     navController = rememberNavController()
 
@@ -67,9 +67,9 @@ class MainActivity : ComponentActivity() {
                     //    RawCredentialsViewModelFactory((application as MainApplication).rawCredentialsRepository)
                     // }
 
-                     val verificationMethodsViewModel: VerificationMethodsViewModel by viewModels {
+                    val verificationMethodsViewModel: VerificationMethodsViewModel by viewModels {
                         VerificationMethodsViewModelFactory((application as MainApplication).verificationMethodsRepository)
-                     }
+                    }
 
                     val credentialPacksViewModel: CredentialPacksViewModel by viewModels {
                         CredentialPacksViewModelFactory(application as MainApplication)
