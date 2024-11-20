@@ -209,7 +209,7 @@ struct DelegatedVerifierDisplayQRCodeView: View {
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color("CodeBorder"), lineWidth: 1)
+                        .stroke(Color("ColorStone300"), lineWidth: 1)
                 )
             }
         }

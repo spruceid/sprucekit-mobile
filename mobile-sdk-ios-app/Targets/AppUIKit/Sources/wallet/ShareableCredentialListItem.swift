@@ -49,7 +49,7 @@ struct ShareableCredentialListItem: View {
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color("CredentialBorder"), lineWidth: 1)
+                    .stroke(Color("ColorBase300"), lineWidth: 1)
             )
             .padding(.all, 12)
             
@@ -60,7 +60,7 @@ struct ShareableCredentialListItem: View {
             VStack {
                 Text("Review Info")
                     .font(.customFont(font: .inter, style: .bold, size: .h0))
-                    .foregroundStyle(Color("TextHeader"))
+                    .foregroundStyle(Color("ColorStone950"))
                     .padding(.top, 25)
                 Text(mdocId!)
             }
@@ -86,7 +86,7 @@ struct ShareableCredentialListItemQRCode: View {
     var body: some View {
         ZStack {
             Rectangle()
-                .foregroundColor(Color("Primary"))
+                .foregroundColor(Color("ColorBase150"))
                 .edgesIgnoringSafeArea(.all)
             VStack(spacing: 0) {
                 HStack {
@@ -95,7 +95,7 @@ struct ShareableCredentialListItemQRCode: View {
                         Image("QRCode")
                         Text(showingQRCode ? "Hide QR code" : "Show QR code")
                             .font(.customFont(font: .inter, style: .regular, size: .xsmall))
-                            .foregroundStyle(Color("TextBody"))
+                            .foregroundStyle(Color("ColorStone600"))
                     }
                     Spacer()
                 }
@@ -108,7 +108,7 @@ struct ShareableCredentialListItemQRCode: View {
                     
                     Text("Shares your credential online or \n in-person, wherever accepted.")
                         .font(.customFont(font: .inter, style: .regular, size: .small))
-                        .foregroundStyle(Color("TextOnPrimary"))
+                        .foregroundStyle(Color("ColorStone400"))
                         .padding(.vertical, 12)
                         .task {
                             qrSheetView = await getQRSheetView()

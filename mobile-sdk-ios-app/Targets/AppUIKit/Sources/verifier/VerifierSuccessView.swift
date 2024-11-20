@@ -11,7 +11,7 @@ struct VerifierSuccessView: View {
             if success {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("GreenValid"))
+                        .foregroundColor(Color("ColorEmerald900"))
                         .frame(height: 250)
                     VStack {
                         Spacer()
@@ -29,7 +29,7 @@ struct VerifierSuccessView: View {
             } else {
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("RedInvalid"))
+                        .foregroundColor(Color("ColorRose700"))
                         .frame(width: .infinity, height: 250)
                     VStack {
                         Spacer()
@@ -62,7 +62,7 @@ struct VerifierSuccessView: View {
             }
             .foregroundColor(.white)
             .padding(.vertical, 13)
-            .background(Color("GrayButton"))
+            .background(Color("ColorStone700"))
             .cornerRadius(8)
         }
         .frame(maxWidth: .infinity)
@@ -81,7 +81,7 @@ struct VerifierSuccessViewPreview: PreviewProvider {
             success: true,
             content: Text("Valid Verifiable Credential")
                 .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                .foregroundStyle(Color("TextHeader"))
+                .foregroundStyle(Color("ColorStone950"))
                 .padding(.top, 20)
         )
     }

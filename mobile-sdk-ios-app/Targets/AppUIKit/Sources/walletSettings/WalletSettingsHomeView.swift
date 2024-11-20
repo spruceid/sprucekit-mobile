@@ -32,7 +32,7 @@ struct WalletSettingsHomeHeader: View {
             Text("Wallet Setting")
                 .font(.customFont(font: .inter, style: .bold, size: .h0))
                 .padding(.leading, 10)
-                .foregroundStyle(Color("TextHeader"))
+                .foregroundStyle(Color("ColorStone950"))
             Spacer()
         }
         .onTapGesture {
@@ -68,7 +68,7 @@ struct WalletSettingsHomeBody: View {
         }
         .foregroundColor(.white)
         .padding(.vertical, 13)
-        .background(Color("RedInvalid"))
+        .background(Color("ColorRose700"))
         .cornerRadius(8)
     }
 

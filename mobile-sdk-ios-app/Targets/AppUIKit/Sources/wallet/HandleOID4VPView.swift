@@ -154,7 +154,7 @@ struct DataFieldSelector: View {
                 .padding(.vertical, 13)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color("BorderSecondary"), lineWidth: 1)
+                        .stroke(Color("ColorStone300"), lineWidth: 1)
                 )
 
                 Button {
@@ -257,7 +257,7 @@ struct CredentialSelector: View {
                 .padding(.vertical, 13)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color("BorderSecondary"), lineWidth: 1)
+                        .stroke(Color("ColorStone300"), lineWidth: 1)
                 )
 
                 Button {

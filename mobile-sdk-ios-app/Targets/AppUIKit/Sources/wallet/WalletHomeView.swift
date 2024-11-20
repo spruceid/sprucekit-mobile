@@ -22,17 +22,17 @@ struct WalletHomeHeader: View {
             Text("Wallet")
                 .font(.customFont(font: .inter, style: .bold, size: .h2))
                 .padding(.leading, 36)
-                .foregroundStyle(Color("TextHeader"))
+                .foregroundStyle(Color("ColorStone950"))
             Spacer()
             Button {
                 path.append(DispatchQR())
             } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("Primary"))
+                        .foregroundColor(Color("ColorBase150"))
                         .frame(width: 36, height: 36)
                     Image("QRCodeReader")
-                        .foregroundColor(Color("SecondaryIconButton"))
+                        .foregroundColor(Color("ColorStone400"))
                 }
             }
             .padding(.trailing, 4)
@@ -41,7 +41,7 @@ struct WalletHomeHeader: View {
             } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("Primary"))
+                        .foregroundColor(Color("ColorBase150"))
                         .frame(width: 36, height: 36)
                     Image("User")
                 }

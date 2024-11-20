@@ -30,7 +30,7 @@ public struct ContentView: View {
         ZStack {
             // Bg color
             Rectangle()
-                .foregroundColor(Color("Bg"))
+                .foregroundColor(Color("ColorBase1"))
                 .edgesIgnoringSafeArea(.all)
             NavigationStack(path: $path.animation(.easeOut)) {
                 HomeView(path: $path)

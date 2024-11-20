@@ -20,14 +20,14 @@ struct VerifierHomeHeader: View {
             Text("Verifier")
                 .font(.customFont(font: .inter, style: .bold, size: .h2))
                 .padding(.leading, 36)
-                .foregroundStyle(Color("TextHeader"))
+                .foregroundStyle(Color("ColorStone950"))
             Spacer()
             Button {
                 path.append(VerifierSettingsHome())
             } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("Primary"))
+                        .foregroundColor(Color("ColorBase150"))
                         .frame(width: 36, height: 36)
                     Image("Cog")
                 }
@@ -57,7 +57,7 @@ struct VerifierHomeBody: View {
                 HStack {
                     Text("VERIFICATIONS")
                         .font(.customFont(font: .inter, style: .bold, size: .p))
-                        .foregroundStyle(Color("TextOnPrimary"))
+                        .foregroundStyle(Color("ColorStone400"))
                     Spacer()
                     Text("+ New Verification")
                         .font(.customFont(font: .inter, style: .semiBold, size: .h4))
@@ -127,7 +127,7 @@ struct VerifierListItem: View {
             HStack(alignment: .center) {
                 Text(title)
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                    .foregroundStyle(Color("TextHeader"))
+                    .foregroundStyle(Color("ColorStone950"))
                 Spacer()
                 VerifierListItemTag(type: type)
             }

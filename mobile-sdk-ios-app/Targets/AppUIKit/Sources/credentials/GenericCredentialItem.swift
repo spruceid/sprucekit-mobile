@@ -41,7 +41,7 @@ struct GenericCredentialItem: ICredentialView {
         return VStack(alignment: .leading, spacing: 12) {
             Text(description)
                 .font(.customFont(font: .inter, style: .regular, size: .p))
-                .foregroundStyle(Color("TextBody"))
+                .foregroundStyle(Color("ColorStone600"))
                 .padding(.top, 4)
         }
         .padding(.leading, 12)
@@ -97,7 +97,7 @@ struct GenericCredentialItem: ICredentialView {
                     return VStack(alignment: .leading, spacing: 12) {
                         Text(title ?? "")
                             .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                            .foregroundStyle(Color("TextHeader"))
+                            .foregroundStyle(Color("ColorStone950"))
                     }
                     .padding(.leading, 12)
                 },
@@ -148,7 +148,7 @@ struct GenericCredentialItem: ICredentialView {
                             Text(title ?? "")
                                 .padding(.trailing, 12)
                                 .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                                .foregroundStyle(Color("TextHeader"))
+                                .foregroundStyle(Color("ColorStone950"))
                         }
                     }
                     .padding(.leading, 12)
@@ -208,7 +208,7 @@ struct GenericCredentialItem: ICredentialView {
             .padding(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color("CredentialBorder"), lineWidth: 1)
+                    .stroke(Color("ColorBase300"), lineWidth: 1)
             )
             .padding(.all, 12)
             
@@ -227,7 +227,7 @@ struct GenericCredentialItem: ICredentialView {
                 VStack {
                     Text("Review Info")
                         .font(.customFont(font: .inter, style: .bold, size: .h0))
-                        .foregroundStyle(Color("TextHeader"))
+                        .foregroundStyle(Color("ColorStone950"))
                         .padding(.top, 25)
                     AnyView(credentialListItem())
                         .frame(height: 120)

@@ -72,7 +72,7 @@ struct AddToWalletView: View {
                     Text("Review Info")
                         .font(.customFont(font: .inter, style: .bold, size: .h0))
                         .padding(.horizontal, 20)
-                        .foregroundStyle(Color("TextHeader"))
+                        .foregroundStyle(Color("ColorStone950"))
                     AnyView(credentialItem!.credentialListItem(withOptions: false))
                         .frame(height: 100)
                     ScrollView(.vertical, showsIndicators: false) {
@@ -92,7 +92,7 @@ struct AddToWalletView: View {
                     }
                     .foregroundColor(.white)
                     .padding(.vertical, 13)
-                    .background(Color("CTAButtonGreen"))
+                    .background(Color("ColorEmerald700"))
                     .cornerRadius(8)
                     Button {
                         back()
@@ -102,7 +102,7 @@ struct AddToWalletView: View {
                             .padding(.horizontal, -20)
                             .font(.customFont(font: .inter, style: .medium, size: .h4))
                     }
-                    .foregroundColor(Color("SecondaryButtonRed"))
+                    .foregroundColor(Color("ColorRose600"))
                     .padding(.vertical, 13)
                     .cornerRadius(8)
                 }

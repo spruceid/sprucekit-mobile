@@ -28,16 +28,16 @@ struct VerificationActivityLogView: View {
                 Image("Export")
                     .resizable()
                     .frame(width: CGFloat(18), height: CGFloat(18))
-                    .foregroundColor(Color("CTAButtonBlue"))
+                    .foregroundColor(Color("ColorBlue600"))
                 Text("Export")
                     .font(.customFont(font: .inter, style: .medium, size: .h4))
             }
-            .foregroundColor(Color("CTAButtonBlue"))
+            .foregroundColor(Color("ColorBlue600"))
             .padding(.vertical, 13)
             .frame(width: UIScreen.screenWidth - 40)
             .overlay(
                 RoundedRectangle(cornerRadius: 100)
-                    .stroke(Color("CTAButtonBlue"), lineWidth: 2)
+                    .stroke(Color("ColorBlue600"), lineWidth: 2)
             )
         }
     }
@@ -48,7 +48,7 @@ struct VerificationActivityLogView: View {
                 VStack(alignment: .leading) {
                     Text("Coming Soon")
                         .font(.customFont(font: .inter, style: .medium, size: .h4))
-                        .foregroundColor(Color("TextBody"))
+                        .foregroundColor(Color("ColorStone600"))
                     ForEach(verificationActivityLogsReq, id: \.self) { item in
                         let formatter = DateFormatter()
                         let _ = formatter.dateFormat = "MM/dd/yyyy"
@@ -56,22 +56,22 @@ struct VerificationActivityLogView: View {
                         
                         Text(item.name)
                             .font(.customFont(font: .inter, style: .medium, size: .h4))
-                            .foregroundColor(Color("TextBody"))
+                            .foregroundColor(Color("ColorStone600"))
                         Text(item.name)
                             .font(.customFont(font: .inter, style: .medium, size: .h4))
-                            .foregroundColor(Color("TextBody"))
+                            .foregroundColor(Color("ColorStone600"))
                         HStack(alignment: .center) {
                             Text(item.status)
                                 .font(.customFont(font: .inter, style: .regular, size: .h4))
-                                .foregroundColor(Color("TextBody"))
+                                .foregroundColor(Color("ColorStone600"))
                             Spacer()
                             Text("\(Date.now.compare(expDate) == .orderedDescending ? "expired" : "expires") on \(item.expiration_date)")
                                 .font(.customFont(font: .inter, style: .medium, size: .h4))
-                                .foregroundColor(Color("TextBody"))
+                                .foregroundColor(Color("ColorStone600"))
                         }
                         Text("Scanned on \(item.date)")
                             .font(.customFont(font: .inter, style: .italic, size: .h4))
-                            .foregroundColor(Color("CodeBorder"))
+                            .foregroundColor(Color("ColorStone300"))
                             .padding(.top, 8)
                         Divider()
                     }

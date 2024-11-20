@@ -56,7 +56,7 @@ struct VerifyEAView: View {
                 success: success!,
                 content: Text(success! ? "Valid Employment Authorization" : "Invalid Employment Authorization")
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                    .foregroundStyle(Color("TextHeader"))
+                    .foregroundStyle(Color("ColorStone950"))
                     .padding(.top, 20)
             )
         }
