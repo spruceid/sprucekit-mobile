@@ -5,11 +5,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogsRepository
+import com.spruceid.mobilesdkexample.utils.formatSqlDateTime
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class LogsViewModel(private val verificationActivityLogsRepository: VerificationActivityLogsRepository) :
+class VerificationActivityLogsViewModel(private val verificationActivityLogsRepository: VerificationActivityLogsRepository) :
     ViewModel() {
     private val _verificationActivityLogs = MutableStateFlow(listOf<VerificationActivityLogs>())
     val verificationActivityLogs = _verificationActivityLogs.asStateFlow()
@@ -27,17 +28,41 @@ class LogsViewModel(private val verificationActivityLogsRepository: Verification
             verificationActivityLogsRepository.getVerificationActivityLogs()
     }
 
-    fun generateVerificationActivityLogCSV(): String {
-        val heading = "ID, Full Name, Credential Title, Permit Expiration, Status, Date\n"
-        return heading +
-                verificationActivityLogs.value.joinToString("\n") {
-                    "${it.id}, ${it.name}, ${it.credentialTitle}, ${it.expirationDate}, ${it.status}, ${it.date}"
-                }
+    // TODO: Add fromDate and credentialType filter params
+    fun getFilteredVerificationActivityLog() {
+        verificationActivityLogsRepository.getFilteredVerificationActivityLogs()
+    }
+
+    fun getDistinctCredentialTitles(): List<String> {
+        return verificationActivityLogsRepository.getDistinctCredentialTitles()
+    }
+
+    fun generateVerificationActivityLogCSV(logs: List<VerificationActivityLogs>? = null): String {
+        val heading =
+            "ID, Credential Title, Issuer, Verification Date Time, Additional Information\n"
+
+        val rows = logs?.joinToString("\n") {
+            "${it.id}, " +
+                    "${it.credentialTitle}, " +
+                    "${it.issuer}, " +
+                    "${formatSqlDateTime(it.verificationDateTime)}, " +
+                    it.additionalInformation
+        }
+            ?: verificationActivityLogs.value.joinToString("\n") {
+                "${it.id}, " +
+                        "${it.credentialTitle}, " +
+                        "${it.issuer}, " +
+                        "${formatSqlDateTime(it.verificationDateTime)}, " +
+                        it.additionalInformation
+            }
+
+        return heading + rows
     }
 }
 
-class LogsViewModelFactory(private val repository: VerificationActivityLogsRepository) :
+class VerificationActivityLogsViewModelFactory(private val repository: VerificationActivityLogsRepository) :
     ViewModelProvider.NewInstanceFactory() {
     @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = LogsViewModel(repository) as T
+    override fun <T : ViewModel> create(modelClass: Class<T>): T =
+        VerificationActivityLogsViewModel(repository) as T
 }

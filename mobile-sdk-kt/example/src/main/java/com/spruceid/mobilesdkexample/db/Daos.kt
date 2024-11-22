@@ -9,8 +9,18 @@ interface VerificationActivityLogsDao {
     @Insert
     suspend fun insertVerificationActivity(verificationActivityLogs: VerificationActivityLogs)
 
-    @Query("SELECT * FROM verification_activity_logs")
+    @Query("SELECT * FROM verification_activity_logs ORDER BY verificationDateTime DESC")
     fun getAllVerificationActivityLogs(): List<VerificationActivityLogs>
+
+    @Query(
+        "SELECT * FROM verification_activity_logs " +
+                "WHERE verificationDateTime > :fromDate " +
+                "ORDER BY verificationDateTime DESC"
+    )
+    fun getFilteredVerificationActivityLogs(fromDate: Long): List<VerificationActivityLogs>
+
+    @Query("SELECT DISTINCT credentialTitle FROM verification_activity_logs")
+    fun getDistinctCredentialTitles(): List<String>
 }
 
 @Dao

@@ -22,4 +22,6 @@
     <string name="arrow_triangle_right">Start flow</string>
     <string name="arrow_circle">Restart</string>
     <string name="cog">Settings</string>
+    <string name="filter">Click to filter</string>
+    <string name="export">Export</string>
 </resources>

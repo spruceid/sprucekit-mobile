@@ -29,12 +29,15 @@ import com.spruceid.mobile.sdk.rs.DelegatedVerifier
 import com.spruceid.mobile.sdk.rs.DelegatedVerifierStatus
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
+import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.db.VerificationMethods
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import io.ktor.http.Url
 import kotlinx.coroutines.launch
@@ -50,7 +53,8 @@ enum class VerifyDelegatedOid4vpViewSteps {
 fun VerifyDelegatedOid4vpView(
     navController: NavController,
     verificationId: String,
-    verificationMethodsViewModel: VerificationMethodsViewModel
+    verificationMethodsViewModel: VerificationMethodsViewModel,
+    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
 ) {
     val scope = rememberCoroutineScope()
 
@@ -181,6 +185,18 @@ fun VerifyDelegatedOid4vpView(
                     VerifierCredentialSuccessView(
                         rawCredential = presentation!!,
                         onClose = { back() },
+                        logVerification = { title, issuer ->
+                            scope.launch {
+                                verificationActivityLogsViewModel.saveVerificationActivityLog(
+                                    VerificationActivityLogs(
+                                        credentialTitle = title,
+                                        issuer = issuer,
+                                        verificationDateTime = getCurrentSqlDate(),
+                                        additionalInformation = ""
+                                    )
+                                )
+                            }
+                        }
                     )
                 }
             }

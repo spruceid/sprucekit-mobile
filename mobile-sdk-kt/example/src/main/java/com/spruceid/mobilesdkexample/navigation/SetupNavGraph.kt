@@ -15,8 +15,11 @@ import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
 import com.spruceid.mobilesdkexample.verifier.VerifyEAView
 import com.spruceid.mobilesdkexample.verifier.VerifyMDocView
 import com.spruceid.mobilesdkexample.verifier.VerifyVCView
+import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
+import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VCIView
@@ -27,7 +30,9 @@ import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
 fun SetupNavGraph(
     navController: NavHostController,
     verificationMethodsViewModel: VerificationMethodsViewModel,
-    credentialPacksViewModel: CredentialPacksViewModel
+    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
+    credentialPacksViewModel: CredentialPacksViewModel,
+    helpersViewModel: HelpersViewModel
 ) {
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
         composable(
@@ -48,16 +53,33 @@ fun SetupNavGraph(
         }
         composable(
             route = Screen.VerifyDLScreen.route,
-        ) { VerifyDLView(navController) }
+        ) {
+            VerifyDLView(
+                navController,
+                verificationActivityLogsViewModel = verificationActivityLogsViewModel
+            )
+        }
         composable(
             route = Screen.VerifyEAScreen.route,
-        ) { VerifyEAView(navController) }
+        ) {
+            VerifyEAView(
+                navController,
+                verificationActivityLogsViewModel = verificationActivityLogsViewModel
+            )
+        }
         composable(
             route = Screen.VerifyVCScreen.route,
-        ) { VerifyVCView(navController) }
+        ) {
+            VerifyVCView(navController)
+        }
         composable(
             route = Screen.VerifyMDocScreen.route,
-        ) { VerifyMDocView(navController) }
+        ) {
+            VerifyMDocView(
+                navController,
+                verificationActivityLogsViewModel = verificationActivityLogsViewModel
+            )
+        }
         composable(
             route = Screen.VerifyDelegatedOid4vpScreen.route,
         ) { backStackEntry ->
@@ -65,7 +87,8 @@ fun SetupNavGraph(
             VerifyDelegatedOid4vpView(
                 navController,
                 verificationId = id,
-                verificationMethodsViewModel
+                verificationMethodsViewModel = verificationMethodsViewModel,
+                verificationActivityLogsViewModel = verificationActivityLogsViewModel
             )
         }
         composable(
@@ -74,6 +97,15 @@ fun SetupNavGraph(
             VerifierSettingsHomeView(
                 navController,
                 verificationMethodsViewModel = verificationMethodsViewModel
+            )
+        }
+        composable(
+            route = Screen.VerifierSettingsActivityLogScreen.route,
+        ) {
+            VerifierSettingsActivityLogScreen(
+                navController,
+                verificationActivityLogsViewModel = verificationActivityLogsViewModel,
+                helpersViewModel = helpersViewModel
             )
         }
         composable(
