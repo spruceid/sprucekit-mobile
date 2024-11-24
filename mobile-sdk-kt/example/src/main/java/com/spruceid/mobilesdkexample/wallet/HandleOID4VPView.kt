@@ -82,8 +82,11 @@ class Signer(keyId: String?): PresentationSigner {
     private val didJwk = DidMethodUtils(DidMethod.JWK)
 
     override suspend fun sign(payload: ByteArray): ByteArray {
-        val signature = keyManager.signPayload(keyId, payload) ?:
-            throw IllegalStateException("Failed to sign payload")
+        println("Payload Size: ${payload.size}")
+
+        val signature =
+                keyManager.signPayload(keyId, payload)
+                        ?: throw IllegalStateException("Failed to sign payload")
 
         return signature
     }
@@ -139,7 +142,18 @@ fun HandleOID4VPView(
             }
 
             withContext(Dispatchers.IO) {
-                holder = Holder.newWithCredentials(credentials, trustedDids)
+                val signer = Signer("reference-app/default-signing")
+                holder =
+                        Holder.newWithCredentials(
+                                credentials,
+                                trustedDids,
+                                signer,
+                                getVCPlaygroundOID4VCIContext(ctx)
+                        )
+
+                // Initialize the logger
+                holder!!.initiateLogger()
+
                 val newurl = url.replace("authorize", "")
                 permissionRequest = holder!!.authorizationRequest(newurl)
             }
