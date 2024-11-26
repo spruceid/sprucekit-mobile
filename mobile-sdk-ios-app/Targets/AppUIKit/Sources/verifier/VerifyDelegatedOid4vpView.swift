@@ -161,7 +161,15 @@ struct VerifyDelegatedOid4vpView: View {
                     if let presentationUnwrapped = presentation {
                         VerifierCredentialSuccessView(
                             rawCredential: presentationUnwrapped,
-                            onClose: onBack
+                            onClose: onBack,
+                            logVerification: { title, issuer in
+                                _ = VerificationActivityLogDataStore.shared.insert(
+                                    credentialTitle: title,
+                                    issuer: issuer,
+                                    verificationDateTime: Date(),
+                                    additionalInformation: ""
+                                )
+                            }
                         )
                     }
                 }
