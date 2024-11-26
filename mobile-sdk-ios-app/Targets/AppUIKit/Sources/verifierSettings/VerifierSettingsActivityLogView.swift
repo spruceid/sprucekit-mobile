@@ -88,39 +88,51 @@ struct VerifierSettingsActivityLogBody: View {
 
     var body: some View {
         VStack {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading) {
-                    ForEach(verificationActivityLogsReq, id: \.self) { item in
-                        Text(item.credential_title)
-                            .font(
-                                .customFont(
-                                    font: .inter, style: .bold, size: .h4)
-                            )
-                            .foregroundColor(Color("ColorStone950"))
-                        Text(item.issuer)
-                            .font(
-                                .customFont(
-                                    font: .inter, style: .regular, size: .p)
-                            )
-                            .foregroundColor(Color("ColorStone600"))
-                        Text("\(item.verification_date_time)")
-                            .font(
-                                .customFont(
-                                    font: .inter, style: .regular, size: .p)
-                            )
-                            .foregroundColor(Color("ColorStone600"))
-                        Divider()
+            if(verificationActivityLogsReq.isEmpty) {
+                VStack {
+                    Text("No Activity Log Found")
+                        .font(
+                            .customFont(
+                                font: .inter, style: .regular, size: .h2)
+                        )
+                        .foregroundColor(Color("ColorStone400"))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading) {
+                        ForEach(verificationActivityLogsReq, id: \.self) { item in
+                            Text(item.credential_title)
+                                .font(
+                                    .customFont(
+                                        font: .inter, style: .bold, size: .h4)
+                                )
+                                .foregroundColor(Color("ColorStone950"))
+                            Text(item.issuer)
+                                .font(
+                                    .customFont(
+                                        font: .inter, style: .regular, size: .p)
+                                )
+                                .foregroundColor(Color("ColorStone600"))
+                            Text("\(item.verification_date_time)")
+                                .font(
+                                    .customFont(
+                                        font: .inter, style: .regular, size: .p)
+                                )
+                                .foregroundColor(Color("ColorStone600"))
+                            Divider()
+                        }
+                    }
+                    .padding(.bottom, 10.0)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .bottomBar) {
+                            shareButton
+                        }
                     }
                 }
-                .padding(.bottom, 10.0)
-                .toolbar {
-                    ToolbarItemGroup(placement: .bottomBar) {
-                        shareButton
-                    }
-                }
+                .padding(.top, 20)
+                .padding(.horizontal, 30)
             }
-            .padding(.top, 20)
-            .padding(.horizontal, 30)
         }
     }
 }
