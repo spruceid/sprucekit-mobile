@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogsRepository
 import com.spruceid.mobilesdkexample.utils.formatSqlDateTime
+import com.spruceid.mobilesdkexample.utils.removeCommas
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -45,14 +46,14 @@ class VerificationActivityLogsViewModel(private val verificationActivityLogsRepo
             "${it.id}, " +
                     "${it.credentialTitle}, " +
                     "${it.issuer}, " +
-                    "${formatSqlDateTime(it.verificationDateTime)}, " +
+                    "${formatSqlDateTime(it.verificationDateTime).removeCommas()}, " +
                     it.additionalInformation
         }
             ?: verificationActivityLogs.value.joinToString("\n") {
                 "${it.id}, " +
                         "${it.credentialTitle}, " +
                         "${it.issuer}, " +
-                        "${formatSqlDateTime(it.verificationDateTime)}, " +
+                        "${formatSqlDateTime(it.verificationDateTime).removeCommas()}, " +
                         it.additionalInformation
             }
 

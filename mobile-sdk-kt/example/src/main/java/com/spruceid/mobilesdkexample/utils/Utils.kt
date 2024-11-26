@@ -52,6 +52,8 @@ fun String.splitCamelCase() = replace(
 
 fun String.removeUnderscores() = replace("_", "")
 
+fun String.removeCommas() = replace(",", "")
+
 
 fun String.isDate(): Boolean {
     return lowercase().contains("date") ||
