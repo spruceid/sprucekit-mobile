@@ -9,9 +9,13 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobile.sdk.rs.verifyPdf417Barcode
+import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
+import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
@@ -19,19 +23,32 @@ import kotlinx.coroutines.launch
 @Composable
 fun VerifyDLView(
     navController: NavController,
+    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
 ) {
-    var success by remember {
-        mutableStateOf<Boolean?>(null)
-    }
+    var success by remember { mutableStateOf<Boolean?>(null) }
+    var verifying by remember { mutableStateOf<Boolean>(false) }
+
 
     fun onRead(content: String) {
-        GlobalScope.launch {
-            try {
-                verifyPdf417Barcode(payload = content)
-                success = true
-            } catch (e: Exception) {
-                success = false
-                e.printStackTrace()
+        if (!verifying) {
+            verifying = true
+            GlobalScope.launch {
+                try {
+                    verifyPdf417Barcode(payload = content)
+                    success = true
+                    verificationActivityLogsViewModel.saveVerificationActivityLog(
+                        VerificationActivityLogs(
+                            credentialTitle = "Driver's License",
+                            issuer = "Utopia Department of Motor Vehicles",
+                            verificationDateTime = getCurrentSqlDate(),
+                            additionalInformation = ""
+                        )
+                    )
+                } catch (e: Exception) {
+                    success = false
+                    e.printStackTrace()
+                }
+                verifying = false
             }
         }
     }
@@ -44,7 +61,9 @@ fun VerifyDLView(
         }
     }
 
-    if (success == null) {
+    if (verifying) {
+        LoadingView(loadingText = "Verifying...")
+    } else if (success == null) {
         ScanningComponent(
             subtitle = "Scan the\nback of your driver's license",
             scanningType = ScanningType.PDF417,

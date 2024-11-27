@@ -1,17 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "Upload.png",
+      "filename" : "Icons Atom.png",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
-      "filename" : "Upload@2x.png",
+      "filename" : "Icons Atom@2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "Upload@3x.png",
+      "filename" : "Icons Atom@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }

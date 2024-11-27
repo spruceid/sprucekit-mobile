@@ -8,7 +8,7 @@ struct VerifierCredentialSuccessView: View {
     var title: String
     var issuer: String
     
-    init(rawCredential: String, onClose: @escaping () -> Void) {
+    init(rawCredential: String, onClose: @escaping () -> Void, logVerification: @escaping (String, String) -> Void) {
         self.rawCredential = rawCredential
         self.onClose = onClose
         do {
@@ -35,6 +35,7 @@ struct VerifierCredentialSuccessView: View {
             } else {
                 self.issuer = ""
             }
+            logVerification(title, issuer)
         } catch {
             self.credentialItem = nil
             self.title = ""

@@ -24,6 +24,12 @@ struct VerifyDLView: View {
                             do {
                                 try await verifyPdf417Barcode(payload: code)
                                 success = true
+                                _ = VerificationActivityLogDataStore.shared.insert(
+                                    credentialTitle: "Driver's License",
+                                    issuer: "Utopia Department of Motor Vehicles",
+                                    verificationDateTime: Date(),
+                                    additionalInformation: ""
+                                )
                             } catch {
                                 print(error)
                                 success = false

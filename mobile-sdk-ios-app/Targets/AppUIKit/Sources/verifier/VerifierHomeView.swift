@@ -19,7 +19,7 @@ struct VerifierHomeHeader: View {
         HStack {
             Text("Verifier")
                 .font(.customFont(font: .inter, style: .bold, size: .h2))
-                .padding(.leading, 36)
+                .padding(.leading, 30)
                 .foregroundStyle(Color("ColorStone950"))
             Spacer()
             Button {
@@ -30,6 +30,7 @@ struct VerifierHomeHeader: View {
                         .foregroundColor(Color("ColorBase150"))
                         .frame(width: 36, height: 36)
                     Image("Cog")
+                        .foregroundColor(Color("ColorStone400"))
                 }
             }
             .padding(.trailing, 20)
@@ -113,7 +114,8 @@ struct VerifierHomeBody: View {
             .onAppear(perform: {
                 self.verificationMethods = VerificationMethodDataStore.shared.getAllVerificationMethods()
             })
-            .padding(.all, 24)
+            .padding(.vertical, 20)
+            .padding(.horizontal, 30)
     }
 }
 

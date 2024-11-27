@@ -196,6 +196,7 @@ class MDocScanViewDelegate: ObservableObject {
 
 extension MDocScanViewDelegate: BLEReaderSessionStateDelegate {
     public func update(state: BLEReaderSessionState) {
+        // TODO: add logs when refactor the verifier
         self.state = state
     }
 }

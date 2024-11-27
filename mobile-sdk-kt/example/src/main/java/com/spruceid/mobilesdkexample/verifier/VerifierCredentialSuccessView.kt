@@ -33,6 +33,7 @@ import com.spruceid.mobilesdkexample.utils.splitCamelCase
 fun VerifierCredentialSuccessView(
     rawCredential: String,
     onClose: () -> Unit,
+    logVerification: (String, String) -> Unit
 ) {
     val credentialItem = credentialDisplaySelector(rawCredential, null)
     var title by remember { mutableStateOf<String?>(null) }
@@ -64,6 +65,8 @@ fun VerifierCredentialSuccessView(
             issuer = claims?.getJSONObject("issuer")?.getString("name").toString()
         } catch (_: Exception) {
         }
+
+        logVerification(title ?: "", issuer ?: "")
     }
 
     Column(

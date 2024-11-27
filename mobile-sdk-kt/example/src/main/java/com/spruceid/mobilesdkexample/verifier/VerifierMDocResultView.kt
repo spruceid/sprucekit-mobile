@@ -87,6 +87,7 @@ fun VerifierMDocResultView(
     val eyeColor = getDiscriminant(result["org.iso.18013.5.1"]?.get("eye_colour")!!)
     val hairColor = getDiscriminant(result["org.iso.18013.5.1"]?.get("hair_colour")!!)
     val portrait = result["org.iso.18013.5.1"]?.get("portrait")!! as MDocItem.Array
+    val issuingAuthority = getDiscriminant(result["org.iso.18013.5.1"]?.get("issuing_authority")!!)
 
     val portraitBytes = mDocArrayToByteArray(portrait)
     Box(
@@ -115,7 +116,7 @@ fun VerifierMDocResultView(
                         style = MaterialTheme.typography.headerH2
                     )
                     Text(
-                        text = "Issuer",
+                        text = issuingAuthority,
                         color = ColorStone600,
                         style = MaterialTheme.typography.bodyMdDefault
                     )
@@ -328,7 +329,8 @@ fun MDocVerifyPreview() {
                 "eye_colour" to MDocItem.Text("green"),
                 "hair_colour" to MDocItem.Text("unknown"),
                 "resident_address" to MDocItem.Text("2415 1ST AVE, SACRAMENTO 95818"),
-                "document_number" to MDocItem.Text("I8882610")
+                "document_number" to MDocItem.Text("I8882610"),
+                "issuing_authority" to MDocItem.Text("SpruceID")
             ),
             "org.iso.18013.5.1.aamva" to mapOf(
                 "DHS_compliance" to MDocItem.Text("F"),

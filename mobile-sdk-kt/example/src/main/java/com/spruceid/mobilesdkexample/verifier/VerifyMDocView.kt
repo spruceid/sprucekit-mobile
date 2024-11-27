@@ -30,8 +30,11 @@ import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
+import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
+import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
@@ -85,7 +88,10 @@ enum class State {
     ExperimentalPermissionsApi::class
 )
 @Composable
-fun VerifyMDocView(navController: NavController) {
+fun VerifyMDocView(
+    navController: NavController,
+    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
+) {
     val context = LocalContext.current
     var reader: IsoMdlReader? = null
 
@@ -116,6 +122,14 @@ fun VerifyMDocView(navController: NavController) {
             if (state.containsKey("mdl")) {
                 result = reader?.handleResponse(state["mdl"] as ByteArray)
                 scanProcessState = State.DONE
+                VerificationActivityLogs(
+                    credentialTitle = "Driver's License",
+                    issuer = getDiscriminant(
+                        result!!["org.iso.18013.5.1"]?.get("issuing_authority")!!
+                    ),
+                    verificationDateTime = getCurrentSqlDate(),
+                    additionalInformation = ""
+                )
             }
         }
 

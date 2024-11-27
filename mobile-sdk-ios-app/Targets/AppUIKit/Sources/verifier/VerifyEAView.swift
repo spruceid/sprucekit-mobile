@@ -41,6 +41,12 @@ struct VerifyEAView: View {
                                 do {
                                     try await verifyVcbQrcodeAgainstMrz(mrzPayload: code, qrPayload: stepOneValue!)
                                     success = true
+                                    _ = VerificationActivityLogDataStore.shared.insert(
+                                        credentialTitle: "Employment Authorization",
+                                        issuer: "State of Utopia",
+                                        verificationDateTime: Date(),
+                                        additionalInformation: ""
+                                    )
                                 } catch {
                                     print(error)
                                     success = false

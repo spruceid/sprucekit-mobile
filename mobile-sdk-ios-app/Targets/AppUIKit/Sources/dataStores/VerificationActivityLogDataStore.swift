@@ -4,16 +4,15 @@ import SQLite
 class VerificationActivityLogDataStore {
     
     static let DIR_ACTIVITY_LOG_DB = "ActivityLogDB"
-    static let STORE_NAME = "verification_activity_logs.sqlite3"
+    static let STORE_NAME = "verification_activity_logs_2.sqlite3"
     
     private let verificationActivityLogs = Table("verification_activity_logs")
     
     private let id = SQLite.Expression<Int64>("id")
-    private let name = SQLite.Expression<String>("name")
     private let credentialTitle = SQLite.Expression<String>("credential_title")
-    private let expirationDate = SQLite.Expression<Date>("expiration_date")
-    private let status = SQLite.Expression<String>("status")
-    private let date = SQLite.Expression<Date>("date")
+    private let issuer = SQLite.Expression<String>("issuer")
+    private let verificationDateTime = SQLite.Expression<Date>("verification_date_time")
+    private let additionalInformation = SQLite.Expression<String>("additional_information")
     
     static let shared = VerificationActivityLogDataStore()
     
@@ -49,11 +48,10 @@ class VerificationActivityLogDataStore {
         do {
             try database.run(verificationActivityLogs.create { table in
                 table.column(id, primaryKey: .autoincrement)
-                table.column(name)
                 table.column(credentialTitle)
-                table.column(expirationDate)
-                table.column(status)
-                table.column(date)
+                table.column(issuer)
+                table.column(verificationDateTime)
+                table.column(additionalInformation)
             })
             print("Table Created...")
         } catch {
@@ -61,14 +59,13 @@ class VerificationActivityLogDataStore {
         }
     }
     
-    func insert(name: String, credentialTitle: String, expirationDate: Date, status: String, date: Date) -> Int64? {
+    func insert(credentialTitle: String, issuer: String, verificationDateTime: Date, additionalInformation: String) -> Int64? {
         guard let database = db else { return nil }
         
-        let insert = verificationActivityLogs.insert(self.name <- name,
-                                                     self.credentialTitle <- credentialTitle,
-                                                     self.expirationDate <- expirationDate,
-                                                     self.status <- status,
-                                                     self.date <- date)
+        let insert = verificationActivityLogs.insert(self.credentialTitle <- credentialTitle,
+                                                     self.issuer <- issuer,
+                                                     self.verificationDateTime <- verificationDateTime,
+                                                     self.additionalInformation <- additionalInformation)
         do {
             let rowID = try database.run(insert)
             return rowID
@@ -81,21 +78,25 @@ class VerificationActivityLogDataStore {
     func getAllVerificationActivityLogs() -> [VerificationActivityLog] {
         var verificationActivityLogs: [VerificationActivityLog] = []
         guard let database = db else { return [] }
-        
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MM/dd/yyyy"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+
+        let dateTimeFormatterDisplay = {
+            let dtFormatter = DateFormatter()
+            dtFormatter.dateStyle = .medium
+            dtFormatter.timeStyle = .short
+            dtFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dtFormatter.timeZone = .gmt
+            return dtFormatter
+        }()
         
         do {
             for verificationActivityLog in try database.prepare(self.verificationActivityLogs) {
                 verificationActivityLogs.append(
                     VerificationActivityLog(
                         id: verificationActivityLog[id],
-                        name: verificationActivityLog[name],
                         credential_title: verificationActivityLog[credentialTitle],
-                        expiration_date: dateFormatter.string(from: verificationActivityLog[expirationDate]),
-                        status: verificationActivityLog[status],
-                        date: dateFormatter.string(from: verificationActivityLog[date])
+                        issuer: verificationActivityLog[issuer],
+                        verification_date_time: dateTimeFormatterDisplay.string(from: verificationActivityLog[verificationDateTime]),
+                        additional_information: verificationActivityLog[additionalInformation]
                     )
                 )
             }
