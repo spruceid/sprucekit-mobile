@@ -204,7 +204,7 @@ impl CredentialPresentation for JsonVc {
             .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing ID: {e:?}")))?;
 
         // Check the signer supports the requested vp format crypto suite.
-        options.supports_cryptosuite(ClaimFormatDesignation::LdpVp)?;
+        options.supports_security_method(ClaimFormatDesignation::LdpVp)?;
 
         let unsigned_presentation = match self.parsed.clone() {
             AnyJsonCredential::V1(cred_v1) => {

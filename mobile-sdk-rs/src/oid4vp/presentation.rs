@@ -311,7 +311,7 @@ impl<'a> PresentationOptions<'a> {
     }
 
     /// Validate the signing cryptosuite against the supported request algorithms.
-    pub fn supports_cryptosuite(
+    pub fn supports_security_method(
         &self,
         format: impl Into<ClaimFormatDesignation>,
     ) -> Result<(), PresentationError> {
@@ -324,7 +324,7 @@ impl<'a> PresentationOptions<'a> {
             .vp_formats()
             .map_err(|e| PresentationError::CryptographicSuite(format!("{e:?}")))?;
 
-        if !vp_formats.supports_cryptosuite(&format, &suite) {
+        if !vp_formats.supports_security_method(&format, &suite) {
             let err_msg = format!("Cryptographic Suite not supported for this request format: {format:?} and suite: {suite:?}. Supported Cryptographic Suites: {vp_formats:?}");
             return Err(PresentationError::CryptographicSuite(err_msg));
         }

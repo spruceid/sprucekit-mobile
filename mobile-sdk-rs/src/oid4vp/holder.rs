@@ -156,7 +156,7 @@ impl Holder {
 
         metadata
             // Insert support for the DID client ID scheme.
-            .add_client_id_schemes_supported(ClientIdScheme::Did)
+            .add_client_id_schemes_supported(&[ClientIdScheme::Did])
             .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
 
         Ok(metadata)
