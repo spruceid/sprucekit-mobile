@@ -7149,6 +7149,8 @@ public enum Oid4vpError {
     )
     case JsonPathParse(String
     )
+    case EmptyCredentialSubject(String
+    )
 }
 
 
@@ -7233,6 +7235,9 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
             try FfiConverterTypeCredentialEncodingError.read(from: &buf)
             )
         case 27: return .JsonPathParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 28: return .EmptyCredentialSubject(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -7375,6 +7380,11 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
         
         case let .JsonPathParse(v1):
             writeInt(&buf, Int32(27))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .EmptyCredentialSubject(v1):
+            writeInt(&buf, Int32(28))
             FfiConverterString.write(v1, into: &buf)
             
         }
