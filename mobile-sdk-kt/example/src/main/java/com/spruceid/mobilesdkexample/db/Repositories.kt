@@ -1,6 +1,7 @@
 package com.spruceid.mobilesdkexample.db
 
 import androidx.annotation.WorkerThread
+import java.sql.Date
 
 class VerificationActivityLogsRepository(private val verificationActivityLogsDao: VerificationActivityLogsDao) {
     val verificationActivityLogs: List<VerificationActivityLogs> =
@@ -14,6 +15,19 @@ class VerificationActivityLogsRepository(private val verificationActivityLogsDao
     @WorkerThread
     suspend fun getVerificationActivityLogs(): List<VerificationActivityLogs> {
         return verificationActivityLogsDao.getAllVerificationActivityLogs()
+    }
+
+    // TODO: Add fromDate and credentialType filter params
+    @WorkerThread
+    fun getFilteredVerificationActivityLogs(): List<VerificationActivityLogs> {
+        return verificationActivityLogsDao.getFilteredVerificationActivityLogs(
+            fromDate = Date(Long.MIN_VALUE).time
+        )
+    }
+
+    @WorkerThread
+    fun getDistinctCredentialTitles(): List<String> {
+        return verificationActivityLogsDao.getDistinctCredentialTitles()
     }
 }
 
@@ -42,7 +56,8 @@ class RawCredentialsRepository(private val rawCredentialsDao: RawCredentialsDao)
 }
 
 class VerificationMethodsRepository(private val verificationMethodsDao: VerificationMethodsDao) {
-    val verificationMethods: List<VerificationMethods> = verificationMethodsDao.getAllVerificationMethods()
+    val verificationMethods: List<VerificationMethods> =
+        verificationMethodsDao.getAllVerificationMethods()
 
     @WorkerThread
     suspend fun insertVerificationMethod(verificationMethod: VerificationMethods) {

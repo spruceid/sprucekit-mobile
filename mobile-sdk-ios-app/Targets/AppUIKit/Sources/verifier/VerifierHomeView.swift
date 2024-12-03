@@ -19,17 +19,18 @@ struct VerifierHomeHeader: View {
         HStack {
             Text("Verifier")
                 .font(.customFont(font: .inter, style: .bold, size: .h2))
-                .padding(.leading, 36)
-                .foregroundStyle(Color("TextHeader"))
+                .padding(.leading, 30)
+                .foregroundStyle(Color("ColorStone950"))
             Spacer()
             Button {
                 path.append(VerifierSettingsHome())
             } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("Primary"))
+                        .foregroundColor(Color("ColorBase150"))
                         .frame(width: 36, height: 36)
-                    Image("User")
+                    Image("Cog")
+                        .foregroundColor(Color("ColorStone400"))
                 }
             }
             .padding(.trailing, 20)
@@ -57,7 +58,7 @@ struct VerifierHomeBody: View {
                 HStack {
                     Text("VERIFICATIONS")
                         .font(.customFont(font: .inter, style: .bold, size: .p))
-                        .foregroundStyle(Color("TextOnPrimary"))
+                        .foregroundStyle(Color("ColorStone400"))
                     Spacer()
                     Text("+ New Verification")
                         .font(.customFont(font: .inter, style: .semiBold, size: .h4))
@@ -67,26 +68,22 @@ struct VerifierHomeBody: View {
                         }
                 }
 
-//                VerifierListItem(
-//                    title: "Driver's License Document",
-//                    description: "Verifies physical driver's licenses issued by the state of Utopia",
-//                    binary: true,
-//                    fields: 0
-//                ).onTapGesture {
-//                    path.append(VerifyDL())
-//                }
+                VerifierListItem(
+                    title: "Driver's License Document",
+                    description: "Verifies physical driver's licenses issued by the state of Utopia",
+                    type: VerifierListItemTagType.SCAN_QR_CODE
+                ).onTapGesture {
+                    path.append(VerifyDL())
+                }
 
-                // Over 21
-//                VerifierListItem(
-//                    title: "Employment Authorization Document",
-//                    description: "Verifies physical Employment Authorization issued by the state of Utopia",
-//                    binary: true,
-//                    fields: 0
-//                ).onTapGesture {
-//                    path.append(VerifyEA())
-//                }
+                VerifierListItem(
+                    title: "Employment Authorization Document",
+                    description: "Verifies physical Employment Authorization issued by the state of Utopia",
+                    type: VerifierListItemTagType.SCAN_QR_CODE
+                ).onTapGesture {
+                    path.append(VerifyEA())
+                }
 
-                // VC
                 VerifierListItem(
                     title: "Verifiable Credential",
                     description: "Verifies a Verifiable credential by reading the Verifiable Presentation QR Code",
@@ -95,10 +92,9 @@ struct VerifierHomeBody: View {
                     path.append(VerifyVC())
                 }
 
-                // MDoc
                 VerifierListItem(
-                    title: "MDoc",
-                    description: "Verifies a MDoc by reading the Presentation QR Code",
+                    title: "Mobile Driver's License",
+                    description: "Verifies an ISO formatted mobile driver's license by reading a QR code",
                     type: VerifierListItemTagType.SCAN_QR_CODE
                 ).onTapGesture {
                     path.append(VerifyMDoc())
@@ -118,7 +114,8 @@ struct VerifierHomeBody: View {
             .onAppear(perform: {
                 self.verificationMethods = VerificationMethodDataStore.shared.getAllVerificationMethods()
             })
-            .padding(.all, 24)
+            .padding(.vertical, 20)
+            .padding(.horizontal, 30)
     }
 }
 
@@ -132,7 +129,7 @@ struct VerifierListItem: View {
             HStack(alignment: .center) {
                 Text(title)
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                    .foregroundStyle(Color("TextHeader"))
+                    .foregroundStyle(Color("ColorStone950"))
                 Spacer()
                 VerifierListItemTag(type: type)
             }

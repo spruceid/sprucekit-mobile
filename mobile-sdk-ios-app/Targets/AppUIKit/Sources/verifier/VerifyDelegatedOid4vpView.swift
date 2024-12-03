@@ -161,7 +161,15 @@ struct VerifyDelegatedOid4vpView: View {
                     if let presentationUnwrapped = presentation {
                         VerifierCredentialSuccessView(
                             rawCredential: presentationUnwrapped,
-                            onClose: onBack
+                            onClose: onBack,
+                            logVerification: { title, issuer in
+                                _ = VerificationActivityLogDataStore.shared.insert(
+                                    credentialTitle: title,
+                                    issuer: issuer,
+                                    verificationDateTime: Date(),
+                                    additionalInformation: ""
+                                )
+                            }
                         )
                     }
                 }
@@ -209,7 +217,7 @@ struct DelegatedVerifierDisplayQRCodeView: View {
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color("CodeBorder"), lineWidth: 1)
+                        .stroke(Color("ColorStone300"), lineWidth: 1)
                 )
             }
         }

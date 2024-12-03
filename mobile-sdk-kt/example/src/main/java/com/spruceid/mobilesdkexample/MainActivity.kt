@@ -13,11 +13,17 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobilesdkexample.db.AppDatabase
+import com.spruceid.mobilesdkexample.db.VerificationActivityLogsRepository
 import com.spruceid.mobilesdkexample.db.VerificationMethodsRepository
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.navigation.SetupNavGraph
-import com.spruceid.mobilesdkexample.ui.theme.Bg
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModelFactory
+import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
+import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
+import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModelFactory
 
@@ -34,13 +40,13 @@ class MainActivity : ComponentActivity() {
                     )
                 )
             } else if (intent.data!!.toString().startsWith("openid4vp")) {
-                    navController.navigate(
-                        Screen.HandleOID4VP.route.replace(
-                            "{url}",
-                            intent.data.toString().replace("openid4vp://", "")
-                        )
+                navController.navigate(
+                    Screen.HandleOID4VP.route.replace(
+                        "{url}",
+                        intent.data.toString().replace("openid4vp://", "")
                     )
-                }
+                )
+            }
         } else {
             super.onNewIntent(intent)
         }
@@ -55,7 +61,7 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     modifier = Modifier
                         .fillMaxSize(),
-                    color = Bg,
+                    color = ColorBase1,
                 ) {
                     navController = rememberNavController()
 
@@ -65,11 +71,27 @@ class MainActivity : ComponentActivity() {
                     //    RawCredentialsViewModelFactory((application as MainApplication).rawCredentialsRepository)
                     // }
 
-                     val verificationMethodsViewModel: VerificationMethodsViewModel by viewModels {
+                    val verificationMethodsViewModel: VerificationMethodsViewModel by viewModels {
                         VerificationMethodsViewModelFactory((application as MainApplication).verificationMethodsRepository)
-                     }
+                    }
 
-                    SetupNavGraph(navController, verificationMethodsViewModel = verificationMethodsViewModel)
+                    val verificationActivityLogsViewModel: VerificationActivityLogsViewModel by viewModels {
+                        VerificationActivityLogsViewModelFactory((application as MainApplication).verificationActivityLogsRepository)
+                    }
+
+                    val credentialPacksViewModel: CredentialPacksViewModel by viewModels {
+                        CredentialPacksViewModelFactory(application as MainApplication)
+                    }
+
+                    val helpersViewModel: HelpersViewModel by viewModels<HelpersViewModel>()
+
+                    SetupNavGraph(
+                        navController,
+                        verificationMethodsViewModel = verificationMethodsViewModel,
+                        verificationActivityLogsViewModel = verificationActivityLogsViewModel,
+                        credentialPacksViewModel = credentialPacksViewModel,
+                        helpersViewModel = helpersViewModel
+                    )
                 }
             }
         }
@@ -82,4 +104,5 @@ class MainApplication : Application() {
     // val rawCredentialsRepository by lazy { RawCredentialsRepository(db.rawCredentialsDao()) }
 
     val verificationMethodsRepository by lazy { VerificationMethodsRepository(db.verificationMethodsDao()) }
+    val verificationActivityLogsRepository by lazy { VerificationActivityLogsRepository(db.verificationActivityLogsDao()) }
 }

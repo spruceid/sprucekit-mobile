@@ -8,7 +8,7 @@ struct VerifierCredentialSuccessView: View {
     var title: String
     var issuer: String
     
-    init(rawCredential: String, onClose: @escaping () -> Void) {
+    init(rawCredential: String, onClose: @escaping () -> Void, logVerification: @escaping (String, String) -> Void) {
         self.rawCredential = rawCredential
         self.onClose = onClose
         do {
@@ -35,6 +35,7 @@ struct VerifierCredentialSuccessView: View {
             } else {
                 self.issuer = ""
             }
+            logVerification(title, issuer)
         } catch {
             self.credentialItem = nil
             self.title = ""
@@ -71,7 +72,7 @@ struct VerifierCredentialSuccessView: View {
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color("CodeBorder"), lineWidth: 1)
+                    .stroke(Color("ColorStone300"), lineWidth: 1)
             )
             
         }

@@ -42,12 +42,12 @@ import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobilesdkexample.R
-import com.spruceid.mobilesdkexample.ui.theme.Bg
-import com.spruceid.mobilesdkexample.ui.theme.CredentialBorder
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.Primary
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
-import com.spruceid.mobilesdkexample.ui.theme.TextOnPrimary
 import com.spruceid.mobilesdkexample.utils.keyBase64
 import com.spruceid.mobilesdkexample.utils.keyPEM
 import java.security.KeyFactory
@@ -127,7 +127,7 @@ fun ShareableCredentialListItems(
                 .fillMaxHeight(0.8f),
             sheetState = sheetState,
             dragHandle = null,
-            containerColor = Bg,
+            containerColor = ColorBase1,
             shape = RoundedCornerShape(8.dp)
         ) {
             Text(
@@ -136,7 +136,7 @@ fun ShareableCredentialListItems(
                 fontFamily = Inter,
                 fontWeight = FontWeight.Bold,
                 fontSize = 24.sp,
-                color = TextHeader,
+                color = ColorStone950,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 20.dp),
@@ -155,7 +155,7 @@ fun ShareableCredentialListItems(
             .padding(vertical = 10.dp)
             .border(
                 width = 1.dp,
-                color = CredentialBorder,
+                color = ColorBase300,
                 shape = RoundedCornerShape(8.dp)
             )
     ) {
@@ -217,7 +217,7 @@ fun ShareableCredentialListItemQRCode(credential: ParsedCredential) {
         Modifier
             .fillMaxWidth()
             .clip(shape = RoundedCornerShape(0.dp, 0.dp, 8.dp, 8.dp))
-            .background(Primary)
+            .background(ColorBase150)
             .padding(8.dp)
     ) {
         Row(
@@ -243,7 +243,7 @@ fun ShareableCredentialListItemQRCode(credential: ParsedCredential) {
                 fontFamily = Inter,
                 fontWeight = FontWeight.Normal,
                 fontSize = 10.sp,
-                color = TextOnPrimary
+                color = ColorStone400
             )
         }
 
@@ -265,7 +265,7 @@ fun ShareableCredentialListItemQRCode(credential: ParsedCredential) {
                         fontFamily = Inter,
                         fontWeight = FontWeight.Normal,
                         fontSize = 10.sp,
-                        color = TextOnPrimary
+                        color = ColorStone400
                     )
                 }
             }

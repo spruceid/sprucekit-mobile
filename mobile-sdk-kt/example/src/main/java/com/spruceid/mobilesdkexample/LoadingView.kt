@@ -22,8 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import app.rive.runtime.kotlin.RiveAnimationView
-import com.spruceid.mobilesdkexample.ui.theme.CodeBorder
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase800
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 
 @Composable
@@ -34,10 +34,10 @@ fun LoadingView(
 ) {
     Box(
         modifier = Modifier
-        .fillMaxSize()
-        .padding(vertical = 40.dp)
-        .padding(horizontal = 30.dp)
-        .navigationBarsPadding()
+            .fillMaxSize()
+            .padding(vertical = 40.dp)
+            .padding(horizontal = 30.dp)
+            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -78,7 +78,7 @@ fun LoadingView(
                         containerColor = Color.Transparent,
                         contentColor = Color.Black,
                     ),
-                    border = BorderStroke(1.dp, CodeBorder),
+                    border = BorderStroke(1.dp, ColorStone300),
                     modifier = Modifier
                         .fillMaxWidth()
                 ) {

@@ -22,11 +22,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.spruceid.mobilesdkexample.ui.theme.BorderSecondary
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.TextBody
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 
@@ -34,6 +33,7 @@ import com.spruceid.mobilesdkexample.utils.splitCamelCase
 fun VerifierCredentialSuccessView(
     rawCredential: String,
     onClose: () -> Unit,
+    logVerification: (String, String) -> Unit
 ) {
     val credentialItem = credentialDisplaySelector(rawCredential, null)
     var title by remember { mutableStateOf<String?>(null) }
@@ -65,6 +65,8 @@ fun VerifierCredentialSuccessView(
             issuer = claims?.getJSONObject("issuer")?.getString("name").toString()
         } catch (_: Exception) {
         }
+
+        logVerification(title ?: "", issuer ?: "")
     }
 
     Column(
@@ -84,7 +86,7 @@ fun VerifierCredentialSuccessView(
                     fontFamily = Inter,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
-                    color = TextHeader,
+                    color = ColorStone950,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
@@ -94,7 +96,7 @@ fun VerifierCredentialSuccessView(
                     fontFamily = Inter,
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
-                    color = TextBody
+                    color = ColorStone600
                 )
             }
 
@@ -151,7 +153,7 @@ fun VerifierCredentialSuccessView(
                 .fillMaxWidth()
                 .border(
                     width = 1.dp,
-                    color = BorderSecondary,
+                    color = ColorStone300,
                     shape = RoundedCornerShape(6.dp)
                 )
         ) {

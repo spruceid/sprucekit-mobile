@@ -157,7 +157,7 @@ public struct MDocReaderView: View {
                     success: true,
                     content: Text("\(items["org.iso.18013.5.1"]!)")
                         .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                        .foregroundStyle(Color("TextHeader"))
+                        .foregroundStyle(Color("ColorStone950"))
                         .padding(.top, 20)
                 )
             }
@@ -196,6 +196,7 @@ class MDocScanViewDelegate: ObservableObject {
 
 extension MDocScanViewDelegate: BLEReaderSessionStateDelegate {
     public func update(state: BLEReaderSessionState) {
+        // TODO: add logs when refactor the verifier
         self.state = state
     }
 }

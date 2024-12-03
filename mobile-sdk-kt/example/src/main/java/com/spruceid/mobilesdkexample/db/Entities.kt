@@ -7,11 +7,10 @@ import java.sql.Date
 @Entity(tableName = "verification_activity_logs")
 data class VerificationActivityLogs(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String,
     val credentialTitle: String,
-    val date: Date,
-    val expirationDate: Date,
-    val status: String,
+    val issuer: String,
+    val verificationDateTime: Date,
+    val additionalInformation: String,
 )
 
 @Entity(tableName = "raw_credentials")

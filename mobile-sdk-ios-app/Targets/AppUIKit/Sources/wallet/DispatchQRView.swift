@@ -1,66 +1,67 @@
 import SwiftUI
 
 // The scheme for the OID4VP QR code.
-let OPEN_ID4VP_SCHEME = "openid4vp://"
+let OID4VP_SCHEME = "openid4vp://"
+// The scheme for the OID4VCI QR code.
+let OID4VCI_SCHEME = "openid-credential-offer://"
+// The schemes for HTTP/HTTPS QR code.
+let HTTP_SCHEME = "http://"
+let HTTPS_SCHEME = "https://"
 
 struct DispatchQR: Hashable {}
 
 struct DispatchQRView: View {
     @State var loading: Bool = false
-    @State var verificationRequest: String?
     @State var err: String?
     @State var success: Bool?
     
     @Binding var path: NavigationPath
     
-    func getVerificationRequest(verificationRequestOffer: String) {
+    func handleRequest(payload: String) {
         loading = true
         Task {
-            do {
-                print("Reading URL: \(verificationRequestOffer)")
-                if verificationRequestOffer.hasPrefix(OPEN_ID4VP_SCHEME) {
-                    path.append(HandleOID4VP(url: verificationRequestOffer))
-                } else {
-                    print(
-                        "The QR code you have scanned is not recognized as a verification request")
-                    // TODO for Juliano: Add UI component for "QR not recognized" error screen
+            if payload.hasPrefix(OID4VP_SCHEME) {
+                path.append(HandleOID4VP(url: payload))
+            } else if payload.hasPrefix(OID4VCI_SCHEME) {
+                path.append(HandleOID4VCI(url: payload))
+            } else if payload.hasPrefix(HTTPS_SCHEME) || payload.hasPrefix(HTTP_SCHEME) {
+                if let url = URL(string: payload), await UIApplication.shared.canOpenURL(url) {
+                    await UIApplication.shared.open(url)
+                    onBack()
                 }
-                loading = false
+            } else {
+                err = "The QR code you have scanned is not supported. QR code payload: \(payload)"
             }
         }
     }
     
+    func onBack() {
+        path.removeLast()
+    }
+    
     var body: some View {
         VStack {
-            if loading {
-                VStack {
-                    Text("Loading...")
-                }
-            } else if err != nil {
-                VStack {
-                    Text(err!)
-                }
-            } else if verificationRequest == nil {
+            if err != nil {
+                ErrorView(
+                    errorTitle: "Error Reading QR Code",
+                    errorDetails: err!,
+                    onClose: onBack
+                )
+            } else if loading {
+                LoadingView(loadingText: "Loading...")
+            } else {
                 VStack {
                     ScanningComponent(
                         path: $path,
                         scanningParams: Scanning(
-                            title: "Scan to Share Credential",
+                            title: "Scan QR Code",
                             scanningType: .qrcode,
-                            onCancel: {
-                                path.removeLast()
-                            },
+                            onCancel: onBack,
                             onRead: { code in
-                                getVerificationRequest(verificationRequestOffer: code)
+                                handleRequest(payload: code)
                             }
                         )
                     )
-                    Text("Reading...")
-                }
-            } else {
-                VStack {
-                    // TODO: validate one of the user credentials against the request
-                    Text(verificationRequest!)
                 }
             }
         }

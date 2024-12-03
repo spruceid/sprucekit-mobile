@@ -170,11 +170,11 @@ public class CredentialPack {
 }
 
 /// Metadata for a CredentialPack, as loaded from the StorageManager.
-struct CredentialPackContents {
+public struct CredentialPackContents {
     private static let storagePrefix = "CredentialPack:"
     private let idKey = "id"
     private let credentialsKey = "credentials"
-    let id: UUID
+    public let id: UUID
     let credentials: [Uuid]
 
     public init(id: UUID, credentials: [Uuid]) {
@@ -234,6 +234,21 @@ struct CredentialPackContents {
         }
 
         return CredentialPack(id: self.id, credentials: credentials)
+    }
+
+    /// Clears all CredentialPacks.
+    public static func clear(storageManager: StorageManagerInterface) throws {
+        do {
+            try storageManager.list()
+                .filter { file in
+                    file.hasPrefix(Self.storagePrefix)
+                }
+                .forEach { file in
+                    try storageManager.remove(key: file)
+                }
+        } catch {
+            throw CredentialPackError.clearing(reason: error)
+        }
     }
 
     /// Lists all CredentialPacks.
@@ -312,6 +327,8 @@ enum CredentialPackError: Error {
     case missing(file: String)
     /// Failed to list CredentialPackContents from storage.
     case listing(reason: Error)
+    /// Failed to clear CredentialPacks from storage.
+    case clearing(reason: Error)
     /// Failed to remove CredentialPackContents from storage.
     case removing(reason: Error)
     /// Failed to save CredentialPackContents to storage.

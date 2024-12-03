@@ -1,0 +1,26 @@
+{
+  "@context": {
+    "@protected": true,
+    "id": "@id",
+    "type": "@type",
+    "FoodSafetyCertificationCredential": "https://contexts.vcplayground.org/examples/food-safety-certification/vocab#FoodSafetyCertificationCredential",
+    "name": "https://schema.org/name",
+    "description": "https://schema.org/description",
+    "image": "https://schema.org/image",
+    "certification": "https://contexts.vcplayground.org/examples/food-safety-certification/vocab#certification",
+    "FoodSafetyCertification": {
+      "@id": "https://contexts.vcplayground.org/examples/food-safety-certification/vocab#FoodSafetyCertification",
+      "@context": {
+        "@protected": true,
+        "id": "@id",
+        "type": "@type",
+        "certificateId": "https://contexts.vcplayground.org/examples/food-safety-certification/vocab#certificateId",
+        "examDate": {
+          "@id": "https://contexts.vcplayground.org/examples/food-safety-certification/vocab#examDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "testCode": "https://contexts.vcplayground.org/examples/food-safety-certification/vocab#testCode"
+      }
+    }
+  }
+}

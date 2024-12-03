@@ -217,6 +217,19 @@ class CredentialPack {
 
     companion object {
         /**
+         * Clears all stored CredentialPacks.
+         */
+        fun clearPacks(storage: StorageManagerInterface) {
+            try {
+                storage.list()
+                    .filter { it.startsWith(CredentialPackContents.STORAGE_PREFIX) }
+                    .forEach { storage.remove(it) }
+            } catch (e: Exception) {
+                throw ClearingException("unable to clear CredentialPacks", e)
+            }
+        }
+
+        /**
          * List all CredentialPacks.
          *
          * These can then be individually loaded. For eager loading of all packs, see `loadPacks`.
@@ -361,3 +374,4 @@ class CredentialPackContents {
 class ParsingException(message: String, cause: Throwable?) : Exception(message, cause)
 class LoadingException(message: String, cause: Throwable) : Exception(message, cause)
 class SavingException(message: String, cause: Throwable) : Exception(message, cause)
+class ClearingException(message: String, cause: Throwable) : Exception(message, cause)

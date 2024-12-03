@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.walletsettings
 
-import StorageManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -13,39 +12,44 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.TextHeader
-import com.spruceid.mobilesdkexample.ui.theme.VerifiedRedInvalid
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 
 @Composable
-fun WalletSettingsHomeView(navController: NavController) {
+fun WalletSettingsHomeView(
+    navController: NavController,
+    credentialPacksViewModel: CredentialPacksViewModel
+) {
+    fun back() {
+        navController.navigate(
+            Screen.HomeScreen.route.replace("{tab}", "wallet")
+        ) {
+            popUpTo(0)
+        }
+    }
+
     Column(
         Modifier
             .padding(all = 20.dp)
             .padding(top = 20.dp)
     ) {
-        WalletSettingsHomeHeader(
-            onBack = {
-                navController.popBackStack()
-            }
-        )
-        WalletSettingsHomeBody()
+        WalletSettingsHomeHeader(onBack = ::back)
+        WalletSettingsHomeBody(credentialPacksViewModel)
     }
 }
 
@@ -71,7 +75,7 @@ fun WalletSettingsHomeHeader(
             fontFamily = Inter,
             fontWeight = FontWeight.SemiBold,
             fontSize = 24.sp,
-            color = TextHeader,
+            color = ColorStone950,
             modifier = Modifier.padding(start = 10.dp)
         )
         Spacer(Modifier.weight(1f))
@@ -80,13 +84,7 @@ fun WalletSettingsHomeHeader(
 }
 
 @Composable
-fun WalletSettingsHomeBody() {
-    val context = LocalContext.current
-    val storageManager = StorageManager(context = context)
-    val credentialPacks = remember {
-        mutableStateOf(CredentialPack.loadPacks(storageManager))
-    }
-
+fun WalletSettingsHomeBody(credentialPacksViewModel: CredentialPacksViewModel) {
     Column(
         Modifier
             .padding(horizontal = 20.dp)
@@ -94,13 +92,11 @@ fun WalletSettingsHomeBody() {
     ) {
         Button(
             onClick = {
-                credentialPacks.value.forEach { credentialPack ->
-                    credentialPack.remove(storageManager)
-                }
+                credentialPacksViewModel.deleteAllCredentialPacks()
             },
             shape = RoundedCornerShape(5.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = VerifiedRedInvalid,
+                containerColor = ColorRose600,
                 contentColor = Color.White,
             ),
             modifier = Modifier

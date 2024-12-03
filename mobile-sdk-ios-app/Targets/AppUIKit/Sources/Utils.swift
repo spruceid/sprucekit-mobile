@@ -41,7 +41,7 @@ struct iOSCheckboxToggleStyle: ToggleStyle {
                     }
                 } else {
                     RoundedRectangle(cornerRadius: 2)
-                        .stroke(Color("BorderSecondary"), lineWidth: 1)
+                        .stroke(Color("ColorStone300"), lineWidth: 1)
                         .frame(width: 20, height: 20)
                 }
                 configuration.label

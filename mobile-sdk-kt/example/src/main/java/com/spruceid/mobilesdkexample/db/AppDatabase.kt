@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RawCredentials::class,
         VerificationMethods::class
     ],
-    version = 3
+    version = 4
 )
 @TypeConverters(*[DateConverter::class])
 abstract class AppDatabase : RoomDatabase() {
@@ -35,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
                         "referenceAppDb",
                     )
                         .addMigrations(MIGRATION_2_3)
+                        .addMigrations(MIGRATION_3_4)
                         .allowMainThreadQueries()
                         .build()
                 dbInstance = instance
@@ -46,13 +47,30 @@ abstract class AppDatabase : RoomDatabase() {
 
 val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(database: SupportSQLiteDatabase) {
-        database.execSQL("CREATE TABLE `verification_methods` (" +
-                "`id` INTEGER NOT NULL, " +
-                "`type` TEXT NOT NULL, " +
-                "`name` TEXT NOT NULL, " +
-                "`description` TEXT NOT NULL, " +
-                "`verifierName` TEXT NOT NULL, " +
-                "`url` TEXT NOT NULL, " +
-                "PRIMARY KEY(`id`))")
+        database.execSQL(
+            "CREATE TABLE `verification_methods` (" +
+                    "`id` INTEGER NOT NULL, " +
+                    "`type` TEXT NOT NULL, " +
+                    "`name` TEXT NOT NULL, " +
+                    "`description` TEXT NOT NULL, " +
+                    "`verifierName` TEXT NOT NULL, " +
+                    "`url` TEXT NOT NULL, " +
+                    "PRIMARY KEY(`id`))"
+        )
+    }
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("DROP TABLE verification_activity_logs")
+        database.execSQL(
+            "CREATE TABLE `verification_activity_logs` (" +
+                    "`id` INTEGER NOT NULL, " +
+                    "`credentialTitle` TEXT NOT NULL, " +
+                    "`issuer` TEXT NOT NULL, " +
+                    "`verificationDateTime` INTEGER NOT NULL, " +
+                    "`additionalInformation` TEXT NOT NULL, " +
+                    "PRIMARY KEY(`id`))"
+        )
     }
 }

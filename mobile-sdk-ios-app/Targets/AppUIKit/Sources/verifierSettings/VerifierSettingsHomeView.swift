@@ -2,29 +2,20 @@ import SwiftUI
 
 struct VerifierSettingsHome: Hashable {}
 
-enum VerifierSubSettings {
-    case verificationActivityLog
-}
 struct VerifierSettingsHomeView: View {
     @Binding var path: NavigationPath
-    
-    @State private var subpage: VerifierSubSettings?
-    
+
     func onBack() {
-        if(subpage != nil) {
-            subpage = nil
-        } else {
-            while !path.isEmpty {
-                path.removeLast()
-            }
+        while !path.isEmpty {
+            path.removeLast()
         }
     }
-    
+
     var body: some View {
         VStack {
             VerifierSettingsHomeHeader(onBack: onBack)
             VerifierSettingsHomeBody(
-                subpage: $subpage,
+                path: $path,
                 onBack: onBack
             )
         }
@@ -34,60 +25,69 @@ struct VerifierSettingsHomeView: View {
 
 struct VerifierSettingsHomeHeader: View {
     var onBack: () -> Void
-    
+
     var body: some View {
         HStack {
-            Image("Chevron")
-                .rotationEffect(.degrees(90))
-                .padding(.leading, 36)
-            Text("Verifier Setting")
-                .font(.customFont(font: .inter, style: .bold, size: .h0))
-                .padding(.leading, 10)
-                .foregroundStyle(Color("TextHeader"))
+            Text("Settings")
+                .font(.customFont(font: .inter, style: .bold, size: .h2))
+                .padding(.leading, 30)
+                .foregroundStyle(Color("ColorStone950"))
             Spacer()
-        }
-        .onTapGesture {
-            onBack()
+            Button {
+                onBack()
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .foregroundColor(Color("ColorStone950"))
+                        .frame(width: 36, height: 36)
+                    Image("Cog")
+                        .foregroundColor(Color("ColorStone50"))
+                }
+            }
+            .padding(.trailing, 20)
         }
         .padding(.top, 10)
     }
 }
 
 struct VerifierSettingsHomeBody: View {
-    @Binding var subpage: VerifierSubSettings?
-    
+    @Binding var path: NavigationPath
     var onBack: () -> Void
-    
+
     @ViewBuilder
     var activityLogButton: some View {
         Button {
-            subpage = VerifierSubSettings.verificationActivityLog
+            path.append(VerifierSettingsActivityLog())
         } label: {
             HStack(alignment: .top) {
                 VStack {
                     HStack {
                         Image("List")
-                        Text("Verification Activity Log").frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundColor(Color("TextHeader"))
-                            .font(.customFont(font: .inter, style: .medium, size: .p))
+                        Text("Activity Log")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundColor(Color("ColorStone950"))
+                            .font(
+                                .customFont(
+                                    font: .inter, style: .bold, size: .h4))
                     }
-                    Text("View and export verification history").frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundColor(Color("TextBody"))
-                        .font(.customFont(font: .inter, style: .regular, size: .p))
-                        .padding(.top, 1.0)
+                    Text("View and export verification history")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundColor(Color("ColorStone600"))
+                        .font(
+                            .customFont(font: .inter, style: .regular, size: .p)
+                        )
                 }
                 Image("Chevron")
                     .rotationEffect(.degrees(-90))
             }
-            .padding(.all, 20.0)
         }
     }
-    
+
     @ViewBuilder
     var deleteAllVerificationMethodsButton: some View {
         Button {
             _ = VerificationMethodDataStore.shared.deleteAll()
-        }  label: {
+        } label: {
             Text("Delete all added verification methods")
                 .frame(width: UIScreen.screenWidth)
                 .padding(.horizontal, -20)
@@ -95,23 +95,19 @@ struct VerifierSettingsHomeBody: View {
         }
         .foregroundColor(.white)
         .padding(.vertical, 13)
-        .background(Color("RedInvalid"))
+        .background(Color("ColorRose700"))
         .cornerRadius(8)
     }
-    
-    
+
     var body: some View {
-        if subpage == nil {
+        VStack {
             VStack {
-                VStack {
-                    activityLogButton
-                    Spacer()
-                    deleteAllVerificationMethodsButton
-                }
+                activityLogButton
+                Spacer()
+                deleteAllVerificationMethodsButton
             }
-            .padding(.all, 24)
-        } else if subpage == VerifierSubSettings.verificationActivityLog {
-            VerificationActivityLogView(onBack: onBack)
         }
+        .padding(.vertical, 20)
+        .padding(.horizontal, 30)
     }
 }

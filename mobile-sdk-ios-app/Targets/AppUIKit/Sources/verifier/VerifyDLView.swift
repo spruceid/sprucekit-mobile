@@ -20,11 +20,16 @@ struct VerifyDLView: View {
                         path.removeLast()
                     },
                     onRead: { code in
-                        print(code)
                         Task {
                             do {
                                 try await verifyPdf417Barcode(payload: code)
                                 success = true
+                                _ = VerificationActivityLogDataStore.shared.insert(
+                                    credentialTitle: "Driver's License",
+                                    issuer: "Utopia Department of Motor Vehicles",
+                                    verificationDateTime: Date(),
+                                    additionalInformation: ""
+                                )
                             } catch {
                                 print(error)
                                 success = false
@@ -39,7 +44,7 @@ struct VerifyDLView: View {
                 success: success!,
                 content: Text(success! ? "Valid Driver's License" : "Invalid Driver's License")
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                    .foregroundStyle(Color("TextHeader"))
+                    .foregroundStyle(Color("ColorStone950"))
                     .padding(.top, 20)
             )
         }

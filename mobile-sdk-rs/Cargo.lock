@@ -5219,9 +5219,9 @@ dependencies = [
 
 [[package]]
 name = "ssi-contexts"
-version = "0.1.6"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "728dde2f51db62c4667686139f2958b59ab920f8d9d8531b59fc5a01ef0a3896"
+checksum = "8b9e7d68ba4e1544b228d6b7739db285aa5befa9df0db614dbe843e4a3c900a8"
 
 [[package]]
 name = "ssi-core"

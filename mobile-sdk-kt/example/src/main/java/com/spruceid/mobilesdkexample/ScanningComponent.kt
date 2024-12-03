@@ -25,15 +25,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.spruceid.mobile.sdk.ui.MRZScanner
 import com.spruceid.mobile.sdk.ui.PDF417Scanner
 import com.spruceid.mobile.sdk.ui.QRCodeScanner
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.Primary
 
 enum class ScanningType {
     QRCODE, PDF417, MRZ
@@ -43,13 +42,12 @@ enum class ScanningType {
 @ExperimentalPermissionsApi
 @Composable
 fun ScanningComponent(
-    navController: NavController,
     scanningType: ScanningType,
     title: String = "Scan QR Code",
     subtitle: String = "Please align within the guides",
     onRead: (content: String) -> Unit,
     isMatch: (content: String) -> Boolean = { _ -> true },
-    onCancel: (() -> Unit)? = null
+    onCancel: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -79,18 +77,6 @@ fun ScanningComponent(
         },
     )
 
-    fun backHome() {
-        navController.popBackStack()
-    }
-
-    fun internalOnCancel() {
-        if (onCancel != null) {
-            onCancel()
-        } else {
-            backHome()
-        }
-    }
-
     Column(
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -104,7 +90,7 @@ fun ScanningComponent(
                     cancelButtonLabel = "Cancel",
                     onRead = onRead,
                     isMatch = isMatch,
-                    onCancel = ::internalOnCancel,
+                    onCancel = onCancel,
                     fontFamily = Inter,
                     readerColor = Color.White,
                     guidesColor = Color.White,
@@ -118,7 +104,7 @@ fun ScanningComponent(
                     cancelButtonLabel = "Cancel",
                     onRead = onRead,
                     isMatch = isMatch,
-                    onCancel = ::internalOnCancel,
+                    onCancel = onCancel,
                     fontFamily = Inter,
                     readerColor = Color.White,
                     guidesColor = Color.White,
@@ -132,7 +118,7 @@ fun ScanningComponent(
                     cancelButtonLabel = "Cancel",
                     onRead = onRead,
                     isMatch = isMatch,
-                    onCancel = ::internalOnCancel,
+                    onCancel = onCancel,
                     fontFamily = Inter,
                     readerColor = Color.White,
                     guidesColor = Color.White,
@@ -144,9 +130,7 @@ fun ScanningComponent(
             AlertDialog(
                 containerColor = Color.White,
                 shape = RoundedCornerShape(8.dp),
-                onDismissRequest = {
-                    backHome()
-                },
+                onDismissRequest = onCancel,
                 title = {
                     Text(
                         "Camera permission denied",
@@ -170,7 +154,7 @@ fun ScanningComponent(
                         },
                         colors =
                         ButtonDefaults.buttonColors(
-                            containerColor = Primary,
+                            containerColor = ColorBase150,
                             contentColor = Color.White,
                         ),
                         modifier =
@@ -189,13 +173,11 @@ fun ScanningComponent(
                 },
                 dismissButton = {
                     Button(
-                        onClick = {
-                            backHome()
-                        },
+                        onClick = onCancel,
                         colors =
                         ButtonDefaults.buttonColors(
                             containerColor = Color.Transparent,
-                            contentColor = Primary,
+                            contentColor = ColorBase150,
                         ),
                     ) {
                         Text(
@@ -203,7 +185,7 @@ fun ScanningComponent(
                             fontFamily = Inter,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
-                            color = Primary,
+                            color = ColorBase150,
                         )
                     }
                 },

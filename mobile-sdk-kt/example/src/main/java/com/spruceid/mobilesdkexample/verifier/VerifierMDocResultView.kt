@@ -31,21 +31,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobilesdkexample.R
-import com.spruceid.mobilesdkexample.navigation.Screen
-import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePrimaryContrast
-import com.spruceid.mobilesdkexample.ui.theme.BgSurfacePureWhite
-import com.spruceid.mobilesdkexample.ui.theme.BorderSecondary
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase900
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.TextBase
-import com.spruceid.mobilesdkexample.ui.theme.TextPrimary
 import com.spruceid.mobilesdkexample.ui.theme.bodyMdDefault
 import com.spruceid.mobilesdkexample.ui.theme.bodyXsRegular
 import com.spruceid.mobilesdkexample.ui.theme.buttonText
@@ -77,8 +73,8 @@ fun mDocArrayToByteArray(repr: MDocItem.Array): ByteArray =
 
 @Composable
 fun VerifierMDocResultView(
-    navController: NavController,
-    result: Map<String, Map<String, MDocItem>>
+    result: Map<String, Map<String, MDocItem>>,
+    onClose: () -> Unit
 ) {
     val givenName = getDiscriminant(result["org.iso.18013.5.1"]?.get("given_name")!!)
     val familyName = getDiscriminant(result["org.iso.18013.5.1"]?.get("family_name")!!)
@@ -91,6 +87,7 @@ fun VerifierMDocResultView(
     val eyeColor = getDiscriminant(result["org.iso.18013.5.1"]?.get("eye_colour")!!)
     val hairColor = getDiscriminant(result["org.iso.18013.5.1"]?.get("hair_colour")!!)
     val portrait = result["org.iso.18013.5.1"]?.get("portrait")!! as MDocItem.Array
+    val issuingAuthority = getDiscriminant(result["org.iso.18013.5.1"]?.get("issuing_authority")!!)
 
     val portraitBytes = mDocArrayToByteArray(portrait)
     Box(
@@ -119,7 +116,7 @@ fun VerifierMDocResultView(
                         style = MaterialTheme.typography.headerH2
                     )
                     Text(
-                        text = "Issuer",
+                        text = issuingAuthority,
                         color = ColorStone600,
                         style = MaterialTheme.typography.bodyMdDefault
                     )
@@ -151,7 +148,7 @@ fun VerifierMDocResultView(
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "VALID",
-                                color = TextBase,
+                                color = ColorBase50,
                                 style = MaterialTheme.typography.bodyMdDefault
                             )
                         }
@@ -262,11 +259,11 @@ fun VerifierMDocResultView(
                     modifier = Modifier
                         .fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
-                    onClick = { navController.popBackStack() },
+                    onClick = onClose,
                     colors = ButtonColors(
-                        containerColor = BgSurfacePrimaryContrast, contentColor = TextBase,
+                        containerColor = ColorStone700, contentColor = ColorBase50,
                         disabledContainerColor = Color.Black,
-                        disabledContentColor = TextBase
+                        disabledContentColor = ColorBase50
                     )
                 ) {
                     Row(
@@ -282,7 +279,7 @@ fun VerifierMDocResultView(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Rescan",
-                            color = TextBase,
+                            color = ColorBase50,
                             style = MaterialTheme.typography.buttonText
                         )
                     }
@@ -290,17 +287,13 @@ fun VerifierMDocResultView(
                 Button(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(width = 1.dp, color = BorderSecondary),
+                        .border(width = 1.dp, color = ColorStone300),
                     shape = RoundedCornerShape(8.dp),
-                    onClick = {
-                        navController.navigate(Screen.HomeScreen.route) {
-                            popUpTo(0)
-                        }
-                    },
+                    onClick = onClose,
                     colors = ButtonColors(
-                        containerColor = BgSurfacePureWhite, contentColor = TextPrimary,
-                        disabledContainerColor = BgSurfacePureWhite,
-                        disabledContentColor = TextPrimary
+                        containerColor = ColorBase1, contentColor = ColorStone950,
+                        disabledContainerColor = ColorBase1,
+                        disabledContentColor = ColorStone950
                     )
 
                 ) {
@@ -308,7 +301,7 @@ fun VerifierMDocResultView(
                     {
                         Text(
                             text = "Close",
-                            color = TextPrimary,
+                            color = ColorStone950,
                             style = MaterialTheme.typography.buttonTextSmall
                         )
                     }
@@ -336,7 +329,8 @@ fun MDocVerifyPreview() {
                 "eye_colour" to MDocItem.Text("green"),
                 "hair_colour" to MDocItem.Text("unknown"),
                 "resident_address" to MDocItem.Text("2415 1ST AVE, SACRAMENTO 95818"),
-                "document_number" to MDocItem.Text("I8882610")
+                "document_number" to MDocItem.Text("I8882610"),
+                "issuing_authority" to MDocItem.Text("SpruceID")
             ),
             "org.iso.18013.5.1.aamva" to mapOf(
                 "DHS_compliance" to MDocItem.Text("F"),
@@ -344,5 +338,5 @@ fun MDocVerifyPreview() {
                 "veteran" to MDocItem.Integer(1)
             )
         )
-    VerifierMDocResultView(rememberNavController(), example)
+    VerifierMDocResultView(example) {}
 }

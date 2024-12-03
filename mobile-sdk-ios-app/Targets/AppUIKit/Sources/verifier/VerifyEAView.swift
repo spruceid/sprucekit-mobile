@@ -41,6 +41,12 @@ struct VerifyEAView: View {
                                 do {
                                     try await verifyVcbQrcodeAgainstMrz(mrzPayload: code, qrPayload: stepOneValue!)
                                     success = true
+                                    _ = VerificationActivityLogDataStore.shared.insert(
+                                        credentialTitle: "Employment Authorization",
+                                        issuer: "State of Utopia",
+                                        verificationDateTime: Date(),
+                                        additionalInformation: ""
+                                    )
                                 } catch {
                                     print(error)
                                     success = false
@@ -56,7 +62,7 @@ struct VerifyEAView: View {
                 success: success!,
                 content: Text(success! ? "Valid Employment Authorization" : "Invalid Employment Authorization")
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                    .foregroundStyle(Color("TextHeader"))
+                    .foregroundStyle(Color("ColorStone950"))
                     .padding(.top, 20)
             )
         }

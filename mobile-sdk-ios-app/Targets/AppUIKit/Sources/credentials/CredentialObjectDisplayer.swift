@@ -91,7 +91,7 @@ func genericObjectDisplayer(object: [String : GenericJSON], filter: [String] = [
                     VStack(alignment: .leading) {
                         Text(key.camelCaseToWords().capitalized.replaceUnderscores())
                             .font(.customFont(font: .inter, style: .regular, size: .h4))
-                            .foregroundStyle(Color("TextBody"))
+                            .foregroundStyle(Color("ColorStone600"))
                         if key.lowercased().contains("image") ||
                             key.lowercased().contains("portrait") ||
                             value.toString().contains("data:image") {

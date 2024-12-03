@@ -7,35 +7,34 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowColumn
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.IsoMdlReader
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.rs.MDocItem
-import com.spruceid.mobile.sdk.ui.QRCodeScanner
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
+import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
+import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
+import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
@@ -89,7 +88,10 @@ enum class State {
     ExperimentalPermissionsApi::class
 )
 @Composable
-fun VerifyMDocView(navController: NavController) {
+fun VerifyMDocView(
+    navController: NavController,
+    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
+) {
     val context = LocalContext.current
     var reader: IsoMdlReader? = null
 
@@ -120,6 +122,14 @@ fun VerifyMDocView(navController: NavController) {
             if (state.containsKey("mdl")) {
                 result = reader?.handleResponse(state["mdl"] as ByteArray)
                 scanProcessState = State.DONE
+                VerificationActivityLogs(
+                    credentialTitle = "Driver's License",
+                    issuer = getDiscriminant(
+                        result!!["org.iso.18013.5.1"]?.get("issuing_authority")!!
+                    ),
+                    verificationDateTime = getCurrentSqlDate(),
+                    additionalInformation = ""
+                )
             }
         }
 
@@ -154,8 +164,12 @@ fun VerifyMDocView(navController: NavController) {
         }
     }
 
-    fun onCancel() {
-        navController.popBackStack()
+    fun back() {
+        navController.navigate(
+            Screen.HomeScreen.route.replace("{tab}", "verifier")
+        ) {
+            popUpTo(0)
+        }
     }
 
     val elementsList = elementMapToList(defaultElements)
@@ -163,12 +177,11 @@ fun VerifyMDocView(navController: NavController) {
     when (scanProcessState) {
         State.SCANNING -> Column {
             ScanningComponent(
-                navController,
                 ScanningType.QRCODE,
                 title = "",
                 subtitle = "",
                 onRead = ::onRead,
-                onCancel = ::onCancel
+                onCancel = ::back
             )
             HorizontalDivider(thickness = 1.dp)
             Text("Requesting the following:")
@@ -187,10 +200,10 @@ fun VerifyMDocView(navController: NavController) {
             }
         }
 
-        State.TRANSMITTING -> LoadingView("Verifying...", "Cancel", ::onCancel)
+        State.TRANSMITTING -> LoadingView("Verifying...", "Cancel", ::back)
         State.DONE -> VerifierMDocResultView(
-            navController = navController,
             result = result!!,
+            onClose = ::back
         )
     }
 }

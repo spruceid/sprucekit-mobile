@@ -37,7 +37,7 @@ struct VerifyVCView: View {
                 success: success!,
                 content: Text(success! ? "Valid Verifiable Credential" : "Invalid Verifiable Credential")
                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                    .foregroundStyle(Color("TextHeader"))
+                    .foregroundStyle(Color("ColorStone950"))
                     .padding(.top, 20)
             )
         }

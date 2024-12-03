@@ -67,6 +67,10 @@ extension String {
     func replaceUnderscores() -> String {
         return self.replacingOccurrences(of: "_", with: " ")
     }
+    
+    func replaceCommas() -> String {
+        return self.replacingOccurrences(of: ",", with: " ")
+    }
 }
 
 extension Data {

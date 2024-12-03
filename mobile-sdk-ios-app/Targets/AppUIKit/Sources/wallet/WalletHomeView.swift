@@ -8,7 +8,7 @@ struct WalletHomeView: View {
     var body: some View {
         VStack {
             WalletHomeHeader(path: $path)
-            WalletHomeBody(path: $path)
+            WalletHomeBody()
         }
         .navigationBarBackButtonHidden(true)
     }
@@ -22,17 +22,17 @@ struct WalletHomeHeader: View {
             Text("Wallet")
                 .font(.customFont(font: .inter, style: .bold, size: .h2))
                 .padding(.leading, 36)
-                .foregroundStyle(Color("TextHeader"))
+                .foregroundStyle(Color("ColorStone950"))
             Spacer()
             Button {
-                path.append(OID4VCI())
+                path.append(DispatchQR())
             } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("Primary"))
+                        .foregroundColor(Color("ColorBase150"))
                         .frame(width: 36, height: 36)
                     Image("QRCodeReader")
-                        .foregroundColor(Color("SecondaryIconButton"))
+                        .foregroundColor(Color("ColorStone400"))
                 }
             }
             .padding(.trailing, 4)
@@ -41,7 +41,7 @@ struct WalletHomeHeader: View {
             } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("Primary"))
+                        .foregroundColor(Color("ColorBase150"))
                         .frame(width: 36, height: 36)
                     Image("User")
                 }
@@ -53,14 +53,17 @@ struct WalletHomeHeader: View {
 }
 
 struct WalletHomeBody: View {
-    @Binding var path: NavigationPath
-
     @State var credentialPacks: [CredentialPack] = []
     let storageManager = StorageManager()
+    @State var loading = false
 
     var body: some View {
         ZStack {
-            if !credentialPacks.isEmpty {
+            if loading {
+                LoadingView(
+                    loadingText: ""
+                )
+            } else if !credentialPacks.isEmpty {
                 ZStack {
                     ScrollView(.vertical, showsIndicators: false) {
                         Section {
@@ -80,44 +83,11 @@ struct WalletHomeBody: View {
                             }
                             //                    ShareableCredentialListItem(mdoc: mdocBase64)
                         }
-                        .padding(.bottom, 60)
                     }
                     .padding(.top, 20)
-
-                    VStack {
-                        Spacer()
-                        Button(action: {
-                            path.append(DispatchQR())
-                        }) {
-                            HStack {
-                                Image("QRCodeReader")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 20, height: 20)
-                                    .foregroundColor(.white)
-                                Text("Scan to share")
-                                    .font(.system(size: 15))
-                                    .fontWeight(.regular)
-                                    .foregroundColor(.white)
-                            }
-                            .padding(14)
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                Color("CTAButtonBlue")
-                            )
-                            .cornerRadius(100)
-                        }
-                        .padding()
-                    }
                 }
             } else {
                 ZStack {
-                    VStack {
-                        Section {
-                            Image("AddFirstCredential")
-                        }
-                        Spacer()
-                    }
                     VStack {
                         Spacer()
                         Section {
@@ -130,12 +100,14 @@ struct WalletHomeBody: View {
         }
         .onAppear(perform: {
             Task {
+                loading = true
                 do {
                     self.credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
                 } catch {
                     // TODO: display error message
                     print(error)
                 }
+                loading = false
             }
         })
     }
