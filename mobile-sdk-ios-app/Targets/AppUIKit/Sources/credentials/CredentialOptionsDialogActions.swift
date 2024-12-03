@@ -14,11 +14,9 @@ struct CredentialOptionsDialogActions: View {
     }
     
     var body: some View {
-        if(true) {
-            ShareLink(item: txtFile!) {
-                Text("Export")
-                    .font(.customFont(font: .inter, style: .medium, size: .h4))
-            }
+        ShareLink(item: txtFile!) {
+            Text("Export")
+                .font(.customFont(font: .inter, style: .medium, size: .h4))
         }
         if(onDelete != nil) {
             Button("Delete", role: .destructive) { onDelete?() }
@@ -29,14 +27,13 @@ struct CredentialOptionsDialogActions: View {
 
 func getFileContent(credentialPack: CredentialPack) -> String {
     var rawCredentials: [String] = []
+    let claims = credentialPack.findCredentialClaims(claimNames: [])
     
-    credentialPack.list().forEach { parsedCredential in
-        do {
-            if let str = try String(data: parsedCredential.intoGenericForm().payload, encoding: .utf8) {
-                rawCredentials.append(str)
+    claims.keys.forEach { key in
+        if let claim = claims[key] {
+            if let jsonString = convertDictToJSONString(dict: claim) {
+                rawCredentials.append(jsonString)
             }
-        } catch {
-            print(error.localizedDescription)
         }
     }
     return rawCredentials.first ?? ""

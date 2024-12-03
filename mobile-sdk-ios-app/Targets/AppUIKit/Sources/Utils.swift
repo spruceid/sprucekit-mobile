@@ -92,6 +92,19 @@ func generateTxtFile(content: String, filename: String) -> URL? {
     return nil
 }
 
+func convertDictToJSONString(dict: [String: GenericJSON]) -> String? {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = .prettyPrinted
+
+    do {
+        let jsonData = try encoder.encode(dict)
+        return String(data: jsonData, encoding: .utf8)
+    } catch {
+        print("Error encoding JSON: \(error)")
+        return nil
+    }
+}
+
 let ed25519_2020_10_18 =
 "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"G80iskrv_nE69qbGLSpeOHJgmV4MKIzsy5l5iT6pCww\",\"d\":\"39Ev8-k-jkKunJyFWog3k0OwgPjnKv_qwLhfqXdAXTY\"}"
 

@@ -118,7 +118,7 @@ struct AchievementCredentialItem: ICredentialView {
                                 actions: {
                                     CredentialOptionsDialogActions(
                                         onDelete: onDelete,
-                                        exportFileName: "\(title ?? "credential").txt",
+                                        exportFileName: "\(title ?? "credential").json",
                                         credentialPack: credentialPack
                                     )
                                 }
