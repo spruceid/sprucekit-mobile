@@ -21,7 +21,7 @@ fun File.updateText(content: String) {
 }
 
 class HelpersViewModel(application: Application) : AndroidViewModel(application) {
-    fun exportCSV(content: String, filename: String) {
+    fun exportText(content: String, filename: String, fileType: String) {
         val app = getApplication<Application>()
         val file = File(app.cacheDir, filename)
         file.updateText(content)
@@ -33,7 +33,7 @@ class HelpersViewModel(application: Application) : AndroidViewModel(application)
                 file,
             )
         Intent(Intent.ACTION_SEND).apply {
-            type = "text/csv"
+            type = fileType
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             putExtra(Intent.EXTRA_STREAM, uri)
