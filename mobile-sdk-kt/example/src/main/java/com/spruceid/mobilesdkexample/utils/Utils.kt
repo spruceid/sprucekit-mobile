@@ -120,7 +120,11 @@ fun keyPathFinder(json: Any, path: MutableList<String>): Any {
     }
 }
 
-fun credentialDisplaySelector(rawCredential: String, onDelete: (() -> Unit)?): ICredentialView {
+fun credentialDisplaySelector(
+    rawCredential: String,
+    onDelete: (() -> Unit)?,
+    onExport: (() -> Unit)?
+): ICredentialView {
     /* This is temporarily commented on until we define the specific AchievementCredentialItem design */
 //        try {
 //                 Test if it is SdJwt
@@ -128,7 +132,7 @@ fun credentialDisplaySelector(rawCredential: String, onDelete: (() -> Unit)?): I
 //                credentialPack.addSdJwt(Vcdm2SdJwt.newFromCompactSdJwt(rawCredential))
 //                return AchievementCredentialItem(credentialPack, onDelete)
 //        } catch (_: Exception) {
-    return GenericCredentialItem(rawCredential, onDelete)
+    return GenericCredentialItem(rawCredential, onDelete, onExport)
 //        }
 }
 

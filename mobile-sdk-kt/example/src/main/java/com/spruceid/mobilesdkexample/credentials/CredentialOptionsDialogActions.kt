@@ -23,14 +23,13 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CredentialOptionsDialogActions(
     setShowBottomSheet: (Boolean) -> Unit,
-    helpersViewModel: HelpersViewModel,
+    onExport: (() -> Unit)?,
     onDelete: (() -> Unit)?
 ) {
     val scope = rememberCoroutineScope()
@@ -53,26 +52,28 @@ fun CredentialOptionsDialogActions(
             modifier = Modifier
                 .fillMaxWidth()
         )
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        Button(
-            onClick = {
-                setShowBottomSheet(false)
-
-            },
-            shape = RoundedCornerShape(5.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = ColorBlue600,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-        ) {
-            Text(
-                text = "Export",
-                fontFamily = Inter,
-                fontWeight = FontWeight.Normal,
-                color = ColorBlue600,
-            )
+        if (onExport != null) {
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+            Button(
+                onClick = {
+                    setShowBottomSheet(false)
+                    onExport()
+                },
+                shape = RoundedCornerShape(5.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = ColorBlue600,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = "Export",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Normal,
+                    color = ColorBlue600,
+                )
+            }
         }
         if (onDelete != null) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))

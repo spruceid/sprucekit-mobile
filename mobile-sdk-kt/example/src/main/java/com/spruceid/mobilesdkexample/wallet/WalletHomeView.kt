@@ -39,11 +39,13 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 
 @Composable
 fun WalletHomeView(
     navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel
+    credentialPacksViewModel: CredentialPacksViewModel,
+    helpersViewModel: HelpersViewModel
 ) {
     Column(
         Modifier
@@ -51,7 +53,10 @@ fun WalletHomeView(
             .padding(top = 20.dp)
     ) {
         WalletHomeHeader(navController = navController)
-        WalletHomeBody(credentialPacksViewModel = credentialPacksViewModel)
+        WalletHomeBody(
+            credentialPacksViewModel = credentialPacksViewModel,
+            helpersViewModel = helpersViewModel
+        )
     }
 }
 
@@ -111,7 +116,10 @@ fun WalletHomeHeader(navController: NavController) {
 }
 
 @Composable
-fun WalletHomeBody(credentialPacksViewModel: CredentialPacksViewModel) {
+fun WalletHomeBody(
+    credentialPacksViewModel: CredentialPacksViewModel,
+    helpersViewModel: HelpersViewModel
+) {
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
     val loadingCredentialPacks by credentialPacksViewModel.loading.collectAsState()
 
@@ -129,6 +137,16 @@ fun WalletHomeBody(credentialPacksViewModel: CredentialPacksViewModel) {
                             credentialPack = credentialPack,
                             onDelete = {
                                 credentialPacksViewModel.deleteCredentialPack(credentialPack)
+                            },
+                            onExport = {
+//                                credentialPacksViewModel.deleteCredentialPack(credentialPack)
+                                helpersViewModel.exportText(
+                                    verificationActivityLogsViewModel.generateVerificationActivityLogCSV(
+                                        logs = logs
+                                    ),
+                                    "activity_logs.csv",
+                                    "text/csv"
+                                )
                             }
                         )
                             .credentialPreviewAndDetails()

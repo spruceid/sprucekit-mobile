@@ -53,15 +53,26 @@ import org.json.JSONObject
 class GenericCredentialItem : ICredentialView {
     override var credentialPack: CredentialPack
     private val onDelete: (() -> Unit)?
+    private val onExport: (() -> Unit)?
 
-    constructor(credentialPack: CredentialPack, onDelete: (() -> Unit)? = null) {
+    constructor(
+        credentialPack: CredentialPack,
+        onDelete: (() -> Unit)? = null,
+        onExport: (() -> Unit)? = null
+    ) {
         this.credentialPack = credentialPack
         this.onDelete = onDelete
+        this.onExport = onExport
     }
 
-    constructor(rawCredential: String, onDelete: (() -> Unit)? = null) {
+    constructor(
+        rawCredential: String,
+        onDelete: (() -> Unit)? = null,
+        onExport: (() -> Unit)? = null
+    ) {
         this.credentialPack = addCredential(CredentialPack(), rawCredential)
         this.onDelete = onDelete
+        this.onExport = onExport
     }
 
     @Composable
@@ -227,10 +238,8 @@ class GenericCredentialItem : ICredentialView {
         )
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun listItemWithOptions() {
-        val sheetState = rememberModalBottomSheetState()
         var showBottomSheet by remember { mutableStateOf(false) }
 
         val listRendering = CardRenderingListView(
@@ -293,6 +302,17 @@ class GenericCredentialItem : ICredentialView {
                         color = ColorStone950,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
+                    if (showBottomSheet) {
+                        CredentialOptionsDialogActions(
+                            setShowBottomSheet = { show ->
+                                showBottomSheet = show
+                            },
+                            onDelete = onDelete,
+                            onExport = {
+//                                onExport(title)
+                            }
+                        )
+                    }
                 }
             },
             descriptionKeys = listOf("description", "issuer"),
@@ -309,16 +329,6 @@ class GenericCredentialItem : ICredentialView {
             credentialPack = credentialPack,
             rendering = listRendering.toCardRendering()
         )
-
-        if (showBottomSheet) {
-            CredentialOptionsDialogActions(
-                setShowBottomSheet = { show ->
-                    showBottomSheet = show
-                },
-                helpersViewModel = helpersViewModel,
-                onDelete = onDelete
-            )
-        }
     }
 
     @Composable
