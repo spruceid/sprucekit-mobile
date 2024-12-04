@@ -38,6 +38,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.getFileContent
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 
@@ -138,14 +139,11 @@ fun WalletHomeBody(
                             onDelete = {
                                 credentialPacksViewModel.deleteCredentialPack(credentialPack)
                             },
-                            onExport = {
-//                                credentialPacksViewModel.deleteCredentialPack(credentialPack)
+                            onExport = { credentialTitle ->
                                 helpersViewModel.exportText(
-                                    verificationActivityLogsViewModel.generateVerificationActivityLogCSV(
-                                        logs = logs
-                                    ),
-                                    "activity_logs.csv",
-                                    "text/csv"
+                                    getFileContent(credentialPack),
+                                    "$credentialTitle.json.txt",
+                                    "text/plain"
                                 )
                             }
                         )

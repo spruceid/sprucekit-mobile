@@ -123,7 +123,7 @@ fun keyPathFinder(json: Any, path: MutableList<String>): Any {
 fun credentialDisplaySelector(
     rawCredential: String,
     onDelete: (() -> Unit)?,
-    onExport: (() -> Unit)?
+    onExport: ((String) -> Unit)?
 ): ICredentialView {
     /* This is temporarily commented on until we define the specific AchievementCredentialItem design */
 //        try {
@@ -164,4 +164,18 @@ fun addCredential(credentialPack: CredentialPack, rawCredential: String): Creden
     println("Couldn't parse credential $rawCredential")
 
     return credentialPack
+}
+
+fun getFileContent(credentialPack: CredentialPack): String {
+    val rawCredentials = mutableListOf<String>()
+    val claims = credentialPack.findCredentialClaims(listOf())
+
+    claims.keys.forEach { key ->
+        claims[key].let {
+            if (it != null) {
+                rawCredentials.add(it.toString(4))
+            }
+        }
+    }
+    return rawCredentials.first() ?: ""
 }

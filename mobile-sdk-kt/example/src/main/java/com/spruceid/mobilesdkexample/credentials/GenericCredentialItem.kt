@@ -53,12 +53,12 @@ import org.json.JSONObject
 class GenericCredentialItem : ICredentialView {
     override var credentialPack: CredentialPack
     private val onDelete: (() -> Unit)?
-    private val onExport: (() -> Unit)?
+    private val onExport: ((String) -> Unit)?
 
     constructor(
         credentialPack: CredentialPack,
         onDelete: (() -> Unit)? = null,
-        onExport: (() -> Unit)? = null
+        onExport: ((String) -> Unit)? = null
     ) {
         this.credentialPack = credentialPack
         this.onDelete = onDelete
@@ -68,7 +68,7 @@ class GenericCredentialItem : ICredentialView {
     constructor(
         rawCredential: String,
         onDelete: (() -> Unit)? = null,
-        onExport: (() -> Unit)? = null
+        onExport: ((String) -> Unit)? = null
     ) {
         this.credentialPack = addCredential(CredentialPack(), rawCredential)
         this.onDelete = onDelete
@@ -309,7 +309,7 @@ class GenericCredentialItem : ICredentialView {
                             },
                             onDelete = onDelete,
                             onExport = {
-//                                onExport(title)
+                                onExport?.let { it(title) }
                             }
                         )
                     }
