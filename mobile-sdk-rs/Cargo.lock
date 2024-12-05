@@ -3581,7 +3581,7 @@ dependencies = [
 [[package]]
 name = "oid4vci"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/oid4vci-rs?rev=c5097c9#c5097c9f99dee4c0415aa66a472985153c04a201"
+source = "git+https://github.com/spruceid/oid4vci-rs#3717043909b7ef766b340a58306d2325e61216df"
 dependencies = [
  "anyhow",
  "async-signature",
@@ -3619,7 +3619,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 [[package]]
 name = "openid4vp"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=5083071#5083071bc2c5afe611acde9885ed3e8f26a1518b"
+source = "git+https://github.com/spruceid/openid4vp#25feadb76a7d96512104d30046e6bc2def5bcc5e"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3647,7 +3647,7 @@ dependencies = [
 [[package]]
 name = "openid4vp-frontend"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=5083071#5083071bc2c5afe611acde9885ed3e8f26a1518b"
+source = "git+https://github.com/spruceid/openid4vp#25feadb76a7d96512104d30046e6bc2def5bcc5e"
 dependencies = [
  "serde",
  "serde_json",
