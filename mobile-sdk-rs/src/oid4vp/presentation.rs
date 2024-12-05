@@ -168,10 +168,6 @@ pub trait PresentationSigner: Send + Sync + std::fmt::Debug {
     /// Return the algorithm used for signing the vp token.
     ///
     /// E.g., "ES256"
-    #[deprecated(
-        since = "0.1.0",
-        note = "This method is deprecated and will be removed in a future release. Use `cryptosuite()` instead."
-    )]
     fn algorithm(&self) -> String;
 
     /// Return the verification method associated with the signing key.
