@@ -81,7 +81,7 @@ pub struct RequestedField {
     pub(crate) raw_fields: Vec<serde_json::Value>,
 }
 
-impl<'a> From<openid4vp::core::input_descriptor::RequestedField<'a>> for RequestedField {
+impl From<openid4vp::core::input_descriptor::RequestedField<'_>> for RequestedField {
     fn from(value: openid4vp::core::input_descriptor::RequestedField) -> Self {
         Self {
             id: value.id,
