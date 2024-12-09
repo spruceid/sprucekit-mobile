@@ -162,7 +162,7 @@ pub trait CredentialPresentation {
 pub trait PresentationSigner: Send + Sync + std::fmt::Debug {
     /// Sign the payload with the private key and return the signature.
     ///
-    /// The signing algorith must match the `cryptosuite()` method result.
+    /// The signing algorithm must match the `cryptosuite()` method result.
     async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError>;
 
     /// Return the algorithm used for signing the vp token.
