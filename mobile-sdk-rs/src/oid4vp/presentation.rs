@@ -348,7 +348,7 @@ impl<'a> PresentationOptions<'a> {
 
         // Use the cryptosuite-specific signing method to sign the presentation.
         match self.cryptographic_suite.as_ref() {
-            EcdsaRdfc2019::NAME | "ecdsa-rdfc-2019" => AnySuite::EcdsaRdfc2019
+            "ecdsa-rdfc-2019" => AnySuite::EcdsaRdfc2019
                 .sign(presentation, resolver, self, proof_options)
                 .await
                 .map_err(|e| PresentationError::Signing(format!("{e:?}"))),
