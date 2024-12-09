@@ -11,16 +11,15 @@ use serde::Serialize;
 use ssi::{
     claims::{
         data_integrity::{
-            suites::{EcdsaRdfc2019, JsonWebSignature2020},
-            AnyInputSuiteOptions, CryptosuiteString,
+            suites::JsonWebSignature2020, AnyInputSuiteOptions, AnyProtocol, CryptosuiteString,
         },
         MessageSignatureError,
     },
-    crypto::algorithm::SignatureAlgorithmType,
+    crypto::{Algorithm, AlgorithmInstance},
     dids::{VerificationMethodDIDResolver, DIDJWK},
     json_ld::IriBuf,
     prelude::{AnyJsonPresentation, AnySuite, CryptographicSuite, DataIntegrity, ProofOptions},
-    verification_methods::{MessageSigner, ProofPurpose},
+    verification_methods::{protocol::WithProtocol, MessageSigner, ProofPurpose},
     xsd::DateTimeStamp,
     JWK,
 };
@@ -168,11 +167,9 @@ pub trait PresentationSigner: Send + Sync + std::fmt::Debug {
     /// Return the algorithm used for signing the vp token.
     ///
     /// E.g., "ES256"
-    fn algorithm(&self) -> String;
+    fn algorithm(&self) -> Algorithm;
 
     /// Return the verification method associated with the signing key.
-    ///
-    /// E.g., DidJwk or DidKey
     async fn verification_method(&self) -> String;
 
     /// Return the `DID` of the signing key.
@@ -200,27 +197,33 @@ pub trait PresentationSigner: Send + Sync + std::fmt::Debug {
 /// claims in the `vp_token` parameter.
 #[derive(Clone)]
 pub struct PresentationOptions<'a> {
+    /// Borrowed reference to the authorization request object.
     pub(crate) request: &'a AuthorizationRequestObject,
     /// Signing callback interface that can be used to sign the `vp_token`.
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
-    /// Cryptographic Suite String Identifier
-    /// e.g., JsonWebSignature2020
-    pub(crate) cryptographic_suite: CryptosuiteString,
-    /// Verification Method Id:
-    pub(crate) verification_method_id: IriBuf,
 }
 
-impl<'a, A> MessageSigner<A> for PresentationOptions<'a>
-where
-    A: SignatureAlgorithmType,
-{
+impl<'a> MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions<'a> {
     #[allow(async_fn_in_trait)]
     async fn sign(
         self,
-        _algorithm: A::Instance,
+        // NOTE: The `protocol` parameter is not used in this implementation, but it would
+        // be preferrable to have a `suite` parameter that would be used here instead.
+        //
+        // For example, `WithSuite` could accept a `AnySuite` type. This might already
+        // exist? But, I tried to change `AnyProtocol` to `AnySuite` to match against
+        // the [PresentationSigner::cryptosuite] method, but alas, this does not work
+        // with the `sign` method.
+        //
+        // TODO: Determine if there is a way to provide a `suite` parameter here.
+        WithProtocol(alg, _protocol): WithProtocol<AlgorithmInstance, AnyProtocol>,
         message: &[u8],
     ) -> Result<Vec<u8>, MessageSignatureError> {
-        println!("Signing message");
+        if !self.signer.algorithm().is_compatible_with(alg.algorithm()) {
+            return Err(MessageSignatureError::UnsupportedAlgorithm(
+                self.signer.algorithm().to_string(),
+            ));
+        }
 
         let signature = self
             .signer
@@ -229,23 +232,6 @@ where
             .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
         Ok(signature)
-    }
-
-    #[allow(async_fn_in_trait)]
-    async fn sign_multi(
-        self,
-        _algorithm: A::Instance,
-        messages: &[Vec<u8>],
-    ) -> Result<Vec<u8>, MessageSignatureError> {
-        match messages.split_first() {
-            // // If there is a single message, sign the message
-            // Some((message, [])) => self.sign(algorithm, message).await,
-            // NOTE: The `MessageSigner` trait only returns a
-            // single signature response, therefore limits to only signing
-            // a single message.
-            Some(_) => Err(MessageSignatureError::TooManyMessages),
-            None => Err(MessageSignatureError::MissingMessage),
-        }
     }
 }
 
@@ -258,32 +244,39 @@ where
     #[allow(async_fn_in_trait)]
     async fn for_method(
         &self,
-        _method: std::borrow::Cow<'_, M>,
+        method: std::borrow::Cow<'_, M>,
     ) -> Result<Option<Self::MessageSigner>, ssi::claims::SignatureError> {
-        Ok(Some(self.clone()))
+        Ok(method
+            .controller()
+            .filter(|ctrl| **ctrl == self.signer.did())
+            .map(|_| self.clone()))
     }
 }
 
 impl<'a> PresentationOptions<'a> {
-    pub(crate) async fn new(
+    pub(crate) fn new(
         request: &'a AuthorizationRequestObject,
         signer: Arc<Box<dyn PresentationSigner>>,
-    ) -> Result<Self, PresentationError> {
-        let cryptographic_suite = CryptosuiteString::new(signer.cryptosuite())
-            .map_err(|e| PresentationError::CryptographicSuite(format!("{e:?}")))?;
+    ) -> Self {
+        Self { request, signer }
+    }
 
-        let verification_method_id = signer
+    pub async fn verification_method_id(&self) -> Result<IriBuf, PresentationError> {
+        self.signer
             .verification_method()
             .await
             .parse()
-            .map_err(|e| PresentationError::VerificationMethod(format!("{e:?}")))?;
+            .map_err(|e| PresentationError::VerificationMethod(format!("{e:?}")))
+    }
 
-        Ok(Self {
-            request,
-            signer,
-            cryptographic_suite,
-            verification_method_id,
-        })
+    // NOTE: the cryptosuite will eventually be removed from the presentation options
+    // and provided via an interface coupled with the credential itself.
+    //
+    // When a credential is added to the wallet, a signer ID should be attached to the
+    // credential that notifies the wallet which signer to use for signing the credential.
+    pub fn cryptographic_suite(&self) -> Result<CryptosuiteString, PresentationError> {
+        CryptosuiteString::new(self.signer.cryptosuite())
+            .map_err(|e| PresentationError::CryptographicSuite(format!("{e:?}")))
     }
 
     pub fn audience(&self) -> &String {
@@ -338,7 +331,7 @@ impl<'a> PresentationOptions<'a> {
 
         let proof_options = ProofOptions::new(
             DateTimeStamp::now(),
-            self.verification_method_id.clone().into(),
+            self.verification_method_id().await?.into(),
             ProofPurpose::Authentication,
             AnyInputSuiteOptions {
                 public_key_jwk: self.jwk().map(Box::new).ok(),
@@ -346,8 +339,10 @@ impl<'a> PresentationOptions<'a> {
             },
         );
 
+        let suite = self.cryptographic_suite()?;
+
         // Use the cryptosuite-specific signing method to sign the presentation.
-        match self.cryptographic_suite.as_ref() {
+        match suite.as_ref() {
             "ecdsa-rdfc-2019" => AnySuite::EcdsaRdfc2019
                 .sign(presentation, resolver, self, proof_options)
                 .await
@@ -356,9 +351,7 @@ impl<'a> PresentationOptions<'a> {
                 .sign(presentation, resolver, self, proof_options)
                 .await
                 .map_err(|e| PresentationError::Signing(format!("{e:?}"))),
-            _ => Err(PresentationError::CryptographicSuite(
-                self.cryptographic_suite.to_string(),
-            )),
+            _ => Err(PresentationError::CryptographicSuite(suite.to_string())),
         }
     }
 }

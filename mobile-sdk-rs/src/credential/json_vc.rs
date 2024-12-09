@@ -9,9 +9,12 @@ use crate::{
 
 use std::sync::Arc;
 
-use openid4vp::core::{
-    credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
-    response::parameters::VpTokenItem,
+use openid4vp::{
+    core::{
+        credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
+        response::parameters::VpTokenItem,
+    },
+    JsonPath,
 };
 use serde_json::Value as Json;
 use ssi::{
@@ -251,10 +254,10 @@ impl TryFrom<Credential> for Arc<JsonVc> {
 // i.e. `Object` -> `NonEmptyObject`.
 //
 // This should be removed once fixed in ssi crate.
-fn try_map_subjects<T, U, E>(
+fn try_map_subjects<T, U, E: std::fmt::Debug>(
     cred: JsonCredentialV2<T>,
     f: impl FnMut(T) -> Result<U, E>,
-) -> Result<JsonCredentialV2<U>, E> {
+) -> Result<JsonCredentialV2<U>, OID4VPError> {
     Ok(JsonCredentialV2 {
         context: cred.context,
         id: cred.id,
@@ -263,10 +266,10 @@ fn try_map_subjects<T, U, E>(
             cred.credential_subjects
                 .into_iter()
                 .map(f)
-                .collect::<Result<_, _>>()?,
+                .collect::<Result<_, _>>()
+                .map_err(|e| OID4VPError::EmptyCredentialSubject(format!("{e:?}")))?,
         )
-        // SAFETY: `cred.credential_subjects` is non-empty.
-        .unwrap(),
+        .map_err(|e| OID4VPError::EmptyCredentialSubject(format!("{e:?}")))?,
         issuer: cred.issuer,
         valid_from: cred.valid_from,
         valid_until: cred.valid_until,

@@ -189,8 +189,8 @@ impl CredentialPresentation for JwtVc {
         options: &'a PresentationOptions<'a>,
     ) -> Result<VpTokenItem, OID4VPError> {
         let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec()).ok();
-
-        let holder_id = options.verification_method_id.parse().ok();
+        let vm = options.verification_method_id().await?;
+        let holder_id = vm.clone().parse().ok();
 
         // NOTE: JwtVc types are ALWAYS VCDM 1.1,
         // therefore using the v1::syntax::JsonPresentation type.
@@ -204,7 +204,7 @@ impl CredentialPresentation for JwtVc {
         let nonce = options.nonce();
         let subject = options.subject();
 
-        let key_id = Some(options.verification_method_id.to_string());
+        let key_id = Some(vm.to_string());
         let algorithm = serde_json::from_str::<ssi::jwk::Algorithm>(&options.signer.cryptosuite())
             .map_err(|e| {
                 CredentialEncodingError::VpToken(format!("Invalid Signing Algorithm: {e:?}"))
@@ -267,13 +267,14 @@ impl CredentialPresentation for JwtVc {
         .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
 
         let id = input_descriptor_id.into();
+        let vp_path = "$.vp"
+            .parse()
+            .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
 
-        Ok(DescriptorMap::new(
-            id.clone(),
-            self.presentation_format(),
-            "$.vp".parse().unwrap(),
+        Ok(
+            DescriptorMap::new(id.clone(), self.presentation_format(), vp_path)
+                .set_path_nested(DescriptorMap::new(id, self.credential_format(), path)),
         )
-        .set_path_nested(DescriptorMap::new(id, self.credential_format(), path)))
     }
 }
 

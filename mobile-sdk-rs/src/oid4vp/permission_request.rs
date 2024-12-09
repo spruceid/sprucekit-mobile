@@ -197,7 +197,7 @@ impl PermissionRequest {
         }
 
         // Set options for constructing a verifiable presentation.
-        let options = PresentationOptions::new(&self.request, self.signer.clone()).await?;
+        let options = PresentationOptions::new(&self.request, self.signer.clone());
 
         let token_items = futures::future::try_join_all(
             selected_credentials

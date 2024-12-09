@@ -273,7 +273,7 @@ pub(crate) mod tests {
     };
 
     use super::*;
-    use ssi::{claims::jws::JwsSigner, JWK};
+    use ssi::{claims::jws::JwsSigner, crypto::Algorithm, JWK};
     use vcdm2_sd_jwt::VCDM2SdJwt;
 
     #[derive(Debug)]
@@ -293,12 +293,8 @@ pub(crate) mod tests {
             Ok(sig.as_bytes().to_vec())
         }
 
-        fn algorithm(&self) -> String {
-            self.jwk
-                .algorithm
-                .map(|a| a.as_str())
-                .map(ToString::to_string)
-                .unwrap_or_default()
+        fn algorithm(&self) -> Algorithm {
+            self.jwk.algorithm.map(Algorithm::from).unwrap()
         }
 
         async fn verification_method(&self) -> String {
