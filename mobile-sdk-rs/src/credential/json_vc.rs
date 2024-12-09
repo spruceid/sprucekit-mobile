@@ -190,7 +190,7 @@ impl CredentialPresentation for JsonVc {
         let id = input_descriptor_id.into();
 
         Ok(
-            DescriptorMap::new(id.clone(), self.presentation_format(), "$".parse().unwrap())
+            DescriptorMap::new(id.clone(), self.presentation_format(), JsonPath::default())
                 .set_path_nested(DescriptorMap::new(id, self.credential_format(), path)),
         )
     }
