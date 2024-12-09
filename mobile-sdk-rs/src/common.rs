@@ -1,7 +1,7 @@
 use crate::UniffiCustomTypeConverter;
 
 use serde::{Deserialize, Serialize};
-use ssi::crypto::Algorithm;
+use ssi::{claims::data_integrity::CryptosuiteString, crypto::Algorithm};
 pub use url::Url;
 pub use uuid::Uuid;
 
@@ -103,5 +103,19 @@ impl UniffiCustomTypeConverter for Algorithm {
 
     fn from_custom(alg: Self) -> Self::Builtin {
         alg.to_string()
+    }
+}
+
+uniffi::custom_type!(CryptosuiteString, String);
+impl UniffiCustomTypeConverter for CryptosuiteString {
+    type Builtin = String;
+
+    fn into_custom(suite: Self::Builtin) -> uniffi::Result<Self> {
+        Self::new(suite)
+            .map_err(|e| uniffi::deps::anyhow::anyhow!("failed to create cryptosuite: {e:?}"))
+    }
+
+    fn from_custom(suite: Self) -> Self::Builtin {
+        suite.to_string()
     }
 }

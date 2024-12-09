@@ -273,7 +273,11 @@ pub(crate) mod tests {
     };
 
     use super::*;
-    use ssi::{claims::jws::JwsSigner, crypto::Algorithm, JWK};
+    use ssi::{
+        claims::{data_integrity::CryptosuiteString, jws::JwsSigner},
+        crypto::Algorithm,
+        JWK,
+    };
     use vcdm2_sd_jwt::VCDM2SdJwt;
 
     #[derive(Debug)]
@@ -305,8 +309,8 @@ pub(crate) mod tests {
             DidMethod::Jwk.did_from_jwk(&self.jwk()).unwrap()
         }
 
-        fn cryptosuite(&self) -> String {
-            "ecdsa-rdfc-2019".to_string()
+        fn cryptosuite(&self) -> CryptosuiteString {
+            CryptosuiteString::new("ecdsa-rdfc-2019".to_string()).unwrap()
         }
 
         fn jwk(&self) -> String {

@@ -184,7 +184,7 @@ pub trait PresentationSigner: Send + Sync + std::fmt::Debug {
     ///
     ///
     /// E.g., JsonWebSignature2020, ecdsa-rdfc-2019
-    fn cryptosuite(&self) -> String;
+    fn cryptosuite(&self) -> CryptosuiteString;
 
     /// Return the public JWK of the signing key.
     /// as a String-encoded JSON
@@ -269,16 +269,6 @@ impl<'a> PresentationOptions<'a> {
             .map_err(|e| PresentationError::VerificationMethod(format!("{e:?}")))
     }
 
-    // NOTE: the cryptosuite will eventually be removed from the presentation options
-    // and provided via an interface coupled with the credential itself.
-    //
-    // When a credential is added to the wallet, a signer ID should be attached to the
-    // credential that notifies the wallet which signer to use for signing the credential.
-    pub fn cryptographic_suite(&self) -> Result<CryptosuiteString, PresentationError> {
-        CryptosuiteString::new(self.signer.cryptosuite())
-            .map_err(|e| PresentationError::CryptographicSuite(format!("{e:?}")))
-    }
-
     pub fn audience(&self) -> &String {
         &self.request.client_id().0
     }
@@ -313,7 +303,7 @@ impl<'a> PresentationOptions<'a> {
             .vp_formats()
             .map_err(|e| PresentationError::CryptographicSuite(format!("{e:?}")))?;
 
-        if !vp_formats.supports_security_method(&format, &suite) {
+        if !vp_formats.supports_security_method(&format, &suite.to_string()) {
             let err_msg = format!("Cryptographic Suite not supported for this request format: {format:?} and suite: {suite:?}. Supported Cryptographic Suites: {vp_formats:?}");
             return Err(PresentationError::CryptographicSuite(err_msg));
         }
@@ -339,7 +329,7 @@ impl<'a> PresentationOptions<'a> {
             },
         );
 
-        let suite = self.cryptographic_suite()?;
+        let suite = self.signer.cryptosuite();
 
         // Use the cryptosuite-specific signing method to sign the presentation.
         match suite.as_ref() {

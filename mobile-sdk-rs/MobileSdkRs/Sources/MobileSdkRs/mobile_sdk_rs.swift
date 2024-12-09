@@ -8920,7 +8920,7 @@ public protocol PresentationSigner : AnyObject {
      *
      * E.g., JsonWebSignature2020, ecdsa-rdfc-2019
      */
-    func cryptosuite()  -> String
+    func cryptosuite()  -> CryptosuiteString
     
     /**
      * Return the public JWK of the signing key.
@@ -9071,7 +9071,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
             let makeCall = {
-                () throws -> String in
+                () throws -> CryptosuiteString in
                 guard let uniffiObj = try? FfiConverterCallbackInterfacePresentationSigner.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
@@ -9080,7 +9080,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
             }
 
             
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeCryptosuiteString.lower($0) }
             uniffiTraitInterfaceCall(
                 callStatus: uniffiCallStatus,
                 makeCall: makeCall,
@@ -9913,6 +9913,40 @@ public func FfiConverterTypeCredentialType_lift(_ value: RustBuffer) throws -> C
 
 public func FfiConverterTypeCredentialType_lower(_ value: CredentialType) -> RustBuffer {
     return FfiConverterTypeCredentialType.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias CryptosuiteString = String
+public struct FfiConverterTypeCryptosuiteString: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CryptosuiteString {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: CryptosuiteString, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> CryptosuiteString {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: CryptosuiteString) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+public func FfiConverterTypeCryptosuiteString_lift(_ value: RustBuffer) throws -> CryptosuiteString {
+    return try FfiConverterTypeCryptosuiteString.lift(value)
+}
+
+public func FfiConverterTypeCryptosuiteString_lower(_ value: CryptosuiteString) -> RustBuffer {
+    return FfiConverterTypeCryptosuiteString.lower(value)
 }
 
 
@@ -10856,7 +10890,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_did() != 14569) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_cryptosuite() != 11406) {
+    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_cryptosuite() != 63070) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_jwk() != 12828) {
