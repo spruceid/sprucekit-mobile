@@ -31,6 +31,7 @@ pub use context_loader::context_loader_from_map;
 pub use error::*;
 pub use http_client::*;
 pub use metadata::*;
+pub use options::*;
 pub use session::*;
 pub use wrapper::*;
 
@@ -40,6 +41,7 @@ mod context_loader;
 mod error;
 mod http_client;
 mod metadata;
+mod options;
 mod session;
 mod wrapper;
 
@@ -265,6 +267,7 @@ pub async fn oid4vci_exchange_token(
 pub async fn oid4vci_exchange_credential(
     session: Arc<Oid4vciSession>,
     proofs_of_possession: Vec<String>,
+    options: Oid4vciExchangeOptions,
     context_map: Option<HashMap<String, String>>,
     http_client: Arc<IHttpClient>,
 ) -> Result<Vec<CredentialResponse>, Oid4vciError> {
@@ -348,56 +351,98 @@ pub async fn oid4vci_exchange_credential(
             .collect()
     };
 
-    log::trace!("create vm_resolver");
-    let vm_resolver = AnyDidMethod::default().into_vm_resolver();
-    log::trace!("create verification params");
-    let params = match context_map {
-        Some(context_map) => VerificationParameters::from_resolver(vm_resolver)
-            .with_json_ld_loader(context_loader_from_map(context_map)?),
-        None => VerificationParameters::from_resolver(vm_resolver),
-    };
+    if options.verify_after_exchange.unwrap_or(false) {
+        futures::future::try_join_all(credential_responses.into_iter().map(
+            |credential_response| async {
+                use oid4vci::core::profiles::CoreProfilesCredentialResponseType::*;
 
-    log::trace!("verify and convert http response into credential response");
-    futures::future::try_join_all(credential_responses.into_iter().map(
-        |credential_response| async {
-            use oid4vci::core::profiles::CoreProfilesCredentialResponseType::*;
+                match credential_response {
+                    JwtVcJson(response) => {
+                        log::trace!("processing a JwtVcJson");
+                        let ret = response.as_bytes().to_vec();
 
-            match credential_response {
-                JwtVcJson(response) => {
-                    log::trace!("processing a JwtVcJson");
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    let ret = response.as_bytes().to_vec();
+                        Ok(CredentialResponse {
+                            format: CredentialFormat::JwtVcJson,
+                            payload: ret,
+                        })
+                    }
+                    JwtVcJsonLd(response) => {
+                        log::trace!("processing a JwtVcJsonLd");
+                        let ret = serde_json::to_vec(&response)?;
+                        Ok(CredentialResponse {
+                            format: CredentialFormat::JwtVcJsonLd,
+                            payload: ret,
+                        })
+                    }
+                    LdpVc(response) => {
+                        log::trace!("processing an LdpVc");
+                        let vc: AnyDataIntegrity<AnyJsonCredential> =
+                            serde_json::from_value(response)?;
+                        let ret = serde_json::to_vec(&vc)?;
+                        Ok(CredentialResponse {
+                            format: CredentialFormat::LdpVc,
+                            payload: ret,
+                        })
+                    }
+                    MsoMdoc(_) => todo!(),
+                }
+            },
+        ))
+        .await
+    } else {
+        log::trace!("create vm_resolver");
+        let vm_resolver = AnyDidMethod::default().into_vm_resolver();
+        log::trace!("create verification params");
+        let params = match context_map {
+            Some(context_map) => VerificationParameters::from_resolver(vm_resolver)
+                .with_json_ld_loader(context_loader_from_map(context_map)?),
+            None => VerificationParameters::from_resolver(vm_resolver),
+        };
 
-                    Ok(CredentialResponse {
-                        format: CredentialFormat::JwtVcJson,
-                        payload: rt
-                            .block_on(async { response.verify_jwt(&params).await.map(|_| ret) })?,
-                    })
+        log::trace!("verify and convert http response into credential response");
+        futures::future::try_join_all(credential_responses.into_iter().map(
+            |credential_response| async {
+                use oid4vci::core::profiles::CoreProfilesCredentialResponseType::*;
+
+                match credential_response {
+                    JwtVcJson(response) => {
+                        log::trace!("processing a JwtVcJson");
+                        let rt = tokio::runtime::Runtime::new().unwrap();
+                        let ret = response.as_bytes().to_vec();
+
+                        Ok(CredentialResponse {
+                            format: CredentialFormat::JwtVcJson,
+                            payload: rt.block_on(async {
+                                response.verify_jwt(&params).await.map(|_| ret)
+                            })?,
+                        })
+                    }
+                    JwtVcJsonLd(response) => {
+                        log::trace!("processing a JwtVcJsonLd");
+                        let vc = serde_json::to_string(&response)?;
+                        let ret = serde_json::to_vec(&response)?;
+                        Ok(CredentialResponse {
+                            format: CredentialFormat::JwtVcJsonLd,
+                            payload: any_credential_from_json_str(&vc)?
+                                .verify(&params)
+                                .await
+                                .map(|_| ret)?,
+                        })
+                    }
+                    LdpVc(response) => {
+                        log::trace!("processing an LdpVc");
+                        let vc: AnyDataIntegrity<AnyJsonCredential> =
+                            serde_json::from_value(response)?;
+                        let ret = serde_json::to_vec(&vc)?;
+                        Ok(CredentialResponse {
+                            format: CredentialFormat::LdpVc,
+                            payload: vc.verify(&params).await.map(|_| ret)?,
+                        })
+                    }
+                    MsoMdoc(_) => todo!(),
                 }
-                JwtVcJsonLd(response) => {
-                    log::trace!("processing a JwtVcJsonLd");
-                    let vc = serde_json::to_string(&response)?;
-                    let ret = serde_json::to_vec(&response)?;
-                    Ok(CredentialResponse {
-                        format: CredentialFormat::JwtVcJsonLd,
-                        payload: any_credential_from_json_str(&vc)?
-                            .verify(&params)
-                            .await
-                            .map(|_| ret)?,
-                    })
-                }
-                LdpVc(response) => {
-                    log::trace!("processing an LdpVc");
-                    let vc: AnyDataIntegrity<AnyJsonCredential> = serde_json::from_value(response)?;
-                    let ret = serde_json::to_vec(&vc)?;
-                    Ok(CredentialResponse {
-                        format: CredentialFormat::LdpVc,
-                        payload: vc.verify(&params).await.map(|_| ret)?,
-                    })
-                }
-                MsoMdoc(_) => todo!(),
-            }
-        },
-    ))
-    .await
+            },
+        ))
+        .await
+    }
 }
