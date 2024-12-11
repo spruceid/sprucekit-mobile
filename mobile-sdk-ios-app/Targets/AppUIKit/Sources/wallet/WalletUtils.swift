@@ -71,6 +71,10 @@ extension String {
     func replaceCommas() -> String {
         return self.replacingOccurrences(of: ",", with: " ")
     }
+    
+    func replaceEscaping() -> String {
+        return self.replacingOccurrences(of: "\\/", with: "/")
+    }
 }
 
 extension Data {

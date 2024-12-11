@@ -105,6 +105,25 @@ func convertDictToJSONString(dict: [String: GenericJSON]) -> String? {
     }
 }
 
+func prettyPrintedJSONString(from jsonString: String) -> String? {
+    guard let jsonData = jsonString.data(using: .utf8) else {
+        print("Invalid JSON string")
+        return nil
+    }
+
+    guard let jsonObject = try? JSONSerialization.jsonObject(with: jsonData, options: []) else {
+        print("Invalid JSON format")
+        return nil
+    }
+
+    guard let prettyData = try? JSONSerialization.data(withJSONObject: jsonObject, options: .prettyPrinted) else {
+        print("Failed to pretty print JSON")
+        return nil
+    }
+
+    return String(data: prettyData, encoding: .utf8)
+}
+
 let ed25519_2020_10_18 =
 "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"G80iskrv_nE69qbGLSpeOHJgmV4MKIzsy5l5iT6pCww\",\"d\":\"39Ev8-k-jkKunJyFWog3k0OwgPjnKv_qwLhfqXdAXTY\"}"
 
