@@ -190,7 +190,7 @@ impl CredentialPresentation for JwtVc {
     ) -> Result<VpTokenItem, OID4VPError> {
         let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec()).ok();
         let vm = options.verification_method_id().await?;
-        let holder_id = vm.clone().parse().ok();
+        let holder_id = options.signer.did().parse().ok();
 
         // NOTE: JwtVc types are ALWAYS VCDM 1.1,
         // therefore using the v1::syntax::JsonPresentation type.
