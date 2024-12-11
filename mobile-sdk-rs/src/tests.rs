@@ -17,8 +17,8 @@ use uniffi::deps::anyhow::Result;
 
 use crate::oid4vci::Oid4vci;
 
-const OID4VCI_CREDENTIAL_OFFER_URI: &str = "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz1A68iKqcX2HbQGQfVSfFnjkM%2Fexchanges%2Fz1ADKJLFpFtovZkxXHbQz47f5%2Fopenid%2Fcredential-offer";
-const OID4VP_URI: &str = "openid4vp://?client_id=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19prZuVakk5Rzt1tE12evjQX%2Fopenid%2Fclient%2Fauthorization%2Fresponse&request_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19prZuVakk5Rzt1tE12evjQX%2Fopenid%2Fclient%2Fauthorization%2Frequest";
+const OID4VCI_CREDENTIAL_OFFER_URI: &str = "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz1A68iKqcX2HbQGQfVSfFnjkM%2Fexchanges%2Fz1A7SwczZhomJziLJPTbvWrKM%2Fopenid%2Fcredential-offer";
+const OID4VP_URI: &str = "openid4vp://?client_id=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz1A83D6V1TXe9JEryjx4QCFmt%2Fopenid%2Fclient%2Fauthorization%2Fresponse&request_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz1A83D6V1TXe9JEryjx4QCFmt%2Fopenid%2Fclient%2Fauthorization%2Frequest";
 
 #[derive(Debug, thiserror::Error)]
 #[error("HTTP error: {0}")]
@@ -139,8 +139,6 @@ pub async fn test_vc_playground_oid4vci() -> Result<()> {
     session.set_context_map(vc_playground_context())?;
 
     let credentials = session.exchange_credential(vec![pop]).await?;
-
-    println!("Credentials: {credentials:?}");
 
     for (index, crate::oid4vci::CredentialResponse { payload, .. }) in
         credentials.iter().enumerate()

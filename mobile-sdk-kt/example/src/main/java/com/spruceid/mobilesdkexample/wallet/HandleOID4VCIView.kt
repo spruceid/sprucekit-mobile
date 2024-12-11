@@ -24,6 +24,7 @@ import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request
@@ -36,7 +37,8 @@ import io.ktor.util.toMap
 fun HandleOID4VCIView(
     navController: NavHostController,
     url: String,
-    credentialPacksViewModel: CredentialPacksViewModel
+    credentialPacksViewModel: CredentialPacksViewModel,
+    statusListViewModel: StatusListViewModel
 ) {
     var loading by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -152,7 +154,8 @@ fun HandleOID4VCIView(
         AddToWalletView(
             navController = navController,
             rawCredential = credential!!,
-            credentialPacksViewModel = credentialPacksViewModel
+            credentialPacksViewModel = credentialPacksViewModel,
+            statusListViewModel = statusListViewModel
         )
     }
 }

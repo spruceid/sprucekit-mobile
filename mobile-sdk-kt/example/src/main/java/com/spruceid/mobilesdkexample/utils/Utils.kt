@@ -18,6 +18,7 @@ import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import org.json.JSONObject
 import java.sql.Date
 import java.text.SimpleDateFormat
@@ -120,7 +121,11 @@ fun keyPathFinder(json: Any, path: MutableList<String>): Any {
     }
 }
 
-fun credentialDisplaySelector(rawCredential: String, onDelete: (() -> Unit)?): ICredentialView {
+fun credentialDisplaySelector(
+    rawCredential: String,
+    onDelete: (() -> Unit)?,
+    statusListViewModel: StatusListViewModel
+): ICredentialView {
     /* This is temporarily commented on until we define the specific AchievementCredentialItem design */
 //        try {
 //                 Test if it is SdJwt
@@ -128,7 +133,7 @@ fun credentialDisplaySelector(rawCredential: String, onDelete: (() -> Unit)?): I
 //                credentialPack.addSdJwt(Vcdm2SdJwt.newFromCompactSdJwt(rawCredential))
 //                return AchievementCredentialItem(credentialPack, onDelete)
 //        } catch (_: Exception) {
-    return GenericCredentialItem(rawCredential, onDelete)
+    return GenericCredentialItem(rawCredential, statusListViewModel, onDelete)
 //        }
 }
 

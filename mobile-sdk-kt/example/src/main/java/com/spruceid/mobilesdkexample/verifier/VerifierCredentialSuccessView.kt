@@ -28,14 +28,17 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 
 @Composable
 fun VerifierCredentialSuccessView(
     rawCredential: String,
     onClose: () -> Unit,
-    logVerification: (String, String) -> Unit
+    logVerification: (String, String) -> Unit,
+    statusListViewModel: StatusListViewModel
 ) {
-    val credentialItem = credentialDisplaySelector(rawCredential, null)
+    val credentialItem =
+        credentialDisplaySelector(rawCredential, null, statusListViewModel = statusListViewModel)
     var title by remember { mutableStateOf<String?>(null) }
     var issuer by remember { mutableStateOf<String?>(null) }
 

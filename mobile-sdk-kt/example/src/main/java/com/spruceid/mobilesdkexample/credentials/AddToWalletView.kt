@@ -33,6 +33,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -41,7 +42,8 @@ import kotlinx.coroutines.launch
 fun AddToWalletView(
     navController: NavHostController,
     rawCredential: String,
-    credentialPacksViewModel: CredentialPacksViewModel
+    credentialPacksViewModel: CredentialPacksViewModel,
+    statusListViewModel: StatusListViewModel
 ) {
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -50,7 +52,7 @@ fun AddToWalletView(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        credentialItem = credentialDisplaySelector(rawCredential, null)
+        credentialItem = credentialDisplaySelector(rawCredential, null, statusListViewModel)
     }
 
     fun back() {

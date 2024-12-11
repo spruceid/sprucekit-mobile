@@ -37,6 +37,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import io.ktor.http.Url
@@ -55,6 +56,7 @@ fun VerifyDelegatedOid4vpView(
     verificationId: String,
     verificationMethodsViewModel: VerificationMethodsViewModel,
     verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
+    statusListViewModel: StatusListViewModel
 ) {
     val scope = rememberCoroutineScope()
 
@@ -77,7 +79,9 @@ fun VerifyDelegatedOid4vpView(
         try {
             scope.launch {
                 val res =
-                    verifier.pollVerificationStatus("$uri?status=${status.toString().lowercase()}")
+                    verifier.pollVerificationStatus(
+                        "$uri?status=${status.toString().lowercase()}"
+                    )
                 when (res.status) {
                     DelegatedVerifierStatus.INITIATED -> {
                         monitorStatus(res.status)
@@ -196,7 +200,8 @@ fun VerifyDelegatedOid4vpView(
                                     )
                                 )
                             }
-                        }
+                        },
+                        statusListViewModel = statusListViewModel
                     )
                 }
             }
