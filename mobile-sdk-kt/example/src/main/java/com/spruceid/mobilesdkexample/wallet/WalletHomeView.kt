@@ -142,7 +142,7 @@ fun WalletHomeBody(
                             onExport = { credentialTitle ->
                                 helpersViewModel.exportText(
                                     getFileContent(credentialPack),
-                                    "$credentialTitle.json.txt",
+                                    "$credentialTitle.json",
                                     "text/plain"
                                 )
                             }

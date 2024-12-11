@@ -54,6 +54,7 @@ fun String.removeUnderscores() = replace("_", "")
 
 fun String.removeCommas() = replace(",", "")
 
+fun String.removeEscaping() = replace("\\/", "/")
 
 fun String.isDate(): Boolean {
     return lowercase().contains("date") ||
@@ -170,12 +171,37 @@ fun getFileContent(credentialPack: CredentialPack): String {
     val rawCredentials = mutableListOf<String>()
     val claims = credentialPack.findCredentialClaims(listOf())
 
-    claims.keys.forEach { key ->
-        claims[key].let {
-            if (it != null) {
-                rawCredentials.add(it.toString(4))
+    credentialPack.list().forEach { parsedCredential ->
+        if (parsedCredential.asSdJwt() != null) {
+            rawCredentials.add(
+                envelopVerifiableSdJwtCredential(
+                    String(parsedCredential.intoGenericForm().payload)
+                )
+            )
+        } else {
+            claims[parsedCredential.id()].let {
+                if (it != null) {
+                    rawCredentials.add(it.toString(4).removeEscaping())
+                }
             }
         }
     }
-    return rawCredentials.first() ?: ""
+    return rawCredentials.first()
+}
+
+fun envelopVerifiableSdJwtCredential(sdJwt: String): String {
+    val jsonString = """ 
+        {
+          "@context": ["https://www.w3.org/ns/credentials/v2"],
+          "type": ["EnvelopedVerifiableCredential"],
+          "id": "data:application/vc+sd-jwt,$sdJwt"
+        }
+        """
+    try {
+        val jsonObject = JSONObject(jsonString)
+        val prettyPrinted = jsonObject.toString(4)
+        return prettyPrinted.removeEscaping()
+    } catch (e: Exception) {
+        return jsonString.removeEscaping()
+    }
 }
