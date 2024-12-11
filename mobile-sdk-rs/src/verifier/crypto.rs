@@ -54,13 +54,13 @@ impl TryFrom<&[u8]> for CoseP256Signature {
     }
 }
 
-impl<'a> cose_rs::algorithm::SignatureAlgorithm for CoseP256Verifier<'a> {
+impl cose_rs::algorithm::SignatureAlgorithm for CoseP256Verifier<'_> {
     fn algorithm(&self) -> cose_rs::algorithm::Algorithm {
         cose_rs::algorithm::Algorithm::ES256
     }
 }
 
-impl<'a> signature::Verifier<CoseP256Signature> for CoseP256Verifier<'a> {
+impl signature::Verifier<CoseP256Signature> for CoseP256Verifier<'_> {
     fn verify(&self, msg: &[u8], signature: &CoseP256Signature) -> Result<(), signature::Error> {
         // Construct DER signature.
         let mut seq: asn1::SequenceOf<asn1::Uint, 2> = asn1::SequenceOf::new();

@@ -1,5 +1,6 @@
 use super::error::OID4VPError;
 use super::permission_request::*;
+use super::presentation::PresentationSigner;
 use crate::common::*;
 use crate::credential::*;
 use crate::vdc_collection::VdcCollection;
@@ -46,6 +47,9 @@ pub struct Holder {
 
     /// Provide optional credentials to the holder instance.
     pub(crate) provided_credentials: Option<Vec<Arc<ParsedCredential>>>,
+
+    /// Foreign Interface for the [PresentationSigner]
+    pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -55,6 +59,7 @@ impl Holder {
     pub async fn new(
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
+        signer: Box<dyn PresentationSigner>,
     ) -> Result<Arc<Self>, OID4VPError> {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
@@ -65,6 +70,7 @@ impl Holder {
             metadata: Self::metadata()?,
             trusted_dids,
             provided_credentials: None,
+            signer: Arc::new(signer),
         }))
     }
 
@@ -77,6 +83,7 @@ impl Holder {
     pub async fn new_with_credentials(
         provided_credentials: Vec<Arc<ParsedCredential>>,
         trusted_dids: Vec<String>,
+        signer: Box<dyn PresentationSigner>,
     ) -> Result<Arc<Self>, OID4VPError> {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
@@ -87,6 +94,7 @@ impl Holder {
             metadata: Self::metadata()?,
             trusted_dids,
             provided_credentials: Some(provided_credentials),
+            signer: Arc::new(signer),
         }))
     }
 
@@ -100,10 +108,14 @@ impl Holder {
         url: Url,
         // Callback here to allow for review of untrusted DIDs.
     ) -> Result<Arc<PermissionRequest>, OID4VPError> {
+        uniffi::deps::log::debug!("Url: {url:?}");
+
         let request = self
             .validate_request(url)
             .await
             .map_err(|e| OID4VPError::RequestValidation(format!("{e:?}")))?;
+
+        println!("Authorization Request: {request:?}");
 
         match request.response_mode() {
             ResponseMode::DirectPost | ResponseMode::DirectPostJwt => {
@@ -144,7 +156,7 @@ impl Holder {
 
         metadata
             // Insert support for the DID client ID scheme.
-            .add_client_id_schemes_supported(ClientIdScheme::Did)
+            .add_client_id_schemes_supported(&[ClientIdScheme::Did])
             .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
 
         Ok(metadata)
@@ -175,7 +187,7 @@ impl Holder {
         }
         .into_iter()
         .filter_map(
-            |cred| match cred.check_presentation_definition(definition) {
+            |cred| match cred.satisfies_presentation_definition(definition) {
                 true => Some(cred),
                 false => None,
             },
@@ -205,13 +217,15 @@ impl Holder {
             presentation_definition.clone(),
             credentials.clone(),
             request,
+            self.signer.clone(),
         ))
     }
 }
 
 #[async_trait::async_trait]
 impl RequestVerifier for Holder {
-    /// Performs verification on Authorization Request Objects when `client_id_scheme` is `did`.
+    /// Performs verification on Authorization Request Objects
+    /// when `client_id_scheme` is `did`.
     async fn did(
         &self,
         decoded_request: &AuthorizationRequestObject,
@@ -252,9 +266,57 @@ impl OID4VPWallet for Holder {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
+    use crate::{
+        did::DidMethod,
+        oid4vp::presentation::{PresentationError, PresentationSigner},
+    };
+
     use super::*;
+    use ssi::{
+        claims::{data_integrity::CryptosuiteString, jws::JwsSigner},
+        crypto::Algorithm,
+        JWK,
+    };
     use vcdm2_sd_jwt::VCDM2SdJwt;
+
+    #[derive(Debug)]
+    pub(crate) struct KeySigner {
+        pub(crate) jwk: JWK,
+    }
+
+    #[async_trait::async_trait]
+    impl PresentationSigner for KeySigner {
+        async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
+            let sig = self
+                .jwk
+                .sign(payload)
+                .await
+                .expect("failed to sign Jws Payload");
+
+            Ok(sig.as_bytes().to_vec())
+        }
+
+        fn algorithm(&self) -> Algorithm {
+            self.jwk.algorithm.map(Algorithm::from).unwrap()
+        }
+
+        async fn verification_method(&self) -> String {
+            DidMethod::Jwk.vm_from_jwk(&self.jwk()).await.unwrap()
+        }
+
+        fn did(&self) -> String {
+            DidMethod::Jwk.did_from_jwk(&self.jwk()).unwrap()
+        }
+
+        fn cryptosuite(&self) -> CryptosuiteString {
+            CryptosuiteString::new("ecdsa-rdfc-2019".to_string()).unwrap()
+        }
+
+        fn jwk(&self) -> String {
+            serde_json::to_string(&self.jwk).unwrap()
+        }
+    }
 
     // NOTE: This test requires the `companion` service to be running and
     // available at localhost:3000.
@@ -267,6 +329,8 @@ mod tests {
         let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt(example_sd_jwt.into())?;
         let credential = ParsedCredential::new_sd_jwt(sd_jwt);
 
+        let jwk = JWK::generate_p256();
+        let key_signer = KeySigner { jwk };
         let initiate_api = "http://localhost:3000/api/oid4vp/initiate";
 
         // Make a request to the OID4VP initiate API.
@@ -288,6 +352,7 @@ mod tests {
         let holder = Holder::new_with_credentials(
             vec![credential],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
+            Box::new(key_signer),
         )
         .await?;
 
@@ -306,15 +371,12 @@ mod tests {
         }
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
-        let response = permission_request.create_permission_response(parsed_credentials);
+        let response = permission_request
+            .create_permission_response(parsed_credentials)
+            .await?;
 
         holder.submit_permission_response(response).await?;
 
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_vehicle_title() -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
 }
