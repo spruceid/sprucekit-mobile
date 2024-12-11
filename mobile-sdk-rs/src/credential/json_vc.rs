@@ -1,4 +1,7 @@
-use super::{Credential, CredentialEncodingError, CredentialFormat, VcdmVersion};
+use super::{
+    status::{BitStringStatusListResolver, Status, StatusListError},
+    Credential, CredentialEncodingError, CredentialFormat, VcdmVersion,
+};
 use crate::{
     oid4vp::{
         error::OID4VPError,
@@ -17,6 +20,7 @@ use openid4vp::{
     JsonPath,
 };
 use serde_json::Value as Json;
+use ssi::status::bitstring_status_list::BitstringStatusListEntry;
 use ssi::{
     claims::vc::{
         syntax::{IdOr, NonEmptyObject, NonEmptyVec},
@@ -61,7 +65,7 @@ pub struct JsonVc {
     key_alias: Option<KeyAlias>,
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 impl JsonVc {
     #[uniffi::constructor]
     /// Construct a new credential from UTF-8 encoded JSON.
@@ -119,6 +123,12 @@ impl JsonVc {
             ssi::claims::vc::AnySpecializedJsonCredential::V1(vc) => vc.additional_types().to_vec(),
             ssi::claims::vc::AnySpecializedJsonCredential::V2(vc) => vc.additional_types().to_vec(),
         }
+    }
+
+    /// Returns the status of the credential, resolving the value in the status list,
+    /// along with the purpose of the status.
+    pub async fn status(&self) -> Result<Status, StatusListError> {
+        self.status_list_value().await
     }
 }
 
@@ -251,6 +261,7 @@ impl CredentialPresentation for JsonVc {
                         .map(|p| p.clone().into())
                         .collect::<Vec<_>>();
                 }
+
                 let holder_id = IdOr::Id(options.signer.did().parse().map_err(|e| {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?);
@@ -266,6 +277,33 @@ impl CredentialPresentation for JsonVc {
 
         Ok(VpTokenItem::from(signed_presentation))
     }
+}
+
+impl BitStringStatusListResolver for JsonVc {
+    fn status_list_entry(&self) -> Result<BitstringStatusListEntry, StatusListError> {
+        let value = match &self.parsed {
+            AnyJsonCredential::V1(credential) => credential
+                .credential_status
+                .first()
+                .map(serde_json::to_value),
+            AnyJsonCredential::V2(credential) => credential
+                .credential_status
+                .first()
+                .map(serde_json::to_value),
+        }
+        .ok_or(StatusListError::Resolution(
+            "Credential status not found in credential".into(),
+        ))?
+        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+        let entry = serde_json::from_value(value).map_err(|e| {
+            StatusListError::Resolution(format!("Failed to parse credential status: {e:?}"))
+        })?;
+
+        Ok(entry)
+    }
+
+    // NOTE: The remaining methods are default implemented in the trait.
 }
 
 impl TryFrom<Credential> for Arc<JsonVc> {

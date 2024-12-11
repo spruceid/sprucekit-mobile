@@ -175,10 +175,6 @@ mod tests {
             .await
             .expect("authorization request failed");
 
-        request.credentials().iter().for_each(|c| {
-            println!("Credential: {:?}", c);
-        });
-
         let response = request
             .create_permission_response(request.credentials())
             .await
@@ -197,7 +193,6 @@ mod tests {
         assert_eq!(status, DelegatedVerifierStatus::Success);
         assert!(oid4vp.is_some());
 
-        println!("Presentation: {:?}", oid4vp);
         Ok(())
     }
 }

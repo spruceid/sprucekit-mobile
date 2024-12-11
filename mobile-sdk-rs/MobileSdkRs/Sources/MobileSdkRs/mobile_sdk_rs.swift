@@ -384,6 +384,19 @@ fileprivate class UniffiHandleMap<T> {
 // Public interface members begin here.
 
 
+fileprivate struct FfiConverterUInt8: FfiConverterPrimitive {
+    typealias FfiType = UInt8
+    typealias SwiftType = UInt8
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt8 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: UInt8, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
 fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
     typealias FfiType = UInt16
     typealias SwiftType = UInt16
@@ -1790,6 +1803,12 @@ public protocol JsonVcProtocol : AnyObject {
     func keyAlias()  -> KeyAlias?
     
     /**
+     * Returns the status of the credential, resolving the value in the status list,
+     * along with the purpose of the status.
+     */
+    func status() async throws  -> Status
+    
+    /**
      * The type of this credential. Note that if there is more than one type (i.e. `types()`
      * returns more than one value), then the types will be concatenated with a "+".
      */
@@ -1902,6 +1921,27 @@ open func keyAlias() -> KeyAlias? {
     uniffi_mobile_sdk_rs_fn_method_jsonvc_key_alias(self.uniffiClonePointer(),$0
     )
 })
+}
+    
+    /**
+     * Returns the status of the credential, resolving the value in the status list,
+     * along with the purpose of the status.
+     */
+open func status()async throws  -> Status {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_jsonvc_status(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeStatus.lift,
+            errorHandler: FfiConverterTypeStatusListError.lift
+        )
 }
     
     /**
@@ -3973,6 +4013,188 @@ public func FfiConverterTypeRequestedField_lower(_ value: RequestedField) -> Uns
 
 
 /**
+ * Status provides a value and purpose for a status,
+ *
+ * The value is the raw value of the status at the entry list index,
+ * and the purpose is the purpose of the credential, which is used
+ * to interpret the value.
+ */
+public protocol StatusProtocol : AnyObject {
+    
+    /**
+     * Return whether the credential status has a message.
+     */
+    func isMessage()  -> Bool
+    
+    /**
+     * Return whether the credential status is revoked.
+     */
+    func isRevoked()  -> Bool
+    
+    /**
+     * Return whether the credential status is suspended.
+     */
+    func isSuspended()  -> Bool
+    
+    /**
+     * Return the message of the credential status.
+     */
+    func messages()  -> [StatusMessage]
+    
+    /**
+     * Return the purpose of the status.
+     */
+    func purpose()  -> StatusPurpose
+    
+}
+
+/**
+ * Status provides a value and purpose for a status,
+ *
+ * The value is the raw value of the status at the entry list index,
+ * and the purpose is the purpose of the credential, which is used
+ * to interpret the value.
+ */
+open class Status:
+    StatusProtocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// This constructor can be used to instantiate a fake object.
+    /// - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    ///
+    /// - Warning:
+    ///     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_status(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_status(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Return whether the credential status has a message.
+     */
+open func isMessage() -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status_is_message(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return whether the credential status is revoked.
+     */
+open func isRevoked() -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status_is_revoked(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return whether the credential status is suspended.
+     */
+open func isSuspended() -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status_is_suspended(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the message of the credential status.
+     */
+open func messages() -> [StatusMessage] {
+    return try!  FfiConverterSequenceTypeStatusMessage.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status_messages(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the purpose of the status.
+     */
+open func purpose() -> StatusPurpose {
+    return try!  FfiConverterTypeStatusPurpose.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status_purpose(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+public struct FfiConverterTypeStatus: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Status
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Status {
+        return Status(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Status) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Status {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Status, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+public func FfiConverterTypeStatus_lift(_ pointer: UnsafeMutableRawPointer) throws -> Status {
+    return try FfiConverterTypeStatus.lift(pointer)
+}
+
+public func FfiConverterTypeStatus_lower(_ value: Status) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeStatus.lower(value)
+}
+
+
+
+
+/**
  * Interface: StorageManagerInterface
  *
  * The StorageManagerInterface provides access to functions defined in Kotlin and Swift for
@@ -5823,6 +6045,75 @@ public func FfiConverterTypeMDLReaderSessionData_lift(_ buf: RustBuffer) throws 
 
 public func FfiConverterTypeMDLReaderSessionData_lower(_ value: MdlReaderSessionData) -> RustBuffer {
     return FfiConverterTypeMDLReaderSessionData.lower(value)
+}
+
+
+public struct StatusMessage {
+    /**
+     * The value of the entry in the status list
+     */
+    public var status: UInt8
+    /**
+     * Message that corresponds the the value.
+     */
+    public var message: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The value of the entry in the status list
+         */status: UInt8, 
+        /**
+         * Message that corresponds the the value.
+         */message: String) {
+        self.status = status
+        self.message = message
+    }
+}
+
+
+
+extension StatusMessage: Equatable, Hashable {
+    public static func ==(lhs: StatusMessage, rhs: StatusMessage) -> Bool {
+        if lhs.status != rhs.status {
+            return false
+        }
+        if lhs.message != rhs.message {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(status)
+        hasher.combine(message)
+    }
+}
+
+
+public struct FfiConverterTypeStatusMessage: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StatusMessage {
+        return
+            try StatusMessage(
+                status: FfiConverterUInt8.read(from: &buf), 
+                message: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: StatusMessage, into buf: inout [UInt8]) {
+        FfiConverterUInt8.write(value.status, into: &buf)
+        FfiConverterString.write(value.message, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeStatusMessage_lift(_ buf: RustBuffer) throws -> StatusMessage {
+    return try FfiConverterTypeStatusMessage.lift(buf)
+}
+
+public func FfiConverterTypeStatusMessage_lower(_ value: StatusMessage) -> RustBuffer {
+    return FfiConverterTypeStatusMessage.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
@@ -8466,6 +8757,64 @@ extension SignatureError: Foundation.LocalizedError {
 }
 
 
+public enum StatusListError {
+
+    
+    
+    case Resolution(String
+    )
+    case UnsupportedCredentialFormat
+}
+
+
+public struct FfiConverterTypeStatusListError: FfiConverterRustBuffer {
+    typealias SwiftType = StatusListError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StatusListError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Resolution(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .UnsupportedCredentialFormat
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: StatusListError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Resolution(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .UnsupportedCredentialFormat:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+extension StatusListError: Equatable, Hashable {}
+
+extension StatusListError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
 /**
  * Enum: StorageManagerError
  *
@@ -9715,6 +10064,28 @@ fileprivate struct FfiConverterSequenceTypeItemsRequest: FfiConverterRustBuffer 
     }
 }
 
+fileprivate struct FfiConverterSequenceTypeStatusMessage: FfiConverterRustBuffer {
+    typealias SwiftType = [StatusMessage]
+
+    public static func write(_ value: [StatusMessage], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeStatusMessage.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [StatusMessage] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [StatusMessage]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeStatusMessage.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 fileprivate struct FfiConverterSequenceTypeMDocItem: FfiConverterRustBuffer {
     typealias SwiftType = [MDocItem]
 
@@ -10189,6 +10560,40 @@ public func FfiConverterTypeNamespace_lift(_ value: RustBuffer) throws -> Namesp
 
 public func FfiConverterTypeNamespace_lower(_ value: Namespace) -> RustBuffer {
     return FfiConverterTypeNamespace.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias StatusPurpose = String
+public struct FfiConverterTypeStatusPurpose: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StatusPurpose {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: StatusPurpose, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> StatusPurpose {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: StatusPurpose) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+public func FfiConverterTypeStatusPurpose_lift(_ value: RustBuffer) throws -> StatusPurpose {
+    return try FfiConverterTypeStatusPurpose.lift(value)
+}
+
+public func FfiConverterTypeStatusPurpose_lower(_ value: StatusPurpose) -> RustBuffer {
+    return FfiConverterTypeStatusPurpose.lower(value)
 }
 
 
@@ -10733,6 +11138,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_jsonvc_key_alias() != 36306) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_jsonvc_status() != 56187) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_jsonvc_type() != 48063) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -10896,6 +11304,21 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_retained() != 21715) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_status_is_message() != 61380) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_status_is_revoked() != 37392) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_status_is_suspended() != 54379) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_status_messages() != 26217) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_status_purpose() != 51769) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_add() != 60217) {
