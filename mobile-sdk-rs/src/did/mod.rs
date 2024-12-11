@@ -4,7 +4,7 @@ pub use error::*;
 
 mod error;
 
-#[derive(uniffi::Enum)]
+#[derive(Debug, uniffi::Enum)]
 pub enum DidMethod {
     Jwk,
     Key,
@@ -41,5 +41,26 @@ impl DidMethod {
             }
         }?;
         Ok(vm.id.to_string())
+    }
+}
+
+#[derive(Debug, uniffi::Object)]
+pub struct DidMethodUtils {
+    inner: DidMethod,
+}
+
+#[uniffi::export]
+impl DidMethodUtils {
+    #[uniffi::constructor]
+    pub fn new(method: DidMethod) -> Self {
+        Self { inner: method }
+    }
+
+    pub fn did_from_jwk(&self, jwk: &str) -> Result<String, DidError> {
+        self.inner.did_from_jwk(jwk)
+    }
+
+    pub async fn vm_from_jwk(&self, jwk: &str) -> Result<String, DidError> {
+        self.inner.vm_from_jwk(jwk).await
     }
 }

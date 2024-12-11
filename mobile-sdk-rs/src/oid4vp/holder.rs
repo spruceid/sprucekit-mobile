@@ -5,6 +5,7 @@ use crate::common::*;
 use crate::credential::*;
 use crate::vdc_collection::VdcCollection;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use openid4vp::core::authorization_request::parameters::ClientIdScheme;
@@ -21,6 +22,8 @@ use openid4vp::{
     },
     wallet::Wallet as OID4VPWallet,
 };
+
+use ssi::dids::DIDKey;
 use ssi::dids::DIDWeb;
 use ssi::dids::VerificationMethodDIDResolver;
 use ssi::prelude::AnyJwkMethod;
@@ -50,6 +53,9 @@ pub struct Holder {
 
     /// Foreign Interface for the [PresentationSigner]
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+
+    /// Optional context map for resolving specific contexts
+    pub(crate) context_map: Option<HashMap<String, String>>,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -60,6 +66,7 @@ impl Holder {
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
         signer: Box<dyn PresentationSigner>,
+        context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, OID4VPError> {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
@@ -71,6 +78,7 @@ impl Holder {
             trusted_dids,
             provided_credentials: None,
             signer: Arc::new(signer),
+            context_map,
         }))
     }
 
@@ -84,6 +92,7 @@ impl Holder {
         provided_credentials: Vec<Arc<ParsedCredential>>,
         trusted_dids: Vec<String>,
         signer: Box<dyn PresentationSigner>,
+        context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, OID4VPError> {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
@@ -95,6 +104,7 @@ impl Holder {
             trusted_dids,
             provided_credentials: Some(provided_credentials),
             signer: Arc::new(signer),
+            context_map,
         }))
     }
 
@@ -154,9 +164,20 @@ impl Holder {
             ClaimFormatPayload::AlgValuesSupported(vec!["ES256".into()]),
         );
 
+        // Insert support for the JSON-LD format.
+        metadata.vp_formats_supported_mut().0.insert(
+            ClaimFormatDesignation::LdpVp,
+            ClaimFormatPayload::ProofType(vec!["ecdsa-rdfc-2019".into()]),
+        );
+
         metadata
             // Insert support for the DID client ID scheme.
-            .add_client_id_schemes_supported(&[ClientIdScheme::Did])
+            .add_client_id_schemes_supported(&[ClientIdScheme::Did, ClientIdScheme::RedirectUri])
+            .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
+
+        metadata
+            // Allow unencoded requested.
+            .add_request_object_signing_alg_values_supported(ssi::jwk::Algorithm::None)
             .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
 
         Ok(metadata)
@@ -218,6 +239,7 @@ impl Holder {
             credentials.clone(),
             request,
             self.signer.clone(),
+            self.context_map.clone(),
         ))
     }
 }
@@ -251,6 +273,29 @@ impl RequestVerifier for Holder {
 
         Ok(())
     }
+
+    /// Performs verification on Authorization Request Objects when `client_id_scheme` is `redirect_uri`.
+    async fn redirect_uri(
+        &self,
+        decoded_request: &AuthorizationRequestObject,
+        request_jwt: String,
+    ) -> anyhow::Result<()> {
+        log::debug!("Verifying redirect_uri request.");
+
+        let resolver: VerificationMethodDIDResolver<DIDKey, AnyJwkMethod> =
+            VerificationMethodDIDResolver::new(DIDKey);
+
+        verify_with_resolver(
+            &self.metadata,
+            decoded_request,
+            request_jwt,
+            None,
+            &resolver,
+        )
+        .await?;
+
+        Ok(())
+    }
 }
 
 impl OID4VPWallet for Holder {
@@ -267,12 +312,14 @@ impl OID4VPWallet for Holder {
 
 #[cfg(test)]
 pub(crate) mod tests {
+    use super::*;
     use crate::{
         did::DidMethod,
         oid4vp::presentation::{PresentationError, PresentationSigner},
+        tests::{load_signer, vc_playground_context},
     };
 
-    use super::*;
+    use json_vc::JsonVc;
     use ssi::{
         claims::{data_integrity::CryptosuiteString, jws::JwsSigner},
         crypto::Algorithm,
@@ -324,7 +371,7 @@ pub(crate) mod tests {
     // See: https://github.com/spruceid/companion/pull/1
     #[ignore]
     #[tokio::test]
-    async fn test_oid4vp_url() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_companion_sd_jwt() -> Result<(), Box<dyn std::error::Error>> {
         let example_sd_jwt = include_str!("../../tests/examples/sd_vc.jwt");
         let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt(example_sd_jwt.into())?;
         let credential = ParsedCredential::new_sd_jwt(sd_jwt);
@@ -346,13 +393,12 @@ pub(crate) mod tests {
         let _id = response.0;
         let url = Url::parse(&response.1).expect("failed to parse url");
 
-        println!("Authorization URL: {url:?}");
-
         // Make a request to the OID4VP URL.
         let holder = Holder::new_with_credentials(
             vec![credential],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(key_signer),
+            None,
         )
         .await?;
 
@@ -365,7 +411,178 @@ pub(crate) mod tests {
         for credential in parsed_credentials.iter() {
             let requested_fields = permission_request.requested_fields(&credential);
 
-            println!("Requested Fields: {requested_fields:?}");
+            assert!(requested_fields.len() > 0);
+        }
+
+        // NOTE: passing `parsed_credentials` as `selected_credentials`.
+        let response = permission_request
+            .create_permission_response(parsed_credentials)
+            .await?;
+
+        holder.submit_permission_response(response).await?;
+
+        Ok(())
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_vc_playground_presentation() -> Result<(), Box<dyn std::error::Error>> {
+        let jwk = JWK::generate_p256();
+
+        let key_signer = KeySigner { jwk };
+
+        let auth_url: Url = "openid4vp://?client_id=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19p8m2tSznggCCT5ksDpGgZF%2Fopenid%2Fclient%2Fauthorization%2Fresponse&request_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19p8m2tSznggCCT5ksDpGgZF%2Fopenid%2Fclient%2Fauthorization%2Frequest".parse().expect("Failed to parse auth URL.");
+
+        let json_vc = JsonVc::new_from_json(
+            include_str!("../../tests/examples/employment_authorization_document_vc.json").into(),
+        )
+        .expect("failed to create JSON VC credential");
+
+        let credential = ParsedCredential::new_ldp_vc(json_vc);
+
+        let mut context = HashMap::new();
+
+        context.insert(
+            "https://w3id.org/citizenship/v4rc1".into(),
+            include_str!("../../tests/context/w3id_org_citizenship_v4rc1.json").into(),
+        );
+        context.insert(
+            "https://w3id.org/vc/render-method/v2rc1".into(),
+            include_str!("../../tests/context/w3id_org_vc_render_method_v2rc1.json").into(),
+        );
+
+        let holder = Holder::new_with_credentials(
+            vec![credential],
+            vec![],
+            Box::new(key_signer),
+            Some(context),
+        )
+        .await
+        .expect("Failed to create oid4vp holder");
+
+        let permission_request = holder
+            .authorization_request(auth_url)
+            .await
+            .expect("Failed to authorize request URL");
+
+        let credentials = permission_request.credentials();
+
+        let response = permission_request
+            .create_permission_response(credentials)
+            .await
+            .expect("failed to create permission response");
+
+        let _url = holder.submit_permission_response(response).await?;
+
+        Ok(())
+    }
+
+    // NOTE: This test requires the `companion` service to be running and
+    // available at localhost:3000.
+    //
+    // See: https://github.com/spruceid/companion/pull/1
+    #[ignore]
+    #[tokio::test]
+    async fn test_companion_json_ld_vcdm_1() -> Result<(), Box<dyn std::error::Error>> {
+        let alumni_vc = include_str!("../../tests/examples/alumni_vc.json");
+        let json_vc = JsonVc::new_from_json(alumni_vc.into())?;
+
+        let credential = ParsedCredential::new_ldp_vc(json_vc);
+
+        let jwk = JWK::generate_p256();
+        let key_signer = KeySigner { jwk };
+        let initiate_api = "http://localhost:3000/api/oid4vp/initiate";
+
+        // Make a request to the OID4VP initiate API.
+        // provide a url-encoded `format` parameter to specify the format of the presentation.
+        let response: (String, String) = reqwest::Client::new()
+            .post(initiate_api)
+            .form(&[("format", "json_ld")])
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        let _id = response.0;
+        let url = Url::parse(&response.1).expect("failed to parse url");
+
+        // Make a request to the OID4VP URL.
+        let holder = Holder::new_with_credentials(
+            vec![credential],
+            vec!["did:web:localhost%3A3000:oid4vp:client".into()],
+            Box::new(key_signer),
+            None,
+        )
+        .await?;
+
+        let permission_request = holder.authorization_request(url).await?;
+
+        let parsed_credentials = permission_request.credentials();
+
+        assert_eq!(parsed_credentials.len(), 1);
+
+        for credential in parsed_credentials.iter() {
+            let requested_fields = permission_request.requested_fields(&credential);
+
+            assert!(requested_fields.len() > 0);
+        }
+
+        // NOTE: passing `parsed_credentials` as `selected_credentials`.
+        let response = permission_request
+            .create_permission_response(parsed_credentials)
+            .await?;
+
+        holder.submit_permission_response(response).await?;
+
+        Ok(())
+    }
+
+    // NOTE: This test requires the `companion` service to be running and
+    // available at localhost:3000.
+    //
+    // See: https://github.com/spruceid/companion/pull/1
+    #[ignore]
+    #[tokio::test]
+    async fn test_companion_json_ld_vcdm_2() -> Result<(), Box<dyn std::error::Error>> {
+        let signer = load_signer();
+
+        let employment_auth_doc =
+            include_str!("../../tests/examples/employment_authorization_document_vc.json");
+        let json_vc = JsonVc::new_from_json(employment_auth_doc.into())?;
+
+        let credential = ParsedCredential::new_ldp_vc(json_vc);
+        let initiate_api = "http://localhost:3000/api/oid4vp/initiate";
+
+        // Make a request to the OID4VP initiate API.
+        // provide a url-encoded `format` parameter to specify the format of the presentation.
+        let response: (String, String) = reqwest::Client::new()
+            .post(initiate_api)
+            .form(&[("format", "json_ld")])
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        let _id = response.0;
+        let url = Url::parse(&response.1).expect("failed to parse url");
+
+        // Make a request to the OID4VP URL.
+        let holder = Holder::new_with_credentials(
+            vec![credential],
+            vec!["did:web:localhost%3A3000:oid4vp:client".into()],
+            Box::new(signer),
+            Some(vc_playground_context()),
+        )
+        .await?;
+
+        let permission_request = holder.authorization_request(url).await?;
+
+        let parsed_credentials = permission_request.credentials();
+
+        assert_eq!(parsed_credentials.len(), 1);
+
+        for credential in parsed_credentials.iter() {
+            let requested_fields = permission_request.requested_fields(&credential);
 
             assert!(requested_fields.len() > 0);
         }

@@ -9,6 +9,8 @@ pub mod oid4vci;
 pub mod oid4vp;
 pub mod proof_of_possession;
 pub mod storage_manager;
+#[cfg(test)]
+mod tests;
 pub mod vdc_collection;
 pub mod verifier;
 pub mod w3c_vc_barcodes;

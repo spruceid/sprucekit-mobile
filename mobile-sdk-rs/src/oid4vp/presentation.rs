@@ -1,6 +1,6 @@
 use super::{error::OID4VPError, permission_request::RequestedField};
 
-use std::{ops::Deref, str::FromStr, sync::Arc};
+use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
 use openid4vp::core::{
     authorization_request::AuthorizationRequestObject, credential_format::ClaimFormatDesignation,
@@ -10,14 +10,12 @@ use openid4vp::core::{
 use serde::Serialize;
 use ssi::{
     claims::{
-        data_integrity::{
-            suites::JsonWebSignature2020, AnyInputSuiteOptions, AnyProtocol, CryptosuiteString,
-        },
-        MessageSignatureError,
+        data_integrity::{suites::JsonWebSignature2020, AnyProtocol, CryptosuiteString},
+        MessageSignatureError, SignatureEnvironment,
     },
     crypto::{Algorithm, AlgorithmInstance},
     dids::{VerificationMethodDIDResolver, DIDJWK},
-    json_ld::IriBuf,
+    json_ld::{syntax::ContextEntry, ContextLoader, IriBuf, IriRefBuf},
     prelude::{AnyJsonPresentation, AnySuite, CryptographicSuite, DataIntegrity, ProofOptions},
     verification_methods::{protocol::WithProtocol, MessageSigner, ProofPurpose},
     xsd::DateTimeStamp,
@@ -35,6 +33,9 @@ pub enum PresentationError {
 
     #[error("Invalid Verification Method Identifier: {0}")]
     VerificationMethod(String),
+
+    #[error("Invalid Context: {0}")]
+    Context(String),
 
     #[error("Failed to parse public JsonWebKey: {0}")]
     JWK(String),
@@ -201,6 +202,8 @@ pub struct PresentationOptions<'a> {
     pub(crate) request: &'a AuthorizationRequestObject,
     /// Signing callback interface that can be used to sign the `vp_token`.
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+    /// Optional context map for the presentation.
+    pub(crate) context_map: Option<HashMap<String, String>>,
 }
 
 impl<'a> MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions<'a> {
@@ -257,8 +260,13 @@ impl<'a> PresentationOptions<'a> {
     pub(crate) fn new(
         request: &'a AuthorizationRequestObject,
         signer: Arc<Box<dyn PresentationSigner>>,
+        context_map: Option<HashMap<String, String>>,
     ) -> Self {
-        Self { request, signer }
+        Self {
+            request,
+            signer,
+            context_map,
+        }
     }
 
     pub async fn verification_method_id(&self) -> Result<IriBuf, PresentationError> {
@@ -319,26 +327,71 @@ impl<'a> PresentationOptions<'a> {
     ) -> Result<DataIntegrity<AnyJsonPresentation, AnySuite>, PresentationError> {
         let resolver = VerificationMethodDIDResolver::new(DIDJWK);
 
-        let proof_options = ProofOptions::new(
+        let mut proof_options = ProofOptions::new(
             DateTimeStamp::now(),
             self.verification_method_id().await?.into(),
             ProofPurpose::Authentication,
-            AnyInputSuiteOptions {
-                public_key_jwk: self.jwk().map(Box::new).ok(),
-                ..Default::default()
-            },
+            Default::default(),
         );
+
+        //
+        // Set the nonce of the request in the proof options.
+        //
+        // See: https://w3c.github.io/vc-data-integrity/#proofs
+        proof_options.nonce = Some(self.request.nonce().to_string());
+        // See: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-13.1-14
+        //
+        // domain is the client_id of the request, in the example above.
+        proof_options.challenge = proof_options.nonce.clone();
+        proof_options.domains = vec![self.request.client_id().0.clone()];
+
+        if let AnyJsonPresentation::V1(_) = presentation {
+            let iri_buf = IriRefBuf::new("https://w3id.org/security/data-integrity/v2".into())
+                .map_err(|e| PresentationError::Context(format!("{e:?}")))?;
+
+            proof_options.context = Some(ssi::json_ld::syntax::Context::One(ContextEntry::IriRef(
+                iri_buf,
+            )))
+        }
+
+        let context = self
+            .context_map
+            .clone()
+            .map(|map| ContextLoader::default().with_context_map_from(map))
+            .transpose()
+            .map_err(|e| PresentationError::Context(format!("{e:?}")))?
+            .unwrap_or_default();
 
         let suite = self.signer.cryptosuite();
 
         // Use the cryptosuite-specific signing method to sign the presentation.
         match suite.as_ref() {
             "ecdsa-rdfc-2019" => AnySuite::EcdsaRdfc2019
-                .sign(presentation, resolver, self, proof_options)
+                .sign_with(
+                    SignatureEnvironment {
+                        json_ld_loader: context,
+                        eip712_loader: (),
+                    },
+                    presentation,
+                    resolver,
+                    self,
+                    proof_options,
+                    Default::default(),
+                )
                 .await
                 .map_err(|e| PresentationError::Signing(format!("{e:?}"))),
             JsonWebSignature2020::NAME => AnySuite::JsonWebSignature2020
-                .sign(presentation, resolver, self, proof_options)
+                .sign_with(
+                    SignatureEnvironment {
+                        json_ld_loader: context,
+                        eip712_loader: (),
+                    },
+                    presentation,
+                    resolver,
+                    self,
+                    proof_options,
+                    Default::default(),
+                )
                 .await
                 .map_err(|e| PresentationError::Signing(format!("{e:?}"))),
             _ => Err(PresentationError::CryptographicSuite(suite.to_string())),
