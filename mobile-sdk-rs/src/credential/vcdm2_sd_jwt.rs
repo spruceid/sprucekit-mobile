@@ -9,9 +9,12 @@ use crate::{
 
 use std::sync::Arc;
 
-use openid4vp::core::{
-    credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
-    response::parameters::VpTokenItem,
+use openid4vp::{
+    core::{
+        credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
+        response::parameters::VpTokenItem,
+    },
+    JsonPath,
 };
 use ssi::{
     claims::{
@@ -151,11 +154,11 @@ impl CredentialPresentation for VCDM2SdJwt {
         index: Option<usize>,
     ) -> Result<DescriptorMap, OID4VPError> {
         let path = match index {
-            Some(0) | None => "$".into(),
-            Some(i) => format!("$[{i}]"),
-        }
-        .parse()
-        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
+            None => JsonPath::default(),
+            Some(i) => format!("$[{i}]")
+                .parse()
+                .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?,
+        };
 
         Ok(DescriptorMap::new(
             input_descriptor_id,
