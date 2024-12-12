@@ -12,6 +12,7 @@ use openid4vp::core::presentation_definition::PresentationDefinition;
 use openid4vp::core::presentation_submission::{DescriptorMap, PresentationSubmission};
 use openid4vp::core::response::parameters::VpToken;
 use openid4vp::core::response::{AuthorizationResponse, UnencodedAuthorizationResponse};
+use uniffi::deps::log;
 
 /// Type alias for mapping input descriptor ids to matching credentials
 /// stored in the VDC collection. This mapping is used to provide a
@@ -149,6 +150,7 @@ pub struct PermissionRequest {
     pub(crate) credentials: Vec<Arc<ParsedCredential>>,
     pub(crate) request: AuthorizationRequestObject,
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+    pub(crate) context_map: Option<HashMap<String, String>>,
 }
 
 impl PermissionRequest {
@@ -157,12 +159,14 @@ impl PermissionRequest {
         credentials: Vec<Arc<ParsedCredential>>,
         request: AuthorizationRequestObject,
         signer: Arc<Box<dyn PresentationSigner>>,
+        context_map: Option<HashMap<String, String>>,
     ) -> Arc<Self> {
         Arc::new(Self {
             definition,
             credentials,
             request,
             signer,
+            context_map,
         })
     }
 }
@@ -187,6 +191,8 @@ impl PermissionRequest {
         &self,
         selected_credentials: Vec<Arc<ParsedCredential>>,
     ) -> Result<Arc<PermissionResponse>, OID4VPError> {
+        log::debug!("Creating Permission Response");
+
         // Ensure that the selected credentials are not empty.
         if selected_credentials.is_empty() {
             return Err(PermissionRequestError::InvalidSelectedCredential(
@@ -197,7 +203,8 @@ impl PermissionRequest {
         }
 
         // Set options for constructing a verifiable presentation.
-        let options = PresentationOptions::new(&self.request, self.signer.clone());
+        let options =
+            PresentationOptions::new(&self.request, self.signer.clone(), self.context_map.clone());
 
         let token_items = futures::future::try_join_all(
             selected_credentials

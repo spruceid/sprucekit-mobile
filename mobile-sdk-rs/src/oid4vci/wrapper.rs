@@ -88,7 +88,7 @@ impl Oid4vci {
     }
 
     #[uniffi::constructor(name = "new_with_async_client")]
-    fn with_async_client(client: Arc<dyn AsyncHttpClient>) -> Arc<Self> {
+    pub(crate) fn with_async_client(client: Arc<dyn AsyncHttpClient>) -> Arc<Self> {
         let http_client = Arc::new(client.into());
         Self {
             session: Mutex::new(None),
@@ -98,7 +98,7 @@ impl Oid4vci {
         .into()
     }
 
-    fn set_context_map(&self, values: HashMap<String, String>) -> Result<(), Oid4vciError> {
+    pub fn set_context_map(&self, values: HashMap<String, String>) -> Result<(), Oid4vciError> {
         let mut context_map = self
             .context_map
             .lock()
@@ -129,11 +129,11 @@ impl Oid4vci {
         );
     }
 
-    fn get_metadata(&self) -> Result<Oid4vciMetadata, Oid4vciError> {
+    pub fn get_metadata(&self) -> Result<Oid4vciMetadata, Oid4vciError> {
         oid4vci_get_metadata(self.session()?)
     }
 
-    async fn initiate_with_offer(
+    pub async fn initiate_with_offer(
         &self,
         credential_offer: String,
         client_id: String,
@@ -160,11 +160,11 @@ impl Oid4vci {
         self.set_session(session)
     }
 
-    async fn exchange_token(&self) -> Result<Option<String>, Oid4vciError> {
+    pub async fn exchange_token(&self) -> Result<Option<String>, Oid4vciError> {
         oid4vci_exchange_token(self.session()?, self.http_client.clone()).await
     }
 
-    async fn exchange_credential(
+    pub async fn exchange_credential(
         &self,
         proofs_of_possession: Vec<String>,
     ) -> Result<Vec<CredentialResponse>, Oid4vciError> {

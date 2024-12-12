@@ -18,7 +18,7 @@ mod error;
 // TODO: consider unifying prepare and complete fns by using a trait for
 // signing/crypto functions similar to `HttpClient` for requests
 #[uniffi::export]
-async fn generate_pop_prepare(
+pub async fn generate_pop_prepare(
     audience: String,
     nonce: Option<String>,
     did_method: did::DidMethod,
@@ -51,7 +51,7 @@ async fn generate_pop_prepare(
 }
 
 #[uniffi::export]
-fn generate_pop_complete(
+pub fn generate_pop_complete(
     signing_input: Vec<u8>,
     signature: Vec<u8>,
 ) -> Result<String, Oid4vciError> {

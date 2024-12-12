@@ -31,6 +31,8 @@ use ssi::{
 };
 use uuid::Uuid;
 
+const ACCEPTED_CRYPTOSUITES: &[&str] = &["ecdsa-rdfc-2019"];
+
 #[derive(Debug, uniffi::Error, thiserror::Error)]
 pub enum JsonVcInitError {
     #[error("failed to decode a W3C VCDM (v1 or v2) Credential from JSON")]
@@ -222,9 +224,33 @@ impl CredentialPresentation for JsonVc {
             }
             AnyJsonCredential::V2(cred_v2) => {
                 // Convert inner type of `Object` -> `NonEmptyObject`.
-                let cred_v2 = try_map_subjects(cred_v2, NonEmptyObject::try_from_object)
+                let mut cred_v2 = try_map_subjects(cred_v2, NonEmptyObject::try_from_object)
                     .map_err(|e| OID4VPError::EmptyCredentialSubject(format!("{e:?}")))?;
 
+                // TODO: Handle transformation of the selective disclosure.
+                // SKIP: Remove SD proof from the credential before adding it to the presentation.
+                if let Some(p) = cred_v2
+                    .extra_properties
+                    .get_mut("proof")
+                    .and_then(|p| p.as_array_mut())
+                {
+                    *p = p
+                        .iter_mut()
+                        .flat_map(|p| p.as_object())
+                        .filter(|obj| {
+                            while let Some(cryptosuite) = obj.get("cryptosuite").next() {
+                                if let Some(suite) = cryptosuite.as_string() {
+                                    // Check if the cryptosuite is supported.
+                                    // NOTE: we're filtering proofs for only supported
+                                    // cryptosuites, e.g., `ecdsa-rdfc-2019`
+                                    return ACCEPTED_CRYPTOSUITES.contains(&suite);
+                                }
+                            }
+                            true
+                        })
+                        .map(|p| p.clone().into())
+                        .collect::<Vec<_>>();
+                }
                 let holder_id = IdOr::Id(options.signer.did().parse().map_err(|e| {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?);

@@ -214,7 +214,9 @@ impl IHttpClient {
     }
 }
 
-fn headermap_to_hashmap(headers: &HeaderMap) -> Result<HashMap<String, String>, HttpClientError> {
+pub(crate) fn headermap_to_hashmap(
+    headers: &HeaderMap,
+) -> Result<HashMap<String, String>, HttpClientError> {
     headers
         .keys()
         .map(|k| {

@@ -27,7 +27,7 @@ use ssi::{
 };
 use url::Url;
 
-use context_loader::context_loader_from_map;
+pub use context_loader::context_loader_from_map;
 pub use error::*;
 pub use http_client::*;
 pub use metadata::*;

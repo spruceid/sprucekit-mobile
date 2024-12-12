@@ -151,7 +151,7 @@ impl From<profiles::CoreProfilesCredentialRequest> for CredentialRequest {
     }
 }
 
-#[derive(uniffi::Record)]
+#[derive(Debug, uniffi::Record)]
 pub struct CredentialResponse {
     pub format: CredentialFormat,
     pub payload: Vec<u8>,

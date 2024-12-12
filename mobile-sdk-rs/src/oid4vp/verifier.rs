@@ -157,10 +157,14 @@ mod tests {
 
         let trusted_dids = vec!["did:web:localhost%3A3003:colofwd_signer_service".to_string()];
 
-        let holder =
-            Holder::new_with_credentials(vec![credential], trusted_dids, Box::new(key_signer))
-                .await
-                .expect("failed to create oid4vp holder");
+        let holder = Holder::new_with_credentials(
+            vec![credential],
+            trusted_dids,
+            Box::new(key_signer),
+            None,
+        )
+        .await
+        .expect("failed to create oid4vp holder");
 
         let url = format!("openid4vp://?{auth_query}")
             .parse()
