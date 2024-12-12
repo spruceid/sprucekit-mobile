@@ -72,4 +72,4 @@ uniffi = { version = "0.28.1", features = ["bindgen-tests"] }
 uniffi = { version = "0.28.1", features = ["build"] }
 
 [patch.crates-io]
-ssi = { git = "https://github.com/spruceid/ssi", rev = "b3648ca" }
+ssi = { git = "https://github.com/spruceid/ssi", rev = "5211199" }
