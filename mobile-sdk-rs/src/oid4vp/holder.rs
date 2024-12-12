@@ -125,8 +125,6 @@ impl Holder {
             .await
             .map_err(|e| OID4VPError::RequestValidation(format!("{e:?}")))?;
 
-        println!("Authorization Request: {request:?}");
-
         match request.response_mode() {
             ResponseMode::DirectPost | ResponseMode::DirectPostJwt => {
                 self.permission_request(request).await
@@ -186,7 +184,7 @@ impl Holder {
     /// This will return all the credentials that match the presentation definition.
     async fn search_credentials_vs_presentation_definition(
         &self,
-        definition: &PresentationDefinition,
+        definition: &mut PresentationDefinition,
     ) -> Result<Vec<Arc<ParsedCredential>>, OID4VPError> {
         let credentials = match &self.provided_credentials {
             // Use a pre-selected list of credentials if provided.
@@ -224,14 +222,14 @@ impl Holder {
         request: AuthorizationRequestObject,
     ) -> Result<Arc<PermissionRequest>, OID4VPError> {
         // Resolve the presentation definition.
-        let presentation_definition = request
+        let mut presentation_definition = request
             .resolve_presentation_definition(self.http_client())
             .await
             .map_err(|e| OID4VPError::PresentationDefinitionResolution(format!("{e:?}")))?
             .into_parsed();
 
         let credentials = self
-            .search_credentials_vs_presentation_definition(&presentation_definition)
+            .search_credentials_vs_presentation_definition(&mut presentation_definition)
             .await?;
 
         Ok(PermissionRequest::new(

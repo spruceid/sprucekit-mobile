@@ -151,8 +151,8 @@ impl CredentialPresentation for VCDM2SdJwt {
         index: Option<usize>,
     ) -> Result<DescriptorMap, OID4VPError> {
         let path = match index {
+            Some(0) | None => "$".into(),
             Some(i) => format!("$[{i}]"),
-            None => "$".into(),
         }
         .parse()
         .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;

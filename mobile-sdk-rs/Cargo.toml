@@ -70,3 +70,6 @@ uniffi = { version = "0.28.1", features = ["bindgen-tests"] }
 
 [build-dependencies]
 uniffi = { version = "0.28.1", features = ["build"] }
+
+[patch.crates-io]
+ssi = { git = "https://github.com/spruceid/ssi", rev = "5211199" }
