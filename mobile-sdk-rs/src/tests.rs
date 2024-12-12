@@ -15,7 +15,7 @@ use ssi::{
 };
 use uniffi::deps::anyhow::Result;
 
-use crate::oid4vci::Oid4vci;
+use crate::oid4vci::{Oid4vci, Oid4vciExchangeOptions};
 
 const OID4VCI_CREDENTIAL_OFFER_URI: &str = "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz1A68iKqcX2HbQGQfVSfFnjkM%2Fexchanges%2Fz1ADKJLFpFtovZkxXHbQz47f5%2Fopenid%2Fcredential-offer";
 const OID4VP_URI: &str = "openid4vp://?client_id=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19prZuVakk5Rzt1tE12evjQX%2Fopenid%2Fclient%2Fauthorization%2Fresponse&request_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19prZuVakk5Rzt1tE12evjQX%2Fopenid%2Fclient%2Fauthorization%2Frequest";
@@ -138,7 +138,9 @@ pub async fn test_vc_playground_oid4vci() -> Result<()> {
     // Load VC Playground Context
     session.set_context_map(vc_playground_context())?;
 
-    let credentials = session.exchange_credential(vec![pop]).await?;
+    let credentials = session
+        .exchange_credential(vec![pop], Oid4vciExchangeOptions::default())
+        .await?;
 
     println!("Credentials: {credentials:?}");
 
