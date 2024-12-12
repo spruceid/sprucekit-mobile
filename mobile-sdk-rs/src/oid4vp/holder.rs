@@ -60,6 +60,21 @@ pub struct Holder {
 
 #[uniffi::export(async_runtime = "tokio")]
 impl Holder {
+    // NOTE: a logger is intended to be initialized once
+    // per an application, not per an instance of the holder.
+    //
+    // The following should be deprecated from the holder
+    // in favor of a global logger instance.
+    /// Initialize logger for the OID4VP holder.
+    fn initiate_logger(&self) {
+        #[cfg(target_os = "android")]
+        android_logger::init_once(
+            android_logger::Config::default()
+                .with_max_level(log::LevelFilter::Trace)
+                .with_tag("MOBILE_SDK_RS"),
+        );
+    }
+
     /// Uses VDC collection to retrieve the credentials for a given presentation definition.
     #[uniffi::constructor]
     pub async fn new(
