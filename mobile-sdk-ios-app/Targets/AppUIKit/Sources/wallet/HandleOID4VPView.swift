@@ -15,6 +15,7 @@ struct HandleOID4VPView: View {
     @State private var permissionResponse: PermissionResponse?
     @State private var selectedCredential: ParsedCredential?
     @State private var credentialClaims: [String: [String: GenericJSON]] = [:]
+    @State private var credentialPacks: [CredentialPack] = []
 
     @State private var err: String?
     
@@ -22,7 +23,7 @@ struct HandleOID4VPView: View {
 
     func presentCredential() async {
         do {
-            let credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
+            credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
             var credentials: [ParsedCredential] = []
             credentialPacks.forEach { credentialPack in
                 credentials += credentialPack.list()
@@ -94,12 +95,24 @@ struct HandleOID4VPView: View {
                         Task {
                             do {
                                 _ = try await holder?.submitPermissionResponse(response: permissionResponse!)
+                                let credentialPack = credentialPacks.first(where: { credentialPack in
+                                    return credentialPack.get(credentialId: selectedCredential?.id() ?? "") != nil
+                                })!
+                                let credentialInfo = getCredentialIdTitleAndIssuer(credentialPack: credentialPack)
+                                _ = WalletActivityLogDataStore.shared.insert(
+                                    credentialPackId: credentialPack.id.uuidString,
+                                    credentialId: credentialInfo.0,
+                                    credentialTitle: credentialInfo.1,
+                                    issuer: credentialInfo.2,
+                                    action: "Verification",
+                                    dateTime: Date(),
+                                    additionalInformation: ""
+                                )
                                 back()
                             } catch {
                                 err = error.localizedDescription
                             }
                         }
-
                     },
                     onCancel: back
                 )

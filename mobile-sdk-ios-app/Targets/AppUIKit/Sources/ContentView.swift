@@ -67,6 +67,9 @@ public struct ContentView: View {
                     .navigationDestination(for: WalletSettingsHome.self) { _ in
                         WalletSettingsHomeView(path: $path)
                     }
+                    .navigationDestination(for: WalletSettingsActivityLog.self) { _ in
+                        WalletSettingsActivityLogView(path: $path)
+                    }
                     .navigationDestination(for: AddToWallet.self) { addToWalletParams in
                         AddToWalletView(
                             path: $path,

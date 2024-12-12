@@ -15,7 +15,10 @@ struct WalletSettingsHomeView: View {
     var body: some View {
         VStack {
             WalletSettingsHomeHeader(onBack: onBack)
-            WalletSettingsHomeBody(onBack: onBack)
+            WalletSettingsHomeBody(
+                path: $path,
+                onBack: onBack
+            )
         }
         .navigationBarBackButtonHidden(true)
     }
@@ -26,27 +29,62 @@ struct WalletSettingsHomeHeader: View {
 
     var body: some View {
         HStack {
-            Image("Chevron")
-                .rotationEffect(.degrees(90))
-                .padding(.leading, 36)
-            Text("Wallet Setting")
-                .font(.customFont(font: .inter, style: .bold, size: .h0))
-                .padding(.leading, 10)
+            Text("Preferences")
+                .font(.customFont(font: .inter, style: .bold, size: .h2))
+                .padding(.leading, 30)
                 .foregroundStyle(Color("ColorStone950"))
             Spacer()
-        }
-        .onTapGesture {
-            onBack()
+            Button {
+                onBack()
+            } label: {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .foregroundColor(Color("ColorStone950"))
+                        .frame(width: 36, height: 36)
+                    Image("User")
+                        .foregroundColor(Color("ColorStone50"))
+                }
+            }
+            .padding(.trailing, 20)
         }
         .padding(.top, 10)
     }
 }
 
 struct WalletSettingsHomeBody: View {
-
+    @Binding var path: NavigationPath
     var onBack: () -> Void
     
     let storageManager = StorageManager()
+
+    @ViewBuilder
+    var activityLogButton: some View {
+        Button {
+            path.append(WalletSettingsActivityLog())
+        } label: {
+            HStack(alignment: .top) {
+                VStack {
+                    HStack {
+                        Image("List")
+                        Text("Activity Log")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundColor(Color("ColorStone950"))
+                            .font(
+                                .customFont(
+                                    font: .inter, style: .bold, size: .h4))
+                    }
+                    Text("View and export verification history")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundColor(Color("ColorStone600"))
+                        .font(
+                            .customFont(font: .inter, style: .regular, size: .p)
+                        )
+                }
+                Image("Chevron")
+                    .rotationEffect(.degrees(-90))
+            }
+        }
+    }
 
     @ViewBuilder
     var deleteAllCredentials: some View {
@@ -55,6 +93,21 @@ struct WalletSettingsHomeBody: View {
                 let credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
                 try credentialPacks.forEach { credentialPack in
                     try credentialPack.remove(storageManager: storageManager)
+                    credentialPack.list().forEach { credential in
+                        let credentialInfo = getCredentialIdTitleAndIssuer(
+                            credentialPack: credentialPack,
+                            credential: credential
+                        )
+                        _ = WalletActivityLogDataStore.shared.insert(
+                            credentialPackId: credentialPack.id.uuidString,
+                            credentialId: credentialInfo.0,
+                            credentialTitle: credentialInfo.1,
+                            issuer: credentialInfo.2,
+                            action: "Deleted",
+                            dateTime: Date(),
+                            additionalInformation: ""
+                        )
+                    }
                 }
             } catch {
                 // TODO: display error message
@@ -74,10 +127,13 @@ struct WalletSettingsHomeBody: View {
 
     var body: some View {
         VStack {
-            ScrollView(.vertical, showsIndicators: false) {
+            VStack {
+                activityLogButton
+                Spacer()
                 deleteAllCredentials
             }
         }
-        .padding(.all, 24)
+        .padding(.vertical, 20)
+        .padding(.horizontal, 30)
     }
 }
