@@ -1,10 +1,17 @@
 use super::{Credential, CredentialFormat, ParsedCredential, ParsedCredentialInner};
-use crate::{oid4vp::permission_request::RequestedField, CredentialType, KeyAlias};
+use crate::{
+    oid4vp::{
+        error::OID4VPError,
+        presentation::{CredentialPresentation, PresentationOptions},
+    },
+    CredentialType, KeyAlias,
+};
 
 use std::sync::Arc;
 
 use openid4vp::core::{
-    presentation_definition::PresentationDefinition, response::parameters::VpTokenItem,
+    credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
+    response::parameters::VpTokenItem,
 };
 use ssi::{
     claims::{
@@ -14,7 +21,6 @@ use ssi::{
     },
     prelude::AnyJsonCredential,
 };
-use uniffi::deps::log;
 use uuid::Uuid;
 
 #[derive(Debug, uniffi::Object)]
@@ -49,64 +55,8 @@ impl VCDM2SdJwt {
             })
     }
 
-    /// Check if the credential satisfies a presentation definition.
-    pub fn check_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
-        // If the credential does not match the definition requested format,
-        // then return false.
-        if !definition.format().is_empty()
-            && !definition.contains_format(CredentialFormat::VCDM2SdJwt.to_string().as_str())
-        {
-            println!(
-                "Credential does not match the requested format: {:?}.",
-                definition.format()
-            );
-
-            return false;
-        }
-
-        let Ok(json) = serde_json::to_value(&self.credential) else {
-            // NOTE: if we cannot convert the credential to a JSON value, then we cannot
-            // check the presentation definition, so we return false.
-            //
-            // TODO: add logging to indicate that the credential could not be converted to JSON.
-            return false;
-        };
-
-        // Check the JSON-encoded credential against the definition.
-        definition.is_credential_match(&json)
-    }
-
-    /// Return the requested fields for the SD-JWT credential.
-    pub fn requested_fields(
-        &self,
-        definition: &PresentationDefinition,
-    ) -> Vec<Arc<RequestedField>> {
-        let Ok(json) = serde_json::to_value(&self.credential) else {
-            // NOTE: if we cannot convert the credential to a JSON value, then we cannot
-            // check the presentation definition, so we return false.
-            log::debug!("credential could not be converted to JSON: {self:?}");
-            return Vec::new();
-        };
-
-        definition
-            .requested_fields(&json)
-            .into_iter()
-            .map(Into::into)
-            .map(Arc::new)
-            .collect()
-    }
-
-    /// Return the credential as a VpToken
-    pub fn as_vp_token(&self) -> VpTokenItem {
-        // TODO: need to provide the "filtered" (disclosed) fields of the
-        // credential to be encoded into the VpToken.
-        //
-        // Currently, this is encoding the entire revealed SD-JWT,
-        // without the selection of individual disclosed fields.
-        //
-        // We need to selectively disclosed fields.
-        let compact: &str = self.inner.as_ref();
-        VpTokenItem::String(compact.to_string())
+    fn format() -> CredentialFormat {
+        CredentialFormat::VCDM2SdJwt
     }
 }
 
@@ -159,6 +109,59 @@ impl VCDM2SdJwt {
     pub fn revealed_claims_as_json_string(&self) -> Result<String, SdJwtError> {
         serde_json::to_string(&self.credential)
             .map_err(|e| SdJwtError::Serialization(format!("{e:?}")))
+    }
+}
+
+impl CredentialPresentation for VCDM2SdJwt {
+    type Credential = ssi::claims::vc::v2::SpecializedJsonCredential;
+    type CredentialFormat = ClaimFormatDesignation;
+    type PresentationFormat = ClaimFormatDesignation;
+
+    fn credential(&self) -> &Self::Credential {
+        &self.credential
+    }
+
+    fn presentation_format(&self) -> Self::PresentationFormat {
+        ClaimFormatDesignation::Other(Self::format().to_string())
+    }
+
+    fn credential_format(&self) -> Self::CredentialFormat {
+        ClaimFormatDesignation::Other(Self::format().to_string())
+    }
+
+    /// Return the credential as a VpToken
+    async fn as_vp_token_item<'a>(
+        &self,
+        _options: &'a PresentationOptions<'a>,
+    ) -> Result<VpTokenItem, OID4VPError> {
+        // TODO: need to provide the "filtered" (disclosed) fields of the
+        // credential to be encoded into the VpToken.
+        //
+        // Currently, this is encoding the entire revealed SD-JWT,
+        // without the selection of individual disclosed fields.
+        //
+        // We need to selectively disclosed fields.
+        let compact: &str = self.inner.as_ref();
+        Ok(VpTokenItem::String(compact.to_string()))
+    }
+
+    fn create_descriptor_map(
+        &self,
+        input_descriptor_id: impl Into<String>,
+        index: Option<usize>,
+    ) -> Result<DescriptorMap, OID4VPError> {
+        let path = match index {
+            Some(i) => format!("$[{i}]"),
+            None => "$".into(),
+        }
+        .parse()
+        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
+
+        Ok(DescriptorMap::new(
+            input_descriptor_id,
+            self.credential_format(),
+            path,
+        ))
     }
 }
 

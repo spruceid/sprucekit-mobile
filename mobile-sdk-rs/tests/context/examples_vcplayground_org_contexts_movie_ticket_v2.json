@@ -1,0 +1,35 @@
+{
+  "@context": {
+    "@version": 1.1,
+    "@protected": true,
+    "MovieTicketCredential": "https://contexts.vcplayground.org/examples/movie-ticket/vocab#MovieTicketCredential",
+    "Ticket": "https://schema.org/Ticket",
+    "owns": {
+      "@id": "https://schema.org/owns",
+      "@type": "@id"
+    },
+    "name": "https://schema.org/name",
+    "description": "https://schema.org/description",
+    "identifier": "https://schema.org/identifier",
+    "image": {
+      "@id": "https://schema.org/image",
+      "@type": "@id"
+    },
+    "location": {
+      "@id": "https://schema.org/location",
+      "@type": "@id"
+    },
+    "startDate": "https://schema.org/startDate",
+    "ticketNumber": "https://schema.org/ticketNumber",
+    "ticketedSeat": "https://schema.org/ticketedSeat",
+    "ticketToken": "https://schema.org/ticketToken",
+    "seatNumber": "https://schema.org/seatNumber",
+    "seatRow": "https://schema.org/seatRow",
+    "seatSection": "https://schema.org/seatSection",
+    "address": "https://schema.org/address",
+    "addressLocality": "https://schema.org/addressLocality",
+    "addressRegion": "https://schema.org/addressRegion",
+    "postalCode": "https://schema.org/postalCode",
+    "streetAddress": "https://schema.org/streetAddress"
+  }
+}

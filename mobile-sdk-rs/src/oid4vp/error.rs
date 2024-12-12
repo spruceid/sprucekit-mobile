@@ -1,6 +1,8 @@
 // use super::request_signer::RequestSignerError;
 
-use super::permission_request::PermissionResponseError;
+use crate::credential::CredentialEncodingError;
+
+use super::{permission_request::PermissionRequestError, presentation::PresentationError};
 
 /// The [OID4VPError] enum represents the errors that can occur
 /// when using the oid4vp foreign library.
@@ -26,10 +28,6 @@ pub enum OID4VPError {
     InvalidDIDUrl(String),
     #[error("Failed to generate DID key URL: {0}")]
     DIDKeyGenerateUrl(String),
-    #[error("Failed to encode credential: {0}")]
-    CredentialEncodingError(String),
-    #[error("Failed to decode credential: {0}")]
-    CredentialDecodingError(String),
     #[error("Failed to parse JSON syntax: {0}")]
     JsonSyntaxParse(String),
     #[error(transparent)]
@@ -57,7 +55,15 @@ pub enum OID4VPError {
     #[error("Failed to initialize metadata: {0}")]
     MetadataInitialization(String),
     #[error(transparent)]
-    PermissionResponse(#[from] PermissionResponseError),
+    PermissionRequest(#[from] PermissionRequestError),
+    #[error(transparent)]
+    Presentation(#[from] PresentationError),
+    #[error(transparent)]
+    CredentialEncoding(#[from] CredentialEncodingError),
+    #[error("Failed to parse JsonPath: {0}")]
+    JsonPathParse(String),
+    #[error("Empty Credential Subject. Failed to convert `Object` to `NonEmptyObject`: {0}")]
+    EmptyCredentialSubject(String),
 }
 
 // Handle unexpected errors when calling a foreign callback

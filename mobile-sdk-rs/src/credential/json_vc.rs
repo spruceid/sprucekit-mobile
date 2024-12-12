@@ -1,15 +1,55 @@
-use super::{Credential, CredentialFormat, VcdmVersion};
-use crate::{oid4vp::permission_request::RequestedField, CredentialType, KeyAlias};
+use super::{Credential, CredentialEncodingError, CredentialFormat, VcdmVersion};
+use crate::{
+    oid4vp::{
+        error::OID4VPError,
+        presentation::{CredentialPresentation, PresentationOptions},
+    },
+    CredentialType, KeyAlias,
+};
 
 use std::sync::Arc;
 
-use openid4vp::core::presentation_definition::PresentationDefinition;
+use openid4vp::{
+    core::{
+        credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
+        response::parameters::VpTokenItem,
+    },
+    JsonPath,
+};
 use serde_json::Value as Json;
 use ssi::{
-    claims::vc::{v1::Credential as _, v2::Credential as _},
-    prelude::AnyJsonCredential,
+    claims::vc::{
+        syntax::{IdOr, NonEmptyObject, NonEmptyVec},
+        v1::{Credential as _, JsonPresentation as JsonPresentationV1},
+        v2::{
+            syntax::JsonPresentation as JsonPresentationV2, Credential as _,
+            JsonCredential as JsonCredentialV2,
+        },
+    },
+    json_ld::iref::UriBuf,
+    prelude::{AnyJsonCredential, AnyJsonPresentation},
 };
 use uuid::Uuid;
+
+const ACCEPTED_CRYPTOSUITES: &[&str] = &["ecdsa-rdfc-2019"];
+
+#[derive(Debug, uniffi::Error, thiserror::Error)]
+pub enum JsonVcInitError {
+    #[error("failed to decode a W3C VCDM (v1 or v2) Credential from JSON")]
+    CredentialDecoding,
+    #[error("failed to encode the credential as a UTF-8 string")]
+    CredentialStringEncoding,
+    #[error("failed to decode JSON from bytes")]
+    JsonBytesDecoding,
+    #[error("failed to decode JSON from a UTF-8 string")]
+    JsonStringDecoding,
+}
+
+#[derive(Debug, uniffi::Error, thiserror::Error)]
+pub enum JsonVcEncodingError {
+    #[error("failed to encode JSON as bytes")]
+    JsonBytesEncoding,
+}
 
 #[derive(uniffi::Object, Debug, Clone)]
 /// A verifiable credential secured as JSON.
@@ -118,38 +158,113 @@ impl JsonVc {
         }))
     }
 
-    /// Check if the credential satisfies a presentation definition.
-    pub fn check_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
-        // If the credential does not match the definition requested format,
-        // then return false.
-        if !definition.format().is_empty()
-            && !definition.contains_format(CredentialFormat::LdpVc.to_string().as_str())
-        {
-            return false;
-        }
+    pub fn format() -> CredentialFormat {
+        CredentialFormat::LdpVc
+    }
+}
 
-        // Check the JSON-encoded credential against the definition.
-        definition.is_credential_match(&self.raw)
+impl CredentialPresentation for JsonVc {
+    type Credential = Json;
+    type CredentialFormat = ClaimFormatDesignation;
+    type PresentationFormat = ClaimFormatDesignation;
+
+    fn credential(&self) -> &Self::Credential {
+        &self.raw
     }
 
-    /// Returns the requested fields given a presentation definition.
-    pub fn requested_fields(
+    fn presentation_format(&self) -> Self::PresentationFormat {
+        ClaimFormatDesignation::LdpVp
+    }
+
+    fn credential_format(&self) -> Self::CredentialFormat {
+        ClaimFormatDesignation::LdpVc
+    }
+
+    fn create_descriptor_map(
         &self,
-        definition: &PresentationDefinition,
-    ) -> Vec<Arc<RequestedField>> {
-        let Ok(json) = serde_json::to_value(&self.parsed) else {
-            // NOTE: if we cannot convert the credential to a JSON value, then we cannot
-            // check the presentation definition, so we return false.
-            log::debug!("credential could not be converted to JSON: {self:?}");
-            return Vec::new();
+        input_descriptor_id: impl Into<String>,
+        index: Option<usize>,
+    ) -> Result<DescriptorMap, OID4VPError> {
+        let path = match index {
+            Some(idx) => format!("$.verifiableCredential[{idx}]"),
+            None => "$.verifiableCredential".into(),
+        }
+        .parse()
+        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
+
+        let id = input_descriptor_id.into();
+
+        Ok(
+            DescriptorMap::new(id.clone(), self.presentation_format(), JsonPath::default())
+                .set_path_nested(DescriptorMap::new(id, self.credential_format(), path)),
+        )
+    }
+
+    /// Return the credential as a VpToken
+    async fn as_vp_token_item<'a>(
+        &self,
+        options: &'a PresentationOptions<'a>,
+    ) -> Result<VpTokenItem, OID4VPError> {
+        let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec())
+            .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing ID: {e:?}")))?;
+
+        // Check the signer supports the requested vp format crypto suite.
+        options.supports_security_method(ClaimFormatDesignation::LdpVp)?;
+
+        let unsigned_presentation = match self.parsed.clone() {
+            AnyJsonCredential::V1(cred_v1) => {
+                let holder_id: UriBuf = options.signer.did().parse().map_err(|e| {
+                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
+                })?;
+
+                let unsigned_presentation_v1 =
+                    JsonPresentationV1::new(Some(id.clone()), Some(holder_id), vec![cred_v1]);
+
+                AnyJsonPresentation::V1(unsigned_presentation_v1)
+            }
+            AnyJsonCredential::V2(cred_v2) => {
+                // Convert inner type of `Object` -> `NonEmptyObject`.
+                let mut cred_v2 = try_map_subjects(cred_v2, NonEmptyObject::try_from_object)
+                    .map_err(|e| OID4VPError::EmptyCredentialSubject(format!("{e:?}")))?;
+
+                // TODO: Handle transformation of the selective disclosure.
+                // SKIP: Remove SD proof from the credential before adding it to the presentation.
+                if let Some(p) = cred_v2
+                    .extra_properties
+                    .get_mut("proof")
+                    .and_then(|p| p.as_array_mut())
+                {
+                    *p = p
+                        .iter_mut()
+                        .flat_map(|p| p.as_object())
+                        .filter(|obj| {
+                            while let Some(cryptosuite) = obj.get("cryptosuite").next() {
+                                if let Some(suite) = cryptosuite.as_string() {
+                                    // Check if the cryptosuite is supported.
+                                    // NOTE: we're filtering proofs for only supported
+                                    // cryptosuites, e.g., `ecdsa-rdfc-2019`
+                                    return ACCEPTED_CRYPTOSUITES.contains(&suite);
+                                }
+                            }
+                            true
+                        })
+                        .map(|p| p.clone().into())
+                        .collect::<Vec<_>>();
+                }
+                let holder_id = IdOr::Id(options.signer.did().parse().map_err(|e| {
+                    CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
+                })?);
+
+                let unsigned_presentation_v2 =
+                    JsonPresentationV2::new(Some(id), vec![holder_id], vec![cred_v2]);
+
+                AnyJsonPresentation::V2(unsigned_presentation_v2)
+            }
         };
 
-        definition
-            .requested_fields(&json)
-            .into_iter()
-            .map(Into::into)
-            .map(Arc::new)
-            .collect()
+        let signed_presentation = options.sign_presentation(unsigned_presentation).await?;
+
+        Ok(VpTokenItem::from(signed_presentation))
     }
 }
 
@@ -161,20 +276,34 @@ impl TryFrom<Credential> for Arc<JsonVc> {
     }
 }
 
-#[derive(Debug, uniffi::Error, thiserror::Error)]
-pub enum JsonVcInitError {
-    #[error("failed to decode a W3C VCDM (v1 or v2) Credential from JSON")]
-    CredentialDecoding,
-    #[error("failed to encode the credential as a UTF-8 string")]
-    CredentialStringEncoding,
-    #[error("failed to decode JSON from bytes")]
-    JsonBytesDecoding,
-    #[error("failed to decode JSON from a UTF-8 string")]
-    JsonStringDecoding,
-}
-
-#[derive(Debug, uniffi::Error, thiserror::Error)]
-pub enum JsonVcEncodingError {
-    #[error("failed to encode JSON as bytes")]
-    JsonBytesEncoding,
+// NOTE: This is an temporary solution to convert an inner type of a credential,
+// i.e. `Object` -> `NonEmptyObject`.
+//
+// This should be removed once fixed in ssi crate.
+fn try_map_subjects<T, U, E: std::fmt::Debug>(
+    cred: JsonCredentialV2<T>,
+    f: impl FnMut(T) -> Result<U, E>,
+) -> Result<JsonCredentialV2<U>, OID4VPError> {
+    Ok(JsonCredentialV2 {
+        context: cred.context,
+        id: cred.id,
+        types: cred.types,
+        credential_subjects: NonEmptyVec::try_from_vec(
+            cred.credential_subjects
+                .into_iter()
+                .map(f)
+                .collect::<Result<_, _>>()
+                .map_err(|e| OID4VPError::EmptyCredentialSubject(format!("{e:?}")))?,
+        )
+        .map_err(|e| OID4VPError::EmptyCredentialSubject(format!("{e:?}")))?,
+        issuer: cred.issuer,
+        valid_from: cred.valid_from,
+        valid_until: cred.valid_until,
+        credential_status: cred.credential_status,
+        terms_of_use: cred.terms_of_use,
+        evidence: cred.evidence,
+        credential_schema: cred.credential_schema,
+        refresh_services: cred.refresh_services,
+        extra_properties: cred.extra_properties,
+    })
 }

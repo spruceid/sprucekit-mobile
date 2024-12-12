@@ -5,12 +5,20 @@ pub mod vcdm2_sd_jwt;
 
 use std::sync::Arc;
 
-use crate::{oid4vp::permission_request::RequestedField, CredentialType, KeyAlias, Uuid};
+use crate::{
+    oid4vp::{
+        error::OID4VPError,
+        permission_request::RequestedField,
+        presentation::{CredentialPresentation, PresentationError, PresentationOptions},
+    },
+    CredentialType, KeyAlias, Uuid,
+};
 use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
 use openid4vp::core::{
-    presentation_definition::PresentationDefinition, response::parameters::VpTokenItem,
+    presentation_definition::PresentationDefinition, presentation_submission::DescriptorMap,
+    response::parameters::VpTokenItem,
 };
 use serde::{Deserialize, Serialize};
 use vcdm2_sd_jwt::{SdJwtError, VCDM2SdJwt};
@@ -59,6 +67,13 @@ pub(crate) enum ParsedCredentialInner {
 
 #[uniffi::export]
 impl ParsedCredential {
+    #[uniffi::constructor]
+    pub fn new_from_json(json_string: String) -> Result<Arc<Self>, CredentialDecodingError> {
+        let credential: Credential = serde_json::from_str(&json_string)
+            .map_err(|e| CredentialDecodingError::Serialization(format!("{e:?}")))?;
+        credential.try_into_parsed()
+    }
+
     #[uniffi::constructor]
     /// Construct a new `mso_mdoc` credential.
     pub fn new_mso_mdoc(mdoc: Arc<Mdoc>) -> Arc<Self> {
@@ -228,13 +243,17 @@ impl ParsedCredential {
 // Intneral Parsed Credential methods
 impl ParsedCredential {
     /// Check if the credential satisfies a presentation definition.
-    pub fn check_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
+    pub fn satisfies_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
         match &self.inner {
-            ParsedCredentialInner::JwtVcJson(vc) => vc.check_presentation_definition(definition),
-            ParsedCredentialInner::JwtVcJsonLd(vc) => vc.check_presentation_definition(definition),
-            ParsedCredentialInner::LdpVc(vc) => vc.check_presentation_definition(definition),
+            ParsedCredentialInner::JwtVcJson(vc) => {
+                vc.satisfies_presentation_definition(definition)
+            }
+            ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.satisfies_presentation_definition(definition)
+            }
+            ParsedCredentialInner::LdpVc(vc) => vc.satisfies_presentation_definition(definition),
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
-                sd_jwt.check_presentation_definition(definition)
+                sd_jwt.satisfies_presentation_definition(definition)
             }
             ParsedCredentialInner::MsoMdoc(_mdoc) => false,
         }
@@ -256,15 +275,46 @@ impl ParsedCredential {
         }
     }
 
-    /// Return a VP Token for the credential.
-    pub fn as_vp_token(&self) -> Result<VpTokenItem, CredentialEncodingError> {
+    /// Return a VP Token from the credential, given provided
+    /// options for constructing the VP Token.
+    pub async fn as_vp_token<'a>(
+        &self,
+        options: &'a PresentationOptions<'a>,
+    ) -> Result<VpTokenItem, OID4VPError> {
         match &self.inner {
-            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => Ok(sd_jwt.as_vp_token()),
-            ParsedCredentialInner::JwtVcJson(vc) => Ok(vc.as_vp_token()),
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => sd_jwt.as_vp_token_item(options).await,
+            ParsedCredentialInner::JwtVcJson(vc) => vc.as_vp_token_item(options).await,
+            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options).await,
             _ => Err(CredentialEncodingError::VpToken(format!(
                 "Credential encoding for VP Token is not implemented for {:?}.",
                 self.inner,
-            ))),
+            ))
+            .into()),
+        }
+    }
+
+    /// Return the descriptor map with the associated format type of the inner credential.
+    pub fn create_descriptor_map(
+        self: &Arc<Self>,
+        input_descriptor_id: impl Into<String>,
+        index: Option<usize>,
+    ) -> Result<DescriptorMap, OID4VPError> {
+        match &self.inner {
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+                sd_jwt.create_descriptor_map(input_descriptor_id, index)
+            }
+            ParsedCredentialInner::JwtVcJson(vc) => {
+                vc.create_descriptor_map(input_descriptor_id, index)
+            }
+            ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.create_descriptor_map(input_descriptor_id, index)
+            }
+            ParsedCredentialInner::LdpVc(vc) => {
+                vc.create_descriptor_map(input_descriptor_id, index)
+            }
+            ParsedCredentialInner::MsoMdoc(_mdoc) => {
+                unimplemented!("Mdoc create descriptor map not implemented")
+            }
         }
     }
 }
@@ -308,6 +358,8 @@ pub enum CredentialEncodingError {
     SdJwt(#[from] SdJwtError),
     #[error("VP Token encoding error: {0}")]
     VpToken(String),
+    #[error(transparent)]
+    Presentation(#[from] PresentationError),
 }
 
 #[derive(Debug, uniffi::Error, thiserror::Error)]

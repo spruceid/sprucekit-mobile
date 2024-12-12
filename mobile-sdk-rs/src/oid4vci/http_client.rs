@@ -150,7 +150,7 @@ pub trait AsyncHttpClient: Send + Sync {
     async fn http_client(&self, request: HttpRequest) -> Result<HttpResponse, HttpClientError>;
 }
 
-impl<'a, 'c> ExtAsyncHttpClient<'c> for IArc<dyn AsyncHttpClient + 'a> {
+impl<'c> ExtAsyncHttpClient<'c> for IArc<dyn AsyncHttpClient + '_> {
     type Error = HttpClientError;
     type Future =
         Pin<Box<dyn Future<Output = Result<ExtHttpResponse, HttpClientError>> + Send + 'c>>;
@@ -214,7 +214,9 @@ impl IHttpClient {
     }
 }
 
-fn headermap_to_hashmap(headers: &HeaderMap) -> Result<HashMap<String, String>, HttpClientError> {
+pub(crate) fn headermap_to_hashmap(
+    headers: &HeaderMap,
+) -> Result<HashMap<String, String>, HttpClientError> {
     headers
         .keys()
         .map(|k| {

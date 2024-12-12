@@ -1,14 +1,22 @@
-use super::{Credential, CredentialFormat, VcdmVersion};
-use crate::{oid4vp::permission_request::RequestedField, CredentialType, KeyAlias};
+use super::{Credential, CredentialEncodingError, CredentialFormat, VcdmVersion};
+use crate::{
+    oid4vp::{
+        error::OID4VPError,
+        presentation::{CredentialPresentation, PresentationOptions},
+    },
+    CredentialType, KeyAlias,
+};
 
 use std::sync::Arc;
 
 use base64::prelude::*;
 use openid4vp::core::{
-    presentation_definition::PresentationDefinition, response::parameters::VpTokenItem,
+    credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
+    response::parameters::VpTokenItem,
 };
 use ssi::{
     claims::{
+        jws::Header,
         jwt::IntoDecodedJwt,
         vc::v1::{Credential as _, JsonCredential, JsonPresentation},
         JwsString,
@@ -153,65 +161,120 @@ impl JwtVc {
         &self.credential
     }
 
-    /// Check if the credential satisfies a presentation definition.
-    pub fn check_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
-        // If the credential does not match the definition requested format,
-        // then return false.
-        if !definition.format().is_empty()
-            && !definition.contains_format(CredentialFormat::JwtVcJson.to_string().as_str())
-        {
-            return false;
-        }
+    pub fn format() -> CredentialFormat {
+        CredentialFormat::JwtVcJson
+    }
+}
 
-        let Ok(json) = serde_json::to_value(&self.credential) else {
-            // NOTE: if we cannot convert the credential to a JSON value, then we cannot
-            // check the presentation definition, so we return false.
-            //
-            tracing::debug!(
-                "failed to convert credential '{}' to json, so continuing to the next credential",
-                self.id()
-            );
-            return false;
-        };
+impl CredentialPresentation for JwtVc {
+    type Credential = JsonCredential;
+    type CredentialFormat = ClaimFormatDesignation;
+    type PresentationFormat = ClaimFormatDesignation;
 
-        // Check the JSON-encoded credential against the definition.
-        definition.is_credential_match(&json)
+    fn credential(&self) -> &Self::Credential {
+        &self.credential
     }
 
-    /// Returns the requested fields given a presentation definition.
-    pub fn requested_fields(
-        &self,
-        definition: &PresentationDefinition,
-    ) -> Vec<Arc<RequestedField>> {
-        let Ok(json) = serde_json::to_value(&self.credential) else {
-            // NOTE: if we cannot convert the credential to a JSON value, then we cannot
-            // check the presentation definition, so we return false.
-            log::debug!("credential could not be converted to JSON: {self:?}");
-            return Vec::new();
-        };
+    fn presentation_format(&self) -> Self::PresentationFormat {
+        ClaimFormatDesignation::JwtVp
+    }
 
-        definition
-            .requested_fields(&json)
-            .into_iter()
-            .map(Into::into)
-            .map(Arc::new)
-            .collect()
+    fn credential_format(&self) -> Self::CredentialFormat {
+        ClaimFormatDesignation::JwtVcJson
     }
 
     /// Return the credential as a VpToken
-    pub fn as_vp_token(&self) -> VpTokenItem {
+    async fn as_vp_token_item<'a>(
+        &self,
+        options: &'a PresentationOptions<'a>,
+    ) -> Result<VpTokenItem, OID4VPError> {
         let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec()).ok();
+        let vm = options.verification_method_id().await?;
+        let holder_id = options.signer.did().parse().ok();
 
-        // TODO: determine how the holder ID should be set.
-        let holder_id = None;
+        // NOTE: JwtVc types are ALWAYS VCDM 1.1,
+        // therefore using the v1::syntax::JsonPresentation type.
+        let vp = JsonPresentation::new(id, holder_id, vec![self.credential.clone()]);
 
-        // NOTE: JwtVc types are ALWAYS VCDM 1.1, therefore using the v1::syntax::JsonPresentation
-        // type.
-        VpTokenItem::from(JsonPresentation::new(
-            id,
-            holder_id,
-            vec![self.credential.clone()],
-        ))
+        let iat = time::OffsetDateTime::now_utc().unix_timestamp();
+        let exp = iat + 3600;
+
+        let iss = options.issuer();
+        let aud = options.audience();
+        let nonce = options.nonce();
+        let subject = options.subject();
+
+        let key_id = Some(vm.to_string());
+        let algorithm = serde_json::from_str::<ssi::jwk::Algorithm>(&options.signer.cryptosuite())
+            .map_err(|e| {
+                CredentialEncodingError::VpToken(format!("Invalid Signing Algorithm: {e:?}"))
+            })?;
+
+        let header = Header {
+            // NOTE: The algorithm should match the signing
+            // algorithm of the key used to sign the vp token.
+            algorithm,
+            key_id,
+            ..Default::default()
+        };
+
+        let header_b64: String = serde_json::to_vec(&header)
+            .map(|b| BASE64_URL_SAFE_NO_PAD.encode(b))
+            .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
+
+        let claims = serde_json::json!({
+            "iat": iat,
+            "exp": exp,
+            "iss": iss,
+            "sub": subject,
+            "aud": aud,
+            "nonce": nonce,
+            "vp": vp,
+        });
+
+        println!("Claims: {claims:?}");
+
+        let body_b64 = serde_json::to_vec(&claims)
+            .map(|b| BASE64_URL_SAFE_NO_PAD.encode(b))
+            .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
+
+        let unsigned_vp_token_jwt = format!("{header_b64}.{body_b64}");
+
+        // Sign the `vp_token` if a `signer` is provided in the `VpTokenOptions`.
+        let signature = options
+            .signer
+            .sign(unsigned_vp_token_jwt.as_bytes().to_vec())
+            .await
+            .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
+
+        let signature_b64 = BASE64_URL_SAFE_NO_PAD.encode(&signature);
+
+        Ok(VpTokenItem::String(format!(
+            "{unsigned_vp_token_jwt}.{signature_b64}"
+        )))
+    }
+
+    fn create_descriptor_map(
+        &self,
+        input_descriptor_id: impl Into<String>,
+        index: Option<usize>,
+    ) -> Result<DescriptorMap, OID4VPError> {
+        let path = match index {
+            Some(idx) => format!("$.verifiableCredential[{idx}]"),
+            None => "$.verifiableCredential".into(),
+        }
+        .parse()
+        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
+
+        let id = input_descriptor_id.into();
+        let vp_path = "$.vp"
+            .parse()
+            .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
+
+        Ok(
+            DescriptorMap::new(id.clone(), self.presentation_format(), vp_path)
+                .set_path_nested(DescriptorMap::new(id, self.credential_format(), path)),
+        )
     }
 }
 

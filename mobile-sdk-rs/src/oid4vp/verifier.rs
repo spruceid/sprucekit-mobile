@@ -115,9 +115,12 @@ impl DelegatedVerifier {
 
 #[cfg(test)]
 mod tests {
+    use ssi::JWK;
+
     use super::*;
     use crate::credential::vcdm2_sd_jwt::VCDM2SdJwt;
     use crate::credential::*;
+    use crate::oid4vp::holder::tests::KeySigner;
     use crate::oid4vp::holder::*;
 
     // NOTE: This requires an instance of credible to be accessible
@@ -127,6 +130,10 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_delegated_verification() -> Result<(), Oid4vpVerifierError> {
+        let jwk = JWK::generate_p256();
+
+        let key_signer = KeySigner { jwk };
+
         let verifier =
             DelegatedVerifier::new_client(BASE_URL.parse().expect("Failed to parse Base URL"))
                 .await
@@ -150,9 +157,14 @@ mod tests {
 
         let trusted_dids = vec!["did:web:localhost%3A3003:colofwd_signer_service".to_string()];
 
-        let holder = Holder::new_with_credentials(vec![credential], trusted_dids)
-            .await
-            .expect("failed to create oid4vp holder");
+        let holder = Holder::new_with_credentials(
+            vec![credential],
+            trusted_dids,
+            Box::new(key_signer),
+            None,
+        )
+        .await
+        .expect("failed to create oid4vp holder");
 
         let url = format!("openid4vp://?{auth_query}")
             .parse()
@@ -167,7 +179,10 @@ mod tests {
             println!("Credential: {:?}", c);
         });
 
-        let response = request.create_permission_response(request.credentials());
+        let response = request
+            .create_permission_response(request.credentials())
+            .await
+            .expect("failed to create permission response");
 
         let url = holder.submit_permission_response(response).await;
 
@@ -183,7 +198,6 @@ mod tests {
         assert!(oid4vp.is_some());
 
         println!("Presentation: {:?}", oid4vp);
-
         Ok(())
     }
 }
