@@ -165,6 +165,41 @@ impl<'c> ExtAsyncHttpClient<'c> for IArc<dyn AsyncHttpClient + '_> {
     }
 }
 
+impl AsyncHttpClient for oid4vci::oauth2::reqwest::Client {
+    #[must_use]
+    #[allow(
+        elided_named_lifetimes,
+        clippy::type_complexity,
+        clippy::type_repetition_in_bounds
+    )]
+    fn http_client<'life0, 'async_trait>(
+        &'life0 self,
+        request: HttpRequest,
+    ) -> ::core::pin::Pin<
+        Box<
+            dyn ::core::future::Future<Output = Result<HttpResponse, HttpClientError>>
+                + ::core::marker::Send
+                + 'async_trait,
+        >,
+    >
+    where
+        'life0: 'async_trait,
+        Self: 'async_trait,
+    {
+        Box::pin(async move {
+            let request: ExtHttpRequest = request.try_into()?;
+            let response: ExtHttpResponse =
+                self.call(request)
+                    .await
+                    .map_err(|e| HttpClientError::Other {
+                        error: e.to_string(),
+                    })?;
+            let response: HttpResponse = response.try_into()?;
+            Ok::<_, HttpClientError>(response)
+        })
+    }
+}
+
 #[derive(uniffi::Object)]
 /// Http client wrapper type that could either be a synchronous or asynchronous
 /// external (Kotlin, Swift, etc) client implementation, receveid as a dynamic
@@ -204,12 +239,12 @@ pub(crate) struct IArc<T: ?Sized>(Arc<T>);
 #[uniffi::export]
 impl IHttpClient {
     #[uniffi::constructor(name = "new_sync")]
-    fn new_sync(client_impl: Arc<dyn SyncHttpClient>) -> Arc<Self> {
+    pub fn new_sync(client_impl: Arc<dyn SyncHttpClient>) -> Arc<Self> {
         Arc::new(client_impl.into())
     }
 
     #[uniffi::constructor(name = "new_async")]
-    fn new_async(client_impl: Arc<dyn AsyncHttpClient>) -> Arc<Self> {
+    pub fn new_async(client_impl: Arc<dyn AsyncHttpClient>) -> Arc<Self> {
         Arc::new(client_impl.into())
     }
 }

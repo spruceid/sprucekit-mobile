@@ -177,3 +177,199 @@ impl Oid4vci {
         .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use oid4vci::{
+        proof_of_possession::{
+            ProofOfPossession, ProofOfPossessionController, ProofOfPossessionParams,
+        },
+        types::Nonce,
+    };
+    use ssi::{
+        claims::{jwt::RegisteredClaims, JwsPayload},
+        dids::DIDURLBuf,
+        JWK,
+    };
+    use url::Url;
+
+    use crate::did;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn potato() {
+        let credential_offer_request = "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz1A68iKqcX2HbQGQfVSfFnjkM%2Fexchanges%2Fz19jAriNqTgb3tf62dtwvYcyV%2Fopenid%2Fcredential-offer".to_string();
+        let client = oid4vci::oauth2::reqwest::Client::new();
+        let client: Arc<dyn AsyncHttpClient> = Arc::new(client);
+        let wrapper = Oid4vci::with_async_client(client.into());
+        wrapper
+            .initiate_with_offer(
+                credential_offer_request,
+                "did:example:1234".to_string(),
+                "test://".to_string(),
+            )
+            .await
+            .unwrap();
+        let nonce = wrapper.exchange_token().await.unwrap();
+        let jwk = include_str!("../../test.jwk").to_string();
+        let key: JWK = serde_json::from_str(&jwk).unwrap();
+
+        let did_method = did::DidMethod::Jwk;
+        let audience = wrapper.get_metadata().unwrap().issuer();
+        let nonce = nonce;
+
+        let issuer = did_method.did_from_jwk(&jwk).unwrap();
+        let vm = did_method.vm_from_jwk(&jwk).await.unwrap();
+
+        let pop_params = ProofOfPossessionParams {
+            audience: Url::from_str(&audience).unwrap(),
+            issuer,
+            controller: ProofOfPossessionController {
+                vm: Some(DIDURLBuf::from_string(vm).unwrap()),
+                jwk: JWK::from_str(&jwk).unwrap(),
+            },
+            nonce: nonce.map(Nonce::new),
+        };
+
+        let vc = ProofOfPossession::generate(
+            &pop_params,
+            None.map(time::Duration::seconds)
+                .unwrap_or(time::Duration::minutes(5)),
+        );
+        let vc: RegisteredClaims =
+            serde_json::from_str(&serde_json::to_string(&vc.body).unwrap()).unwrap();
+        let jwt = vc.sign(&key).await.unwrap();
+        let jwt = jwt.to_string();
+
+        let pairs = vec![
+            (
+                "https://w3id.org/vdl/aamva/v1",
+                r#"{
+  "@context": {
+    "@protected": true,
+    "aamva_aka_family_name_v2": "https://w3id.org/vdl/aamva#akaFamilyNameV2",
+    "aamva_aka_given_name_v2": "https://w3id.org/vdl/aamva#akaGivenNameV2",
+    "aamva_aka_suffix": "https://w3id.org/vdl/aamva#akaSuffix",
+    "aamva_cdl_indicator": {
+      "@id": "https://w3id.org/vdl/aamva#cdlIndicator",
+      "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+    },
+    "aamva_dhs_compliance": "https://w3id.org/vdl/aamva#dhsCompliance",
+    "aamva_dhs_compliance_text": "https://w3id.org/vdl/aamva#dhsCompliance_text",
+    "aamva_dhs_temporary_lawful_status": {
+      "@id": "https://w3id.org/vdl/aamva#dhsTemporaryLawfulStatus",
+      "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+    },
+    "aamva_domestic_driving_privileges": {
+      "@id": "https://w3id.org/vdl/aamva#domesticDrivingPrivileges",
+      "@type": "@json"
+    },
+    "aamva_edl_credential": {
+      "@id": "https://w3id.org/vdl/aamva#edlCredential",
+      "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+    },
+    "aamva_family_name_truncation": "https://w3id.org/vdl/aamva#familyNameTruncation",
+    "aamva_given_name_truncation": "https://w3id.org/vdl/aamva#givenNameTruncation",
+    "aamva_hazmat_endorsement_expiration_date": {
+      "@id": "https://w3id.org/vdl/aamva#hazmatEndorsementExpirationDate",
+      "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+    },
+    "aamva_name_suffix": "https://w3id.org/vdl/aamva#nameSuffix",
+    "aamva_organ_donor": {
+      "@id": "https://w3id.org/vdl/aamva#organDonor",
+      "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+    },
+    "aamva_race_ethnicity": "https://w3id.org/vdl/aamva#raceEthnicity",
+    "aamva_resident_county": "https://w3id.org/vdl/aamva#residentCounty",
+    "aamva_sex": {
+      "@id": "https://w3id.org/vdl/aamva#sex",
+      "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+    },
+    "aamva_veteran": {
+      "@id": "https://w3id.org/vdl/aamva#veteran",
+      "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+    },
+    "aamva_weight_range": {
+      "@id": "https://w3id.org/vdl/aamva#weightRange",
+      "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+    }
+  }
+}"#,
+            ),
+            (
+                "https://examples.vcplayground.org/contexts/shim-render-method-term/v1.json",
+                r#"{
+  "@context": {
+    "@protected": true,
+    "renderMethod": {
+      "@id": "https://www.w3.org/2018/credentials#renderMethod",
+      "@type": "@id"
+    }
+  }
+}"#,
+            ),
+            (
+                "https://w3id.org/vc/render-method/v2rc1",
+                r#"{
+  "@context": {
+    "@protected": true,
+    "id": "@id",
+    "type": "@type",
+    "SvgRenderingTemplate2023": {
+      "@id": "https://w3id.org/vc/render-method#SvgRenderingTemplate2023",
+      "@context": {
+        "@protected": true,
+        "id": "@id",
+        "type": "@type",
+        "css3MediaQuery": {
+          "@id": "https://w3id.org/vc/render-method#css3MediaQuery"
+        },
+        "digestMultibase": {
+          "@id": "https://w3id.org/security#digestMultibase",
+          "@type": "https://w3id.org/security#multibase"
+        },
+        "name": "https://schema.org/name"
+      }
+    },
+    "SvgRenderingTemplate2024": {
+      "@id": "https://w3id.org/vc/render-method#SvgRenderingTemplate2024",
+      "@context": {
+        "@protected": true,
+        "id": "@id",
+        "type": "@type",
+        "digestMultibase": {
+          "@id": "https://w3id.org/security#digestMultibase",
+          "@type": "https://w3id.org/security#multibase"
+        },
+        "mediaQuery": "https://w3id.org/vc/render-method#mediaQuery",
+        "mediaType": "https://schema.org/encodingFormat",
+        "name": "https://schema.org/name",
+        "template": "https://w3id.org/vc/render-method#template"
+      }
+    }
+  }
+}"#,
+            ),
+        ]
+        .into_iter()
+        .map(|(a, b)| (a.to_string(), b.to_string()))
+        .collect();
+        wrapper.set_context_map(pairs).unwrap();
+
+        let creds = wrapper
+            .exchange_credential(vec![jwt], Oid4vciExchangeOptions::default())
+            .await
+            .unwrap();
+        for i in creds {
+            println!("format: {}", i.format);
+            println!(
+                "payload: {}",
+                serde_json::from_slice::<serde_json::Value>(&i.payload).unwrap()
+            );
+        }
+        assert!(false);
+    }
+}
