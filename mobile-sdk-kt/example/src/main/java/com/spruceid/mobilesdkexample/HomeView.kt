@@ -41,6 +41,7 @@ import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.verifier.VerifierHomeView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.wallet.WalletHomeView
 
@@ -55,7 +56,8 @@ fun HomeView(
     initialTab: String,
     verificationMethodsViewModel: VerificationMethodsViewModel,
     credentialPacksViewModel: CredentialPacksViewModel,
-    statusListViewModel: StatusListViewModel
+    statusListViewModel: StatusListViewModel,
+    helpersViewModel: HelpersViewModel
 ) {
     var tab by remember {
         if (initialTab == "verifier") {
@@ -79,7 +81,8 @@ fun HomeView(
                 WalletHomeView(
                     navController,
                     credentialPacksViewModel = credentialPacksViewModel,
-                    statusListViewModel = statusListViewModel
+                    statusListViewModel = statusListViewModel,
+                    helpersViewModel = helpersViewModel
                 )
             } else {
                 VerifierHomeView(

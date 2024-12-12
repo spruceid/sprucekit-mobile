@@ -196,6 +196,18 @@ struct GenericCredentialItem: ICredentialView {
                                     .font(.customFont(font: .inter, style: .semiBold, size: .h1))
                                     .foregroundStyle(Color("ColorStone950"))
                             }
+                            .confirmationDialog(
+                                Text("Credential Options"),
+                                isPresented: $optionsOpen,
+                                titleVisibility: .visible,
+                                actions: {
+                                    CredentialOptionsDialogActions(
+                                        onDelete: onDelete,
+                                        exportFileName: "\(title ?? "credential").json",
+                                        credentialPack: credentialPack
+                                    )
+                                }
+                            )
                         }
                         .padding(.leading, 12)
                 },
@@ -204,17 +216,6 @@ struct GenericCredentialItem: ICredentialView {
                 leadingIconKeys: ["issuer"],
                 leadingIconFormatter: leadingIconFormatter
             ))
-        )
-        .confirmationDialog(
-            Text("Credential Options"),
-            isPresented: $optionsOpen,
-            titleVisibility: .visible,
-            actions: {
-                if onDelete != nil {
-                    Button("Delete", role: .destructive) { onDelete?() }
-                }
-                Button("Cancel", role: .cancel) {}
-            }
         )
     }
 

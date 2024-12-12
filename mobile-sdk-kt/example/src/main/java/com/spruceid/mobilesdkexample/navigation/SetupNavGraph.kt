@@ -51,7 +51,8 @@ fun SetupNavGraph(
                 initialTab = tab,
                 verificationMethodsViewModel = verificationMethodsViewModel,
                 credentialPacksViewModel = credentialPacksViewModel,
-                statusListViewModel = statusListViewModel
+                statusListViewModel = statusListViewModel,
+                helpersViewModel = helpersViewModel
             )
         }
         composable(

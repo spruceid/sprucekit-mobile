@@ -37,8 +37,7 @@ fun VerifierCredentialSuccessView(
     logVerification: (String, String) -> Unit,
     statusListViewModel: StatusListViewModel
 ) {
-    val credentialItem =
-        credentialDisplaySelector(rawCredential, null, statusListViewModel = statusListViewModel)
+    val credentialItem = credentialDisplaySelector(rawCredential, statusListViewModel = statusListViewModel, null, null)
     var title by remember { mutableStateOf<String?>(null) }
     var issuer by remember { mutableStateOf<String?>(null) }
 

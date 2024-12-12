@@ -45,15 +45,18 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.getFileContent
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import kotlinx.coroutines.launch
+import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 
 @Composable
 fun WalletHomeView(
     navController: NavController,
     credentialPacksViewModel: CredentialPacksViewModel,
-    statusListViewModel: StatusListViewModel
+    statusListViewModel: StatusListViewModel,
+    helpersViewModel: HelpersViewModel
 ) {
     Column(
         Modifier
@@ -63,7 +66,8 @@ fun WalletHomeView(
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
             credentialPacksViewModel = credentialPacksViewModel,
-            statusListViewModel = statusListViewModel
+            statusListViewModel = statusListViewModel,
+            helpersViewModel = helpersViewModel
         )
     }
 }
@@ -126,6 +130,7 @@ fun WalletHomeHeader(navController: NavController) {
 @Composable
 fun WalletHomeBody(
     credentialPacksViewModel: CredentialPacksViewModel,
+    helpersViewModel: HelpersViewModel,
     statusListViewModel: StatusListViewModel
 ) {
     val scope = rememberCoroutineScope()
@@ -167,6 +172,13 @@ fun WalletHomeBody(
                             statusListViewModel = statusListViewModel,
                             onDelete = {
                                 credentialPacksViewModel.deleteCredentialPack(credentialPack)
+                            },
+                            onExport = { credentialTitle ->
+                                helpersViewModel.exportText(
+                                    getFileContent(credentialPack),
+                                    "$credentialTitle.json",
+                                    "text/plain"
+                                )
                             }
                         )
                             .credentialPreviewAndDetails()
