@@ -138,7 +138,9 @@ pub async fn test_vc_playground_oid4vci() -> Result<()> {
     // Load VC Playground Context
     session.set_context_map(vc_playground_context())?;
 
-    let credentials = session.exchange_credential(vec![pop]).await?;
+    let credentials = session
+        .exchange_credential(vec![pop], Oid4vciExchangeOptions::default())
+        .await?;
 
     println!("Credentials: {credentials:?}");
 
