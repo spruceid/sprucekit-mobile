@@ -337,11 +337,11 @@ pub(crate) mod tests {
         async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
             let sig = self
                 .jwk
-                .sign(payload)
+                .sign_bytes(&payload)
                 .await
                 .expect("failed to sign Jws Payload");
 
-            Ok(sig.as_bytes().to_vec())
+            Ok(sig)
         }
 
         fn algorithm(&self) -> Algorithm {
