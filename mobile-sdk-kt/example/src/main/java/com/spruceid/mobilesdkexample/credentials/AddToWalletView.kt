@@ -50,7 +50,7 @@ fun AddToWalletView(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        credentialItem = credentialDisplaySelector(rawCredential, null)
+        credentialItem = credentialDisplaySelector(rawCredential, null, null)
     }
 
     fun back() {

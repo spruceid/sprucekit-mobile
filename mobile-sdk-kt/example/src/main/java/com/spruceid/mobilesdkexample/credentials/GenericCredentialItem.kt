@@ -12,14 +12,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -27,11 +23,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.res.painterResource
@@ -49,28 +43,36 @@ import com.spruceid.mobile.sdk.ui.toCardRendering
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
-import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
-import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.addCredential
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
-import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class GenericCredentialItem : ICredentialView {
     override var credentialPack: CredentialPack
     private val onDelete: (() -> Unit)?
+    private val onExport: ((String) -> Unit)?
 
-    constructor(credentialPack: CredentialPack, onDelete: (() -> Unit)? = null) {
+    constructor(
+        credentialPack: CredentialPack,
+        onDelete: (() -> Unit)? = null,
+        onExport: ((String) -> Unit)? = null
+    ) {
         this.credentialPack = credentialPack
         this.onDelete = onDelete
+        this.onExport = onExport
     }
 
-    constructor(rawCredential: String, onDelete: (() -> Unit)? = null) {
+    constructor(
+        rawCredential: String,
+        onDelete: (() -> Unit)? = null,
+        onExport: ((String) -> Unit)? = null
+    ) {
         this.credentialPack = addCredential(CredentialPack(), rawCredential)
         this.onDelete = onDelete
+        this.onExport = onExport
     }
 
     @Composable
@@ -236,11 +238,8 @@ class GenericCredentialItem : ICredentialView {
         )
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun listItemWithOptions() {
-        val sheetState = rememberModalBottomSheetState()
-        val scope = rememberCoroutineScope()
         var showBottomSheet by remember { mutableStateOf(false) }
 
         val listRendering = CardRenderingListView(
@@ -303,6 +302,17 @@ class GenericCredentialItem : ICredentialView {
                         color = ColorStone950,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
+                    if (showBottomSheet) {
+                        CredentialOptionsDialogActions(
+                            setShowBottomSheet = { show ->
+                                showBottomSheet = show
+                            },
+                            onDelete = onDelete,
+                            onExport = {
+                                onExport?.let { it(title) }
+                            }
+                        )
+                    }
                 }
             },
             descriptionKeys = listOf("description", "issuer"),
@@ -319,72 +329,6 @@ class GenericCredentialItem : ICredentialView {
             credentialPack = credentialPack,
             rendering = listRendering.toCardRendering()
         )
-
-        if (showBottomSheet) {
-            ModalBottomSheet(
-                onDismissRequest = {
-                    showBottomSheet = false
-                },
-                sheetState = sheetState,
-                modifier = Modifier.navigationBarsPadding()
-            ) {
-                Text(
-                    text = "Credential Options",
-                    textAlign = TextAlign.Center,
-                    fontFamily = Inter,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 12.sp,
-                    color = ColorStone950,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                )
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                Button(
-                    onClick = {
-                        showBottomSheet = false
-                        onDelete?.invoke()
-                    },
-                    shape = RoundedCornerShape(5.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = ColorRose600,
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Delete",
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.Normal,
-                        color = ColorRose600,
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        scope.launch { sheetState.hide() }.invokeOnCompletion {
-                            if (!sheetState.isVisible) {
-                                showBottomSheet = false
-                            }
-                        }
-                    },
-                    shape = RoundedCornerShape(5.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = ColorBlue600,
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                ) {
-                    Text(
-                        text = "Cancel",
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.Bold,
-                        color = ColorBlue600,
-                    )
-                }
-            }
-        }
     }
 
     @Composable

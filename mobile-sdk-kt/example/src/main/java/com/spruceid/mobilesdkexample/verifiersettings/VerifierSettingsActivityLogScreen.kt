@@ -80,9 +80,10 @@ fun VerifierSettingsActivityLogScreen(
         VerifierSettingsActivityLogScreenBody(
             verificationActivityLogs = verificationActivityLogs,
             export = { logs ->
-                helpersViewModel.exportCSV(
+                helpersViewModel.exportText(
                     verificationActivityLogsViewModel.generateVerificationActivityLogCSV(logs = logs),
-                    "activity_logs.csv"
+                    "activity_logs.csv",
+                    "text/csv"
                 )
             }
         )

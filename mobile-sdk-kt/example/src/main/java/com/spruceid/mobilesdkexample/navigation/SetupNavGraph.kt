@@ -48,7 +48,8 @@ fun SetupNavGraph(
                 navController,
                 initialTab = tab,
                 verificationMethodsViewModel = verificationMethodsViewModel,
-                credentialPacksViewModel = credentialPacksViewModel
+                credentialPacksViewModel = credentialPacksViewModel,
+                helpersViewModel = helpersViewModel
             )
         }
         composable(
