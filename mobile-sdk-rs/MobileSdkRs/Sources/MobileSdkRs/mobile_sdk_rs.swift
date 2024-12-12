@@ -2757,7 +2757,7 @@ public protocol Oid4vciProtocol : AnyObject {
     
     func clearContextMap() throws 
     
-    func exchangeCredential(proofsOfPossession: [String]) async throws  -> [CredentialResponse]
+    func exchangeCredential(proofsOfPossession: [String], options: Oid4vciExchangeOptions) async throws  -> [CredentialResponse]
     
     func exchangeToken() async throws  -> String?
     
@@ -2857,13 +2857,13 @@ open func clearContextMap()throws  {try rustCallWithError(FfiConverterTypeOid4vc
 }
 }
     
-open func exchangeCredential(proofsOfPossession: [String])async throws  -> [CredentialResponse] {
+open func exchangeCredential(proofsOfPossession: [String], options: Oid4vciExchangeOptions)async throws  -> [CredentialResponse] {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_oid4vci_exchange_credential(
                     self.uniffiClonePointer(),
-                    FfiConverterSequenceString.lower(proofsOfPossession)
+                    FfiConverterSequenceString.lower(proofsOfPossession),FfiConverterTypeOid4vciExchangeOptions.lower(options)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
@@ -6045,6 +6045,55 @@ public func FfiConverterTypeMDLReaderSessionData_lift(_ buf: RustBuffer) throws 
 
 public func FfiConverterTypeMDLReaderSessionData_lower(_ value: MdlReaderSessionData) -> RustBuffer {
     return FfiConverterTypeMDLReaderSessionData.lower(value)
+}
+
+
+public struct Oid4vciExchangeOptions {
+    public var verifyAfterExchange: Bool?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(verifyAfterExchange: Bool?) {
+        self.verifyAfterExchange = verifyAfterExchange
+    }
+}
+
+
+
+extension Oid4vciExchangeOptions: Equatable, Hashable {
+    public static func ==(lhs: Oid4vciExchangeOptions, rhs: Oid4vciExchangeOptions) -> Bool {
+        if lhs.verifyAfterExchange != rhs.verifyAfterExchange {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(verifyAfterExchange)
+    }
+}
+
+
+public struct FfiConverterTypeOid4vciExchangeOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciExchangeOptions {
+        return
+            try Oid4vciExchangeOptions(
+                verifyAfterExchange: FfiConverterOptionBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Oid4vciExchangeOptions, into buf: inout [UInt8]) {
+        FfiConverterOptionBool.write(value.verifyAfterExchange, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeOid4vciExchangeOptions_lift(_ buf: RustBuffer) throws -> Oid4vciExchangeOptions {
+    return try FfiConverterTypeOid4vciExchangeOptions.lift(buf)
+}
+
+public func FfiConverterTypeOid4vciExchangeOptions_lower(_ value: Oid4vciExchangeOptions) -> RustBuffer {
+    return FfiConverterTypeOid4vciExchangeOptions.lower(value)
 }
 
 
@@ -9659,6 +9708,27 @@ fileprivate struct FfiConverterOptionInt64: FfiConverterRustBuffer {
     }
 }
 
+fileprivate struct FfiConverterOptionBool: FfiConverterRustBuffer {
+    typealias SwiftType = Bool?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterBool.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterBool.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
 fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
     typealias SwiftType = String?
 
@@ -10908,11 +10978,11 @@ public func initializeMdlPresentationFromBytes(mdoc: Mdoc, uuid: Uuid)throws  ->
     )
 })
 }
-public func oid4vciExchangeCredential(session: Oid4vciSession, proofsOfPossession: [String], contextMap: [String: String]?, httpClient: IHttpClient)async throws  -> [CredentialResponse] {
+public func oid4vciExchangeCredential(session: Oid4vciSession, proofsOfPossession: [String], options: Oid4vciExchangeOptions, contextMap: [String: String]?, httpClient: IHttpClient)async throws  -> [CredentialResponse] {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_func_oid4vci_exchange_credential(FfiConverterTypeOid4vciSession.lower(session),FfiConverterSequenceString.lower(proofsOfPossession),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterTypeIHttpClient.lower(httpClient)
+                uniffi_mobile_sdk_rs_fn_func_oid4vci_exchange_credential(FfiConverterTypeOid4vciSession.lower(session),FfiConverterSequenceString.lower(proofsOfPossession),FfiConverterTypeOid4vciExchangeOptions.lower(options),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterTypeIHttpClient.lower(httpClient)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
@@ -11078,7 +11148,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 26972) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_oid4vci_exchange_credential() != 59343) {
+    if (uniffi_mobile_sdk_rs_checksum_func_oid4vci_exchange_credential() != 25671) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_oid4vci_exchange_token() != 3394) {
@@ -11207,7 +11277,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vci_clear_context_map() != 165) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vci_exchange_credential() != 17336) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vci_exchange_credential() != 53636) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vci_exchange_token() != 35585) {
