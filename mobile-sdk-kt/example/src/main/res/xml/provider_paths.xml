@@ -3,6 +3,9 @@
     <cache-path
         name="activity_logs.csv"
         path="/" />
+    <cache-path
+        name="wallet_activity_logs.csv"
+        path="/" />
     <external-path
         name="external"
         path="." />
