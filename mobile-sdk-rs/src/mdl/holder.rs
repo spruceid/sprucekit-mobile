@@ -18,6 +18,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
     definitions::{
         device_engagement::{CentralClientMode, DeviceRetrievalMethods},
@@ -164,12 +165,21 @@ impl MdlPresentationSession {
     /// Takes the raw bytes received from the reader by the holder over the transmission
     /// technology. Returns a Vector of information items requested by the reader, or an
     /// error.
-    pub fn handle_request(&self, request: Vec<u8>) -> Result<Vec<ItemsRequest>, RequestError> {
-        let (session_manager, items_requests) = {
+    pub fn handle_request(
+        &self,
+        request: Vec<u8>,
+        trust_anchor_pem_strings: Vec<String>,
+    ) -> Result<Vec<ItemsRequest>, RequestError> {
+        let (session_manager, validated_request) = {
             let session_establishment: SessionEstablishment = serde_cbor::from_slice(&request)
                 .map_err(|e| RequestError::Generic {
                     value: format!("Could not deserialize request: {e:?}"),
                 })?;
+
+            let trust_anchor =
+                TrustAnchorRegistry::iaca_registry_from_str(trust_anchor_pem_strings)
+                    .map_err(|e| RequestError::TrustAnchorRegistry(format!("{e:?}")))?;
+
             self.engaged
                 .lock()
                 .map_err(|_| RequestError::Generic {
@@ -187,10 +197,10 @@ impl MdlPresentationSession {
         })?;
         *in_process = Some(InProcessRecord {
             session: session_manager,
-            items_request: items_requests.clone(),
+            items_request: validated_request.clone(),
         });
 
-        Ok(items_requests
+        Ok(validated_request
             .into_iter()
             .map(|req| ItemsRequest {
                 doc_type: req.doc_type,
@@ -303,6 +313,9 @@ pub enum SessionError {
 pub enum RequestError {
     #[error("{value}")]
     Generic { value: String },
+
+    #[error("Trust Anchor Registry Error: {0}")]
+    TrustAnchorRegistry(String),
 }
 
 #[derive(uniffi::Record, Clone)]
@@ -370,10 +383,11 @@ mod tests {
         let mdoc_b64 = include_str!("../../tests/res/mdoc.b64");
         let mdoc_bytes = BASE64_STANDARD.decode(mdoc_b64).unwrap();
         let mdoc = Uuid::new_v4();
+
+        let reader_key = include_str!("../../tests/res/sec1.pem");
         let key: p256::ecdsa::SigningKey =
-            p256::SecretKey::from_sec1_pem(include_str!("../../tests/res/sec1.pem"))
-                .unwrap()
-                .into();
+            p256::SecretKey::from_sec1_pem(reader_key).unwrap().into();
+
         let smi = Arc::new(local_store::LocalStore::new());
 
         let vdc_collection = VdcCollection::new(smi.clone());
@@ -405,20 +419,33 @@ mod tests {
         .collect::<BTreeMap<String, DataElements>>()
         .try_into()
         .unwrap();
-        let trust_anchor = TrustAnchorRegistry::iaca_registry_from_str(vec![include_str!(
-            "../../tests/res/root-cert.pem"
-        )
-        .to_string()])
-        .unwrap();
+
+        let trust_anchor = vec![include_str!("../../tests/res/root-cert.pem").to_string()];
+        let trust_anchor_registry =
+            TrustAnchorRegistry::iaca_registry_from_str(trust_anchor.clone()).unwrap();
+
+        let reader_x5chain = vec![
+            include_str!("../../tests/res/sec1.pem").as_bytes().to_vec(),
+            include_str!("../../tests/res/root-cert.pem")
+                .as_bytes()
+                .to_vec(),
+        ];
+
         let (mut reader_session_manager, request, _ble_ident) =
             reader::SessionManager::establish_session(
                 presentation_session.qr_code_uri.clone(),
                 namespaces.clone(),
-                Some(trust_anchor),
+                Some(trust_anchor_registry),
+                // reader_x5chain
+                //     .try_into()
+                //     .expect("failed to load reader x.509 certificate chain"),
+                // reader_key,
             )
             .unwrap();
         // let request = reader_session_manager.new_request(namespaces).unwrap();
-        let _request_data = presentation_session.handle_request(request).unwrap();
+        let _request_data = presentation_session
+            .handle_request(request, trust_anchor)
+            .unwrap();
         let permitted_items = [(
             "org.iso.18013.5.1.mDL".to_string(),
             [(
@@ -447,10 +474,10 @@ mod tests {
         let mdoc_b64 = include_str!("../../tests/res/mdoc.b64");
         let mdoc_bytes = BASE64_STANDARD.decode(mdoc_b64).unwrap();
         let mdoc = Uuid::new_v4();
+
+        let reader_key = include_str!("../../tests/res/sec1.pem");
         let key: p256::ecdsa::SigningKey =
-            p256::SecretKey::from_sec1_pem(include_str!("../../tests/res/sec1.pem"))
-                .unwrap()
-                .into();
+            p256::SecretKey::from_sec1_pem(reader_key).unwrap().into();
         let smi = Arc::new(local_store::LocalStore::new());
 
         let vdc_collection = VdcCollection::new(smi.clone());
@@ -478,17 +505,29 @@ mod tests {
         )]
         .into_iter()
         .collect();
+
+        let trust_anchor = vec![include_str!("../../tests/res/root-cert.pem").to_string()];
+
+        let reader_x5chain = vec![
+            include_str!("../../tests/res/sec1.pem").as_bytes().to_vec(),
+            include_str!("../../tests/res/root-cert.pem")
+                .as_bytes()
+                .to_vec(),
+        ];
+
         let reader_session_data = crate::reader::establish_session(
             presentation_session.qr_code_uri.clone(),
             namespaces,
-            Some(vec![
-                include_str!("../../tests/res/root-cert.pem").to_string()
-            ]),
+            Some(trust_anchor.clone()),
+            reader_x5chain
+                .try_into()
+                .expect("failed to load reader x.509 certificate chain"),
+            reader_key.to_string(),
         )
         .unwrap();
         // let request = reader_session_manager.new_request(namespaces).unwrap();
         let _request_data = presentation_session
-            .handle_request(reader_session_data.request)
+            .handle_request(reader_session_data.request, trust_anchor)
             .unwrap();
         let permitted_items = [(
             "org.iso.18013.5.1.mDL".to_string(),

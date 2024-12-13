@@ -272,9 +272,7 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJson(vc) => vc.requested_fields(definition),
             ParsedCredentialInner::JwtVcJsonLd(vc) => vc.requested_fields(definition),
             ParsedCredentialInner::LdpVc(vc) => vc.requested_fields(definition),
-            ParsedCredentialInner::MsoMdoc(_mdoc) => {
-                unimplemented!("Mdoc requested fields not implemented")
-            }
+            ParsedCredentialInner::MsoMdoc(mdoc) => mdoc.requested_fields(definition),
         }
     }
 

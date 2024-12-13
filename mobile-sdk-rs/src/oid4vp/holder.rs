@@ -157,21 +157,37 @@ impl Holder {
     pub(crate) fn metadata() -> Result<WalletMetadata, OID4VPError> {
         let mut metadata = WalletMetadata::openid4vp_scheme_static();
 
+        // Add support for the LDP VP format.
+        metadata.vp_formats_supported_mut().0.insert(
+            ClaimFormatDesignation::LdpVp,
+            ClaimFormatPayload::ProofType(vec!["ecdsa-rdfc-2019".into()]),
+        );
+
         // Insert support for the VCDM2 SD JWT format.
         metadata.vp_formats_supported_mut().0.insert(
             ClaimFormatDesignation::Other("vcdm2_sd_jwt".into()),
             ClaimFormatPayload::AlgValuesSupported(vec!["ES256".into()]),
         );
 
-        // Insert support for the JSON-LD format.
+        // Insert support for `mso_mdoc`
         metadata.vp_formats_supported_mut().0.insert(
-            ClaimFormatDesignation::LdpVp,
-            ClaimFormatPayload::ProofType(vec!["ecdsa-rdfc-2019".into()]),
+            ClaimFormatDesignation::Other("mso_mdoc".into()),
+            ClaimFormatPayload::AlgValuesSupported(vec!["ES256".into()]),
         );
 
         metadata
-            // Insert support for the DID client ID scheme.
-            .add_client_id_schemes_supported(&[ClientIdScheme::Did, ClientIdScheme::RedirectUri])
+            .add_client_id_schemes_supported(&[
+                ClientIdScheme::Did,
+                ClientIdScheme::RedirectUri,
+                // NOTE: 18013-7 requires that:
+                //
+                // > The value for `client_id_schemes_supported`
+                // shall contain the x509_san_dns Client Identifier
+                // scheme.
+                //
+                // See: Section B.3.2.1
+                ClientIdScheme::X509SanDns,
+            ])
             .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
 
         metadata
@@ -301,6 +317,15 @@ impl RequestVerifier for Holder {
 
         Ok(())
     }
+
+    /// Performs verification on Authorization Request Objects when `client_id_scheme` is `d`.
+    async fn x509_san_dns(
+        &self,
+        decoded_request: &AuthorizationRequestObject,
+        request_jwt: String,
+    ) -> anyhow::Result<()> {
+        unimplemented!("x509_san_dns is not supported.")
+    }
 }
 
 impl OID4VPWallet for Holder {
@@ -343,11 +368,11 @@ pub(crate) mod tests {
         pub async fn sign_jwt(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
             let sig = self
                 .jwk
-                .sign(payload)
+                .sign_bytes(&payload)
                 .await
                 .expect("failed to sign Jws Payload");
 
-            Ok(sig.as_bytes().to_vec())
+            Ok(sig)
         }
     }
 

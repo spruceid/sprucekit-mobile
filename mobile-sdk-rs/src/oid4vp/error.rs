@@ -14,8 +14,6 @@ pub enum OID4VPError {
     RequestValidation(String),
     #[error("Failed to resolve the presentation definition: {0}")]
     PresentationDefinitionResolution(String),
-    #[error("Failed to create verifiable presentation token: {0}")]
-    Token(String),
     #[error("Unsupported Response Mode for OID4VP Request: {0}")]
     UnsupportedResponseMode(String),
     #[error("Failed to submit OID4VP response: {0}")]

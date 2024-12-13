@@ -2408,7 +2408,7 @@ public protocol MdlPresentationSessionProtocol : AnyObject {
      * technology. Returns a Vector of information items requested by the reader, or an
      * error.
      */
-    func handleRequest(request: Data) throws  -> [ItemsRequest]
+    func handleRequest(request: Data, trustAnchorPemStrings: [String]) throws  -> [ItemsRequest]
     
     func submitResponse(derSignature: Data) throws  -> Data
     
@@ -2506,10 +2506,11 @@ open func getQrCodeUri() -> String {
      * technology. Returns a Vector of information items requested by the reader, or an
      * error.
      */
-open func handleRequest(request: Data)throws  -> [ItemsRequest] {
+open func handleRequest(request: Data, trustAnchorPemStrings: [String])throws  -> [ItemsRequest] {
     return try  FfiConverterSequenceTypeItemsRequest.lift(try rustCallWithError(FfiConverterTypeRequestError.lift) {
     uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_handle_request(self.uniffiClonePointer(),
-        FfiConverterData.lower(request),$0
+        FfiConverterData.lower(request),
+        FfiConverterSequenceString.lower(trustAnchorPemStrings),$0
     )
 })
 }
@@ -7589,8 +7590,6 @@ public enum Oid4vpError {
     )
     case PresentationDefinitionResolution(String
     )
-    case Token(String
-    )
     case UnsupportedResponseMode(String
     )
     case ResponseSubmission(String
@@ -7657,71 +7656,68 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
         case 3: return .PresentationDefinitionResolution(
             try FfiConverterString.read(from: &buf)
             )
-        case 4: return .Token(
+        case 4: return .UnsupportedResponseMode(
             try FfiConverterString.read(from: &buf)
             )
-        case 5: return .UnsupportedResponseMode(
+        case 5: return .ResponseSubmission(
             try FfiConverterString.read(from: &buf)
             )
-        case 6: return .ResponseSubmission(
+        case 6: return .CredentialCallback(
             try FfiConverterString.read(from: &buf)
             )
-        case 7: return .CredentialCallback(
+        case 7: return .PresentationSubmissionCreation(
             try FfiConverterString.read(from: &buf)
             )
-        case 8: return .PresentationSubmissionCreation(
+        case 8: return .InvalidDidUrl(
             try FfiConverterString.read(from: &buf)
             )
-        case 9: return .InvalidDidUrl(
+        case 9: return .DidKeyGenerateUrl(
             try FfiConverterString.read(from: &buf)
             )
-        case 10: return .DidKeyGenerateUrl(
+        case 10: return .JsonSyntaxParse(
             try FfiConverterString.read(from: &buf)
             )
-        case 11: return .JsonSyntaxParse(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 12: return .VdcCollection(
+        case 11: return .VdcCollection(
             try FfiConverterTypeVdcCollectionError.read(from: &buf)
             )
-        case 13: return .HttpClientInitialization(
+        case 12: return .HttpClientInitialization(
             try FfiConverterString.read(from: &buf)
             )
-        case 14: return .SigningAlgorithmNotFound(
+        case 13: return .SigningAlgorithmNotFound(
             try FfiConverterString.read(from: &buf)
             )
-        case 15: return .InvalidClientIdScheme(
+        case 14: return .InvalidClientIdScheme(
             try FfiConverterString.read(from: &buf)
             )
-        case 16: return .InputDescriptorNotFound
-        case 17: return .VpTokenParse(
+        case 15: return .InputDescriptorNotFound
+        case 16: return .VpTokenParse(
             try FfiConverterString.read(from: &buf)
             )
-        case 18: return .VpTokenCreate(
+        case 17: return .VpTokenCreate(
             try FfiConverterString.read(from: &buf)
             )
-        case 19: return .JwkParse(
+        case 18: return .JwkParse(
             try FfiConverterString.read(from: &buf)
             )
-        case 20: return .VdcCollectionNotInitialized
-        case 21: return .AuthorizationRequestNotFound
-        case 22: return .RequestSignerNotFound
-        case 23: return .MetadataInitialization(
+        case 19: return .VdcCollectionNotInitialized
+        case 20: return .AuthorizationRequestNotFound
+        case 21: return .RequestSignerNotFound
+        case 22: return .MetadataInitialization(
             try FfiConverterString.read(from: &buf)
             )
-        case 24: return .PermissionRequest(
+        case 23: return .PermissionRequest(
             try FfiConverterTypePermissionRequestError.read(from: &buf)
             )
-        case 25: return .Presentation(
+        case 24: return .Presentation(
             try FfiConverterTypePresentationError.read(from: &buf)
             )
-        case 26: return .CredentialEncoding(
+        case 25: return .CredentialEncoding(
             try FfiConverterTypeCredentialEncodingError.read(from: &buf)
             )
-        case 27: return .JsonPathParse(
+        case 26: return .JsonPathParse(
             try FfiConverterString.read(from: &buf)
             )
-        case 28: return .EmptyCredentialSubject(
+        case 27: return .EmptyCredentialSubject(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -7751,124 +7747,119 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Token(v1):
+        case let .UnsupportedResponseMode(v1):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .UnsupportedResponseMode(v1):
+        case let .ResponseSubmission(v1):
             writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .ResponseSubmission(v1):
+        case let .CredentialCallback(v1):
             writeInt(&buf, Int32(6))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .CredentialCallback(v1):
+        case let .PresentationSubmissionCreation(v1):
             writeInt(&buf, Int32(7))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PresentationSubmissionCreation(v1):
+        case let .InvalidDidUrl(v1):
             writeInt(&buf, Int32(8))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InvalidDidUrl(v1):
+        case let .DidKeyGenerateUrl(v1):
             writeInt(&buf, Int32(9))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .DidKeyGenerateUrl(v1):
+        case let .JsonSyntaxParse(v1):
             writeInt(&buf, Int32(10))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .JsonSyntaxParse(v1):
-            writeInt(&buf, Int32(11))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
         case let .VdcCollection(v1):
-            writeInt(&buf, Int32(12))
+            writeInt(&buf, Int32(11))
             FfiConverterTypeVdcCollectionError.write(v1, into: &buf)
             
         
         case let .HttpClientInitialization(v1):
-            writeInt(&buf, Int32(13))
+            writeInt(&buf, Int32(12))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .SigningAlgorithmNotFound(v1):
-            writeInt(&buf, Int32(14))
+            writeInt(&buf, Int32(13))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .InvalidClientIdScheme(v1):
-            writeInt(&buf, Int32(15))
+            writeInt(&buf, Int32(14))
             FfiConverterString.write(v1, into: &buf)
             
         
         case .InputDescriptorNotFound:
-            writeInt(&buf, Int32(16))
+            writeInt(&buf, Int32(15))
         
         
         case let .VpTokenParse(v1):
-            writeInt(&buf, Int32(17))
+            writeInt(&buf, Int32(16))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .VpTokenCreate(v1):
-            writeInt(&buf, Int32(18))
+            writeInt(&buf, Int32(17))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .JwkParse(v1):
-            writeInt(&buf, Int32(19))
+            writeInt(&buf, Int32(18))
             FfiConverterString.write(v1, into: &buf)
             
         
         case .VdcCollectionNotInitialized:
-            writeInt(&buf, Int32(20))
+            writeInt(&buf, Int32(19))
         
         
         case .AuthorizationRequestNotFound:
-            writeInt(&buf, Int32(21))
+            writeInt(&buf, Int32(20))
         
         
         case .RequestSignerNotFound:
-            writeInt(&buf, Int32(22))
+            writeInt(&buf, Int32(21))
         
         
         case let .MetadataInitialization(v1):
-            writeInt(&buf, Int32(23))
+            writeInt(&buf, Int32(22))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .PermissionRequest(v1):
-            writeInt(&buf, Int32(24))
+            writeInt(&buf, Int32(23))
             FfiConverterTypePermissionRequestError.write(v1, into: &buf)
             
         
         case let .Presentation(v1):
-            writeInt(&buf, Int32(25))
+            writeInt(&buf, Int32(24))
             FfiConverterTypePresentationError.write(v1, into: &buf)
             
         
         case let .CredentialEncoding(v1):
-            writeInt(&buf, Int32(26))
+            writeInt(&buf, Int32(25))
             FfiConverterTypeCredentialEncodingError.write(v1, into: &buf)
             
         
         case let .JsonPathParse(v1):
-            writeInt(&buf, Int32(27))
+            writeInt(&buf, Int32(26))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .EmptyCredentialSubject(v1):
-            writeInt(&buf, Int32(28))
+            writeInt(&buf, Int32(27))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -8498,6 +8489,8 @@ public enum RequestError {
     
     case Generic(value: String
     )
+    case TrustAnchorRegistry(String
+    )
 }
 
 
@@ -8514,6 +8507,9 @@ public struct FfiConverterTypeRequestError: FfiConverterRustBuffer {
         case 1: return .Generic(
             value: try FfiConverterString.read(from: &buf)
             )
+        case 2: return .TrustAnchorRegistry(
+            try FfiConverterString.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -8529,6 +8525,11 @@ public struct FfiConverterTypeRequestError: FfiConverterRustBuffer {
         case let .Generic(value):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .TrustAnchorRegistry(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
             
         }
     }
@@ -10038,6 +10039,28 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
     }
 }
 
+fileprivate struct FfiConverterSequenceData: FfiConverterRustBuffer {
+    typealias SwiftType = [Data]
+
+    public static func write(_ value: [Data], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterData.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Data] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Data]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterData.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 fileprivate struct FfiConverterSequenceTypeParsedCredential: FfiConverterRustBuffer {
     typealias SwiftType = [ParsedCredential]
 
@@ -10901,12 +10924,14 @@ public func decodeRevealSdJwt(input: String)throws  -> String {
     )
 })
 }
-public func establishSession(uri: String, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?)throws  -> MdlReaderSessionData {
+public func establishSession(uri: String, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?, readerX509Chain: [Data], readerKeyPem: String)throws  -> MdlReaderSessionData {
     return try  FfiConverterTypeMDLReaderSessionData.lift(try rustCallWithError(FfiConverterTypeMDLReaderSessionError.lift) {
     uniffi_mobile_sdk_rs_fn_func_establish_session(
         FfiConverterString.lower(uri),
         FfiConverterDictionaryStringDictionaryStringBool.lower(requestedItems),
-        FfiConverterOptionSequenceString.lower(trustAnchorRegistry),$0
+        FfiConverterOptionSequenceString.lower(trustAnchorRegistry),
+        FfiConverterSequenceData.lower(readerX509Chain),
+        FfiConverterString.lower(readerKeyPem),$0
     )
 })
 }
@@ -11144,7 +11169,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 34951) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 26937) {
+    if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 60302) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_pop_complete() != 56778) {
@@ -11270,7 +11295,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_get_qr_code_uri() != 36281) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_handle_request() != 21650) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_handle_request() != 64103) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_submit_response() != 684) {

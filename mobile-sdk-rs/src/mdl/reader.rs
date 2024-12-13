@@ -46,6 +46,8 @@ pub fn establish_session(
     uri: String,
     requested_items: HashMap<String, HashMap<String, bool>>,
     trust_anchor_registry: Option<Vec<String>>,
+    reader_x509_chain: Vec<Vec<u8>>,
+    reader_key_pem: String,
 ) -> Result<MDLReaderSessionData, MDLReaderSessionError> {
     let namespaces: Result<BTreeMap<_, NonEmptyMap<_, _>>, non_empty_map::Error> = requested_items
         .into_iter()
@@ -83,12 +85,25 @@ pub fn establish_session(
         None
     };
 
-    let (manager, request, ble_ident) =
-        reader::SessionManager::establish_session(uri.to_string(), namespaces, registry).map_err(
-            |e| MDLReaderSessionError::Generic {
-                value: format!("unable to establish session: {e:?}"),
-            },
-        )?;
+    // let _reader_x509_chain = reader_x509_chain
+    //     .into_iter()
+    //     .map(|bytes| X509 { bytes })
+    //     .collect::<Vec<X509>>()
+    //     .try_into()
+    //     .map_err(|e| MDLReaderSessionError::Generic {
+    //         value: format!("unable to parse x509 chain: {e:?}"),
+    //     })?;
+
+    let (manager, request, ble_ident) = reader::SessionManager::establish_session(
+        uri.to_string(),
+        namespaces,
+        registry,
+        // reader_x509_chain,
+        // &reader_key_pem,
+    )
+    .map_err(|e| MDLReaderSessionError::Generic {
+        value: format!("unable to establish session: {e:?}"),
+    })?;
     let manager2 = manager.clone();
     let uuid =
         manager2

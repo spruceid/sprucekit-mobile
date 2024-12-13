@@ -8,14 +8,28 @@ use isomdl::{
     definitions::{IssuerSigned, Mso},
     presentation::{device::Document, Stringify},
 };
+use openid4vp::{
+    core::{credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap},
+    JsonPath,
+};
+use serde::{ser::SerializeMap, Serialize, Serializer};
 use uuid::Uuid;
 
-use crate::{CredentialType, KeyAlias};
+use crate::{
+    oid4vp::{
+        error::OID4VPError,
+        presentation::{CredentialPresentation, PresentationOptions},
+    },
+    CredentialType, KeyAlias,
+};
 
 use super::{Credential, CredentialFormat};
 
+pub type DocumentDetails = HashMap<Namespace, Vec<Element>>;
+
 uniffi::custom_newtype!(Namespace, String);
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(transparent)]
 /// A namespace for mdoc data elements.
 pub struct Namespace(String);
 
@@ -28,10 +42,35 @@ pub struct Element {
     pub value: Option<String>,
 }
 
+// NOTE: Serializing to provide a JSON representation of the Element.
+impl Serialize for Element {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let value = self
+            .value
+            .as_ref()
+            .map(|s| serde_json::from_str::<serde_json::Value>(s))
+            .transpose()
+            .map_err(|e| {
+                serde::ser::Error::custom(format!(
+                    "Failed to parse JSON value for mDoc Element {}: {}",
+                    self.identifier, e
+                ))
+            })?;
+
+        let mut map = serializer.serialize_map(Some(1))?;
+        map.serialize_entry(&self.identifier, &value)?;
+        map.end()
+    }
+}
+
 #[derive(uniffi::Object, Debug, Clone)]
 pub struct Mdoc {
     inner: Document,
     key_alias: KeyAlias,
+    details: DocumentDetails,
 }
 
 #[uniffi::export]
@@ -60,7 +99,14 @@ impl Mdoc {
     ) -> Result<Arc<Self>, MdocInitError> {
         let inner = Document::parse(stringified_document)
             .map_err(|_| MdocInitError::DocumentUtf8Decoding)?;
-        Ok(Arc::new(Self { inner, key_alias }))
+
+        let details = Self::document_details(&inner);
+
+        Ok(Arc::new(Self {
+            inner,
+            key_alias,
+            details,
+        }))
     }
 
     #[uniffi::constructor]
@@ -72,7 +118,14 @@ impl Mdoc {
     ) -> Result<Arc<Self>, MdocInitError> {
         let inner = serde_cbor::from_slice(&cbor_encoded_document)
             .map_err(|_| MdocInitError::DocumentCborDecoding)?;
-        Ok(Arc::new(Self { inner, key_alias }))
+
+        let details = Self::document_details(&inner);
+
+        Ok(Arc::new(Self {
+            inner,
+            key_alias,
+            details,
+        }))
     }
 
     /// The local ID of this credential.
@@ -86,8 +139,24 @@ impl Mdoc {
     }
 
     /// Simple representation of mdoc namespace and data elements for display in the UI.
-    pub fn details(&self) -> HashMap<Namespace, Vec<Element>> {
-        self.document()
+    pub fn details(&self) -> DocumentDetails {
+        // NOTE: Cloning due to the uniffi::Object bound on the return type.
+        self.details.clone()
+    }
+
+    pub fn key_alias(&self) -> KeyAlias {
+        self.key_alias.clone()
+    }
+}
+
+impl Mdoc {
+    pub(crate) fn document(&self) -> &Document {
+        &self.inner
+    }
+
+    // Parse the document details from the presentation document.
+    pub fn document_details(document: &Document) -> DocumentDetails {
+        document
             .namespaces
             .clone()
             .into_inner()
@@ -109,16 +178,6 @@ impl Mdoc {
                 )
             })
             .collect()
-    }
-
-    pub fn key_alias(&self) -> KeyAlias {
-        self.key_alias.clone()
-    }
-}
-
-impl Mdoc {
-    pub(crate) fn document(&self) -> &Document {
-        &self.inner
     }
 
     fn new_from_issuer_signed(
@@ -151,19 +210,84 @@ impl Mdoc {
         let mso: Mso = serde_cbor::from_slice(
             issuer_auth
                 .payload()
+                .as_ref()
                 .ok_or(MdocInitError::IssuerAuthPayloadMissing)?,
         )
         .map_err(|_| MdocInitError::IssuerAuthPayloadDecoding)?;
 
+        let inner = Document {
+            id: Uuid::new_v4(),
+            issuer_auth,
+            namespaces,
+            mso,
+        };
+
+        let details = Self::document_details(&inner);
+
         Ok(Arc::new(Self {
             key_alias,
-            inner: Document {
-                id: Uuid::new_v4(),
-                issuer_auth,
-                namespaces,
-                mso,
-            },
+            inner,
+            details,
         }))
+    }
+}
+
+impl CredentialPresentation for Mdoc {
+    // NOTE: This is the parsed structure used to compare against the JSONPath expression
+    // in the presentation definition constraint field filter.
+    type Credential = DocumentDetails;
+
+    type CredentialFormat = ClaimFormatDesignation;
+    type PresentationFormat = ClaimFormatDesignation;
+
+    fn credential(&self) -> &Self::Credential {
+        &self.details
+    }
+
+    fn credential_format(&self) -> Self::CredentialFormat {
+        ClaimFormatDesignation::MsoMDoc
+    }
+
+    fn presentation_format(&self) -> Self::PresentationFormat {
+        ClaimFormatDesignation::MsoMDoc
+    }
+
+    // Return the credential as a VP Token Item.
+    //
+    // "The value for vp_token shall contain the base64url-encoded-
+    // without-padding DeviceResponse data structure as defined in
+    // ISO/IEC 18013-5."
+    //
+    // See: Section B.4.3.2 Authorization Response Parameters for 18013-7 requirements.
+    async fn as_vp_token_item<'a>(
+        &self,
+        options: &'a PresentationOptions<'a>,
+    ) -> Result<openid4vp::core::response::parameters::VpTokenItem, crate::oid4vp::error::OID4VPError>
+    {
+        unimplemented!()
+    }
+
+    // "The value for path shall be the static JSON String value $ if the VP Token
+    // contains a single JSON String or JSON object."
+    //
+    // See: Section B.4.3.3 Presentation Submission for 18013-7 requirements.
+    fn create_descriptor_map(
+        &self,
+        input_descriptor_id: impl Into<String>,
+        index: Option<usize>,
+    ) -> Result<openid4vp::core::presentation_submission::DescriptorMap, OID4VPError> {
+        let path = match index {
+            None => JsonPath::default(),
+            Some(i) => format!("$[{i}]")
+                .parse()
+                .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?,
+        };
+
+        Ok(DescriptorMap::new(
+            input_descriptor_id,
+            self.credential_format(),
+            path,
+        ))
     }
 }
 
