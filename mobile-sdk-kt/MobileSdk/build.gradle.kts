@@ -19,13 +19,13 @@ publishing {
         mavenLocal()
     }
     publications {
-        create<MavenPublication>("debug") {
-            groupId = "com.spruceid.mobile.sdk"
-            artifactId = "mobilesdk"
-            version = System.getenv("VERSION")
-
-            afterEvaluate { from(components["release"]) }
-        }
+        // This command must be commented on when releasing a new version.
+        // create<MavenPublication>("debug") {
+        //    groupId = "com.spruceid.mobile.sdk"
+        //    artifactId = "mobilesdk"
+        //    version = System.getenv("VERSION")
+        //  afterEvaluate { from(components["release"]) }
+        //}
 
         // Creates a Maven publication called "release".
         create<MavenPublication>("release") {
