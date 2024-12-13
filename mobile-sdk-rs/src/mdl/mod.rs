@@ -1,4 +1,5 @@
 pub mod holder;
+pub mod issuance;
 pub mod reader;
 
 use ssi::{

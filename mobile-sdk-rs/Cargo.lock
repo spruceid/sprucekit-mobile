@@ -1343,40 +1343,15 @@ dependencies = [
 
 [[package]]
 name = "der"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1a467a65c5e759bce6e65eaf91cc29f466cdc57cb65777bd646872a8a1fd4de"
-dependencies = [
- "const-oid 0.9.6",
- "der_derive 0.6.1",
- "flagset",
- "pem-rfc7468 0.6.0",
- "zeroize",
-]
-
-[[package]]
-name = "der"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f55bf8e7b65898637379c1b74eb1551107c8294ed26d855ceb9fd1a09cfc9bc0"
 dependencies = [
  "const-oid 0.9.6",
- "der_derive 0.7.3",
+ "der_derive",
  "flagset",
  "pem-rfc7468 0.7.0",
  "zeroize",
-]
-
-[[package]]
-name = "der_derive"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ef71ddb5b3a1f53dee24817c8f70dfa1cb29e804c18d88c228d4bc9c86ee3b9"
-dependencies = [
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -2716,7 +2691,6 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=1f4f762#1f4f762841b5f7744288966f048726107f2b4dbe"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2735,7 +2709,7 @@ dependencies = [
  "hex-literal",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=1f4f762)",
+ "isomdl-macros",
  "p256",
  "p384",
  "pem-rfc7468 0.7.0",
@@ -2750,59 +2724,13 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "uuid",
- "x509-cert 0.2.5",
- "zeroize",
-]
-
-[[package]]
-name = "isomdl"
-version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=90ce218#90ce2180a7336715ff4682dcab9bb7cfad898740"
-dependencies = [
- "aes",
- "aes-gcm",
- "anyhow",
- "async-signature",
- "base64 0.13.1",
- "cose-rs 0.1.0 (git+https://github.com/spruceid/cose-rs?rev=4104505)",
- "ecdsa",
- "elliptic-curve",
- "hex-literal",
- "hkdf",
- "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=90ce218)",
- "p256",
- "p384",
- "pem-rfc7468 0.7.0",
- "rand",
- "sec1",
- "serde",
- "serde_cbor",
- "serde_json",
- "sha2 0.10.8",
- "signature",
- "ssi-jwk 0.1.2",
- "thiserror 1.0.69",
- "time",
- "uuid",
- "x509-cert 0.1.1",
+ "x509-cert",
  "zeroize",
 ]
 
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=1f4f762#1f4f762841b5f7744288966f048726107f2b4dbe"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "isomdl-macros"
-version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=90ce218#90ce2180a7336715ff4682dcab9bb7cfad898740"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3435,10 +3363,11 @@ dependencies = [
  "base64 0.22.1",
  "cose-rs 0.1.0 (git+https://github.com/spruceid/cose-rs?rev=0018c9b)",
  "either",
+ "elliptic-curve",
  "futures",
  "futures-util",
  "hex",
- "isomdl 0.1.0 (git+https://github.com/spruceid/isomdl?rev=1f4f762)",
+ "isomdl",
  "json-syntax",
  "log",
  "miniz_oxide 0.7.4",
@@ -3466,7 +3395,7 @@ dependencies = [
  "urlencoding",
  "uuid",
  "w3c-vc-barcodes",
- "x509-cert 0.2.5",
+ "x509-cert",
 ]
 
 [[package]]
@@ -3709,7 +3638,7 @@ dependencies = [
  "async-signature",
  "base64 0.21.7",
  "form_urlencoded",
- "isomdl 0.1.0 (git+https://github.com/spruceid/isomdl?rev=90ce218)",
+ "isomdl",
  "oauth2",
  "percent-encoding",
  "rand",
@@ -3763,7 +3692,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
- "x509-cert 0.2.5",
+ "x509-cert",
 ]
 
 [[package]]
@@ -3934,15 +3863,6 @@ name = "pem-rfc7468"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01de5d978f34aa4b2296576379fcc416034702fd94117c56ffd8a1a767cefb30"
-dependencies = [
- "base64ct",
-]
-
-[[package]]
-name = "pem-rfc7468"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24d159833a9105500e0398934e205e0773f0b27529557134ecfc51c27646adac"
 dependencies = [
  "base64ct",
 ]
@@ -5184,15 +5104,6 @@ checksum = "44d01ac02a6ccf3e07db148d2be087da624fea0221a16152ed01f0496a6b0a27"
 dependencies = [
  "base64ct",
  "der 0.5.1",
-]
-
-[[package]]
-name = "spki"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67cf02bbac7a337dc36e4f5a693db6c21e7863f45070f7064577eb4367a3212b"
-dependencies = [
- "der 0.6.1",
 ]
 
 [[package]]
@@ -7086,18 +6997,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
-]
-
-[[package]]
-name = "x509-cert"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99d224a125dec5adda27d0346b9cae9794830279c4f9c27e4ab0b6c408d54012"
-dependencies = [
- "const-oid 0.9.6",
- "der 0.6.1",
- "flagset",
- "spki 0.6.0",
 ]
 
 [[package]]
