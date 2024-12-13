@@ -115,10 +115,9 @@ class ShareViewDelegate: ObservableObject {
     }
     
     func submitItems(items: [String: [String: [String: Bool]]]) {
-        let tag = "mdoc_key".data(using: .utf8)!
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: tag,
+            kSecAttrApplicationLabel as String: "mdoc_key",
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
             kSecReturnRef as String: true,
         ]

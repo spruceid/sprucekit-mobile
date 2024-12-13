@@ -75,7 +75,7 @@ struct WalletHomeBody: View {
                 LoadingView(
                     loadingText: ""
                 )
-            } else if !credentialPacks.isEmpty {
+            } else if credentialPacks.isEmpty {
                 ZStack {
                     ScrollView(.vertical, showsIndicators: false) {
                         Section {
@@ -95,7 +95,7 @@ struct WalletHomeBody: View {
                                 )
                             }
                             .id(UUID()) // make sure we are recreating all items when refresh
-                            //                    ShareableCredentialListItem(mdoc: mdocBase64)
+                            ShareableCredentialListItem(mdoc: mdocBase64)
                         }
                     }
                     

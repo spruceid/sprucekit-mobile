@@ -3,7 +3,9 @@ import SwiftUI
 public struct ContentView: View {
     @State var path: NavigationPath = .init()
     
-    public init() {}
+    public init() {
+        generateMDoc()
+    }
     
     func handleSpruceIDUrl(url: URL) {
         let query = URLComponents(string: url.absoluteString)?
