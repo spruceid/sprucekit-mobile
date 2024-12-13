@@ -272,6 +272,15 @@ impl PermissionResponse {
             .zip(self.selected_credentials.iter())
             .enumerate()
             .map(|(idx, (descriptor, cred))| {
+                // NOTE: If the iterator only includes a single credential, then
+                // do not provide an index for the descriptor map.
+                //
+                // This will inform the descriptor map to use the credential as a
+                // root path, instead of a indexed path.
+                if idx == 0 && idx == self.presentation_definition.input_descriptors().len() - 1 {
+                    return cred.create_descriptor_map(descriptor.id.clone(), None);
+                }
+
                 cred.create_descriptor_map(descriptor.id.clone(), Some(idx))
             })
             .collect()
