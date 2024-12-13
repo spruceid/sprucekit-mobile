@@ -1,0 +1,7 @@
+{
+  "kty": "EC",
+  "crv": "P-256",
+  "x": "4VWPfqd7n43qYwG_IakMZcE-7swdXtGW8CwPOQet1-s",
+  "y": "wMu3S5gxG2oZ1H2_SrnQh87efGAiDSJdcid4Kv56eFw",
+  "kid": "did:jwk:eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6IjRWV1BmcWQ3bjQzcVl3R19JYWtNWmNFLTdzd2RYdEdXOEN3UE9RZXQxLXMiLCJ5Ijoid011M1M1Z3hHMm9aMUgyX1NyblFoODdlZkdBaURTSmRjaWQ0S3Y1NmVGdyJ9#0"
+}

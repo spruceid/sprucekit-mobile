@@ -17,6 +17,7 @@ use uniffi::deps::anyhow::Result;
 
 use crate::oid4vci::{Oid4vci, Oid4vciExchangeOptions};
 
+const TMP_DIR: &str = "/target/tmp";
 const OID4VCI_CREDENTIAL_OFFER_URI: &str = "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz1A68iKqcX2HbQGQfVSfFnjkM%2Fexchanges%2Fz1ADKJLFpFtovZkxXHbQz47f5%2Fopenid%2Fcredential-offer";
 const OID4VP_URI: &str = "openid4vp://?client_id=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19prZuVakk5Rzt1tE12evjQX%2Fopenid%2Fclient%2Fauthorization%2Fresponse&request_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19prZuVakk5Rzt1tE12evjQX%2Fopenid%2Fclient%2Fauthorization%2Frequest";
 
@@ -131,7 +132,7 @@ pub async fn test_vc_playground_oid4vci() -> Result<()> {
     let pop_prepare =
         generate_pop_prepare(audience, nonce, did_method, public_jwk, duration_in_secs).await?;
 
-    let signature = signer.sign(pop_prepare.clone()).await?;
+    let signature = signer.sign_jwt(pop_prepare.clone()).await?;
 
     let pop = generate_pop_complete(pop_prepare, signature)?;
 
@@ -142,14 +143,10 @@ pub async fn test_vc_playground_oid4vci() -> Result<()> {
         .exchange_credential(vec![pop], Oid4vciExchangeOptions::default())
         .await?;
 
-    println!("Credentials: {credentials:?}");
-
     for (index, crate::oid4vci::CredentialResponse { payload, .. }) in
         credentials.iter().enumerate()
     {
-        let tmp_dir =
-            std::env::var("CARGO_TARGET_TMPDIR").expect("failed to find cargo target tmp dir");
-        let path = format!("{tmp_dir}/vc_test_credential_{index}.json");
+        let path = format!("{TMP_DIR}/vc_test_credential_{index}.json");
 
         println!("Saving credential to path: {path}");
 
@@ -170,10 +167,7 @@ pub async fn test_vc_playground_oid4vci() -> Result<()> {
 pub async fn test_vc_playground_oid4vp() -> Result<()> {
     let signer = load_signer();
 
-    let tmp_dir =
-        std::env::var("CARGO_TARGET_TMPDIR").expect("failed to find cargo target tmp dir");
-
-    let path = format!("{tmp_dir}/vc_test_credential_0.json");
+    let path = format!("{TMP_DIR}/vc_test_credential_0.json");
     let contents = tokio::fs::read_to_string(path)
         .await
         .expect("failed to read test credential");

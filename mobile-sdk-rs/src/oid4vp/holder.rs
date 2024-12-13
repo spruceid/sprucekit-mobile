@@ -1,6 +1,7 @@
 use super::error::OID4VPError;
 use super::permission_request::*;
 use super::presentation::PresentationSigner;
+use super::shim::shim_definition;
 use crate::common::*;
 use crate::credential::*;
 use crate::vdc_collection::VdcCollection;
@@ -60,21 +61,6 @@ pub struct Holder {
 
 #[uniffi::export(async_runtime = "tokio")]
 impl Holder {
-    // NOTE: a logger is intended to be initialized once
-    // per an application, not per an instance of the holder.
-    //
-    // The following should be deprecated from the holder
-    // in favor of a global logger instance.
-    /// Initialize logger for the OID4VP holder.
-    fn initiate_logger(&self) {
-        #[cfg(target_os = "android")]
-        android_logger::init_once(
-            android_logger::Config::default()
-                .with_max_level(log::LevelFilter::Trace)
-                .with_tag("MOBILE_SDK_RS"),
-        );
-    }
-
     /// Uses VDC collection to retrieve the credentials for a given presentation definition.
     #[uniffi::constructor]
     pub async fn new(
@@ -201,6 +187,12 @@ impl Holder {
         &self,
         definition: &mut PresentationDefinition,
     ) -> Result<Vec<Arc<ParsedCredential>>, OID4VPError> {
+        // TODO: Notify DB about updating mdl presentation definition.
+        // See: tests/examples/mdl_presentation_definition.json for an example.
+        shim_definition(definition).map_err(|e| {
+            OID4VPError::PresentationDefinitionResolution(format!("Shim failed: {e:?}"))
+        })?;
+
         let credentials = match &self.provided_credentials {
             // Use a pre-selected list of credentials if provided.
             Some(credentials) => credentials.to_owned(),
@@ -331,8 +323,10 @@ pub(crate) mod tests {
         oid4vp::presentation::{PresentationError, PresentationSigner},
         tests::{load_signer, vc_playground_context},
     };
+    use std::str::FromStr;
 
     use json_vc::JsonVc;
+    use jwt_vc::JwtVc;
     use ssi::{
         claims::{data_integrity::CryptosuiteString, jws::JwsSigner},
         crypto::Algorithm,
@@ -343,6 +337,18 @@ pub(crate) mod tests {
     #[derive(Debug)]
     pub(crate) struct KeySigner {
         pub(crate) jwk: JWK,
+    }
+
+    impl KeySigner {
+        pub async fn sign_jwt(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
+            let sig = self
+                .jwk
+                .sign(payload)
+                .await
+                .expect("failed to sign Jws Payload");
+
+            Ok(sig.as_bytes().to_vec())
+        }
     }
 
     #[async_trait::async_trait]
@@ -358,7 +364,10 @@ pub(crate) mod tests {
         }
 
         fn algorithm(&self) -> Algorithm {
-            self.jwk.algorithm.map(Algorithm::from).unwrap()
+            self.jwk
+                .algorithm
+                .map(Algorithm::from)
+                .unwrap_or(Algorithm::ES256)
         }
 
         async fn verification_method(&self) -> String {
@@ -486,6 +495,44 @@ pub(crate) mod tests {
             .expect("failed to create permission response");
 
         let _url = holder.submit_permission_response(response).await?;
+
+        Ok(())
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_vehicle_title() -> Result<(), Box<dyn std::error::Error>> {
+        let auth_url = "openid4vp://?client_id=did%3Aweb%3Aqa.opencred.org&request_uri=https%3A%2F%2Fqa.opencred.org%2Fworkflows%2Fz19mLsUzMweuIUlk349cpekAz%2Fexchanges%2Fz1A5ijs5YCm1SqL1LoySeKJFP%2Fopenid%2Fclient%2Fauthorization%2Frequest".parse().expect("failed to parse url");
+
+        let jwk = JWK::from_str(include_str!("../../tests/examples/jwk.json"))
+            .expect("Failed to parse JWK");
+
+        let key_signer = KeySigner { jwk };
+
+        let mdl = ParsedCredential::new_jwt_vc_json(
+            JwtVc::new_from_compact_jws(include_str!("../../tests/examples/mdl.jwt").into())
+                .expect("failed to create mDL Jwt VC"),
+        );
+
+        let vvt = ParsedCredential::new_jwt_vc_json(
+            JwtVc::new_from_compact_jws(include_str!("../../tests/examples/vvt.jwt").into())
+                .expect("failed to create VVT Jwt VC"),
+        );
+
+        let holder =
+            Holder::new_with_credentials(vec![mdl, vvt], vec![], Box::new(key_signer), None)
+                .await?;
+
+        let permission_request = holder.authorization_request(auth_url).await?;
+
+        let credentials = permission_request.credentials();
+
+        let response = permission_request
+            .create_permission_response(credentials)
+            .await
+            .expect("failed to create permission response");
+
+        holder.submit_permission_response(response).await?;
 
         Ok(())
     }

@@ -2,6 +2,7 @@ use crate::UniffiCustomTypeConverter;
 
 use serde::{Deserialize, Serialize};
 use ssi::{claims::data_integrity::CryptosuiteString, crypto::Algorithm};
+use uniffi::deps::anyhow;
 pub use url::Url;
 pub use uuid::Uuid;
 
@@ -92,13 +93,12 @@ impl UniffiCustomTypeConverter for Algorithm {
     type Builtin = String;
 
     fn into_custom(alg: Self::Builtin) -> uniffi::Result<Self> {
-        // NOTE: `Algorithm` lacks a `From<&str>` implementation, but implements
-        // deserialize trait to use `serde_json::from_str` to parse the string.
-        //
-        // TODO: provide a `From<&str>` implementation for `Algorithm` in the `ssi` crate.
-        serde_json::from_str(&alg).map_err(|e| {
-            uniffi::deps::anyhow::anyhow!("failed to serialize algorithm value: {e:?}")
-        })
+        // TODO: provide a `TryFrom<&str>` implementation for `Algorithm` in the `ssi` crate.
+        match alg.to_uppercase().as_ref() {
+            "ES256" => Ok(Algorithm::ES256),
+            "ES256K" => Ok(Algorithm::ES256K),
+            _ => anyhow::bail!("unsupported uniffi custom type for Algorithm mapping: {alg}"),
+        }
     }
 
     fn from_custom(alg: Self) -> Self::Builtin {
@@ -111,8 +111,7 @@ impl UniffiCustomTypeConverter for CryptosuiteString {
     type Builtin = String;
 
     fn into_custom(suite: Self::Builtin) -> uniffi::Result<Self> {
-        Self::new(suite)
-            .map_err(|e| uniffi::deps::anyhow::anyhow!("failed to create cryptosuite: {e:?}"))
+        Self::new(suite).map_err(|e| anyhow::anyhow!("failed to create cryptosuite: {e:?}"))
     }
 
     fn from_custom(suite: Self) -> Self::Builtin {
