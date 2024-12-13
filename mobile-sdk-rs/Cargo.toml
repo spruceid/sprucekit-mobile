@@ -1,6 +1,6 @@
 [package]
 name = "mobile-sdk-rs"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Spruce Systems, Inc."]
 license = "Apache-2.0 OR MIT"
@@ -72,4 +72,4 @@ uniffi = { version = "0.28.1", features = ["bindgen-tests"] }
 uniffi = { version = "0.28.1", features = ["build"] }
 
 [patch.crates-io]
-ssi = { git = "https://github.com/spruceid/ssi", rev = "b3648ca" }
+ssi = { git = "https://github.com/spruceid/ssi", rev = "5211199" }

@@ -16,6 +16,7 @@ import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.HttpRequest
 import com.spruceid.mobile.sdk.rs.HttpResponse
 import com.spruceid.mobile.sdk.rs.Oid4vci
+import com.spruceid.mobile.sdk.rs.Oid4vciExchangeOptions
 import com.spruceid.mobile.sdk.rs.generatePopComplete
 import com.spruceid.mobile.sdk.rs.generatePopPrepare
 import com.spruceid.mobilesdkexample.ErrorView
@@ -130,7 +131,10 @@ fun HandleOID4VCIView(
             oid4vciSession.setContextMap(getVCPlaygroundOID4VCIContext(ctx = ctx))
 
             val credentials =
-                pop?.let { oid4vciSession.exchangeCredential(proofsOfPossession = listOf(pop)) }
+                pop?.let { oid4vciSession.exchangeCredential(
+                    proofsOfPossession = listOf(pop),
+                    options = Oid4vciExchangeOptions(true),
+                ) }
 
             credentials?.forEach { cred ->
                 cred.payload.toString(Charsets.UTF_8).let { credential = it }
