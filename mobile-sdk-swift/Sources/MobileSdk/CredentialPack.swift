@@ -68,16 +68,16 @@ public class CredentialPack {
         credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc))
         return credentials
     }
-    
+
     /// Get all status from all credentials async
     public func getStatusListsAsync(hasConnection: Bool) async -> [Uuid: CredentialStatusList] {
         var res = [Uuid: CredentialStatusList]()
         for credential in credentials {
             let credentialId = credential.id()
-            if let c = credential.asJsonVc() {
+            if let cred = credential.asJsonVc() {
                 if hasConnection {
                     do {
-                        let status = try await c.status()
+                        let status = try await cred.status()
                         if status.isRevoked() {
                             res[credentialId] = CredentialStatusList.revoked
                         } else if status.isSuspended() {
@@ -91,7 +91,7 @@ public class CredentialPack {
                 }
             }
         }
-        
+
         return res
     }
 
