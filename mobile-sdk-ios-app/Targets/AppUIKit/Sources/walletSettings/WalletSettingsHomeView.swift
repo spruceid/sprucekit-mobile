@@ -73,7 +73,7 @@ struct WalletSettingsHomeBody: View {
                                 .customFont(
                                     font: .inter, style: .bold, size: .h4))
                     }
-                    Text("View and export verification history")
+                    Text("View and export activity history")
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .foregroundColor(Color("ColorStone600"))
                         .font(

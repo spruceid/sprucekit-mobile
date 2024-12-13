@@ -114,7 +114,7 @@ class WalletActivityLogDataStore {
 
         do {
             for walletActivityLog in try database.prepare(
-                self.walletActivityLogs)
+                self.walletActivityLogs.order(dateTime.desc))
             {
                 walletActivityLogs.append(
                     WalletActivityLog(
