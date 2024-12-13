@@ -58,7 +58,9 @@ struct HandleOID4VCIView: View {
 
                 self.credentialPack = CredentialPack()
                 let credentials = try await oid4vciSession.exchangeCredential(
-                    proofsOfPossession: [pop])
+                    proofsOfPossession: [pop],
+                    options: Oid4vciExchangeOptions(verifyAfterExchange: true)
+                )
 
                 try credentials.forEach {
                     let cred = String(decoding: Data($0.payload), as: UTF8.self)

@@ -19,6 +19,7 @@ import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsActivityLo
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
@@ -32,6 +33,7 @@ fun SetupNavGraph(
     verificationMethodsViewModel: VerificationMethodsViewModel,
     verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
     credentialPacksViewModel: CredentialPacksViewModel,
+    statusListViewModel: StatusListViewModel,
     helpersViewModel: HelpersViewModel
 ) {
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
@@ -49,6 +51,7 @@ fun SetupNavGraph(
                 initialTab = tab,
                 verificationMethodsViewModel = verificationMethodsViewModel,
                 credentialPacksViewModel = credentialPacksViewModel,
+                statusListViewModel = statusListViewModel,
                 helpersViewModel = helpersViewModel
             )
         }
@@ -89,7 +92,8 @@ fun SetupNavGraph(
                 navController,
                 verificationId = id,
                 verificationMethodsViewModel = verificationMethodsViewModel,
-                verificationActivityLogsViewModel = verificationActivityLogsViewModel
+                verificationActivityLogsViewModel = verificationActivityLogsViewModel,
+                statusListViewModel = statusListViewModel
             )
         }
         composable(
@@ -126,7 +130,12 @@ fun SetupNavGraph(
             listOf(navDeepLink { uriPattern = "spruceid://?sd-jwt={rawCredential}" })
         ) { backStackEntry ->
             val rawCredential = backStackEntry.arguments?.getString("rawCredential")!!
-            AddToWalletView(navController, rawCredential, credentialPacksViewModel)
+            AddToWalletView(
+                navController,
+                rawCredential,
+                credentialPacksViewModel,
+                statusListViewModel
+            )
         }
         composable(
             route = Screen.ScanQRScreen.route,
@@ -135,7 +144,7 @@ fun SetupNavGraph(
             route = Screen.HandleOID4VCI.route,
         ) { backStackEntry ->
             val url = backStackEntry.arguments?.getString("url")!!
-            HandleOID4VCIView(navController, url, credentialPacksViewModel)
+            HandleOID4VCIView(navController, url, credentialPacksViewModel, statusListViewModel)
         }
         composable(
             route = Screen.HandleOID4VP.route,

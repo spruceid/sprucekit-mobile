@@ -304,39 +304,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-attributes"
-version = "1.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3203e79f4dd9bdda415ed03cf14dae5a2bf775c683a00f94e9cd1faf0f596e5"
-dependencies = [
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "async-channel"
-version = "1.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81953c529336010edd6d8e358f886d9581267795c61b19475b71314bffa46d35"
-dependencies = [
- "concurrent-queue",
- "event-listener 2.5.3",
- "futures-core",
-]
-
-[[package]]
-name = "async-channel"
-version = "2.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89b47800b0be77592da0afd425cc03468052844aff33b84e33cc696f64e77b6a"
-dependencies = [
- "concurrent-queue",
- "event-listener-strategy",
- "futures-core",
- "pin-project-lite",
-]
-
-[[package]]
 name = "async-compat"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -350,64 +317,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-executor"
-version = "1.13.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30ca9a001c1e8ba5149f91a74362376cc6bc5b919d92d988668657bd570bdcec"
-dependencies = [
- "async-task",
- "concurrent-queue",
- "fastrand",
- "futures-lite",
- "slab",
-]
-
-[[package]]
-name = "async-global-executor"
-version = "2.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05b1b633a2115cd122d73b955eadd9916c18c8f510ec9cd1686404c60ad1c29c"
-dependencies = [
- "async-channel 2.3.1",
- "async-executor",
- "async-io",
- "async-lock",
- "blocking",
- "futures-lite",
- "once_cell",
-]
-
-[[package]]
-name = "async-io"
-version = "2.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43a2b323ccce0a1d90b449fd71f2a06ca7faa7c54c2751f06c9bd851fc061059"
-dependencies = [
- "async-lock",
- "cfg-if",
- "concurrent-queue",
- "futures-io",
- "futures-lite",
- "parking",
- "polling",
- "rustix",
- "slab",
- "tracing",
- "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "async-lock"
-version = "3.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff6e472cdea888a4bd64f342f09b3f50e1886d32afe8df3d663c01140b811b18"
-dependencies = [
- "event-listener 5.3.1",
- "event-listener-strategy",
- "pin-project-lite",
-]
-
-[[package]]
 name = "async-signature"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -416,39 +325,6 @@ dependencies = [
  "async-trait",
  "signature",
 ]
-
-[[package]]
-name = "async-std"
-version = "1.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c634475f29802fde2b8f0b505b1bd00dfe4df7d4a000f0b36f7671197d5c3615"
-dependencies = [
- "async-attributes",
- "async-channel 1.9.0",
- "async-global-executor",
- "async-io",
- "async-lock",
- "crossbeam-utils",
- "futures-channel",
- "futures-core",
- "futures-io",
- "futures-lite",
- "gloo-timers",
- "kv-log-macro",
- "log",
- "memchr",
- "once_cell",
- "pin-project-lite",
- "pin-utils",
- "slab",
- "wasm-bindgen-futures",
-]
-
-[[package]]
-name = "async-task"
-version = "4.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b75356056920673b02621b35afd0f7dda9306d03c79a30f5c56c44cf256e3de"
 
 [[package]]
 name = "async-trait"
@@ -694,19 +570,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
-]
-
-[[package]]
-name = "blocking"
-version = "1.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "703f41c54fc768e63e091340b424302bb1c29ef4aa0c7f10fe849dfb114d29ea"
-dependencies = [
- "async-channel 2.3.1",
- "async-task",
- "futures-io",
- "futures-lite",
- "piper",
 ]
 
 [[package]]
@@ -1005,15 +868,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "337cdbf3f1a0e643b4a7d1a2ffa39d22342fb6ee25739b5cfb997c28b3586422"
 
 [[package]]
-name = "concurrent-queue"
-version = "2.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
-dependencies = [
- "crossbeam-utils",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1125,12 +979,6 @@ checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
 ]
-
-[[package]]
-name = "crossbeam-utils"
-version = "0.8.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
 
 [[package]]
 name = "crunchy"
@@ -1414,7 +1262,7 @@ dependencies = [
 [[package]]
 name = "did-ethr"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "hex",
  "iref",
@@ -1429,7 +1277,7 @@ dependencies = [
 [[package]]
 name = "did-ion"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "base64 0.22.1",
  "iref",
@@ -1450,7 +1298,7 @@ dependencies = [
 [[package]]
 name = "did-jwk"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "iref",
@@ -1468,7 +1316,7 @@ dependencies = [
 [[package]]
 name = "did-method-key"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "bs58",
  "iref",
@@ -1488,7 +1336,7 @@ dependencies = [
 [[package]]
 name = "did-pkh"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "bech32",
@@ -1508,7 +1356,7 @@ dependencies = [
 [[package]]
 name = "did-tz"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "bs58",
@@ -1530,7 +1378,7 @@ dependencies = [
 [[package]]
 name = "did-web"
 version = "0.3.3"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "http 0.2.12",
  "reqwest 0.11.27",
@@ -1765,33 +1613,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "event-listener"
-version = "2.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
-
-[[package]]
-name = "event-listener"
-version = "5.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6032be9bd27023a771701cc49f9f053c751055f71efb2e0ae5c15809093675ba"
-dependencies = [
- "concurrent-queue",
- "parking",
- "pin-project-lite",
-]
-
-[[package]]
-name = "event-listener-strategy"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c3e4e0dd3673c1139bf041f3008816d9cf2946bbfac2945c09e523b8d7b05b2"
-dependencies = [
- "event-listener 5.3.1",
- "pin-project-lite",
-]
-
-[[package]]
 name = "fancy-regex"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1965,19 +1786,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e5c1b78ca4aae1ac06c48a526a655760685149f0d465d21f37abfe57ce075c6"
 
 [[package]]
-name = "futures-lite"
-version = "2.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cef40d21ae2c515b51041df9ed313ed21e572df340ea58a922a0aefe7e8891a1"
-dependencies = [
- "fastrand",
- "futures-core",
- "futures-io",
- "parking",
- "pin-project-lite",
-]
-
-[[package]]
 name = "futures-macro"
 version = "0.3.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2069,18 +1877,6 @@ name = "glob"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
-
-[[package]]
-name = "gloo-timers"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbb143cf96099802033e0d4f4963b19fd2e0b728bcf076cd9cf7f6634f092994"
-dependencies = [
- "futures-channel",
- "futures-core",
- "js-sys",
- "wasm-bindgen",
-]
 
 [[package]]
 name = "goblin"
@@ -2203,12 +1999,6 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
-
-[[package]]
-name = "hermit-abi"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
 
 [[package]]
 name = "hex"
@@ -3085,15 +2875,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kv-log-macro"
-version = "1.0.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0de8b303297635ad57c9f5059fd9cee7a47f8e8daa09df0fcd07dd39fb22977f"
-dependencies = [
- "log",
-]
-
-[[package]]
 name = "langtag"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3366,7 +3147,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 dependencies = [
  "serde",
- "value-bag",
 ]
 
 [[package]]
@@ -3428,7 +3208,7 @@ dependencies = [
 
 [[package]]
 name = "mobile-sdk-rs"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "android_logger",
  "async-trait",
@@ -3885,12 +3665,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parking"
-version = "2.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba"
-
-[[package]]
 name = "parking_lot"
 version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4001,17 +3775,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
-name = "piper"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96c8c490f422ef9a4efd2cb5b42b76c8613d7e7dfc1caf667b8a3350a5acc066"
-dependencies = [
- "atomic-waker",
- "fastrand",
- "futures-io",
-]
-
-[[package]]
 name = "pkcs1"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4054,21 +3817,6 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
-
-[[package]]
-name = "polling"
-version = "3.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a604568c3202727d1507653cb121dbd627a58684eb09a820fd746bee38b4442f"
-dependencies = [
- "cfg-if",
- "concurrent-queue",
- "hermit-abi",
- "pin-project-lite",
- "rustix",
- "tracing",
- "windows-sys 0.59.0",
-]
 
 [[package]]
 name = "polyval"
@@ -5219,7 +4967,7 @@ dependencies = [
 [[package]]
 name = "ssi"
 version = "0.10.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "document-features",
  "ssi-caips",
@@ -5245,7 +4993,7 @@ dependencies = [
 [[package]]
 name = "ssi-caips"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "bs58",
  "linked-data",
@@ -5258,7 +5006,7 @@ dependencies = [
 [[package]]
 name = "ssi-claims"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "educe 0.4.23",
  "iref",
@@ -5291,7 +5039,7 @@ dependencies = [
 [[package]]
 name = "ssi-claims-core"
 version = "0.1.2"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "chrono",
  "educe 0.4.23",
@@ -5312,12 +5060,12 @@ checksum = "8b9e7d68ba4e1544b228d6b7739db285aa5befa9df0db614dbe843e4a3c900a8"
 [[package]]
 name = "ssi-contexts"
 version = "0.1.8"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 
 [[package]]
 name = "ssi-core"
 version = "0.2.2"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "pin-project",
@@ -5328,7 +5076,7 @@ dependencies = [
 [[package]]
 name = "ssi-cose"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "ciborium",
  "coset",
@@ -5357,7 +5105,7 @@ dependencies = [
 [[package]]
 name = "ssi-crypto"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "bs58",
@@ -5383,7 +5131,7 @@ dependencies = [
 [[package]]
 name = "ssi-data-integrity"
 version = "0.1.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "chrono",
  "iref",
@@ -5411,7 +5159,7 @@ dependencies = [
 [[package]]
 name = "ssi-data-integrity-core"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "chrono",
  "contextual",
@@ -5446,7 +5194,7 @@ dependencies = [
 [[package]]
 name = "ssi-data-integrity-suites"
 version = "0.1.2"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -5475,7 +5223,7 @@ dependencies = [
  "serde_json",
  "ssi-caips",
  "ssi-claims-core",
- "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=b3648ca)",
+ "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=5211199)",
  "ssi-core",
  "ssi-crypto 0.2.1",
  "ssi-data-integrity-core",
@@ -5496,7 +5244,7 @@ dependencies = [
 [[package]]
 name = "ssi-di-sd-primitives"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "base64 0.22.1",
  "digest 0.10.7",
@@ -5518,7 +5266,7 @@ dependencies = [
 [[package]]
 name = "ssi-dids"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "did-ethr",
  "did-ion",
@@ -5535,7 +5283,7 @@ dependencies = [
 [[package]]
 name = "ssi-dids-core"
 version = "0.1.2"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "iref",
@@ -5559,7 +5307,7 @@ dependencies = [
 [[package]]
 name = "ssi-eip712"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "hex",
  "indexmap 2.7.0",
@@ -5576,26 +5324,20 @@ dependencies = [
 
 [[package]]
 name = "ssi-json-ld"
-version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+version = "0.3.0"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
- "async-std",
  "combination",
- "futures",
  "iref",
  "json-ld",
  "json-syntax",
  "lazy_static",
  "linked-data",
- "locspan",
- "rdf-types",
  "serde",
- "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=b3648ca)",
- "ssi-crypto 0.2.1",
+ "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=5211199)",
  "ssi-rdf",
  "static-iref",
  "thiserror 1.0.69",
- "xsd-types",
 ]
 
 [[package]]
@@ -5627,7 +5369,7 @@ dependencies = [
 [[package]]
 name = "ssi-jwk"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "base64 0.22.1",
  "blake2b_simd 0.5.11",
@@ -5660,7 +5402,7 @@ dependencies = [
 [[package]]
 name = "ssi-jws"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "base64 0.22.1",
  "blake2",
@@ -5688,7 +5430,7 @@ dependencies = [
 [[package]]
 name = "ssi-jwt"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "chrono",
@@ -5711,7 +5453,7 @@ dependencies = [
 [[package]]
 name = "ssi-multicodec"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "csv",
  "ed25519-dalek",
@@ -5725,7 +5467,7 @@ dependencies = [
 [[package]]
 name = "ssi-rdf"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "combination",
  "indexmap 2.7.0",
@@ -5739,7 +5481,7 @@ dependencies = [
 [[package]]
 name = "ssi-sd-jwt"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "base64 0.22.1",
  "indexmap 2.7.0",
@@ -5758,7 +5500,7 @@ dependencies = [
 [[package]]
 name = "ssi-security"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "iref",
  "linked-data",
@@ -5771,7 +5513,7 @@ dependencies = [
 [[package]]
 name = "ssi-ssh"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "sshkeys",
  "ssi-jwk 0.3.1",
@@ -5781,7 +5523,7 @@ dependencies = [
 [[package]]
 name = "ssi-status"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "base64 0.22.1",
  "flate2",
@@ -5808,7 +5550,7 @@ dependencies = [
 [[package]]
 name = "ssi-ucan"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -5832,8 +5574,8 @@ dependencies = [
 
 [[package]]
 name = "ssi-vc"
-version = "0.4.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+version = "0.4.0"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "base64 0.22.1",
  "bitvec 0.20.4",
@@ -5863,7 +5605,7 @@ dependencies = [
 [[package]]
 name = "ssi-vc-jose-cose"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "base64 0.22.1",
  "ciborium",
@@ -5883,7 +5625,7 @@ dependencies = [
 [[package]]
 name = "ssi-verification-methods"
 version = "0.1.2"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "derivative",
@@ -5922,7 +5664,7 @@ dependencies = [
 [[package]]
 name = "ssi-verification-methods-core"
 version = "0.1.1"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "bs58",
  "educe 0.4.23",
@@ -5946,7 +5688,7 @@ dependencies = [
 [[package]]
 name = "ssi-zcap-ld"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=b3648ca#b3648ca2de979a425f40e7f035480151138a06a1"
+source = "git+https://github.com/spruceid/ssi?rev=5211199#5211199eb0e3d4e3b11689f4e84ec4693f83d419"
 dependencies = [
  "async-trait",
  "iref",
@@ -6693,12 +6435,6 @@ dependencies = [
  "serde",
  "wasm-bindgen",
 ]
-
-[[package]]
-name = "value-bag"
-version = "1.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ef4c4aa54d5d05a279399bfa921ec387b7aba77caf7a682ae8d86785b8fdad2"
 
 [[package]]
 name = "vcpkg"

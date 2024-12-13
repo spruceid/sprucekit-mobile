@@ -11,6 +11,9 @@
     <string name="arrow_right">Arrow right</string>
     <string name="valid_check">Valid credential</string>
     <string name="invalid_check">Invalid credential</string>
+    <string name="suspended_check">Suspended credential</string>
+    <string name="unknown_check">Unknown credential</string>
+    <string name="revoked_check">Revoked credential</string>
     <string name="verification_activity_log">Verification Activity Log</string>
     <string name="chevron">Start action</string>
     <string name="empty_wallet">No credentials added yet</string>

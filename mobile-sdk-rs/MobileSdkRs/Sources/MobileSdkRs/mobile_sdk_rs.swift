@@ -1383,6 +1383,11 @@ public protocol HolderProtocol : AnyObject {
      */
     func authorizationRequest(url: Url) async throws  -> PermissionRequest
     
+    /**
+     * Initialize logger for the OID4VP holder.
+     */
+    func initiateLogger() 
+    
     func submitPermissionResponse(response: PermissionResponse) async throws  -> Url?
     
 }
@@ -1497,6 +1502,15 @@ open func authorizationRequest(url: Url)async throws  -> PermissionRequest {
             liftFunc: FfiConverterTypePermissionRequest.lift,
             errorHandler: FfiConverterTypeOID4VPError.lift
         )
+}
+    
+    /**
+     * Initialize logger for the OID4VP holder.
+     */
+open func initiateLogger() {try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_holder_initiate_logger(self.uniffiClonePointer(),$0
+    )
+}
 }
     
 open func submitPermissionResponse(response: PermissionResponse)async throws  -> Url? {
@@ -11194,6 +11208,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_holder_authorization_request() != 45396) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_holder_initiate_logger() != 13216) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_holder_submit_permission_response() != 37701) {

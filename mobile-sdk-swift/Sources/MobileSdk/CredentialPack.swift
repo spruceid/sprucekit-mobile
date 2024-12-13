@@ -69,6 +69,32 @@ public class CredentialPack {
         return credentials
     }
 
+    /// Get all status from all credentials async
+    public func getStatusListsAsync(hasConnection: Bool) async -> [Uuid: CredentialStatusList] {
+        var res = [Uuid: CredentialStatusList]()
+        for credential in credentials {
+            let credentialId = credential.id()
+            if let cred = credential.asJsonVc() {
+                if hasConnection {
+                    do {
+                        let status = try await cred.status()
+                        if status.isRevoked() {
+                            res[credentialId] = CredentialStatusList.revoked
+                        } else if status.isSuspended() {
+                            res[credentialId] = CredentialStatusList.suspended
+                        } else {
+                            res[credentialId] = CredentialStatusList.valid
+                        }
+                    } catch {}
+                } else {
+                    res[credentialId] = CredentialStatusList.unknown
+                }
+            }
+        }
+
+        return res
+    }
+
     /// Find credential claims from all credentials in this CredentialPack.
     public func findCredentialClaims(claimNames: [String]) -> [Uuid: [String: GenericJSON]] {
         Dictionary(
@@ -357,4 +383,19 @@ enum CredentialPackError: Error {
     case credentialLoading(reason: Error)
     /// The raw credential could not be parsed.
     case credentialParsing(reason: String)
+}
+
+public enum CredentialStatusList {
+    /// Valid credential
+    case valid
+    /// Credential revoked
+    case revoked
+    /// Credential suspended
+    case suspended
+    /// No connection
+    case unknown
+    /// Invalid credential
+    case invalid
+    /// Credential doesn't have status list
+    case undefined
 }

@@ -12,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.spruceid.mobile.sdk.ConnectionLiveData
 import com.spruceid.mobilesdkexample.db.AppDatabase
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogsRepository
 import com.spruceid.mobilesdkexample.db.VerificationMethodsRepository
@@ -22,6 +23,7 @@ import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
@@ -29,6 +31,7 @@ import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModelFact
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
+    private lateinit var connectionLiveData: ConnectionLiveData
 
     override fun onNewIntent(intent: Intent?) {
         if (intent != null && intent.action == "android.intent.action.VIEW" && intent.data != null) {
@@ -83,6 +86,14 @@ class MainActivity : ComponentActivity() {
                         CredentialPacksViewModelFactory(application as MainApplication)
                     }
 
+                    val statusListViewModel: StatusListViewModel by viewModels<StatusListViewModel>()
+                    connectionLiveData = ConnectionLiveData(this)
+                    connectionLiveData.observe(this) { isNetworkAvailable ->
+                        isNetworkAvailable?.let {
+                            statusListViewModel.setHasConnection(it)
+                        }
+                    }
+
                     val helpersViewModel: HelpersViewModel by viewModels<HelpersViewModel>()
 
                     SetupNavGraph(
@@ -90,6 +101,7 @@ class MainActivity : ComponentActivity() {
                         verificationMethodsViewModel = verificationMethodsViewModel,
                         verificationActivityLogsViewModel = verificationActivityLogsViewModel,
                         credentialPacksViewModel = credentialPacksViewModel,
+                        statusListViewModel = statusListViewModel,
                         helpersViewModel = helpersViewModel
                     )
                 }
