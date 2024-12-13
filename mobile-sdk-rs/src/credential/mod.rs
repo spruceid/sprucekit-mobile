@@ -1,6 +1,7 @@
 pub mod json_vc;
 pub mod jwt_vc;
 pub mod mdoc;
+pub mod status;
 pub mod vcdm2_sd_jwt;
 
 use std::sync::Arc;
@@ -21,6 +22,7 @@ use openid4vp::core::{
     response::parameters::VpTokenItem,
 };
 use serde::{Deserialize, Serialize};
+use status::BitStringStatusListResolver;
 use vcdm2_sd_jwt::{SdJwtError, VCDM2SdJwt};
 
 /// An unparsed credential, retrieved from storage.
@@ -315,6 +317,18 @@ impl ParsedCredential {
             ParsedCredentialInner::MsoMdoc(_mdoc) => {
                 unimplemented!("Mdoc create descriptor map not implemented")
             }
+        }
+    }
+}
+
+impl BitStringStatusListResolver for ParsedCredential {
+    fn status_list_entry(
+        &self,
+    ) -> Result<ssi::status::bitstring_status_list::BitstringStatusListEntry, status::StatusListError>
+    {
+        match &self.inner {
+            ParsedCredentialInner::LdpVc(cred) => cred.status_list_entry(),
+            _ => Err(status::StatusListError::UnsupportedCredentialFormat),
         }
     }
 }

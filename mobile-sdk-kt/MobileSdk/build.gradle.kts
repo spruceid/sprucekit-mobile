@@ -16,8 +16,17 @@ publishing {
                 password = System.getenv("GITHUB_TOKEN")
             }
         }
+        mavenLocal()
     }
     publications {
+        // This command must be commented on when releasing a new version.
+        // create<MavenPublication>("debug") {
+        //    groupId = "com.spruceid.mobile.sdk"
+        //    artifactId = "mobilesdk"
+        //    version = System.getenv("VERSION")
+        //  afterEvaluate { from(components["release"]) }
+        //}
+
         // Creates a Maven publication called "release".
         create<MavenPublication>("release") {
             groupId = "com.spruceid.mobile.sdk"
@@ -116,7 +125,7 @@ android {
 }
 
 dependencies {
-    api("com.spruceid.mobile.sdk.rs:mobilesdkrs:0.3.0")
+    api("com.spruceid.mobile.sdk.rs:mobilesdkrs:0.4.0")
     //noinspection GradleCompatible
     implementation("com.android.support:appcompat-v7:28.0.0")
     /* Begin UI dependencies */

@@ -16,6 +16,7 @@ import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.HttpRequest
 import com.spruceid.mobile.sdk.rs.HttpResponse
 import com.spruceid.mobile.sdk.rs.Oid4vci
+import com.spruceid.mobile.sdk.rs.Oid4vciExchangeOptions
 import com.spruceid.mobile.sdk.rs.generatePopComplete
 import com.spruceid.mobile.sdk.rs.generatePopPrepare
 import com.spruceid.mobilesdkexample.ErrorView
@@ -25,6 +26,7 @@ import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request
@@ -38,7 +40,8 @@ fun HandleOID4VCIView(
     navController: NavHostController,
     url: String,
     credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
+    statusListViewModel: StatusListViewModel
 ) {
     var loading by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -130,7 +133,10 @@ fun HandleOID4VCIView(
             oid4vciSession.setContextMap(getVCPlaygroundOID4VCIContext(ctx = ctx))
 
             val credentials =
-                pop?.let { oid4vciSession.exchangeCredential(proofsOfPossession = listOf(pop)) }
+                pop?.let { oid4vciSession.exchangeCredential(
+                    proofsOfPossession = listOf(pop),
+                    options = Oid4vciExchangeOptions(true),
+                ) }
 
             credentials?.forEach { cred ->
                 cred.payload.toString(Charsets.UTF_8).let { credential = it }
@@ -155,7 +161,8 @@ fun HandleOID4VCIView(
             navController = navController,
             rawCredential = credential!!,
             credentialPacksViewModel = credentialPacksViewModel,
-            walletActivityLogsViewModel = walletActivityLogsViewModel
+            walletActivityLogsViewModel = walletActivityLogsViewModel,
+            statusListViewModel = statusListViewModel
         )
     }
 }

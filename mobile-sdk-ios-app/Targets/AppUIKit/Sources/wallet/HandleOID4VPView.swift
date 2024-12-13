@@ -6,6 +6,59 @@ struct HandleOID4VP: Hashable {
     var url: String
 }
 
+enum Oid4vpSignerError: Error {
+    /// Illegal argument
+    case illegalArgumentException(reason: String)
+}
+
+class Signer: PresentationSigner {
+    private let keyId: String
+    private let _jwk: String
+    private let didJwk = DidMethodUtils(method: DidMethod.jwk)
+        
+    init(keyId: String?) throws {
+        self.keyId = if (keyId == nil) { "reference-app/default-signing" } else { keyId! }
+        let jwk = KeyManager.getJwk(id: self.keyId)
+        if jwk == nil {
+            throw Oid4vpSignerError.illegalArgumentException(reason: "Invalid kid")
+        } else {
+            self._jwk = jwk!
+        }
+    }
+
+    func sign(payload: Data) async throws -> Data {
+        let signature = KeyManager.signPayload(id: keyId, payload: [UInt8](payload))
+        if signature == nil {
+            throw Oid4vpSignerError.illegalArgumentException(reason:"Failed to sign payload")
+        } else {
+            return Data(signature!)
+        }
+    }
+
+    func algorithm() -> String {
+        // Parse the jwk as a JSON object and return the "alg" field
+        var json = getGenericJSON(jsonString: _jwk)
+        return json?.dictValue?["alg"]?.toString() ?? ""
+    }
+
+    func verificationMethod() async -> String {
+        return try! await didJwk.vmFromJwk(jwk: _jwk)
+    }
+
+    func did() -> String {
+        return try! didJwk.didFromJwk(jwk: _jwk)
+    }
+
+    func jwk() -> String {
+        return _jwk
+    }
+
+    func cryptosuite() -> String {
+        // TODO: Add an uniffi enum type for crypto suites.
+        return "ecdsa-rdfc-2019"
+    }
+}
+
 struct HandleOID4VPView: View {
     @Binding var path: NavigationPath
     var url: String
@@ -31,9 +84,15 @@ struct HandleOID4VPView: View {
                     credentialPack.findCredentialClaims(claimNames: ["name", "type"])
                 ) { (_, new) in new }
             }
+            
+            let signer = try Signer(keyId: "reference-app/default-signing")
 
             holder = try await Holder.newWithCredentials(
-                providedCredentials: credentials, trustedDids: trustedDids)
+                providedCredentials: credentials,
+                trustedDids: trustedDids,
+                signer: signer,
+                contextMap: getVCPlaygroundOID4VCIContext()
+            )
 
             permissionRequest = try await holder!.authorizationRequest(url: Url(url))
         } catch {
@@ -69,13 +128,15 @@ struct HandleOID4VPView: View {
                             return permissionRequest!.requestedFields(credential: credential)
                         },
                         onContinue: { selectedCredentials in
-                            do {
-                                selectedCredential = selectedCredentials.first
-                                permissionResponse = permissionRequest!.createPermissionResponse(
-                                    selectedCredentials: selectedCredentials
-                                )
-                            } catch {
-                                err = error.localizedDescription
+                            Task {
+                                do {
+                                    selectedCredential = selectedCredentials.first
+                                    permissionResponse = try await permissionRequest!.createPermissionResponse(
+                                        selectedCredentials: selectedCredentials
+                                    )
+                                } catch {
+                                    err = error.localizedDescription
+                                }
                             }
                         },
                         onCancel: back

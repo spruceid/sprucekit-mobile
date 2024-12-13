@@ -3,6 +3,7 @@ import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import Foundation
 import SwiftUI
+import Network
 
 // modifier
 struct HideViewModifier: ViewModifier {
@@ -71,6 +72,25 @@ func generateQRCode(from data: Data) -> UIImage {
         }
     }
     return UIImage(systemName: "xmark.circle") ?? UIImage()
+}
+
+func checkInternetConnection() -> Bool {
+    let monitor = NWPathMonitor()
+    let queue = DispatchQueue.global(qos: .background)
+    var isConnected = false
+
+    let semaphore = DispatchSemaphore(value: 0)
+
+    monitor.pathUpdateHandler = { path in
+        isConnected = (path.status == .satisfied)
+        semaphore.signal()
+        monitor.cancel()
+    }
+
+    monitor.start(queue: queue)
+    semaphore.wait()
+
+    return isConnected
 }
 
 func generateTxtFile(content: String, filename: String) -> URL? {

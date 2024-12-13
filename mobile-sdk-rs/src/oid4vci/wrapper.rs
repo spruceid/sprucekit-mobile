@@ -6,7 +6,7 @@ use std::{
 use super::{
     oid4vci_exchange_credential, oid4vci_exchange_token, oid4vci_get_metadata, oid4vci_initiate,
     oid4vci_initiate_with_offer, AsyncHttpClient, CredentialResponse, IHttpClient, Oid4vciError,
-    Oid4vciMetadata, Oid4vciSession, SyncHttpClient,
+    Oid4vciExchangeOptions, Oid4vciMetadata, Oid4vciSession, SyncHttpClient,
 };
 
 #[derive(uniffi::Object)]
@@ -167,10 +167,12 @@ impl Oid4vci {
     pub async fn exchange_credential(
         &self,
         proofs_of_possession: Vec<String>,
+        options: Oid4vciExchangeOptions,
     ) -> Result<Vec<CredentialResponse>, Oid4vciError> {
         oid4vci_exchange_credential(
             self.session()?,
             proofs_of_possession,
+            options,
             self.context_map()?,
             self.http_client.clone(),
         )

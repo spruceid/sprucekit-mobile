@@ -36,6 +36,7 @@ import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -46,7 +47,8 @@ fun AddToWalletView(
     navController: NavHostController,
     rawCredential: String,
     credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
+    statusListViewModel: StatusListViewModel
 ) {
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -55,7 +57,7 @@ fun AddToWalletView(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        credentialItem = credentialDisplaySelector(rawCredential, null, null)
+        credentialItem = credentialDisplaySelector(rawCredential, statusListViewModel, null, null)
     }
 
     fun back() {

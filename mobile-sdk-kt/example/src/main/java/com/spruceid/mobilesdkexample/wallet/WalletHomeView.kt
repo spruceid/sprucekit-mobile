@@ -18,9 +18,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
@@ -44,6 +50,8 @@ import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.utils.getFileContent
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import kotlinx.coroutines.launch
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.launch
@@ -53,6 +61,7 @@ fun WalletHomeView(
     navController: NavController,
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
+    statusListViewModel: StatusListViewModel,
     helpersViewModel: HelpersViewModel
 ) {
     Column(
@@ -64,7 +73,8 @@ fun WalletHomeView(
         WalletHomeBody(
             credentialPacksViewModel = credentialPacksViewModel,
             helpersViewModel = helpersViewModel,
-            walletActivityLogsViewModel = walletActivityLogsViewModel
+            walletActivityLogsViewModel = walletActivityLogsViewModel,
+            statusListViewModel = statusListViewModel
         )
     }
 }
@@ -128,15 +138,36 @@ fun WalletHomeHeader(navController: NavController) {
 fun WalletHomeBody(
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    helpersViewModel: HelpersViewModel
+    helpersViewModel: HelpersViewModel,
+    statusListViewModel: StatusListViewModel
 ) {
     val scope = rememberCoroutineScope()
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
     val loadingCredentialPacks by credentialPacksViewModel.loading.collectAsState()
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    LaunchedEffect(credentialPacks) {
+        if (credentialPacks.isNotEmpty()) {
+            statusListViewModel.getStatusLists(credentialPacks)
+        }
+    }
 
     if (!loadingCredentialPacks) {
         if (credentialPacks.isNotEmpty()) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            SwipeRefresh(
+                state = rememberSwipeRefreshState(isRefreshing),
+                onRefresh = {
+                    isRefreshing = true
+                    scope.launch {
+                        if (credentialPacks.isNotEmpty()) {
+                            statusListViewModel.getStatusLists(credentialPacks)
+                        }
+                        isRefreshing = false
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
                 Column(
                     Modifier
                         .fillMaxWidth()
@@ -146,6 +177,7 @@ fun WalletHomeBody(
                     credentialPacks.forEach { credentialPack ->
                         GenericCredentialItem(
                             credentialPack = credentialPack,
+                            statusListViewModel = statusListViewModel,
                             onDelete = {
                                 credentialPacksViewModel.deleteCredentialPack(credentialPack)
                                 scope.launch {

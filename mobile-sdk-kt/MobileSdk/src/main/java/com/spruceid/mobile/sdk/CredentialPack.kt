@@ -40,7 +40,7 @@ class CredentialPack {
     }
 
     fun id(): UUID {
-        return id
+        return this.id
     }
 
     /**
@@ -104,6 +104,34 @@ class CredentialPack {
     fun addSdJwt(sdJwt: Vcdm2SdJwt): List<ParsedCredential> {
         credentials.add(ParsedCredential.newSdJwt(sdJwt))
         return credentials
+    }
+
+    /**
+     * Get all status from all credentials async
+     */
+    suspend fun getStatusListsAsync(hasConnection: Boolean): Map<Uuid, CredentialStatusList> {
+        var res = mutableMapOf<Uuid, CredentialStatusList>()
+        credentials.forEach { credential ->
+            val credentialId = credential.id()
+            credential.asJsonVc()?.let {
+                if (hasConnection) {
+                    try {
+                        val status = it.status()
+                        if (status.isRevoked()) {
+                            res[credentialId] = CredentialStatusList.REVOKED
+                        } else if (status.isSuspended()) {
+                            res[credentialId] = CredentialStatusList.SUSPENDED
+                        } else {
+                            res[credentialId] = CredentialStatusList.VALID
+                        }
+                    } catch (_: Exception) {
+                    }
+                } else {
+                    res[credentialId] = CredentialStatusList.UNKNOWN
+                }
+            }
+        }
+        return res
     }
 
     /**
@@ -389,3 +417,35 @@ class ParsingException(message: String, cause: Throwable?) : Exception(message, 
 class LoadingException(message: String, cause: Throwable) : Exception(message, cause)
 class SavingException(message: String, cause: Throwable) : Exception(message, cause)
 class ClearingException(message: String, cause: Throwable) : Exception(message, cause)
+
+enum class CredentialStatusList {
+    /**
+     * Valid credential
+     */
+    VALID,
+
+    /**
+     * Credential revoked
+     */
+    REVOKED,
+
+    /**
+     * Credential suspended
+     */
+    SUSPENDED,
+
+    /**
+     * No connection
+     */
+    UNKNOWN,
+
+    /**
+     * Invalid credential
+     */
+    INVALID,
+
+    /**
+     * Credential doesn't have status list
+     */
+    UNDEFINED
+}

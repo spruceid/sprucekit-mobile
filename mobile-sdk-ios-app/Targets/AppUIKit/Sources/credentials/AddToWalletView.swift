@@ -78,18 +78,8 @@ struct AddToWalletView: View {
                     loadingText: "Storing credential..."
                 )
             } else if credentialItem != nil {
-                VStack{
-                    Text("Review Info")
-                        .font(.customFont(font: .inter, style: .bold, size: .h0))
-                        .padding(.horizontal, 20)
-                        .foregroundStyle(Color("ColorStone950"))
-                    AnyView(credentialItem!.credentialListItem(withOptions: false))
-                        .frame(height: 100)
-                    ScrollView(.vertical, showsIndicators: false) {
-                        AnyView(credentialItem!.credentialDetails())
-                    }
-                }
-                .padding(.bottom, 120)
+                AnyView(credentialItem!.credentialReviewInfo())
+                    .padding(.bottom, 120)
                 VStack {
                     Spacer()
                     Button {

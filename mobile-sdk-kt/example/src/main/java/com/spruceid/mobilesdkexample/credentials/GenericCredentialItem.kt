@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +19,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.ui.BaseCard
 import com.spruceid.mobile.sdk.ui.CardRenderingDetailsField
 import com.spruceid.mobile.sdk.ui.CardRenderingDetailsView
@@ -48,35 +49,43 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.addCredential
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class GenericCredentialItem : ICredentialView {
     override var credentialPack: CredentialPack
+    private val statusListViewModel: StatusListViewModel
     private val onDelete: (() -> Unit)?
     private val onExport: ((String) -> Unit)?
 
     constructor(
         credentialPack: CredentialPack,
+        statusListViewModel: StatusListViewModel,
         onDelete: (() -> Unit)? = null,
         onExport: ((String) -> Unit)? = null
     ) {
         this.credentialPack = credentialPack
         this.onDelete = onDelete
         this.onExport = onExport
+        this.statusListViewModel = statusListViewModel
     }
 
     constructor(
         rawCredential: String,
+        statusListViewModel: StatusListViewModel,
         onDelete: (() -> Unit)? = null,
         onExport: ((String) -> Unit)? = null
     ) {
         this.credentialPack = addCredential(CredentialPack(), rawCredential)
         this.onDelete = onDelete
         this.onExport = onExport
+        this.statusListViewModel = statusListViewModel
     }
 
     @Composable
     private fun descriptionFormatter(values: Map<String, JSONObject>) {
+        val statusLists by statusListViewModel.statusLists.collectAsState()
         val credential = values.toList().firstNotNullOfOrNull {
             val cred = credentialPack.getCredentialById(it.first)
             try {
@@ -115,7 +124,9 @@ class GenericCredentialItem : ICredentialView {
                 fontSize = 14.sp,
                 color = ColorStone600
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            CredentialStatusSmall(
+                statusLists[credentialPack.id()] ?: CredentialStatusList.UNDEFINED
+            )
         }
     }
 
@@ -369,6 +380,7 @@ class GenericCredentialItem : ICredentialView {
 
     @Composable
     override fun credentialDetails() {
+        val statusLists by statusListViewModel.statusLists.collectAsState()
         val detailsRendering = CardRenderingDetailsView(
             fields = listOf(
                 CardRenderingDetailsField(
@@ -391,10 +403,22 @@ class GenericCredentialItem : ICredentialView {
                                 null
                             }
                         }
-                        genericObjectDisplayer(
-                            credential!!,
-                            listOf("type", "hashed", "salt", "proof", "renderMethod", "@context")
-                        )
+                        Column {
+                            CredentialStatus(
+                                statusLists[credentialPack.id()] ?: CredentialStatusList.UNDEFINED
+                            )
+                            genericObjectDisplayer(
+                                credential!!,
+                                listOf(
+                                    "type",
+                                    "hashed",
+                                    "salt",
+                                    "proof",
+                                    "renderMethod",
+                                    "@context"
+                                )
+                            )
+                        }
                     }
                 )
             )
@@ -415,9 +439,7 @@ class GenericCredentialItem : ICredentialView {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun credentialPreviewAndDetails() {
-        var sheetOpen by remember {
-            mutableStateOf(false)
-        }
+        var sheetOpen by remember { mutableStateOf(false) }
 
         Box(
             Modifier

@@ -57,6 +57,18 @@ struct WalletHomeBody: View {
     @State var credentialPacks: [CredentialPack] = []
     let storageManager = StorageManager()
     @State var loading = false
+    @State var hasConnection = true
+    
+    func loadCredentials() async {
+        loading = true
+        do {
+            self.credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
+        } catch {
+            // TODO: display error message
+            print(error)
+        }
+        loading = false
+    }
 
     var body: some View {
         ZStack {
@@ -94,11 +106,18 @@ struct WalletHomeBody: View {
                                             // TODO: display error message
                                             print(error)
                                         }
-                                    }
+                                    },
+                                    hasConnection: $hasConnection
                                 )
                             }
+                            .id(UUID()) // make sure we are recreating all items when refresh
                             //                    ShareableCredentialListItem(mdoc: mdocBase64)
                         }
+                    }
+                    
+                    .refreshable {
+                        hasConnection = checkInternetConnection()
+                        await loadCredentials()
                     }
                     .padding(.top, 20)
                 }
@@ -116,14 +135,8 @@ struct WalletHomeBody: View {
         }
         .onAppear(perform: {
             Task {
-                loading = true
-                do {
-                    self.credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
-                } catch {
-                    // TODO: display error message
-                    print(error)
-                }
-                loading = false
+                hasConnection = checkInternetConnection()
+                await loadCredentials()
             }
         })
     }

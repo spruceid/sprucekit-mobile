@@ -19,6 +19,7 @@ import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsActivityLo
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
@@ -35,6 +36,7 @@ fun SetupNavGraph(
     verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
     credentialPacksViewModel: CredentialPacksViewModel,
+    statusListViewModel: StatusListViewModel,
     helpersViewModel: HelpersViewModel
 ) {
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
@@ -53,6 +55,7 @@ fun SetupNavGraph(
                 verificationMethodsViewModel = verificationMethodsViewModel,
                 credentialPacksViewModel = credentialPacksViewModel,
                 walletActivityLogsViewModel = walletActivityLogsViewModel,
+                statusListViewModel = statusListViewModel,
                 helpersViewModel = helpersViewModel
             )
         }
@@ -93,7 +96,8 @@ fun SetupNavGraph(
                 navController,
                 verificationId = id,
                 verificationMethodsViewModel = verificationMethodsViewModel,
-                verificationActivityLogsViewModel = verificationActivityLogsViewModel
+                verificationActivityLogsViewModel = verificationActivityLogsViewModel,
+                statusListViewModel = statusListViewModel
             )
         }
         composable(
@@ -149,7 +153,8 @@ fun SetupNavGraph(
                 navController,
                 rawCredential,
                 credentialPacksViewModel,
-                walletActivityLogsViewModel
+                walletActivityLogsViewModel,
+                statusListViewModel
             )
         }
         composable(
@@ -163,7 +168,8 @@ fun SetupNavGraph(
                 navController,
                 url,
                 credentialPacksViewModel,
-                walletActivityLogsViewModel
+                walletActivityLogsViewModel,
+                statusListViewModel
             )
         }
         composable(

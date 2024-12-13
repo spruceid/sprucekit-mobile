@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.ParagraphStyle
@@ -42,10 +43,14 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.sdk.rs.DidMethod
+import com.spruceid.mobile.sdk.rs.DidMethodUtils
 import com.spruceid.mobile.sdk.rs.Holder
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PermissionRequest
 import com.spruceid.mobile.sdk.rs.PermissionResponse
+import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.RequestedField
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
@@ -70,6 +75,45 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
+class Signer(keyId: String?) : PresentationSigner {
+    private val keyId = if (keyId == null) "reference-app/default-signing" else keyId
+    private val keyManager = KeyManager()
+    private val jwk = keyManager.getJwk(this.keyId) ?: throw IllegalArgumentException("Invalid kid")
+    private val didJwk = DidMethodUtils(DidMethod.JWK)
+
+    override suspend fun sign(payload: ByteArray): ByteArray {
+        val signature =
+            keyManager.signPayload(keyId, payload)
+                ?: throw IllegalStateException("Failed to sign payload")
+
+        return signature
+    }
+
+    override fun algorithm(): String {
+        // Parse the jwk as a JSON object and return the "alg" field
+        var json = JSONObject(jwk)
+
+        return json.getString("alg")
+    }
+
+    override suspend fun verificationMethod(): String {
+        return didJwk.vmFromJwk(jwk)
+    }
+
+    override fun did(): String {
+        return didJwk.didFromJwk(jwk)
+    }
+
+    override fun jwk(): String {
+        return jwk
+    }
+
+    override fun cryptosuite(): String {
+        // TODO: Add an uniffi enum type for crypto suites.
+        return "ecdsa-rdfc-2019"
+    }
+}
+
 @Composable
 fun HandleOID4VPView(
     navController: NavController,
@@ -85,23 +129,29 @@ fun HandleOID4VPView(
     var permissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
     var permissionResponse by remember { mutableStateOf<PermissionResponse?>(null) }
     var selectedCredential by remember { mutableStateOf<ParsedCredential?>(null) }
+    val ctx = LocalContext.current
 
-    var err by remember {
-        mutableStateOf<String?>(null)
-    }
+    var err by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         try {
             val credentials = mutableListOf<ParsedCredential>()
-            credentialPacks.value
-                .forEach { credentialPack ->
-                    credentials.addAll(credentialPack.list())
-                    credentialClaims += credentialPack.findCredentialClaims(listOf("name", "type"))
-                }
+            credentialPacks.value.forEach { credentialPack ->
+                credentials.addAll(credentialPack.list())
+                credentialClaims += credentialPack.findCredentialClaims(listOf("name", "type"))
+            }
 
             withContext(Dispatchers.IO) {
-                holder = Holder.newWithCredentials(credentials, trustedDids);
-                permissionRequest = holder!!.authorizationRequest(url)
+                val signer = Signer("reference-app/default-signing")
+                holder =
+                    Holder.newWithCredentials(
+                        credentials,
+                        trustedDids,
+                        signer,
+                        getVCPlaygroundOID4VCIContext(ctx)
+                    )
+                val newurl = url.replace("authorize", "")
+                permissionRequest = holder!!.authorizationRequest(newurl)
             }
         } catch (e: Exception) {
             err = e.localizedMessage
@@ -109,20 +159,14 @@ fun HandleOID4VPView(
     }
 
     fun onBack() {
-        navController.navigate(Screen.HomeScreen.route) {
-            popUpTo(0)
-        }
+        navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
     }
 
     if (err != null) {
         ErrorView(
             errorTitle = "Error Presenting Credential",
             errorDetails = err!!,
-            onClose = {
-                navController.navigate(Screen.HomeScreen.route) {
-                    popUpTo(0)
-                }
-            }
+            onClose = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } }
         )
     } else {
         if (permissionRequest == null) {
@@ -133,37 +177,36 @@ fun HandleOID4VPView(
                     credentials = permissionRequest!!.credentials(),
                     credentialClaims = credentialClaims,
                     getRequestedFields = { credential ->
-                        permissionRequest!!.requestedFields(
-                            credential
-                        )
+                        permissionRequest!!.requestedFields(credential)
                     },
                     onContinue = { selectedCredentials ->
                         scope.launch {
                             try {
                                 // TODO: support multiple presentation
                                 selectedCredential = selectedCredentials.first()
-                                permissionResponse = permissionRequest!!.createPermissionResponse(
-                                    listOf(selectedCredential!!)
-                                )
+                                permissionResponse =
+                                    permissionRequest!!.createPermissionResponse(
+                                        selectedCredentials
+                                    )
                             } catch (e: Exception) {
                                 err = e.localizedMessage
                             }
                         }
                     },
-                    onCancel = {
-                        onBack()
-                    }
+                    onCancel = { onBack() }
                 )
             } else {
                 ErrorView(
                     errorTitle = "No matching credential(s)",
-                    errorDetails = "There are no credentials in your wallet that match the verification request you have scanned",
+                    errorDetails =
+                    "There are no credentials in your wallet that match the verification request you have scanned",
                     closeButtonLabel = "Cancel"
                 ) { onBack() }
             }
         } else {
             DataFieldSelector(
-                requestedFields = permissionRequest!!.requestedFields(selectedCredential!!),
+                requestedFields =
+                permissionRequest!!.requestedFields(selectedCredential!!),
                 onContinue = {
                     scope.launch {
                         try {
@@ -172,7 +215,8 @@ fun HandleOID4VPView(
                                 credentialPacks.value.firstOrNull { credentialPack ->
                                     credentialPack.getCredentialById(selectedCredential!!.id()) != null
                                 }!!
-                            val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+                            val credentialInfo =
+                                getCredentialIdTitleAndIssuer(credentialPack)
                             walletActivityLogsViewModel.saveWalletActivityLog(
                                 walletActivityLogs = WalletActivityLogs(
                                     credentialPackId = credentialPack.id().toString(),
@@ -190,9 +234,7 @@ fun HandleOID4VPView(
                         }
                     }
                 },
-                onCancel = {
-                    onBack()
-                }
+                onCancel = { onBack() }
             )
         }
     }
@@ -207,9 +249,8 @@ fun DataFieldSelector(
 
     val bullet = "\u2022"
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
-    val mockDataField = requestedFields.map { field ->
-        field.name()?.replaceFirstChar(Char::titlecase) ?: ""
-    }
+    val mockDataField =
+        requestedFields.map { field -> field.name()?.replaceFirstChar(Char::titlecase) ?: "" }
 
     Column(
         modifier = Modifier
@@ -219,9 +260,7 @@ fun DataFieldSelector(
     ) {
         Text(
             buildAnnotatedString {
-                withStyle(style = SpanStyle(color = Color.Blue)) {
-                    append("Verifier")
-                }
+                withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
                 append(" is requesting access to the following information")
             },
             fontFamily = Inter,
@@ -235,7 +274,8 @@ fun DataFieldSelector(
         )
 
         Column(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .weight(weight = 1f, fill = false)
@@ -254,22 +294,23 @@ fun DataFieldSelector(
         }
 
         Row(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxWidth()
                 .padding(vertical = 12.dp)
                 .navigationBarsPadding(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
-                onClick = {
-                    onCancel()
-                },
+                onClick = { onCancel() },
                 shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(
+                colors =
+                ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
                     contentColor = ColorStone950,
                 ),
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
                     .border(
                         width = 1.dp,
@@ -287,14 +328,11 @@ fun DataFieldSelector(
             }
 
             Button(
-                onClick = {
-                    onContinue()
-                },
+                onClick = { onContinue() },
                 shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ColorEmerald900
-                ),
-                modifier = Modifier
+                colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
+                modifier =
+                Modifier
                     .fillMaxWidth()
                     .background(
                         color = ColorEmerald900,
@@ -384,14 +422,16 @@ fun CredentialSelector(
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
                 color = ColorBlue600,
-                modifier = Modifier.clickable {
+                modifier =
+                Modifier.clickable {
                     // TODO: implement select all
                 }
             )
         }
 
         Column(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .weight(weight = 1f, fill = false)
@@ -409,22 +449,23 @@ fun CredentialSelector(
         }
 
         Row(
-            modifier = Modifier
+            modifier =
+            Modifier
                 .fillMaxWidth()
                 .padding(vertical = 12.dp)
                 .navigationBarsPadding(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
-                onClick = {
-                    onCancel()
-                },
+                onClick = { onCancel() },
                 shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(
+                colors =
+                ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
                     contentColor = ColorStone950,
                 ),
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
                     .border(
                         width = 1.dp,
@@ -448,17 +489,21 @@ fun CredentialSelector(
                     }
                 },
                 shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (selectedCredentials.isNotEmpty()) {
+                colors =
+                ButtonDefaults.buttonColors(
+                    containerColor =
+                    if (selectedCredentials.isNotEmpty()) {
                         ColorStone600
                     } else {
                         Color.Gray
                     }
                 ),
-                modifier = Modifier
+                modifier =
+                Modifier
                     .fillMaxWidth()
                     .background(
-                        color = if (selectedCredentials.isNotEmpty()) {
+                        color =
+                        if (selectedCredentials.isNotEmpty()) {
                             ColorStone600
                         } else {
                             Color.Gray
@@ -491,12 +536,12 @@ fun CredentialSelectorItem(
 
     val bullet = "\u2022"
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
-    val mockDataField = requestedFields.map { field ->
-        field.name()?.replaceFirstChar(Char::titlecase) ?: ""
-    }
+    val mockDataField =
+        requestedFields.map { field -> field.name()?.replaceFirstChar(Char::titlecase) ?: "" }
 
     Column(
-        modifier = Modifier
+        modifier =
+        Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
             .border(
@@ -521,7 +566,8 @@ fun CredentialSelectorItem(
                         removeCredential(credential)
                     }
                 },
-                colors = CheckboxDefaults.colors(
+                colors =
+                CheckboxDefaults.colors(
                     checkedColor = ColorBlue600,
                     uncheckedColor = ColorStone300
                 )
@@ -547,7 +593,6 @@ fun CredentialSelectorItem(
                     modifier = Modifier.clickable { expanded = true }
                 )
             }
-
         }
 
         if (expanded) {
@@ -565,5 +610,4 @@ fun CredentialSelectorItem(
             )
         }
     }
-
 }

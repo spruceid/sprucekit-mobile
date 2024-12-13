@@ -215,6 +215,19 @@ struct AchievementCredentialItem: ICredentialView {
     }
     
     @ViewBuilder
+    public func credentialReviewInfo() -> any View {
+        VStack {
+            Text("Review Info")
+                .font(.customFont(font: .inter, style: .bold, size: .h0))
+                .foregroundStyle(Color("ColorStone950"))
+                .padding(.top, 25)
+            AnyView(credentialListItem())
+                .frame(height: 120)
+            AnyView(credentialDetails())
+        }
+    }
+    
+    @ViewBuilder
     public func credentialPreviewAndDetails() -> any View {
         AnyView(credentialListItem(withOptions: true))
             .onTapGesture {
@@ -223,18 +236,11 @@ struct AchievementCredentialItem: ICredentialView {
             .sheet(isPresented: $sheetOpen) {
                 
             } content: {
-                VStack {
-                    Text("Review Info")
-                        .font(.customFont(font: .inter, style: .bold, size: .h0))
-                        .foregroundStyle(Color("ColorStone950"))
-                        .padding(.top, 25)
-                    AnyView(credentialListItem())
-                        .frame(height: 120)
-                    AnyView(credentialDetails())
-                }
-                .presentationDetents([.fraction(0.85)])
-                .presentationDragIndicator(.automatic)
-                .presentationBackgroundInteraction(.automatic)
+                AnyView(credentialReviewInfo())
+                    .padding(.top, 25)
+                    .presentationDetents([.fraction(0.85)])
+                    .presentationDragIndicator(.automatic)
+                    .presentationBackgroundInteraction(.automatic)
             }
     }
     
