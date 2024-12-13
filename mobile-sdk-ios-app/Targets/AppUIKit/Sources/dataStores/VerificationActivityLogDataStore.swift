@@ -2,33 +2,39 @@ import Foundation
 import SQLite
 
 class VerificationActivityLogDataStore {
-    
+
     static let DIR_ACTIVITY_LOG_DB = "ActivityLogDB"
     static let STORE_NAME = "verification_activity_logs_2.sqlite3"
-    
+
     private let verificationActivityLogs = Table("verification_activity_logs")
-    
+
     private let id = SQLite.Expression<Int64>("id")
     private let credentialTitle = SQLite.Expression<String>("credential_title")
     private let issuer = SQLite.Expression<String>("issuer")
-    private let verificationDateTime = SQLite.Expression<Date>("verification_date_time")
-    private let additionalInformation = SQLite.Expression<String>("additional_information")
-    
+    private let verificationDateTime = SQLite.Expression<Date>(
+        "verification_date_time")
+    private let additionalInformation = SQLite.Expression<String>(
+        "additional_information")
+
     static let shared = VerificationActivityLogDataStore()
-    
+
     private var db: Connection?
-    
+
     private init() {
-        if let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let dirPath = docDir.appendingPathComponent(Self.DIR_ACTIVITY_LOG_DB)
-            
+        if let docDir = FileManager.default.urls(
+            for: .documentDirectory, in: .userDomainMask
+        ).first {
+            let dirPath = docDir.appendingPathComponent(
+                Self.DIR_ACTIVITY_LOG_DB)
+
             do {
                 try FileManager.default.createDirectory(
                     atPath: dirPath.path,
                     withIntermediateDirectories: true,
                     attributes: nil
                 )
-                let dbPath = dirPath.appendingPathComponent(Self.STORE_NAME).path
+                let dbPath = dirPath.appendingPathComponent(Self.STORE_NAME)
+                    .path
                 db = try Connection(dbPath)
                 createTable()
                 print("SQLiteDataStore init successfully at: \(dbPath) ")
@@ -40,32 +46,37 @@ class VerificationActivityLogDataStore {
             db = nil
         }
     }
-    
+
     private func createTable() {
         guard let database = db else {
             return
         }
         do {
-            try database.run(verificationActivityLogs.create { table in
-                table.column(id, primaryKey: .autoincrement)
-                table.column(credentialTitle)
-                table.column(issuer)
-                table.column(verificationDateTime)
-                table.column(additionalInformation)
-            })
+            try database.run(
+                verificationActivityLogs.create { table in
+                    table.column(id, primaryKey: .autoincrement)
+                    table.column(credentialTitle)
+                    table.column(issuer)
+                    table.column(verificationDateTime)
+                    table.column(additionalInformation)
+                })
             print("Table Created...")
         } catch {
             print(error)
         }
     }
-    
-    func insert(credentialTitle: String, issuer: String, verificationDateTime: Date, additionalInformation: String) -> Int64? {
+
+    func insert(
+        credentialTitle: String, issuer: String, verificationDateTime: Date,
+        additionalInformation: String
+    ) -> Int64? {
         guard let database = db else { return nil }
-        
-        let insert = verificationActivityLogs.insert(self.credentialTitle <- credentialTitle,
-                                                     self.issuer <- issuer,
-                                                     self.verificationDateTime <- verificationDateTime,
-                                                     self.additionalInformation <- additionalInformation)
+
+        let insert = verificationActivityLogs.insert(
+            self.credentialTitle <- credentialTitle,
+            self.issuer <- issuer,
+            self.verificationDateTime <- verificationDateTime,
+            self.additionalInformation <- additionalInformation)
         do {
             let rowID = try database.run(insert)
             return rowID
@@ -74,7 +85,7 @@ class VerificationActivityLogDataStore {
             return nil
         }
     }
-    
+
     func getAllVerificationActivityLogs() -> [VerificationActivityLog] {
         var verificationActivityLogs: [VerificationActivityLog] = []
         guard let database = db else { return [] }
@@ -84,19 +95,23 @@ class VerificationActivityLogDataStore {
             dtFormatter.dateStyle = .medium
             dtFormatter.timeStyle = .short
             dtFormatter.locale = Locale(identifier: "en_US_POSIX")
-            dtFormatter.timeZone = .gmt
             return dtFormatter
         }()
-        
+
         do {
-            for verificationActivityLog in try database.prepare(self.verificationActivityLogs) {
+            for verificationActivityLog in try database.prepare(
+                self.verificationActivityLogs.order(verificationDateTime.desc))
+            {
                 verificationActivityLogs.append(
                     VerificationActivityLog(
                         id: verificationActivityLog[id],
-                        credential_title: verificationActivityLog[credentialTitle],
+                        credential_title: verificationActivityLog[
+                            credentialTitle],
                         issuer: verificationActivityLog[issuer],
-                        verification_date_time: dateTimeFormatterDisplay.string(from: verificationActivityLog[verificationDateTime]),
-                        additional_information: verificationActivityLog[additionalInformation]
+                        verification_date_time: dateTimeFormatterDisplay.string(
+                            from: verificationActivityLog[verificationDateTime]),
+                        additional_information: verificationActivityLog[
+                            additionalInformation]
                     )
                 )
             }
@@ -105,7 +120,7 @@ class VerificationActivityLogDataStore {
         }
         return verificationActivityLogs
     }
-    
+
     func delete(id: Int64) -> Bool {
         guard let database = db else {
             return false
@@ -119,13 +134,15 @@ class VerificationActivityLogDataStore {
             return false
         }
     }
-    
+
     func deleteAll() -> Bool {
         guard let database = db else {
             return false
         }
         do {
-            for verificationActivityLog in try database.prepare(self.verificationActivityLogs) where !delete(id: verificationActivityLog[id]) {
+            for verificationActivityLog in try database.prepare(
+                self.verificationActivityLogs)
+            where !delete(id: verificationActivityLog[id]) {
                 return false
             }
         } catch {

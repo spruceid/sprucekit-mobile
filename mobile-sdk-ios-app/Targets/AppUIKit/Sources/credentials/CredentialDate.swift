@@ -9,7 +9,6 @@ struct CredentialDate: View {
         dtFormatter.dateStyle = .medium
         dtFormatter.timeStyle = .short
         dtFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dtFormatter.timeZone = .gmt
         return dtFormatter
     }()
     
@@ -18,7 +17,6 @@ struct CredentialDate: View {
         dtFormatter.dateStyle = .medium
         dtFormatter.timeStyle = .none
         dtFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dtFormatter.timeZone = .gmt
         return dtFormatter
     }()
     
