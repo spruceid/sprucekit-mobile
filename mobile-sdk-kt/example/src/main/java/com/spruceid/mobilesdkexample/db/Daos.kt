@@ -5,6 +5,15 @@ import androidx.room.Insert
 import androidx.room.Query
 
 @Dao
+interface WalletActivityLogsDao {
+    @Insert
+    suspend fun insertWalletActivity(walletActivityLogs: WalletActivityLogs)
+
+    @Query("SELECT * FROM wallet_activity_logs ORDER BY dateTime DESC")
+    fun getAllWalletActivityLogs(): List<WalletActivityLogs>
+}
+
+@Dao
 interface VerificationActivityLogsDao {
     @Insert
     suspend fun insertVerificationActivity(verificationActivityLogs: VerificationActivityLogs)

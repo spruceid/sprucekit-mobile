@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,19 +34,25 @@ import androidx.navigation.NavController
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
+import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
+import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.utils.getFileContent
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun WalletHomeView(
     navController: NavController,
     credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
     helpersViewModel: HelpersViewModel
 ) {
     Column(
@@ -56,7 +63,8 @@ fun WalletHomeView(
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
             credentialPacksViewModel = credentialPacksViewModel,
-            helpersViewModel = helpersViewModel
+            helpersViewModel = helpersViewModel,
+            walletActivityLogsViewModel = walletActivityLogsViewModel
         )
     }
 }
@@ -119,8 +127,10 @@ fun WalletHomeHeader(navController: NavController) {
 @Composable
 fun WalletHomeBody(
     credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
     helpersViewModel: HelpersViewModel
 ) {
+    val scope = rememberCoroutineScope()
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
     val loadingCredentialPacks by credentialPacksViewModel.loading.collectAsState()
 
@@ -138,6 +148,26 @@ fun WalletHomeBody(
                             credentialPack = credentialPack,
                             onDelete = {
                                 credentialPacksViewModel.deleteCredentialPack(credentialPack)
+                                scope.launch {
+                                    credentialPack.list().forEach { credential ->
+                                        val credentialInfo =
+                                            getCredentialIdTitleAndIssuer(
+                                                credentialPack,
+                                                credential
+                                            )
+                                        walletActivityLogsViewModel.saveWalletActivityLog(
+                                            walletActivityLogs = WalletActivityLogs(
+                                                credentialPackId = credentialPack.id().toString(),
+                                                credentialId = credentialInfo.first,
+                                                credentialTitle = credentialInfo.second,
+                                                issuer = credentialInfo.third,
+                                                action = "Deleted",
+                                                dateTime = getCurrentSqlDate(),
+                                                additionalInformation = ""
+                                            )
+                                        )
+                                    }
+                                }
                             },
                             onExport = { credentialTitle ->
                                 helpersViewModel.exportText(

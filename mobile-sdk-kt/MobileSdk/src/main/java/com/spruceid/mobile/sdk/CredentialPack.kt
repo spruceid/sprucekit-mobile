@@ -6,14 +6,13 @@ import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
-import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobile.sdk.rs.StorageManagerInterface
 import com.spruceid.mobile.sdk.rs.Uuid
+import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobile.sdk.rs.VdcCollection
 import com.spruceid.mobile.sdk.rs.VdcCollectionException
 import org.json.JSONException
 import org.json.JSONObject
-import java.lang.IllegalArgumentException
 import java.util.UUID
 
 /**
@@ -38,6 +37,10 @@ class CredentialPack {
     constructor(id: UUID, credentialsArray: MutableList<ParsedCredential>) {
         this.id = id
         this.credentials = credentialsArray
+    }
+
+    fun id(): UUID {
+        return id
     }
 
     /**
@@ -187,12 +190,16 @@ class CredentialPack {
         try {
             list().forEach {
                 if (vdcCollection.get(it.id()) == null) {
-                    Log.d("sprucekit", "Saving credential '${it.id()}' " +
-                            "to the VdcCollection")
+                    Log.d(
+                        "sprucekit", "Saving credential '${it.id()}' " +
+                                "to the VdcCollection"
+                    )
                     vdcCollection.add(it.intoGenericForm())
                 } else {
-                    Log.d("sprucekit", "Skipped saving credential '${it.id()}' " +
-                            "to the VdcCollection as it already exists")
+                    Log.d(
+                        "sprucekit", "Skipped saving credential '${it.id()}' " +
+                                "to the VdcCollection as it already exists"
+                    )
                 }
             }
         } catch (e: VdcCollectionException) {
@@ -269,6 +276,7 @@ class CredentialPackContents {
         private const val ID_KEY = "id"
         private const val CREDENTIALS_KEY = "credentials"
     }
+
     val id: UUID
     val credentials: List<Uuid>
 
@@ -310,14 +318,18 @@ class CredentialPackContents {
                     try {
                         val credential = vdcCollection.get(it)
                         if (credential == null) {
-                            Log.w("sprucekit", "credential '$it' in pack '${id}'" +
-                                    " could not be found")
+                            Log.w(
+                                "sprucekit", "credential '$it' in pack '${id}'" +
+                                        " could not be found"
+                            )
                             Log.d("sprucekit", "VdcCollection: ${vdcCollection.allEntries()}")
                         }
                         credential
                     } catch (e: Exception) {
-                        Log.w("sprucekit" ,"credential '$it' could not be loaded from" +
-                                " storage")
+                        Log.w(
+                            "sprucekit", "credential '$it' could not be loaded from" +
+                                    " storage"
+                        )
                         return@mapNotNull null
                     }
                 }
@@ -325,8 +337,10 @@ class CredentialPackContents {
                     try {
                         return@mapNotNull ParsedCredential.parseFromCredential(it)
                     } catch (e: CredentialDecodingException) {
-                        Log.w("sprucekit", "failed to parse credential '${it.id}'" +
-                                " as a known variant")
+                        Log.w(
+                            "sprucekit", "failed to parse credential '${it.id}'" +
+                                    " as a known variant"
+                        )
                         return@mapNotNull null
                     }
                 }

@@ -10,14 +10,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
+        WalletActivityLogs::class,
         VerificationActivityLogs::class,
         RawCredentials::class,
         VerificationMethods::class
     ],
-    version = 4
+    version = 5
 )
 @TypeConverters(*[DateConverter::class])
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun walletActivityLogsDao(): WalletActivityLogsDao
     abstract fun verificationActivityLogsDao(): VerificationActivityLogsDao
     abstract fun rawCredentialsDao(): RawCredentialsDao
     abstract fun verificationMethodsDao(): VerificationMethodsDao
@@ -36,6 +38,7 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                         .addMigrations(MIGRATION_2_3)
                         .addMigrations(MIGRATION_3_4)
+                        .addMigrations(MIGRATION_4_5)
                         .allowMainThreadQueries()
                         .build()
                 dbInstance = instance
@@ -69,6 +72,23 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
                     "`credentialTitle` TEXT NOT NULL, " +
                     "`issuer` TEXT NOT NULL, " +
                     "`verificationDateTime` INTEGER NOT NULL, " +
+                    "`additionalInformation` TEXT NOT NULL, " +
+                    "PRIMARY KEY(`id`))"
+        )
+    }
+}
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "CREATE TABLE `wallet_activity_logs` (" +
+                    "`id` INTEGER NOT NULL, " +
+                    "`credentialPackId` TEXT NOT NULL, " +
+                    "`credentialId` TEXT NOT NULL, " +
+                    "`credentialTitle` TEXT NOT NULL, " +
+                    "`issuer` TEXT NOT NULL, " +
+                    "`action` TEXT NOT NULL, " +
+                    "`dateTime` INTEGER NOT NULL, " +
                     "`additionalInformation` TEXT NOT NULL, " +
                     "PRIMARY KEY(`id`))"
         )

@@ -50,6 +50,7 @@ import com.spruceid.mobile.sdk.rs.RequestedField
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
@@ -59,8 +60,11 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
+import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.utils.trustedDids
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,7 +74,8 @@ import org.json.JSONObject
 fun HandleOID4VPView(
     navController: NavController,
     url: String,
-    credentialPacksViewModel: CredentialPacksViewModel
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel
 ) {
     val scope = rememberCoroutineScope()
     val credentialPacks = credentialPacksViewModel.credentialPacks
@@ -163,6 +168,22 @@ fun HandleOID4VPView(
                     scope.launch {
                         try {
                             holder!!.submitPermissionResponse(permissionResponse!!)
+                            val credentialPack =
+                                credentialPacks.value.firstOrNull { credentialPack ->
+                                    credentialPack.getCredentialById(selectedCredential!!.id()) != null
+                                }!!
+                            val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+                            walletActivityLogsViewModel.saveWalletActivityLog(
+                                walletActivityLogs = WalletActivityLogs(
+                                    credentialPackId = credentialPack.id().toString(),
+                                    credentialId = credentialInfo.first,
+                                    credentialTitle = credentialInfo.second,
+                                    issuer = credentialInfo.third,
+                                    action = "Verification",
+                                    dateTime = getCurrentSqlDate(),
+                                    additionalInformation = ""
+                                )
+                            )
                             onBack()
                         } catch (e: Exception) {
                             err = e.localizedMessage

@@ -21,9 +21,11 @@ import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VCIView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VPView
+import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
 
 @Composable
@@ -31,6 +33,7 @@ fun SetupNavGraph(
     navController: NavHostController,
     verificationMethodsViewModel: VerificationMethodsViewModel,
     verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
     credentialPacksViewModel: CredentialPacksViewModel,
     helpersViewModel: HelpersViewModel
 ) {
@@ -49,6 +52,7 @@ fun SetupNavGraph(
                 initialTab = tab,
                 verificationMethodsViewModel = verificationMethodsViewModel,
                 credentialPacksViewModel = credentialPacksViewModel,
+                walletActivityLogsViewModel = walletActivityLogsViewModel,
                 helpersViewModel = helpersViewModel
             )
         }
@@ -119,14 +123,34 @@ fun SetupNavGraph(
         }
         composable(
             route = Screen.WalletSettingsHomeScreen.route,
-        ) { WalletSettingsHomeView(navController, credentialPacksViewModel) }
+        ) {
+            WalletSettingsHomeView(
+                navController,
+                credentialPacksViewModel,
+                walletActivityLogsViewModel
+            )
+        }
+        composable(
+            route = Screen.WalletSettingsActivityLogScreen.route,
+        ) {
+            WalletSettingsActivityLogScreen(
+                navController,
+                walletActivityLogsViewModel = walletActivityLogsViewModel,
+                helpersViewModel = helpersViewModel
+            )
+        }
         composable(
             route = Screen.AddToWalletScreen.route,
             deepLinks =
             listOf(navDeepLink { uriPattern = "spruceid://?sd-jwt={rawCredential}" })
         ) { backStackEntry ->
             val rawCredential = backStackEntry.arguments?.getString("rawCredential")!!
-            AddToWalletView(navController, rawCredential, credentialPacksViewModel)
+            AddToWalletView(
+                navController,
+                rawCredential,
+                credentialPacksViewModel,
+                walletActivityLogsViewModel
+            )
         }
         composable(
             route = Screen.ScanQRScreen.route,
@@ -135,7 +159,12 @@ fun SetupNavGraph(
             route = Screen.HandleOID4VCI.route,
         ) { backStackEntry ->
             val url = backStackEntry.arguments?.getString("url")!!
-            HandleOID4VCIView(navController, url, credentialPacksViewModel)
+            HandleOID4VCIView(
+                navController,
+                url,
+                credentialPacksViewModel,
+                walletActivityLogsViewModel
+            )
         }
         composable(
             route = Screen.HandleOID4VP.route,
@@ -145,7 +174,12 @@ fun SetupNavGraph(
             if (!url.startsWith("openid4vp")) {
                 url = "openid4vp://$url"
             }
-            HandleOID4VPView(navController, url, credentialPacksViewModel)
+            HandleOID4VPView(
+                navController,
+                url,
+                credentialPacksViewModel,
+                walletActivityLogsViewModel
+            )
         }
     }
 }

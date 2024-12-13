@@ -14,6 +14,7 @@ import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
+import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
@@ -204,4 +205,67 @@ fun envelopVerifiableSdJwtCredential(sdJwt: String): String {
     } catch (e: Exception) {
         return jsonString.removeEscaping()
     }
+}
+
+fun getCredentialIdTitleAndIssuer(
+    credentialPack: CredentialPack,
+    credential: ParsedCredential? = null
+): Triple<String, String, String> {
+    val claims = credentialPack.findCredentialClaims(listOf("name", "type", "issuer"))
+
+    var cred = if (credential != null) {
+        claims.entries.firstNotNullOf { claim ->
+            if (claim.key == credential.id()) {
+                claim
+            } else {
+                null
+            }
+        }
+    } else {
+        claims.entries.firstNotNullOf { claim ->
+            val c = credentialPack.getCredentialById(claim.key)
+            if (
+                c?.asSdJwt() != null ||
+                c?.asJwtVc() != null ||
+                c?.asJsonVc() != null
+            ) {
+                claim
+            } else {
+                null
+            }
+        }
+    }
+
+    val credentialKey = cred.key
+    val credentialValue = cred.value
+
+    var title = ""
+    try {
+        title = credentialValue.get("name").toString()
+        if (title.isBlank()) {
+            val arrayTypes = credentialValue.getJSONArray("type")
+            for (i in 0 until arrayTypes.length()) {
+                if (arrayTypes.get(i).toString() != "VerifiableCredential") {
+                    title = arrayTypes.get(i).toString().splitCamelCase()
+                    break
+                }
+            }
+        }
+    } catch (_: Exception) {
+    }
+
+    var issuer = ""
+    try {
+        issuer = credentialValue.getJSONObject("issuer").getString("name").toString()
+    } catch (_: Exception) {
+    }
+
+    if (issuer.isBlank()) {
+        try {
+            issuer = credentialValue.getJSONObject("issuer").getString("id").toString()
+        } catch (_: Exception) {
+        }
+    }
+
+    return Triple(credentialKey, title, issuer)
 }

@@ -4,6 +4,18 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.sql.Date
 
+@Entity(tableName = "wallet_activity_logs")
+data class WalletActivityLogs(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val credentialPackId: String,
+    val credentialId: String,
+    val credentialTitle: String,
+    val issuer: String,
+    val action: String,
+    val dateTime: Date,
+    val additionalInformation: String,
+)
+
 @Entity(tableName = "verification_activity_logs")
 data class VerificationActivityLogs(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
