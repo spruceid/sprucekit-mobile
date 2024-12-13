@@ -143,8 +143,6 @@ pub async fn test_vc_playground_oid4vci() -> Result<()> {
         .exchange_credential(vec![pop], Oid4vciExchangeOptions::default())
         .await?;
 
-    println!("Credentials: {credentials:?}");
-
     for (index, crate::oid4vci::CredentialResponse { payload, .. }) in
         credentials.iter().enumerate()
     {
@@ -207,6 +205,15 @@ pub async fn test_vc_playground_oid4vp() -> Result<()> {
         .create_permission_response(parsed_credentials)
         .await?;
 
+    // Save the VP token for later use.
+    tokio::fs::write(
+        format!("{TMP_DIR}/vp_token.json"),
+        serde_json::to_string_pretty(&response.vp_token)
+            .expect("failed to write vp token to tmp file"),
+    )
+    .await
+    .expect("failed to write vp token");
+
     holder.submit_permission_response(response).await?;
 
     Ok(())
@@ -215,6 +222,10 @@ pub async fn test_vc_playground_oid4vp() -> Result<()> {
 pub(crate) fn vc_playground_context() -> HashMap<String, String> {
     let mut context: HashMap<String, String> = HashMap::new();
 
+    context.insert(
+        "https://w3id.org/vvt/v1rc2".into(),
+        include_str!("../tests/context/w3id_org_vvt_v1rc2.json").into(),
+    );
     context.insert(
         "https://w3id.org/first-responder/v1".into(),
         include_str!("../tests/context/w3id_org_first_responder_v1.json").into(),

@@ -37,6 +37,7 @@ pub struct Credential {
     /// The raw payload of this credential. The encoding depends on the format.
     pub payload: Vec<u8>,
     /// The alias of the key that is authorized to present this credential.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key_alias: Option<KeyAlias>,
 }
 

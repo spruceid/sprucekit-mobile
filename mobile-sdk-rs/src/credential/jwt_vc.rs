@@ -205,10 +205,9 @@ impl CredentialPresentation for JwtVc {
         let subject = options.subject();
 
         let key_id = Some(vm.to_string());
-        let algorithm = serde_json::from_str::<ssi::jwk::Algorithm>(&options.signer.cryptosuite())
-            .map_err(|e| {
-                CredentialEncodingError::VpToken(format!("Invalid Signing Algorithm: {e:?}"))
-            })?;
+        let algorithm = options.signer.algorithm().try_into().map_err(|e| {
+            CredentialEncodingError::VpToken(format!("Invalid Signing Algorithm: {e:?}"))
+        })?;
 
         let header = Header {
             // NOTE: The algorithm should match the signing
