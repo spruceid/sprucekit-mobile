@@ -209,6 +209,13 @@ fun envelopVerifiableSdJwtCredential(sdJwt: String): String {
     }
 }
 
+/**
+ * Given a credential pack, it returns a triple with the credential id, title and issuer.
+ * @param credentialPack the credential pack with credentials
+ * @param credential optional credential parameter
+ *
+ * @return a triple of strings Triple<id, title, issuer>
+ */
 fun getCredentialIdTitleAndIssuer(
     credentialPack: CredentialPack,
     credential: ParsedCredential? = null

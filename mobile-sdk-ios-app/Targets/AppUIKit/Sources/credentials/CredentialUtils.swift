@@ -101,6 +101,12 @@ func genericObjectFlattener(
     return res
 }
 
+/**
+    Given a credential pack, it returns a triple with the credential id, title and issuer.
+    - Parameter credentialPack: the credential pack with credentials
+    - Parameter credential: optional credential parameter
+    - Returns: a triple of strings (id, title, issuer)
+ */
 func getCredentialIdTitleAndIssuer(
     credentialPack: CredentialPack, credential: ParsedCredential? = nil
 ) -> (String, String, String) {
