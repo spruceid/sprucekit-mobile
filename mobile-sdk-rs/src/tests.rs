@@ -103,7 +103,7 @@ pub(crate) fn load_signer() -> KeySigner {
     KeySigner { jwk: load_jwk() }
 }
 
-// #[ignore]
+#[ignore]
 #[tokio::test]
 pub async fn test_vc_playground_oid4vci() -> Result<()> {
     let signer = load_signer();
@@ -164,7 +164,7 @@ pub async fn test_vc_playground_oid4vci() -> Result<()> {
 // above.
 //
 // Ensure oid4vci runs BEFORE oid4vp. This will ensure the test credentials are available.
-// #[ignore]
+#[ignore]
 #[tokio::test]
 pub async fn test_vc_playground_oid4vp() -> Result<()> {
     let signer = load_signer();
