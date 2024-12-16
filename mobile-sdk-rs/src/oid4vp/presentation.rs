@@ -334,15 +334,10 @@ impl<'a> PresentationOptions<'a> {
             Default::default(),
         );
 
-        //
-        // Set the nonce of the request in the proof options.
-        //
-        // See: https://w3c.github.io/vc-data-integrity/#proofs
-        proof_options.nonce = Some(self.request.nonce().to_string());
         // See: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-13.1-14
         //
         // domain is the client_id of the request, in the example above.
-        proof_options.challenge = proof_options.nonce.clone();
+        proof_options.challenge = Some(self.nonce().to_owned());
         proof_options.domains = vec![self.request.client_id().0.clone()];
 
         if let AnyJsonPresentation::V1(_) = presentation {

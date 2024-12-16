@@ -130,10 +130,17 @@ impl Holder {
     /// This will fetch the presentation definition from the verifier.
     pub async fn authorization_request(
         &self,
-        url: Url,
+        // NOTE: This url is mutable to replace any leading host value
+        // before the `query` with an empty string.
+        mut url: Url,
         // Callback here to allow for review of untrusted DIDs.
     ) -> Result<Arc<PermissionRequest>, OID4VPError> {
         uniffi::deps::log::debug!("Url: {url:?}");
+
+        // NOTE: Replace the host value with an empty string to remove any
+        // leading host value before the query.
+        url.set_host(Some(""))
+            .map_err(|e| OID4VPError::RequestValidation(format!("{e:?}")))?;
 
         let request = self
             .validate_request(url)
@@ -345,6 +352,18 @@ pub(crate) mod tests {
         pub(crate) jwk: JWK,
     }
 
+    impl KeySigner {
+        pub async fn sign_jwt(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
+            let sig = self
+                .jwk
+                .sign(payload)
+                .await
+                .expect("failed to sign Jws Payload");
+
+            Ok(sig.as_bytes().to_vec())
+        }
+    }
+
     #[async_trait::async_trait]
     impl PresentationSigner for KeySigner {
         async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
@@ -358,7 +377,10 @@ pub(crate) mod tests {
         }
 
         fn algorithm(&self) -> Algorithm {
-            self.jwk.algorithm.map(Algorithm::from).unwrap()
+            self.jwk
+                .algorithm
+                .map(Algorithm::from)
+                .unwrap_or(Algorithm::ES256)
         }
 
         async fn verification_method(&self) -> String {
