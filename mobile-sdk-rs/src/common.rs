@@ -93,8 +93,7 @@ impl UniffiCustomTypeConverter for Algorithm {
     type Builtin = String;
 
     fn into_custom(alg: Self::Builtin) -> uniffi::Result<Self> {
-        // TODO: provide a `TryFrom<&str>` implementation for `Algorithm` in the `ssi` crate.
-        match alg.to_uppercase().as_ref() {
+        match alg.as_ref() {
             "ES256" => Ok(Algorithm::ES256),
             "ES256K" => Ok(Algorithm::ES256K),
             _ => anyhow::bail!("unsupported uniffi custom type for Algorithm mapping: {alg}"),
