@@ -44,6 +44,16 @@ struct AddToWalletView: View {
             let credentialPack = CredentialPack()
             _ = try credentialPack.tryAddRawCredential(rawCredential: rawCredential)
             try credentialPack.save(storageManager: StorageManager())
+            let credentialInfo = getCredentialIdTitleAndIssuer(credentialPack: credentialPack)
+            _ = WalletActivityLogDataStore.shared.insert(
+                credentialPackId: credentialPack.id.uuidString,
+                credentialId: credentialInfo.0,
+                credentialTitle: credentialInfo.1,
+                issuer: credentialInfo.2,
+                action: "Claimed",
+                dateTime: Date(),
+                additionalInformation: ""
+            )
             back()
         } catch {
             print(error)

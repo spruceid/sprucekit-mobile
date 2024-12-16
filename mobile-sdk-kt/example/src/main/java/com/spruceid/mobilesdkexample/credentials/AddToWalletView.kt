@@ -26,14 +26,18 @@ import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
+import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
+import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
+import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -43,6 +47,7 @@ fun AddToWalletView(
     navController: NavHostController,
     rawCredential: String,
     credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
     statusListViewModel: StatusListViewModel
 ) {
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
@@ -70,6 +75,18 @@ fun AddToWalletView(
                     val credentialPack = CredentialPack()
                     credentialPack.tryAddRawCredential(rawCredential)
                     credentialPacksViewModel.saveCredentialPack(credentialPack)
+                    val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+                    walletActivityLogsViewModel.saveWalletActivityLog(
+                        walletActivityLogs = WalletActivityLogs(
+                            credentialPackId = credentialPack.id().toString(),
+                            credentialId = credentialInfo.first,
+                            credentialTitle = credentialInfo.second,
+                            issuer = credentialInfo.third,
+                            action = "Claimed",
+                            dateTime = getCurrentSqlDate(),
+                            additionalInformation = ""
+                        )
+                    )
                 } catch (e: Exception) {
                     error = e.localizedMessage
                 }

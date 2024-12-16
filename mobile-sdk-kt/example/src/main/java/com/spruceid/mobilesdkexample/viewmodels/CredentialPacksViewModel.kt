@@ -39,9 +39,10 @@ class CredentialPacksViewModel(application: Application) : AndroidViewModel(appl
         _credentialPacks.value = tmpCredentialPacksList
     }
 
-    fun deleteAllCredentialPacks() {
+    fun deleteAllCredentialPacks(onDeleteCredentialPack: ((CredentialPack) -> Unit)? = null) {
         _credentialPacks.value.forEach { credentialPack ->
             credentialPack.remove(storageManager)
+            onDeleteCredentialPack?.invoke(credentialPack)
         }
         _credentialPacks.value = emptyList()
     }

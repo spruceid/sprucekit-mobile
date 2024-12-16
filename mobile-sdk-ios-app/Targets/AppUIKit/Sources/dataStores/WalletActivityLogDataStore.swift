@@ -1,22 +1,24 @@
 import Foundation
 import SQLite
 
-class VerificationActivityLogDataStore {
+class WalletActivityLogDataStore {
 
     static let DIR_ACTIVITY_LOG_DB = "ActivityLogDB"
-    static let STORE_NAME = "verification_activity_logs_2.sqlite3"
+    static let STORE_NAME = "wallet_activity_logs.sqlite3"
 
-    private let verificationActivityLogs = Table("verification_activity_logs")
+    private let walletActivityLogs = Table("wallet_activity_logs")
 
     private let id = SQLite.Expression<Int64>("id")
+    private let credentialPackId = SQLite.Expression<String>("credential_pack_id")
+    private let credentialId = SQLite.Expression<String>("credential_id")
     private let credentialTitle = SQLite.Expression<String>("credential_title")
     private let issuer = SQLite.Expression<String>("issuer")
-    private let verificationDateTime = SQLite.Expression<Date>(
-        "verification_date_time")
+    private let action = SQLite.Expression<String>("action")
+    private let dateTime = SQLite.Expression<Date>("date_time")
     private let additionalInformation = SQLite.Expression<String>(
         "additional_information")
 
-    static let shared = VerificationActivityLogDataStore()
+    static let shared = WalletActivityLogDataStore()
 
     private var db: Connection?
 
@@ -53,11 +55,14 @@ class VerificationActivityLogDataStore {
         }
         do {
             try database.run(
-                verificationActivityLogs.create { table in
+                walletActivityLogs.create { table in
                     table.column(id, primaryKey: .autoincrement)
+                    table.column(credentialPackId)
+                    table.column(credentialId)
                     table.column(credentialTitle)
                     table.column(issuer)
-                    table.column(verificationDateTime)
+                    table.column(action)
+                    table.column(dateTime)
                     table.column(additionalInformation)
                 })
             print("Table Created...")
@@ -67,15 +72,23 @@ class VerificationActivityLogDataStore {
     }
 
     func insert(
-        credentialTitle: String, issuer: String, verificationDateTime: Date,
+        credentialPackId: String,
+        credentialId: String,
+        credentialTitle: String,
+        issuer: String,
+        action: String,
+        dateTime: Date,
         additionalInformation: String
     ) -> Int64? {
         guard let database = db else { return nil }
 
-        let insert = verificationActivityLogs.insert(
+        let insert = walletActivityLogs.insert(
+            self.credentialPackId <- credentialPackId,
+            self.credentialId <- credentialId,
             self.credentialTitle <- credentialTitle,
             self.issuer <- issuer,
-            self.verificationDateTime <- verificationDateTime,
+            self.action <- action,
+            self.dateTime <- dateTime,
             self.additionalInformation <- additionalInformation)
         do {
             let rowID = try database.run(insert)
@@ -86,8 +99,8 @@ class VerificationActivityLogDataStore {
         }
     }
 
-    func getAllVerificationActivityLogs() -> [VerificationActivityLog] {
-        var verificationActivityLogs: [VerificationActivityLog] = []
+    func getAllWalletActivityLogs() -> [WalletActivityLog] {
+        var walletActivityLogs: [WalletActivityLog] = []
         guard let database = db else { return [] }
 
         let dateTimeFormatterDisplay = {
@@ -99,18 +112,21 @@ class VerificationActivityLogDataStore {
         }()
 
         do {
-            for verificationActivityLog in try database.prepare(
-                self.verificationActivityLogs.order(verificationDateTime.desc))
+            for walletActivityLog in try database.prepare(
+                self.walletActivityLogs.order(dateTime.desc))
             {
-                verificationActivityLogs.append(
-                    VerificationActivityLog(
-                        id: verificationActivityLog[id],
-                        credential_title: verificationActivityLog[
+                walletActivityLogs.append(
+                    WalletActivityLog(
+                        id: walletActivityLog[id],
+                        credential_pack_id: walletActivityLog[credentialPackId],
+                        credential_id: walletActivityLog[credentialId],
+                        credential_title: walletActivityLog[
                             credentialTitle],
-                        issuer: verificationActivityLog[issuer],
-                        verification_date_time: dateTimeFormatterDisplay.string(
-                            from: verificationActivityLog[verificationDateTime]),
-                        additional_information: verificationActivityLog[
+                        issuer: walletActivityLog[issuer],
+                        action: walletActivityLog[action],
+                        date_time: dateTimeFormatterDisplay.string(
+                            from: walletActivityLog[dateTime]),
+                        additional_information: walletActivityLog[
                             additionalInformation]
                     )
                 )
@@ -118,7 +134,7 @@ class VerificationActivityLogDataStore {
         } catch {
             print(error)
         }
-        return verificationActivityLogs
+        return walletActivityLogs
     }
 
     func delete(id: Int64) -> Bool {
@@ -126,7 +142,7 @@ class VerificationActivityLogDataStore {
             return false
         }
         do {
-            let filter = verificationActivityLogs.filter(self.id == id)
+            let filter = walletActivityLogs.filter(self.id == id)
             try database.run(filter.delete())
             return true
         } catch {
@@ -140,9 +156,9 @@ class VerificationActivityLogDataStore {
             return false
         }
         do {
-            for verificationActivityLog in try database.prepare(
-                self.verificationActivityLogs)
-            where !delete(id: verificationActivityLog[id]) {
+            for walletActivityLog in try database.prepare(
+                self.walletActivityLogs)
+            where !delete(id: walletActivityLog[id]) {
                 return false
             }
         } catch {

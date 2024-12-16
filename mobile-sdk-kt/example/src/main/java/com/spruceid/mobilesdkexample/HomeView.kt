@@ -43,6 +43,7 @@ import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.wallet.WalletHomeView
 
 enum class HomeTabs {
@@ -56,6 +57,7 @@ fun HomeView(
     initialTab: String,
     verificationMethodsViewModel: VerificationMethodsViewModel,
     credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
     statusListViewModel: StatusListViewModel,
     helpersViewModel: HelpersViewModel
 ) {
@@ -81,6 +83,7 @@ fun HomeView(
                 WalletHomeView(
                     navController,
                     credentialPacksViewModel = credentialPacksViewModel,
+                    walletActivityLogsViewModel = walletActivityLogsViewModel,
                     statusListViewModel = statusListViewModel,
                     helpersViewModel = helpersViewModel
                 )

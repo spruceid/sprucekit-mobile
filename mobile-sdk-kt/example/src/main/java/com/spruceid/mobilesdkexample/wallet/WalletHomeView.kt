@@ -40,21 +40,27 @@ import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
+import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
+import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.utils.getFileContent
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import kotlinx.coroutines.launch
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun WalletHomeView(
     navController: NavController,
     credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
     statusListViewModel: StatusListViewModel,
     helpersViewModel: HelpersViewModel
 ) {
@@ -66,8 +72,9 @@ fun WalletHomeView(
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
             credentialPacksViewModel = credentialPacksViewModel,
-            statusListViewModel = statusListViewModel,
-            helpersViewModel = helpersViewModel
+            helpersViewModel = helpersViewModel,
+            walletActivityLogsViewModel = walletActivityLogsViewModel,
+            statusListViewModel = statusListViewModel
         )
     }
 }
@@ -130,6 +137,7 @@ fun WalletHomeHeader(navController: NavController) {
 @Composable
 fun WalletHomeBody(
     credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
     helpersViewModel: HelpersViewModel,
     statusListViewModel: StatusListViewModel
 ) {
@@ -172,6 +180,26 @@ fun WalletHomeBody(
                             statusListViewModel = statusListViewModel,
                             onDelete = {
                                 credentialPacksViewModel.deleteCredentialPack(credentialPack)
+                                scope.launch {
+                                    credentialPack.list().forEach { credential ->
+                                        val credentialInfo =
+                                            getCredentialIdTitleAndIssuer(
+                                                credentialPack,
+                                                credential
+                                            )
+                                        walletActivityLogsViewModel.saveWalletActivityLog(
+                                            walletActivityLogs = WalletActivityLogs(
+                                                credentialPackId = credentialPack.id().toString(),
+                                                credentialId = credentialInfo.first,
+                                                credentialTitle = credentialInfo.second,
+                                                issuer = credentialInfo.third,
+                                                action = "Deleted",
+                                                dateTime = getCurrentSqlDate(),
+                                                additionalInformation = ""
+                                            )
+                                        )
+                                    }
+                                }
                             },
                             onExport = { credentialTitle ->
                                 helpersViewModel.exportText(

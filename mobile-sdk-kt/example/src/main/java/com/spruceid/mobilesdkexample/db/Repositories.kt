@@ -3,6 +3,21 @@ package com.spruceid.mobilesdkexample.db
 import androidx.annotation.WorkerThread
 import java.sql.Date
 
+class WalletActivityLogsRepository(private val walletActivityLogsDao: WalletActivityLogsDao) {
+    val walletActivityLogs: List<WalletActivityLogs> =
+        walletActivityLogsDao.getAllWalletActivityLogs()
+
+    @WorkerThread
+    suspend fun insertWalletActivityLog(walletActivityLogs: WalletActivityLogs) {
+        walletActivityLogsDao.insertWalletActivity(walletActivityLogs)
+    }
+
+    @WorkerThread
+    suspend fun getWalletActivityLogs(): List<WalletActivityLogs> {
+        return walletActivityLogsDao.getAllWalletActivityLogs()
+    }
+}
+
 class VerificationActivityLogsRepository(private val verificationActivityLogsDao: VerificationActivityLogsDao) {
     val verificationActivityLogs: List<VerificationActivityLogs> =
         verificationActivityLogsDao.getAllVerificationActivityLogs()

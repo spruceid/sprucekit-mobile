@@ -16,6 +16,7 @@ import com.spruceid.mobile.sdk.ConnectionLiveData
 import com.spruceid.mobilesdkexample.db.AppDatabase
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogsRepository
 import com.spruceid.mobilesdkexample.db.VerificationMethodsRepository
+import com.spruceid.mobilesdkexample.db.WalletActivityLogsRepository
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.navigation.SetupNavGraph
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
@@ -28,6 +29,8 @@ import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewMode
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModelFactory
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModelFactory
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
@@ -82,6 +85,10 @@ class MainActivity : ComponentActivity() {
                         VerificationActivityLogsViewModelFactory((application as MainApplication).verificationActivityLogsRepository)
                     }
 
+                    val walletActivityLogsViewModel: WalletActivityLogsViewModel by viewModels {
+                        WalletActivityLogsViewModelFactory((application as MainApplication).walletActivityLogsRepository)
+                    }
+
                     val credentialPacksViewModel: CredentialPacksViewModel by viewModels {
                         CredentialPacksViewModelFactory(application as MainApplication)
                     }
@@ -100,6 +107,7 @@ class MainActivity : ComponentActivity() {
                         navController,
                         verificationMethodsViewModel = verificationMethodsViewModel,
                         verificationActivityLogsViewModel = verificationActivityLogsViewModel,
+                        walletActivityLogsViewModel = walletActivityLogsViewModel,
                         credentialPacksViewModel = credentialPacksViewModel,
                         statusListViewModel = statusListViewModel,
                         helpersViewModel = helpersViewModel
@@ -117,4 +125,5 @@ class MainApplication : Application() {
 
     val verificationMethodsRepository by lazy { VerificationMethodsRepository(db.verificationMethodsDao()) }
     val verificationActivityLogsRepository by lazy { VerificationActivityLogsRepository(db.verificationActivityLogsDao()) }
+    val walletActivityLogsRepository by lazy { WalletActivityLogsRepository(db.walletActivityLogsDao()) }
 }

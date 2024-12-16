@@ -14,7 +14,7 @@ import java.util.UUID
 class StatusListViewModel(application: Application) : AndroidViewModel(application) {
     private val _statusLists = MutableStateFlow(mutableMapOf<UUID, CredentialStatusList>())
     val statusLists = _statusLists.asStateFlow()
-    private val _hasConnection = MutableStateFlow(false)
+    private val _hasConnection = MutableStateFlow(true)
     val hasConnection = _hasConnection.asStateFlow()
 
     suspend fun fetchStatus(credentialPack: CredentialPack): CredentialStatusList {

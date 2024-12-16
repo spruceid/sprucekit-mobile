@@ -1,16 +1,19 @@
 import SwiftUI
 
-struct VerifierSettingsActivityLog: Hashable {}
+struct WalletSettingsActivityLog: Hashable {}
 
-struct VerificationActivityLog: Hashable {
+struct WalletActivityLog: Hashable {
     let id: Int64
+    let credential_pack_id: String
+    let credential_id: String
     let credential_title: String
     let issuer: String
-    let verification_date_time: String
+    let action: String
+    let date_time: String
     let additional_information: String
 }
 
-struct VerifierSettingsActivityLogView: View {
+struct WalletSettingsActivityLogView: View {
     @Binding var path: NavigationPath
 
     func onBack() {
@@ -19,14 +22,14 @@ struct VerifierSettingsActivityLogView: View {
 
     var body: some View {
         VStack {
-            VerifierSettingsActivityLogHeader(onBack: onBack)
-            VerifierSettingsActivityLogBody()
+            WalletSettingsActivityLogHeader(onBack: onBack)
+            WalletSettingsActivityLogBody()
         }
         .navigationBarBackButtonHidden(true)
     }
 }
 
-struct VerifierSettingsActivityLogHeader: View {
+struct WalletSettingsActivityLogHeader: View {
     var onBack: () -> Void
 
     var body: some View {
@@ -47,19 +50,20 @@ struct VerifierSettingsActivityLogHeader: View {
     }
 }
 
-struct VerifierSettingsActivityLogBody: View {
-    let verificationActivityLogsReq: [VerificationActivityLog] = VerificationActivityLogDataStore.shared.getAllVerificationActivityLogs()
+struct WalletSettingsActivityLogBody: View {
+    let walletActivityLogsReq: [WalletActivityLog] =
+        WalletActivityLogDataStore.shared.getAllWalletActivityLogs()
 
     @ViewBuilder
     var shareButton: some View {
-        let activityLogs = verificationActivityLogsReq.map {
-            "\($0.id),\($0.credential_title),\($0.issuer),\($0.verification_date_time.replaceCommas()),\($0.additional_information)\n"
+        let activityLogs = walletActivityLogsReq.map {
+            "\($0.id),\($0.credential_pack_id),\($0.credential_id),\($0.credential_title),\($0.issuer),\($0.action),\($0.date_time.replaceCommas()),\($0.additional_information)\n"
         }.joined()
         let rows = generateCSV(
             heading:
-                "ID,CredentialTitle,Issuer,VerificationDateTime,AdditionalInformation\n",
+                "ID,CredentialPackId,CredentialId,CredentialTitle,Issuer,Action,DateTime,AdditionalInformation\n",
             rows: activityLogs,
-            filename: "activity_logs.csv"
+            filename: "wallet_activity_logs.csv"
         )
         ShareLink(item: rows!) {
             HStack(alignment: .center, spacing: 10) {
@@ -83,7 +87,7 @@ struct VerifierSettingsActivityLogBody: View {
 
     var body: some View {
         VStack {
-            if(verificationActivityLogsReq.isEmpty) {
+            if walletActivityLogsReq.isEmpty {
                 VStack {
                     Text("No Activity Log Found")
                         .font(
@@ -96,20 +100,21 @@ struct VerifierSettingsActivityLogBody: View {
             } else {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading) {
-                        ForEach(verificationActivityLogsReq, id: \.self) { item in
+                        ForEach(walletActivityLogsReq, id: \.self) {
+                            item in
                             Text(item.credential_title)
                                 .font(
                                     .customFont(
                                         font: .inter, style: .bold, size: .h4)
                                 )
                                 .foregroundColor(Color("ColorStone950"))
-                            Text(item.issuer)
+                            Text(item.action)
                                 .font(
                                     .customFont(
                                         font: .inter, style: .regular, size: .p)
                                 )
                                 .foregroundColor(Color("ColorStone600"))
-                            Text("\(item.verification_date_time)")
+                            Text("\(item.date_time)")
                                 .font(
                                     .customFont(
                                         font: .inter, style: .regular, size: .p)

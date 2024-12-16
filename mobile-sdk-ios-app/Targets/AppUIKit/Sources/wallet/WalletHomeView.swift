@@ -44,6 +44,7 @@ struct WalletHomeHeader: View {
                         .foregroundColor(Color("ColorBase150"))
                         .frame(width: 36, height: 36)
                     Image("User")
+                        .foregroundColor(Color("ColorStone400"))
                 }
             }
             .padding(.trailing, 20)
@@ -85,6 +86,21 @@ struct WalletHomeBody: View {
                                     onDelete: {
                                         do {
                                             try credentialPack.remove(storageManager: storageManager)
+                                            credentialPack.list().forEach { credential in
+                                                let credentialInfo = getCredentialIdTitleAndIssuer(
+                                                    credentialPack: credentialPack,
+                                                    credential: credential
+                                                )
+                                                _ = WalletActivityLogDataStore.shared.insert(
+                                                    credentialPackId: credentialPack.id.uuidString,
+                                                    credentialId: credentialInfo.0,
+                                                    credentialTitle: credentialInfo.1,
+                                                    issuer: credentialInfo.2,
+                                                    action: "Deleted",
+                                                    dateTime: Date(),
+                                                    additionalInformation: ""
+                                                )
+                                            }
                                             self.credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
                                         } catch {
                                             // TODO: display error message
