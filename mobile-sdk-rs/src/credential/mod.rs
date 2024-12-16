@@ -286,7 +286,9 @@ impl ParsedCredential {
     ) -> Result<VpTokenItem, OID4VPError> {
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => sd_jwt.as_vp_token_item(options).await,
-            ParsedCredentialInner::JwtVcJson(vc) => vc.as_vp_token_item(options).await,
+            ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.as_vp_token_item(options).await
+            }
             ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options).await,
             _ => Err(CredentialEncodingError::VpToken(format!(
                 "Credential encoding for VP Token is not implemented for {:?}.",

@@ -1,7 +1,6 @@
 use super::error::OID4VPError;
 use super::permission_request::*;
 use super::presentation::PresentationSigner;
-use super::shim::shim_definition;
 use crate::common::*;
 use crate::credential::*;
 use crate::vdc_collection::VdcCollection;
@@ -176,6 +175,12 @@ impl Holder {
             ClaimFormatPayload::ProofType(vec!["ecdsa-rdfc-2019".into()]),
         );
 
+        // Insert support for JwtVpJson format.
+        metadata.vp_formats_supported_mut().0.insert(
+            ClaimFormatDesignation::JwtVpJson,
+            ClaimFormatPayload::AlgValuesSupported(vec!["ES256".into()]),
+        );
+
         metadata
             // Insert support for the DID client ID scheme.
             .add_client_id_schemes_supported(&[ClientIdScheme::Did, ClientIdScheme::RedirectUri])
@@ -194,12 +199,6 @@ impl Holder {
         &self,
         definition: &mut PresentationDefinition,
     ) -> Result<Vec<Arc<ParsedCredential>>, OID4VPError> {
-        // TODO: Notify DB about updating mdl presentation definition.
-        // See: tests/examples/mdl_presentation_definition.json for an example.
-        shim_definition(definition).map_err(|e| {
-            OID4VPError::PresentationDefinitionResolution(format!("Shim failed: {e:?}"))
-        })?;
-
         let credentials = match &self.provided_credentials {
             // Use a pre-selected list of credentials if provided.
             Some(credentials) => credentials.to_owned(),
@@ -330,7 +329,6 @@ pub(crate) mod tests {
         oid4vp::presentation::{PresentationError, PresentationSigner},
         tests::{load_jwk, load_signer, vc_playground_context},
     };
-    use std::str::FromStr;
 
     use json_vc::JsonVc;
     use jwt_vc::JwtVc;
@@ -506,34 +504,20 @@ pub(crate) mod tests {
         Ok(())
     }
 
-    // #[ignore]
+    #[ignore]
     #[tokio::test]
-    async fn test_vehicle_title() -> Result<(), Box<dyn std::error::Error>> {
-        let auth_url = "openid4vp://?client_id=did%3Aweb%3Aqa.opencred.org&request_uri=https%3A%2F%2Fqa.opencred.org%2Fworkflows%2Fz19mLsUzMweuIUlk349cpekAz%2Fexchanges%2Fz19mtatQNjK9N34qgu2bxXRtd%2Fopenid%2Fclient%2Fauthorization%2Frequest".parse().expect("failed to parse url");
+    async fn test_mdl_jwt() -> Result<(), Box<dyn std::error::Error>> {
+        let auth_url = "openid4vp://?client_id=did%3Aweb%3Aqa.opencred.org&request_uri=https%3A%2F%2Fqa.opencred.org%2Fworkflows%2Fz19mLsUzMweuIUlk349cpekAz%2Fexchanges%2Fz19ojX429fKPvEeGGGapuWUTJ%2Fopenid%2Fclient%2Fauthorization%2Frequest".parse().expect("failed to parse url");
 
         let key_signer = KeySigner { jwk: load_jwk() };
 
-        let mdl = ParsedCredential::new_jwt_vc_json(
+        let mdl = ParsedCredential::new_jwt_vc_json_ld(
             JwtVc::new_from_compact_jws(include_str!("../../tests/examples/mdl.jwt").into())
                 .expect("failed to create mDL Jwt VC"),
         );
 
-        let jwt_vc_vvt =
-            JwtVc::new_from_compact_jws(include_str!("../../tests/examples/vvt.jwt").into())
-                .expect("failed to create VVT Jwt VC");
-
-        println!("Vehicle Title Credential: {:?}", jwt_vc_vvt.credential());
-
-        // NOTE: JwtVp is not supported by the above authorization request,
-        // therefore converting the credential to a JSON VC.
-        let json_vc_vvt =
-            JsonVc::new_from_json(jwt_vc_vvt.credential_as_json_encoded_utf8_string())
-                .expect("failed to parse VVT VC");
-
-        let vvt = ParsedCredential::new_ldp_vc(json_vc_vvt);
-
         let holder = Holder::new_with_credentials(
-            vec![mdl, vvt],
+            vec![mdl],
             vec![],
             Box::new(key_signer),
             Some(vc_playground_context()),
