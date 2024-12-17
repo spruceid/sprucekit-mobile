@@ -9,10 +9,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 
@@ -25,8 +25,9 @@ fun CredentialDate(dateString: String) {
         try {
             val ISO8601DateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]Z")
             val parsedDate = OffsetDateTime.parse(dateString, ISO8601DateFormat)
+            val localZoneParsedDate = parsedDate.atZoneSameInstant(ZoneId.systemDefault())
             val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' h:mm a")
-            date = parsedDate.format(dateTimeFormatter)
+            date = localZoneParsedDate.format(dateTimeFormatter)
             return@LaunchedEffect
         } catch (_: Exception) {
         }
