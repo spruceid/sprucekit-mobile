@@ -58,6 +58,7 @@ import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class AchievementCredentialItem : ICredentialView {
@@ -386,6 +387,8 @@ class AchievementCredentialItem : ICredentialView {
                         val ISO8601DateFormat =
                             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss[.SSS]Z")
                         val parsedDate = OffsetDateTime.parse(awardedDate, ISO8601DateFormat)
+                        val localZoneParsedDate =
+                            parsedDate.atZoneSameInstant(ZoneId.systemDefault())
                         val dateTimeFormatter =
                             DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' h:mm a")
 
@@ -396,7 +399,10 @@ class AchievementCredentialItem : ICredentialView {
                                 Pair(obj["identityType"].toString(), obj["identityHash"].toString())
                             }
                         }
-                        details?.add(0, Pair("awardedDate", parsedDate.format(dateTimeFormatter)))
+                        details?.add(
+                            0,
+                            Pair("awardedDate", localZoneParsedDate.format(dateTimeFormatter))
+                        )
 
                         Row(
                             Modifier.padding(horizontal = 12.dp)
