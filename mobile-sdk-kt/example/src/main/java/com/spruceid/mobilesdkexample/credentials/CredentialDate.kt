@@ -31,6 +31,16 @@ fun CredentialDate(dateString: String) {
             return@LaunchedEffect
         } catch (_: Exception) {
         }
+        
+        // date time yyyy-MM-dd'T'HH:mm:ss.SSSSSSSS'Z'
+        try {
+            val parsedDate = OffsetDateTime.parse(dateString)
+            val localZoneParsedDate = parsedDate.atZoneSameInstant(ZoneId.systemDefault())
+            val dateTimeFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' h:mm a")
+            date = localZoneParsedDate.format(dateTimeFormatter)
+            return@LaunchedEffect
+        } catch (_: Exception) {
+        }
 
         // date only
         try {
