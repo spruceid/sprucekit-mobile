@@ -74,6 +74,7 @@ pub struct RequestedField {
     pub(crate) name: Option<String>,
     pub(crate) required: bool,
     pub(crate) retained: bool,
+    pub(crate) selective_disclosable: bool,
     pub(crate) purpose: Option<String>,
     pub(crate) input_descriptor_id: String,
     // the `raw_field` represents the actual field
@@ -89,6 +90,7 @@ impl From<openid4vp::core::input_descriptor::RequestedField<'_>> for RequestedFi
             name: value.name,
             required: value.required,
             retained: value.retained,
+            selective_disclosable: value.selective_disclosable,
             purpose: value.purpose,
             input_descriptor_id: value.input_descriptor_id,
             raw_fields: value
