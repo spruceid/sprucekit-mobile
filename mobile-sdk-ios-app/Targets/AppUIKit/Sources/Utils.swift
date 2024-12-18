@@ -25,7 +25,23 @@ extension View {
     }
 }
 
+extension RequestedField: Hashable, Equatable {
+    public static func ==(lhs: RequestedField, rhs: RequestedField) -> Bool {
+        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
+    }
+
+    public func hash(into hasher: inout Hasher) {
+         hasher.combine(ObjectIdentifier(self))
+    }
+}
+
 struct iOSCheckboxToggleStyle: ToggleStyle {
+    let enabled: Bool
+    
+    init(enabled: Bool = true) {
+        self.enabled = enabled
+    }
+    
     func makeBody(configuration: Configuration) -> some View {
         Button(action: {
             configuration.isOn.toggle()
@@ -37,6 +53,7 @@ struct iOSCheckboxToggleStyle: ToggleStyle {
                             .stroke(Color("ColorBlue600"), lineWidth: 1)
                             .background(Color("ColorBlue600"))
                             .frame(width: 20, height: 20)
+                            .opacity(enabled ? 1 : 0.5)
                         Image(systemName: "checkmark")
                             .foregroundColor(.white)
                     }

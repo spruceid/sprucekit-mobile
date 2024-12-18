@@ -56,6 +56,13 @@ impl Credential {
 pub struct ParsedCredential {
     pub(crate) inner: ParsedCredentialInner,
 }
+/// A credential that has been parsed as a known variant.
+#[derive(Debug, Clone, uniffi::Object)]
+pub struct PresentableCredential {
+    pub(crate) inner: ParsedCredentialInner,
+    pub(crate) limit_disclosure: bool,
+    pub(crate) selected_fields: Option<Vec<String>>,
+}
 
 /// A credential that has been parsed as a known variant.
 #[derive(Debug, Clone)]
@@ -68,6 +75,28 @@ pub(crate) enum ParsedCredentialInner {
     // More to come, for example:
     // SdJwt(...),
     // SdJwtJoseCose(...),
+}
+
+#[uniffi::export]
+impl PresentableCredential {
+    /// Converts to the primitive ParsedCredential type
+    pub fn as_parsed_credential(&self) -> Arc<ParsedCredential> {
+        Arc::new(ParsedCredential {
+            inner: self.inner.clone(),
+        })
+    }
+
+    /// Return if the credential supports selective disclosure
+    /// For now only SdJwts are supported
+    pub fn selective_disclosable(&self) -> bool {
+        match &self.inner {
+            ParsedCredentialInner::MsoMdoc(_) => false,
+            ParsedCredentialInner::JwtVcJson(_) => false,
+            ParsedCredentialInner::JwtVcJsonLd(_) => false,
+            ParsedCredentialInner::VCDM2SdJwt(_) => true,
+            ParsedCredentialInner::LdpVc(_) => false,
+        }
+    }
 }
 
 #[uniffi::export]
@@ -245,7 +274,58 @@ impl ParsedCredential {
     }
 }
 
-// Intneral Parsed Credential methods
+impl PresentableCredential {
+    /// Return a VP Token from the credential, given provided
+    /// options for constructing the VP Token.
+    pub async fn as_vp_token<'a>(
+        &self,
+        options: &'a PresentationOptions<'a>,
+    ) -> Result<VpTokenItem, OID4VPError> {
+        match &self.inner {
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+                sd_jwt
+                    .as_vp_token_item(options, self.selected_fields.clone(), self.limit_disclosure)
+                    .await
+            }
+            ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.as_vp_token_item(options, None, false).await
+            }
+            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options, None, false).await,
+            _ => Err(CredentialEncodingError::VpToken(format!(
+                "Credential encoding for VP Token is not implemented for {:?}.",
+                self.inner,
+            ))
+            .into()),
+        }
+    }
+
+    /// Return the descriptor map with the associated format type of the inner credential.
+    pub fn create_descriptor_map(
+        self: &Arc<Self>,
+        input_descriptor_id: impl Into<String>,
+        index: Option<usize>,
+    ) -> Result<DescriptorMap, OID4VPError> {
+        match &self.inner {
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+                sd_jwt.create_descriptor_map(input_descriptor_id, index)
+            }
+            ParsedCredentialInner::JwtVcJson(vc) => {
+                vc.create_descriptor_map(input_descriptor_id, index)
+            }
+            ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.create_descriptor_map(input_descriptor_id, index)
+            }
+            ParsedCredentialInner::LdpVc(vc) => {
+                vc.create_descriptor_map(input_descriptor_id, index)
+            }
+            ParsedCredentialInner::MsoMdoc(_mdoc) => {
+                unimplemented!("Mdoc create descriptor map not implemented")
+            }
+        }
+    }
+}
+
+// Internal Parsed Credential methods
 impl ParsedCredential {
     /// Check if the credential satisfies a presentation definition.
     pub fn satisfies_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
@@ -276,49 +356,6 @@ impl ParsedCredential {
             ParsedCredentialInner::LdpVc(vc) => vc.requested_fields(definition),
             ParsedCredentialInner::MsoMdoc(_mdoc) => {
                 unimplemented!("Mdoc requested fields not implemented")
-            }
-        }
-    }
-
-    /// Return a VP Token from the credential, given provided
-    /// options for constructing the VP Token.
-    pub async fn as_vp_token<'a>(
-        &self,
-        options: &'a PresentationOptions<'a>,
-    ) -> Result<VpTokenItem, OID4VPError> {
-        match &self.inner {
-            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => sd_jwt.as_vp_token_item(options).await,
-            ParsedCredentialInner::JwtVcJson(vc) => vc.as_vp_token_item(options).await,
-            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options).await,
-            _ => Err(CredentialEncodingError::VpToken(format!(
-                "Credential encoding for VP Token is not implemented for {:?}.",
-                self.inner,
-            ))
-            .into()),
-        }
-    }
-
-    /// Return the descriptor map with the associated format type of the inner credential.
-    pub fn create_descriptor_map(
-        self: &Arc<Self>,
-        input_descriptor_id: impl Into<String>,
-        index: Option<usize>,
-    ) -> Result<DescriptorMap, OID4VPError> {
-        match &self.inner {
-            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
-                sd_jwt.create_descriptor_map(input_descriptor_id, index)
-            }
-            ParsedCredentialInner::JwtVcJson(vc) => {
-                vc.create_descriptor_map(input_descriptor_id, index)
-            }
-            ParsedCredentialInner::JwtVcJsonLd(vc) => {
-                vc.create_descriptor_map(input_descriptor_id, index)
-            }
-            ParsedCredentialInner::LdpVc(vc) => {
-                vc.create_descriptor_map(input_descriptor_id, index)
-            }
-            ParsedCredentialInner::MsoMdoc(_mdoc) => {
-                unimplemented!("Mdoc create descriptor map not implemented")
             }
         }
     }

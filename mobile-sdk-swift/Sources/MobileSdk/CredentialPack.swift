@@ -273,7 +273,7 @@ public struct CredentialPackContents {
                 guard let credential = try await vdcCollection.get(id: credentialId) else {
                     throw CredentialPackError.credentialNotFound(id: credentialId)
                 }
-                return try ParsedCredential.parseFromCredential(credential: credential)
+                return try ParsedCredential.parseFromCredential(credential: credential, selectedFields: nil)
             } catch {
                 throw CredentialPackError.credentialLoading(reason: error)
             }

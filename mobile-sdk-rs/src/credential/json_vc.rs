@@ -215,6 +215,8 @@ impl CredentialPresentation for JsonVc {
     async fn as_vp_token_item<'a>(
         &self,
         options: &'a PresentationOptions<'a>,
+        _selected_fields: Option<Vec<String>>,
+        _limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError> {
         let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec())
             .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing ID: {e:?}")))?;

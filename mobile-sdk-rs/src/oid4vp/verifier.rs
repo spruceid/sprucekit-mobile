@@ -158,7 +158,7 @@ mod tests {
         let trusted_dids = vec!["did:web:localhost%3A3003:colofwd_signer_service".to_string()];
 
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             trusted_dids,
             Box::new(key_signer),
             None,
@@ -176,7 +176,14 @@ mod tests {
             .expect("authorization request failed");
 
         let response = request
-            .create_permission_response(request.credentials())
+            .create_permission_response(
+                request.credentials(),
+                vec![credential
+                    .requested_fields(&request.definition)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect()],
+            )
             .await
             .expect("failed to create permission response");
 

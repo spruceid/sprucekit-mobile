@@ -50,6 +50,7 @@ import com.spruceid.mobile.sdk.rs.Holder
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PermissionRequest
 import com.spruceid.mobile.sdk.rs.PermissionResponse
+import com.spruceid.mobile.sdk.rs.PresentableCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.RequestedField
 import com.spruceid.mobilesdkexample.ErrorView
@@ -123,6 +124,24 @@ class Signer(keyId: String?) : PresentationSigner {
     }
 }
 
+enum class OID4VPState {
+    Err,
+    SelectCredential,
+    SelectiveDisclosure,
+    Loading,
+    None,
+}
+
+class OID4VPError {
+    var title: String
+    var details: String
+
+    constructor(title: String, details: String) {
+        this.title = title
+        this.details = details
+    }
+}
+
 @Composable
 fun HandleOID4VPView(
     navController: NavController,
@@ -137,148 +156,152 @@ fun HandleOID4VPView(
     var holder by remember { mutableStateOf<Holder?>(null) }
     var permissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
     var permissionResponse by remember { mutableStateOf<PermissionResponse?>(null) }
-    var selectedCredential by remember { mutableStateOf<ParsedCredential?>(null) }
+    var selectedCredential by remember { mutableStateOf<PresentableCredential?>(null) }
+    var lSelectedCredentials = remember { mutableStateOf<List<PresentableCredential>>(listOf()) }
+    var state by remember { mutableStateOf(OID4VPState.None) }
+    var error by remember { mutableStateOf<OID4VPError?>(null) }
     val ctx = LocalContext.current
-
-    var err by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        try {
-            val credentials = mutableListOf<ParsedCredential>()
-            credentialPacks.value.forEach { credentialPack ->
-                credentials.addAll(credentialPack.list())
-                credentialClaims += credentialPack.findCredentialClaims(listOf("name", "type"))
-            }
-
-            withContext(Dispatchers.IO) {
-                val signer = Signer("reference-app/default-signing")
-                holder =
-                    Holder.newWithCredentials(
-                        credentials,
-                        trustedDids,
-                        signer,
-                        getVCPlaygroundOID4VCIContext(ctx)
-                    )
-                val newurl = url.replace("authorize", "")
-                val tempPermissionRequest = holder!!.authorizationRequest(newurl)
-                val permissionRequestCredentials = tempPermissionRequest.credentials()
-
-                if (permissionRequestCredentials.count() == 1) {
-                    selectedCredential = permissionRequestCredentials.first()
-                    permissionResponse =
-                        tempPermissionRequest.createPermissionResponse(
-                            permissionRequestCredentials
-                        )
-                }
-
-                permissionRequest = tempPermissionRequest
-            }
-        } catch (e: Exception) {
-            err = e.localizedMessage
-        }
-    }
 
     fun onBack() {
         navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
     }
 
-    if (err != null) {
-        ErrorView(
-            errorTitle = "Error Presenting Credential",
-            errorDetails = err!!,
-            onClose = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } }
-        )
-    } else {
-        if (permissionRequest == null) {
-            LoadingView(loadingText = "Loading...")
-        } else if (permissionResponse == null) {
-            if (permissionRequest!!.credentials().isNotEmpty()) {
-                CredentialSelector(
-                    credentials = permissionRequest!!.credentials(),
-                    credentialClaims = credentialClaims,
-                    getRequestedFields = { credential ->
-                        permissionRequest!!.requestedFields(credential)
-                    },
-                    onContinue = { selectedCredentials ->
-                        scope.launch {
-                            try {
-                                // TODO: support multiple presentation
-                                selectedCredential = selectedCredentials.first()
-                                permissionResponse =
-                                    permissionRequest!!.createPermissionResponse(
-                                        selectedCredentials
-                                    )
-                            } catch (e: Exception) {
-                                err = e.localizedMessage
-                            }
-                        }
-                    },
-                    onCancel = { onBack() }
-                )
-            } else {
-                ErrorView(
-                    errorTitle = "No matching credential(s)",
-                    errorDetails =
-                    "There are no credentials in your wallet that match the verification request you have scanned",
-                    closeButtonLabel = "Cancel"
-                ) { onBack() }
-            }
-        } else {
-            DataFieldSelector(
-                requestedFields = permissionRequest!!.requestedFields(selectedCredential!!),
-                onContinue = {
-                    scope.launch {
-                        try {
-                            holder!!.submitPermissionResponse(permissionResponse!!)
-                            val credentialPack =
-                                credentialPacks.value.firstOrNull { credentialPack ->
-                                    credentialPack.getCredentialById(
-                                        selectedCredential!!.id()
-                                    ) != null
-                                }!!
-                            val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
-                            walletActivityLogsViewModel.saveWalletActivityLog(
-                                walletActivityLogs =
-                                WalletActivityLogs(
-                                    credentialPackId =
-                                    credentialPack.id().toString(),
-                                    credentialId = credentialInfo.first,
-                                    credentialTitle = credentialInfo.second,
-                                    issuer = credentialInfo.third,
-                                    action = "Verification",
-                                    dateTime = getCurrentSqlDate(),
-                                    additionalInformation = ""
-                                )
-                            )
-                            Toast.showSuccess("Shared successfully")
-                            onBack()
-                        } catch (e: Exception) {
-                            err = e.localizedMessage
-                        }
+    when (state) {
+        OID4VPState.None -> LaunchedEffect(Unit) {
+            try {
+                val credentials = mutableListOf<ParsedCredential>()
+                credentialPacks.value.forEach { credentialPack ->
+                    credentials.addAll(credentialPack.list())
+                    credentialClaims += credentialPack.findCredentialClaims(listOf("name", "type"))
+                }
+
+                withContext(Dispatchers.IO) {
+                    val signer = Signer("reference-app/default-signing")
+                    holder =
+                        Holder.newWithCredentials(
+                            credentials,
+                            trustedDids,
+                            signer,
+                            getVCPlaygroundOID4VCIContext(ctx)
+                        )
+                    val newurl = url.replace("authorize", "")
+                    val tempPermissionRequest = holder!!.authorizationRequest(newurl)
+                    val permissionRequestCredentials = tempPermissionRequest.credentials()
+
+                    if (permissionRequestCredentials.count() == 1) {
+                        selectedCredential = permissionRequestCredentials.first()
                     }
-                },
-                onCancel = { onBack() }
-            )
+
+                    permissionRequest = tempPermissionRequest
+                    if (permissionRequest!!.credentials().isNotEmpty()) {
+                        state = OID4VPState.SelectCredential
+                    } else {
+                        error = OID4VPError(
+                            "No matching credential(s)",
+                            "There are no credentials in your wallet that match the verification request you have scanned",
+                        )
+                        state = OID4VPState.Err
+                    }
+                }
+            } catch (e: Exception) {
+                error = OID4VPError("No matching credential(s)", e.localizedMessage!!)
+                state = OID4VPState.Err
+            }
         }
+
+        OID4VPState.Err ->
+            ErrorView(
+                errorTitle = error!!.title,
+                errorDetails = error!!.details,
+                onClose = { onBack() }
+            )
+
+        OID4VPState.SelectCredential -> CredentialSelector(
+            credentials = permissionRequest!!.credentials(),
+            credentialClaims = credentialClaims,
+            getRequestedFields = { credential ->
+                permissionRequest!!.requestedFields(credential)
+            },
+            onContinue = { selectedCredentials ->
+                scope.launch {
+                    try {
+                        // TODO: support multiple presentation
+                        lSelectedCredentials.value = selectedCredentials
+                        selectedCredential = selectedCredentials.first()
+                        state = OID4VPState.SelectiveDisclosure
+                    } catch (e: Exception) {
+                        error = OID4VPError("Failed to select credential", e.localizedMessage!!)
+                        state = OID4VPState.Err
+                    }
+                }
+            },
+            onCancel = { onBack() }
+        )
+
+        OID4VPState.SelectiveDisclosure -> DataFieldSelector(
+            requestedFields =
+            permissionRequest!!.requestedFields(selectedCredential!!),
+            onContinue = {
+                scope.launch {
+                    try {
+                        permissionResponse =
+                            permissionRequest!!.createPermissionResponse(
+                                lSelectedCredentials.value,
+                                it,
+                            )
+                        holder!!.submitPermissionResponse(permissionResponse!!)
+                        val credentialPack =
+                            credentialPacks.value.firstOrNull { credentialPack ->
+                                credentialPack.getCredentialById(selectedCredential!!.asParsedCredential().id()) != null
+                            }!!
+                        val credentialInfo =
+                            getCredentialIdTitleAndIssuer(credentialPack)
+                        walletActivityLogsViewModel.saveWalletActivityLog(
+                            walletActivityLogs = WalletActivityLogs(
+                                credentialPackId = credentialPack.id().toString(),
+                                credentialId = credentialInfo.first,
+                                credentialTitle = credentialInfo.second,
+                                issuer = credentialInfo.third,
+                                action = "Verification",
+                                dateTime = getCurrentSqlDate(),
+                                additionalInformation = ""
+                            )
+                        )
+                        onBack()
+                    } catch (e: Exception) {
+                        error =
+                            OID4VPError("Failed to selective disclose fields", e.localizedMessage!!)
+                        state = OID4VPState.Err
+                    }
+                }
+            },
+            onCancel = { onBack() },
+            selectedCredential = selectedCredential!!
+        )
+
+        OID4VPState.Loading ->
+            LoadingView(loadingText = "Loading...")
     }
 }
 
 @Composable
 fun DataFieldSelector(
+    selectedCredential: PresentableCredential,
     requestedFields: List<RequestedField>,
-    onContinue: () -> Unit,
+    onContinue: (selectedFields: List<List<String>>) -> Unit,
     onCancel: () -> Unit
 ) {
-
-    val bullet = "\u2022"
+    var selectedFields by remember {
+        mutableStateOf(requestedFields.filter { it.required() }.map { it.path() }.toList())
+    }
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
-    val mockDataField =
-        requestedFields.map { field -> field.name()?.replaceFirstChar(Char::titlecase) ?: "" }
 
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 24.dp)
-        .padding(top = 48.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 48.dp)
+    ) {
         Text(
             buildAnnotatedString {
                 withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
@@ -301,17 +324,29 @@ fun DataFieldSelector(
                 .verticalScroll(rememberScrollState())
                 .weight(weight = 1f, fill = false)
         ) {
-            Text(
-                buildAnnotatedString {
-                    mockDataField.forEach {
-                        withStyle(style = paragraphStyle) {
-                            append(bullet)
-                            append("\t\t")
-                            append(it)
+            requestedFields.forEach {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        enabled = selectedCredential.selectiveDisclosable() && !it.required(),
+                        checked = selectedFields.contains(it.path()) || it.required(),
+                        onCheckedChange = { v ->
+                            selectedFields = if (!v) {
+                                selectedFields.minus(it.path())
+                            } else {
+                                selectedFields.plus(it.path())
+                            }
                         }
-                    }
-                },
-            )
+                    )
+                    Text(
+                        buildAnnotatedString {
+                            withStyle(style = paragraphStyle) {
+                                append("\t\t")
+                                append(it.name()?.replaceFirstChar(Char::titlecase) ?: "")
+                            }
+                        },
+                    )
+                }
+            }
         }
 
         Row(
@@ -349,7 +384,7 @@ fun DataFieldSelector(
             }
 
             Button(
-                onClick = { onContinue() },
+                onClick = { onContinue(listOf(selectedFields)) },
                 shape = RoundedCornerShape(6.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
                 modifier =
@@ -374,16 +409,16 @@ fun DataFieldSelector(
 
 @Composable
 fun CredentialSelector(
-    credentials: List<ParsedCredential>,
+    credentials: List<PresentableCredential>,
     credentialClaims: Map<String, JSONObject>,
-    getRequestedFields: (ParsedCredential) -> List<RequestedField>,
-    onContinue: (List<ParsedCredential>) -> Unit,
+    getRequestedFields: (PresentableCredential) -> List<RequestedField>,
+    onContinue: (List<PresentableCredential>) -> Unit,
     onCancel: () -> Unit,
     allowMultiple: Boolean = false
 ) {
-    val selectedCredentials = remember { mutableStateListOf<ParsedCredential>() }
+    val selectedCredentials = remember { mutableStateListOf<PresentableCredential>() }
 
-    fun selectCredential(credential: ParsedCredential) {
+    fun selectCredential(credential: PresentableCredential) {
         if (allowMultiple) {
             selectedCredentials.add(credential)
         } else {
@@ -392,20 +427,20 @@ fun CredentialSelector(
         }
     }
 
-    fun removeCredential(credential: ParsedCredential) {
+    fun removeCredential(credential: PresentableCredential) {
         selectedCredentials.remove(credential)
     }
 
-    fun getCredentialTitle(credential: ParsedCredential): String {
+    fun getCredentialTitle(credential: PresentableCredential): String {
         try {
-            credentialClaims[credential.id()]?.getString("name").let {
+            credentialClaims[credential.asParsedCredential().id()]?.getString("name").let {
                 return it.toString()
             }
         } catch (_: Exception) {
         }
 
         try {
-            credentialClaims[credential.id()]?.getJSONArray("type").let {
+            credentialClaims[credential.asParsedCredential().id()]?.getJSONArray("type").let {
                 for (i in 0 until it!!.length()) {
                     if (it.get(i).toString() != "VerifiableCredential") {
                         return it.get(i).toString()
@@ -418,10 +453,12 @@ fun CredentialSelector(
         return ""
     }
 
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 24.dp)
-        .padding(top = 48.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 48.dp)
+    ) {
         Text(
             text = "Select the credential${if (allowMultiple) "(s)" else ""} to share",
             fontFamily = Inter,
@@ -544,12 +581,12 @@ fun CredentialSelector(
 
 @Composable
 fun CredentialSelectorItem(
-    credential: ParsedCredential,
+    credential: PresentableCredential,
     requestedFields: List<RequestedField>,
-    getCredentialTitle: (ParsedCredential) -> String,
+    getCredentialTitle: (PresentableCredential) -> String,
     isChecked: Boolean,
-    selectCredential: (ParsedCredential) -> Unit,
-    removeCredential: (ParsedCredential) -> Unit
+    selectCredential: (PresentableCredential) -> Unit,
+    removeCredential: (PresentableCredential) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
