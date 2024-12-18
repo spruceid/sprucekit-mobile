@@ -110,8 +110,7 @@ impl UniffiCustomTypeConverter for CryptosuiteString {
     type Builtin = String;
 
     fn into_custom(suite: Self::Builtin) -> uniffi::Result<Self> {
-        Self::new(suite)
-            .map_err(|e| uniffi::deps::anyhow::anyhow!("failed to create cryptosuite: {e:?}"))
+        Self::new(suite).map_err(|e| anyhow::anyhow!("failed to create cryptosuite: {e:?}"))
     }
 
     fn from_custom(suite: Self) -> Self::Builtin {

@@ -1,0 +1,30 @@
+{
+  "@context": [
+    "https://www.w3.org/2018/credentials/v1",
+    "https://w3id.org/vvt/v1rc2"
+  ],
+  "type": ["VerifiableCredential", "VehicleTitleCredential"],
+  "id": "urn:uuid:b7d0ed6f-eee9-4a06-89ee-bbfe8bea4171",
+  "issuanceDate": "2024-08-10T17:28:43Z",
+  "expirationDate": "2025-08-10T17:28:43Z",
+  "credentialSubject": {
+    "type": "VehicleTitle",
+    "owner": [
+      {
+        "type": "Person",
+        "name": "Tamara Gottlieb",
+        "hasCertification": {
+          "type": "Certification",
+          "about": "Driver's License Number",
+          "certificationIdentification": "CA-QP4WI_W7Gp"
+        }
+      }
+    ],
+    "vehicle": {
+      "type": "Vehicle",
+      "vehicleIdentificationNumber": "12345"
+    },
+    "provenanceResource": "https://foo.bar"
+  },
+  "issuer": "did:web:qa.opencred.org"
+}

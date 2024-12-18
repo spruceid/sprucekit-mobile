@@ -37,6 +37,7 @@ pub struct Credential {
     /// The raw payload of this credential. The encoding depends on the format.
     pub payload: Vec<u8>,
     /// The alias of the key that is authorized to present this credential.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key_alias: Option<KeyAlias>,
 }
 
@@ -285,7 +286,9 @@ impl ParsedCredential {
     ) -> Result<VpTokenItem, OID4VPError> {
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => sd_jwt.as_vp_token_item(options).await,
-            ParsedCredentialInner::JwtVcJson(vc) => vc.as_vp_token_item(options).await,
+            ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.as_vp_token_item(options).await
+            }
             ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options).await,
             _ => Err(CredentialEncodingError::VpToken(format!(
                 "Credential encoding for VP Token is not implemented for {:?}.",

@@ -60,21 +60,6 @@ pub struct Holder {
 
 #[uniffi::export(async_runtime = "tokio")]
 impl Holder {
-    // NOTE: a logger is intended to be initialized once
-    // per an application, not per an instance of the holder.
-    //
-    // The following should be deprecated from the holder
-    // in favor of a global logger instance.
-    /// Initialize logger for the OID4VP holder.
-    fn initiate_logger(&self) {
-        #[cfg(target_os = "android")]
-        android_logger::init_once(
-            android_logger::Config::default()
-                .with_max_level(log::LevelFilter::Trace)
-                .with_tag("MOBILE_SDK_RS"),
-        );
-    }
-
     /// Uses VDC collection to retrieve the credentials for a given presentation definition.
     #[uniffi::constructor]
     pub async fn new(
@@ -188,6 +173,12 @@ impl Holder {
         metadata.vp_formats_supported_mut().0.insert(
             ClaimFormatDesignation::LdpVp,
             ClaimFormatPayload::ProofType(vec!["ecdsa-rdfc-2019".into()]),
+        );
+
+        // Insert support for JwtVpJson format.
+        metadata.vp_formats_supported_mut().0.insert(
+            ClaimFormatDesignation::JwtVpJson,
+            ClaimFormatPayload::AlgValuesSupported(vec!["ES256".into()]),
         );
 
         metadata
@@ -336,10 +327,11 @@ pub(crate) mod tests {
     use crate::{
         did::DidMethod,
         oid4vp::presentation::{PresentationError, PresentationSigner},
-        tests::{load_signer, vc_playground_context},
+        tests::{load_jwk, load_signer, vc_playground_context},
     };
 
     use json_vc::JsonVc;
+    use jwt_vc::JwtVc;
     use ssi::{
         claims::{data_integrity::CryptosuiteString, jws::JwsSigner},
         crypto::Algorithm,
@@ -508,6 +500,40 @@ pub(crate) mod tests {
             .expect("failed to create permission response");
 
         let _url = holder.submit_permission_response(response).await?;
+
+        Ok(())
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_mdl_jwt() -> Result<(), Box<dyn std::error::Error>> {
+        let auth_url = "openid4vp://?client_id=did%3Aweb%3Aqa.opencred.org&request_uri=https%3A%2F%2Fqa.opencred.org%2Fworkflows%2Fz19mLsUzMweuIUlk349cpekAz%2Fexchanges%2Fz19ojX429fKPvEeGGGapuWUTJ%2Fopenid%2Fclient%2Fauthorization%2Frequest".parse().expect("failed to parse url");
+
+        let key_signer = KeySigner { jwk: load_jwk() };
+
+        let mdl = ParsedCredential::new_jwt_vc_json_ld(
+            JwtVc::new_from_compact_jws(include_str!("../../tests/examples/mdl.jwt").into())
+                .expect("failed to create mDL Jwt VC"),
+        );
+
+        let holder = Holder::new_with_credentials(
+            vec![mdl],
+            vec![],
+            Box::new(key_signer),
+            Some(vc_playground_context()),
+        )
+        .await?;
+
+        let permission_request = holder.authorization_request(auth_url).await?;
+
+        let credentials = permission_request.credentials();
+
+        let response = permission_request
+            .create_permission_response(credentials)
+            .await
+            .expect("failed to create permission response");
+
+        holder.submit_permission_response(response).await?;
 
         Ok(())
     }

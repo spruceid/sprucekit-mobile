@@ -34,6 +34,7 @@ pub struct JwtVc {
     credential_string: String,
     header_json_string: String,
     payload_json_string: String,
+    payload_json: serde_json::Value,
     key_alias: Option<KeyAlias>,
 }
 
@@ -141,6 +142,10 @@ impl JwtVc {
         .map_err(|_| JwtVcInitError::CredentialClaimDecoding)?;
         let credential_string = serde_json::to_string(&credential)
             .map_err(|_| JwtVcInitError::CredentialStringEncoding)?;
+
+        let payload_json = serde_json::from_str(&payload_json_string)
+            .map_err(|_| JwtVcInitError::PayloadDecoding)?;
+
         Ok(Arc::new(Self {
             id,
             jws,
@@ -148,6 +153,7 @@ impl JwtVc {
             credential_string,
             header_json_string,
             payload_json_string,
+            payload_json,
             key_alias,
         }))
     }
@@ -167,16 +173,16 @@ impl JwtVc {
 }
 
 impl CredentialPresentation for JwtVc {
-    type Credential = JsonCredential;
+    type Credential = serde_json::Value;
     type CredentialFormat = ClaimFormatDesignation;
     type PresentationFormat = ClaimFormatDesignation;
 
     fn credential(&self) -> &Self::Credential {
-        &self.credential
+        &self.payload_json
     }
 
     fn presentation_format(&self) -> Self::PresentationFormat {
-        ClaimFormatDesignation::JwtVp
+        ClaimFormatDesignation::JwtVpJson
     }
 
     fn credential_format(&self) -> Self::CredentialFormat {
@@ -205,10 +211,9 @@ impl CredentialPresentation for JwtVc {
         let subject = options.subject();
 
         let key_id = Some(vm.to_string());
-        let algorithm = serde_json::from_str::<ssi::jwk::Algorithm>(&options.signer.cryptosuite())
-            .map_err(|e| {
-                CredentialEncodingError::VpToken(format!("Invalid Signing Algorithm: {e:?}"))
-            })?;
+        let algorithm = options.signer.algorithm().try_into().map_err(|e| {
+            CredentialEncodingError::VpToken(format!("Invalid Signing Algorithm: {e:?}"))
+        })?;
 
         let header = Header {
             // NOTE: The algorithm should match the signing
@@ -231,8 +236,6 @@ impl CredentialPresentation for JwtVc {
             "nonce": nonce,
             "vp": vp,
         });
-
-        println!("Claims: {claims:?}");
 
         let body_b64 = serde_json::to_vec(&claims)
             .map(|b| BASE64_URL_SAFE_NO_PAD.encode(b))
