@@ -346,6 +346,7 @@ pub(crate) mod tests {
         JWK,
     };
     use vcdm2_sd_jwt::VCDM2SdJwt;
+    use x509_cert::der::Encode;
 
     #[derive(Debug)]
     pub(crate) struct KeySigner {
@@ -373,7 +374,10 @@ pub(crate) mod tests {
                 .await
                 .expect("failed to sign Jws Payload");
 
-            Ok(sig)
+            // Convert signature bytes to DER encoded signature.
+            p256::ecdsa::Signature::from_slice(&sig)
+                .map(|sig| sig.to_der().as_bytes().to_vec())
+                .map_err(|e| PresentationError::Signing(format!("{e:?}")))
         }
 
         fn algorithm(&self) -> Algorithm {
@@ -384,11 +388,11 @@ pub(crate) mod tests {
         }
 
         async fn verification_method(&self) -> String {
-            DidMethod::Jwk.vm_from_jwk(&self.jwk()).await.unwrap()
+            DidMethod::Key.vm_from_jwk(&self.jwk()).await.unwrap()
         }
 
         fn did(&self) -> String {
-            DidMethod::Jwk.did_from_jwk(&self.jwk()).unwrap()
+            DidMethod::Key.did_from_jwk(&self.jwk()).unwrap()
         }
 
         fn cryptosuite(&self) -> CryptosuiteString {
@@ -396,7 +400,7 @@ pub(crate) mod tests {
         }
 
         fn jwk(&self) -> String {
-            serde_json::to_string(&self.jwk).unwrap()
+            serde_json::to_string(&self.jwk.to_public()).unwrap()
         }
     }
 

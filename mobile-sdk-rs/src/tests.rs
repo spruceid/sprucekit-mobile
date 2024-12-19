@@ -18,8 +18,8 @@ use uniffi::deps::anyhow::Result;
 use crate::oid4vci::{Oid4vci, Oid4vciExchangeOptions};
 
 const TMP_DIR: &str = "./target/tmp";
-const OID4VCI_CREDENTIAL_OFFER_URI: &str = "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz1A68iKqcX2HbQGQfVSfFnjkM%2Fexchanges%2Fz1AC9aDXq4GTqSxCyLSZ7dV8o%2Fopenid%2Fcredential-offer";
-const OID4VP_URI: &str = "openid4vp://authorize?client_id=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19zBFSx7Vnrt2ePcHCZbzaVP%2Fopenid%2Fclient%2Fauthorization%2Fresponse&request_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19zBFSx7Vnrt2ePcHCZbzaVP%2Fopenid%2Fclient%2Fauthorization%2Frequest";
+const OID4VCI_CREDENTIAL_OFFER_URI: &str = "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz1A68iKqcX2HbQGQfVSfFnjkM%2Fexchanges%2Fz19sRzDtc7zLzbzapedXKVYEL%2Fopenid%2Fcredential-offer";
+const OID4VP_URI: &str = "openid4vp://authorize?client_id=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19jdRJ5TdRMgEmcqqwfoyjG4%2Fopenid%2Fclient%2Fauthorization%2Fresponse&request_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz19jdRJ5TdRMgEmcqqwfoyjG4%2Fopenid%2Fclient%2Fauthorization%2Frequest";
 
 #[derive(Debug, thiserror::Error)]
 #[error("HTTP error: {0}")]
@@ -103,7 +103,6 @@ pub(crate) fn load_signer() -> KeySigner {
     KeySigner { jwk: load_jwk() }
 }
 
-#[ignore]
 #[tokio::test]
 pub async fn test_vc_playground_oid4vci() -> Result<()> {
     let signer = load_signer();
@@ -164,9 +163,8 @@ pub async fn test_vc_playground_oid4vci() -> Result<()> {
 // above.
 //
 // Ensure oid4vci runs BEFORE oid4vp. This will ensure the test credentials are available.
-#[ignore]
 #[tokio::test]
-pub async fn test_vc_playground_oid4vp() -> Result<()> {
+pub async fn test_vc_playground_oid4vp() {
     let signer = load_signer();
 
     let path = format!("{TMP_DIR}/vc_test_credential_0.json");
@@ -174,7 +172,9 @@ pub async fn test_vc_playground_oid4vp() -> Result<()> {
         .await
         .expect("failed to read test credential");
 
-    let credential = ParsedCredential::new_ldp_vc(JsonVc::new_from_json(contents)?);
+    let credential = ParsedCredential::new_ldp_vc(
+        JsonVc::new_from_json(contents).expect("Failed to parse Json VC"),
+    );
 
     let trusted_dids = vec![];
 
@@ -186,30 +186,33 @@ pub async fn test_vc_playground_oid4vp() -> Result<()> {
         Box::new(signer),
         Some(context_map),
     )
-    .await?;
+    .await
+    .expect("Failed to create holder");
 
     let permission_request = holder
         .authorization_request(OID4VP_URI.parse().unwrap())
-        .await?;
+        .await
+        .expect("Authorization request failed");
 
     let parsed_credentials = permission_request.credentials();
 
     assert_eq!(parsed_credentials.len(), 1);
 
     for credential in parsed_credentials.iter() {
-        let requested_fields = permission_request.requested_fields(&credential);
-
-        assert!(requested_fields.len() > 0);
+        let requested_fields = permission_request.requested_fields(credential);
+        assert!(!requested_fields.is_empty());
     }
 
     // NOTE: passing `parsed_credentials` as `selected_credentials`.
     let response = permission_request
         .create_permission_response(parsed_credentials)
-        .await?;
+        .await
+        .expect("Failed to create permission response");
 
-    holder.submit_permission_response(response).await?;
-
-    Ok(())
+    holder
+        .submit_permission_response(response)
+        .await
+        .expect("Permission response submission failed");
 }
 
 pub(crate) fn vc_playground_context() -> HashMap<String, String> {

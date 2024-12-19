@@ -14,7 +14,7 @@ use ssi::{
         MessageSignatureError, SignatureEnvironment,
     },
     crypto::{Algorithm, AlgorithmInstance},
-    dids::{VerificationMethodDIDResolver, DIDJWK},
+    dids::{AnyDidMethod, VerificationMethodDIDResolver},
     json_ld::{syntax::ContextEntry, ContextLoader, IriBuf, IriRefBuf},
     prelude::{AnyJsonPresentation, AnySuite, CryptographicSuite, DataIntegrity, ProofOptions},
     verification_methods::{protocol::WithProtocol, MessageSigner, ProofPurpose},
@@ -228,13 +228,22 @@ impl<'a> MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOpt
             ));
         }
 
-        let signature = self
+        let signature_bytes = self
             .signer
             .sign(message.to_vec())
             .await
             .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
-        Ok(signature)
+        match self.signer.cryptosuite().as_ref() {
+            "ecdsa-rdfc-2019" => {
+                let signature = p256::ecdsa::Signature::from_der(&signature_bytes).unwrap();
+
+                Ok(signature.to_vec())
+            }
+            _ => Err(MessageSignatureError::UnsupportedAlgorithm(
+                self.signer.cryptosuite().to_string(),
+            )),
+        }
     }
 }
 
@@ -325,10 +334,10 @@ impl<'a> PresentationOptions<'a> {
         // NOTE: the presentation is `unsecured` at this point.
         presentation: AnyJsonPresentation,
     ) -> Result<DataIntegrity<AnyJsonPresentation, AnySuite>, PresentationError> {
-        let resolver = VerificationMethodDIDResolver::new(DIDJWK);
+        let resolver = VerificationMethodDIDResolver::new(AnyDidMethod::default());
 
         let mut proof_options = ProofOptions::new(
-            DateTimeStamp::now(),
+            DateTimeStamp::now_ms().into(),
             self.verification_method_id().await?.into(),
             ProofPurpose::Authentication,
             Default::default(),
@@ -361,35 +370,38 @@ impl<'a> PresentationOptions<'a> {
 
         // Use the cryptosuite-specific signing method to sign the presentation.
         match suite.as_ref() {
-            "ecdsa-rdfc-2019" => AnySuite::EcdsaRdfc2019
-                .sign_with(
-                    SignatureEnvironment {
-                        json_ld_loader: context,
-                        eip712_loader: (),
-                    },
-                    presentation,
-                    resolver,
-                    self,
-                    proof_options,
-                    Default::default(),
-                )
-                .await
-                .map_err(|e| PresentationError::Signing(format!("{e:?}"))),
-            JsonWebSignature2020::NAME => AnySuite::JsonWebSignature2020
-                .sign_with(
-                    SignatureEnvironment {
-                        json_ld_loader: context,
-                        eip712_loader: (),
-                    },
-                    presentation,
-                    resolver,
-                    self,
-                    proof_options,
-                    Default::default(),
-                )
-                .await
-                .map_err(|e| PresentationError::Signing(format!("{e:?}"))),
-            _ => Err(PresentationError::CryptographicSuite(suite.to_string())),
+            "ecdsa-rdfc-2019" => {
+                AnySuite::EcdsaRdfc2019
+                    .sign_with(
+                        SignatureEnvironment {
+                            json_ld_loader: context,
+                            eip712_loader: (),
+                        },
+                        presentation,
+                        resolver,
+                        self,
+                        proof_options,
+                        Default::default(),
+                    )
+                    .await
+            }
+            JsonWebSignature2020::NAME => {
+                AnySuite::JsonWebSignature2020
+                    .sign_with(
+                        SignatureEnvironment {
+                            json_ld_loader: context,
+                            eip712_loader: (),
+                        },
+                        presentation,
+                        resolver,
+                        self,
+                        proof_options,
+                        Default::default(),
+                    )
+                    .await
+            }
+            _ => return Err(PresentationError::CryptographicSuite(suite.to_string())),
         }
+        .map_err(|e| PresentationError::Signing(format!("{e:?}")))
     }
 }
