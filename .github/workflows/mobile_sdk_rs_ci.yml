@@ -29,7 +29,7 @@ jobs:
           cache-on-failure: "true"
       - name: Build
         run: cargo build
-      - uses: swift-actions/setup-swift@v1
+      - uses: swift-actions/setup-swift@v2
       - name: Download JNA
         run: wget https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.jar
       - name: Download Kotlinx
@@ -63,8 +63,8 @@ jobs:
           tool: cargo-ndk
       - uses: actions/setup-java@v3
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          java-version: "17"
+          distribution: "temurin"
 
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@v1
