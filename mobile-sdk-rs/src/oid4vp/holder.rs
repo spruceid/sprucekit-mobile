@@ -346,6 +346,7 @@ pub(crate) mod tests {
         JWK,
     };
     use vcdm2_sd_jwt::VCDM2SdJwt;
+    use x509_cert::der::Encode;
 
     #[derive(Debug)]
     pub(crate) struct KeySigner {
