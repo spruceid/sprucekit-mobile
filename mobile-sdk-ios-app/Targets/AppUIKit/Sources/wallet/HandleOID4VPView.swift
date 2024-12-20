@@ -17,7 +17,8 @@ class Signer: PresentationSigner {
     private let didJwk = DidMethodUtils(method: DidMethod.jwk)
 
     init(keyId: String?) throws {
-        self.keyId = if keyId == nil { "reference-app/default-signing" } else { keyId! }
+        self.keyId = if (keyId == nil) { "reference-app/default-signing" } else { keyId! }
+        _ = KeyManager.generateSigningKey(id: self.keyId)
         let jwk = KeyManager.getJwk(id: self.keyId)
         if jwk == nil {
             throw Oid4vpSignerError.illegalArgumentException(reason: "Invalid kid")
@@ -93,8 +94,18 @@ struct HandleOID4VPView: View {
                 signer: signer,
                 contextMap: getVCPlaygroundOID4VCIContext()
             )
-
-            permissionRequest = try await holder!.authorizationRequest(url: Url(url))
+            let newurl = url.replacing("authorize", with: "")
+            let tmpPermissionRequest = try await holder!.authorizationRequest(url: Url(newurl))
+            let permissionRequestCredentials = tmpPermissionRequest.credentials()
+            
+            if permissionRequestCredentials.count == 1 {
+                selectedCredential = permissionRequestCredentials.first
+                permissionResponse = try await tmpPermissionRequest.createPermissionResponse(
+                    selectedCredentials: permissionRequestCredentials
+                )
+            }
+            
+            permissionRequest = tmpPermissionRequest
         } catch {
             err = error.localizedDescription
         }

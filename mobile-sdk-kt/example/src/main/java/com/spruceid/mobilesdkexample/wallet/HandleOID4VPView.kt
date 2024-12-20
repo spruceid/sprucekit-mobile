@@ -76,10 +76,15 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class Signer(keyId: String?) : PresentationSigner {
-    private val keyId = if (keyId == null) "reference-app/default-signing" else keyId
+    private val keyId = keyId ?: "reference-app/default-signing"
     private val keyManager = KeyManager()
-    private val jwk = keyManager.getJwk(this.keyId) ?: throw IllegalArgumentException("Invalid kid")
+    private var jwk: String
     private val didJwk = DidMethodUtils(DidMethod.JWK)
+
+    init {
+        keyManager.generateSigningKey(id = this.keyId)
+        this.jwk = keyManager.getJwk(this.keyId) ?: throw IllegalArgumentException("Invalid kid")
+    }
 
     override suspend fun sign(payload: ByteArray): ByteArray {
         val signature =
@@ -154,7 +159,18 @@ fun HandleOID4VPView(
                                 getVCPlaygroundOID4VCIContext(ctx)
                         )
                 val newurl = url.replace("authorize", "")
-                permissionRequest = holder!!.authorizationRequest(newurl)
+                val tempPermissionRequest = holder!!.authorizationRequest(newurl)
+                val permissionRequestCredentials = tempPermissionRequest.credentials()
+
+                if (permissionRequestCredentials.count() == 1) {
+                    selectedCredential = permissionRequestCredentials.first()
+                    permissionResponse =
+                        tempPermissionRequest.createPermissionResponse(
+                            permissionRequestCredentials
+                        )
+                }
+
+                permissionRequest = tempPermissionRequest
             }
         } catch (e: Exception) {
             err = e.localizedMessage
