@@ -26,4 +26,5 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
       - name: Push subtree
         run: |
+          git subtree pull --prefix=mobile-sdk-rs/ https://github.com/spruceid/mobile-sdk-rs.git main
           git subtree push --prefix=mobile-sdk-rs/ https://github.com/spruceid/mobile-sdk-rs.git main
