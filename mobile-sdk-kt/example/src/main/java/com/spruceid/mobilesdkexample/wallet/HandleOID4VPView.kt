@@ -52,6 +52,7 @@ import com.spruceid.mobile.sdk.rs.PermissionRequest
 import com.spruceid.mobile.sdk.rs.PermissionResponse
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.RequestedField
+import com.spruceid.mobile.sdk.rs.listSdFields
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -205,6 +206,7 @@ fun HandleOID4VPView(
             }
         } else {
             DataFieldSelector(
+                selectedCredential = selectedCredential!!,
                 requestedFields =
                 permissionRequest!!.requestedFields(selectedCredential!!),
                 onContinue = {
@@ -242,6 +244,7 @@ fun HandleOID4VPView(
 
 @Composable
 fun DataFieldSelector(
+    selectedCredential: ParsedCredential,
     requestedFields: List<RequestedField>,
     onContinue: () -> Unit,
     onCancel: () -> Unit
@@ -249,8 +252,6 @@ fun DataFieldSelector(
 
     val bullet = "\u2022"
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
-    val mockDataField =
-        requestedFields.map { field -> field.name()?.replaceFirstChar(Char::titlecase) ?: "" }
 
     Column(
         modifier = Modifier
@@ -282,11 +283,20 @@ fun DataFieldSelector(
         ) {
             Text(
                 buildAnnotatedString {
-                    mockDataField.forEach {
+                    listSdFields(selectedCredential.asSdJwt()!!).forEach {
                         withStyle(style = paragraphStyle) {
                             append(bullet)
                             append("\t\t")
                             append(it)
+                        }
+                    }
+                    requestedFields.forEach {
+                        withStyle(style = paragraphStyle) {
+                            append(bullet)
+                            append("\t\t")
+                            append(it.name()?.replaceFirstChar(Char::titlecase) ?: "")
+                            append("\t\t")
+                            append(it.selectiveDisclosable().toString())
                         }
                     }
                 },

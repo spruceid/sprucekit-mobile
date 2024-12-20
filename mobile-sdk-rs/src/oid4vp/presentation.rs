@@ -196,7 +196,7 @@ pub trait PresentationSigner: Send + Sync + std::fmt::Debug {
 ///
 /// PresentationOptions provides a means to pass metadata about the verifiable presentation
 /// claims in the `vp_token` parameter.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PresentationOptions<'a> {
     /// Borrowed reference to the authorization request object.
     pub(crate) request: &'a AuthorizationRequestObject,

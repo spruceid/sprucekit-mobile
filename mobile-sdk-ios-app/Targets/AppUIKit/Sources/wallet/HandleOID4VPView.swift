@@ -183,17 +183,9 @@ struct HandleOID4VPView: View {
 }
 
 struct DataFieldSelector: View {
-    let requestedFields: [String]
+    let requestedFields: [RequestedField]
     let onContinue: () -> Void
     let onCancel: () -> Void
-
-    init(requestedFields: [RequestedField], onContinue: @escaping () -> Void, onCancel: @escaping () -> Void) {
-        self.requestedFields = requestedFields.map { field in
-            field.name()!.capitalized
-        }
-        self.onContinue = onContinue
-        self.onCancel = onCancel
-    }
 
     var body: some View {
         VStack {
@@ -209,7 +201,7 @@ struct DataFieldSelector: View {
 
             ScrollView {
                 ForEach(requestedFields, id: \.self) { field in
-                    Text("• \(field)")
+                    Text("• \(field.name()!.capitalized) \(field.selectiveDisclosable())")
                         .font(.customFont(font: .inter, style: .regular, size: .h4))
                         .foregroundStyle(Color("ColorStone950"))
                         .frame(maxWidth: .infinity, alignment: .leading)

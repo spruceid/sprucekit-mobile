@@ -132,6 +132,11 @@ impl RequestedField {
         self.retained
     }
 
+    /// Return the field selective disclosable status
+    pub fn selective_disclosable(&self) -> bool {
+        self.selective_disclosable
+    }
+
     /// Return the purpose of the requested field.
     pub fn purpose(&self) -> Option<String> {
         self.purpose.clone()
@@ -216,7 +221,6 @@ impl PermissionRequest {
         .await?;
 
         let vp_token = VpToken(token_items);
-
         Ok(Arc::new(PermissionResponse {
             selected_credentials,
             presentation_definition: self.definition.clone(),

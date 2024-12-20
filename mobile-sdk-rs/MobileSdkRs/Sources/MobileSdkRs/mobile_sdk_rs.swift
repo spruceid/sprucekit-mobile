@@ -3871,6 +3871,11 @@ public protocol RequestedFieldProtocol : AnyObject {
      */
     func retained()  -> Bool
     
+    /**
+     * Return the field selective disclosable status
+     */
+    func selectiveDisclosable()  -> Bool
+    
 }
 
 open class RequestedField:
@@ -3960,6 +3965,16 @@ open func required() -> Bool {
 open func retained() -> Bool {
     return try!  FfiConverterBool.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_requestedfield_retained(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the field selective disclosable status
+     */
+open func selectiveDisclosable() -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestedfield_selective_disclosable(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -11374,6 +11389,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_retained() != 21715) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_selective_disclosable() != 35816) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_status_is_message() != 61380) {

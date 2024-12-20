@@ -25,6 +25,16 @@ extension View {
     }
 }
 
+extension RequestedField: Hashable, Equatable {
+    public static func ==(lhs: RequestedField, rhs: RequestedField) -> Bool {
+        return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
+    }
+
+    public func hash(into hasher: inout Hasher) {
+         hasher.combine(ObjectIdentifier(self))
+    }
+}
+
 struct iOSCheckboxToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button(action: {

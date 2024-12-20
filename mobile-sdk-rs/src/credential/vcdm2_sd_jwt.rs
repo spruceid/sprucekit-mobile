@@ -135,7 +135,7 @@ impl CredentialPresentation for VCDM2SdJwt {
     /// Return the credential as a VpToken
     async fn as_vp_token_item<'a>(
         &self,
-        _options: &'a PresentationOptions<'a>,
+        options: &'a PresentationOptions<'a>,
     ) -> Result<VpTokenItem, OID4VPError> {
         // TODO: need to provide the "filtered" (disclosed) fields of the
         // credential to be encoded into the VpToken.
@@ -144,6 +144,8 @@ impl CredentialPresentation for VCDM2SdJwt {
         // without the selection of individual disclosed fields.
         //
         // We need to selectively disclosed fields.
+        let disclosable_fields = list_sd_fields(&self);
+
         let compact: &str = self.inner.as_ref();
         Ok(VpTokenItem::String(compact.to_string()))
     }
@@ -247,6 +249,26 @@ pub fn decode_reveal_sd_jwt(input: String) -> Result<String, SdJwtError> {
         .into_claims()
         .private;
     serde_json::to_string(&vc).map_err(|e| SdJwtError::Serialization(format!("{e:?}")))
+}
+
+#[uniffi::export]
+pub fn list_sd_fields(input: Arc<VCDM2SdJwt>) -> Result<Vec<String>, SdJwtError> {
+    let revealed_sd_jwt = SdJwtVc::decode_reveal_any(&input.inner)
+        .map_err(|e| SdJwtError::SdJwtDecoding(format!("{e:?}")))?;
+
+    Ok(revealed_sd_jwt
+        .disclosures
+        .iter()
+        .map(|(p, d)| {
+            match &d.desc {
+                ssi::claims::sd_jwt::DisclosureDescription::ObjectEntry { key: _, value: _ } => {
+                    p.to_string()
+                }
+                // TODO(w4ll3): idk
+                ssi::claims::sd_jwt::DisclosureDescription::ArrayItem(_) => p.to_string(),
+            }
+        })
+        .collect())
 }
 
 #[derive(Debug, uniffi::Error, thiserror::Error)]
