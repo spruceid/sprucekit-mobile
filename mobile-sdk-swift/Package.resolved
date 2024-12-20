@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/spruceid/mobile-sdk-rs.git",
       "state" : {
-        "revision" : "7ff07f7630c149266bd8e4fd9546aef553f84ac3",
-        "version" : "0.4.1"
+        "revision" : "60467b604eeafe5faa824bcd5eecad41ea1efbeb",
+        "version" : "0.4.3"
       }
     },
     {
