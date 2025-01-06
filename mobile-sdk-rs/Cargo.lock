@@ -1262,14 +1262,29 @@ dependencies = [
 [[package]]
 name = "did-ethr"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "hex",
  "iref",
  "serde_json",
- "ssi-caips",
- "ssi-dids-core",
- "ssi-jwk 0.3.1",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "did-ethr"
+version = "0.3.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "hex",
+ "iref",
+ "serde_json",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
 ]
@@ -1277,7 +1292,7 @@ dependencies = [
 [[package]]
 name = "did-ion"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "base64 0.22.1",
  "iref",
@@ -1287,28 +1302,67 @@ dependencies = [
  "serde_jcs",
  "serde_json",
  "sha2 0.10.8",
- "ssi-dids-core",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-jwt",
- "ssi-verification-methods",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "did-ion"
+version = "0.3.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "base64 0.22.1",
+ "iref",
+ "json-patch",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "sha2 0.10.8",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "did-jwk"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "async-trait",
  "iref",
  "multibase 0.8.0",
  "serde_jcs",
  "serde_json",
- "ssi-crypto 0.2.1",
- "ssi-dids-core",
- "ssi-jwk 0.3.1",
- "ssi-verification-methods",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "did-jwk"
+version = "0.2.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "async-trait",
+ "iref",
+ "multibase 0.8.0",
+ "serde_jcs",
+ "serde_json",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
 ]
@@ -1316,7 +1370,7 @@ dependencies = [
 [[package]]
 name = "did-method-key"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "bs58",
  "iref",
@@ -1325,10 +1379,30 @@ dependencies = [
  "p256",
  "serde_json",
  "simple_asn1",
- "ssi-dids-core",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-multicodec",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "did-method-key"
+version = "0.3.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "bs58",
+ "iref",
+ "k256",
+ "multibase 0.9.1",
+ "p256",
+ "serde_json",
+ "simple_asn1",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
 ]
@@ -1336,7 +1410,7 @@ dependencies = [
 [[package]]
 name = "did-pkh"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "async-trait",
  "bech32",
@@ -1345,10 +1419,30 @@ dependencies = [
  "iref",
  "serde",
  "serde_json",
- "ssi-caips",
- "ssi-crypto 0.2.1",
- "ssi-dids-core",
- "ssi-jwk 0.3.1",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "did-pkh"
+version = "0.3.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "async-trait",
+ "bech32",
+ "bs58",
+ "chrono",
+ "iref",
+ "serde",
+ "serde_json",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
 ]
@@ -1356,7 +1450,7 @@ dependencies = [
 [[package]]
 name = "did-tz"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "async-trait",
  "bs58",
@@ -1366,10 +1460,32 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "serde_json",
- "ssi-core",
- "ssi-dids-core",
- "ssi-jwk 0.3.1",
- "ssi-jws",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+ "url",
+]
+
+[[package]]
+name = "did-tz"
+version = "0.3.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "async-trait",
+ "bs58",
+ "chrono",
+ "iref",
+ "json-patch",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
  "url",
@@ -1378,11 +1494,22 @@ dependencies = [
 [[package]]
 name = "did-web"
 version = "0.3.3"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "http 0.2.12",
  "reqwest 0.11.27",
- "ssi-dids-core",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "did-web"
+version = "0.3.3"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "http 0.2.12",
+ "reqwest 0.11.27",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
@@ -2600,6 +2727,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3208,7 +3344,7 @@ dependencies = [
 
 [[package]]
 name = "mobile-sdk-rs"
-version = "0.4.2"
+version = "0.4.3"
 dependencies = [
  "android_logger",
  "async-trait",
@@ -3219,6 +3355,7 @@ dependencies = [
  "futures-util",
  "hex",
  "isomdl 0.1.0 (git+https://github.com/spruceid/isomdl?rev=1f4f762)",
+ "itertools",
  "json-syntax",
  "log",
  "miniz_oxide 0.7.4",
@@ -3234,8 +3371,7 @@ dependencies = [
  "serde_cbor",
  "serde_json",
  "signature",
- "ssi",
- "ssi-contexts 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ssi 0.10.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
  "thiserror 1.0.69",
  "time",
  "time-macros",
@@ -3499,7 +3635,7 @@ dependencies = [
  "serde_urlencoded",
  "serde_with 3.11.0",
  "sha2 0.10.8",
- "ssi",
+ "ssi 0.10.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
  "thiserror 1.0.69",
  "time",
  "tracing",
@@ -3536,7 +3672,7 @@ dependencies = [
  "serde_json",
  "serde_json_path",
  "serde_urlencoded",
- "ssi",
+ "ssi 0.10.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -4965,38 +5101,77 @@ dependencies = [
 [[package]]
 name = "ssi"
 version = "0.10.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "document-features",
- "ssi-caips",
- "ssi-claims",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-dids",
- "ssi-eip712",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-multicodec",
- "ssi-rdf",
- "ssi-security",
- "ssi-ssh",
- "ssi-status",
- "ssi-ucan",
- "ssi-verification-methods",
- "ssi-zcap-ld",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-claims 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-ssh 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-status 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-ucan 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-zcap-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "xsd-types",
+]
+
+[[package]]
+name = "ssi"
+version = "0.10.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "document-features",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-claims 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-ssh 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-status 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-ucan 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-zcap-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "xsd-types",
 ]
 
 [[package]]
 name = "ssi-caips"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "bs58",
  "linked-data",
  "serde",
- "ssi-jwk 0.3.1",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+ "xsd-types",
+]
+
+[[package]]
+name = "ssi-caips"
+version = "0.2.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "bs58",
+ "linked-data",
+ "serde",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
  "xsd-types",
 ]
@@ -5004,7 +5179,7 @@ dependencies = [
 [[package]]
 name = "ssi-claims"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "educe 0.4.23",
  "iref",
@@ -5015,55 +5190,113 @@ dependencies = [
  "rdf-types",
  "serde",
  "serde_json",
- "ssi-claims-core",
- "ssi-core",
- "ssi-cose",
- "ssi-crypto 0.2.1",
- "ssi-data-integrity",
- "ssi-dids-core",
- "ssi-eip712",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-jwt",
- "ssi-sd-jwt",
- "ssi-security",
- "ssi-vc",
- "ssi-vc-jose-cose",
- "ssi-verification-methods",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-cose 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-data-integrity 0.1.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-sd-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-vc 0.4.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-vc-jose-cose 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-claims"
+version = "0.2.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "educe 0.4.23",
+ "iref",
+ "json-syntax",
+ "linked-data",
+ "locspan",
+ "pin-project",
+ "rdf-types",
+ "serde",
+ "serde_json",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-cose 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-data-integrity 0.1.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-sd-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-vc 0.4.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-vc-jose-cose 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-claims-core"
 version = "0.1.2"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "chrono",
  "educe 0.4.23",
  "serde",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-eip712",
- "ssi-json-ld",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-claims-core"
+version = "0.1.2"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "chrono",
+ "educe 0.4.23",
+ "serde",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-contexts"
 version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b9e7d68ba4e1544b228d6b7739db285aa5befa9df0db614dbe843e4a3c900a8"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 
 [[package]]
 name = "ssi-contexts"
 version = "0.1.8"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
 
 [[package]]
 name = "ssi-core"
 version = "0.2.2"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
+dependencies = [
+ "async-trait",
+ "pin-project",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-core"
+version = "0.2.2"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
 dependencies = [
  "async-trait",
  "pin-project",
@@ -5074,13 +5307,26 @@ dependencies = [
 [[package]]
 name = "ssi-cose"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "ciborium",
  "coset",
  "serde",
- "ssi-claims-core",
- "ssi-crypto 0.2.1",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-cose"
+version = "0.1.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "ciborium",
+ "coset",
+ "serde",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
@@ -5103,7 +5349,7 @@ dependencies = [
 [[package]]
 name = "ssi-crypto"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "async-trait",
  "bs58",
@@ -5127,9 +5373,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssi-crypto"
+version = "0.2.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "async-trait",
+ "bs58",
+ "digest 0.9.0",
+ "ed25519-dalek",
+ "getrandom",
+ "hex",
+ "iref",
+ "k256",
+ "keccak-hash",
+ "p256",
+ "pin-project",
+ "rand",
+ "ripemd160",
+ "serde",
+ "sha2 0.10.8",
+ "static-iref",
+ "thiserror 1.0.69",
+ "zeroize",
+]
+
+[[package]]
 name = "ssi-data-integrity"
 version = "0.1.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "chrono",
  "iref",
@@ -5138,26 +5409,54 @@ dependencies = [
  "rdf-types",
  "serde",
  "serde_json",
- "ssi-claims-core",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-data-integrity-core",
- "ssi-data-integrity-suites",
- "ssi-di-sd-primitives",
- "ssi-eip712",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-rdf",
- "ssi-security",
- "ssi-verification-methods",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-data-integrity-core 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-data-integrity-suites 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-di-sd-primitives 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-data-integrity"
+version = "0.1.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "chrono",
+ "iref",
+ "json-syntax",
+ "linked-data",
+ "rdf-types",
+ "serde",
+ "serde_json",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-data-integrity-core 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-data-integrity-suites 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-di-sd-primitives 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-data-integrity-core"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "chrono",
  "contextual",
@@ -5175,15 +5474,50 @@ dependencies = [
  "self_cell",
  "serde",
  "serde_json",
- "ssi-claims-core",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-rdf",
- "ssi-security",
- "ssi-verification-methods",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+ "xsd-types",
+]
+
+[[package]]
+name = "ssi-data-integrity-core"
+version = "0.2.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "chrono",
+ "contextual",
+ "derivative",
+ "digest 0.10.7",
+ "educe 0.4.23",
+ "futures",
+ "hex",
+ "iref",
+ "json-syntax",
+ "linked-data",
+ "locspan",
+ "multibase 0.9.1",
+ "rdf-types",
+ "self_cell",
+ "serde",
+ "serde_json",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
  "xsd-types",
@@ -5192,7 +5526,7 @@ dependencies = [
 [[package]]
 name = "ssi-data-integrity-suites"
 version = "0.1.2"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -5219,21 +5553,70 @@ dependencies = [
  "serde",
  "serde_cbor",
  "serde_json",
- "ssi-caips",
- "ssi-claims-core",
- "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=d00a3a1)",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-data-integrity-core",
- "ssi-di-sd-primitives",
- "ssi-eip712",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-multicodec",
- "ssi-rdf",
- "ssi-security",
- "ssi-verification-methods",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-data-integrity-core 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-di-sd-primitives 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+ "xsd-types",
+]
+
+[[package]]
+name = "ssi-data-integrity-suites"
+version = "0.1.2"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "contextual",
+ "derivative",
+ "educe 0.4.23",
+ "futures",
+ "getrandom",
+ "hex",
+ "iref",
+ "json-syntax",
+ "k256",
+ "lazy_static",
+ "linked-data",
+ "locspan",
+ "multibase 0.9.1",
+ "p256",
+ "pin-project",
+ "rand",
+ "rdf-types",
+ "self_cell",
+ "serde",
+ "serde_cbor",
+ "serde_json",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-data-integrity-core 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-di-sd-primitives 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
  "xsd-types",
@@ -5242,7 +5625,7 @@ dependencies = [
 [[package]]
 name = "ssi-di-sd-primitives"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "base64 0.22.1",
  "digest 0.10.7",
@@ -5254,9 +5637,31 @@ dependencies = [
  "rdf-types",
  "serde",
  "sha2 0.10.8",
- "ssi-core",
- "ssi-json-ld",
- "ssi-rdf",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+ "uuid",
+]
+
+[[package]]
+name = "ssi-di-sd-primitives"
+version = "0.2.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "base64 0.22.1",
+ "digest 0.10.7",
+ "getrandom",
+ "hex",
+ "hmac",
+ "iref",
+ "linked-data",
+ "rdf-types",
+ "serde",
+ "sha2 0.10.8",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
  "uuid",
 ]
@@ -5264,24 +5669,41 @@ dependencies = [
 [[package]]
 name = "ssi-dids"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
- "did-ethr",
- "did-ion",
- "did-jwk",
- "did-method-key",
- "did-pkh",
- "did-tz",
- "did-web",
- "ssi-dids-core",
- "ssi-jwk 0.3.1",
+ "did-ethr 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "did-ion 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "did-jwk 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "did-method-key 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "did-pkh 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "did-tz 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "did-web 0.3.3 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-dids"
+version = "0.2.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "did-ethr 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "did-ion 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "did-jwk 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "did-method-key 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "did-pkh 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "did-tz 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "did-web 0.3.3 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-dids-core"
 version = "0.1.2"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "async-trait",
  "iref",
@@ -5291,13 +5713,37 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
- "ssi-claims-core",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-verification-methods-core",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods-core 0.1.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-dids-core"
+version = "0.1.2"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "async-trait",
+ "iref",
+ "percent-encoding",
+ "pin-project",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods-core 0.1.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
 ]
@@ -5305,7 +5751,25 @@ dependencies = [
 [[package]]
 name = "ssi-eip712"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
+dependencies = [
+ "hex",
+ "indexmap 2.7.0",
+ "iref",
+ "json-syntax",
+ "keccak-hash",
+ "linked-data",
+ "rdf-types",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-eip712"
+version = "0.1.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
 dependencies = [
  "hex",
  "indexmap 2.7.0",
@@ -5323,7 +5787,7 @@ dependencies = [
 [[package]]
 name = "ssi-json-ld"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "combination",
  "iref",
@@ -5332,8 +5796,26 @@ dependencies = [
  "lazy_static",
  "linked-data",
  "serde",
- "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=d00a3a1)",
- "ssi-rdf",
+ "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-json-ld"
+version = "0.3.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "combination",
+ "iref",
+ "json-ld",
+ "json-syntax",
+ "lazy_static",
+ "linked-data",
+ "serde",
+ "ssi-contexts 0.1.8 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
 ]
@@ -5367,7 +5849,7 @@ dependencies = [
 [[package]]
 name = "ssi-jwk"
 version = "0.3.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "base64 0.22.1",
  "blake2b_simd 0.5.11",
@@ -5390,9 +5872,41 @@ dependencies = [
  "serde_jcs",
  "serde_json",
  "simple_asn1",
- "ssi-claims-core",
- "ssi-crypto 0.2.1",
- "ssi-multicodec",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+ "zeroize",
+]
+
+[[package]]
+name = "ssi-jwk"
+version = "0.3.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "base64 0.22.1",
+ "blake2b_simd 0.5.11",
+ "bs58",
+ "ed25519-dalek",
+ "getrandom",
+ "json-syntax",
+ "k256",
+ "lazy_static",
+ "linked-data",
+ "multibase 0.9.1",
+ "num-bigint",
+ "num-derive",
+ "num-traits",
+ "p256",
+ "rand",
+ "rsa",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "simple_asn1",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
  "zeroize",
 ]
@@ -5400,7 +5914,7 @@ dependencies = [
 [[package]]
 name = "ssi-jws"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "base64 0.22.1",
  "blake2",
@@ -5418,17 +5932,44 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "sha3",
- "ssi-claims-core",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-jwk 0.3.1",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-jws"
+version = "0.3.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "base64 0.22.1",
+ "blake2",
+ "clear_on_drop",
+ "ed25519-dalek",
+ "hex",
+ "iref",
+ "k256",
+ "linked-data",
+ "p256",
+ "rand",
+ "rsa",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "sha3",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-jwt"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "async-trait",
  "chrono",
@@ -5440,18 +5981,55 @@ dependencies = [
  "serde_json",
  "serde_with 2.3.3",
  "slab",
- "ssi-claims-core",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-jwk 0.3.1",
- "ssi-jws",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-jwt"
+version = "0.3.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "hashbrown 0.14.5",
+ "iref",
+ "json-syntax",
+ "ordered-float 4.5.0",
+ "serde",
+ "serde_json",
+ "serde_with 2.3.3",
+ "slab",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-multicodec"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
+dependencies = [
+ "csv",
+ "ed25519-dalek",
+ "k256",
+ "p256",
+ "p384",
+ "thiserror 1.0.69",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "ssi-multicodec"
+version = "0.2.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
 dependencies = [
  "csv",
  "ed25519-dalek",
@@ -5465,7 +6043,7 @@ dependencies = [
 [[package]]
 name = "ssi-rdf"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "combination",
  "indexmap 2.7.0",
@@ -5473,13 +6051,27 @@ dependencies = [
  "linked-data",
  "rdf-types",
  "serde",
- "ssi-crypto 0.2.1",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+]
+
+[[package]]
+name = "ssi-rdf"
+version = "0.1.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "combination",
+ "indexmap 2.7.0",
+ "iref",
+ "linked-data",
+ "rdf-types",
+ "serde",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
 ]
 
 [[package]]
 name = "ssi-sd-jwt"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "base64 0.22.1",
  "indexmap 2.7.0",
@@ -5487,18 +6079,50 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
- "ssi-claims-core",
- "ssi-core",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-jwt",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-sd-jwt"
+version = "0.3.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "base64 0.22.1",
+ "indexmap 2.7.0",
+ "rand",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-security"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
+dependencies = [
+ "iref",
+ "linked-data",
+ "multibase 0.9.1",
+ "serde",
+ "static-iref",
+ "xsd-types",
+]
+
+[[package]]
+name = "ssi-security"
+version = "0.1.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
 dependencies = [
  "iref",
  "linked-data",
@@ -5511,17 +6135,27 @@ dependencies = [
 [[package]]
 name = "ssi-ssh"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "sshkeys",
- "ssi-jwk 0.3.1",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-ssh"
+version = "0.2.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "sshkeys",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-status"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "base64 0.22.1",
  "flate2",
@@ -5533,14 +6167,41 @@ dependencies = [
  "reqwest 0.12.9",
  "serde",
  "serde_json",
- "ssi-claims-core",
- "ssi-data-integrity",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-jwt",
- "ssi-vc",
- "ssi-verification-methods",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-data-integrity 0.1.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-vc 0.4.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+ "xsd-types",
+]
+
+[[package]]
+name = "ssi-status"
+version = "0.3.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "base64 0.22.1",
+ "flate2",
+ "iref",
+ "log",
+ "multibase 0.9.1",
+ "parking_lot",
+ "rdf-types",
+ "reqwest 0.12.9",
+ "serde",
+ "serde_json",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-data-integrity 0.1.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-vc 0.4.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
  "xsd-types",
 ]
@@ -5548,7 +6209,7 @@ dependencies = [
 [[package]]
 name = "ssi-ucan"
 version = "0.2.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -5560,20 +6221,45 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_with 1.14.0",
- "ssi-caips",
- "ssi-core",
- "ssi-dids-core",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-jwt",
- "ssi-verification-methods",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-ucan"
+version = "0.2.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "base64 0.22.1",
+ "bs58",
+ "chrono",
+ "hex",
+ "iref",
+ "libipld",
+ "multibase 0.9.1",
+ "serde",
+ "serde_json",
+ "serde_with 1.14.0",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-vc"
 version = "0.4.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "base64 0.22.1",
  "bitvec 0.20.4",
@@ -5587,14 +6273,44 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "serde_json",
- "ssi-claims-core",
- "ssi-core",
- "ssi-data-integrity",
- "ssi-dids-core",
- "ssi-json-ld",
- "ssi-jwt",
- "ssi-rdf",
- "ssi-verification-methods",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-data-integrity 0.1.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+ "xsd-types",
+]
+
+[[package]]
+name = "ssi-vc"
+version = "0.4.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "base64 0.22.1",
+ "bitvec 0.20.4",
+ "chrono",
+ "educe 0.4.23",
+ "flate2",
+ "iref",
+ "json-syntax",
+ "linked-data",
+ "rdf-types",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-data-integrity 0.1.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
  "xsd-types",
@@ -5603,19 +6319,39 @@ dependencies = [
 [[package]]
 name = "ssi-vc-jose-cose"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "base64 0.22.1",
  "ciborium",
  "serde",
  "serde_json",
- "ssi-claims-core",
- "ssi-cose",
- "ssi-json-ld",
- "ssi-jws",
- "ssi-jwt",
- "ssi-sd-jwt",
- "ssi-vc",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-cose 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-sd-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-vc 0.4.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "thiserror 1.0.69",
+ "xsd-types",
+]
+
+[[package]]
+name = "ssi-vc-jose-cose"
+version = "0.2.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "base64 0.22.1",
+ "ciborium",
+ "serde",
+ "serde_json",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-cose 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-sd-jwt 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-vc 0.4.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "thiserror 1.0.69",
  "xsd-types",
 ]
@@ -5623,7 +6359,7 @@ dependencies = [
 [[package]]
 name = "ssi-verification-methods"
 version = "0.1.2"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "async-trait",
  "derivative",
@@ -5645,16 +6381,54 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "sha3",
- "ssi-caips",
- "ssi-claims-core",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-eip712",
- "ssi-jwk 0.3.1",
- "ssi-jws",
- "ssi-multicodec",
- "ssi-security",
- "ssi-verification-methods-core",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods-core 0.1.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-verification-methods"
+version = "0.1.2"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "async-trait",
+ "derivative",
+ "ed25519-dalek",
+ "educe 0.4.23",
+ "futures",
+ "hex",
+ "iref",
+ "json-syntax",
+ "k256",
+ "linked-data",
+ "multibase 0.9.1",
+ "p256",
+ "pin-project",
+ "rand_core",
+ "rdf-types",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "sha3",
+ "ssi-caips 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-security 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods-core 0.1.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
 ]
@@ -5662,7 +6436,7 @@ dependencies = [
 [[package]]
 name = "ssi-verification-methods-core"
 version = "0.1.1"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "bs58",
  "educe 0.4.23",
@@ -5673,12 +6447,36 @@ dependencies = [
  "rdf-types",
  "serde",
  "serde_json",
- "ssi-claims-core",
- "ssi-core",
- "ssi-crypto 0.2.1",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-jws",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-verification-methods-core"
+version = "0.1.1"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "bs58",
+ "educe 0.4.23",
+ "hex",
+ "iref",
+ "linked-data",
+ "multibase 0.9.1",
+ "rdf-types",
+ "serde",
+ "serde_json",
+ "ssi-claims-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jws 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
 ]
@@ -5686,7 +6484,7 @@ dependencies = [
 [[package]]
 name = "ssi-zcap-ld"
 version = "0.3.0"
-source = "git+https://github.com/spruceid/ssi?rev=d00a3a1#d00a3a19156c0f86868c1821c43f9e85ae0ffa41"
+source = "git+https://github.com/spruceid/ssi?rev=2c5e0d0#2c5e0d0e71eb1540b504f2c8555d7e1e3c484bb4"
 dependencies = [
  "async-trait",
  "iref",
@@ -5694,14 +6492,37 @@ dependencies = [
  "rdf-types",
  "serde",
  "serde_json",
- "ssi-claims",
- "ssi-core",
- "ssi-dids-core",
- "ssi-eip712",
- "ssi-json-ld",
- "ssi-jwk 0.3.1",
- "ssi-rdf",
- "ssi-verification-methods",
+ "ssi-claims 0.2.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
+ "static-iref",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "ssi-zcap-ld"
+version = "0.3.0"
+source = "git+https://github.com/spruceid/ssi?rev=8764a8b#8764a8b4684f136828f63d926cdfe9b36dc5efb2"
+dependencies = [
+ "async-trait",
+ "iref",
+ "json-syntax",
+ "rdf-types",
+ "serde",
+ "serde_json",
+ "ssi-claims 0.2.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-core 0.2.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-dids-core 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-eip712 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-json-ld 0.3.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-jwk 0.3.1 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-rdf 0.1.0 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
+ "ssi-verification-methods 0.1.2 (git+https://github.com/spruceid/ssi?rev=8764a8b)",
  "static-iref",
  "thiserror 1.0.69",
 ]
@@ -6458,7 +7279,7 @@ dependencies = [
  "lazy_static",
  "serde",
  "sha2 0.10.8",
- "ssi",
+ "ssi 0.10.1 (git+https://github.com/spruceid/ssi?rev=2c5e0d0)",
  "static-iref",
  "thiserror 1.0.69",
 ]

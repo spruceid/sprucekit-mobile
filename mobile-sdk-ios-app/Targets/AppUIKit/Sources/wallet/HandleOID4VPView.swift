@@ -1,5 +1,5 @@
-import SpruceIDMobileSdkRs
 import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
 import SwiftUI
 
 struct HandleOID4VP: Hashable {
@@ -15,9 +15,10 @@ class Signer: PresentationSigner {
     private let keyId: String
     private let _jwk: String
     private let didJwk = DidMethodUtils(method: DidMethod.jwk)
-        
+
     init(keyId: String?) throws {
         self.keyId = if (keyId == nil) { "reference-app/default-signing" } else { keyId! }
+        _ = KeyManager.generateSigningKey(id: self.keyId)
         let jwk = KeyManager.getJwk(id: self.keyId)
         if jwk == nil {
             throw Oid4vpSignerError.illegalArgumentException(reason: "Invalid kid")
@@ -29,7 +30,7 @@ class Signer: PresentationSigner {
     func sign(payload: Data) async throws -> Data {
         let signature = KeyManager.signPayload(id: keyId, payload: [UInt8](payload))
         if signature == nil {
-            throw Oid4vpSignerError.illegalArgumentException(reason:"Failed to sign payload")
+            throw Oid4vpSignerError.illegalArgumentException(reason: "Failed to sign payload")
         } else {
             return Data(signature!)
         }
@@ -38,7 +39,7 @@ class Signer: PresentationSigner {
     func algorithm() -> String {
         // Parse the jwk as a JSON object and return the "alg" field
         var json = getGenericJSON(jsonString: _jwk)
-        return json?.dictValue?["alg"]?.toString() ?? ""
+        return json?.dictValue?["alg"]?.toString() ?? "ES256"
     }
 
     func verificationMethod() async -> String {
@@ -71,7 +72,7 @@ struct HandleOID4VPView: View {
     @State private var credentialPacks: [CredentialPack] = []
 
     @State private var err: String?
-    
+
     let storageManager = StorageManager()
 
     func presentCredential() async {
@@ -84,7 +85,7 @@ struct HandleOID4VPView: View {
                     credentialPack.findCredentialClaims(claimNames: ["name", "type"])
                 ) { (_, new) in new }
             }
-            
+
             let signer = try Signer(keyId: "reference-app/default-signing")
 
             holder = try await Holder.newWithCredentials(
@@ -93,8 +94,18 @@ struct HandleOID4VPView: View {
                 signer: signer,
                 contextMap: getVCPlaygroundOID4VCIContext()
             )
-
-            permissionRequest = try await holder!.authorizationRequest(url: Url(url))
+            let newurl = url.replacing("authorize", with: "")
+            let tmpPermissionRequest = try await holder!.authorizationRequest(url: Url(newurl))
+            let permissionRequestCredentials = tmpPermissionRequest.credentials()
+            
+            if permissionRequestCredentials.count == 1 {
+                selectedCredential = permissionRequestCredentials.first
+                permissionResponse = try await tmpPermissionRequest.createPermissionResponse(
+                    selectedCredentials: permissionRequestCredentials
+                )
+            }
+            
+            permissionRequest = tmpPermissionRequest
         } catch {
             err = error.localizedDescription
         }
@@ -116,9 +127,9 @@ struct HandleOID4VPView: View {
         } else {
             if permissionRequest == nil {
                 LoadingView(loadingText: "Loading...")
-                .task {
-                    await presentCredential()
-                }
+                    .task {
+                        await presentCredential()
+                    }
             } else if permissionResponse == nil {
                 if !(permissionRequest?.credentials().isEmpty ?? false) {
                     CredentialSelector(
@@ -131,9 +142,10 @@ struct HandleOID4VPView: View {
                             Task {
                                 do {
                                     selectedCredential = selectedCredentials.first
-                                    permissionResponse = try await permissionRequest!.createPermissionResponse(
-                                        selectedCredentials: selectedCredentials
-                                    )
+                                    permissionResponse = try await permissionRequest!
+                                        .createPermissionResponse(
+                                            selectedCredentials: selectedCredentials
+                                        )
                                 } catch {
                                     err = error.localizedDescription
                                 }
@@ -144,22 +156,28 @@ struct HandleOID4VPView: View {
                 } else {
                     ErrorView(
                         errorTitle: "No matching credential(s)",
-                        errorDetails: "There are no credentials in your wallet that match the verification request you have scanned",
+                        errorDetails:
+                            "There are no credentials in your wallet that match the verification request you have scanned",
                         closeButtonLabel: "Cancel",
                         onClose: back
                     )
                 }
             } else {
                 DataFieldSelector(
-                    requestedFields: permissionRequest!.requestedFields(credential: selectedCredential!),
+                    requestedFields: permissionRequest!.requestedFields(
+                        credential: selectedCredential!),
                     onContinue: {
                         Task {
                             do {
-                                _ = try await holder?.submitPermissionResponse(response: permissionResponse!)
-                                let credentialPack = credentialPacks.first(where: { credentialPack in
-                                    return credentialPack.get(credentialId: selectedCredential?.id() ?? "") != nil
+                                _ = try await holder?.submitPermissionResponse(
+                                    response: permissionResponse!)
+                                let credentialPack = credentialPacks.first(where: {
+                                    credentialPack in
+                                    return credentialPack.get(
+                                        credentialId: selectedCredential?.id() ?? "") != nil
                                 })!
-                                let credentialInfo = getCredentialIdTitleAndIssuer(credentialPack: credentialPack)
+                                let credentialInfo = getCredentialIdTitleAndIssuer(
+                                    credentialPack: credentialPack)
                                 _ = WalletActivityLogDataStore.shared.insert(
                                     credentialPackId: credentialPack.id.uuidString,
                                     credentialId: credentialInfo.0,
@@ -187,13 +205,24 @@ struct DataFieldSelector: View {
     let onContinue: () -> Void
     let onCancel: () -> Void
 
+    init(
+        requestedFields: [RequestedField], onContinue: @escaping () -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.requestedFields = requestedFields.map { field in
+            (field.name() ?? "").capitalized
+        }
+        self.onContinue = onContinue
+        self.onCancel = onCancel
+    }
+
     var body: some View {
         VStack {
             Group {
                 Text("Verifier ")
                     .font(.customFont(font: .inter, style: .bold, size: .h2))
-                    .foregroundColor(Color("ColorBlue600")) +
-                Text("is requesting access to the following information")
+                    .foregroundColor(Color("ColorBlue600"))
+                    + Text("is requesting access to the following information")
                     .font(.customFont(font: .inter, style: .bold, size: .h2))
                     .foregroundColor(Color("ColorStone950"))
             }
@@ -211,7 +240,7 @@ struct DataFieldSelector: View {
             HStack {
                 Button {
                     onCancel()
-                }  label: {
+                } label: {
                     Text("Cancel")
                         .frame(maxWidth: .infinity)
                         .font(.customFont(font: .inter, style: .medium, size: .h4))
@@ -225,7 +254,7 @@ struct DataFieldSelector: View {
 
                 Button {
                     onContinue()
-                }  label: {
+                } label: {
                     Text("Approve")
                         .frame(maxWidth: .infinity)
                         .font(.customFont(font: .inter, style: .medium, size: .h4))
@@ -280,7 +309,7 @@ struct CredentialSelector: View {
 
     func toggleBinding(for credential: ParsedCredential) -> Binding<Bool> {
         Binding {
-            selectedCredentials.contains(where: { $0.id() == credential.id()})
+            selectedCredentials.contains(where: { $0.id() == credential.id() })
         } set: { _ in
             // TODO: update when allowing multiple
             selectCredential(credential: credential)
@@ -314,7 +343,7 @@ struct CredentialSelector: View {
             HStack {
                 Button {
                     onCancel()
-                }  label: {
+                } label: {
                     Text("Cancel")
                         .frame(maxWidth: .infinity)
                         .font(.customFont(font: .inter, style: .medium, size: .h4))
@@ -330,7 +359,7 @@ struct CredentialSelector: View {
                     if !selectedCredentials.isEmpty {
                         onContinue(selectedCredentials)
                     }
-                }  label: {
+                } label: {
                     Text("Continue")
                         .frame(maxWidth: .infinity)
                         .font(.customFont(font: .inter, style: .medium, size: .h4))
@@ -364,7 +393,7 @@ struct CredentialSelectorItem: View {
     ) {
         self.credential = credential
         self.requestedFields = requestedFields.map { field in
-            field.name()!.capitalized
+            (field.name() ?? "").capitalized
         }
         self.getCredentialTitle = getCredentialTitle
         self._isChecked = isChecked

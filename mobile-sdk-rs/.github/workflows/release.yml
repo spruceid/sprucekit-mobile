@@ -58,6 +58,8 @@ jobs:
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
+        git fetch origin
+        git merge origin/main
         git add Package.swift SpruceIDMobileSdkRs.podspec SpruceIDMobileSdkRsRustFramework.podspec
         git commit -m "Release ${{ github.event.inputs.version }}"
         git push

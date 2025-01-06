@@ -1,6 +1,6 @@
 [package]
 name = "mobile-sdk-rs"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 authors = ["Spruce Systems, Inc."]
 license = "Apache-2.0 OR MIT"
@@ -45,7 +45,6 @@ serde_cbor = "0.11.2"
 serde_json = "1.0.111"
 thiserror = "1.0.65"
 signature = "2.2.0"
-ssi-contexts = "0.1.6"
 time = { version = "0.3.36", features = [
     "macros",
     "formatting",
@@ -74,4 +73,4 @@ uniffi = { version = "0.28.1", features = ["bindgen-tests"] }
 uniffi = { version = "0.28.1", features = ["build"] }
 
 [patch.crates-io]
-ssi = { git = "https://github.com/spruceid/ssi", rev = "d00a3a1" }
+ssi = { git = "https://github.com/spruceid/ssi", rev = "2c5e0d0" }
