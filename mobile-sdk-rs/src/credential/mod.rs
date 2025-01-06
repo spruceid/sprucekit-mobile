@@ -4,7 +4,7 @@ pub mod mdoc;
 pub mod status;
 pub mod vcdm2_sd_jwt;
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::{
     oid4vp::{
@@ -44,15 +44,22 @@ pub struct Credential {
 // Internal helper methods.
 impl Credential {
     /// Convert the parsed credential into a specialized JSON credential.
-    pub fn try_into_parsed(&self) -> Result<Arc<ParsedCredential>, CredentialDecodingError> {
-        self.to_owned().try_into()
+    pub fn try_into_parsed(
+        &self,
+        selected_fields: Option<Vec<String>>,
+    ) -> Result<Arc<ParsedCredential>, CredentialDecodingError> {
+        ParsedCredentialInput(self.to_owned(), selected_fields).try_into()
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ParsedCredentialInput(Credential, Option<Vec<String>>);
 
 /// A credential that has been parsed as a known variant.
 #[derive(Debug, Clone, uniffi::Object)]
 pub struct ParsedCredential {
     pub(crate) inner: ParsedCredentialInner,
+    pub(crate) selected_fields: Option<Vec<String>>,
 }
 
 /// A credential that has been parsed as a known variant.
@@ -71,49 +78,64 @@ pub(crate) enum ParsedCredentialInner {
 #[uniffi::export]
 impl ParsedCredential {
     #[uniffi::constructor]
-    pub fn new_from_json(json_string: String) -> Result<Arc<Self>, CredentialDecodingError> {
+    pub fn new_from_json(
+        json_string: String,
+        selected_fields: Option<Vec<String>>,
+    ) -> Result<Arc<Self>, CredentialDecodingError> {
         let credential: Credential = serde_json::from_str(&json_string)
             .map_err(|e| CredentialDecodingError::Serialization(format!("{e:?}")))?;
-        credential.try_into_parsed()
+        credential.try_into_parsed(selected_fields)
     }
 
     #[uniffi::constructor]
     /// Construct a new `mso_mdoc` credential.
-    pub fn new_mso_mdoc(mdoc: Arc<Mdoc>) -> Arc<Self> {
+    pub fn new_mso_mdoc(mdoc: Arc<Mdoc>, selected_fields: Option<Vec<String>>) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::MsoMdoc(mdoc),
+            selected_fields,
         })
     }
 
     #[uniffi::constructor]
     /// Construct a new `jwt_vc_json` credential.
-    pub fn new_jwt_vc_json(jwt_vc: Arc<JwtVc>) -> Arc<Self> {
+    pub fn new_jwt_vc_json(jwt_vc: Arc<JwtVc>, selected_fields: Option<Vec<String>>) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::JwtVcJson(jwt_vc),
+            selected_fields,
         })
     }
 
     #[uniffi::constructor]
     /// Construct a new `jwt_vc_json-ld` credential.
-    pub fn new_jwt_vc_json_ld(jwt_vc: Arc<JwtVc>) -> Arc<Self> {
+    pub fn new_jwt_vc_json_ld(
+        jwt_vc: Arc<JwtVc>,
+
+        selected_fields: Option<Vec<String>>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::JwtVcJsonLd(jwt_vc),
+            selected_fields,
         })
     }
 
     #[uniffi::constructor]
     /// Construct a new `ldp_vc` credential.
-    pub fn new_ldp_vc(json_vc: Arc<JsonVc>) -> Arc<Self> {
+    pub fn new_ldp_vc(json_vc: Arc<JsonVc>, selected_fields: Option<Vec<String>>) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::LdpVc(json_vc),
+            selected_fields,
         })
     }
 
     #[uniffi::constructor]
     /// Construct a new `sd_jwt_vc` credential.
-    pub fn new_sd_jwt(sd_jwt_vc: Arc<VCDM2SdJwt>) -> Arc<Self> {
+    pub fn new_sd_jwt(
+        sd_jwt_vc: Arc<VCDM2SdJwt>,
+        selected_fields: Option<Vec<String>>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::VCDM2SdJwt(sd_jwt_vc),
+            selected_fields,
         })
     }
 
@@ -121,13 +143,14 @@ impl ParsedCredential {
     /// Parse a credential from the generic form retrieved from storage.
     pub fn parse_from_credential(
         credential: Credential,
+        selected_fields: Option<Vec<String>>,
     ) -> Result<Arc<Self>, CredentialDecodingError> {
         // NOTE: due to the Arc<Credential> type needed in the constructor,
         // given the uniffi::Object trait, we need to have an inner reference
         // to the credential that provided the type conversion, which avoids the
         // TryFrom<Arc<Credential>> that cannot be implemented given the compiler
         // constraints on foreign types.
-        credential.try_into_parsed()
+        credential.try_into_parsed(selected_fields)
     }
 
     /// Convert a parsed credential into the generic form for storage.
@@ -285,11 +308,15 @@ impl ParsedCredential {
         options: &'a PresentationOptions<'a>,
     ) -> Result<VpTokenItem, OID4VPError> {
         match &self.inner {
-            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => sd_jwt.as_vp_token_item(options).await,
-            ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
-                vc.as_vp_token_item(options).await
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+                sd_jwt
+                    .as_vp_token_item(options, self.selected_fields.clone())
+                    .await
             }
-            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options).await,
+            ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.as_vp_token_item(options, None).await
+            }
+            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options, None).await,
             _ => Err(CredentialEncodingError::VpToken(format!(
                 "Credential encoding for VP Token is not implemented for {:?}.",
                 self.inner,
@@ -336,22 +363,33 @@ impl BitStringStatusListResolver for ParsedCredential {
     }
 }
 
-impl TryFrom<Credential> for Arc<ParsedCredential> {
+impl TryFrom<ParsedCredentialInput> for Arc<ParsedCredential> {
     type Error = CredentialDecodingError;
 
-    fn try_from(credential: Credential) -> Result<Self, Self::Error> {
+    fn try_from(
+        ParsedCredentialInput(credential, selected_fields): ParsedCredentialInput,
+    ) -> Result<Self, Self::Error> {
         match credential.format {
-            CredentialFormat::MsoMdoc => Ok(ParsedCredential::new_mso_mdoc(credential.try_into()?)),
-            CredentialFormat::JwtVcJson => {
-                Ok(ParsedCredential::new_jwt_vc_json(credential.try_into()?))
-            }
-            CredentialFormat::JwtVcJsonLd => {
-                Ok(ParsedCredential::new_jwt_vc_json_ld(credential.try_into()?))
-            }
-            CredentialFormat::VCDM2SdJwt => {
-                Ok(ParsedCredential::new_sd_jwt(credential.try_into()?))
-            }
-            CredentialFormat::LdpVc => Ok(ParsedCredential::new_ldp_vc(credential.try_into()?)),
+            CredentialFormat::MsoMdoc => Ok(ParsedCredential::new_mso_mdoc(
+                credential.try_into()?,
+                selected_fields,
+            )),
+            CredentialFormat::JwtVcJson => Ok(ParsedCredential::new_jwt_vc_json(
+                credential.try_into()?,
+                selected_fields,
+            )),
+            CredentialFormat::JwtVcJsonLd => Ok(ParsedCredential::new_jwt_vc_json_ld(
+                credential.try_into()?,
+                selected_fields,
+            )),
+            CredentialFormat::VCDM2SdJwt => Ok(ParsedCredential::new_sd_jwt(
+                credential.try_into()?,
+                selected_fields,
+            )),
+            CredentialFormat::LdpVc => Ok(ParsedCredential::new_ldp_vc(
+                credential.try_into()?,
+                selected_fields,
+            )),
             _ => Err(CredentialDecodingError::UnsupportedCredentialFormat(
                 credential.format.to_string(),
             )),

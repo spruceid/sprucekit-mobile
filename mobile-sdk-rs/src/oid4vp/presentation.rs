@@ -1,4 +1,4 @@
-use super::{error::OID4VPError, permission_request::RequestedField};
+use super::{error::OID4VPError, RequestedField};
 
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
@@ -143,6 +143,7 @@ pub trait CredentialPresentation {
     async fn as_vp_token_item<'a>(
         &self,
         options: &'a PresentationOptions<'a>,
+        selected_fields: Option<Vec<String>>,
     ) -> Result<VpTokenItem, OID4VPError>;
 }
 
@@ -204,6 +205,8 @@ pub struct PresentationOptions<'a> {
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
     /// Optional context map for the presentation.
     pub(crate) context_map: Option<HashMap<String, String>>,
+    /// Presentation definition
+    pub(crate) presentation_definition: PresentationDefinition,
 }
 
 impl<'a> MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions<'a> {
@@ -261,11 +264,13 @@ impl<'a> PresentationOptions<'a> {
         request: &'a AuthorizationRequestObject,
         signer: Arc<Box<dyn PresentationSigner>>,
         context_map: Option<HashMap<String, String>>,
+        presentation_definition: PresentationDefinition,
     ) -> Self {
         Self {
             request,
             signer,
             context_map,
+            presentation_definition,
         }
     }
 

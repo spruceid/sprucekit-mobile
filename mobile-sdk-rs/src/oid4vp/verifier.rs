@@ -153,7 +153,7 @@ mod tests {
         let example_sd_jwt = include_str!("../../tests/examples/sd_vc.jwt");
         let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt(example_sd_jwt.into())
             .expect("failed to parse sd_jwt");
-        let credential = ParsedCredential::new_sd_jwt(sd_jwt);
+        let credential = ParsedCredential::new_sd_jwt(sd_jwt, None);
 
         let trusted_dids = vec!["did:web:localhost%3A3003:colofwd_signer_service".to_string()];
 

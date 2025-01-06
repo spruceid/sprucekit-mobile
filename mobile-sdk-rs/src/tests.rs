@@ -172,7 +172,7 @@ pub async fn test_vc_playground_oid4vp() -> Result<()> {
         .await
         .expect("failed to read test credential");
 
-    let credential = ParsedCredential::new_ldp_vc(JsonVc::new_from_json(contents)?);
+    let credential = ParsedCredential::new_ldp_vc(JsonVc::new_from_json(contents)?, None);
 
     let trusted_dids = vec![];
 

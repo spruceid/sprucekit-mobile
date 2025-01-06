@@ -64,6 +64,8 @@ pub enum OID4VPError {
     JsonPathParse(String),
     #[error("Empty Credential Subject. Failed to convert `Object` to `NonEmptyObject`: {0}")]
     EmptyCredentialSubject(String),
+    #[error("Invalid fields selected for selective disclosure")]
+    SelectiveDisclosureInvalidFields,
 }
 
 // Handle unexpected errors when calling a foreign callback

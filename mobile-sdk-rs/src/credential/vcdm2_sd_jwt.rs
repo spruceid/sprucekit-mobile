@@ -3,16 +3,18 @@ use crate::{
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
+        RequestedField,
     },
     CredentialType, KeyAlias,
 };
 
 use std::sync::Arc;
 
+use itertools::Itertools;
 use openid4vp::{
     core::{
-        credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
-        response::parameters::VpTokenItem,
+        credential_format::ClaimFormatDesignation, input_descriptor::ConstraintsLimitDisclosure,
+        presentation_submission::DescriptorMap, response::parameters::VpTokenItem,
     },
     JsonPath,
 };
@@ -23,6 +25,7 @@ use ssi::{
         vc_jose_cose::SdJwtVc,
     },
     prelude::AnyJsonCredential,
+    JsonPointerBuf,
 };
 use uuid::Uuid;
 
@@ -136,6 +139,7 @@ impl CredentialPresentation for VCDM2SdJwt {
     async fn as_vp_token_item<'a>(
         &self,
         options: &'a PresentationOptions<'a>,
+        selected_fields: Option<Vec<String>>,
     ) -> Result<VpTokenItem, OID4VPError> {
         // TODO: need to provide the "filtered" (disclosed) fields of the
         // credential to be encoded into the VpToken.
@@ -144,10 +148,81 @@ impl CredentialPresentation for VCDM2SdJwt {
         // without the selection of individual disclosed fields.
         //
         // We need to selectively disclosed fields.
-        let disclosable_fields = list_sd_fields(&self);
+        let input_descriptor_map = options.presentation_definition.input_descriptors_map();
+        let requested_fields = self.requested_fields(&options.presentation_definition);
 
-        let compact: &str = self.inner.as_ref();
-        Ok(VpTokenItem::String(compact.to_string()))
+        // TODO: check if limit_disclosure is true somewhere and requires that
+        // selected_fields be non-empty
+        // requested_fields
+        //     .group_by(/*input_descriptor_id*/)
+        //     .map(/*input_descriptor.constraints.limit_disclosure*/)
+        //     .any(/*required*/) && selected_fields.is_none()
+
+        let disclosable_fields = inner_list_sd_fields(self)
+            .map_err(|_| OID4VPError::SelectiveDisclosureInvalidFields)?;
+
+        let is_valid = if let Some(sfs) = selected_fields {
+            let sfs = sfs
+                .into_iter()
+                .map(|sf| JsonPointerBuf::new(sf))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|_| OID4VPError::SelectiveDisclosureInvalidFields)?;
+
+            // TODO: use limit_disclosure in validation
+            // match input_descriptor.constraints.limit_disclosure() {
+            //     Some(ConstraintsLimitDisclosure::Required) => {}
+            //     Some(ConstraintsLimitDisclosure::Preferred) => {}
+            //     None => true,
+            // }
+            // When required, all selected fields must:
+            //  - match disclosable
+            //  - match requested
+            //    - if optional, refer to SD
+            //
+            // When preferred, all selected fields must:
+            //  - match disclosable
+            //
+            // Example:
+            //  - limit_disclosure = preferred:
+            //   - Entire credential _CAN_ be submitted
+            //   - SD credential _CAN_ be submitted
+            //
+            //  - limit_disclosure = required:
+            //   - Entire credential _CANNOT_ be submitted (only requested_fields)
+            //   - SD credential _CAN_ be submitted
+            sfs.iter().all(|sf| {
+                // TODO remove unwrap
+                let sfj =
+                    JsonPath::parse(&format!("$.{}", &sf.as_str().split("/").join("."))).unwrap();
+                disclosable_fields.iter().any(|df| df == sf.as_str())
+                    && requested_fields.iter().any(|rf| {
+                        let input_descriptor_id: String = rf.input_descriptor_id().to_owned();
+                        let input_descriptor =
+                            input_descriptor_map.get(input_descriptor_id.as_str());
+                        if let Some(input_descriptor) = input_descriptor {
+                            // Selected Field instance must match _SOME_ Requested Field
+                            input_descriptor
+                                .constraints
+                                .fields()
+                                .iter()
+                                .any(|cf| cf.path.iter().any(|p| *p == sfj) && cf.is_optional())
+                        } else {
+                            false
+                        }
+                    })
+            })
+        } else {
+            true
+        };
+
+        if is_valid {
+            // TODO: (limit_disclosure = Required) && selected_fields.is_none() => ERROR
+            // TODO: (limit_disclosure = None || Preferred) && selected_fields.is_none()
+            let compact: &str = self.inner.as_ref();
+            Ok(VpTokenItem::String(compact.to_string()))
+        } else {
+            Err(unimplemented!())
+        }
     }
 
     fn create_descriptor_map(
@@ -174,6 +249,7 @@ impl From<VCDM2SdJwt> for ParsedCredential {
     fn from(value: VCDM2SdJwt) -> Self {
         ParsedCredential {
             inner: ParsedCredentialInner::VCDM2SdJwt(Arc::new(value)),
+            selected_fields: None,
         }
     }
 }
@@ -192,7 +268,7 @@ impl TryFrom<Arc<VCDM2SdJwt>> for Credential {
     type Error = SdJwtError;
 
     fn try_from(value: Arc<VCDM2SdJwt>) -> Result<Self, Self::Error> {
-        ParsedCredential::new_sd_jwt(value)
+        ParsedCredential::new_sd_jwt(value, None)
             .into_generic_form()
             .map_err(|e| SdJwtError::CredentialEncoding(format!("{e:?}")))
     }
@@ -251,8 +327,7 @@ pub fn decode_reveal_sd_jwt(input: String) -> Result<String, SdJwtError> {
     serde_json::to_string(&vc).map_err(|e| SdJwtError::Serialization(format!("{e:?}")))
 }
 
-#[uniffi::export]
-pub fn list_sd_fields(input: Arc<VCDM2SdJwt>) -> Result<Vec<String>, SdJwtError> {
+fn inner_list_sd_fields(input: &VCDM2SdJwt) -> Result<Vec<String>, SdJwtError> {
     let revealed_sd_jwt = SdJwtVc::decode_reveal_any(&input.inner)
         .map_err(|e| SdJwtError::SdJwtDecoding(format!("{e:?}")))?;
 
@@ -269,6 +344,11 @@ pub fn list_sd_fields(input: Arc<VCDM2SdJwt>) -> Result<Vec<String>, SdJwtError>
             }
         })
         .collect())
+}
+
+#[uniffi::export]
+pub fn list_sd_fields(input: Arc<VCDM2SdJwt>) -> Result<Vec<String>, SdJwtError> {
+    inner_list_sd_fields(&input)
 }
 
 #[derive(Debug, uniffi::Error, thiserror::Error)]
