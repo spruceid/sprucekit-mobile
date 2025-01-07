@@ -23,6 +23,7 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.navigation.SetupNavGraph
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
+import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
@@ -118,6 +119,8 @@ class MainActivity : ComponentActivity() {
                         helpersViewModel = helpersViewModel
                     )
                 }
+                // Global Toast Host
+                Toast.ToastHost()
             }
         }
     }
