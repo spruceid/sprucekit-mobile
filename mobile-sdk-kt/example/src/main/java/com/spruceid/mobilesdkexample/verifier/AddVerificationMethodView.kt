@@ -44,11 +44,12 @@ fun AddVerificationMethodView(
                 val jsonArray = JSONArray(content)
                 for (i in 0 until jsonArray.length()) {
                     val json = jsonArray.getJSONObject(i)
+                    val credentialName = json.getString("credential_name")
                     verificationMethodsViewModel.saveVerificationMethod(
                         VerificationMethods(
                             type = json.getString("type"),
-                            name = json.getString("name"),
-                            description = json.getString("description"),
+                            name = credentialName,
+                            description = "Verifies $credentialName Credentials",
                             verifierName = json.getString("verifier_name"),
                             url = json.getString("url")
                         )
