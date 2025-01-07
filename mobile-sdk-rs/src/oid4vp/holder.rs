@@ -45,7 +45,6 @@ pub struct Holder {
     pub(crate) client: openid4vp::core::util::ReqwestClient,
 
     /// A list of trusted DIDs.
-    #[allow(dead_code)]
     pub(crate) trusted_dids: Vec<String>,
 
     /// Provide optional credentials to the holder instance.
@@ -76,6 +75,8 @@ impl Holder {
     }
 
     /// Uses VDC collection to retrieve the credentials for a given presentation definition.
+    ///
+    /// If no trusted DIDs are provided then all DIDs are trusted.
     #[uniffi::constructor]
     pub async fn new(
         vdc_collection: Arc<VdcCollection>,
@@ -102,6 +103,8 @@ impl Holder {
     ///
     /// This constructor will use the provided credentials for the presentation,
     /// instead of searching for credentials in the VDC collection.
+    ///
+    /// If no trusted DIDs are provided then all DIDs are trusted.
     #[uniffi::constructor]
     pub async fn new_with_credentials(
         provided_credentials: Vec<Arc<ParsedCredential>>,
@@ -278,15 +281,16 @@ impl RequestVerifier for Holder {
         let resolver: VerificationMethodDIDResolver<DIDWeb, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDWeb);
 
-        // NOTE: This is temporary solution that will allow any DID to be
-        // trusted. This will be replaced by the trust manager in the future.
-        let client_id = decoded_request.client_id();
+        let trusted_dids = match self.trusted_dids.as_slice() {
+            [] => None,
+            dids => Some(dids),
+        };
 
         verify_with_resolver(
             &self.metadata,
             decoded_request,
             request_jwt,
-            Some(&[client_id.0.clone()]),
+            trusted_dids,
             &resolver,
         )
         .await?;
