@@ -187,6 +187,7 @@ struct HandleOID4VPView: View {
                                     dateTime: Date(),
                                     additionalInformation: ""
                                 )
+                                ToastManager.shared.showSuccess(message: "Shared successfully")
                                 back()
                             } catch {
                                 err = error.localizedDescription
