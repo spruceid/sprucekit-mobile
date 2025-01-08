@@ -226,8 +226,6 @@ impl PermissionRequest {
             .into());
         }
 
-        log::debug!("1");
-
         let selected_credentials = selected_credentials
             .iter()
             .zip(selected_fields)
@@ -239,7 +237,6 @@ impl PermissionRequest {
                 .into()
             })
             .collect::<Vec<_>>();
-        log::debug!("2");
 
         // Set options for constructing a verifiable presentation.
         let options = PresentationOptions::new(
@@ -248,7 +245,6 @@ impl PermissionRequest {
             self.context_map.clone(),
             self.definition.clone(),
         );
-        log::debug!("3");
 
         let token_items = futures::future::try_join_all(
             selected_credentials
@@ -256,7 +252,6 @@ impl PermissionRequest {
                 .map(|cred: &Arc<_>| cred.as_vp_token(&options)),
         )
         .await?;
-        log::debug!("4");
 
         let vp_token = VpToken(token_items);
         Ok(Arc::new(PermissionResponse {

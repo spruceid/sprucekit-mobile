@@ -97,13 +97,6 @@ impl Holder {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
 
-        #[cfg(target_os = "android")]
-        android_logger::init_once(
-            android_logger::Config::default()
-                .with_max_level(log::LevelFilter::Trace)
-                .with_tag("MOBILE_SDK_RS"),
-        );
-
         Ok(Arc::new(Self {
             client,
             vdc_collection: None,

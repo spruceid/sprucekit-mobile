@@ -140,7 +140,7 @@ impl CredentialPresentation for VCDM2SdJwt {
     /// Return the credential as a VpToken
     async fn as_vp_token_item<'a>(
         &self,
-        options: &'a PresentationOptions<'a>,
+        _options: &'a PresentationOptions<'a>,
         selected_fields: Option<Vec<String>>,
     ) -> Result<VpTokenItem, OID4VPError> {
         // TODO: need to provide the "filtered" (disclosed) fields of the
@@ -150,8 +150,8 @@ impl CredentialPresentation for VCDM2SdJwt {
         // without the selection of individual disclosed fields.
         //
         // We need to selectively disclosed fields.
-        let input_descriptor_map = options.presentation_definition.input_descriptors_map();
-        let requested_fields = self.requested_fields(&options.presentation_definition);
+        // let input_descriptor_map = options.presentation_definition.input_descriptors_map();
+        // let requested_fields = self.requested_fields(&options.presentation_definition);
 
         // TODO: check if limit_disclosure is true somewhere and requires that
         // selected_fields be non-empty
@@ -247,52 +247,56 @@ impl CredentialPresentation for VCDM2SdJwt {
         //     true
         // };
 
-        if true {
-            // TODO: (limit_disclosure = Required) && selected_fields.is_none() => ERROR
-            // TODO: (limit_disclosure = None || Preferred) && selected_fields.is_none()
-            // selected_fields.into_iter().map(|sf| )
-            let compact: &str = self.inner.as_ref();
-            log::debug!("SF: {:?}", selected_fields);
-            let vp_token = if let Some(sfs) = selected_fields {
-                let json = self
-                    .revealed_claims_as_json()
-                    .map_err(|e| OID4VPError::JsonPathParse(e.to_string()))?;
+        // TODO: (limit_disclosure = Required) && selected_fields.is_none() => ERROR
+        // TODO: (limit_disclosure = None || Preferred) && selected_fields.is_none()
+        // selected_fields.into_iter().map(|sf| )
+        let compact: &str = self.inner.as_ref();
+        let vp_token = if let Some(sfs) = selected_fields {
+            let json = self
+                .revealed_claims_as_json()
+                .map_err(|e| OID4VPError::JsonPathParse(e.to_string()))?;
 
-                let sfs = sfs
-                    .into_iter()
-                    .map(|sf| sf.split("|").next().unwrap().to_owned())
-                    .map(|path| JsonPath::parse(&path).unwrap())
-                    .map(|f| f.query_located(&json))
-                    .map(|ln| {
-                        if ln.is_empty() {
-                            return Err(unimplemented!());
-                        }
+            let sfs = sfs
+                .into_iter()
+                .map(|sf| {
+                    // TODO: Remove hotfix encoding and improve path usage
+                    // SAFETY: encoded by client (sprucekit-mobile@holder)
+                    let path = sf.split("|").next().unwrap().to_owned();
+                    let path = match JsonPath::parse(&path) {
+                        Ok(path) => path,
+                        // TODO: cleanup errors
+                        Err(e) => return Err(OID4VPError::Debug(e.to_string())),
+                    };
+                    let ln = path.query_located(&json);
+
+                    if ln.is_empty() {
+                        // TODO: cleanup errors
+                        return Err(OID4VPError::Debug(
+                            "Unable to resolve JsonPath!".to_string(),
+                        ));
+                    } else {
                         // SAFETY: Empty check above
                         JsonPointerBuf::new(ln.first().unwrap().location().to_json_pointer())
-                    });
+                            .map_err(|e| OID4VPError::Debug(e.to_string()))
+                    }
+                })
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| OID4VPError::Debug(e.to_string()))?;
 
-                let rjp = sfs
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| OID4VPError::Debug(e.to_string()))?;
-
-                let ret = self
-                    .inner
-                    .decode_reveal::<AnyClaims>()
-                    .map_err(|e| OID4VPError::Debug(e.to_string()))?
-                    .retaining(rjp.as_ref())
-                    .into_encoded()
-                    .as_str()
-                    .to_string();
-                log::debug!("6: {:?}", ret);
-                ret
-            } else {
-                compact.to_string()
-            };
-
-            Ok(VpTokenItem::String(vp_token))
+            let ret = self
+                .inner
+                .decode_reveal::<AnyClaims>()
+                .map_err(|e| OID4VPError::Debug(e.to_string()))?
+                .retaining(&sfs)
+                .into_encoded()
+                .as_str()
+                .to_string();
+            ret
         } else {
-            Err(unimplemented!())
-        }
+            compact.to_string()
+        };
+
+        Ok(VpTokenItem::String(vp_token))
     }
 
     fn create_descriptor_map(
