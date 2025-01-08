@@ -27,7 +27,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -203,7 +202,7 @@ fun HandleOID4VPView(
                     }
                 }
             } catch (e: Exception) {
-                error = OID4VPError("No Matching Credential.", e.localizedMessage!!)
+                error = OID4VPError("No matching credential(s)", e.localizedMessage!!)
                 state = OID4VPState.Err
             }
         }
@@ -339,8 +338,6 @@ fun DataFieldSelector(
                             withStyle(style = paragraphStyle) {
                                 append("\t\t")
                                 append(it.name()?.replaceFirstChar(Char::titlecase) ?: "")
-                                append("\t\t")
-                                append(selectedFields.contains(it.path()).toString())
                             }
                         },
                     )

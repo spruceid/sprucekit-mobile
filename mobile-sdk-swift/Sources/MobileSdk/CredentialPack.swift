@@ -27,7 +27,7 @@ public class CredentialPack {
 
     /// Add a JwtVc to the CredentialPack.
     public func addJwtVc(jwtVc: JwtVc) -> [ParsedCredential] {
-        credentials.append(ParsedCredential.newJwtVcJson(jwtVc: jwtVc))
+        credentials.append(ParsedCredential.newJwtVcJson(jwtVc: jwtVc, selectedFields: nil))
         return credentials
     }
 
@@ -53,19 +53,19 @@ public class CredentialPack {
 
     /// Add a JsonVc to the CredentialPack.
     public func addJsonVc(jsonVc: JsonVc) -> [ParsedCredential] {
-        credentials.append(ParsedCredential.newLdpVc(jsonVc: jsonVc))
+        credentials.append(ParsedCredential.newLdpVc(jsonVc: jsonVc, selectedFields: nil))
         return credentials
     }
 
     /// Add an SD-JWT to the CredentialPack.
     public func addSdJwt(sdJwt: Vcdm2SdJwt) -> [ParsedCredential] {
-        credentials.append(ParsedCredential.newSdJwt(sdJwtVc: sdJwt))
+        credentials.append(ParsedCredential.newSdJwt(sdJwtVc: sdJwt, selectedFields: nil))
         return credentials
     }
 
     /// Add an Mdoc to the CredentialPack.
     public func addMDoc(mdoc: Mdoc) -> [ParsedCredential] {
-        credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc))
+        credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc, selectedFields: nil))
         return credentials
     }
 
@@ -253,7 +253,7 @@ public struct CredentialPackContents {
                 guard let credential = try vdcCollection.get(id: credentialId) else {
                     throw CredentialPackError.credentialNotFound(id: credentialId)
                 }
-                return try ParsedCredential.parseFromCredential(credential: credential)
+                return try ParsedCredential.parseFromCredential(credential: credential, selectedFields: nil)
             } catch {
                 throw CredentialPackError.credentialLoading(reason: error)
             }

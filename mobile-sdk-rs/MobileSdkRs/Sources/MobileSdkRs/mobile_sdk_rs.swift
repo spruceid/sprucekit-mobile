@@ -3336,10 +3336,11 @@ open class ParsedCredential:
     }
 
     
-public static func newFromJson(jsonString: String)throws  -> ParsedCredential {
+public static func newFromJson(jsonString: String, selectedFields: [String]?)throws  -> ParsedCredential {
     return try  FfiConverterTypeParsedCredential.lift(try rustCallWithError(FfiConverterTypeCredentialDecodingError.lift) {
     uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_from_json(
-        FfiConverterString.lower(jsonString),$0
+        FfiConverterString.lower(jsonString),
+        FfiConverterOptionSequenceString.lower(selectedFields),$0
     )
 })
 }
@@ -3347,10 +3348,11 @@ public static func newFromJson(jsonString: String)throws  -> ParsedCredential {
     /**
      * Construct a new `jwt_vc_json` credential.
      */
-public static func newJwtVcJson(jwtVc: JwtVc) -> ParsedCredential {
+public static func newJwtVcJson(jwtVc: JwtVc, selectedFields: [String]?) -> ParsedCredential {
     return try!  FfiConverterTypeParsedCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_jwt_vc_json(
-        FfiConverterTypeJwtVc.lower(jwtVc),$0
+        FfiConverterTypeJwtVc.lower(jwtVc),
+        FfiConverterOptionSequenceString.lower(selectedFields),$0
     )
 })
 }
@@ -3358,10 +3360,11 @@ public static func newJwtVcJson(jwtVc: JwtVc) -> ParsedCredential {
     /**
      * Construct a new `jwt_vc_json-ld` credential.
      */
-public static func newJwtVcJsonLd(jwtVc: JwtVc) -> ParsedCredential {
+public static func newJwtVcJsonLd(jwtVc: JwtVc, selectedFields: [String]?) -> ParsedCredential {
     return try!  FfiConverterTypeParsedCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_jwt_vc_json_ld(
-        FfiConverterTypeJwtVc.lower(jwtVc),$0
+        FfiConverterTypeJwtVc.lower(jwtVc),
+        FfiConverterOptionSequenceString.lower(selectedFields),$0
     )
 })
 }
@@ -3369,10 +3372,11 @@ public static func newJwtVcJsonLd(jwtVc: JwtVc) -> ParsedCredential {
     /**
      * Construct a new `ldp_vc` credential.
      */
-public static func newLdpVc(jsonVc: JsonVc) -> ParsedCredential {
+public static func newLdpVc(jsonVc: JsonVc, selectedFields: [String]?) -> ParsedCredential {
     return try!  FfiConverterTypeParsedCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_ldp_vc(
-        FfiConverterTypeJsonVc.lower(jsonVc),$0
+        FfiConverterTypeJsonVc.lower(jsonVc),
+        FfiConverterOptionSequenceString.lower(selectedFields),$0
     )
 })
 }
@@ -3380,10 +3384,11 @@ public static func newLdpVc(jsonVc: JsonVc) -> ParsedCredential {
     /**
      * Construct a new `mso_mdoc` credential.
      */
-public static func newMsoMdoc(mdoc: Mdoc) -> ParsedCredential {
+public static func newMsoMdoc(mdoc: Mdoc, selectedFields: [String]?) -> ParsedCredential {
     return try!  FfiConverterTypeParsedCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_mso_mdoc(
-        FfiConverterTypeMdoc.lower(mdoc),$0
+        FfiConverterTypeMdoc.lower(mdoc),
+        FfiConverterOptionSequenceString.lower(selectedFields),$0
     )
 })
 }
@@ -3391,10 +3396,11 @@ public static func newMsoMdoc(mdoc: Mdoc) -> ParsedCredential {
     /**
      * Construct a new `sd_jwt_vc` credential.
      */
-public static func newSdJwt(sdJwtVc: Vcdm2SdJwt) -> ParsedCredential {
+public static func newSdJwt(sdJwtVc: Vcdm2SdJwt, selectedFields: [String]?) -> ParsedCredential {
     return try!  FfiConverterTypeParsedCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_sd_jwt(
-        FfiConverterTypeVCDM2SdJwt.lower(sdJwtVc),$0
+        FfiConverterTypeVCDM2SdJwt.lower(sdJwtVc),
+        FfiConverterOptionSequenceString.lower(selectedFields),$0
     )
 })
 }
@@ -3402,10 +3408,11 @@ public static func newSdJwt(sdJwtVc: Vcdm2SdJwt) -> ParsedCredential {
     /**
      * Parse a credential from the generic form retrieved from storage.
      */
-public static func parseFromCredential(credential: Credential)throws  -> ParsedCredential {
+public static func parseFromCredential(credential: Credential, selectedFields: [String]?)throws  -> ParsedCredential {
     return try  FfiConverterTypeParsedCredential.lift(try rustCallWithError(FfiConverterTypeCredentialDecodingError.lift) {
     uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_parse_from_credential(
-        FfiConverterTypeCredential.lower(credential),$0
+        FfiConverterTypeCredential.lower(credential),
+        FfiConverterOptionSequenceString.lower(selectedFields),$0
     )
 })
 }
@@ -3555,7 +3562,7 @@ public protocol PermissionRequestProtocol : AnyObject {
     /**
      * Construct a new permission response for the given credential.
      */
-    func createPermissionResponse(selectedCredentials: [ParsedCredential]) async throws  -> PermissionResponse
+    func createPermissionResponse(selectedCredentials: [ParsedCredential], selectedFields: [[String]]) async throws  -> PermissionResponse
     
     /**
      * Return the filtered list of credentials that matched
@@ -3621,13 +3628,13 @@ open class PermissionRequest:
     /**
      * Construct a new permission response for the given credential.
      */
-open func createPermissionResponse(selectedCredentials: [ParsedCredential])async throws  -> PermissionResponse {
+open func createPermissionResponse(selectedCredentials: [ParsedCredential], selectedFields: [[String]])async throws  -> PermissionResponse {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_permissionrequest_create_permission_response(
                     self.uniffiClonePointer(),
-                    FfiConverterSequenceTypeParsedCredential.lower(selectedCredentials)
+                    FfiConverterSequenceTypeParsedCredential.lower(selectedCredentials),FfiConverterSequenceSequenceString.lower(selectedFields)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
@@ -3852,6 +3859,11 @@ public protocol RequestedFieldProtocol : AnyObject {
     func name()  -> String?
     
     /**
+     * Return the JsonPath of the field
+     */
+    func path()  -> String
+    
+    /**
      * Return the purpose of the requested field.
      */
     func purpose()  -> String?
@@ -3925,6 +3937,16 @@ open class RequestedField:
 open func name() -> String? {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_requestedfield_name(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the JsonPath of the field
+     */
+open func path() -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestedfield_path(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -7636,6 +7658,10 @@ public enum Oid4vpError {
     )
     case EmptyCredentialSubject(String
     )
+    case SelectiveDisclosureInvalidFields
+    case SelectiveDisclosureEmptySelection
+    case Debug(String
+    )
 }
 
 
@@ -7723,6 +7749,11 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 28: return .EmptyCredentialSubject(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 29: return .SelectiveDisclosureInvalidFields
+        case 30: return .SelectiveDisclosureEmptySelection
+        case 31: return .Debug(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -7870,6 +7901,19 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
         
         case let .EmptyCredentialSubject(v1):
             writeInt(&buf, Int32(28))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .SelectiveDisclosureInvalidFields:
+            writeInt(&buf, Int32(29))
+        
+        
+        case .SelectiveDisclosureEmptySelection:
+            writeInt(&buf, Int32(30))
+        
+        
+        case let .Debug(v1):
+            writeInt(&buf, Int32(31))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -10193,6 +10237,28 @@ fileprivate struct FfiConverterSequenceTypeMDocItem: FfiConverterRustBuffer {
     }
 }
 
+fileprivate struct FfiConverterSequenceSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [[String]]
+
+    public static func write(_ value: [[String]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterSequenceString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [[String]] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [[String]]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterSequenceString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 fileprivate struct FfiConverterSequenceTypeKey: FfiConverterRustBuffer {
     typealias SwiftType = [Key]
 
@@ -10993,6 +11059,13 @@ public func initializeMdlPresentationFromBytes(mdoc: Mdoc, uuid: Uuid)throws  ->
     )
 })
 }
+public func listSdFields(input: Vcdm2SdJwt)throws  -> [String] {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeSdJwtError.lift) {
+    uniffi_mobile_sdk_rs_fn_func_list_sd_fields(
+        FfiConverterTypeVCDM2SdJwt.lower(input),$0
+    )
+})
+}
 public func oid4vciExchangeCredential(session: Oid4vciSession, proofsOfPossession: [String], options: Oid4vciExchangeOptions, contextMap: [String: String]?, httpClient: IHttpClient)async throws  -> [CredentialResponse] {
     return
         try  await uniffiRustCallAsync(
@@ -11161,6 +11234,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 26972) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_list_sd_fields() != 63228) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_oid4vci_exchange_credential() != 25671) {
@@ -11361,7 +11437,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_type() != 60750) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 16918) {
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 29356) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credentials() != 38374) {
@@ -11377,6 +11453,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_name() != 19474) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_path() != 29964) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_purpose() != 46977) {
@@ -11508,25 +11587,25 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vci_new_with_sync_client() != 31928) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_from_json() != 1837) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_from_json() != 49637) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_jwt_vc_json() != 56340) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_jwt_vc_json() != 12497) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_jwt_vc_json_ld() != 46832) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_jwt_vc_json_ld() != 18870) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_ldp_vc() != 45177) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_ldp_vc() != 21887) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_mso_mdoc() != 58058) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_mso_mdoc() != 34945) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_sd_jwt() != 34266) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_sd_jwt() != 43504) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_parse_from_credential() != 15018) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_parse_from_credential() != 47420) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_new_from_compact_sd_jwt() != 56155) {

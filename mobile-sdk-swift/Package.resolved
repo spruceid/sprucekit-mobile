@@ -1,12 +1,21 @@
 {
   "pins" : [
     {
-      "identity" : "mobile-sdk-rs",
+      "identity" : "rive-ios",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/spruceid/mobile-sdk-rs.git",
+      "location" : "https://github.com/rive-app/rive-ios",
       "state" : {
-        "revision" : "60467b604eeafe5faa824bcd5eecad41ea1efbeb",
-        "version" : "0.4.3"
+        "revision" : "fa6c4eefcf0e4c887677fb1bff911ffee7862570",
+        "version" : "6.1.6"
+      }
+    },
+    {
+      "identity" : "sqlite.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stephencelis/SQLite.swift.git",
+      "state" : {
+        "revision" : "a95fc6df17d108bd99210db5e8a9bac90fe984b8",
+        "version" : "0.15.3"
       }
     },
     {
