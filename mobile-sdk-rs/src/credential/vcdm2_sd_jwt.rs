@@ -252,31 +252,36 @@ impl CredentialPresentation for VCDM2SdJwt {
             // TODO: (limit_disclosure = None || Preferred) && selected_fields.is_none()
             // selected_fields.into_iter().map(|sf| )
             let compact: &str = self.inner.as_ref();
-            log::debug!("{:?}", selected_fields);
+            log::debug!("SF: {:?}", selected_fields);
             let vp_token = if let Some(sfs) = selected_fields {
                 let json = self
                     .revealed_claims_as_json()
                     .map_err(|e| OID4VPError::JsonPathParse(e.to_string()))?;
 
-                let sfs = sfs
-                    .into_iter()
-                    .map(|sf| sf.split("|").next().unwrap().to_owned())
-                    .map(|path| JsonPath::parse(&path).unwrap());
+                log::debug!("JSON: {:?}", json);
+
+                let sfs = sfs.into_iter();
+                let sfs = sfs.map(|sf| sf.split("|").next().unwrap().to_owned());
+                log::debug!("1: {:?}", sfs);
+                let sfs = sfs.map(|path| JsonPath::parse(&path).unwrap());
+                log::debug!("2: {:?}", sfs);
+                let sfs = sfs.map(|f| f.query_located(&json));
+                log::debug!("3: {:?}", sfs);
+                let sfs = sfs.map(|ln| {
+                    log::debug!("3.1: {:?}", ln);
+                    if ln.is_empty() {
+                        return Err(unimplemented!());
+                    }
+                    // SAFETY: Empty check above
+                    JsonPointerBuf::new(ln.first().unwrap().location().to_json_pointer())
+                });
+                log::debug!("4: {:?}", sfs);
 
                 let rjp = sfs
-                    .map(|f| f.query_located(&json))
-                    .map(|ln| {
-                        if ln.is_empty() {
-                            return Err(unimplemented!());
-                        }
-                        // SAFETY: Empty check above
-                        JsonPointerBuf::new(ln.first().unwrap().location().to_json_pointer())
-                    })
                     .collect::<Result<Vec<_>, _>>()
                     .map_err(|e| OID4VPError::Debug(e.to_string()))?;
 
-                log::debug!("3.1");
-                log::debug!("bef {}", self.inner);
+                log::debug!("5: {:?}", self.inner);
                 let ret = self
                     .inner
                     .decode_reveal::<AnyClaims>()
@@ -285,7 +290,7 @@ impl CredentialPresentation for VCDM2SdJwt {
                     .into_encoded()
                     .as_str()
                     .to_string();
-                log::debug!("aft {}", ret);
+                log::debug!("6: {:?}", self.inner);
                 ret
             } else {
                 compact.to_string()
