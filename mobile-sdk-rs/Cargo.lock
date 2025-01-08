@@ -3482,7 +3482,7 @@ dependencies = [
 [[package]]
 name = "oid4vci"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/oid4vci-rs?rev=3717043#3717043909b7ef766b340a58306d2325e61216df"
+source = "git+https://github.com/spruceid/oid4vci-rs?rev=e97b01e#e97b01e9fa230d6da08cc765c3674330c0c0fa32"
 dependencies = [
  "anyhow",
  "async-signature",
@@ -3493,6 +3493,7 @@ dependencies = [
  "percent-encoding",
  "rand",
  "serde",
+ "serde_cbor",
  "serde_json",
  "serde_path_to_error",
  "serde_urlencoded",

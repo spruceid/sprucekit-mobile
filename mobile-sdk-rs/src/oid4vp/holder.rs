@@ -356,11 +356,13 @@ pub(crate) mod tests {
         pub async fn sign_jwt(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
             let sig = self
                 .jwk
-                .sign(payload)
+                .sign_bytes(&payload)
                 .await
                 .expect("failed to sign Jws Payload");
 
-            Ok(sig.as_bytes().to_vec())
+            p256::ecdsa::Signature::from_slice(&sig)
+                .map(|sig| sig.to_der().as_bytes().to_vec())
+                .map_err(|e| PresentationError::Signing(format!("{e:?}")))
         }
     }
 
