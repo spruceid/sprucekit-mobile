@@ -50,9 +50,8 @@ import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.utils.getFileContent
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
-import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
-import kotlinx.coroutines.launch
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.launch
 
