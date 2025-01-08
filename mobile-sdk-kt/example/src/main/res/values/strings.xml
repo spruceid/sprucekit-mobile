@@ -27,4 +27,5 @@
     <string name="cog">Settings</string>
     <string name="filter">Click to filter</string>
     <string name="export">Export</string>
+    <string name="success_toast_icon">Success</string>
 </resources>

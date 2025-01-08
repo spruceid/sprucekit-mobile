@@ -102,7 +102,7 @@ struct VerifierHomeBody: View {
                 
                 ForEach(verificationMethods, id: \.self.id) { verificationMethod in
                     VerifierListItem(
-                        title: verificationMethod.verifierName,
+                        title: verificationMethod.name,
                         description: verificationMethod.description,
                         type: getBadgeType(verificationType: verificationMethod.type)
                     ).onTapGesture {

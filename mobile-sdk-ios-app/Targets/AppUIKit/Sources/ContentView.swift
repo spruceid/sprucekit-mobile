@@ -92,6 +92,7 @@ public struct ContentView: View {
                         )
                     }
             }
+            Toast()
         }
         .onOpenURL { url in
             let scheme = url.scheme

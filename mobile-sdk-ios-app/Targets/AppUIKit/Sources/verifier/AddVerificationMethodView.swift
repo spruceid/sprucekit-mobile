@@ -17,10 +17,11 @@ struct AddVerificationMethodView: View {
         do {
             let jsonArray = getGenericJSON(jsonString: content)?.arrayValue
             for (_, item) in try jsonArray.unwrap().enumerated() {
+                let credentialName = item.dictValue?["credential_name"]?.toString() ?? ""
                 _ = VerificationMethodDataStore.shared.insert(
                     type: item.dictValue?["type"]?.toString() ?? "",
-                    name: item.dictValue?["name"]?.toString() ?? "",
-                    description: item.dictValue?["description"]?.toString() ?? "",
+                    name: credentialName,
+                    description: "Verifies \(credentialName) Credentials",
                     verifierName: item.dictValue?["verifier_name"]?.toString() ?? "",
                     url: item.dictValue?["url"]?.toString() ?? ""
                 )

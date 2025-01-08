@@ -65,6 +65,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.utils.trustedDids
@@ -191,8 +192,14 @@ fun HandleOID4VPView(
                     }
 
                     permissionRequest = tempPermissionRequest
-                    if (permissionRequest!!.credentials().isNotEmpty()) {
-                        state = OID4VPState.SelectCredential
+                    if (permissionRequestCredentials.isNotEmpty()) {
+                        state = if (permissionRequestCredentials.count() == 1) {
+                            lSelectedCredentials.value = permissionRequestCredentials
+                            selectedCredential = permissionRequestCredentials.first()
+                            OID4VPState.SelectiveDisclosure
+                        } else {
+                            OID4VPState.SelectCredential
+                        }
                     } else {
                         error = OID4VPError(
                             "No matching credential(s)",
@@ -265,6 +272,7 @@ fun HandleOID4VPView(
                                 additionalInformation = ""
                             )
                         )
+                        Toast.showSuccess("Shared successfully")
                         onBack()
                     } catch (e: Exception) {
                         error =

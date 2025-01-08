@@ -128,8 +128,15 @@ struct HandleOID4VPView: View {
             }
 
             permissionRequest = tmpPermissionRequest
-            if !(permissionRequest?.credentials().isEmpty)! {
-                state = OID4VPState.selectCredential
+            if !permissionRequestCredentials.isEmpty {
+                if permissionRequestCredentials.count == 1 {
+                    lSelectedCredentials = permissionRequestCredentials
+                    selectedCredential =
+                    permissionRequestCredentials.first
+                    state = .selectiveDisclosure
+                } else {
+                    state = OID4VPState.selectCredential
+                }
             } else {
                 err = OID4VPError(
                     title: "No matching credential(s)",
@@ -220,6 +227,7 @@ struct HandleOID4VPView: View {
                                 dateTime: Date(),
                                 additionalInformation: ""
                             )
+                            ToastManager.shared.showSuccess(message: "Shared successfully")
                             back()
                         } catch {
                             err = OID4VPError(

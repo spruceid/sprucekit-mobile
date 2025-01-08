@@ -176,7 +176,7 @@ fun VerifierHomeBody(
         }
         items(verificationMethods.value) { verificationMethod ->
             VerifierListItem(
-                title = verificationMethod.verifierName,
+                title = verificationMethod.name,
                 description = verificationMethod.description,
                 type = getBadgeType(verificationMethod.type),
                 modifier = Modifier.clickable {

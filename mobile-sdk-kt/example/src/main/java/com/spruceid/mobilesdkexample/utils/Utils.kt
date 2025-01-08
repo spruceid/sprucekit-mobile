@@ -30,7 +30,7 @@ const val keyPEM =
 const val keyBase64 =
     "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgEAqKZdZQgPVtjlEBfz2ItHG8oXIONenOxRePtqOQ42yhRANCAATA43gI2Ib8+qKK4YEOfNCRiNOhyHaCLgAvKdhHS+y6wpG3oJ2xudXagzKKbcfvUda4x0j8zR1/oD56mpm85GbO"
 
-val trustedDids = MutableList(1) { "did:web:companion.ler-sandbox.spruceid.xyz:oid4vp:client" }
+val trustedDids = emptyList<String>()
 
 fun getCurrentSqlDate(): Date {
     val currentTimeMillis = System.currentTimeMillis()
