@@ -1428,6 +1428,8 @@ open class Holder:
     }
     /**
      * Uses VDC collection to retrieve the credentials for a given presentation definition.
+     *
+     * If no trusted DIDs are provided then all DIDs are trusted.
      */
 public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?)async throws  {
     let pointer =
@@ -1462,6 +1464,8 @@ public convenience init(vdcCollection: VdcCollection, trustedDids: [String], sig
      *
      * This constructor will use the provided credentials for the presentation,
      * instead of searching for credentials in the VDC collection.
+     *
+     * If no trusted DIDs are provided then all DIDs are trusted.
      */
 public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?)async throws  -> Holder {
     return
@@ -11459,10 +11463,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_didmethodutils_new() != 22235) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 64916) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 8787) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 28515) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 30103) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_ihttpclient_new_async() != 55307) {
