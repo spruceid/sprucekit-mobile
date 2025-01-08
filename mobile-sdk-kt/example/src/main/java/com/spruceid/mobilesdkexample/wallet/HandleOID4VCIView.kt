@@ -79,9 +79,10 @@ fun HandleOID4VCIView(
                 }
             )
 
+        val fullUrl = "openid-credential-offer://$url"
         try {
             oid4vciSession.initiateWithOffer(
-                credentialOffer = url,
+                credentialOffer = fullUrl,
                 clientId = "skit-demo-wallet",
                 redirectUrl = "https://spruceid.com"
             )
@@ -118,14 +119,7 @@ fun HandleOID4VCIView(
                     signature?.let {
                         generatePopComplete(
                             signingInput = signingInput,
-                            signature =
-                            Base64.encodeToString(
-                                signature,
-                                Base64.URL_SAFE or
-                                        Base64.NO_PADDING or
-                                        Base64.NO_WRAP
-                            )
-                                .toByteArray()
+                            signatureDer = signature,
                         )
                     }
                 }
@@ -133,10 +127,12 @@ fun HandleOID4VCIView(
             oid4vciSession.setContextMap(getVCPlaygroundOID4VCIContext(ctx = ctx))
 
             val credentials =
-                pop?.let { oid4vciSession.exchangeCredential(
-                    proofsOfPossession = listOf(pop),
-                    options = Oid4vciExchangeOptions(true),
-                ) }
+                pop?.let {
+                    oid4vciSession.exchangeCredential(
+                        proofsOfPossession = listOf(pop),
+                        options = Oid4vciExchangeOptions(true),
+                    )
+                }
 
             credentials?.forEach { cred ->
                 cred.payload.toString(Charsets.UTF_8).let { credential = it }

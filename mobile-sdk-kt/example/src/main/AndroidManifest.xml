@@ -50,6 +50,7 @@
                 <!-- Deep link data -->
                 <data android:scheme="spruceid" />
                 <data android:scheme="openid4vp" />
+                <data android:scheme="openid-credential-offer" />
             </intent-filter>
         </activity>
 
