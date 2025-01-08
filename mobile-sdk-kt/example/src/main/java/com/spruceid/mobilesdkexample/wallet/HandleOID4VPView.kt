@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,7 +53,6 @@ import com.spruceid.mobile.sdk.rs.PermissionRequest
 import com.spruceid.mobile.sdk.rs.PermissionResponse
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.RequestedField
-import com.spruceid.mobile.sdk.rs.listSdFields
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -89,8 +89,8 @@ class Signer(keyId: String?) : PresentationSigner {
 
     override suspend fun sign(payload: ByteArray): ByteArray {
         val signature =
-                keyManager.signPayload(keyId, payload)
-                        ?: throw IllegalStateException("Failed to sign payload")
+            keyManager.signPayload(keyId, payload)
+                ?: throw IllegalStateException("Failed to sign payload")
 
         return signature
     }
@@ -123,12 +123,30 @@ class Signer(keyId: String?) : PresentationSigner {
     }
 }
 
+enum class OID4VPState {
+    Err,
+    SelectCredential,
+    SelectiveDisclosure,
+    Loading,
+    None,
+}
+
+class OID4VPError {
+    var title: String
+    var details: String
+
+    constructor(title: String, details: String) {
+        this.title = title
+        this.details = details
+    }
+}
+
 @Composable
 fun HandleOID4VPView(
-        navController: NavController,
-        url: String,
-        credentialPacksViewModel: CredentialPacksViewModel,
-        walletActivityLogsViewModel: WalletActivityLogsViewModel
+    navController: NavController,
+    url: String,
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel
 ) {
     val scope = rememberCoroutineScope()
     val credentialPacks = credentialPacksViewModel.credentialPacks
@@ -138,274 +156,250 @@ fun HandleOID4VPView(
     var permissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
     var permissionResponse by remember { mutableStateOf<PermissionResponse?>(null) }
     var selectedCredential by remember { mutableStateOf<ParsedCredential?>(null) }
+    var lSelectedCredentials = remember { mutableStateOf<List<ParsedCredential>>(listOf()) }
+    var state by remember { mutableStateOf(OID4VPState.None) }
+    var error by remember { mutableStateOf<OID4VPError?>(null) }
     val ctx = LocalContext.current
-
-    var err by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        try {
-            val credentials = mutableListOf<ParsedCredential>()
-            credentialPacks.value.forEach { credentialPack ->
-                credentials.addAll(credentialPack.list())
-                credentialClaims += credentialPack.findCredentialClaims(listOf("name", "type"))
-            }
-
-            withContext(Dispatchers.IO) {
-                val signer = Signer("reference-app/default-signing")
-                holder =
-                        Holder.newWithCredentials(
-                                credentials,
-                                trustedDids,
-                                signer,
-                                getVCPlaygroundOID4VCIContext(ctx)
-                        )
-                val newurl = url.replace("authorize", "")
-                val tempPermissionRequest = holder!!.authorizationRequest(newurl)
-                val permissionRequestCredentials = tempPermissionRequest.credentials()
-
-                if (permissionRequestCredentials.count() == 1) {
-                    selectedCredential = permissionRequestCredentials.first()
-                    permissionResponse =
-                        tempPermissionRequest.createPermissionResponse(
-                            permissionRequestCredentials
-                        )
-                }
-
-                permissionRequest = tempPermissionRequest
-            }
-        } catch (e: Exception) {
-            err = e.localizedMessage
-        }
-    }
 
     fun onBack() {
         navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
     }
 
-    if (err != null) {
-        ErrorView(
-                errorTitle = "Error Presenting Credential",
-                errorDetails = err!!,
-                onClose = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } }
-        )
-    } else {
-        if (permissionRequest == null) {
-            LoadingView(loadingText = "Loading...")
-        } else if (permissionResponse == null) {
-            if (permissionRequest!!.credentials().isNotEmpty()) {
-                CredentialSelector(
-                        credentials = permissionRequest!!.credentials(),
-                        credentialClaims = credentialClaims,
-                        getRequestedFields = { credential ->
-                            permissionRequest!!.requestedFields(credential)
-                        },
-                        onContinue = { selectedCredentials ->
-                            scope.launch {
-                                try {
-                                    // TODO: support multiple presentation
-                                    selectedCredential = selectedCredentials.first()
-                                    permissionResponse =
-                                            permissionRequest!!.createPermissionResponse(
-                                                    selectedCredentials
-                                            )
-                                } catch (e: Exception) {
-                                    err = e.localizedMessage
-                                }
-                            }
-                        },
-                        onCancel = { onBack() }
-                )
-            } else {
-                ErrorView(
-                        errorTitle = "No matching credential(s)",
-                        errorDetails =
-                                "There are no credentials in your wallet that match the verification request you have scanned",
-                        closeButtonLabel = "Cancel"
-                ) { onBack() }
-            }
-        } else {
-            DataFieldSelector(
-                    requestedFields = permissionRequest!!.requestedFields(selectedCredential!!),
-                    onContinue = {
-                        scope.launch {
-                            try {
-                                holder!!.submitPermissionResponse(permissionResponse!!)
-                                val credentialPack =
-                                        credentialPacks.value.firstOrNull { credentialPack ->
-                                            credentialPack.getCredentialById(
-                                                    selectedCredential!!.id()
-                                            ) != null
-                                        }!!
-                                val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
-                                walletActivityLogsViewModel.saveWalletActivityLog(
-                                        walletActivityLogs =
-                                                WalletActivityLogs(
-                                                        credentialPackId =
-                                                                credentialPack.id().toString(),
-                                                        credentialId = credentialInfo.first,
-                                                        credentialTitle = credentialInfo.second,
-                                                        issuer = credentialInfo.third,
-                                                        action = "Verification",
-                                                        dateTime = getCurrentSqlDate(),
-                                                        additionalInformation = ""
-                                                )
-                                )
-                                onBack()
-                            } catch (e: Exception) {
-                                err = e.localizedMessage
-                            }
-                        }
-                    },
-                    onCancel = { onBack() }
-                )
-            } else {
-                ErrorView(
-                    errorTitle = "No matching credential(s)",
-                    errorDetails =
-                    "There are no credentials in your wallet that match the verification request you have scanned",
-                    closeButtonLabel = "Cancel"
-                ) { onBack() }
-            }
-        } else {
-            DataFieldSelector(
-                selectedCredential = selectedCredential!!,
-                requestedFields =
-                permissionRequest!!.requestedFields(selectedCredential!!),
-                onContinue = {
-                    scope.launch {
-                        try {
-                            holder!!.submitPermissionResponse(permissionResponse!!)
-                            val credentialPack =
-                                credentialPacks.value.firstOrNull { credentialPack ->
-                                    credentialPack.getCredentialById(selectedCredential!!.id()) != null
-                                }!!
-                            val credentialInfo =
-                                getCredentialIdTitleAndIssuer(credentialPack)
-                            walletActivityLogsViewModel.saveWalletActivityLog(
-                                walletActivityLogs = WalletActivityLogs(
-                                    credentialPackId = credentialPack.id().toString(),
-                                    credentialId = credentialInfo.first,
-                                    credentialTitle = credentialInfo.second,
-                                    issuer = credentialInfo.third,
-                                    action = "Verification",
-                                    dateTime = getCurrentSqlDate(),
-                                    additionalInformation = ""
-                                )
-                            )
-                            onBack()
-                        } catch (e: Exception) {
-                            err = e.localizedMessage
-                        }
+    when (state) {
+        OID4VPState.None -> LaunchedEffect(Unit) {
+            try {
+                val credentials = mutableListOf<ParsedCredential>()
+                credentialPacks.value.forEach { credentialPack ->
+                    credentials.addAll(credentialPack.list())
+                    credentialClaims += credentialPack.findCredentialClaims(listOf("name", "type"))
+                }
+
+                withContext(Dispatchers.IO) {
+                    val signer = Signer("reference-app/default-signing")
+                    holder =
+                        Holder.newWithCredentials(
+                            credentials,
+                            trustedDids,
+                            signer,
+                            getVCPlaygroundOID4VCIContext(ctx)
+                        )
+                    val newurl = url.replace("authorize", "")
+                    val tempPermissionRequest = holder!!.authorizationRequest(newurl)
+                    val permissionRequestCredentials = tempPermissionRequest.credentials()
+
+                    if (permissionRequestCredentials.count() == 1) {
+                        selectedCredential = permissionRequestCredentials.first()
                     }
-                },
-                onCancel = { onBack() }
-            )
+
+                    permissionRequest = tempPermissionRequest
+                    if (permissionRequest!!.credentials().isNotEmpty()) {
+                        state = OID4VPState.SelectCredential
+                    } else {
+                        error = OID4VPError(
+                            "No matching credential(s)",
+                            "There are no credentials in your wallet that match the verification request you have scanned",
+                        )
+                        state = OID4VPState.Err
+                    }
+                }
+            } catch (e: Exception) {
+                error = OID4VPError("No Matching Credential.", e.localizedMessage!!)
+                state = OID4VPState.Err
+            }
         }
+
+        OID4VPState.Err ->
+            ErrorView(
+                errorTitle = error!!.title,
+                errorDetails = error!!.details,
+                onClose = { onBack() }
+            )
+
+        OID4VPState.SelectCredential -> CredentialSelector(
+            credentials = permissionRequest!!.credentials(),
+            credentialClaims = credentialClaims,
+            getRequestedFields = { credential ->
+                permissionRequest!!.requestedFields(credential)
+            },
+            onContinue = { selectedCredentials ->
+                scope.launch {
+                    try {
+                        // TODO: support multiple presentation
+                        lSelectedCredentials.value = selectedCredentials
+                        selectedCredential = selectedCredentials.first()
+                        state = OID4VPState.SelectiveDisclosure
+                    } catch (e: Exception) {
+                        error = OID4VPError("Failed to select credential", e.localizedMessage!!)
+                        state = OID4VPState.Err
+                    }
+                }
+            },
+            onCancel = { onBack() }
+        )
+
+        OID4VPState.SelectiveDisclosure -> DataFieldSelector(
+            requestedFields =
+            permissionRequest!!.requestedFields(selectedCredential!!),
+            onContinue = {
+                scope.launch {
+                    try {
+                        permissionResponse =
+                            permissionRequest!!.createPermissionResponse(
+                                lSelectedCredentials.value,
+                                it,
+                            )
+                        holder!!.submitPermissionResponse(permissionResponse!!)
+                        val credentialPack =
+                            credentialPacks.value.firstOrNull { credentialPack ->
+                                credentialPack.getCredentialById(selectedCredential!!.id()) != null
+                            }!!
+                        val credentialInfo =
+                            getCredentialIdTitleAndIssuer(credentialPack)
+                        walletActivityLogsViewModel.saveWalletActivityLog(
+                            walletActivityLogs = WalletActivityLogs(
+                                credentialPackId = credentialPack.id().toString(),
+                                credentialId = credentialInfo.first,
+                                credentialTitle = credentialInfo.second,
+                                issuer = credentialInfo.third,
+                                action = "Verification",
+                                dateTime = getCurrentSqlDate(),
+                                additionalInformation = ""
+                            )
+                        )
+                        onBack()
+                    } catch (e: Exception) {
+                        error =
+                            OID4VPError("Failed to selective disclose fields", e.localizedMessage!!)
+                        state = OID4VPState.Err
+                    }
+                }
+            },
+            onCancel = { onBack() }
+        )
+
+        OID4VPState.Loading ->
+            LoadingView(loadingText = "Loading...")
     }
 }
 
 @Composable
 fun DataFieldSelector(
-    selectedCredential: ParsedCredential,
     requestedFields: List<RequestedField>,
-    onContinue: () -> Unit,
+    onContinue: (selectedFields: List<List<String>>) -> Unit,
     onCancel: () -> Unit
 ) {
-
-    val bullet = "\u2022"
+    var selectedFields by remember {
+        mutableStateOf(requestedFields.filter { it.required() }.map { it.path() }.toList())
+    }
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
-    val mockDataField =
-            requestedFields.map { field -> field.name()?.replaceFirstChar(Char::titlecase) ?: "" }
 
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 48.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 48.dp)
+    ) {
         Text(
-                buildAnnotatedString {
-                    withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
-                    append(" is requesting access to the following information")
-                },
-                fontFamily = Inter,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                color = ColorStone950,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                textAlign = TextAlign.Center
+            buildAnnotatedString {
+                withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
+                append(" is requesting access to the following information")
+            },
+            fontFamily = Inter,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = ColorStone950,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            textAlign = TextAlign.Center
         )
 
         Column(
-                modifier =
-                        Modifier.fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .weight(weight = 1f, fill = false)
+            modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .weight(weight = 1f, fill = false)
         ) {
-            Text(
-                buildAnnotatedString {
-                    listSdFields(selectedCredential.asSdJwt()!!).forEach {
-                        withStyle(style = paragraphStyle) {
-                            append(bullet)
-                            append("\t\t")
-                            append(it)
+            requestedFields.forEach {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        enabled = it.selectiveDisclosable(),
+                        checked = selectedFields.contains(it.path()) || it.required(),
+                        onCheckedChange = { v ->
+                            selectedFields = if (!v) {
+                                selectedFields.minus(it.path())
+                            } else {
+                                selectedFields.plus(it.path())
+                            }
                         }
-                    }
-                    requestedFields.forEach {
-                        withStyle(style = paragraphStyle) {
-                            append(bullet)
-                            append("\t\t")
-                            append(it.name()?.replaceFirstChar(Char::titlecase) ?: "")
-                            append("\t\t")
-                            append(it.selectiveDisclosable().toString())
-                        }
-                    }
-                },
-            )
+                    )
+                    Text(
+                        buildAnnotatedString {
+                            withStyle(style = paragraphStyle) {
+                                append("\t\t")
+                                append(it.name()?.replaceFirstChar(Char::titlecase) ?: "")
+                                append("\t\t")
+                                append(selectedFields.contains(it.path()).toString())
+                            }
+                        },
+                    )
+                }
+            }
         }
 
         Row(
-                modifier =
-                        Modifier.fillMaxWidth().padding(vertical = 12.dp).navigationBarsPadding(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .navigationBarsPadding(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
-                    onClick = { onCancel() },
-                    shape = RoundedCornerShape(6.dp),
-                    colors =
-                            ButtonDefaults.buttonColors(
-                                    containerColor = Color.Transparent,
-                                    contentColor = ColorStone950,
-                            ),
-                    modifier =
-                            Modifier.fillMaxWidth()
-                                    .border(
-                                            width = 1.dp,
-                                            color = ColorStone300,
-                                            shape = RoundedCornerShape(6.dp)
-                                    )
-                                    .weight(1f)
+                onClick = { onCancel() },
+                shape = RoundedCornerShape(6.dp),
+                colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = ColorStone950,
+                ),
+                modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = ColorStone300,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .weight(1f)
             ) {
                 Text(
-                        text = "Cancel",
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ColorStone950,
+                    text = "Cancel",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorStone950,
                 )
             }
 
             Button(
-                    onClick = { onContinue() },
-                    shape = RoundedCornerShape(6.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
-                    modifier =
-                            Modifier.fillMaxWidth()
-                                    .background(
-                                            color = ColorEmerald900,
-                                            shape = RoundedCornerShape(6.dp),
-                                    )
-                                    .weight(1f)
+                onClick = { onContinue(listOf(selectedFields)) },
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
+                modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = ColorEmerald900,
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    .weight(1f)
             ) {
                 Text(
-                        text = "Approve",
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ColorBase50,
+                    text = "Approve",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorBase50,
                 )
             }
         }
@@ -414,12 +408,12 @@ fun DataFieldSelector(
 
 @Composable
 fun CredentialSelector(
-        credentials: List<ParsedCredential>,
-        credentialClaims: Map<String, JSONObject>,
-        getRequestedFields: (ParsedCredential) -> List<RequestedField>,
-        onContinue: (List<ParsedCredential>) -> Unit,
-        onCancel: () -> Unit,
-        allowMultiple: Boolean = false
+    credentials: List<ParsedCredential>,
+    credentialClaims: Map<String, JSONObject>,
+    getRequestedFields: (ParsedCredential) -> List<RequestedField>,
+    onContinue: (List<ParsedCredential>) -> Unit,
+    onCancel: () -> Unit,
+    allowMultiple: Boolean = false
 ) {
     val selectedCredentials = remember { mutableStateListOf<ParsedCredential>() }
 
@@ -441,7 +435,8 @@ fun CredentialSelector(
             credentialClaims[credential.id()]?.getString("name").let {
                 return it.toString()
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
 
         try {
             credentialClaims[credential.id()]?.getJSONArray("type").let {
@@ -452,117 +447,131 @@ fun CredentialSelector(
                 }
                 return ""
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         return ""
     }
 
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 48.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 48.dp)
+    ) {
         Text(
-                text = "Select the credential${if (allowMultiple) "(s)" else ""} to share",
-                fontFamily = Inter,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                color = ColorStone950,
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                textAlign = TextAlign.Center
+            text = "Select the credential${if (allowMultiple) "(s)" else ""} to share",
+            fontFamily = Inter,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = ColorStone950,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            textAlign = TextAlign.Center
         )
 
         if (allowMultiple) {
             Text(
-                    text = "Select All",
-                    fontFamily = Inter,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 15.sp,
-                    color = ColorBlue600,
-                    modifier =
-                            Modifier.clickable {
-                                // TODO: implement select all
-                            }
+                text = "Select All",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 15.sp,
+                color = ColorBlue600,
+                modifier =
+                Modifier.clickable {
+                    // TODO: implement select all
+                }
             )
         }
 
         Column(
-                modifier =
-                        Modifier.fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .weight(weight = 1f, fill = false)
+            modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .weight(weight = 1f, fill = false)
         ) {
             credentials.forEach { credential ->
                 CredentialSelectorItem(
-                        credential = credential,
-                        requestedFields = getRequestedFields(credential),
-                        getCredentialTitle = { cred -> getCredentialTitle(cred) },
-                        isChecked = credential in selectedCredentials,
-                        selectCredential = { cred -> selectCredential(cred) },
-                        removeCredential = { cred -> removeCredential(cred) },
+                    credential = credential,
+                    requestedFields = getRequestedFields(credential),
+                    getCredentialTitle = { cred -> getCredentialTitle(cred) },
+                    isChecked = credential in selectedCredentials,
+                    selectCredential = { cred -> selectCredential(cred) },
+                    removeCredential = { cred -> removeCredential(cred) },
                 )
             }
         }
 
         Row(
-                modifier =
-                        Modifier.fillMaxWidth().padding(vertical = 12.dp).navigationBarsPadding(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .navigationBarsPadding(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
-                    onClick = { onCancel() },
-                    shape = RoundedCornerShape(6.dp),
-                    colors =
-                            ButtonDefaults.buttonColors(
-                                    containerColor = Color.Transparent,
-                                    contentColor = ColorStone950,
-                            ),
-                    modifier =
-                            Modifier.fillMaxWidth()
-                                    .border(
-                                            width = 1.dp,
-                                            color = ColorStone300,
-                                            shape = RoundedCornerShape(6.dp)
-                                    )
-                                    .weight(1f)
+                onClick = { onCancel() },
+                shape = RoundedCornerShape(6.dp),
+                colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = ColorStone950,
+                ),
+                modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = ColorStone300,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .weight(1f)
             ) {
                 Text(
-                        text = "Cancel",
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ColorStone950,
+                    text = "Cancel",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorStone950,
                 )
             }
 
             Button(
-                    onClick = {
+                onClick = {
+                    if (selectedCredentials.isNotEmpty()) {
+                        onContinue(selectedCredentials)
+                    }
+                },
+                shape = RoundedCornerShape(6.dp),
+                colors =
+                ButtonDefaults.buttonColors(
+                    containerColor =
+                    if (selectedCredentials.isNotEmpty()) {
+                        ColorStone600
+                    } else {
+                        Color.Gray
+                    }
+                ),
+                modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color =
                         if (selectedCredentials.isNotEmpty()) {
-                            onContinue(selectedCredentials)
-                        }
-                    },
-                    shape = RoundedCornerShape(6.dp),
-                    colors =
-                            ButtonDefaults.buttonColors(
-                                    containerColor =
-                                            if (selectedCredentials.isNotEmpty()) {
-                                                ColorStone600
-                                            } else {
-                                                Color.Gray
-                                            }
-                            ),
-                    modifier =
-                            Modifier.fillMaxWidth()
-                                    .background(
-                                            color =
-                                                    if (selectedCredentials.isNotEmpty()) {
-                                                        ColorStone600
-                                                    } else {
-                                                        Color.Gray
-                                                    },
-                                            shape = RoundedCornerShape(6.dp),
-                                    )
-                                    .weight(1f)
+                            ColorStone600
+                        } else {
+                            Color.Gray
+                        },
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    .weight(1f)
             ) {
                 Text(
-                        text = "Continue",
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.SemiBold,
-                        color = ColorBase50,
+                    text = "Continue",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorBase50,
                 )
             }
         }
@@ -571,84 +580,88 @@ fun CredentialSelector(
 
 @Composable
 fun CredentialSelectorItem(
-        credential: ParsedCredential,
-        requestedFields: List<RequestedField>,
-        getCredentialTitle: (ParsedCredential) -> String,
-        isChecked: Boolean,
-        selectCredential: (ParsedCredential) -> Unit,
-        removeCredential: (ParsedCredential) -> Unit
+    credential: ParsedCredential,
+    requestedFields: List<RequestedField>,
+    getCredentialTitle: (ParsedCredential) -> String,
+    isChecked: Boolean,
+    selectCredential: (ParsedCredential) -> Unit,
+    removeCredential: (ParsedCredential) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     val bullet = "\u2022"
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
     val mockDataField =
-            requestedFields.map { field -> field.name()?.replaceFirstChar(Char::titlecase) ?: "" }
+        requestedFields.map { field -> field.name()?.replaceFirstChar(Char::titlecase) ?: "" }
 
     Column(
-            modifier =
-                    Modifier.fillMaxWidth()
-                            .padding(vertical = 8.dp)
-                            .border(
-                                    width = 1.dp,
-                                    color = ColorBase300,
-                                    shape = RoundedCornerShape(8.dp)
-                            )
+        modifier =
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .border(
+                width = 1.dp,
+                color = ColorBase300,
+                shape = RoundedCornerShape(8.dp)
+            )
     ) {
         Row(
-                modifier = Modifier.fillMaxWidth().padding(end = 8.dp).padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(end = 8.dp)
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
-                    checked = isChecked,
-                    onCheckedChange = { isChecked ->
-                        if (isChecked) {
-                            selectCredential(credential)
-                        } else {
-                            removeCredential(credential)
-                        }
-                    },
-                    colors =
-                            CheckboxDefaults.colors(
-                                    checkedColor = ColorBlue600,
-                                    uncheckedColor = ColorStone300
-                            )
+                checked = isChecked,
+                onCheckedChange = { isChecked ->
+                    if (isChecked) {
+                        selectCredential(credential)
+                    } else {
+                        removeCredential(credential)
+                    }
+                },
+                colors =
+                CheckboxDefaults.colors(
+                    checkedColor = ColorBlue600,
+                    uncheckedColor = ColorStone300
+                )
             )
             Text(
-                    text = getCredentialTitle(credential),
-                    fontFamily = Inter,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 18.sp,
-                    color = ColorStone950,
-                    modifier = Modifier.weight(1f)
+                text = getCredentialTitle(credential),
+                fontFamily = Inter,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp,
+                color = ColorStone950,
+                modifier = Modifier.weight(1f)
             )
             if (expanded) {
                 Image(
-                        painter = painterResource(id = R.drawable.collapse),
-                        contentDescription = stringResource(id = R.string.collapse),
-                        modifier = Modifier.clickable { expanded = false }
+                    painter = painterResource(id = R.drawable.collapse),
+                    contentDescription = stringResource(id = R.string.collapse),
+                    modifier = Modifier.clickable { expanded = false }
                 )
             } else {
                 Image(
-                        painter = painterResource(id = R.drawable.expand),
-                        contentDescription = stringResource(id = R.string.expand),
-                        modifier = Modifier.clickable { expanded = true }
+                    painter = painterResource(id = R.drawable.expand),
+                    contentDescription = stringResource(id = R.string.expand),
+                    modifier = Modifier.clickable { expanded = true }
                 )
             }
         }
 
         if (expanded) {
             Text(
-                    buildAnnotatedString {
-                        mockDataField.forEach {
-                            withStyle(style = paragraphStyle) {
-                                append(bullet)
-                                append("\t\t")
-                                append(it)
-                            }
+                buildAnnotatedString {
+                    mockDataField.forEach {
+                        withStyle(style = paragraphStyle) {
+                            append(bullet)
+                            append("\t\t")
+                            append(it)
                         }
-                    },
-                    modifier = Modifier.padding(16.dp)
+                    }
+                },
+                modifier = Modifier.padding(16.dp)
             )
         }
     }

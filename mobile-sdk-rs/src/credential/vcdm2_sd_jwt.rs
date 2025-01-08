@@ -18,9 +18,11 @@ use openid4vp::{
     },
     JsonPath,
 };
+use serde::Serialize;
 use ssi::{
     claims::{
-        sd_jwt::SdJwtBuf,
+        jwt::AnyClaims,
+        sd_jwt::{RevealedSdJwt, SdJwtBuf},
         vc::v2::{Credential as _, JsonCredential},
         vc_jose_cose::SdJwtVc,
     },
@@ -157,69 +159,139 @@ impl CredentialPresentation for VCDM2SdJwt {
         //     .group_by(/*input_descriptor_id*/)
         //     .map(/*input_descriptor.constraints.limit_disclosure*/)
         //     .any(/*required*/) && selected_fields.is_none()
+        // if requested_fields
+        //     .into_iter()
+        //     .chunk_by(|rf| rf.input_descriptor_id.clone())
+        //     .into_iter()
+        //     .map(|(id, d)| {
+        //         if match input_descriptor_map[&id.as_str()]
+        //             .constraints
+        //             .limit_disclosure()
+        //         {
+        //             Some(ConstraintsLimitDisclosure::Required) => true,
+        //             _ => false,
+        //         } {
+        //             return d
+        //                 .into_iter()
+        //                 .any(|f| f.required && selected_fields.is_none());
+        //         }
+        //         false
+        //     })
+        //     .any(|e| e == true)
+        // {
+        //     return Err(OID4VPError::SelectiveDisclosureEmptySelection);
+        // }
 
-        let disclosable_fields = inner_list_sd_fields(self)
-            .map_err(|_| OID4VPError::SelectiveDisclosureInvalidFields)?;
+        // let disclosable_fields = inner_list_sd_fields(self)
+        //     .map_err(|_| OID4VPError::SelectiveDisclosureInvalidFields)?;
 
-        let is_valid = if let Some(sfs) = selected_fields {
-            let sfs = sfs
-                .into_iter()
-                .map(|sf| JsonPointerBuf::new(sf))
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|_| OID4VPError::SelectiveDisclosureInvalidFields)?;
+        // let is_valid = if let Some(sfs) = selected_fields {
+        //     let sfs = sfs
+        //         .into_iter()
+        //         .map(|sf| JsonPointerBuf::new(sf))
+        //         .collect::<Result<Vec<_>, _>>()
+        //         .map_err(|_| OID4VPError::SelectiveDisclosureInvalidFields)?;
 
-            // TODO: use limit_disclosure in validation
-            // match input_descriptor.constraints.limit_disclosure() {
-            //     Some(ConstraintsLimitDisclosure::Required) => {}
-            //     Some(ConstraintsLimitDisclosure::Preferred) => {}
-            //     None => true,
-            // }
-            // When required, all selected fields must:
-            //  - match disclosable
-            //  - match requested
-            //    - if optional, refer to SD
-            //
-            // When preferred, all selected fields must:
-            //  - match disclosable
-            //
-            // Example:
-            //  - limit_disclosure = preferred:
-            //   - Entire credential _CAN_ be submitted
-            //   - SD credential _CAN_ be submitted
-            //
-            //  - limit_disclosure = required:
-            //   - Entire credential _CANNOT_ be submitted (only requested_fields)
-            //   - SD credential _CAN_ be submitted
-            sfs.iter().all(|sf| {
-                // TODO remove unwrap
-                let sfj =
-                    JsonPath::parse(&format!("$.{}", &sf.as_str().split("/").join("."))).unwrap();
-                disclosable_fields.iter().any(|df| df == sf.as_str())
-                    && requested_fields.iter().any(|rf| {
-                        let input_descriptor_id: String = rf.input_descriptor_id().to_owned();
-                        let input_descriptor =
-                            input_descriptor_map.get(input_descriptor_id.as_str());
-                        if let Some(input_descriptor) = input_descriptor {
-                            // Selected Field instance must match _SOME_ Requested Field
-                            input_descriptor
-                                .constraints
-                                .fields()
-                                .iter()
-                                .any(|cf| cf.path.iter().any(|p| *p == sfj) && cf.is_optional())
-                        } else {
-                            false
-                        }
-                    })
-            })
-        } else {
-            true
-        };
+        //     // TODO: use limit_disclosure in validation
+        //     // match input_descriptor.constraints.limit_disclosure() {
+        //     //     Some(ConstraintsLimitDisclosure::Required) => {}
+        //     //     Some(ConstraintsLimitDisclosure::Preferred) => {}
+        //     //     None => true,
+        //     // }
+        //     // When required, all selected fields must:
+        //     //  - match disclosable
+        //     //  - match requested
+        //     //    - if optional, refer to SD
+        //     //
+        //     // When preferred, all selected fields must:
+        //     //  - match disclosable
+        //     //
+        //     // Example:
+        //     //  - limit_disclosure = preferred:
+        //     //   - Entire credential _CAN_ be submitted
+        //     //   - SD credential _CAN_ be submitted
+        //     //
+        //     //  - limit_disclosure = required:
+        //     //   - Entire credential _CANNOT_ be submitted (only requested_fields)
+        //     //   - SD credential _CAN_ be submitted
 
-        if is_valid {
+        //     // Iter over all selected fields
+        //     // sfs.iter().all(|sf| {
+        //     //     // TODO remove unwrap
+
+        //     //     //Parse selected_field JsonPath
+        //     //     let sfj =
+        //     //         JsonPath::parse(&format!("$.{}", &sf.as_str().split("/").join("."))).unwrap();
+
+        //     //     // Matches each selected field with available disclosable fields
+        //     //     disclosable_fields.iter().any(|df| df == sf.as_str())
+        //     //         // Checks if selected field is disclosable
+        //     //         && requested_fields.iter().any(|rf| {
+        //     //             let input_descriptor_id: String = rf.input_descriptor_id().to_owned();
+        //     //             let input_descriptor =
+        //     //                 input_descriptor_map.get(input_descriptor_id.as_str());
+        //     //             if let Some(input_descriptor) = input_descriptor {
+        //     //                 // Selected Field instance must match _SOME_ Requested Field
+        //     //                 input_descriptor
+        //     //                     .constraints
+        //     //                     .fields()
+        //     //                     .iter()
+        //     //                     .any(|cf| cf.path.iter().any(|p| *p == sfj))
+        //     //             } else {
+        //     //                 false
+        //     //             }
+        //     //         })
+        //     // })
+        //     true
+        // } else {
+        //     true
+        // };
+
+        if true {
             // TODO: (limit_disclosure = Required) && selected_fields.is_none() => ERROR
             // TODO: (limit_disclosure = None || Preferred) && selected_fields.is_none()
+            // selected_fields.into_iter().map(|sf| )
             let compact: &str = self.inner.as_ref();
-            Ok(VpTokenItem::String(compact.to_string()))
+            log::debug!("{:?}", selected_fields);
+            let vp_token = if let Some(sfs) = selected_fields {
+                let json = self
+                    .revealed_claims_as_json()
+                    .map_err(|e| OID4VPError::JsonPathParse(e.to_string()))?;
+
+                let sfs = sfs
+                    .into_iter()
+                    .map(|sf| sf.split("|").next().unwrap().to_owned())
+                    .map(|path| JsonPath::parse(&path).unwrap());
+
+                let rjp = sfs
+                    .map(|f| f.query_located(&json))
+                    .map(|ln| {
+                        if ln.is_empty() {
+                            return Err(unimplemented!());
+                        }
+                        // SAFETY: Empty check above
+                        JsonPointerBuf::new(ln.first().unwrap().location().to_json_pointer())
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e| OID4VPError::Debug(e.to_string()))?;
+
+                log::debug!("3.1");
+                log::debug!("bef {}", self.inner);
+                let ret = self
+                    .inner
+                    .decode_reveal::<AnyClaims>()
+                    .map_err(|e| OID4VPError::Debug(e.to_string()))?
+                    .retaining(rjp.as_ref())
+                    .into_encoded()
+                    .as_str()
+                    .to_string();
+                log::debug!("aft {}", ret);
+                ret
+            } else {
+                compact.to_string()
+            };
+
+            Ok(VpTokenItem::String(vp_token))
         } else {
             Err(unimplemented!())
         }

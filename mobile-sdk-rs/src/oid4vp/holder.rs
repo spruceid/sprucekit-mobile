@@ -219,7 +219,7 @@ impl Holder {
                             .get(id)
                             .ok()
                             .flatten()
-                            .and_then(|cred| cred.try_into_parsed().ok())
+                            .and_then(|cred| cred.try_into_parsed(None).ok())
                     })
                     .collect::<Vec<Arc<ParsedCredential>>>(),
             },
@@ -411,7 +411,7 @@ pub(crate) mod tests {
     async fn test_companion_sd_jwt() -> Result<(), Box<dyn std::error::Error>> {
         let example_sd_jwt = include_str!("../../tests/examples/sd_vc.jwt");
         let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt(example_sd_jwt.into())?;
-        let credential = ParsedCredential::new_sd_jwt(sd_jwt);
+        let credential = ParsedCredential::new_sd_jwt(sd_jwt, None);
 
         let jwk = JWK::generate_p256();
         let key_signer = KeySigner { jwk };
@@ -453,7 +453,14 @@ pub(crate) mod tests {
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
         let response = permission_request
-            .create_permission_response(parsed_credentials)
+            .create_permission_response(
+                parsed_credentials,
+                permission_request
+                    .requested_fields(&credential)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect(),
+            )
             .await?;
 
         holder.submit_permission_response(response).await?;
@@ -475,7 +482,7 @@ pub(crate) mod tests {
         )
         .expect("failed to create JSON VC credential");
 
-        let credential = ParsedCredential::new_ldp_vc(json_vc);
+        let credential = ParsedCredential::new_ldp_vc(json_vc, None);
 
         let mut context = HashMap::new();
 
@@ -505,7 +512,14 @@ pub(crate) mod tests {
         let credentials = permission_request.credentials();
 
         let response = permission_request
-            .create_permission_response(credentials)
+            .create_permission_response(
+                credentials,
+                permission_request
+                    .requested_fields(&credential)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect(),
+            )
             .await
             .expect("failed to create permission response");
 
@@ -524,6 +538,7 @@ pub(crate) mod tests {
         let mdl = ParsedCredential::new_jwt_vc_json_ld(
             JwtVc::new_from_compact_jws(include_str!("../../tests/examples/mdl.jwt").into())
                 .expect("failed to create mDL Jwt VC"),
+            None,
         );
 
         let holder = Holder::new_with_credentials(
@@ -539,7 +554,14 @@ pub(crate) mod tests {
         let credentials = permission_request.credentials();
 
         let response = permission_request
-            .create_permission_response(credentials)
+            .create_permission_response(
+                credentials,
+                permission_request
+                    .requested_fields(&credential)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect(),
+            )
             .await
             .expect("failed to create permission response");
 
@@ -558,7 +580,7 @@ pub(crate) mod tests {
         let alumni_vc = include_str!("../../tests/examples/alumni_vc.json");
         let json_vc = JsonVc::new_from_json(alumni_vc.into())?;
 
-        let credential = ParsedCredential::new_ldp_vc(json_vc);
+        let credential = ParsedCredential::new_ldp_vc(json_vc, None);
 
         let jwk = JWK::generate_p256();
         let key_signer = KeySigner { jwk };
@@ -600,7 +622,14 @@ pub(crate) mod tests {
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
         let response = permission_request
-            .create_permission_response(parsed_credentials)
+            .create_permission_response(
+                parsed_credentials,
+                permission_request
+                    .requested_fields(&credential)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect(),
+            )
             .await?;
 
         holder.submit_permission_response(response).await?;
@@ -621,7 +650,7 @@ pub(crate) mod tests {
             include_str!("../../tests/examples/employment_authorization_document_vc.json");
         let json_vc = JsonVc::new_from_json(employment_auth_doc.into())?;
 
-        let credential = ParsedCredential::new_ldp_vc(json_vc);
+        let credential = ParsedCredential::new_ldp_vc(json_vc, None);
         let initiate_api = "http://localhost:3000/api/oid4vp/initiate";
 
         // Make a request to the OID4VP initiate API.
@@ -660,7 +689,14 @@ pub(crate) mod tests {
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
         let response = permission_request
-            .create_permission_response(parsed_credentials)
+            .create_permission_response(
+                parsed_credentials,
+                permission_request
+                    .requested_fields(&credential)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect(),
+            )
             .await?;
 
         holder.submit_permission_response(response).await?;

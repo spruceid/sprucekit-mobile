@@ -66,6 +66,10 @@ pub enum OID4VPError {
     EmptyCredentialSubject(String),
     #[error("Invalid fields selected for selective disclosure")]
     SelectiveDisclosureInvalidFields,
+    #[error("Selected fields cannot be empty")]
+    SelectiveDisclosureEmptySelection,
+    #[error("Failed to initialize metadata: {0}")]
+    Debug(String),
 }
 
 // Handle unexpected errors when calling a foreign callback

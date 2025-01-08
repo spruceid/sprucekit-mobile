@@ -4,7 +4,7 @@ pub mod mdoc;
 pub mod status;
 pub mod vcdm2_sd_jwt;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::{
     oid4vp::{

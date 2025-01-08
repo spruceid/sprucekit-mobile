@@ -72,6 +72,7 @@ pub struct RequestedField {
     /// A unique ID for the requested field
     pub(crate) id: Uuid,
     pub(crate) name: Option<String>,
+    pub(crate) path: String,
     pub(crate) required: bool,
     pub(crate) retained: bool,
     pub(crate) selective_disclosable: bool,
@@ -88,6 +89,7 @@ impl From<openid4vp::core::input_descriptor::RequestedField<'_>> for RequestedFi
         Self {
             id: value.id,
             name: value.name,
+            path: value.path,
             required: value.required,
             retained: value.retained,
             selective_disclosable: value.selective_disclosable,
@@ -120,6 +122,11 @@ impl RequestedField {
     /// Return the field name
     pub fn name(&self) -> Option<String> {
         self.name.clone()
+    }
+
+    /// Return the JsonPath of the field
+    pub fn path(&self) -> String {
+        self.path.clone()
     }
 
     /// Return the field required status
@@ -197,6 +204,7 @@ impl PermissionRequest {
     pub async fn create_permission_response(
         &self,
         selected_credentials: Vec<Arc<ParsedCredential>>,
+        selected_fields: Vec<Vec<String>>,
     ) -> Result<Arc<PermissionResponse>, OID4VPError> {
         log::debug!("Creating Permission Response");
 
@@ -209,6 +217,30 @@ impl PermissionRequest {
             .into());
         }
 
+        // Ensure that there are selected fields for all credentials.
+        if selected_fields.len() != selected_credentials.len() {
+            return Err(PermissionRequestError::InvalidSelectedCredential(
+                "Selected credentials length must match selected fields length".to_string(),
+                self.definition.credential_types_hint().join(", "),
+            )
+            .into());
+        }
+
+        log::debug!("1");
+
+        let selected_credentials = selected_credentials
+            .iter()
+            .zip(selected_fields)
+            .map(|(sc, sf)| {
+                ParsedCredential {
+                    inner: sc.inner.clone(),
+                    selected_fields: Some(sf),
+                }
+                .into()
+            })
+            .collect::<Vec<_>>();
+        log::debug!("2");
+
         // Set options for constructing a verifiable presentation.
         let options = PresentationOptions::new(
             &self.request,
@@ -216,13 +248,15 @@ impl PermissionRequest {
             self.context_map.clone(),
             self.definition.clone(),
         );
+        log::debug!("3");
 
         let token_items = futures::future::try_join_all(
             selected_credentials
                 .iter()
-                .map(|cred| cred.as_vp_token(&options)),
+                .map(|cred: &Arc<_>| cred.as_vp_token(&options)),
         )
         .await?;
+        log::debug!("4");
 
         let vp_token = VpToken(token_items);
         Ok(Arc::new(PermissionResponse {

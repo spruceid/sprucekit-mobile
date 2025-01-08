@@ -78,7 +78,7 @@ class CredentialPack {
      * Add a JwtVc to the CredentialPack.
      */
     fun addJwtVc(jwtVc: JwtVc): List<ParsedCredential> {
-        credentials.add(ParsedCredential.newJwtVcJson(jwtVc))
+        credentials.add(ParsedCredential.newJwtVcJson(jwtVc, null))
         return credentials
     }
 
@@ -86,7 +86,7 @@ class CredentialPack {
      * Add a JsonVc to the CredentialPack.
      */
     fun addJsonVc(jsonVc: JsonVc): List<ParsedCredential> {
-        credentials.add(ParsedCredential.newLdpVc(jsonVc))
+        credentials.add(ParsedCredential.newLdpVc(jsonVc, null))
         return credentials
     }
 
@@ -94,7 +94,7 @@ class CredentialPack {
      * Add an Mdoc to the CredentialPack.
      */
     fun addMdoc(mdoc: Mdoc): List<ParsedCredential> {
-        credentials.add(ParsedCredential.newMsoMdoc(mdoc))
+        credentials.add(ParsedCredential.newMsoMdoc(mdoc, null))
         return credentials
     }
 
@@ -102,7 +102,7 @@ class CredentialPack {
      * Add a SD-JWT to the CredentialPack.
      */
     fun addSdJwt(sdJwt: Vcdm2SdJwt): List<ParsedCredential> {
-        credentials.add(ParsedCredential.newSdJwt(sdJwt))
+        credentials.add(ParsedCredential.newSdJwt(sdJwt, null))
         return credentials
     }
 
@@ -363,7 +363,7 @@ class CredentialPackContents {
                 }
                 .mapNotNull {
                     try {
-                        return@mapNotNull ParsedCredential.parseFromCredential(it)
+                        return@mapNotNull ParsedCredential.parseFromCredential(it, null)
                     } catch (e: CredentialDecodingException) {
                         Log.w(
                             "sprucekit", "failed to parse credential '${it.id}'" +
