@@ -18,6 +18,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
     definitions::{
         device_engagement::{CentralClientMode, DeviceRetrievalMethods},
@@ -167,7 +168,7 @@ impl MdlPresentationSession {
     /// error.
     pub fn handle_request(&self, request: Vec<u8>) -> Result<Vec<ItemsRequest>, RequestError> {
         let (session_manager, items_requests) = {
-            let session_establishment: SessionEstablishment = serde_cbor::from_slice(&request)
+            let session_establishment: SessionEstablishment = isomdl::cbor::from_slice(&request)
                 .map_err(|e| RequestError::Generic {
                     value: format!("Could not deserialize request: {e:?}"),
                 })?;
@@ -177,7 +178,10 @@ impl MdlPresentationSession {
                     value: "Could not lock mutex".to_string(),
                 })?
                 .clone()
-                .process_session_establishment(session_establishment)
+                .process_session_establishment(
+                    session_establishment,
+                    TrustAnchorRegistry::default(),
+                )
                 .map_err(|e| RequestError::Generic {
                     value: format!("Could not process process session establishment: {e:?}"),
                 })?
@@ -188,10 +192,11 @@ impl MdlPresentationSession {
         })?;
         *in_process = Some(InProcessRecord {
             session: session_manager,
-            items_request: items_requests.clone(),
+            items_request: items_requests.items_request.clone(),
         });
 
         Ok(items_requests
+            .items_request
             .into_iter()
             .map(|req| ItemsRequest {
                 doc_type: req.doc_type,
@@ -245,8 +250,8 @@ impl MdlPresentationSession {
         }
     }
 
-    pub fn submit_response(&self, der_signature: Vec<u8>) -> Result<Vec<u8>, SignatureError> {
-        let signature = p256::ecdsa::Signature::from_der(&der_signature).map_err(|e| {
+    pub fn submit_response(&self, signature: Vec<u8>) -> Result<Vec<u8>, SignatureError> {
+        let signature = p256::ecdsa::Signature::from_slice(&signature).map_err(|e| {
             SignatureError::InvalidSignature {
                 value: e.to_string(),
             }
@@ -277,7 +282,7 @@ impl MdlPresentationSession {
             data: None,
             status: Some(session::Status::SessionTermination),
         };
-        let msg_bytes = serde_cbor::to_vec(&msg).map_err(|e| TerminationError::Generic {
+        let msg_bytes = isomdl::cbor::to_vec(&msg).map_err(|e| TerminationError::Generic {
             value: format!("Could not serialize message bytes: {e:?}"),
         })?;
         Ok(msg_bytes)
@@ -352,45 +357,41 @@ pub enum KeyTransformationError {
 mod tests {
     use std::collections::BTreeMap;
 
-    use base64::prelude::*;
     use isomdl::{
         definitions::{
             device_request::{self, DataElements},
-            x509::trust_anchor::TrustAnchorRegistry,
+            x509::trust_anchor::{PemTrustAnchor, TrustAnchorRegistry, TrustPurpose},
         },
         presentation::reader,
     };
-    use p256::ecdsa::signature::{SignatureEncoding, Signer};
 
-    use crate::local_store;
+    use crate::{
+        crypto::{KeyAlias, KeyManager, RustTestKeyManager},
+        local_store,
+    };
 
     use super::*;
 
     #[tokio::test]
     async fn end_to_end_ble_presentment_holder() {
-        let mdoc_b64 = include_str!("../../tests/res/mdoc.b64");
-        let mdoc_bytes = BASE64_STANDARD.decode(mdoc_b64).unwrap();
-        let mdoc = Uuid::new_v4();
-        let key: p256::ecdsa::SigningKey =
-            p256::SecretKey::from_sec1_pem(include_str!("../../tests/res/sec1.pem"))
-                .unwrap()
-                .into();
+        let key_alias = KeyAlias(Uuid::new_v4().to_string());
+        let key_manager = Arc::new(RustTestKeyManager::default());
+        key_manager
+            .generate_p256_signing_key(key_alias.clone())
+            .await
+            .unwrap();
+        let mdl = Arc::new(
+            crate::mdl::util::generate_test_mdl(key_manager.clone(), key_alias.clone()).unwrap(),
+        )
+        .try_into()
+        .unwrap();
+
         let smi = Arc::new(local_store::LocalStore::new());
 
         let vdc_collection = VdcCollection::new(smi.clone());
+        vdc_collection.add(&mdl).await.unwrap();
 
-        vdc_collection
-            .add(&crate::credential::Credential {
-                id: mdoc,
-                format: crate::credential::CredentialFormat::MsoMdoc,
-                r#type: CredentialType("org.iso.18013.5.1.mDL".into()),
-                payload: mdoc_bytes,
-                key_alias: Some(KeyAlias("Testing".to_string())),
-            })
-            .await
-            .unwrap();
-
-        let presentation_session = initialize_mdl_presentation(mdoc, Uuid::new_v4(), smi.clone())
+        let presentation_session = initialize_mdl_presentation(mdl.id, Uuid::new_v4(), smi.clone())
             .await
             .unwrap();
         let namespaces: device_request::Namespaces = [(
@@ -408,19 +409,18 @@ mod tests {
         .collect::<BTreeMap<String, DataElements>>()
         .try_into()
         .unwrap();
-        let trust_anchor = TrustAnchorRegistry::iaca_registry_from_str(vec![include_str!(
-            "../../tests/res/root-cert.pem"
-        )
-        .to_string()])
+        let trust_anchor = TrustAnchorRegistry::from_pem_certificates(vec![PemTrustAnchor {
+            certificate_pem: include_str!("../../tests/res/mdl/iaca-certificate.pem").to_string(),
+            purpose: TrustPurpose::Iaca,
+        }])
         .unwrap();
         let (mut reader_session_manager, request, _ble_ident) =
             reader::SessionManager::establish_session(
                 presentation_session.qr_code_uri.clone(),
                 namespaces.clone(),
-                Some(trust_anchor),
+                trust_anchor,
             )
             .unwrap();
-        // let request = reader_session_manager.new_request(namespaces).unwrap();
         let _request_data = presentation_session.handle_request(request).unwrap();
         let permitted_items = [(
             "org.iso.18013.5.1.mDL".to_string(),
@@ -436,40 +436,34 @@ mod tests {
         let signing_payload = presentation_session
             .generate_response(permitted_items)
             .unwrap();
-        let signature: p256::ecdsa::Signature = key.sign(&signing_payload);
-        let response = presentation_session
-            .submit_response(signature.to_der().to_vec())
-            .unwrap();
+        let key = key_manager.get_signing_key(key_alias).unwrap();
+        let signature = key.sign(signing_payload).unwrap();
+        let response = presentation_session.submit_response(signature).unwrap();
         let res = reader_session_manager.handle_response(&response);
-        vdc_collection.delete(mdoc).await.unwrap();
+        vdc_collection.delete(mdl.id).await.unwrap();
         assert_eq!(res.errors, BTreeMap::new());
     }
 
     #[tokio::test]
     async fn end_to_end_ble_presentment_holder_reader() {
-        let mdoc_b64 = include_str!("../../tests/res/mdoc.b64");
-        let mdoc_bytes = BASE64_STANDARD.decode(mdoc_b64).unwrap();
-        let mdoc = Uuid::new_v4();
-        let key: p256::ecdsa::SigningKey =
-            p256::SecretKey::from_sec1_pem(include_str!("../../tests/res/sec1.pem"))
-                .unwrap()
-                .into();
+        let key_alias = KeyAlias(Uuid::new_v4().to_string());
+        let key_manager = Arc::new(RustTestKeyManager::default());
+        key_manager
+            .generate_p256_signing_key(key_alias.clone())
+            .await
+            .unwrap();
+        let mdl = Arc::new(
+            crate::mdl::util::generate_test_mdl(key_manager.clone(), key_alias.clone()).unwrap(),
+        )
+        .try_into()
+        .unwrap();
+
         let smi = Arc::new(local_store::LocalStore::new());
 
         let vdc_collection = VdcCollection::new(smi.clone());
+        vdc_collection.add(&mdl).await.unwrap();
 
-        vdc_collection
-            .add(&crate::credential::Credential {
-                id: mdoc,
-                format: crate::credential::CredentialFormat::MsoMdoc,
-                r#type: CredentialType("org.iso.18013.5.1.mDL".into()),
-                payload: mdoc_bytes,
-                key_alias: Some(KeyAlias("Testing".to_string())),
-            })
-            .await
-            .unwrap();
-
-        let presentation_session = initialize_mdl_presentation(mdoc, Uuid::new_v4(), smi.clone())
+        let presentation_session = initialize_mdl_presentation(mdl.id, Uuid::new_v4(), smi.clone())
             .await
             .unwrap();
         let namespaces = [(
@@ -486,12 +480,12 @@ mod tests {
         let reader_session_data = crate::reader::establish_session(
             presentation_session.qr_code_uri.clone(),
             namespaces,
-            Some(vec![
-                include_str!("../../tests/res/root-cert.pem").to_string()
-            ]),
+            Some(vec![include_str!(
+                "../../tests/res/mdl/iaca-certificate.pem"
+            )
+            .to_string()]),
         )
         .unwrap();
-        // let request = reader_session_manager.new_request(namespaces).unwrap();
         let _request_data = presentation_session
             .handle_request(reader_session_data.request)
             .unwrap();
@@ -509,12 +503,11 @@ mod tests {
         let signing_payload = presentation_session
             .generate_response(permitted_items)
             .unwrap();
-        let signature: p256::ecdsa::Signature = key.sign(&signing_payload);
-        let response = presentation_session
-            .submit_response(signature.to_der().to_vec())
-            .unwrap();
+        let key = key_manager.get_signing_key(key_alias).unwrap();
+        let signature = key.sign(signing_payload).unwrap();
+        let response = presentation_session.submit_response(signature).unwrap();
         let _ = crate::reader::handle_response(reader_session_data.state, response).unwrap();
 
-        vdc_collection.delete(mdoc).await.unwrap();
+        vdc_collection.delete(mdl.id).await.unwrap();
     }
 }

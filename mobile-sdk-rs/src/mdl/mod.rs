@@ -1,5 +1,6 @@
 pub mod holder;
 pub mod reader;
+pub mod util;
 
 use ssi::{
     claims::vc::v1::{data_integrity::any_credential_from_json_str, ToJwtClaims},

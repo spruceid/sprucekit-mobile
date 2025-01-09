@@ -2289,6 +2289,172 @@ public func FfiConverterTypeJwtVc_lower(_ value: JwtVc) -> UnsafeMutableRawPoint
 
 
 
+/**
+ * An interface that can provide access to cryptographic keypairs from the native crypto API.
+ */
+public protocol KeyManager : AnyObject {
+    
+    /**
+     * Retrieve a cryptographic keypair by alias. The cryptographic key must be usable for
+     * creating digital signatures, and must not be usable for encryption.
+     */
+    func getSigningKey(alias: KeyAlias) throws  -> SigningKey
+    
+}
+
+/**
+ * An interface that can provide access to cryptographic keypairs from the native crypto API.
+ */
+open class KeyManagerImpl:
+    KeyManager {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// This constructor can be used to instantiate a fake object.
+    /// - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    ///
+    /// - Warning:
+    ///     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_keymanager(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_keymanager(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Retrieve a cryptographic keypair by alias. The cryptographic key must be usable for
+     * creating digital signatures, and must not be usable for encryption.
+     */
+open func getSigningKey(alias: KeyAlias)throws  -> SigningKey {
+    return try  FfiConverterTypeSigningKey.lift(try rustCallWithError(FfiConverterTypeCryptoError.lift) {
+    uniffi_mobile_sdk_rs_fn_method_keymanager_get_signing_key(self.uniffiClonePointer(),
+        FfiConverterTypeKeyAlias.lower(alias),$0
+    )
+})
+}
+    
+
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceKeyManager {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    static var vtable: UniffiVTableCallbackInterfaceKeyManager = UniffiVTableCallbackInterfaceKeyManager(
+        getSigningKey: { (
+            uniffiHandle: UInt64,
+            alias: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<UnsafeMutableRawPointer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> SigningKey in
+                guard let uniffiObj = try? FfiConverterTypeKeyManager.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.getSigningKey(
+                     alias: try FfiConverterTypeKeyAlias.lift(alias)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeSigningKey.lower($0) }
+            uniffiTraitInterfaceCallWithError(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn,
+                lowerError: FfiConverterTypeCryptoError.lower
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterTypeKeyManager.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface KeyManager: handle missing in uniffiFree")
+            }
+        }
+    )
+}
+
+private func uniffiCallbackInitKeyManager() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_keymanager(&UniffiCallbackInterfaceKeyManager.vtable)
+}
+
+public struct FfiConverterTypeKeyManager: FfiConverter {
+    fileprivate static var handleMap = UniffiHandleMap<KeyManager>()
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = KeyManager
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> KeyManager {
+        return KeyManagerImpl(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: KeyManager) -> UnsafeMutableRawPointer {
+        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
+            fatalError("Cast to UnsafeMutableRawPointer failed")
+        }
+        return ptr
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> KeyManager {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: KeyManager, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+public func FfiConverterTypeKeyManager_lift(_ pointer: UnsafeMutableRawPointer) throws -> KeyManager {
+    return try FfiConverterTypeKeyManager.lift(pointer)
+}
+
+public func FfiConverterTypeKeyManager_lower(_ value: KeyManager) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeKeyManager.lower(value)
+}
+
+
+
+
 public protocol MdlSessionManagerProtocol : AnyObject {
     
 }
@@ -2414,7 +2580,7 @@ public protocol MdlPresentationSessionProtocol : AnyObject {
      */
     func handleRequest(request: Data) throws  -> [ItemsRequest]
     
-    func submitResponse(derSignature: Data) throws  -> Data
+    func submitResponse(signature: Data) throws  -> Data
     
     /**
      * Terminates the mDL exchange session.
@@ -2518,10 +2684,10 @@ open func handleRequest(request: Data)throws  -> [ItemsRequest] {
 })
 }
     
-open func submitResponse(derSignature: Data)throws  -> Data {
+open func submitResponse(signature: Data)throws  -> Data {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeSignatureError.lift) {
     uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_submit_response(self.uniffiClonePointer(),
-        FfiConverterData.lower(derSignature),$0
+        FfiConverterData.lower(signature),$0
     )
 })
 }
@@ -4025,6 +4191,208 @@ public func FfiConverterTypeRequestedField_lift(_ pointer: UnsafeMutableRawPoint
 
 public func FfiConverterTypeRequestedField_lower(_ value: RequestedField) -> UnsafeMutableRawPointer {
     return FfiConverterTypeRequestedField.lower(value)
+}
+
+
+
+
+/**
+ * A cryptographic keypair that can be used for signing.
+ */
+public protocol SigningKey : AnyObject {
+    
+    /**
+     * Generates a public JWK for this key.
+     */
+    func jwk() throws  -> String
+    
+    /**
+     * Produces a raw (not DER encoded) signature.
+     */
+    func sign(payload: Data) throws  -> Data
+    
+}
+
+/**
+ * A cryptographic keypair that can be used for signing.
+ */
+open class SigningKeyImpl:
+    SigningKey {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// This constructor can be used to instantiate a fake object.
+    /// - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    ///
+    /// - Warning:
+    ///     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_signingkey(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_signingkey(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Generates a public JWK for this key.
+     */
+open func jwk()throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeCryptoError.lift) {
+    uniffi_mobile_sdk_rs_fn_method_signingkey_jwk(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Produces a raw (not DER encoded) signature.
+     */
+open func sign(payload: Data)throws  -> Data {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError.lift) {
+    uniffi_mobile_sdk_rs_fn_method_signingkey_sign(self.uniffiClonePointer(),
+        FfiConverterData.lower(payload),$0
+    )
+})
+}
+    
+
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceSigningKey {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    static var vtable: UniffiVTableCallbackInterfaceSigningKey = UniffiVTableCallbackInterfaceSigningKey(
+        jwk: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> String in
+                guard let uniffiObj = try? FfiConverterTypeSigningKey.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.jwk(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
+            uniffiTraitInterfaceCallWithError(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn,
+                lowerError: FfiConverterTypeCryptoError.lower
+            )
+        },
+        sign: { (
+            uniffiHandle: UInt64,
+            payload: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Data in
+                guard let uniffiObj = try? FfiConverterTypeSigningKey.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.sign(
+                     payload: try FfiConverterData.lift(payload)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterData.lower($0) }
+            uniffiTraitInterfaceCallWithError(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn,
+                lowerError: FfiConverterTypeCryptoError.lower
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterTypeSigningKey.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface SigningKey: handle missing in uniffiFree")
+            }
+        }
+    )
+}
+
+private func uniffiCallbackInitSigningKey() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_signingkey(&UniffiCallbackInterfaceSigningKey.vtable)
+}
+
+public struct FfiConverterTypeSigningKey: FfiConverter {
+    fileprivate static var handleMap = UniffiHandleMap<SigningKey>()
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = SigningKey
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> SigningKey {
+        return SigningKeyImpl(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: SigningKey) -> UnsafeMutableRawPointer {
+        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
+            fatalError("Cast to UnsafeMutableRawPointer failed")
+        }
+        return ptr
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SigningKey {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: SigningKey, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+public func FfiConverterTypeSigningKey_lift(_ pointer: UnsafeMutableRawPointer) throws -> SigningKey {
+    return try FfiConverterTypeSigningKey.lift(pointer)
+}
+
+public func FfiConverterTypeSigningKey_lower(_ value: SigningKey) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeSigningKey.lower(value)
 }
 
 
@@ -6787,6 +7155,58 @@ extension CredentialPresentationError: Foundation.LocalizedError {
     }
 }
 
+
+public enum CryptoError {
+
+    
+    
+    case General(String
+    )
+}
+
+
+public struct FfiConverterTypeCryptoError: FfiConverterRustBuffer {
+    typealias SwiftType = CryptoError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CryptoError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .General(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CryptoError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .General(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+extension CryptoError: Equatable, Hashable {}
+
+extension CryptoError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -6986,6 +7406,58 @@ public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
 extension DidMethod: Equatable, Hashable {}
 
 
+
+
+public enum Error {
+
+    
+    
+    case General(String
+    )
+}
+
+
+public struct FfiConverterTypeError: FfiConverterRustBuffer {
+    typealias SwiftType = Error
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Error {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .General(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Error, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .General(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+extension Error: Equatable, Hashable {}
+
+extension Error: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum HttpClientError {
@@ -7659,7 +8131,8 @@ public enum MdocInitError {
 
     
     
-    case DocumentCborDecoding
+    case DocumentCborDecoding(String
+    )
     case IssuerSignedBase64UrlDecoding
     case IssuerSignedCborDecoding
     case IssuerAuthPayloadMissing
@@ -7680,7 +8153,9 @@ public struct FfiConverterTypeMdocInitError: FfiConverterRustBuffer {
         
 
         
-        case 1: return .DocumentCborDecoding
+        case 1: return .DocumentCborDecoding(
+            try FfiConverterString.read(from: &buf)
+            )
         case 2: return .IssuerSignedBase64UrlDecoding
         case 3: return .IssuerSignedCborDecoding
         case 4: return .IssuerAuthPayloadMissing
@@ -7700,9 +8175,10 @@ public struct FfiConverterTypeMdocInitError: FfiConverterRustBuffer {
 
         
         
-        case .DocumentCborDecoding:
+        case let .DocumentCborDecoding(v1):
             writeInt(&buf, Int32(1))
-        
+            FfiConverterString.write(v1, into: &buf)
+            
         
         case .IssuerSignedBase64UrlDecoding:
             writeInt(&buf, Int32(2))
@@ -11102,6 +11578,17 @@ public func generatePopPrepare(audience: String, nonce: String?, didMethod: DidM
             errorHandler: FfiConverterTypePopError.lift
         )
 }
+/**
+ * Generate a new test mDL with hardcoded values, using the supplied key as the DeviceKey.
+ */
+public func generateTestMdl(keyManager: KeyManager, keyAlias: KeyAlias)throws  -> Mdoc {
+    return try  FfiConverterTypeMdoc.lift(try rustCallWithError(FfiConverterTypeError.lift) {
+    uniffi_mobile_sdk_rs_fn_func_generate_test_mdl(
+        FfiConverterTypeKeyManager.lower(keyManager),
+        FfiConverterTypeKeyAlias.lower(keyAlias),$0
+    )
+})
+}
 public func handleResponse(state: MdlSessionManager, response: Data)throws  -> MdlReaderResponseData {
     return try  FfiConverterTypeMDLReaderResponseData.lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError.lift) {
     uniffi_mobile_sdk_rs_fn_func_handle_response(
@@ -11328,6 +11815,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_generate_pop_prepare() != 54105) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 51661) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -11436,6 +11926,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_jwtvc_vcdm_version() != 26158) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_keymanager_get_signing_key() != 59231) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_generate_response() != 37013) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -11448,7 +11941,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_handle_request() != 21650) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_submit_response() != 684) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_submit_response() != 53424) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_terminate_session() != 8677) {
@@ -11566,6 +12059,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_retained() != 21715) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_signingkey_jwk() != 16453) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_signingkey_sign() != 24138) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_status_is_message() != 61380) {
@@ -11732,6 +12231,8 @@ private var initializationResult: InitializationResult = {
     }
 
     uniffiCallbackInitAsyncHttpClient()
+    uniffiCallbackInitKeyManager()
+    uniffiCallbackInitSigningKey()
     uniffiCallbackInitStorageManagerInterface()
     uniffiCallbackInitSyncHttpClient()
     uniffiCallbackInitPresentationSigner()

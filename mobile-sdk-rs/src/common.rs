@@ -22,10 +22,6 @@ impl From<CredentialType> for String {
     }
 }
 
-uniffi::custom_newtype!(KeyAlias, String);
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub struct KeyAlias(pub String);
-
 uniffi::custom_type!(Uuid, String);
 impl UniffiCustomTypeConverter for Uuid {
     type Builtin = String;
