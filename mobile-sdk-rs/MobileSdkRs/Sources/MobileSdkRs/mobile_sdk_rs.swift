@@ -977,6 +977,131 @@ public func FfiConverterTypeCredentialRequest_lower(_ value: CredentialRequest) 
 
 
 
+/**
+ * Utility functions for cryptographic curves
+ */
+public protocol CryptoCurveUtilsProtocol : AnyObject {
+    
+    /**
+     * Returns null if the original signature encoding is not recognized.
+     */
+    func ensureRawFixedWidthSignatureEncoding(bytes: Data)  -> Data?
+    
+}
+
+/**
+ * Utility functions for cryptographic curves
+ */
+open class CryptoCurveUtils:
+    CryptoCurveUtilsProtocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// This constructor can be used to instantiate a fake object.
+    /// - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    ///
+    /// - Warning:
+    ///     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_cryptocurveutils(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_cryptocurveutils(pointer, $0) }
+    }
+
+    
+    /**
+     * Utils for the secp256r1 (aka P-256) curve.
+     */
+public static func secp256r1() -> CryptoCurveUtils {
+    return try!  FfiConverterTypeCryptoCurveUtils.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_cryptocurveutils_secp256r1($0
+    )
+})
+}
+    
+
+    
+    /**
+     * Returns null if the original signature encoding is not recognized.
+     */
+open func ensureRawFixedWidthSignatureEncoding(bytes: Data) -> Data? {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_cryptocurveutils_ensure_raw_fixed_width_signature_encoding(self.uniffiClonePointer(),
+        FfiConverterData.lower(bytes),$0
+    )
+})
+}
+    
+
+}
+
+public struct FfiConverterTypeCryptoCurveUtils: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = CryptoCurveUtils
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> CryptoCurveUtils {
+        return CryptoCurveUtils(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: CryptoCurveUtils) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CryptoCurveUtils {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: CryptoCurveUtils, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+public func FfiConverterTypeCryptoCurveUtils_lift(_ pointer: UnsafeMutableRawPointer) throws -> CryptoCurveUtils {
+    return try FfiConverterTypeCryptoCurveUtils.lift(pointer)
+}
+
+public func FfiConverterTypeCryptoCurveUtils_lower(_ value: CryptoCurveUtils) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeCryptoCurveUtils.lower(value)
+}
+
+
+
+
 public protocol DelegatedVerifierProtocol : AnyObject {
     
     func pollVerificationStatus(url: String) async throws  -> DelegatedVerifierStatusResponse
@@ -1795,6 +1920,127 @@ public func FfiConverterTypeInProcessRecord_lift(_ pointer: UnsafeMutableRawPoin
 
 public func FfiConverterTypeInProcessRecord_lower(_ value: InProcessRecord) -> UnsafeMutableRawPointer {
     return FfiConverterTypeInProcessRecord.lower(value)
+}
+
+
+
+
+public protocol InProgressRequest180137Protocol : AnyObject {
+    
+    func matches()  -> [RequestMatch180137]
+    
+    func respond(approvedResponse: ApprovedResponse180137) async throws  -> Url?
+    
+}
+
+open class InProgressRequest180137:
+    InProgressRequest180137Protocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// This constructor can be used to instantiate a fake object.
+    /// - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    ///
+    /// - Warning:
+    ///     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_inprogressrequest180137(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_inprogressrequest180137(pointer, $0) }
+    }
+
+    
+
+    
+open func matches() -> [RequestMatch180137] {
+    return try!  FfiConverterSequenceTypeRequestMatch180137.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_inprogressrequest180137_matches(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func respond(approvedResponse: ApprovedResponse180137)async throws  -> Url? {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_inprogressrequest180137_respond(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeApprovedResponse180137.lower(approvedResponse)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeUrl.lift,
+            errorHandler: FfiConverterTypeOID4VP180137Error.lift
+        )
+}
+    
+
+}
+
+public struct FfiConverterTypeInProgressRequest180137: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = InProgressRequest180137
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> InProgressRequest180137 {
+        return InProgressRequest180137(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: InProgressRequest180137) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InProgressRequest180137 {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: InProgressRequest180137, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+public func FfiConverterTypeInProgressRequest180137_lift(_ pointer: UnsafeMutableRawPointer) throws -> InProgressRequest180137 {
+    return try FfiConverterTypeInProgressRequest180137.lift(pointer)
+}
+
+public func FfiConverterTypeInProgressRequest180137_lower(_ value: InProgressRequest180137) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeInProgressRequest180137.lower(value)
 }
 
 
@@ -2937,6 +3183,137 @@ public func FfiConverterTypeMdoc_lower(_ value: Mdoc) -> UnsafeMutableRawPointer
 
 
 
+/**
+ * Handler for OpenID4VP requests according to the profile in ISO/IEC 18013-7 Annex B.
+ *
+ * Notably this supports requests which use the URI scheme `mdoc-openid4vp://`.
+ */
+public protocol Oid4vp180137Protocol : AnyObject {
+    
+    func processRequest(url: Url) async throws  -> InProgressRequest180137
+    
+}
+
+/**
+ * Handler for OpenID4VP requests according to the profile in ISO/IEC 18013-7 Annex B.
+ *
+ * Notably this supports requests which use the URI scheme `mdoc-openid4vp://`.
+ */
+open class Oid4vp180137:
+    Oid4vp180137Protocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// This constructor can be used to instantiate a fake object.
+    /// - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    ///
+    /// - Warning:
+    ///     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vp180137(self.pointer, $0) }
+    }
+public convenience init(credentials: [Mdoc], keystore: KeyStore)throws  {
+    let pointer =
+        try rustCallWithError(FfiConverterTypeOID4VP180137Error.lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_oid4vp180137_new(
+        FfiConverterSequenceTypeMdoc.lower(credentials),
+        FfiConverterTypeKeyStore.lower(keystore),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_oid4vp180137(pointer, $0) }
+    }
+
+    
+
+    
+open func processRequest(url: Url)async throws  -> InProgressRequest180137 {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vp180137_process_request(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUrl.lower(url)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeInProgressRequest180137.lift,
+            errorHandler: FfiConverterTypeOID4VP180137Error.lift
+        )
+}
+    
+
+}
+
+public struct FfiConverterTypeOID4VP180137: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Oid4vp180137
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vp180137 {
+        return Oid4vp180137(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Oid4vp180137) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vp180137 {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Oid4vp180137, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+public func FfiConverterTypeOID4VP180137_lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vp180137 {
+    return try FfiConverterTypeOID4VP180137.lift(pointer)
+}
+
+public func FfiConverterTypeOID4VP180137_lower(_ value: Oid4vp180137) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeOID4VP180137.lower(value)
+}
+
+
+
+
 public protocol Oid4vciProtocol : AnyObject {
     
     func clearContextMap() throws 
@@ -4028,6 +4405,123 @@ public func FfiConverterTypePermissionResponse_lower(_ value: PermissionResponse
 
 
 
+/**
+ * A viable match for the credential request.
+ */
+public protocol RequestMatch180137Protocol : AnyObject {
+    
+    func credentialId()  -> Uuid
+    
+    func requestedFields()  -> [RequestedField180137]
+    
+}
+
+/**
+ * A viable match for the credential request.
+ */
+open class RequestMatch180137:
+    RequestMatch180137Protocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// This constructor can be used to instantiate a fake object.
+    /// - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    ///
+    /// - Warning:
+    ///     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_requestmatch180137(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_requestmatch180137(pointer, $0) }
+    }
+
+    
+
+    
+open func credentialId() -> Uuid {
+    return try!  FfiConverterTypeUuid.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestmatch180137_credential_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func requestedFields() -> [RequestedField180137] {
+    return try!  FfiConverterSequenceTypeRequestedField180137.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestmatch180137_requested_fields(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+public struct FfiConverterTypeRequestMatch180137: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = RequestMatch180137
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> RequestMatch180137 {
+        return RequestMatch180137(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: RequestMatch180137) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RequestMatch180137 {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: RequestMatch180137, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+public func FfiConverterTypeRequestMatch180137_lift(_ pointer: UnsafeMutableRawPointer) throws -> RequestMatch180137 {
+    return try FfiConverterTypeRequestMatch180137.lift(pointer)
+}
+
+public func FfiConverterTypeRequestMatch180137_lower(_ value: RequestMatch180137) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeRequestMatch180137.lower(value)
+}
+
+
+
+
 public protocol RequestedFieldProtocol : AnyObject {
     
     /**
@@ -4207,7 +4701,7 @@ public protocol SigningKey : AnyObject {
     func jwk() throws  -> String
     
     /**
-     * Produces a raw (not DER encoded) signature.
+     * Produces a signature of unknown encoding.
      */
     func sign(payload: Data) throws  -> Data
     
@@ -4268,7 +4762,7 @@ open func jwk()throws  -> String {
 }
     
     /**
-     * Produces a raw (not DER encoded) signature.
+     * Produces a signature of unknown encoding.
      */
 open func sign(payload: Data)throws  -> Data {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError.lift) {
@@ -5709,6 +6203,63 @@ public func FfiConverterTypeVdcCollection_lower(_ value: VdcCollection) -> Unsaf
 }
 
 
+public struct ApprovedResponse180137 {
+    public var credentialId: Uuid
+    public var approvedFields: [FieldId180137]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(credentialId: Uuid, approvedFields: [FieldId180137]) {
+        self.credentialId = credentialId
+        self.approvedFields = approvedFields
+    }
+}
+
+
+
+extension ApprovedResponse180137: Equatable, Hashable {
+    public static func ==(lhs: ApprovedResponse180137, rhs: ApprovedResponse180137) -> Bool {
+        if lhs.credentialId != rhs.credentialId {
+            return false
+        }
+        if lhs.approvedFields != rhs.approvedFields {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(credentialId)
+        hasher.combine(approvedFields)
+    }
+}
+
+
+public struct FfiConverterTypeApprovedResponse180137: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ApprovedResponse180137 {
+        return
+            try ApprovedResponse180137(
+                credentialId: FfiConverterTypeUuid.read(from: &buf), 
+                approvedFields: FfiConverterSequenceTypeFieldId180137.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ApprovedResponse180137, into buf: inout [UInt8]) {
+        FfiConverterTypeUuid.write(value.credentialId, into: &buf)
+        FfiConverterSequenceTypeFieldId180137.write(value.approvedFields, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeApprovedResponse180137_lift(_ buf: RustBuffer) throws -> ApprovedResponse180137 {
+    return try FfiConverterTypeApprovedResponse180137.lift(buf)
+}
+
+public func FfiConverterTypeApprovedResponse180137_lower(_ value: ApprovedResponse180137) -> RustBuffer {
+    return FfiConverterTypeApprovedResponse180137.lower(value)
+}
+
+
 /**
  * An unparsed credential, retrieved from storage.
  */
@@ -6646,6 +7197,103 @@ public func FfiConverterTypeOid4vciExchangeOptions_lift(_ buf: RustBuffer) throw
 
 public func FfiConverterTypeOid4vciExchangeOptions_lower(_ value: Oid4vciExchangeOptions) -> RustBuffer {
     return FfiConverterTypeOid4vciExchangeOptions.lower(value)
+}
+
+
+public struct RequestedField180137 {
+    public var id: FieldId180137
+    public var displayableName: String
+    public var displayableValue: String?
+    public var selectivelyDisclosable: Bool
+    public var intentToRetain: Bool
+    public var required: Bool
+    public var purpose: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: FieldId180137, displayableName: String, displayableValue: String?, selectivelyDisclosable: Bool, intentToRetain: Bool, required: Bool, purpose: String?) {
+        self.id = id
+        self.displayableName = displayableName
+        self.displayableValue = displayableValue
+        self.selectivelyDisclosable = selectivelyDisclosable
+        self.intentToRetain = intentToRetain
+        self.required = required
+        self.purpose = purpose
+    }
+}
+
+
+
+extension RequestedField180137: Equatable, Hashable {
+    public static func ==(lhs: RequestedField180137, rhs: RequestedField180137) -> Bool {
+        if lhs.id != rhs.id {
+            return false
+        }
+        if lhs.displayableName != rhs.displayableName {
+            return false
+        }
+        if lhs.displayableValue != rhs.displayableValue {
+            return false
+        }
+        if lhs.selectivelyDisclosable != rhs.selectivelyDisclosable {
+            return false
+        }
+        if lhs.intentToRetain != rhs.intentToRetain {
+            return false
+        }
+        if lhs.required != rhs.required {
+            return false
+        }
+        if lhs.purpose != rhs.purpose {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(displayableName)
+        hasher.combine(displayableValue)
+        hasher.combine(selectivelyDisclosable)
+        hasher.combine(intentToRetain)
+        hasher.combine(required)
+        hasher.combine(purpose)
+    }
+}
+
+
+public struct FfiConverterTypeRequestedField180137: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RequestedField180137 {
+        return
+            try RequestedField180137(
+                id: FfiConverterTypeFieldId180137.read(from: &buf), 
+                displayableName: FfiConverterString.read(from: &buf), 
+                displayableValue: FfiConverterOptionString.read(from: &buf), 
+                selectivelyDisclosable: FfiConverterBool.read(from: &buf), 
+                intentToRetain: FfiConverterBool.read(from: &buf), 
+                required: FfiConverterBool.read(from: &buf), 
+                purpose: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RequestedField180137, into buf: inout [UInt8]) {
+        FfiConverterTypeFieldId180137.write(value.id, into: &buf)
+        FfiConverterString.write(value.displayableName, into: &buf)
+        FfiConverterOptionString.write(value.displayableValue, into: &buf)
+        FfiConverterBool.write(value.selectivelyDisclosable, into: &buf)
+        FfiConverterBool.write(value.intentToRetain, into: &buf)
+        FfiConverterBool.write(value.required, into: &buf)
+        FfiConverterOptionString.write(value.purpose, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeRequestedField180137_lift(_ buf: RustBuffer) throws -> RequestedField180137 {
+    return try FfiConverterTypeRequestedField180137.lift(buf)
+}
+
+public func FfiConverterTypeRequestedField180137_lower(_ value: RequestedField180137) -> RustBuffer {
+    return FfiConverterTypeRequestedField180137.lower(value)
 }
 
 
@@ -8215,6 +8863,78 @@ public struct FfiConverterTypeMdocInitError: FfiConverterRustBuffer {
 extension MdocInitError: Equatable, Hashable {}
 
 extension MdocInitError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+public enum Oid4vp180137Error {
+
+    
+    
+    case Initialization(String
+    )
+    case InvalidRequest(String
+    )
+    case ResponseProcessing(String
+    )
+}
+
+
+public struct FfiConverterTypeOID4VP180137Error: FfiConverterRustBuffer {
+    typealias SwiftType = Oid4vp180137Error
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vp180137Error {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Initialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .InvalidRequest(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .ResponseProcessing(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Oid4vp180137Error, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Initialization(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidRequest(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ResponseProcessing(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+extension Oid4vp180137Error: Equatable, Hashable {}
+
+extension Oid4vp180137Error: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -10410,6 +11130,27 @@ fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
     }
 }
 
+fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
+    typealias SwiftType = Data?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterData.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterData.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
 fileprivate struct FfiConverterOptionTypeJsonVc: FfiConverterRustBuffer {
     typealias SwiftType = JsonVc?
 
@@ -10684,6 +11425,28 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
     }
 }
 
+fileprivate struct FfiConverterSequenceTypeMdoc: FfiConverterRustBuffer {
+    typealias SwiftType = [Mdoc]
+
+    public static func write(_ value: [Mdoc], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMdoc.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Mdoc] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Mdoc]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMdoc.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 fileprivate struct FfiConverterSequenceTypeParsedCredential: FfiConverterRustBuffer {
     typealias SwiftType = [ParsedCredential]
 
@@ -10701,6 +11464,28 @@ fileprivate struct FfiConverterSequenceTypeParsedCredential: FfiConverterRustBuf
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeParsedCredential.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeRequestMatch180137: FfiConverterRustBuffer {
+    typealias SwiftType = [RequestMatch180137]
+
+    public static func write(_ value: [RequestMatch180137], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRequestMatch180137.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RequestMatch180137] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RequestMatch180137]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRequestMatch180137.read(from: &buf))
         }
         return seq
     }
@@ -10794,6 +11579,28 @@ fileprivate struct FfiConverterSequenceTypeItemsRequest: FfiConverterRustBuffer 
     }
 }
 
+fileprivate struct FfiConverterSequenceTypeRequestedField180137: FfiConverterRustBuffer {
+    typealias SwiftType = [RequestedField180137]
+
+    public static func write(_ value: [RequestedField180137], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRequestedField180137.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RequestedField180137] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RequestedField180137]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRequestedField180137.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 fileprivate struct FfiConverterSequenceTypeStatusMessage: FfiConverterRustBuffer {
     typealias SwiftType = [StatusMessage]
 
@@ -10833,6 +11640,28 @@ fileprivate struct FfiConverterSequenceTypeMDocItem: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeMDocItem.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeFieldId180137: FfiConverterRustBuffer {
+    typealias SwiftType = [FieldId180137]
+
+    public static func write(_ value: [FieldId180137], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFieldId180137.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FieldId180137] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FieldId180137]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFieldId180137.read(from: &buf))
         }
         return seq
     }
@@ -11188,6 +12017,40 @@ public func FfiConverterTypeCryptosuiteString_lift(_ value: RustBuffer) throws -
 
 public func FfiConverterTypeCryptosuiteString_lower(_ value: CryptosuiteString) -> RustBuffer {
     return FfiConverterTypeCryptosuiteString.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias FieldId180137 = String
+public struct FfiConverterTypeFieldId180137: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FieldId180137 {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: FieldId180137, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> FieldId180137 {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: FieldId180137) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+public func FfiConverterTypeFieldId180137_lift(_ value: RustBuffer) throws -> FieldId180137 {
+    return try FfiConverterTypeFieldId180137.lift(value)
+}
+
+public func FfiConverterTypeFieldId180137_lower(_ value: FieldId180137) -> RustBuffer {
+    return FfiConverterTypeFieldId180137.lower(value)
 }
 
 
@@ -11860,6 +12723,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_asynchttpclient_http_client() != 44924) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_cryptocurveutils_ensure_raw_fixed_width_signature_encoding() != 55703) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_poll_verification_status() != 35131) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -11879,6 +12745,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_holder_submit_permission_response() != 37701) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequest180137_matches() != 21157) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequest180137_respond() != 45984) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_jsonvc_credential_as_json_encoded_utf8_string() != 36585) {
@@ -11957,6 +12829,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 39341) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vp180137_process_request() != 48065) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vci_clear_context_map() != 165) {
@@ -12046,6 +12921,12 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_permissionresponse_selected_credentials() != 47291) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_credential_id() != 33906) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_requested_fields() != 52220) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_name() != 19474) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12064,7 +12945,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_signingkey_jwk() != 16453) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_signingkey_sign() != 24138) {
+    if (uniffi_mobile_sdk_rs_checksum_method_signingkey_sign() != 37168) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_status_is_message() != 61380) {
@@ -12127,6 +13008,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_get() != 1085) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 15415) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -12164,6 +13048,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_base64url_encoded_issuer_signed() != 17520) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137_new() != 4916) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vci_new() != 27200) {

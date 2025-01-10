@@ -1,0 +1,97 @@
+{
+  "id": "0deaed84-ae2a-4448-ac08-2b06a2dac049",
+  "input_descriptors": [
+    {
+      "id": "org.iso.18013.5.1.mDL",
+      "constraints": {
+        "fields": [
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['family_name']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['given_name']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['birth_date']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['issue_date']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['expiry_date']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['issuing_country']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['issuing_authority']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['document_number']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['portrait']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['driving_privileges']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          },
+          {
+            "path": [
+              "$['org.iso.18013.5.1']['un_distinguishing_sign']"
+            ],
+            "predicate": null,
+            "intent_to_retain": true
+          }
+        ],
+        "limit_disclosure": "required"
+      },
+      "format": {
+        "mso_mdoc": {
+          "alg": [
+            "ES256"
+          ]
+        }
+      }
+    }
+  ]
+}
