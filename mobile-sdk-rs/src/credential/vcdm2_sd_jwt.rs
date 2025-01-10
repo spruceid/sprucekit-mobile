@@ -1,4 +1,7 @@
-use super::{Credential, CredentialFormat, ParsedCredential, ParsedCredentialInner};
+use super::{
+    status::{BitStringStatusListResolver, Status, StatusListError},
+    Credential, CredentialFormat, ParsedCredential, ParsedCredentialInner,
+};
 use crate::{
     oid4vp::{
         error::OID4VPError,
@@ -16,6 +19,8 @@ use openid4vp::{
     },
     JsonPath,
 };
+use reqwest::StatusCode;
+use ssi::status::bitstring_status_list::{BitstringStatusListCredential, BitstringStatusListEntry};
 use ssi::{
     claims::{
         sd_jwt::SdJwtBuf,
@@ -24,6 +29,7 @@ use ssi::{
     },
     prelude::AnyJsonCredential,
 };
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, uniffi::Object)]
@@ -63,7 +69,7 @@ impl VCDM2SdJwt {
     }
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 impl VCDM2SdJwt {
     /// Create a new SdJwt instance from a compact SD-JWS string.
     #[uniffi::constructor]
@@ -112,6 +118,12 @@ impl VCDM2SdJwt {
     pub fn revealed_claims_as_json_string(&self) -> Result<String, SdJwtError> {
         serde_json::to_string(&self.credential)
             .map_err(|e| SdJwtError::Serialization(format!("{e:?}")))
+    }
+
+    /// Returns the status of the credential, resolving the value in the status list,
+    /// along with the purpose of the status.
+    pub async fn status(&self) -> Result<Status, StatusListError> {
+        self.status_list_value().await
     }
 }
 
@@ -166,6 +178,78 @@ impl CredentialPresentation for VCDM2SdJwt {
             path,
         ))
     }
+}
+
+#[async_trait::async_trait]
+impl BitStringStatusListResolver for VCDM2SdJwt {
+    fn status_list_entry(&self) -> Result<BitstringStatusListEntry, StatusListError> {
+        let value = match &self
+            .credential()
+            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?
+        {
+            AnyJsonCredential::V1(credential) => credential
+                .credential_status
+                .first()
+                .map(serde_json::to_value),
+            AnyJsonCredential::V2(credential) => credential
+                .credential_status
+                .first()
+                .map(serde_json::to_value),
+        }
+        .ok_or(StatusListError::Resolution(
+            "Credential status not found in credential".into(),
+        ))?
+        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+        let entry = serde_json::from_value(value).map_err(|e| {
+            StatusListError::Resolution(format!("Failed to parse credential status: {e:?}"))
+        })?;
+
+        Ok(entry)
+    }
+
+    async fn status_list_credential(
+        &self,
+    ) -> Result<BitstringStatusListCredential, StatusListError> {
+        let entry = self.status_list_entry()?;
+        let url: Url = entry
+            .status_list_credential
+            .parse()
+            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+        let response = reqwest::get(url)
+            .await
+            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+        if response.status() != StatusCode::OK {
+            return Err(StatusListError::Resolution(format!(
+                "Failed to resolve status list credential: {}",
+                response.status()
+            )));
+        }
+
+        let sd_jwt_buf = SdJwtBuf::new(
+            response
+                .text()
+                .await
+                .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?,
+        )
+        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+        let credential = sd_jwt_buf
+            .decode_reveal_any()
+            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?
+            .into_claims()
+            .private;
+
+        serde_json::from_value(
+            serde_json::to_value(credential)
+                .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?,
+        )
+        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))
+    }
+
+    // NOTE: The remaining methods are default implemented in the trait.
 }
 
 impl From<VCDM2SdJwt> for ParsedCredential {

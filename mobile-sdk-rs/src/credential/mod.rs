@@ -328,6 +328,7 @@ impl BitStringStatusListResolver for ParsedCredential {
     {
         match &self.inner {
             ParsedCredentialInner::LdpVc(cred) => cred.status_list_entry(),
+            ParsedCredentialInner::VCDM2SdJwt(cred) => cred.status_list_entry(),
             _ => Err(status::StatusListError::UnsupportedCredentialFormat),
         }
     }
