@@ -30,7 +30,7 @@ type Result<T, E = CryptoError> = ::std::result::Result<T, E>;
 
 #[uniffi::export(with_foreign)]
 /// An interface that can provide access to cryptographic keypairs from the native crypto API.
-pub trait KeyManager: Send + Sync {
+pub trait KeyStore: Send + Sync {
     /// Retrieve a cryptographic keypair by alias. The cryptographic key must be usable for
     /// creating digital signatures, and must not be usable for encryption.
     fn get_signing_key(&self, alias: KeyAlias) -> Result<Arc<dyn SigningKey>>;
@@ -83,7 +83,7 @@ mod test {
         }
     }
 
-    impl KeyManager for RustTestKeyManager {
+    impl KeyStore for RustTestKeyManager {
         fn get_signing_key(&self, alias: KeyAlias) -> Result<Arc<dyn SigningKey>> {
             let key = Key(alias.0);
 

@@ -2292,7 +2292,7 @@ public func FfiConverterTypeJwtVc_lower(_ value: JwtVc) -> UnsafeMutableRawPoint
 /**
  * An interface that can provide access to cryptographic keypairs from the native crypto API.
  */
-public protocol KeyManager : AnyObject {
+public protocol KeyStore : AnyObject {
     
     /**
      * Retrieve a cryptographic keypair by alias. The cryptographic key must be usable for
@@ -2305,8 +2305,8 @@ public protocol KeyManager : AnyObject {
 /**
  * An interface that can provide access to cryptographic keypairs from the native crypto API.
  */
-open class KeyManagerImpl:
-    KeyManager {
+open class KeyStoreImpl:
+    KeyStore {
     fileprivate let pointer: UnsafeMutableRawPointer!
 
     /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
@@ -2331,7 +2331,7 @@ open class KeyManagerImpl:
     }
 
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
-        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_keymanager(self.pointer, $0) }
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_keystore(self.pointer, $0) }
     }
     // No primary constructor declared for this class.
 
@@ -2340,7 +2340,7 @@ open class KeyManagerImpl:
             return
         }
 
-        try! rustCall { uniffi_mobile_sdk_rs_fn_free_keymanager(pointer, $0) }
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_keystore(pointer, $0) }
     }
 
     
@@ -2352,7 +2352,7 @@ open class KeyManagerImpl:
      */
 open func getSigningKey(alias: KeyAlias)throws  -> SigningKey {
     return try  FfiConverterTypeSigningKey.lift(try rustCallWithError(FfiConverterTypeCryptoError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_keymanager_get_signing_key(self.uniffiClonePointer(),
+    uniffi_mobile_sdk_rs_fn_method_keystore_get_signing_key(self.uniffiClonePointer(),
         FfiConverterTypeKeyAlias.lower(alias),$0
     )
 })
@@ -2363,11 +2363,11 @@ open func getSigningKey(alias: KeyAlias)throws  -> SigningKey {
 
 
 // Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceKeyManager {
+fileprivate struct UniffiCallbackInterfaceKeyStore {
 
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
-    static var vtable: UniffiVTableCallbackInterfaceKeyManager = UniffiVTableCallbackInterfaceKeyManager(
+    static var vtable: UniffiVTableCallbackInterfaceKeyStore = UniffiVTableCallbackInterfaceKeyStore(
         getSigningKey: { (
             uniffiHandle: UInt64,
             alias: RustBuffer,
@@ -2376,7 +2376,7 @@ fileprivate struct UniffiCallbackInterfaceKeyManager {
         ) in
             let makeCall = {
                 () throws -> SigningKey in
-                guard let uniffiObj = try? FfiConverterTypeKeyManager.handleMap.get(handle: uniffiHandle) else {
+                guard let uniffiObj = try? FfiConverterTypeKeyStore.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return try uniffiObj.getSigningKey(
@@ -2394,36 +2394,36 @@ fileprivate struct UniffiCallbackInterfaceKeyManager {
             )
         },
         uniffiFree: { (uniffiHandle: UInt64) -> () in
-            let result = try? FfiConverterTypeKeyManager.handleMap.remove(handle: uniffiHandle)
+            let result = try? FfiConverterTypeKeyStore.handleMap.remove(handle: uniffiHandle)
             if result == nil {
-                print("Uniffi callback interface KeyManager: handle missing in uniffiFree")
+                print("Uniffi callback interface KeyStore: handle missing in uniffiFree")
             }
         }
     )
 }
 
-private func uniffiCallbackInitKeyManager() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_keymanager(&UniffiCallbackInterfaceKeyManager.vtable)
+private func uniffiCallbackInitKeyStore() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_keystore(&UniffiCallbackInterfaceKeyStore.vtable)
 }
 
-public struct FfiConverterTypeKeyManager: FfiConverter {
-    fileprivate static var handleMap = UniffiHandleMap<KeyManager>()
+public struct FfiConverterTypeKeyStore: FfiConverter {
+    fileprivate static var handleMap = UniffiHandleMap<KeyStore>()
 
     typealias FfiType = UnsafeMutableRawPointer
-    typealias SwiftType = KeyManager
+    typealias SwiftType = KeyStore
 
-    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> KeyManager {
-        return KeyManagerImpl(unsafeFromRawPointer: pointer)
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> KeyStore {
+        return KeyStoreImpl(unsafeFromRawPointer: pointer)
     }
 
-    public static func lower(_ value: KeyManager) -> UnsafeMutableRawPointer {
+    public static func lower(_ value: KeyStore) -> UnsafeMutableRawPointer {
         guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
             fatalError("Cast to UnsafeMutableRawPointer failed")
         }
         return ptr
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> KeyManager {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> KeyStore {
         let v: UInt64 = try readInt(&buf)
         // The Rust code won't compile if a pointer won't fit in a UInt64.
         // We have to go via `UInt` because that's the thing that's the size of a pointer.
@@ -2434,7 +2434,7 @@ public struct FfiConverterTypeKeyManager: FfiConverter {
         return try lift(ptr!)
     }
 
-    public static func write(_ value: KeyManager, into buf: inout [UInt8]) {
+    public static func write(_ value: KeyStore, into buf: inout [UInt8]) {
         // This fiddling is because `Int` is the thing that's the same size as a pointer.
         // The Rust code won't compile if a pointer won't fit in a `UInt64`.
         writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
@@ -2444,12 +2444,12 @@ public struct FfiConverterTypeKeyManager: FfiConverter {
 
 
 
-public func FfiConverterTypeKeyManager_lift(_ pointer: UnsafeMutableRawPointer) throws -> KeyManager {
-    return try FfiConverterTypeKeyManager.lift(pointer)
+public func FfiConverterTypeKeyStore_lift(_ pointer: UnsafeMutableRawPointer) throws -> KeyStore {
+    return try FfiConverterTypeKeyStore.lift(pointer)
 }
 
-public func FfiConverterTypeKeyManager_lower(_ value: KeyManager) -> UnsafeMutableRawPointer {
-    return FfiConverterTypeKeyManager.lower(value)
+public func FfiConverterTypeKeyStore_lower(_ value: KeyStore) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeKeyStore.lower(value)
 }
 
 
@@ -11581,10 +11581,10 @@ public func generatePopPrepare(audience: String, nonce: String?, didMethod: DidM
 /**
  * Generate a new test mDL with hardcoded values, using the supplied key as the DeviceKey.
  */
-public func generateTestMdl(keyManager: KeyManager, keyAlias: KeyAlias)throws  -> Mdoc {
+public func generateTestMdl(keyManager: KeyStore, keyAlias: KeyAlias)throws  -> Mdoc {
     return try  FfiConverterTypeMdoc.lift(try rustCallWithError(FfiConverterTypeError.lift) {
     uniffi_mobile_sdk_rs_fn_func_generate_test_mdl(
-        FfiConverterTypeKeyManager.lower(keyManager),
+        FfiConverterTypeKeyStore.lower(keyManager),
         FfiConverterTypeKeyAlias.lower(keyAlias),$0
     )
 })
@@ -11815,7 +11815,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_generate_pop_prepare() != 54105) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 51661) {
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 58352) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
@@ -11926,7 +11926,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_jwtvc_vcdm_version() != 26158) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_keymanager_get_signing_key() != 59231) {
+    if (uniffi_mobile_sdk_rs_checksum_method_keystore_get_signing_key() != 18910) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_generate_response() != 37013) {
@@ -12231,7 +12231,7 @@ private var initializationResult: InitializationResult = {
     }
 
     uniffiCallbackInitAsyncHttpClient()
-    uniffiCallbackInitKeyManager()
+    uniffiCallbackInitKeyStore()
     uniffiCallbackInitSigningKey()
     uniffiCallbackInitStorageManagerInterface()
     uniffiCallbackInitSyncHttpClient()

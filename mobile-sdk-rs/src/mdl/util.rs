@@ -42,7 +42,7 @@ use x509_cert::{
     Certificate,
 };
 
-use crate::crypto::{KeyAlias, KeyManager};
+use crate::crypto::{KeyAlias, KeyStore};
 
 #[derive(Debug, uniffi::Error)]
 pub enum Error {
@@ -67,14 +67,14 @@ impl fmt::Display for Error {
 #[uniffi::export]
 /// Generate a new test mDL with hardcoded values, using the supplied key as the DeviceKey.
 pub fn generate_test_mdl(
-    key_manager: Arc<dyn KeyManager>,
+    key_manager: Arc<dyn KeyStore>,
     key_alias: KeyAlias,
 ) -> Result<crate::credential::mdoc::Mdoc, Error> {
     Ok(generate_test_mdl_inner(key_manager, key_alias)?)
 }
 
 fn generate_test_mdl_inner(
-    key_manager: Arc<dyn KeyManager>,
+    key_manager: Arc<dyn KeyStore>,
     key_alias: KeyAlias,
 ) -> Result<crate::credential::mdoc::Mdoc> {
     let (certificate, signer) = setup_certificate_chain()?;

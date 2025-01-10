@@ -366,7 +366,7 @@ mod tests {
     };
 
     use crate::{
-        crypto::{KeyAlias, KeyManager, RustTestKeyManager},
+        crypto::{KeyAlias, KeyStore, RustTestKeyManager},
         local_store,
     };
 
