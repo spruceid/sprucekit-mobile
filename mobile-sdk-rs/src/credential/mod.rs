@@ -2,6 +2,7 @@ pub mod json_vc;
 pub mod jwt_vc;
 pub mod mdoc;
 pub mod status;
+pub mod status_20240406;
 pub mod vcdm2_sd_jwt;
 
 use std::sync::Arc;
@@ -23,6 +24,7 @@ use openid4vp::core::{
 };
 use serde::{Deserialize, Serialize};
 use status::BitStringStatusListResolver;
+use status_20240406::BitStringStatusListResolver20240406;
 use vcdm2_sd_jwt::{SdJwtError, VCDM2SdJwt};
 
 /// An unparsed credential, retrieved from storage.
@@ -328,6 +330,19 @@ impl BitStringStatusListResolver for ParsedCredential {
     {
         match &self.inner {
             ParsedCredentialInner::LdpVc(cred) => cred.status_list_entry(),
+            _ => Err(status::StatusListError::UnsupportedCredentialFormat),
+        }
+    }
+}
+
+impl BitStringStatusListResolver20240406 for ParsedCredential {
+    fn status_list_entry(
+        &self,
+    ) -> Result<
+        ssi::status::bitstring_status_list_20240406::BitstringStatusListEntry,
+        status::StatusListError,
+    > {
+        match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(cred) => cred.status_list_entry(),
             _ => Err(status::StatusListError::UnsupportedCredentialFormat),
         }

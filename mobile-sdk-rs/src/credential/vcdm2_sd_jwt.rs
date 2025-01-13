@@ -1,5 +1,8 @@
 use super::{
-    status::{BitStringStatusListResolver, Status, StatusListError},
+    status::StatusListError,
+    status_20240406::{
+        BitStringStatusListResolver20240406 as BitStringStatusListResolver, Status20240406,
+    },
     Credential, CredentialFormat, ParsedCredential, ParsedCredentialInner,
 };
 use crate::{
@@ -20,7 +23,9 @@ use openid4vp::{
     JsonPath,
 };
 use reqwest::StatusCode;
-use ssi::status::bitstring_status_list::{BitstringStatusListCredential, BitstringStatusListEntry};
+use ssi::status::bitstring_status_list_20240406::{
+    BitstringStatusListCredential, BitstringStatusListEntry,
+};
 use ssi::{
     claims::{
         sd_jwt::SdJwtBuf,
@@ -122,7 +127,7 @@ impl VCDM2SdJwt {
 
     /// Returns the status of the credential, resolving the value in the status list,
     /// along with the purpose of the status.
-    pub async fn status(&self) -> Result<Status, StatusListError> {
+    pub async fn status(&self) -> Result<Status20240406, StatusListError> {
         self.status_list_value().await
     }
 }
