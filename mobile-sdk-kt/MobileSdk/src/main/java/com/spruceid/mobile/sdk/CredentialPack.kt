@@ -213,7 +213,7 @@ class CredentialPack {
      * it will be skipped without updating.
      */
     @Throws(SavingException::class)
-    fun save(storage: StorageManagerInterface) {
+    suspend fun save(storage: StorageManagerInterface) {
         val vdcCollection = VdcCollection(storage)
         try {
             list().forEach {
@@ -243,7 +243,7 @@ class CredentialPack {
      * Credentials that are in this pack __are__ removed from the VdcCollection.
      */
     @Throws(SavingException::class)
-    fun remove(storage: StorageManagerInterface) {
+    suspend fun remove(storage: StorageManagerInterface) {
         intoContents().remove(storage)
     }
 
@@ -254,7 +254,7 @@ class CredentialPack {
         /**
          * Clears all stored CredentialPacks.
          */
-        fun clearPacks(storage: StorageManagerInterface) {
+        suspend fun clearPacks(storage: StorageManagerInterface) {
             try {
                 storage.list()
                     .filter { it.startsWith(CredentialPackContents.STORAGE_PREFIX) }
@@ -270,7 +270,7 @@ class CredentialPack {
          * These can then be individually loaded. For eager loading of all packs, see `loadPacks`.
          */
         @Throws(LoadingException::class)
-        fun listPacks(storage: StorageManagerInterface): List<CredentialPackContents> {
+        suspend fun listPacks(storage: StorageManagerInterface): List<CredentialPackContents> {
             val contents: Iterable<CredentialPackContents>
             try {
                 contents =
@@ -287,7 +287,7 @@ class CredentialPack {
         /**
          * Loads all CredentialPacks.
          */
-        fun loadPacks(storage: StorageManagerInterface): List<CredentialPack> {
+        suspend fun loadPacks(storage: StorageManagerInterface): List<CredentialPack> {
             val vdcCollection = VdcCollection(storage)
             return listPacks(storage)
                 .map { it.load(vdcCollection) }
@@ -339,7 +339,7 @@ class CredentialPackContents {
      * Loads all of the credentials from the VdcCollection into a CredentialPack.
      */
     @Throws(LoadingException::class)
-    fun load(vdcCollection: VdcCollection): CredentialPack {
+    suspend fun load(vdcCollection: VdcCollection): CredentialPack {
         val credentials =
             credentials
                 .mapNotNull {
@@ -378,7 +378,7 @@ class CredentialPackContents {
     }
 
     @Throws(SavingException::class)
-    internal fun save(storage: StorageManagerInterface) {
+    internal suspend fun save(storage: StorageManagerInterface) {
         try {
             storage.add(storageKey(), toBytes())
         } catch (e: Exception) {
@@ -387,7 +387,7 @@ class CredentialPackContents {
     }
 
     @Throws(SavingException::class)
-    internal fun remove(storage: StorageManagerInterface) {
+    internal suspend fun remove(storage: StorageManagerInterface) {
         val vdcCollection = VdcCollection(storage)
         credentials.forEach {
             try {
