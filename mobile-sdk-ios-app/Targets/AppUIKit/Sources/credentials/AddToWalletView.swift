@@ -38,12 +38,12 @@ struct AddToWalletView: View {
         }
     }
     
-    func addToWallet() {
+    func addToWallet() async {
         storing = true
         do {
             let credentialPack = CredentialPack()
             _ = try credentialPack.tryAddRawCredential(rawCredential: rawCredential)
-            try credentialPack.save(storageManager: StorageManager())
+            try await credentialPack.save(storageManager: StorageManager())
             let credentialInfo = getCredentialIdTitleAndIssuer(credentialPack: credentialPack)
             _ = WalletActivityLogDataStore.shared.insert(
                 credentialPackId: credentialPack.id.uuidString,
@@ -83,7 +83,9 @@ struct AddToWalletView: View {
                 VStack {
                     Spacer()
                     Button {
-                        addToWallet()
+                        Task {
+                            await addToWallet()
+                        }
                     }  label: {
                         Text("Add to Wallet")
                             .frame(width: UIScreen.screenWidth)
