@@ -125,7 +125,10 @@ pub trait BitStringStatusListResolver20240406 {
             .credential_subject
             .encoded_list
             .decode(None)
-            .map(|bytes| BitString::from_bytes(StatusSize::default(), bytes))
+            // TODO: we had to hardcode the status_size to 8 to be able to find the right status.
+            // We must analyse what is happening and remove it to use the following line:
+            // .map(|bytes| BitString::from_bytes(credential.credential_subject.status_size, bytes))
+            .map(|bytes| BitString::from_bytes(StatusSize::try_from(8).unwrap_or_default(), bytes))
             .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
         let value = bit_string
