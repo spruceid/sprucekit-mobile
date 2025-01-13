@@ -50,7 +50,6 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.addCredential
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
-import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class GenericCredentialItem : ICredentialView {
@@ -415,7 +414,8 @@ class GenericCredentialItem : ICredentialView {
                                     "salt",
                                     "proof",
                                     "renderMethod",
-                                    "@context"
+                                    "@context",
+//                                    "credentialStatus"
                                 )
                             )
                         }

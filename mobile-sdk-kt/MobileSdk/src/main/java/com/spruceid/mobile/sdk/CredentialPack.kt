@@ -107,13 +107,73 @@ class CredentialPack {
     }
 
     /**
+     * Get a single status from a credential async
+     */
+//    private suspend fun getStatusListStatus(
+//        hasConnection: Boolean,
+//        credential: StatusListCredentialType
+//    ): CredentialStatusList {
+//        if (hasConnection) {
+//            return try {
+//                val status = when (credential) {
+//                    is StatusListCredentialType.JsonVc -> credential.value.status()
+//                    is StatusListCredentialType.Vcdm2SdJwt -> credential.value.status()
+//                }
+//                Log.d("AAA", "${status.isRevoked()} ${status.isSuspended()}")
+//                if (status.isRevoked()) {
+//                    CredentialStatusList.REVOKED
+//                } else if (status.isSuspended()) {
+//                    CredentialStatusList.SUSPENDED
+//                } else {
+//                    CredentialStatusList.VALID
+//                }
+//            } catch (_: Exception) {
+//                CredentialStatusList.UNDEFINED
+//            }
+//        } else {
+//            return CredentialStatusList.UNKNOWN
+//        }
+//    }
+
+    /**
      * Get all status from all credentials async
      */
     suspend fun getStatusListsAsync(hasConnection: Boolean): Map<Uuid, CredentialStatusList> {
-        var res = mutableMapOf<Uuid, CredentialStatusList>()
+        val res = mutableMapOf<Uuid, CredentialStatusList>()
         credentials.forEach { credential ->
             val credentialId = credential.id()
+
+            credential.asSdJwt()?.let {
+//                res[credentialId] = getStatusListStatus(
+//                    hasConnection = hasConnection,
+//                    credential = StatusListCredentialType.Vcdm2SdJwt(value = it)
+//                )
+                if (hasConnection) {
+                    try {
+                        val status = it.status()
+                        Log.d(
+                            "AAA",
+                            "${status.purpose()} ${status.isRevoked()} ${status.isSuspended()}"
+                        )
+                        if (status.isRevoked()) {
+                            res[credentialId] = CredentialStatusList.REVOKED
+                        } else if (status.isSuspended()) {
+                            res[credentialId] = CredentialStatusList.SUSPENDED
+                        } else {
+                            res[credentialId] = CredentialStatusList.VALID
+                        }
+                    } catch (_: Exception) {
+                        res[credentialId] = CredentialStatusList.UNDEFINED
+                    }
+                } else {
+                    res[credentialId] = CredentialStatusList.UNKNOWN
+                }
+            }
             credential.asJsonVc()?.let {
+//                res[credentialId] = getStatusListStatus(
+//                    hasConnection = hasConnection,
+//                    credential = StatusListCredentialType.JsonVc(value = it)
+//                )
                 if (hasConnection) {
                     try {
                         val status = it.status()
@@ -125,6 +185,7 @@ class CredentialPack {
                             res[credentialId] = CredentialStatusList.VALID
                         }
                     } catch (_: Exception) {
+                        res[credentialId] = CredentialStatusList.UNDEFINED
                     }
                 } else {
                     res[credentialId] = CredentialStatusList.UNKNOWN
@@ -417,6 +478,13 @@ class ParsingException(message: String, cause: Throwable?) : Exception(message, 
 class LoadingException(message: String, cause: Throwable) : Exception(message, cause)
 class SavingException(message: String, cause: Throwable) : Exception(message, cause)
 class ClearingException(message: String, cause: Throwable) : Exception(message, cause)
+
+sealed class StatusListCredentialType {
+    data class Vcdm2SdJwt(val value: com.spruceid.mobile.sdk.rs.Vcdm2SdJwt) :
+        StatusListCredentialType()
+
+    data class JsonVc(val value: com.spruceid.mobile.sdk.rs.JsonVc) : StatusListCredentialType()
+}
 
 enum class CredentialStatusList {
     /**
