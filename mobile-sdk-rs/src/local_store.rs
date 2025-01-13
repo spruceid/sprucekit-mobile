@@ -1,3 +1,5 @@
+use async_trait::async_trait;
+
 use crate::common::*;
 use crate::storage_manager::*;
 
@@ -26,9 +28,10 @@ impl Default for LocalStore {
     }
 }
 
+#[async_trait]
 impl StorageManagerInterface for LocalStore {
     /// Add a key/value pair to storage.
-    fn add(&self, key: Key, value: Value) -> Result<(), StorageManagerError> {
+    async fn add(&self, key: Key, value: Value) -> Result<(), StorageManagerError> {
         let mut store = self.store.lock().unwrap();
 
         store.insert(key, value);
@@ -37,7 +40,7 @@ impl StorageManagerInterface for LocalStore {
     }
 
     /// Retrieve the value associated with a key.
-    fn get(&self, key: Key) -> Result<Option<Value>, StorageManagerError> {
+    async fn get(&self, key: Key) -> Result<Option<Value>, StorageManagerError> {
         let store = self.store.lock().unwrap();
 
         match store.get(&key) {
@@ -47,14 +50,14 @@ impl StorageManagerInterface for LocalStore {
     }
 
     /// List the available key/value pairs.
-    fn list(&self) -> Result<Vec<Key>, StorageManagerError> {
+    async fn list(&self) -> Result<Vec<Key>, StorageManagerError> {
         let store = self.store.lock().unwrap();
 
         Ok(store.keys().map(|x| x.to_owned()).collect())
     }
 
     /// Delete a given key/value pair from storage.
-    fn remove(&self, key: Key) -> Result<(), StorageManagerError> {
+    async fn remove(&self, key: Key) -> Result<(), StorageManagerError> {
         let mut store = self.store.lock().unwrap();
 
         _ = store.remove(&key);

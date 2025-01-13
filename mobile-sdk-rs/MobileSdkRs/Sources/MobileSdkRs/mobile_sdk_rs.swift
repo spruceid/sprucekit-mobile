@@ -4236,7 +4236,7 @@ public protocol StorageManagerInterface : AnyObject {
      * key - The key to add
      * value - The value to add under the key.
      */
-    func add(key: Key, value: Value) throws 
+    func add(key: Key, value: Value) async throws 
     
     /**
      * Function: get
@@ -4244,14 +4244,14 @@ public protocol StorageManagerInterface : AnyObject {
      * Callback function pointer to native (kotlin/swift) code for
      * getting a key.
      */
-    func get(key: Key) throws  -> Value?
+    func get(key: Key) async throws  -> Value?
     
     /**
      * Function: list
      *
      * Callback function pointer for listing available keys.
      */
-    func list() throws  -> [Key]
+    func list() async throws  -> [Key]
     
     /**
      * Function: remove
@@ -4261,7 +4261,7 @@ public protocol StorageManagerInterface : AnyObject {
      * particular, it must treat removing a non-existent key as a normal and
      * expected circumstance, simply returning () and not an error.
      */
-    func remove(key: Key) throws 
+    func remove(key: Key) async throws 
     
 }
 
@@ -4328,12 +4328,21 @@ open class StorageManagerInterfaceImpl:
      * key - The key to add
      * value - The value to add under the key.
      */
-open func add(key: Key, value: Value)throws  {try rustCallWithError(FfiConverterTypeStorageManagerError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_add(self.uniffiClonePointer(),
-        FfiConverterTypeKey.lower(key),
-        FfiConverterTypeValue.lower(value),$0
-    )
-}
+open func add(key: Key, value: Value)async throws  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_add(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeKey.lower(key),FfiConverterTypeValue.lower(value)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeStorageManagerError.lift
+        )
 }
     
     /**
@@ -4342,12 +4351,21 @@ open func add(key: Key, value: Value)throws  {try rustCallWithError(FfiConverter
      * Callback function pointer to native (kotlin/swift) code for
      * getting a key.
      */
-open func get(key: Key)throws  -> Value? {
-    return try  FfiConverterOptionTypeValue.lift(try rustCallWithError(FfiConverterTypeStorageManagerError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_get(self.uniffiClonePointer(),
-        FfiConverterTypeKey.lower(key),$0
-    )
-})
+open func get(key: Key)async throws  -> Value? {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_get(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeKey.lower(key)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeValue.lift,
+            errorHandler: FfiConverterTypeStorageManagerError.lift
+        )
 }
     
     /**
@@ -4355,11 +4373,21 @@ open func get(key: Key)throws  -> Value? {
      *
      * Callback function pointer for listing available keys.
      */
-open func list()throws  -> [Key] {
-    return try  FfiConverterSequenceTypeKey.lift(try rustCallWithError(FfiConverterTypeStorageManagerError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_list(self.uniffiClonePointer(),$0
-    )
-})
+open func list()async throws  -> [Key] {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_list(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeKey.lift,
+            errorHandler: FfiConverterTypeStorageManagerError.lift
+        )
 }
     
     /**
@@ -4370,11 +4398,21 @@ open func list()throws  -> [Key] {
      * particular, it must treat removing a non-existent key as a normal and
      * expected circumstance, simply returning () and not an error.
      */
-open func remove(key: Key)throws  {try rustCallWithError(FfiConverterTypeStorageManagerError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_remove(self.uniffiClonePointer(),
-        FfiConverterTypeKey.lower(key),$0
-    )
-}
+open func remove(key: Key)async throws  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_remove(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeKey.lower(key)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeStorageManagerError.lift
+        )
 }
     
 
@@ -4391,101 +4429,169 @@ fileprivate struct UniffiCallbackInterfaceStorageManagerInterface {
             uniffiHandle: UInt64,
             key: RustBuffer,
             value: RustBuffer,
-            uniffiOutReturn: UnsafeMutableRawPointer,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteVoid,
+            uniffiCallbackData: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<UniffiForeignFuture>
         ) in
             let makeCall = {
-                () throws -> () in
+                () async throws -> () in
                 guard let uniffiObj = try? FfiConverterTypeStorageManagerInterface.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try uniffiObj.add(
+                return try await uniffiObj.add(
                      key: try FfiConverterTypeKey.lift(key),
                      value: try FfiConverterTypeValue.lift(value)
                 )
             }
 
-            
-            let writeReturn = { () }
-            uniffiTraitInterfaceCallWithError(
-                callStatus: uniffiCallStatus,
+            let uniffiHandleSuccess = { (returnValue: ()) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructVoid(
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructVoid(
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            let uniffiForeignFuture = uniffiTraitInterfaceCallAsyncWithError(
                 makeCall: makeCall,
-                writeReturn: writeReturn,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
                 lowerError: FfiConverterTypeStorageManagerError.lower
             )
+            uniffiOutReturn.pointee = uniffiForeignFuture
         },
         get: { (
             uniffiHandle: UInt64,
             key: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
+            uniffiCallbackData: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<UniffiForeignFuture>
         ) in
             let makeCall = {
-                () throws -> Value? in
+                () async throws -> Value? in
                 guard let uniffiObj = try? FfiConverterTypeStorageManagerInterface.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try uniffiObj.get(
+                return try await uniffiObj.get(
                      key: try FfiConverterTypeKey.lift(key)
                 )
             }
 
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionTypeValue.lower($0) }
-            uniffiTraitInterfaceCallWithError(
-                callStatus: uniffiCallStatus,
+            let uniffiHandleSuccess = { (returnValue: Value?) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: FfiConverterOptionTypeValue.lower(returnValue),
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: RustBuffer.empty(),
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            let uniffiForeignFuture = uniffiTraitInterfaceCallAsyncWithError(
                 makeCall: makeCall,
-                writeReturn: writeReturn,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
                 lowerError: FfiConverterTypeStorageManagerError.lower
             )
+            uniffiOutReturn.pointee = uniffiForeignFuture
         },
         list: { (
             uniffiHandle: UInt64,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
+            uniffiCallbackData: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<UniffiForeignFuture>
         ) in
             let makeCall = {
-                () throws -> [Key] in
+                () async throws -> [Key] in
                 guard let uniffiObj = try? FfiConverterTypeStorageManagerInterface.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try uniffiObj.list(
+                return try await uniffiObj.list(
                 )
             }
 
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeKey.lower($0) }
-            uniffiTraitInterfaceCallWithError(
-                callStatus: uniffiCallStatus,
+            let uniffiHandleSuccess = { (returnValue: [Key]) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: FfiConverterSequenceTypeKey.lower(returnValue),
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: RustBuffer.empty(),
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            let uniffiForeignFuture = uniffiTraitInterfaceCallAsyncWithError(
                 makeCall: makeCall,
-                writeReturn: writeReturn,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
                 lowerError: FfiConverterTypeStorageManagerError.lower
             )
+            uniffiOutReturn.pointee = uniffiForeignFuture
         },
         remove: { (
             uniffiHandle: UInt64,
             key: RustBuffer,
-            uniffiOutReturn: UnsafeMutableRawPointer,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteVoid,
+            uniffiCallbackData: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<UniffiForeignFuture>
         ) in
             let makeCall = {
-                () throws -> () in
+                () async throws -> () in
                 guard let uniffiObj = try? FfiConverterTypeStorageManagerInterface.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return try uniffiObj.remove(
+                return try await uniffiObj.remove(
                      key: try FfiConverterTypeKey.lift(key)
                 )
             }
 
-            
-            let writeReturn = { () }
-            uniffiTraitInterfaceCallWithError(
-                callStatus: uniffiCallStatus,
+            let uniffiHandleSuccess = { (returnValue: ()) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructVoid(
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructVoid(
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            let uniffiForeignFuture = uniffiTraitInterfaceCallAsyncWithError(
                 makeCall: makeCall,
-                writeReturn: writeReturn,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
                 lowerError: FfiConverterTypeStorageManagerError.lower
             )
+            uniffiOutReturn.pointee = uniffiForeignFuture
         },
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             let result = try? FfiConverterTypeStorageManagerInterface.handleMap.remove(handle: uniffiHandle)
@@ -4982,32 +5088,32 @@ public protocol VdcCollectionProtocol : AnyObject {
     /**
      * Add a credential to the set.
      */
-    func add(credential: Credential) throws 
+    func add(credential: Credential) async throws 
     
     /**
      * Get a list of all the credentials.
      */
-    func allEntries() throws  -> [Uuid]
+    func allEntries() async throws  -> [Uuid]
     
     /**
      * Get a list of all the credentials that match a specified type.
      */
-    func allEntriesByType(ctype: CredentialType) throws  -> [Uuid]
+    func allEntriesByType(ctype: CredentialType) async throws  -> [Uuid]
     
     /**
      * Remove a credential from the store.
      */
-    func delete(id: Uuid) throws 
+    func delete(id: Uuid) async throws 
     
     /**
      * Dump the contents of the credential set to the logger.
      */
-    func dump() 
+    func dump() async 
     
     /**
      * Get a credential from the store.
      */
-    func get(id: Uuid) throws  -> Credential?
+    func get(id: Uuid) async throws  -> Credential?
     
 }
 
@@ -5071,62 +5177,122 @@ public convenience init(engine: StorageManagerInterface) {
     /**
      * Add a credential to the set.
      */
-open func add(credential: Credential)throws  {try rustCallWithError(FfiConverterTypeVdcCollectionError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_vdccollection_add(self.uniffiClonePointer(),
-        FfiConverterTypeCredential.lower(credential),$0
-    )
-}
+open func add(credential: Credential)async throws  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vdccollection_add(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeCredential.lower(credential)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
+        )
 }
     
     /**
      * Get a list of all the credentials.
      */
-open func allEntries()throws  -> [Uuid] {
-    return try  FfiConverterSequenceTypeUuid.lift(try rustCallWithError(FfiConverterTypeVdcCollectionError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_vdccollection_all_entries(self.uniffiClonePointer(),$0
-    )
-})
+open func allEntries()async throws  -> [Uuid] {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vdccollection_all_entries(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeUuid.lift,
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
+        )
 }
     
     /**
      * Get a list of all the credentials that match a specified type.
      */
-open func allEntriesByType(ctype: CredentialType)throws  -> [Uuid] {
-    return try  FfiConverterSequenceTypeUuid.lift(try rustCallWithError(FfiConverterTypeVdcCollectionError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_vdccollection_all_entries_by_type(self.uniffiClonePointer(),
-        FfiConverterTypeCredentialType.lower(ctype),$0
-    )
-})
+open func allEntriesByType(ctype: CredentialType)async throws  -> [Uuid] {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vdccollection_all_entries_by_type(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeCredentialType.lower(ctype)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeUuid.lift,
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
+        )
 }
     
     /**
      * Remove a credential from the store.
      */
-open func delete(id: Uuid)throws  {try rustCallWithError(FfiConverterTypeVdcCollectionError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_vdccollection_delete(self.uniffiClonePointer(),
-        FfiConverterTypeUuid.lower(id),$0
-    )
-}
+open func delete(id: Uuid)async throws  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vdccollection_delete(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUuid.lower(id)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
+        )
 }
     
     /**
      * Dump the contents of the credential set to the logger.
      */
-open func dump() {try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_vdccollection_dump(self.uniffiClonePointer(),$0
-    )
-}
+open func dump()async  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vdccollection_dump(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
 }
     
     /**
      * Get a credential from the store.
      */
-open func get(id: Uuid)throws  -> Credential? {
-    return try  FfiConverterOptionTypeCredential.lift(try rustCallWithError(FfiConverterTypeVdcCollectionError.lift) {
-    uniffi_mobile_sdk_rs_fn_method_vdccollection_get(self.uniffiClonePointer(),
-        FfiConverterTypeUuid.lower(id),$0
-    )
-})
+open func get(id: Uuid)async throws  -> Credential? {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vdccollection_get(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUuid.lower(id)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeCredential.lift,
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
+        )
 }
     
 
@@ -10962,14 +11128,19 @@ public func handleResponse(state: MdlSessionManager, response: Data)throws  -> M
  * String containing the BLE ident.
 
  */
-public func initializeMdlPresentation(mdocId: Uuid, uuid: Uuid, storageManager: StorageManagerInterface)throws  -> MdlPresentationSession {
-    return try  FfiConverterTypeMdlPresentationSession.lift(try rustCallWithError(FfiConverterTypeSessionError.lift) {
-    uniffi_mobile_sdk_rs_fn_func_initialize_mdl_presentation(
-        FfiConverterTypeUuid.lower(mdocId),
-        FfiConverterTypeUuid.lower(uuid),
-        FfiConverterTypeStorageManagerInterface.lower(storageManager),$0
-    )
-})
+public func initializeMdlPresentation(mdocId: Uuid, uuid: Uuid, storageManager: StorageManagerInterface)async throws  -> MdlPresentationSession {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_initialize_mdl_presentation(FfiConverterTypeUuid.lower(mdocId),FfiConverterTypeUuid.lower(uuid),FfiConverterTypeStorageManagerInterface.lower(storageManager)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeMdlPresentationSession.lift,
+            errorHandler: FfiConverterTypeSessionError.lift
+        )
 }
 /**
  * Begin the mDL presentation process for the holder by passing in the credential
@@ -11160,7 +11331,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 53444) {
+    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 29387) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 26972) {
@@ -11412,16 +11583,16 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_status_purpose() != 51769) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_add() != 60217) {
+    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_add() != 39162) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_get() != 64957) {
+    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_get() != 35430) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_list() != 22654) {
+    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_list() != 37678) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_remove() != 46691) {
+    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_remove() != 24982) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_synchttpclient_http_client() != 53085) {
@@ -11439,22 +11610,22 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_type() != 50079) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_add() != 43160) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_add() != 42040) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_all_entries() != 7546) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_all_entries() != 7074) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_all_entries_by_type() != 7766) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_all_entries_by_type() != 232) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_delete() != 26842) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_delete() != 63691) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_dump() != 14663) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_dump() != 37372) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_get() != 52546) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_get() != 1085) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 15415) {
