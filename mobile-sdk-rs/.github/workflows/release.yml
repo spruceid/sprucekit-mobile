@@ -61,7 +61,7 @@ jobs:
         git config user.email github-actions@github.com
         git add Package.swift SpruceIDMobileSdkRs.podspec SpruceIDMobileSdkRsRustFramework.podspec
         git commit -m "Release ${{ github.event.inputs.version }}"
-        git push
+        git push --force
         git tag ${{ github.event.inputs.version }} -m "${{ github.event.inputs.version }}"
         git push --tags --force
 
