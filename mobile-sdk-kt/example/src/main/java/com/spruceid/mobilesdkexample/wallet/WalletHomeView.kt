@@ -178,8 +178,8 @@ fun WalletHomeBody(
                             credentialPack = credentialPack,
                             statusListViewModel = statusListViewModel,
                             onDelete = {
-                                credentialPacksViewModel.deleteCredentialPack(credentialPack)
                                 scope.launch {
+                                    credentialPacksViewModel.deleteCredentialPack(credentialPack)
                                     credentialPack.list().forEach { credential ->
                                         val credentialInfo =
                                             getCredentialIdTitleAndIssuer(

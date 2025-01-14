@@ -22,7 +22,7 @@ public class StorageManager: NSObject, StorageManagerInterface {
     ///
     /// - Returns: An URL for the named file in the app's Application Support directory.
 
-    private func path(file: String) -> URL? {
+    private func path(file: String) async -> URL? {
         do {
             //    Get the applications support dir, and tack the name of the thing we're storing on the end of it.
             // This does imply that `file` should be a valid filename.
@@ -71,8 +71,8 @@ public class StorageManager: NSObject, StorageManagerInterface {
     ///
     /// - Returns: a boolean indicating success
 
-    public func add(key: Key, value: Value) throws {
-        guard let file = path(file: key) else { throw StorageManagerError.InternalError }
+    public func add(key: Key, value: Value) async throws {
+        guard let file = await path(file: key) else { throw StorageManagerError.InternalError }
 
         do {
             try value.write(to: file, options: .completeFileProtection)
@@ -88,8 +88,8 @@ public class StorageManager: NSObject, StorageManagerInterface {
     ///
     /// - Returns: optional data potentially containing the value associated with the key; may be `nil`
 
-    public func get(key: Key) throws -> Value? {
-        guard let file = path(file: key) else { throw StorageManagerError.InternalError }
+    public func get(key: Key) async throws -> Value? {
+        guard let file = await path(file: key) else { throw StorageManagerError.InternalError }
 
         do {
             return try Data(contentsOf: file)
@@ -115,8 +115,8 @@ public class StorageManager: NSObject, StorageManagerInterface {
     ///
     /// - Returns: a list of items in storage
 
-    public func list() throws -> [Key] {
-        guard let asdir = path(file: "")?.path else { return [String]() }
+    public func list() async throws -> [Key] {
+        guard let asdir = await path(file: "")?.path else { return [String]() }
 
         do {
             return try FileManager.default.contentsOfDirectory(atPath: asdir)
@@ -134,8 +134,8 @@ public class StorageManager: NSObject, StorageManagerInterface {
     ///
     /// - Returns: a boolean indicating success; at present, there is no failure path, but this may change
 
-    public func remove(key: Key) throws {
-        guard let file = path(file: key) else { return }
+    public func remove(key: Key) async throws {
+        guard let file = await path(file: key) else { return }
 
         do {
             try FileManager.default.removeItem(at: file)

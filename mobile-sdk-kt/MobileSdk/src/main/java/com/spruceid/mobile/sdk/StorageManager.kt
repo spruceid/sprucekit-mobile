@@ -4,6 +4,8 @@ import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.StorageManagerInterface
 import java.io.File
 import java.io.FileNotFoundException
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class StorageManager(val context: Context) : StorageManagerInterface {
     /// Function: add
@@ -14,7 +16,7 @@ class StorageManager(val context: Context) : StorageManagerInterface {
     /// Arguments:
     /// key - The key to add
     /// value - The value to add under the key
-    override fun add(key: String, value: ByteArray) =
+    override suspend fun add(key: String, value: ByteArray) =
         context.openFileOutput(filename(key), 0).use {
             it.write(encrypt(value))
             it.close()
@@ -27,7 +29,7 @@ class StorageManager(val context: Context) : StorageManagerInterface {
     ///
     /// Arguments:
     /// key - The key to retrieve
-    override fun get(key: String): ByteArray? {
+    override suspend fun get(key: String): ByteArray? {
         var bytes: ByteArray
         try {
             context.openFileInput(filename(key)).use {
@@ -46,7 +48,7 @@ class StorageManager(val context: Context) : StorageManagerInterface {
     ///
     /// Arguments:
     /// key - The key to remove
-    override fun remove(key: String) {
+    override suspend fun remove(key: String) {
         File(context.filesDir, filename(key)).delete()
     }
 
@@ -54,7 +56,7 @@ class StorageManager(val context: Context) : StorageManagerInterface {
     /// Function: list
     ///
     /// Lists all key-value pair in storage
-    override fun list(): List<String> {
+    override suspend fun list(): List<String> {
         val list = context.filesDir.list() ?: throw Exception("cannot list stored objects")
 
         return list.mapNotNull {
@@ -77,16 +79,18 @@ class StorageManager(val context: Context) : StorageManagerInterface {
         ///
         /// Arguments:
         /// value - The string value to be encrypted
-        private fun encrypt(value: ByteArray): ByteArray {
-            val keyManager = KeyManager()
-            if (!keyManager.keyExists(KEY_NAME)) {
-                keyManager.generateEncryptionKey(KEY_NAME)
+        private suspend fun encrypt(value: ByteArray): ByteArray {
+            return suspendCoroutine { continuation ->
+                val keyManager = KeyManager()
+                if (!keyManager.keyExists(KEY_NAME)) {
+                    keyManager.generateEncryptionKey(KEY_NAME)
+                }
+                val encrypted = keyManager.encryptPayload(KEY_NAME, value)
+                val iv = Base64.encodeToString(encrypted.first, B64_FLAGS)
+                val bytes = Base64.encodeToString(encrypted.second, B64_FLAGS)
+                val res = "$iv;$bytes".toByteArray()
+                continuation.resume(res)
             }
-            val encrypted = keyManager.encryptPayload(KEY_NAME, value)
-            val iv = Base64.encodeToString(encrypted.first, B64_FLAGS)
-            val bytes = Base64.encodeToString(encrypted.second, B64_FLAGS)
-            val res = "$iv;$bytes".toByteArray()
-            return res
         }
 
         /// Function: decrypt
@@ -95,16 +99,19 @@ class StorageManager(val context: Context) : StorageManagerInterface {
         ///
         /// Arguments:
         /// value - The byte array to be decrypted
-        private fun decrypt(value: ByteArray): ByteArray {
-            val keyManager = KeyManager()
-            if (!keyManager.keyExists(KEY_NAME)) {
-                throw Exception("Cannot retrieve values before creating encryption keys")
+        private suspend fun decrypt(value: ByteArray): ByteArray {
+            return suspendCoroutine { continuation ->
+                val keyManager = KeyManager()
+                if (!keyManager.keyExists(KEY_NAME)) {
+                    throw Exception("Cannot retrieve values before creating encryption keys")
+                }
+                val decoded = value.decodeToString().split(";")
+                assert(decoded.size == 2)
+                val iv = Base64.decode(decoded.first(), B64_FLAGS)
+                val encrypted = Base64.decode(decoded.last(), B64_FLAGS)
+                val decrypted = keyManager.decryptPayload(KEY_NAME, iv, encrypted)
+                continuation.resume(decrypted)
             }
-            val decoded = value.decodeToString().split(";")
-            assert(decoded.size == 2)
-            val iv = Base64.decode(decoded.first(), B64_FLAGS)
-            val encrypted = Base64.decode(decoded.last(), B64_FLAGS)
-            return keyManager.decryptPayload(KEY_NAME, iv, encrypted)
         }
 
         private const val FILENAME_PREFIX = "sprucekit:datastore"
