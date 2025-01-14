@@ -3,6 +3,7 @@ use crate::UniffiCustomTypeConverter;
 
 use std::str::FromStr;
 
+use futures::stream::{self, StreamExt};
 use reqwest::StatusCode;
 use ssi::status::bitstring_status_list_20240406::{
     BitString, BitstringStatusListCredential, BitstringStatusListEntry,
@@ -85,67 +86,87 @@ impl Status20240406 {
 #[async_trait::async_trait]
 pub trait BitStringStatusListResolver20240406 {
     /// Returns the BitstringStatusListEntry of the credential.
-    fn status_list_entry(&self) -> Result<BitstringStatusListEntry, StatusListError>;
+    fn status_list_entries(&self) -> Result<Vec<BitstringStatusListEntry>, StatusListError>;
 
     /// Resolves the status list as an `BitstringStatusList` type.
-    async fn status_list_credential(
+    async fn status_list_credentials(
         &self,
-    ) -> Result<BitstringStatusListCredential, StatusListError> {
-        let entry = self.status_list_entry()?;
-        let url: Url = entry
-            .status_list_credential
-            .parse()
-            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+    ) -> Result<Vec<BitstringStatusListCredential>, StatusListError> {
+        let entries = self.status_list_entries()?;
+        stream::iter(entries)
+            .map(|entry| async move {
+                let url = entry
+                    .status_list_credential
+                    .parse::<Url>()
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
-        let response = reqwest::get(url)
+                let response = reqwest::get(url)
+                    .await
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+                if response.status() != StatusCode::OK {
+                    return Err(StatusListError::Resolution(format!(
+                        "Failed to resolve status list credential: {}",
+                        response.status()
+                    )));
+                }
+
+                response
+                    .json()
+                    .await
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))
+            })
+            .buffer_unordered(3)
+            .collect::<Vec<Result<BitstringStatusListCredential, StatusListError>>>()
             .await
-            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
-
-        if response.status() != StatusCode::OK {
-            return Err(StatusListError::Resolution(format!(
-                "Failed to resolve status list credential: {}",
-                response.status()
-            )));
-        }
-
-        response
-            .json()
-            .await
-            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))
+            .into_iter()
+            .collect()
     }
 
     /// Returns the status of the credential, returning
     /// an object that provides the value in the status list,
     /// and the purpose of the status.
-    async fn status_list_value(&self) -> Result<Status20240406, StatusListError> {
-        let entry = self.status_list_entry()?;
-        let credential = self.status_list_credential().await?;
+    async fn status_list_values(&self) -> Result<Vec<Status20240406>, StatusListError> {
+        let entries = self.status_list_entries()?;
+        let credentials = self.status_list_credentials().await?;
 
-        let bit_string = credential
-            .credential_subject
-            .encoded_list
-            .decode(None)
-            // TODO: we had to hardcode the status_size to 8 to be able to find the right status.
-            // We must analyse what is happening and remove it to use the following line:
-            // .map(|bytes| BitString::from_bytes(credential.credential_subject.status_size, bytes))
-            .map(|bytes| BitString::from_bytes(StatusSize::try_from(8).unwrap_or_default(), bytes))
-            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+        credentials
+            .into_iter()
+            .map(|credential| {
+                let bit_string = credential
+                    .credential_subject
+                    .encoded_list
+                    .decode(None)
+                    // TODO: we had to hardcode the status_size to 8 to be able to find the right status.
+                    // We must analyse what is happening and remove it to use the following line:
+                    // .map(|bytes| BitString::from_bytes(credential.credential_subject.status_size, bytes))
+                    .map(|bytes| {
+                        BitString::from_bytes(StatusSize::try_from(8).unwrap_or_default(), bytes)
+                    })
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
-        let value = bit_string
-            .get(entry.status_list_index)
-            .ok_or(StatusListError::Resolution(
-                "No status found at index".to_string(),
-            ))?;
+                let value = bit_string
+                    .get(
+                        entries
+                            .first()
+                            .ok_or(StatusListError::Resolution("No entry found".to_string()))?
+                            .status_list_index,
+                    )
+                    .ok_or(StatusListError::Resolution(
+                        "No status found at index".to_string(),
+                    ))?;
 
-        Ok(Status20240406 {
-            value,
-            purpose: credential.credential_subject.status_purpose,
-            status_messages: credential
-                .credential_subject
-                .status_message
-                .into_iter()
-                .map(Into::into)
-                .collect(),
-        })
+                Ok(Status20240406 {
+                    value,
+                    purpose: credential.credential_subject.status_purpose,
+                    status_messages: credential
+                        .credential_subject
+                        .status_message
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                })
+            })
+            .collect()
     }
 }

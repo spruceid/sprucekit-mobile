@@ -336,14 +336,14 @@ impl BitStringStatusListResolver for ParsedCredential {
 }
 
 impl BitStringStatusListResolver20240406 for ParsedCredential {
-    fn status_list_entry(
+    fn status_list_entries(
         &self,
     ) -> Result<
-        ssi::status::bitstring_status_list_20240406::BitstringStatusListEntry,
+        Vec<ssi::status::bitstring_status_list_20240406::BitstringStatusListEntry>,
         status::StatusListError,
     > {
         match &self.inner {
-            ParsedCredentialInner::VCDM2SdJwt(cred) => cred.status_list_entry(),
+            ParsedCredentialInner::VCDM2SdJwt(cred) => cred.status_list_entries(),
             _ => Err(status::StatusListError::UnsupportedCredentialFormat),
         }
     }

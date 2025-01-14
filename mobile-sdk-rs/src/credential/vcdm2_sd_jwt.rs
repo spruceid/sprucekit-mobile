@@ -15,6 +15,7 @@ use crate::{
 
 use std::sync::Arc;
 
+use futures::stream::{self, StreamExt};
 use openid4vp::{
     core::{
         credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
@@ -127,8 +128,10 @@ impl VCDM2SdJwt {
 
     /// Returns the status of the credential, resolving the value in the status list,
     /// along with the purpose of the status.
-    pub async fn status(&self) -> Result<Status20240406, StatusListError> {
-        self.status_list_value().await
+    pub async fn status(&self) -> Result<Vec<Arc<Status20240406>>, StatusListError> {
+        self.status_list_values()
+            .await
+            .map(|v| v.into_iter().map(Arc::new).collect())
     }
 }
 
@@ -187,71 +190,78 @@ impl CredentialPresentation for VCDM2SdJwt {
 
 #[async_trait::async_trait]
 impl BitStringStatusListResolver for VCDM2SdJwt {
-    fn status_list_entry(&self) -> Result<BitstringStatusListEntry, StatusListError> {
+    fn status_list_entries(&self) -> Result<Vec<BitstringStatusListEntry>, StatusListError> {
         let value = match &self
             .credential()
             .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?
         {
             AnyJsonCredential::V1(credential) => credential
                 .credential_status
-                .first()
-                .map(serde_json::to_value),
+                .iter()
+                .map(serde_json::to_value)
+                .collect::<Result<serde_json::Value, serde_json::Error>>(),
             AnyJsonCredential::V2(credential) => credential
                 .credential_status
-                .first()
-                .map(serde_json::to_value),
+                .iter()
+                .map(serde_json::to_value)
+                .collect::<Result<serde_json::Value, serde_json::Error>>(),
         }
-        .ok_or(StatusListError::Resolution(
-            "Credential status not found in credential".into(),
-        ))?
         .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
-        let entry = serde_json::from_value(value).map_err(|e| {
+        let entries = serde_json::from_value(value).map_err(|e| {
             StatusListError::Resolution(format!("Failed to parse credential status: {e:?}"))
         })?;
 
-        Ok(entry)
+        Ok(entries)
     }
 
-    async fn status_list_credential(
+    async fn status_list_credentials(
         &self,
-    ) -> Result<BitstringStatusListCredential, StatusListError> {
-        let entry = self.status_list_entry()?;
-        let url: Url = entry
-            .status_list_credential
-            .parse()
-            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+    ) -> Result<Vec<BitstringStatusListCredential>, StatusListError> {
+        let entries = self.status_list_entries()?;
+        stream::iter(entries)
+            .map(|entry| async move {
+                let url = entry
+                    .status_list_credential
+                    .parse::<Url>()
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
 
-        let response = reqwest::get(url)
+                let response = reqwest::get(url)
+                    .await
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+                if response.status() != StatusCode::OK {
+                    return Err(StatusListError::Resolution(format!(
+                        "Failed to resolve status list credential: {}",
+                        response.status()
+                    )));
+                }
+
+                let sd_jwt_buf = SdJwtBuf::new(
+                    response
+                        .text()
+                        .await
+                        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?,
+                )
+                .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+                let credential = sd_jwt_buf
+                    .decode_reveal_any()
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?
+                    .into_claims()
+                    .private;
+
+                serde_json::from_value(
+                    serde_json::to_value(credential)
+                        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?,
+                )
+                .map_err(|e| StatusListError::Resolution(format!("{e:?}")))
+            })
+            .buffer_unordered(3)
+            .collect::<Vec<Result<BitstringStatusListCredential, StatusListError>>>()
             .await
-            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
-
-        if response.status() != StatusCode::OK {
-            return Err(StatusListError::Resolution(format!(
-                "Failed to resolve status list credential: {}",
-                response.status()
-            )));
-        }
-
-        let sd_jwt_buf = SdJwtBuf::new(
-            response
-                .text()
-                .await
-                .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?,
-        )
-        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
-
-        let credential = sd_jwt_buf
-            .decode_reveal_any()
-            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?
-            .into_claims()
-            .private;
-
-        serde_json::from_value(
-            serde_json::to_value(credential)
-                .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?,
-        )
-        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))
+            .into_iter()
+            .collect()
     }
 
     // NOTE: The remaining methods are default implemented in the trait.

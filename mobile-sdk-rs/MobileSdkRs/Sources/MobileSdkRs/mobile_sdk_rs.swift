@@ -4997,7 +4997,7 @@ public protocol Vcdm2SdJwtProtocol : AnyObject {
      * Returns the status of the credential, resolving the value in the status list,
      * along with the purpose of the status.
      */
-    func status() async throws  -> Status20240406
+    func status() async throws  -> [Status20240406]
     
     /**
      * The type of this credential. Note that if there is more than one type (i.e. `types()`
@@ -5105,7 +5105,7 @@ open func revealedClaimsAsJsonString()throws  -> String {
      * Returns the status of the credential, resolving the value in the status list,
      * along with the purpose of the status.
      */
-open func status()async throws  -> Status20240406 {
+open func status()async throws  -> [Status20240406] {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
@@ -5114,10 +5114,10 @@ open func status()async throws  -> Status20240406 {
                     
                 )
             },
-            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
-            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
-            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
-            liftFunc: FfiConverterTypeStatus20240406.lift,
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeStatus20240406.lift,
             errorHandler: FfiConverterTypeStatusListError.lift
         )
 }
@@ -10295,6 +10295,28 @@ fileprivate struct FfiConverterSequenceTypeRequestedField: FfiConverterRustBuffe
     }
 }
 
+fileprivate struct FfiConverterSequenceTypeStatus20240406: FfiConverterRustBuffer {
+    typealias SwiftType = [Status20240406]
+
+    public static func write(_ value: [Status20240406], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeStatus20240406.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Status20240406] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Status20240406]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeStatus20240406.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 fileprivate struct FfiConverterSequenceTypeCredentialResponse: FfiConverterRustBuffer {
     typealias SwiftType = [CredentialResponse]
 
@@ -11660,7 +11682,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_revealed_claims_as_json_string() != 39703) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_status() != 60775) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_status() != 25845) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_type() != 50079) {
