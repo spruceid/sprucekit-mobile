@@ -2,17 +2,25 @@ import XCTest
 @testable import SpruceIDMobileSdk
 
 final class StorageManagerTest: XCTestCase {
-    func testStorage() throws {
+    func testStorage() async throws {
         let storeman = StorageManager()
         let key = "test_key"
         let value = Data("Some random string of text. 😎".utf8)
 
-        XCTAssertNoThrow(try storeman.add(key: key, value: value))
+        do {
+            try await storeman.add(key: key, value: value)
+        } catch {
+            XCTFail("Failed StorageManager.add")
+        }
 
-        let payload = try storeman.get(key: key)
+        let payload = try await storeman.get(key: key)
 
         XCTAssert(payload == value, "\(classForCoder):\(#function): Mismatch between stored & retrieved value.")
 
-        XCTAssertNoThrow(try storeman.remove(key: key))
+        do {
+            try await storeman.remove(key: key)
+        } catch {
+            XCTFail("Failed StorageManager.remove")
+        }
     }
 }
