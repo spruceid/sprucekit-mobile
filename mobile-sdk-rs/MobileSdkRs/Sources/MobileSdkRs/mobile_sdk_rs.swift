@@ -4213,6 +4213,188 @@ public func FfiConverterTypeStatus_lower(_ value: Status) -> UnsafeMutableRawPoi
 
 
 /**
+ * Status provides a value and purpose for a status,
+ *
+ * The value is the raw value of the status at the entry list index,
+ * and the purpose is the purpose of the credential, which is used
+ * to interpret the value.
+ */
+public protocol Status20240406Protocol : AnyObject {
+    
+    /**
+     * Return whether the credential status has a message.
+     */
+    func isMessage()  -> Bool
+    
+    /**
+     * Return whether the credential status is revoked.
+     */
+    func isRevoked()  -> Bool
+    
+    /**
+     * Return whether the credential status is suspended.
+     */
+    func isSuspended()  -> Bool
+    
+    /**
+     * Return the message of the credential status.
+     */
+    func messages()  -> [StatusMessage]
+    
+    /**
+     * Return the purpose of the status.
+     */
+    func purpose()  -> StatusPurpose
+    
+}
+
+/**
+ * Status provides a value and purpose for a status,
+ *
+ * The value is the raw value of the status at the entry list index,
+ * and the purpose is the purpose of the credential, which is used
+ * to interpret the value.
+ */
+open class Status20240406:
+    Status20240406Protocol {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    /// This constructor can be used to instantiate a fake object.
+    /// - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    ///
+    /// - Warning:
+    ///     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_status20240406(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_status20240406(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Return whether the credential status has a message.
+     */
+open func isMessage() -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status20240406_is_message(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return whether the credential status is revoked.
+     */
+open func isRevoked() -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status20240406_is_revoked(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return whether the credential status is suspended.
+     */
+open func isSuspended() -> Bool {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status20240406_is_suspended(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the message of the credential status.
+     */
+open func messages() -> [StatusMessage] {
+    return try!  FfiConverterSequenceTypeStatusMessage.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status20240406_messages(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the purpose of the status.
+     */
+open func purpose() -> StatusPurpose {
+    return try!  FfiConverterTypeStatusPurpose.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_status20240406_purpose(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+public struct FfiConverterTypeStatus20240406: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Status20240406
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Status20240406 {
+        return Status20240406(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Status20240406) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Status20240406 {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Status20240406, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+
+
+public func FfiConverterTypeStatus20240406_lift(_ pointer: UnsafeMutableRawPointer) throws -> Status20240406 {
+    return try FfiConverterTypeStatus20240406.lift(pointer)
+}
+
+public func FfiConverterTypeStatus20240406_lower(_ value: Status20240406) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeStatus20240406.lower(value)
+}
+
+
+
+
+/**
  * Interface: StorageManagerInterface
  *
  * The StorageManagerInterface provides access to functions defined in Kotlin and Swift for
@@ -4812,6 +4994,12 @@ public protocol Vcdm2SdJwtProtocol : AnyObject {
     func revealedClaimsAsJsonString() throws  -> String
     
     /**
+     * Returns the status of the credential, resolving the value in the status list,
+     * along with the purpose of the status.
+     */
+    func status() async throws  -> [Status20240406]
+    
+    /**
      * The type of this credential. Note that if there is more than one type (i.e. `types()`
      * returns more than one value), then the types will be concatenated with a "+".
      */
@@ -4911,6 +5099,27 @@ open func revealedClaimsAsJsonString()throws  -> String {
     uniffi_mobile_sdk_rs_fn_method_vcdm2sdjwt_revealed_claims_as_json_string(self.uniffiClonePointer(),$0
     )
 })
+}
+    
+    /**
+     * Returns the status of the credential, resolving the value in the status list,
+     * along with the purpose of the status.
+     */
+open func status()async throws  -> [Status20240406] {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcdm2sdjwt_status(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeStatus20240406.lift,
+            errorHandler: FfiConverterTypeStatusListError.lift
+        )
 }
     
     /**
@@ -10086,6 +10295,28 @@ fileprivate struct FfiConverterSequenceTypeRequestedField: FfiConverterRustBuffe
     }
 }
 
+fileprivate struct FfiConverterSequenceTypeStatus20240406: FfiConverterRustBuffer {
+    typealias SwiftType = [Status20240406]
+
+    public static func write(_ value: [Status20240406], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeStatus20240406.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Status20240406] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Status20240406]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeStatus20240406.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 fileprivate struct FfiConverterSequenceTypeCredentialResponse: FfiConverterRustBuffer {
     typealias SwiftType = [CredentialResponse]
 
@@ -11412,6 +11643,21 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_status_purpose() != 51769) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_status20240406_is_message() != 61330) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_status20240406_is_revoked() != 51346) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_status20240406_is_suspended() != 4970) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_status20240406_messages() != 22990) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_status20240406_purpose() != 20271) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_add() != 60217) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -11434,6 +11680,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_revealed_claims_as_json_string() != 39703) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_status() != 25845) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_type() != 50079) {
