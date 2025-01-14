@@ -11080,11 +11080,11 @@ public func establishSession(uri: String, requestedItems: [String: [String: Bool
     )
 })
 }
-public func generatePopComplete(signingInput: Data, signature: Data)throws  -> String {
+public func generatePopComplete(signingInput: Data, signatureDer: Data)throws  -> String {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeOid4vciError.lift) {
     uniffi_mobile_sdk_rs_fn_func_generate_pop_complete(
         FfiConverterData.lower(signingInput),
-        FfiConverterData.lower(signature),$0
+        FfiConverterData.lower(signatureDer),$0
     )
 })
 }
@@ -11322,7 +11322,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 26937) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_generate_pop_complete() != 56778) {
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_pop_complete() != 41207) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_pop_prepare() != 54105) {

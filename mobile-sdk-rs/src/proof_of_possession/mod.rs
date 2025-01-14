@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use base64::prelude::*;
 use oid4vci::{
     proof_of_possession::{
         ProofOfPossession, ProofOfPossessionController, ProofOfPossessionParams,
@@ -53,15 +54,17 @@ pub async fn generate_pop_prepare(
 #[uniffi::export]
 pub fn generate_pop_complete(
     signing_input: Vec<u8>,
-    signature: Vec<u8>,
+    signature_der: Vec<u8>,
 ) -> Result<String, Oid4vciError> {
+    let signature = p256::ecdsa::Signature::from_der(&signature_der)
+        .map_err(|e| Oid4vciError::Generic(e.to_string()))
+        .expect("from_der");
+
     Ok([
         String::from_utf8(signing_input)
             .map_err(|e| e.to_string())
             .map_err(Oid4vciError::from)?,
-        String::from_utf8(signature)
-            .map_err(|e| e.to_string())
-            .map_err(Oid4vciError::from)?,
+        BASE64_URL_SAFE_NO_PAD.encode(signature.to_bytes()),
     ]
     .join("."))
 }
