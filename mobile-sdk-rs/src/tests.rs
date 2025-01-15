@@ -174,7 +174,6 @@ pub async fn test_vc_playground_oid4vp() {
 
     let credential = ParsedCredential::new_ldp_vc(
         JsonVc::new_from_json(contents).expect("Failed to parse Json VC"),
-        None,
     );
 
     let trusted_dids = vec![];
@@ -182,7 +181,7 @@ pub async fn test_vc_playground_oid4vp() {
     let context_map = vc_playground_context();
 
     let holder = crate::oid4vp::Holder::new_with_credentials(
-        vec![credential],
+        vec![credential.clone()],
         trusted_dids,
         Box::new(signer),
         Some(context_map),
@@ -206,7 +205,14 @@ pub async fn test_vc_playground_oid4vp() {
 
     // NOTE: passing `parsed_credentials` as `selected_credentials`.
     let response = permission_request
-        .create_permission_response(parsed_credentials)
+        .create_permission_response(
+            parsed_credentials,
+            vec![credential
+                .requested_fields(&permission_request.definition)
+                .iter()
+                .map(|rf| rf.path())
+                .collect()],
+        )
         .await
         .expect("Failed to create permission response");
 

@@ -144,6 +144,7 @@ pub trait CredentialPresentation {
         &self,
         options: &'a PresentationOptions<'a>,
         selected_fields: Option<Vec<String>>,
+        limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError>;
 }
 

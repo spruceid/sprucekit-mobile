@@ -27,7 +27,7 @@ public class CredentialPack {
 
     /// Add a JwtVc to the CredentialPack.
     public func addJwtVc(jwtVc: JwtVc) -> [ParsedCredential] {
-        credentials.append(ParsedCredential.newJwtVcJson(jwtVc: jwtVc, selectedFields: nil))
+        credentials.append(ParsedCredential.newJwtVcJson(jwtVc: jwtVc))
         return credentials
     }
 
@@ -53,19 +53,19 @@ public class CredentialPack {
 
     /// Add a JsonVc to the CredentialPack.
     public func addJsonVc(jsonVc: JsonVc) -> [ParsedCredential] {
-        credentials.append(ParsedCredential.newLdpVc(jsonVc: jsonVc, selectedFields: nil))
+        credentials.append(ParsedCredential.newLdpVc(jsonVc: jsonVc))
         return credentials
     }
 
     /// Add an SD-JWT to the CredentialPack.
     public func addSdJwt(sdJwt: Vcdm2SdJwt) -> [ParsedCredential] {
-        credentials.append(ParsedCredential.newSdJwt(sdJwtVc: sdJwt, selectedFields: nil))
+        credentials.append(ParsedCredential.newSdJwt(sdJwtVc: sdJwt))
         return credentials
     }
 
     /// Add an Mdoc to the CredentialPack.
     public func addMDoc(mdoc: Mdoc) -> [ParsedCredential] {
-        credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc, selectedFields: nil))
+        credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc))
         return credentials
     }
 

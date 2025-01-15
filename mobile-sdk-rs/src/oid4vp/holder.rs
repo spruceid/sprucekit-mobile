@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use openid4vp::core::authorization_request::parameters::ClientIdScheme;
 use openid4vp::core::credential_format::{ClaimFormatDesignation, ClaimFormatPayload};
+use openid4vp::core::input_descriptor::ConstraintsLimitDisclosure;
 use openid4vp::core::presentation_definition::PresentationDefinition;
 use openid4vp::{
     core::{
@@ -248,6 +249,42 @@ impl Holder {
             .search_credentials_vs_presentation_definition(&mut presentation_definition)
             .await?;
 
+        // TODO: Add full support for limit_disclosure, probably this should be thrown at OID4VP
+        if presentation_definition
+            .input_descriptors()
+            .into_iter()
+            .any(|id| {
+                id.constraints
+                    .limit_disclosure()
+                    .is_some_and(|ld| matches!(ld, ConstraintsLimitDisclosure::Required))
+            })
+        {
+            log::debug!("Limit disclosure required for input descriptor.");
+
+            return Err(OID4VPError::LimitDisclosure(
+                "Limit disclosure required for input descriptor.".to_string(),
+            ));
+        }
+
+        let credentials = credentials
+            .into_iter()
+            .map(|c| {
+                Arc::new(PresentableCredential {
+                    inner: c.inner.clone(),
+                    limit_disclosure: presentation_definition.input_descriptors().iter().any(
+                        |descriptor| {
+                            !c.requested_fields(&presentation_definition).is_empty()
+                                && matches!(
+                                    descriptor.constraints.limit_disclosure(),
+                                    Some(ConstraintsLimitDisclosure::Required)
+                                )
+                        },
+                    ),
+                    selected_fields: None,
+                })
+            })
+            .collect::<Vec<_>>();
+
         Ok(PermissionRequest::new(
             presentation_definition.clone(),
             credentials.clone(),
@@ -408,7 +445,7 @@ pub(crate) mod tests {
     async fn test_companion_sd_jwt() -> Result<(), Box<dyn std::error::Error>> {
         let example_sd_jwt = include_str!("../../tests/examples/sd_vc.jwt");
         let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt(example_sd_jwt.into())?;
-        let credential = ParsedCredential::new_sd_jwt(sd_jwt, None);
+        let credential = ParsedCredential::new_sd_jwt(sd_jwt);
 
         let jwk = JWK::generate_p256();
         let key_signer = KeySigner { jwk };
@@ -429,7 +466,7 @@ pub(crate) mod tests {
 
         // Make a request to the OID4VP URL.
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(key_signer),
             None,
@@ -443,7 +480,7 @@ pub(crate) mod tests {
         assert_eq!(parsed_credentials.len(), 1);
 
         for credential in parsed_credentials.iter() {
-            let requested_fields = permission_request.requested_fields(&credential);
+            let requested_fields = permission_request.requested_fields(credential);
 
             assert!(requested_fields.len() > 0);
         }
@@ -452,11 +489,11 @@ pub(crate) mod tests {
         let response = permission_request
             .create_permission_response(
                 parsed_credentials,
-                permission_request
-                    .requested_fields(&credential)
+                vec![credential
+                    .requested_fields(&permission_request.definition)
                     .iter()
                     .map(|rf| rf.path())
-                    .collect(),
+                    .collect()],
             )
             .await?;
 
@@ -479,7 +516,7 @@ pub(crate) mod tests {
         )
         .expect("failed to create JSON VC credential");
 
-        let credential = ParsedCredential::new_ldp_vc(json_vc, None);
+        let credential = ParsedCredential::new_ldp_vc(json_vc);
 
         let mut context = HashMap::new();
 
@@ -493,7 +530,7 @@ pub(crate) mod tests {
         );
 
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             vec![],
             Box::new(key_signer),
             Some(context),
@@ -511,11 +548,11 @@ pub(crate) mod tests {
         let response = permission_request
             .create_permission_response(
                 credentials,
-                permission_request
-                    .requested_fields(&credential)
+                vec![credential
+                    .requested_fields(&permission_request.definition)
                     .iter()
                     .map(|rf| rf.path())
-                    .collect(),
+                    .collect()],
             )
             .await
             .expect("failed to create permission response");
@@ -535,11 +572,10 @@ pub(crate) mod tests {
         let mdl = ParsedCredential::new_jwt_vc_json_ld(
             JwtVc::new_from_compact_jws(include_str!("../../tests/examples/mdl.jwt").into())
                 .expect("failed to create mDL Jwt VC"),
-            None,
         );
 
         let holder = Holder::new_with_credentials(
-            vec![mdl],
+            vec![mdl.clone()],
             vec![],
             Box::new(key_signer),
             Some(vc_playground_context()),
@@ -553,11 +589,11 @@ pub(crate) mod tests {
         let response = permission_request
             .create_permission_response(
                 credentials,
-                permission_request
-                    .requested_fields(&credential)
+                vec![mdl
+                    .requested_fields(&permission_request.definition)
                     .iter()
                     .map(|rf| rf.path())
-                    .collect(),
+                    .collect()],
             )
             .await
             .expect("failed to create permission response");
@@ -577,7 +613,7 @@ pub(crate) mod tests {
         let alumni_vc = include_str!("../../tests/examples/alumni_vc.json");
         let json_vc = JsonVc::new_from_json(alumni_vc.into())?;
 
-        let credential = ParsedCredential::new_ldp_vc(json_vc, None);
+        let credential = ParsedCredential::new_ldp_vc(json_vc);
 
         let jwk = JWK::generate_p256();
         let key_signer = KeySigner { jwk };
@@ -598,7 +634,7 @@ pub(crate) mod tests {
 
         // Make a request to the OID4VP URL.
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(key_signer),
             None,
@@ -612,7 +648,7 @@ pub(crate) mod tests {
         assert_eq!(parsed_credentials.len(), 1);
 
         for credential in parsed_credentials.iter() {
-            let requested_fields = permission_request.requested_fields(&credential);
+            let requested_fields = permission_request.requested_fields(credential);
 
             assert!(requested_fields.len() > 0);
         }
@@ -621,11 +657,11 @@ pub(crate) mod tests {
         let response = permission_request
             .create_permission_response(
                 parsed_credentials,
-                permission_request
-                    .requested_fields(&credential)
+                vec![credential
+                    .requested_fields(&permission_request.definition)
                     .iter()
                     .map(|rf| rf.path())
-                    .collect(),
+                    .collect()],
             )
             .await?;
 
@@ -647,7 +683,7 @@ pub(crate) mod tests {
             include_str!("../../tests/examples/employment_authorization_document_vc.json");
         let json_vc = JsonVc::new_from_json(employment_auth_doc.into())?;
 
-        let credential = ParsedCredential::new_ldp_vc(json_vc, None);
+        let credential = ParsedCredential::new_ldp_vc(json_vc);
         let initiate_api = "http://localhost:3000/api/oid4vp/initiate";
 
         // Make a request to the OID4VP initiate API.
@@ -665,7 +701,7 @@ pub(crate) mod tests {
 
         // Make a request to the OID4VP URL.
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(signer),
             Some(vc_playground_context()),
@@ -688,11 +724,11 @@ pub(crate) mod tests {
         let response = permission_request
             .create_permission_response(
                 parsed_credentials,
-                permission_request
-                    .requested_fields(&credential)
+                vec![credential
+                    .requested_fields(&permission_request.definition)
                     .iter()
                     .map(|rf| rf.path())
-                    .collect(),
+                    .collect()],
             )
             .await?;
 

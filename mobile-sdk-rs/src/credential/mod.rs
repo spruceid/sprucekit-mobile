@@ -59,6 +59,12 @@ struct ParsedCredentialInput(Credential, Option<Vec<String>>);
 #[derive(Debug, Clone, uniffi::Object)]
 pub struct ParsedCredential {
     pub(crate) inner: ParsedCredentialInner,
+}
+/// A credential that has been parsed as a known variant.
+#[derive(Debug, Clone, uniffi::Object)]
+pub struct PresentableCredential {
+    pub(crate) inner: ParsedCredentialInner,
+    pub(crate) limit_disclosure: bool,
     pub(crate) selected_fields: Option<Vec<String>>,
 }
 
@@ -76,6 +82,28 @@ pub(crate) enum ParsedCredentialInner {
 }
 
 #[uniffi::export]
+impl PresentableCredential {
+    /// Converts to the primitive ParsedCredential type
+    pub fn as_parsed_credential(&self) -> Arc<ParsedCredential> {
+        Arc::new(ParsedCredential {
+            inner: self.inner.clone(),
+        })
+    }
+
+    /// Return if the credential supports selective disclosure
+    /// For now only SdJwts are supported
+    pub fn selective_disclosable(&self) -> bool {
+        match &self.inner {
+            ParsedCredentialInner::MsoMdoc(_) => false,
+            ParsedCredentialInner::JwtVcJson(_) => false,
+            ParsedCredentialInner::JwtVcJsonLd(_) => false,
+            ParsedCredentialInner::VCDM2SdJwt(_) => true,
+            ParsedCredentialInner::LdpVc(_) => false,
+        }
+    }
+}
+
+#[uniffi::export]
 impl ParsedCredential {
     #[uniffi::constructor]
     pub fn new_from_json(
@@ -89,53 +117,41 @@ impl ParsedCredential {
 
     #[uniffi::constructor]
     /// Construct a new `mso_mdoc` credential.
-    pub fn new_mso_mdoc(mdoc: Arc<Mdoc>, selected_fields: Option<Vec<String>>) -> Arc<Self> {
+    pub fn new_mso_mdoc(mdoc: Arc<Mdoc>) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::MsoMdoc(mdoc),
-            selected_fields,
         })
     }
 
     #[uniffi::constructor]
     /// Construct a new `jwt_vc_json` credential.
-    pub fn new_jwt_vc_json(jwt_vc: Arc<JwtVc>, selected_fields: Option<Vec<String>>) -> Arc<Self> {
+    pub fn new_jwt_vc_json(jwt_vc: Arc<JwtVc>) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::JwtVcJson(jwt_vc),
-            selected_fields,
         })
     }
 
     #[uniffi::constructor]
     /// Construct a new `jwt_vc_json-ld` credential.
-    pub fn new_jwt_vc_json_ld(
-        jwt_vc: Arc<JwtVc>,
-
-        selected_fields: Option<Vec<String>>,
-    ) -> Arc<Self> {
+    pub fn new_jwt_vc_json_ld(jwt_vc: Arc<JwtVc>) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::JwtVcJsonLd(jwt_vc),
-            selected_fields,
         })
     }
 
     #[uniffi::constructor]
     /// Construct a new `ldp_vc` credential.
-    pub fn new_ldp_vc(json_vc: Arc<JsonVc>, selected_fields: Option<Vec<String>>) -> Arc<Self> {
+    pub fn new_ldp_vc(json_vc: Arc<JsonVc>) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::LdpVc(json_vc),
-            selected_fields,
         })
     }
 
     #[uniffi::constructor]
     /// Construct a new `sd_jwt_vc` credential.
-    pub fn new_sd_jwt(
-        sd_jwt_vc: Arc<VCDM2SdJwt>,
-        selected_fields: Option<Vec<String>>,
-    ) -> Arc<Self> {
+    pub fn new_sd_jwt(sd_jwt_vc: Arc<VCDM2SdJwt>) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::VCDM2SdJwt(sd_jwt_vc),
-            selected_fields,
         })
     }
 
@@ -266,41 +282,7 @@ impl ParsedCredential {
     }
 }
 
-// Intneral Parsed Credential methods
-impl ParsedCredential {
-    /// Check if the credential satisfies a presentation definition.
-    pub fn satisfies_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
-        match &self.inner {
-            ParsedCredentialInner::JwtVcJson(vc) => {
-                vc.satisfies_presentation_definition(definition)
-            }
-            ParsedCredentialInner::JwtVcJsonLd(vc) => {
-                vc.satisfies_presentation_definition(definition)
-            }
-            ParsedCredentialInner::LdpVc(vc) => vc.satisfies_presentation_definition(definition),
-            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
-                sd_jwt.satisfies_presentation_definition(definition)
-            }
-            ParsedCredentialInner::MsoMdoc(_mdoc) => false,
-        }
-    }
-
-    /// Return the requested fields for the credential, accordinging to the presentation definition.
-    pub fn requested_fields(
-        &self,
-        definition: &PresentationDefinition,
-    ) -> Vec<Arc<RequestedField>> {
-        match &self.inner {
-            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => sd_jwt.requested_fields(definition),
-            ParsedCredentialInner::JwtVcJson(vc) => vc.requested_fields(definition),
-            ParsedCredentialInner::JwtVcJsonLd(vc) => vc.requested_fields(definition),
-            ParsedCredentialInner::LdpVc(vc) => vc.requested_fields(definition),
-            ParsedCredentialInner::MsoMdoc(_mdoc) => {
-                unimplemented!("Mdoc requested fields not implemented")
-            }
-        }
-    }
-
+impl PresentableCredential {
     /// Return a VP Token from the credential, given provided
     /// options for constructing the VP Token.
     pub async fn as_vp_token<'a>(
@@ -310,13 +292,13 @@ impl ParsedCredential {
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
                 sd_jwt
-                    .as_vp_token_item(options, self.selected_fields.clone())
+                    .as_vp_token_item(options, self.selected_fields.clone(), self.limit_disclosure)
                     .await
             }
             ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
-                vc.as_vp_token_item(options, None).await
+                vc.as_vp_token_item(options, None, false).await
             }
-            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options, None).await,
+            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options, None, false).await,
             _ => Err(CredentialEncodingError::VpToken(format!(
                 "Credential encoding for VP Token is not implemented for {:?}.",
                 self.inner,
@@ -351,6 +333,42 @@ impl ParsedCredential {
     }
 }
 
+// Internal Parsed Credential methods
+impl ParsedCredential {
+    /// Check if the credential satisfies a presentation definition.
+    pub fn satisfies_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
+        match &self.inner {
+            ParsedCredentialInner::JwtVcJson(vc) => {
+                vc.satisfies_presentation_definition(definition)
+            }
+            ParsedCredentialInner::JwtVcJsonLd(vc) => {
+                vc.satisfies_presentation_definition(definition)
+            }
+            ParsedCredentialInner::LdpVc(vc) => vc.satisfies_presentation_definition(definition),
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+                sd_jwt.satisfies_presentation_definition(definition)
+            }
+            ParsedCredentialInner::MsoMdoc(_mdoc) => false,
+        }
+    }
+
+    /// Return the requested fields for the credential, accordinging to the presentation definition.
+    pub fn requested_fields(
+        &self,
+        definition: &PresentationDefinition,
+    ) -> Vec<Arc<RequestedField>> {
+        match &self.inner {
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => sd_jwt.requested_fields(definition),
+            ParsedCredentialInner::JwtVcJson(vc) => vc.requested_fields(definition),
+            ParsedCredentialInner::JwtVcJsonLd(vc) => vc.requested_fields(definition),
+            ParsedCredentialInner::LdpVc(vc) => vc.requested_fields(definition),
+            ParsedCredentialInner::MsoMdoc(_mdoc) => {
+                unimplemented!("Mdoc requested fields not implemented")
+            }
+        }
+    }
+}
+
 impl BitStringStatusListResolver for ParsedCredential {
     fn status_list_entry(
         &self,
@@ -370,26 +388,17 @@ impl TryFrom<ParsedCredentialInput> for Arc<ParsedCredential> {
         ParsedCredentialInput(credential, selected_fields): ParsedCredentialInput,
     ) -> Result<Self, Self::Error> {
         match credential.format {
-            CredentialFormat::MsoMdoc => Ok(ParsedCredential::new_mso_mdoc(
-                credential.try_into()?,
-                selected_fields,
-            )),
-            CredentialFormat::JwtVcJson => Ok(ParsedCredential::new_jwt_vc_json(
-                credential.try_into()?,
-                selected_fields,
-            )),
-            CredentialFormat::JwtVcJsonLd => Ok(ParsedCredential::new_jwt_vc_json_ld(
-                credential.try_into()?,
-                selected_fields,
-            )),
-            CredentialFormat::VCDM2SdJwt => Ok(ParsedCredential::new_sd_jwt(
-                credential.try_into()?,
-                selected_fields,
-            )),
-            CredentialFormat::LdpVc => Ok(ParsedCredential::new_ldp_vc(
-                credential.try_into()?,
-                selected_fields,
-            )),
+            CredentialFormat::MsoMdoc => Ok(ParsedCredential::new_mso_mdoc(credential.try_into()?)),
+            CredentialFormat::JwtVcJson => {
+                Ok(ParsedCredential::new_jwt_vc_json(credential.try_into()?))
+            }
+            CredentialFormat::JwtVcJsonLd => {
+                Ok(ParsedCredential::new_jwt_vc_json_ld(credential.try_into()?))
+            }
+            CredentialFormat::VCDM2SdJwt => {
+                Ok(ParsedCredential::new_sd_jwt(credential.try_into()?))
+            }
+            CredentialFormat::LdpVc => Ok(ParsedCredential::new_ldp_vc(credential.try_into()?)),
             _ => Err(CredentialDecodingError::UnsupportedCredentialFormat(
                 credential.format.to_string(),
             )),

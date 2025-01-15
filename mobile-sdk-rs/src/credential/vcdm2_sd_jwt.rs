@@ -2,7 +2,7 @@ use super::{Credential, CredentialFormat, ParsedCredential, ParsedCredentialInne
 use crate::{
     oid4vp::{
         error::OID4VPError,
-        presentation::{CredentialPresentation, PresentationOptions},
+        presentation::{self, CredentialPresentation, PresentationOptions},
         RequestedField,
     },
     CredentialType, KeyAlias,
@@ -18,7 +18,6 @@ use openid4vp::{
     },
     JsonPath,
 };
-use serde::Serialize;
 use ssi::{
     claims::{
         jwt::AnyClaims,
@@ -142,152 +141,52 @@ impl CredentialPresentation for VCDM2SdJwt {
         &self,
         _options: &'a PresentationOptions<'a>,
         selected_fields: Option<Vec<String>>,
+        limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError> {
-        // TODO: need to provide the "filtered" (disclosed) fields of the
-        // credential to be encoded into the VpToken.
-        //
-        // Currently, this is encoding the entire revealed SD-JWT,
-        // without the selection of individual disclosed fields.
-        //
-        // We need to selectively disclosed fields.
-        // let input_descriptor_map = options.presentation_definition.input_descriptors_map();
-        // let requested_fields = self.requested_fields(&options.presentation_definition);
+        if limit_disclosure {
+            return Err(OID4VPError::LimitDisclosure(
+                "Limit disclosure is required but is not supported.".to_string(),
+            ));
+        }
 
-        // TODO: check if limit_disclosure is true somewhere and requires that
-        // selected_fields be non-empty
-        // requested_fields
-        //     .group_by(/*input_descriptor_id*/)
-        //     .map(/*input_descriptor.constraints.limit_disclosure*/)
-        //     .any(/*required*/) && selected_fields.is_none()
-        // if requested_fields
-        //     .into_iter()
-        //     .chunk_by(|rf| rf.input_descriptor_id.clone())
-        //     .into_iter()
-        //     .map(|(id, d)| {
-        //         if match input_descriptor_map[&id.as_str()]
-        //             .constraints
-        //             .limit_disclosure()
-        //         {
-        //             Some(ConstraintsLimitDisclosure::Required) => true,
-        //             _ => false,
-        //         } {
-        //             return d
-        //                 .into_iter()
-        //                 .any(|f| f.required && selected_fields.is_none());
-        //         }
-        //         false
-        //     })
-        //     .any(|e| e == true)
-        // {
-        //     return Err(OID4VPError::SelectiveDisclosureEmptySelection);
-        // }
-
-        // let disclosable_fields = inner_list_sd_fields(self)
-        //     .map_err(|_| OID4VPError::SelectiveDisclosureInvalidFields)?;
-
-        // let is_valid = if let Some(sfs) = selected_fields {
-        //     let sfs = sfs
-        //         .into_iter()
-        //         .map(|sf| JsonPointerBuf::new(sf))
-        //         .collect::<Result<Vec<_>, _>>()
-        //         .map_err(|_| OID4VPError::SelectiveDisclosureInvalidFields)?;
-
-        //     // TODO: use limit_disclosure in validation
-        //     // match input_descriptor.constraints.limit_disclosure() {
-        //     //     Some(ConstraintsLimitDisclosure::Required) => {}
-        //     //     Some(ConstraintsLimitDisclosure::Preferred) => {}
-        //     //     None => true,
-        //     // }
-        //     // When required, all selected fields must:
-        //     //  - match disclosable
-        //     //  - match requested
-        //     //    - if optional, refer to SD
-        //     //
-        //     // When preferred, all selected fields must:
-        //     //  - match disclosable
-        //     //
-        //     // Example:
-        //     //  - limit_disclosure = preferred:
-        //     //   - Entire credential _CAN_ be submitted
-        //     //   - SD credential _CAN_ be submitted
-        //     //
-        //     //  - limit_disclosure = required:
-        //     //   - Entire credential _CANNOT_ be submitted (only requested_fields)
-        //     //   - SD credential _CAN_ be submitted
-
-        //     // Iter over all selected fields
-        //     // sfs.iter().all(|sf| {
-        //     //     // TODO remove unwrap
-
-        //     //     //Parse selected_field JsonPath
-        //     //     let sfj =
-        //     //         JsonPath::parse(&format!("$.{}", &sf.as_str().split("/").join("."))).unwrap();
-
-        //     //     // Matches each selected field with available disclosable fields
-        //     //     disclosable_fields.iter().any(|df| df == sf.as_str())
-        //     //         // Checks if selected field is disclosable
-        //     //         && requested_fields.iter().any(|rf| {
-        //     //             let input_descriptor_id: String = rf.input_descriptor_id().to_owned();
-        //     //             let input_descriptor =
-        //     //                 input_descriptor_map.get(input_descriptor_id.as_str());
-        //     //             if let Some(input_descriptor) = input_descriptor {
-        //     //                 // Selected Field instance must match _SOME_ Requested Field
-        //     //                 input_descriptor
-        //     //                     .constraints
-        //     //                     .fields()
-        //     //                     .iter()
-        //     //                     .any(|cf| cf.path.iter().any(|p| *p == sfj))
-        //     //             } else {
-        //     //                 false
-        //     //             }
-        //     //         })
-        //     // })
-        //     true
-        // } else {
-        //     true
-        // };
-
-        // TODO: (limit_disclosure = Required) && selected_fields.is_none() => ERROR
-        // TODO: (limit_disclosure = None || Preferred) && selected_fields.is_none()
-        // selected_fields.into_iter().map(|sf| )
         let compact: &str = self.inner.as_ref();
-        let vp_token = if let Some(sfs) = selected_fields {
-            let json = self
-                .revealed_claims_as_json()
-                .map_err(|e| OID4VPError::JsonPathParse(e.to_string()))?;
+        let vp_token = if let Some(selected_fields) = selected_fields {
+            let json = self.revealed_claims_as_json().map_err(|e| {
+                OID4VPError::CredentialEncoding(super::CredentialEncodingError::SdJwt(e))
+            })?;
 
-            let sfs = sfs
+            let selected_fields_pointers = selected_fields
                 .into_iter()
-                .map(|sf| {
+                .map(|sfield| {
                     // TODO: Remove hotfix encoding and improve path usage
                     // SAFETY: encoded by client (sprucekit-mobile@holder)
-                    let path = sf.split("|").next().unwrap().to_owned();
+                    let path = sfield.split("|").next().unwrap().to_owned();
                     let path = match JsonPath::parse(&path) {
                         Ok(path) => path,
-                        // TODO: cleanup errors
-                        Err(e) => return Err(OID4VPError::Debug(e.to_string())),
+                        Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
                     };
-                    let ln = path.query_located(&json);
+                    let located_node = path.query_located(&json);
 
-                    if ln.is_empty() {
-                        // TODO: cleanup errors
-                        return Err(OID4VPError::Debug(
-                            "Unable to resolve JsonPath!".to_string(),
-                        ));
+                    if located_node.is_empty() {
+                        return Err(OID4VPError::JsonPathResolve(format!(
+                            "Unable to resolve JsonPath: {}",
+                            path.to_string()
+                        )));
                     } else {
                         // SAFETY: Empty check above
-                        JsonPointerBuf::new(ln.first().unwrap().location().to_json_pointer())
-                            .map_err(|e| OID4VPError::Debug(e.to_string()))
+                        JsonPointerBuf::new(
+                            located_node.first().unwrap().location().to_json_pointer(),
+                        )
+                        .map_err(|e| OID4VPError::JsonPathToPointer(e.to_string()))
                     }
                 })
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| OID4VPError::Debug(e.to_string()))?;
+                .collect::<Result<Vec<_>, _>>()?;
 
             let ret = self
                 .inner
                 .decode_reveal::<AnyClaims>()
                 .map_err(|e| OID4VPError::Debug(e.to_string()))?
-                .retaining(&sfs)
+                .retaining(&selected_fields_pointers)
                 .into_encoded()
                 .as_str()
                 .to_string();
@@ -323,7 +222,6 @@ impl From<VCDM2SdJwt> for ParsedCredential {
     fn from(value: VCDM2SdJwt) -> Self {
         ParsedCredential {
             inner: ParsedCredentialInner::VCDM2SdJwt(Arc::new(value)),
-            selected_fields: None,
         }
     }
 }
@@ -342,7 +240,7 @@ impl TryFrom<Arc<VCDM2SdJwt>> for Credential {
     type Error = SdJwtError;
 
     fn try_from(value: Arc<VCDM2SdJwt>) -> Result<Self, Self::Error> {
-        ParsedCredential::new_sd_jwt(value, None)
+        ParsedCredential::new_sd_jwt(value)
             .into_generic_form()
             .map_err(|e| SdJwtError::CredentialEncoding(format!("{e:?}")))
     }
@@ -408,14 +306,11 @@ fn inner_list_sd_fields(input: &VCDM2SdJwt) -> Result<Vec<String>, SdJwtError> {
     Ok(revealed_sd_jwt
         .disclosures
         .iter()
-        .map(|(p, d)| {
-            match &d.desc {
-                ssi::claims::sd_jwt::DisclosureDescription::ObjectEntry { key: _, value: _ } => {
-                    p.to_string()
-                }
-                // TODO(w4ll3): idk
-                ssi::claims::sd_jwt::DisclosureDescription::ArrayItem(_) => p.to_string(),
+        .map(|(p, d)| match &d.desc {
+            ssi::claims::sd_jwt::DisclosureDescription::ObjectEntry { key: _, value: _ } => {
+                p.to_string()
             }
+            ssi::claims::sd_jwt::DisclosureDescription::ArrayItem(_) => p.to_string(),
         })
         .collect())
 }

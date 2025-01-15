@@ -85,8 +85,8 @@ struct HandleOID4VPView: View {
     @State private var holder: Holder?
     @State private var permissionRequest: PermissionRequest?
     @State private var permissionResponse: PermissionResponse?
-    @State private var lSelectedCredentials: [ParsedCredential]?
-    @State private var selectedCredential: ParsedCredential?
+    @State private var lSelectedCredentials: [PresentableCredential]?
+    @State private var selectedCredential: PresentableCredential?
     @State private var credentialClaims: [String: [String: GenericJSON]] = [:]
     @State private var credentialPacks: [CredentialPack] = []
 
@@ -176,20 +176,10 @@ struct HandleOID4VPView: View {
                         credential: credential)
                 },
                 onContinue: { selectedCredentials in
-                    Task {
-                        do {
-                            lSelectedCredentials = selectedCredentials
-                            selectedCredential =
-                                selectedCredentials.first
-                            state = .selectiveDisclosure
-                        } catch {
-                            err = OID4VPError(
-                                title: "No matching credential(s)",
-                                details: error.localizedDescription
-                            )
-                            state = .err
-                        }
-                    }
+                    lSelectedCredentials = selectedCredentials
+                    selectedCredential =
+                        selectedCredentials.first
+                    state = .selectiveDisclosure
                 },
                 onCancel: back
             )
@@ -197,6 +187,7 @@ struct HandleOID4VPView: View {
             DataFieldSelector(
                 requestedFields: permissionRequest!.requestedFields(
                     credential: selectedCredential!),
+                selectedCredential: selectedCredential!,
                 onContinue: { selectedFields in
                     Task {
                         do {
@@ -211,8 +202,8 @@ struct HandleOID4VPView: View {
                                 where: {
                                     credentialPack in
                                     return credentialPack.get(
-                                        credentialId: selectedCredential?
-                                            .id() ?? "") != nil
+                                        credentialId: selectedCredential!.asParsedCredential()
+                                            .id()) != nil
                                 })!
                             let credentialInfo =
                                 getCredentialIdTitleAndIssuer(
@@ -253,6 +244,7 @@ struct HandleOID4VPView: View {
 
 struct DataFieldSelector: View {
     let requestedFields: [RequestedField]
+    let selectedCredential: PresentableCredential
     let onContinue: ([[String]]) -> Void
     let onCancel: () -> Void
 
@@ -261,6 +253,7 @@ struct DataFieldSelector: View {
 
     init(
         requestedFields: [RequestedField],
+        selectedCredential: PresentableCredential,
         onContinue: @escaping ([[String]]) -> Void,
         onCancel: @escaping () -> Void
     ) {
@@ -272,6 +265,7 @@ struct DataFieldSelector: View {
             .filter { $0.required() }
             .map { $0.path() }
         self.selectedFields = self.requiredFields
+        self.selectedCredential = selectedCredential
     }
 
     func toggleBinding(for field: RequestedField) -> Binding<Bool> {
@@ -279,7 +273,7 @@ struct DataFieldSelector: View {
             selectedFields.contains(where: { $0 == field.path() })
         } set: { _ in
             // TODO: update when allowing multiple
-            if field.selectiveDisclosable() {
+            if selectedCredential.selectiveDisclosable() && field.required() {
                 if selectedFields.contains(field.path()) {
                     selectedFields.removeAll(where: { $0 == field.path() })
                 } else {
@@ -305,7 +299,7 @@ struct DataFieldSelector: View {
                 ForEach(requestedFields, id: \.self) { field in
                     SelectiveDisclosureItem(
                         field: field,
-                        required: !field.selectiveDisclosable(),
+                        required: !field.required(),
                         isChecked: toggleBinding(for: field)
                     )
                 }
@@ -368,18 +362,18 @@ struct SelectiveDisclosureItem: View {
 }
 
 struct CredentialSelector: View {
-    let credentials: [ParsedCredential]
+    let credentials: [PresentableCredential]
     let credentialClaims: [String: [String: GenericJSON]]
-    let getRequestedFields: (ParsedCredential) -> [RequestedField]
-    let onContinue: ([ParsedCredential]) -> Void
+    let getRequestedFields: (PresentableCredential) -> [RequestedField]
+    let onContinue: ([PresentableCredential]) -> Void
     let onCancel: () -> Void
     var allowMultiple: Bool = false
 
-    @State private var selectedCredentials: [ParsedCredential] = []
+    @State private var selectedCredentials: [PresentableCredential] = []
 
-    func selectCredential(credential: ParsedCredential) {
-        if selectedCredentials.contains(where: { $0.id() == credential.id() }) {
-            selectedCredentials.removeAll(where: { $0.id() == credential.id() })
+    func selectCredential(credential: PresentableCredential) {
+        if selectedCredentials.contains(where: { $0.asParsedCredential().id() == credential.asParsedCredential().id() }) {
+            selectedCredentials.removeAll(where: { $0.asParsedCredential().id() == credential.asParsedCredential().id() })
         } else {
             if allowMultiple {
                 selectedCredentials.append(credential)
@@ -390,10 +384,10 @@ struct CredentialSelector: View {
         }
     }
 
-    func getCredentialTitle(credential: ParsedCredential) -> String {
-        if let name = credentialClaims[credential.id()]?["name"]?.toString() {
+    func getCredentialTitle(credential: PresentableCredential) -> String {
+        if let name = credentialClaims[credential.asParsedCredential().id()]?["name"]?.toString() {
             return name
-        } else if let types = credentialClaims[credential.id()]?["type"]?
+        } else if let types = credentialClaims[credential.asParsedCredential().id()]?["type"]?
             .arrayValue
         {
             var title = ""
@@ -409,9 +403,9 @@ struct CredentialSelector: View {
         }
     }
 
-    func toggleBinding(for credential: ParsedCredential) -> Binding<Bool> {
+    func toggleBinding(for credential: PresentableCredential) -> Binding<Bool> {
         Binding {
-            selectedCredentials.contains(where: { $0.id() == credential.id() })
+            selectedCredentials.contains(where: { $0.asParsedCredential().id() == credential.asParsedCredential().id() })
         } set: { _ in
             // TODO: update when allowing multiple
             selectCredential(credential: credential)
@@ -484,17 +478,17 @@ struct CredentialSelector: View {
 }
 
 struct CredentialSelectorItem: View {
-    let credential: ParsedCredential
+    let credential: PresentableCredential
     let requestedFields: [String]
-    let getCredentialTitle: (ParsedCredential) -> String
+    let getCredentialTitle: (PresentableCredential) -> String
     @Binding var isChecked: Bool
 
     @State var expanded = false
 
     init(
-        credential: ParsedCredential,
+        credential: PresentableCredential,
         requestedFields: [RequestedField],
-        getCredentialTitle: @escaping (ParsedCredential) -> String,
+        getCredentialTitle: @escaping (PresentableCredential) -> String,
         isChecked: Binding<Bool>
     ) {
         self.credential = credential

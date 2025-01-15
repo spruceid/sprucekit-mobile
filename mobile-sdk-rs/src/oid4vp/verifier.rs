@@ -153,12 +153,12 @@ mod tests {
         let example_sd_jwt = include_str!("../../tests/examples/sd_vc.jwt");
         let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt(example_sd_jwt.into())
             .expect("failed to parse sd_jwt");
-        let credential = ParsedCredential::new_sd_jwt(sd_jwt, None);
+        let credential = ParsedCredential::new_sd_jwt(sd_jwt);
 
         let trusted_dids = vec!["did:web:localhost%3A3003:colofwd_signer_service".to_string()];
 
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             trusted_dids,
             Box::new(key_signer),
             None,
@@ -176,7 +176,14 @@ mod tests {
             .expect("authorization request failed");
 
         let response = request
-            .create_permission_response(request.credentials())
+            .create_permission_response(
+                request.credentials(),
+                vec![credential
+                    .requested_fields(&request.definition)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect()],
+            )
             .await
             .expect("failed to create permission response");
 

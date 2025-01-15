@@ -1,7 +1,7 @@
 use super::error::OID4VPError;
 use super::presentation::{PresentationError, PresentationOptions, PresentationSigner};
 use crate::common::*;
-use crate::credential::{Credential, ParsedCredential};
+use crate::credential::{Credential, ParsedCredential, PresentableCredential};
 
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -63,6 +63,9 @@ pub enum PermissionRequestError {
     #[error("Invalid Verification Method Identifier: {0}")]
     VerificationMethod(String),
 
+    #[error("limit_disclosure required")]
+    LimitDisclosure,
+
     #[error(transparent)]
     Presentation(#[from] PresentationError),
 }
@@ -75,7 +78,6 @@ pub struct RequestedField {
     pub(crate) path: String,
     pub(crate) required: bool,
     pub(crate) retained: bool,
-    pub(crate) selective_disclosable: bool,
     pub(crate) purpose: Option<String>,
     pub(crate) input_descriptor_id: String,
     // the `raw_field` represents the actual field
@@ -92,7 +94,6 @@ impl From<openid4vp::core::input_descriptor::RequestedField<'_>> for RequestedFi
             path: value.path,
             required: value.required,
             retained: value.retained,
-            selective_disclosable: value.selective_disclosable,
             purpose: value.purpose,
             input_descriptor_id: value.input_descriptor_id,
             raw_fields: value
@@ -139,11 +140,6 @@ impl RequestedField {
         self.retained
     }
 
-    /// Return the field selective disclosable status
-    pub fn selective_disclosable(&self) -> bool {
-        self.selective_disclosable
-    }
-
     /// Return the purpose of the requested field.
     pub fn purpose(&self) -> Option<String> {
         self.purpose.clone()
@@ -161,7 +157,7 @@ impl RequestedField {
 #[derive(Debug, Clone, uniffi::Object)]
 pub struct PermissionRequest {
     pub(crate) definition: PresentationDefinition,
-    pub(crate) credentials: Vec<Arc<ParsedCredential>>,
+    pub(crate) credentials: Vec<Arc<PresentableCredential>>,
     pub(crate) request: AuthorizationRequestObject,
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
     pub(crate) context_map: Option<HashMap<String, String>>,
@@ -170,7 +166,7 @@ pub struct PermissionRequest {
 impl PermissionRequest {
     pub fn new(
         definition: PresentationDefinition,
-        credentials: Vec<Arc<ParsedCredential>>,
+        credentials: Vec<Arc<PresentableCredential>>,
         request: AuthorizationRequestObject,
         signer: Arc<Box<dyn PresentationSigner>>,
         context_map: Option<HashMap<String, String>>,
@@ -189,21 +185,27 @@ impl PermissionRequest {
 impl PermissionRequest {
     /// Return the filtered list of credentials that matched
     /// the presentation definition.
-    pub fn credentials(&self) -> Vec<Arc<ParsedCredential>> {
+    pub fn credentials(&self) -> Vec<Arc<PresentableCredential>> {
         self.credentials.clone()
     }
 
     /// Return the requested fields for a given credential.
     ///
     /// NOTE: This will return only the requested fields for a given credential.
-    pub fn requested_fields(&self, credential: &Arc<ParsedCredential>) -> Vec<Arc<RequestedField>> {
-        credential.requested_fields(&self.definition)
+    pub fn requested_fields(
+        &self,
+        credential: &Arc<PresentableCredential>,
+    ) -> Vec<Arc<RequestedField>> {
+        ParsedCredential {
+            inner: credential.inner.clone(),
+        }
+        .requested_fields(&self.definition)
     }
 
     /// Construct a new permission response for the given credential.
     pub async fn create_permission_response(
         &self,
-        selected_credentials: Vec<Arc<ParsedCredential>>,
+        selected_credentials: Vec<Arc<PresentableCredential>>,
         selected_fields: Vec<Vec<String>>,
     ) -> Result<Arc<PermissionResponse>, OID4VPError> {
         log::debug!("Creating Permission Response");
@@ -230,13 +232,18 @@ impl PermissionRequest {
             .iter()
             .zip(selected_fields)
             .map(|(sc, sf)| {
-                ParsedCredential {
+                // If limit disclosure is `required` drop connection
+                if sc.limit_disclosure {
+                    return Err(PermissionRequestError::LimitDisclosure);
+                }
+                Ok(PresentableCredential {
                     inner: sc.inner.clone(),
+                    limit_disclosure: sc.limit_disclosure,
                     selected_fields: Some(sf),
                 }
-                .into()
+                .into())
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, _>>()?;
 
         // Set options for constructing a verifiable presentation.
         let options = PresentationOptions::new(
@@ -278,7 +285,7 @@ impl PermissionRequest {
 pub struct PermissionResponse {
     // TODO: provide an optional internal mapping of `JsonPointer`s
     // for selective disclosure that are selected as part of the requested fields.
-    pub selected_credentials: Vec<Arc<ParsedCredential>>,
+    pub selected_credentials: Vec<Arc<PresentableCredential>>,
     pub presentation_definition: PresentationDefinition,
     pub authorization_request: AuthorizationRequestObject,
     pub vp_token: VpToken,
@@ -287,7 +294,7 @@ pub struct PermissionResponse {
 #[uniffi::export]
 impl PermissionResponse {
     /// Return the selected credentials for the permission response.
-    pub fn selected_credentials(&self) -> Vec<Arc<ParsedCredential>> {
+    pub fn selected_credentials(&self) -> Vec<Arc<PresentableCredential>> {
         self.selected_credentials.clone()
     }
 }

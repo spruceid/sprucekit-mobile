@@ -50,6 +50,7 @@ import com.spruceid.mobile.sdk.rs.Holder
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PermissionRequest
 import com.spruceid.mobile.sdk.rs.PermissionResponse
+import com.spruceid.mobile.sdk.rs.PresentableCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.RequestedField
 import com.spruceid.mobilesdkexample.ErrorView
@@ -155,8 +156,8 @@ fun HandleOID4VPView(
     var holder by remember { mutableStateOf<Holder?>(null) }
     var permissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
     var permissionResponse by remember { mutableStateOf<PermissionResponse?>(null) }
-    var selectedCredential by remember { mutableStateOf<ParsedCredential?>(null) }
-    var lSelectedCredentials = remember { mutableStateOf<List<ParsedCredential>>(listOf()) }
+    var selectedCredential by remember { mutableStateOf<PresentableCredential?>(null) }
+    var lSelectedCredentials = remember { mutableStateOf<List<PresentableCredential>>(listOf()) }
     var state by remember { mutableStateOf(OID4VPState.None) }
     var error by remember { mutableStateOf<OID4VPError?>(null) }
     val ctx = LocalContext.current
@@ -257,7 +258,7 @@ fun HandleOID4VPView(
                         holder!!.submitPermissionResponse(permissionResponse!!)
                         val credentialPack =
                             credentialPacks.value.firstOrNull { credentialPack ->
-                                credentialPack.getCredentialById(selectedCredential!!.id()) != null
+                                credentialPack.getCredentialById(selectedCredential!!.asParsedCredential().id()) != null
                             }!!
                         val credentialInfo =
                             getCredentialIdTitleAndIssuer(credentialPack)
@@ -281,7 +282,8 @@ fun HandleOID4VPView(
                     }
                 }
             },
-            onCancel = { onBack() }
+            onCancel = { onBack() },
+            selectedCredential = selectedCredential!!
         )
 
         OID4VPState.Loading ->
@@ -291,6 +293,7 @@ fun HandleOID4VPView(
 
 @Composable
 fun DataFieldSelector(
+    selectedCredential: PresentableCredential,
     requestedFields: List<RequestedField>,
     onContinue: (selectedFields: List<List<String>>) -> Unit,
     onCancel: () -> Unit
@@ -331,7 +334,7 @@ fun DataFieldSelector(
             requestedFields.forEach {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(
-                        enabled = it.selectiveDisclosable(),
+                        enabled = selectedCredential.selectiveDisclosable() && !it.required(),
                         checked = selectedFields.contains(it.path()) || it.required(),
                         onCheckedChange = { v ->
                             selectedFields = if (!v) {
@@ -413,16 +416,16 @@ fun DataFieldSelector(
 
 @Composable
 fun CredentialSelector(
-    credentials: List<ParsedCredential>,
+    credentials: List<PresentableCredential>,
     credentialClaims: Map<String, JSONObject>,
-    getRequestedFields: (ParsedCredential) -> List<RequestedField>,
-    onContinue: (List<ParsedCredential>) -> Unit,
+    getRequestedFields: (PresentableCredential) -> List<RequestedField>,
+    onContinue: (List<PresentableCredential>) -> Unit,
     onCancel: () -> Unit,
     allowMultiple: Boolean = false
 ) {
-    val selectedCredentials = remember { mutableStateListOf<ParsedCredential>() }
+    val selectedCredentials = remember { mutableStateListOf<PresentableCredential>() }
 
-    fun selectCredential(credential: ParsedCredential) {
+    fun selectCredential(credential: PresentableCredential) {
         if (allowMultiple) {
             selectedCredentials.add(credential)
         } else {
@@ -431,20 +434,20 @@ fun CredentialSelector(
         }
     }
 
-    fun removeCredential(credential: ParsedCredential) {
+    fun removeCredential(credential: PresentableCredential) {
         selectedCredentials.remove(credential)
     }
 
-    fun getCredentialTitle(credential: ParsedCredential): String {
+    fun getCredentialTitle(credential: PresentableCredential): String {
         try {
-            credentialClaims[credential.id()]?.getString("name").let {
+            credentialClaims[credential.asParsedCredential().id()]?.getString("name").let {
                 return it.toString()
             }
         } catch (_: Exception) {
         }
 
         try {
-            credentialClaims[credential.id()]?.getJSONArray("type").let {
+            credentialClaims[credential.asParsedCredential().id()]?.getJSONArray("type").let {
                 for (i in 0 until it!!.length()) {
                     if (it.get(i).toString() != "VerifiableCredential") {
                         return it.get(i).toString()
@@ -585,12 +588,12 @@ fun CredentialSelector(
 
 @Composable
 fun CredentialSelectorItem(
-    credential: ParsedCredential,
+    credential: PresentableCredential,
     requestedFields: List<RequestedField>,
-    getCredentialTitle: (ParsedCredential) -> String,
+    getCredentialTitle: (PresentableCredential) -> String,
     isChecked: Boolean,
-    selectCredential: (ParsedCredential) -> Unit,
-    removeCredential: (ParsedCredential) -> Unit
+    selectCredential: (PresentableCredential) -> Unit,
+    removeCredential: (PresentableCredential) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 

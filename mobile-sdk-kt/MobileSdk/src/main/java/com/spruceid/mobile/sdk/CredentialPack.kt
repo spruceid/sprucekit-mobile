@@ -78,7 +78,7 @@ class CredentialPack {
      * Add a JwtVc to the CredentialPack.
      */
     fun addJwtVc(jwtVc: JwtVc): List<ParsedCredential> {
-        credentials.add(ParsedCredential.newJwtVcJson(jwtVc, null))
+        credentials.add(ParsedCredential.newJwtVcJson(jwtVc))
         return credentials
     }
 
@@ -86,7 +86,7 @@ class CredentialPack {
      * Add a JsonVc to the CredentialPack.
      */
     fun addJsonVc(jsonVc: JsonVc): List<ParsedCredential> {
-        credentials.add(ParsedCredential.newLdpVc(jsonVc, null))
+        credentials.add(ParsedCredential.newLdpVc(jsonVc))
         return credentials
     }
 
@@ -94,7 +94,7 @@ class CredentialPack {
      * Add an Mdoc to the CredentialPack.
      */
     fun addMdoc(mdoc: Mdoc): List<ParsedCredential> {
-        credentials.add(ParsedCredential.newMsoMdoc(mdoc, null))
+        credentials.add(ParsedCredential.newMsoMdoc(mdoc))
         return credentials
     }
 
@@ -102,7 +102,7 @@ class CredentialPack {
      * Add a SD-JWT to the CredentialPack.
      */
     fun addSdJwt(sdJwt: Vcdm2SdJwt): List<ParsedCredential> {
-        credentials.add(ParsedCredential.newSdJwt(sdJwt, null))
+        credentials.add(ParsedCredential.newSdJwt(sdJwt))
         return credentials
     }
 
