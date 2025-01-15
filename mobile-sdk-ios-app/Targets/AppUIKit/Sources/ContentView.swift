@@ -25,6 +25,12 @@ public struct ContentView: View {
             HandleOID4VP(url: url.absoluteString)
         )
     }
+  
+  func handleOid4vciUrl(url: URL) {
+      self.path.append(
+          HandleOID4VCI(url: url.absoluteString)
+      )
+  }
     
     public var body: some View {
         ZStack {
@@ -102,6 +108,8 @@ public struct ContentView: View {
                 handleSpruceIDUrl(url: url)
             case "openid4vp":
                 handleOid4vpUrl(url: url)
+            case "openid-credential-offer":
+              handleOid4vciUrl(url: url)
             default:
                 return
             }
