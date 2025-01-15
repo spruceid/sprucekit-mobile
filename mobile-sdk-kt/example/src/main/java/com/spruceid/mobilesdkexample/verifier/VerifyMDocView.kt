@@ -127,6 +127,8 @@ fun VerifyMDocView(
                     issuer = getDiscriminant(
                         result!!["org.iso.18013.5.1"]?.get("issuing_authority")!!
                     ),
+                    // TODO: Update here to log the real status
+                    status = "VALID",
                     verificationDateTime = getCurrentSqlDate(),
                     additionalInformation = ""
                 )

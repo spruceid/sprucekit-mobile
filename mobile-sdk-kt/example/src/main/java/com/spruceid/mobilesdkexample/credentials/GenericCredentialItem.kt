@@ -62,8 +62,12 @@ class GenericCredentialItem : ICredentialView {
         credentialPack: CredentialPack,
         statusListViewModel: StatusListViewModel,
         onDelete: (() -> Unit)? = null,
-        onExport: ((String) -> Unit)? = null
+        onExport: ((String) -> Unit)? = null,
+        fetchStatus: Boolean = false
     ) {
+        if (fetchStatus) {
+            statusListViewModel.fetchStatusSync(credentialPack)
+        }
         this.credentialPack = credentialPack
         this.onDelete = onDelete
         this.onExport = onExport
@@ -74,9 +78,13 @@ class GenericCredentialItem : ICredentialView {
         rawCredential: String,
         statusListViewModel: StatusListViewModel,
         onDelete: (() -> Unit)? = null,
-        onExport: ((String) -> Unit)? = null
+        onExport: ((String) -> Unit)? = null,
+        fetchStatus: Boolean = false
     ) {
         this.credentialPack = addCredential(CredentialPack(), rawCredential)
+        if (fetchStatus) {
+            statusListViewModel.fetchStatusSync(credentialPack)
+        }
         this.onDelete = onDelete
         this.onExport = onExport
         this.statusListViewModel = statusListViewModel
@@ -415,7 +423,7 @@ class GenericCredentialItem : ICredentialView {
                                     "proof",
                                     "renderMethod",
                                     "@context",
-//                                    "credentialStatus"
+                                    "credentialStatus"
                                 )
                             )
                         }

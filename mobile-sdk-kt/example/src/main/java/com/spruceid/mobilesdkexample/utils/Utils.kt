@@ -127,7 +127,8 @@ fun credentialDisplaySelector(
     rawCredential: String,
     statusListViewModel: StatusListViewModel,
     onDelete: (() -> Unit)?,
-    onExport: ((String) -> Unit)?
+    onExport: ((String) -> Unit)?,
+    fetchStatus: Boolean = false
 ): ICredentialView {
     /* This is temporarily commented on until we define the specific AchievementCredentialItem design */
 //        try {
@@ -136,7 +137,13 @@ fun credentialDisplaySelector(
 //                credentialPack.addSdJwt(Vcdm2SdJwt.newFromCompactSdJwt(rawCredential))
 //                return AchievementCredentialItem(credentialPack, onDelete)
 //        } catch (_: Exception) {
-    return GenericCredentialItem(rawCredential, statusListViewModel, onDelete, onExport)
+    return GenericCredentialItem(
+        rawCredential,
+        statusListViewModel,
+        onDelete,
+        onExport,
+        fetchStatus
+    )
 //        }
 }
 

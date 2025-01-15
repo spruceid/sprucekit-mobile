@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RawCredentials::class,
         VerificationMethods::class
     ],
-    version = 5
+    version = 6
 )
 @TypeConverters(*[DateConverter::class])
 abstract class AppDatabase : RoomDatabase() {
@@ -39,6 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
                         .addMigrations(MIGRATION_2_3)
                         .addMigrations(MIGRATION_3_4)
                         .addMigrations(MIGRATION_4_5)
+                        .addMigrations(MIGRATION_5_6)
                         .allowMainThreadQueries()
                         .build()
                 dbInstance = instance
@@ -91,6 +92,15 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
                     "`dateTime` INTEGER NOT NULL, " +
                     "`additionalInformation` TEXT NOT NULL, " +
                     "PRIMARY KEY(`id`))"
+        )
+    }
+}
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "ALTER TABLE `verification_activity_logs` " +
+                    "ADD COLUMN `status` TEXT NOT NULL DEFAULT 'UNDEFINED'"
         )
     }
 }
