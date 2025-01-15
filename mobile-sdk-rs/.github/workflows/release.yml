@@ -56,7 +56,8 @@ jobs:
     
     - name: Update Swift Package definition
       run: |
-        sed -i '' 's/.binaryTarget.*/.binaryTarget(name: "RustFramework", url: "https:\/\/github.com\/spruceid\/mobile-sdk-rs\/releases\/download\/${{ github.event.inputs.version }}\/RustFramework.xcframework.zip", checksum: "${{ env.XCF_CHECKSUM }}"),/' Package.swift
+        sed -i '' 's/"https.*/"https:\/\/github.com\/spruceid\/mobile-sdk-rs\/releases\/download\/${{ github.event.inputs.version }}\/RustFramework.xcframework.zip",/' Package.swift
+        sed -i '' 's/checksum.*/checksum: "${{ env.XCF_CHECKSUM }}"),/' Package.swift
     - name: Update Cocoapods definitions
       run: |
         sed -i '' -r 's/[0-9]+.[0-9]+.[0-9]+/${{ github.event.inputs.version }}/' SpruceIDMobileSdkRsRustFramework.podspec
