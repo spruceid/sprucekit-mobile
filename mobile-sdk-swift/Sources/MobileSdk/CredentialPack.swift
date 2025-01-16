@@ -85,7 +85,27 @@ public class CredentialPack {
                         } else {
                             res[credentialId] = CredentialStatusList.valid
                         }
-                    } catch {}
+                    } catch {
+                        res[credentialId] = CredentialStatusList.undefined}
+                } else {
+                    res[credentialId] = CredentialStatusList.unknown
+                }
+            } else if let cred = credential.asSdJwt() {
+                if hasConnection {
+                    do {
+                        let status = try await cred.status()
+                        res[credentialId] = CredentialStatusList.valid
+                        for credentialStatus in status {
+                            if credentialStatus.isRevoked() {
+                                res[credentialId] = CredentialStatusList.revoked
+                                break
+                            } else if credentialStatus.isSuspended() {
+                                res[credentialId] = CredentialStatusList.suspended
+                            }
+                        }
+                    } catch {
+                        res[credentialId] = CredentialStatusList.undefined
+                    }
                 } else {
                     res[credentialId] = CredentialStatusList.unknown
                 }
@@ -385,17 +405,21 @@ enum CredentialPackError: Error {
     case credentialParsing(reason: String)
 }
 
-public enum CredentialStatusList {
+public enum CredentialStatusList: String {
+    init?(from string: String) {
+        self.init(rawValue: string.uppercased())
+    }
+    
     /// Valid credential
-    case valid
+    case valid = "VALID"
     /// Credential revoked
-    case revoked
+    case revoked = "REVOKED"
     /// Credential suspended
-    case suspended
+    case suspended = "SUSPENDED"
     /// No connection
-    case unknown
+    case unknown = "UNKNOWN"
     /// Invalid credential
-    case invalid
+    case invalid = "INVALID"
     /// Credential doesn't have status list
-    case undefined
+    case undefined = "UNDEFINED"
 }

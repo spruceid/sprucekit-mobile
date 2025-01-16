@@ -44,6 +44,7 @@ struct VerifyEAView: View {
                                     _ = VerificationActivityLogDataStore.shared.insert(
                                         credentialTitle: "Employment Authorization",
                                         issuer: "State of Utopia",
+                                        status: "VALID",
                                         verificationDateTime: Date(),
                                         additionalInformation: ""
                                     )
