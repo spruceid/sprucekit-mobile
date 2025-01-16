@@ -70,7 +70,6 @@ impl Mdoc {
         cbor_encoded_document: Vec<u8>,
         key_alias: KeyAlias,
     ) -> Result<Arc<Self>, MdocInitError> {
-        println!("{}", hex::encode(&cbor_encoded_document));
         let inner = isomdl::cbor::from_slice(&cbor_encoded_document)
             .map_err(|e| MdocInitError::DocumentCborDecoding(e.to_string()))?;
         Ok(Arc::new(Self { inner, key_alias }))
