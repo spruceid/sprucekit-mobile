@@ -32,14 +32,14 @@ class CredentialPacksViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    fun saveCredentialPack(credentialPack: CredentialPack) {
+    suspend fun saveCredentialPack(credentialPack: CredentialPack) {
         credentialPack.save(storageManager)
         val tmpCredentialPacksList = _credentialPacks.value.toMutableStateList()
         tmpCredentialPacksList.add(credentialPack)
         _credentialPacks.value = tmpCredentialPacksList
     }
 
-    fun deleteAllCredentialPacks(onDeleteCredentialPack: ((CredentialPack) -> Unit)? = null) {
+    suspend fun deleteAllCredentialPacks(onDeleteCredentialPack: (suspend (CredentialPack) -> Unit)? = null) {
         _credentialPacks.value.forEach { credentialPack ->
             credentialPack.remove(storageManager)
             onDeleteCredentialPack?.invoke(credentialPack)
@@ -47,7 +47,7 @@ class CredentialPacksViewModel(application: Application) : AndroidViewModel(appl
         _credentialPacks.value = emptyList()
     }
 
-    fun deleteCredentialPack(credentialPack: CredentialPack) {
+    suspend fun deleteCredentialPack(credentialPack: CredentialPack) {
         credentialPack.remove(storageManager)
         val tmpCredentialPacksList = _credentialPacks.value.toMutableStateList()
         tmpCredentialPacksList.remove(credentialPack)

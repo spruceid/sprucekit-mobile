@@ -46,9 +46,18 @@ jobs:
       run: |
         zip -9 -r RustFramework.xcframework.zip MobileSdkRs/RustFramework.xcframework
         echo "XCF_CHECKSUM=`swift package compute-checksum RustFramework.xcframework.zip`" >> $GITHUB_ENV
+    
+    - name: Git fetch and merge
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git fetch origin
+        git merge origin/main
+    
     - name: Update Swift Package definition
       run: |
-        sed -i '' 's/.binaryTarget.*/.binaryTarget(name: "RustFramework", url: "https:\/\/github.com\/spruceid\/mobile-sdk-rs\/releases\/download\/${{ github.event.inputs.version }}\/RustFramework.xcframework.zip", checksum: "${{ env.XCF_CHECKSUM }}"),/' Package.swift
+        sed -i '' 's/"https.*/"https:\/\/github.com\/spruceid\/mobile-sdk-rs\/releases\/download\/${{ github.event.inputs.version }}\/RustFramework.xcframework.zip",/' Package.swift
+        sed -i '' 's/checksum.*/checksum: "${{ env.XCF_CHECKSUM }}"),/' Package.swift
     - name: Update Cocoapods definitions
       run: |
         sed -i '' -r 's/[0-9]+.[0-9]+.[0-9]+/${{ github.event.inputs.version }}/' SpruceIDMobileSdkRsRustFramework.podspec
@@ -58,8 +67,6 @@ jobs:
       run: |
         git config user.name github-actions
         git config user.email github-actions@github.com
-        git fetch origin
-        git merge origin/main
         git add Package.swift SpruceIDMobileSdkRs.podspec SpruceIDMobileSdkRsRustFramework.podspec
         git commit -m "Release ${{ github.event.inputs.version }}"
         git push

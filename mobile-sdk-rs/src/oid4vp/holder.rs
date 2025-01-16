@@ -8,6 +8,7 @@ use crate::vdc_collection::VdcCollection;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use futures::StreamExt;
 use openid4vp::core::authorization_request::parameters::ClientIdScheme;
 use openid4vp::core::credential_format::{ClaimFormatDesignation, ClaimFormatPayload};
 use openid4vp::core::presentation_definition::PresentationDefinition;
@@ -216,17 +217,19 @@ impl Holder {
             Some(credentials) => credentials.to_owned(),
             None => match &self.vdc_collection {
                 None => vec![],
-                Some(vdc_collection) => vdc_collection
-                    .all_entries()?
-                    .into_iter()
-                    .filter_map(|id| {
-                        vdc_collection
-                            .get(id)
-                            .ok()
-                            .flatten()
-                            .and_then(|cred| cred.try_into_parsed().ok())
-                    })
-                    .collect::<Vec<Arc<ParsedCredential>>>(),
+                Some(vdc_collection) => {
+                    futures::stream::iter(vdc_collection.all_entries().await?.into_iter())
+                        .filter_map(|id| async move {
+                            vdc_collection
+                                .get(id)
+                                .await
+                                .ok()
+                                .flatten()
+                                .and_then(|cred| cred.try_into_parsed().ok())
+                        })
+                        .collect::<Vec<Arc<ParsedCredential>>>()
+                        .await
+                }
             },
         }
         .into_iter()
@@ -360,11 +363,13 @@ pub(crate) mod tests {
         pub async fn sign_jwt(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
             let sig = self
                 .jwk
-                .sign(payload)
+                .sign_bytes(&payload)
                 .await
                 .expect("failed to sign Jws Payload");
 
-            Ok(sig.as_bytes().to_vec())
+            p256::ecdsa::Signature::from_slice(&sig)
+                .map(|sig| sig.to_der().as_bytes().to_vec())
+                .map_err(|e| PresentationError::Signing(format!("{e:?}")))
         }
     }
 

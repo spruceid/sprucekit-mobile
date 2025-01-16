@@ -144,6 +144,28 @@ func prettyPrintedJSONString(from jsonString: String) -> String? {
     return String(data: prettyData, encoding: .utf8)
 }
 
+extension Sequence {
+    func asyncMap<T>(_ transform: @escaping (Element) async throws -> T) async rethrows -> [T] {
+        var results = [T]()
+        for element in self {
+            let result = try await transform(element)
+            results.append(result)
+        }
+        return results
+    }
+}
+
+extension Sequence {
+    func asyncForEach(
+        _ operation: (Element) async throws -> Void
+    ) async rethrows {
+        for element in self {
+            try await operation(element)
+        }
+    }
+}
+
+
 let ed25519_2020_10_18 =
 "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"x\":\"G80iskrv_nE69qbGLSpeOHJgmV4MKIzsy5l5iT6pCww\",\"d\":\"39Ev8-k-jkKunJyFWog3k0OwgPjnKv_qwLhfqXdAXTY\"}"
 

@@ -4,7 +4,7 @@ import SwiftUI
 
 struct WalletHomeView: View {
     @Binding var path: NavigationPath
-
+    
     var body: some View {
         VStack {
             WalletHomeHeader(path: $path)
@@ -16,7 +16,7 @@ struct WalletHomeView: View {
 
 struct WalletHomeHeader: View {
     @Binding var path: NavigationPath
-
+    
     var body: some View {
         HStack {
             Text("Wallet")
@@ -62,14 +62,14 @@ struct WalletHomeBody: View {
     func loadCredentials() async {
         loading = true
         do {
-            self.credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
+            self.credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
         } catch {
             // TODO: display error message
             print(error)
         }
         loading = false
     }
-
+    
     var body: some View {
         ZStack {
             if loading {
@@ -84,27 +84,29 @@ struct WalletHomeBody: View {
                                 GenericCredentialItem(
                                     credentialPack: credentialPack,
                                     onDelete: {
-                                        do {
-                                            try credentialPack.remove(storageManager: storageManager)
-                                            credentialPack.list().forEach { credential in
-                                                let credentialInfo = getCredentialIdTitleAndIssuer(
-                                                    credentialPack: credentialPack,
-                                                    credential: credential
-                                                )
-                                                _ = WalletActivityLogDataStore.shared.insert(
-                                                    credentialPackId: credentialPack.id.uuidString,
-                                                    credentialId: credentialInfo.0,
-                                                    credentialTitle: credentialInfo.1,
-                                                    issuer: credentialInfo.2,
-                                                    action: "Deleted",
-                                                    dateTime: Date(),
-                                                    additionalInformation: ""
-                                                )
+                                        Task {
+                                            do {
+                                                try await credentialPack.remove(storageManager: storageManager)
+                                                credentialPack.list().forEach { credential in
+                                                    let credentialInfo = getCredentialIdTitleAndIssuer(
+                                                        credentialPack: credentialPack,
+                                                        credential: credential
+                                                    )
+                                                    _ = WalletActivityLogDataStore.shared.insert(
+                                                        credentialPackId: credentialPack.id.uuidString,
+                                                        credentialId: credentialInfo.0,
+                                                        credentialTitle: credentialInfo.1,
+                                                        issuer: credentialInfo.2,
+                                                        action: "Deleted",
+                                                        dateTime: Date(),
+                                                        additionalInformation: ""
+                                                    )
+                                                }
+                                                self.credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
+                                            } catch {
+                                                // TODO: display error message
+                                                print(error)
                                             }
-                                            self.credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
-                                        } catch {
-                                            // TODO: display error message
-                                            print(error)
                                         }
                                     },
                                     hasConnection: $hasConnection
