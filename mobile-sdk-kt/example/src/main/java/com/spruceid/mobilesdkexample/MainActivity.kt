@@ -55,6 +55,13 @@ class MainActivity : ComponentActivity() {
                         intent.data.toString().replace("openid4vp://", "")
                     )
                 )
+            } else if (intent.data!!.toString().startsWith("mdoc-openid4vp")) {
+                navController.navigate(
+                    Screen.HandleMdocOID4VP.route.replace(
+                        "{url}",
+                        intent.data.toString().replace("mdoc-openid4vp://", "")
+                    )
+                )
             }
         } else {
             super.onNewIntent(intent)

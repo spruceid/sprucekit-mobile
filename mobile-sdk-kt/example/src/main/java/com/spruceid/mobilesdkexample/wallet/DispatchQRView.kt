@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets
 
 // The scheme for the OID4VP QR code.
 const val OID4VP_SCHEME = "openid4vp://"
+const val MDOC_OID4VP_SCHEME = "mdoc-openid4vp://"
 // The scheme for the OID4VCI QR code.
 const val OID4VCI_SCHEME = "openid-credential-offer://"
 // The schemes for HTTP/HTTPS QR code.
@@ -67,6 +68,13 @@ fun DispatchQRView(
                 } else if (payload.startsWith(HTTP_SCHEME) || payload.startsWith(HTTPS_SCHEME)) {
                     uriHandler.openUri(payload)
                     back()
+                } else if (payload.startsWith(MDOC_OID4VP_SCHEME)) {
+                    val encodedUrl = URLEncoder.encode(payload, StandardCharsets.UTF_8.toString())
+
+                    navController.navigate("mdoc_oid4vp/$encodedUrl") {
+                        launchSingleTop = true
+                        restoreState = true
+                    }
                 } else {
                     err = "The QR code you have scanned is not supported. QR code payload: $payload"
                 }

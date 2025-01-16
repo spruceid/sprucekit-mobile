@@ -6,6 +6,10 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
+import com.spruceid.mobile.sdk.rs.KeyAlias
+import com.spruceid.mobile.sdk.rs.KeyStore as SpruceKitKeyStore
+import com.spruceid.mobile.sdk.rs.SigningKey
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Signature
@@ -19,7 +23,7 @@ import javax.crypto.spec.GCMParameterSpec
 /**
  * Implementation of the secure key management with Strongbox and TEE as backup.
  */
-class KeyManager {
+class KeyManager: SpruceKitKeyStore {
 
     /**
      * Returns the Android Keystore.
@@ -310,5 +314,21 @@ class KeyManager {
         val spec = GCMParameterSpec(128, iv)
         cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
         return cipher.doFinal(payload)
+    }
+
+    override fun getSigningKey(alias: KeyAlias): SigningKey {
+        val jwk = this.getJwk(alias) ?: throw Error("key not found");
+        return P256SigningKey(alias, jwk)
+    }
+}
+
+class P256SigningKey(private val alias: String, private val jwk: String) : SigningKey {
+
+    override fun jwk(): String = this.jwk
+
+    override fun sign(payload: ByteArray): ByteArray {
+        val derSignature = KeyManager().signPayload(alias, payload) ?: throw Error("key not found");
+        return CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(derSignature) ?:
+            throw Error("signature encoding not recognized");
     }
 }
