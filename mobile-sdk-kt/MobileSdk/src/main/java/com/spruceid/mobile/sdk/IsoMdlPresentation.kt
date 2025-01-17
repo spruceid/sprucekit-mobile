@@ -3,6 +3,7 @@ package com.spruceid.mobile.sdk
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
+import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -73,7 +74,10 @@ class IsoMdlPresentation(
             signer.update(payload)
 
             val signature = signer.sign()
-            val response = session!!.submitResponse(signature)
+            val normalizedSignature =
+                CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(signature)
+                    ?: throw Error("unrecognized signature encoding")
+            val response = session!!.submitResponse(normalizedSignature)
             this.bleManager!!.send(response)
         } catch (e: Error) {
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
