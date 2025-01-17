@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
+use itertools::Itertools;
 use openid4vp::core::authorization_request::AuthorizationRequestObject;
 use openid4vp::core::presentation_definition::PresentationDefinition;
 use openid4vp::core::presentation_submission::{DescriptorMap, PresentationSubmission};
@@ -91,7 +93,7 @@ impl From<openid4vp::core::input_descriptor::RequestedField<'_>> for RequestedFi
         Self {
             id: value.id,
             name: value.name,
-            path: value.path,
+            path: value.path.into_iter().map(|v| URL_SAFE.encode(v)).join(","),
             required: value.required,
             retained: value.retained,
             purpose: value.purpose,

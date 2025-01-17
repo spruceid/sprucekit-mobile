@@ -44,16 +44,10 @@ pub struct Credential {
 // Internal helper methods.
 impl Credential {
     /// Convert the parsed credential into a specialized JSON credential.
-    pub fn try_into_parsed(
-        &self,
-        selected_fields: Option<Vec<String>>,
-    ) -> Result<Arc<ParsedCredential>, CredentialDecodingError> {
-        ParsedCredentialInput(self.to_owned(), selected_fields).try_into()
+    pub fn try_into_parsed(&self) -> Result<Arc<ParsedCredential>, CredentialDecodingError> {
+        self.to_owned().try_into()
     }
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ParsedCredentialInput(Credential, Option<Vec<String>>);
 
 /// A credential that has been parsed as a known variant.
 #[derive(Debug, Clone, uniffi::Object)]
@@ -106,13 +100,10 @@ impl PresentableCredential {
 #[uniffi::export]
 impl ParsedCredential {
     #[uniffi::constructor]
-    pub fn new_from_json(
-        json_string: String,
-        selected_fields: Option<Vec<String>>,
-    ) -> Result<Arc<Self>, CredentialDecodingError> {
+    pub fn new_from_json(json_string: String) -> Result<Arc<Self>, CredentialDecodingError> {
         let credential: Credential = serde_json::from_str(&json_string)
             .map_err(|e| CredentialDecodingError::Serialization(format!("{e:?}")))?;
-        credential.try_into_parsed(selected_fields)
+        credential.try_into_parsed()
     }
 
     #[uniffi::constructor]
@@ -159,14 +150,13 @@ impl ParsedCredential {
     /// Parse a credential from the generic form retrieved from storage.
     pub fn parse_from_credential(
         credential: Credential,
-        selected_fields: Option<Vec<String>>,
     ) -> Result<Arc<Self>, CredentialDecodingError> {
         // NOTE: due to the Arc<Credential> type needed in the constructor,
         // given the uniffi::Object trait, we need to have an inner reference
         // to the credential that provided the type conversion, which avoids the
         // TryFrom<Arc<Credential>> that cannot be implemented given the compiler
         // constraints on foreign types.
-        credential.try_into_parsed(selected_fields)
+        credential.try_into_parsed()
     }
 
     /// Convert a parsed credential into the generic form for storage.
@@ -381,12 +371,10 @@ impl BitStringStatusListResolver for ParsedCredential {
     }
 }
 
-impl TryFrom<ParsedCredentialInput> for Arc<ParsedCredential> {
+impl TryFrom<Credential> for Arc<ParsedCredential> {
     type Error = CredentialDecodingError;
 
-    fn try_from(
-        ParsedCredentialInput(credential, selected_fields): ParsedCredentialInput,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(credential: Credential) -> Result<Self, Self::Error> {
         match credential.format {
             CredentialFormat::MsoMdoc => Ok(ParsedCredential::new_mso_mdoc(credential.try_into()?)),
             CredentialFormat::JwtVcJson => {

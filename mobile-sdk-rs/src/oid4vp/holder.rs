@@ -216,7 +216,7 @@ impl Holder {
                             .get(id)
                             .ok()
                             .flatten()
-                            .and_then(|cred| cred.try_into_parsed(None).ok())
+                            .and_then(|cred| cred.try_into_parsed().ok())
                     })
                     .collect::<Vec<Arc<ParsedCredential>>>(),
             },
@@ -252,7 +252,7 @@ impl Holder {
         // TODO: Add full support for limit_disclosure, probably this should be thrown at OID4VP
         if presentation_definition
             .input_descriptors()
-            .into_iter()
+            .iter()
             .any(|id| {
                 id.constraints
                     .limit_disclosure()

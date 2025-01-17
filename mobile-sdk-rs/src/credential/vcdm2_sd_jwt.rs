@@ -2,26 +2,26 @@ use super::{Credential, CredentialFormat, ParsedCredential, ParsedCredentialInne
 use crate::{
     oid4vp::{
         error::OID4VPError,
-        presentation::{self, CredentialPresentation, PresentationOptions},
-        RequestedField,
+        presentation::{CredentialPresentation, PresentationOptions},
     },
     CredentialType, KeyAlias,
 };
 
+use core::str;
 use std::sync::Arc;
 
-use itertools::Itertools;
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use openid4vp::{
     core::{
-        credential_format::ClaimFormatDesignation, input_descriptor::ConstraintsLimitDisclosure,
-        presentation_submission::DescriptorMap, response::parameters::VpTokenItem,
+        credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
+        response::parameters::VpTokenItem,
     },
     JsonPath,
 };
 use ssi::{
     claims::{
         jwt::AnyClaims,
-        sd_jwt::{RevealedSdJwt, SdJwtBuf},
+        sd_jwt::SdJwtBuf,
         vc::v2::{Credential as _, JsonCredential},
         vc_jose_cose::SdJwtVc,
     },
@@ -160,18 +160,26 @@ impl CredentialPresentation for VCDM2SdJwt {
                 .map(|sfield| {
                     // TODO: Remove hotfix encoding and improve path usage
                     // SAFETY: encoded by client (sprucekit-mobile@holder)
-                    let path = sfield.split("|").next().unwrap().to_owned();
-                    let path = match JsonPath::parse(&path) {
+                    let path = sfield.split(",").next().unwrap().to_owned();
+                    let path = match URL_SAFE.decode(path) {
+                        Ok(path) => path,
+                        Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
+                    };
+                    let path = match str::from_utf8(&path) {
+                        Ok(path) => path,
+                        Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
+                    };
+                    let path = match JsonPath::parse(path) {
                         Ok(path) => path,
                         Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
                     };
                     let located_node = path.query_located(&json);
 
                     if located_node.is_empty() {
-                        return Err(OID4VPError::JsonPathResolve(format!(
+                        Err(OID4VPError::JsonPathResolve(format!(
                             "Unable to resolve JsonPath: {}",
-                            path.to_string()
-                        )));
+                            path
+                        )))
                     } else {
                         // SAFETY: Empty check above
                         JsonPointerBuf::new(

@@ -6,7 +6,6 @@ use crate::{
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
-        RequestedField,
     },
     CredentialType, KeyAlias,
 };
