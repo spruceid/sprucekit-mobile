@@ -265,7 +265,7 @@ struct DataFieldSelector: View {
             selectedFields.contains(where: { $0 == field.path() })
         } set: { _ in
             // TODO: update when allowing multiple
-            if selectedCredential.selectiveDisclosable() && field.required() {
+            if selectedCredential.selectiveDisclosable() && !field.required() {
                 if selectedFields.contains(field.path()) {
                     selectedFields.removeAll(where: { $0 == field.path() })
                 } else {
@@ -291,7 +291,7 @@ struct DataFieldSelector: View {
                 ForEach(requestedFields, id: \.self) { field in
                     SelectiveDisclosureItem(
                         field: field,
-                        required: !field.required(),
+                        required: field.required(),
                         isChecked: toggleBinding(for: field)
                     )
                 }
