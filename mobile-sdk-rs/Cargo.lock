@@ -2625,6 +2625,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d75a2a4b1b190afb6f5425f10f6a8f959d2ea0b9c2b1d79553551850539e4674"
 
 [[package]]
+name = "josekit"
+version = "0.8.3"
+source = "git+https://github.com/cobward/josekit-rs?rev=635c8a7#635c8a763fef9cf4ceb12e4e6727fd774f5194ec"
+dependencies = [
+ "aes-gcm",
+ "anyhow",
+ "base64 0.21.7",
+ "digest 0.10.7",
+ "ecdsa",
+ "elliptic-curve",
+ "flate2",
+ "once_cell",
+ "p256",
+ "rand",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "thiserror 1.0.69",
+ "time",
+]
+
+[[package]]
 name = "js-sys"
 version = "0.3.76"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3233,12 +3256,14 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
+ "ciborium",
  "cose-rs 0.1.0 (git+https://github.com/spruceid/cose-rs?rev=0018c9b)",
  "either",
  "futures",
  "futures-util",
  "hex",
  "isomdl 0.1.0 (git+https://github.com/spruceid/isomdl?rev=6084a83)",
+ "josekit",
  "json-syntax",
  "log",
  "miniz_oxide 0.7.4",
@@ -3254,6 +3279,7 @@ dependencies = [
  "serde_cbor",
  "serde_json",
  "sha1",
+ "sha2 0.10.8",
  "signature",
  "ssi",
  "thiserror 1.0.69",
@@ -4639,6 +4665,7 @@ version = "1.0.133"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c7fceb2473b9166b2294ef05efcb65a3db80803f0b03ef86a5fc88a2b85ee377"
 dependencies = [
+ "indexmap 2.7.0",
  "itoa",
  "memchr",
  "ryu",

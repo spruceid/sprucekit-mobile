@@ -1,5 +1,6 @@
 pub mod error;
 pub mod holder;
+pub mod iso_18013_7;
 pub mod permission_request;
 pub mod presentation;
 pub mod verifier;

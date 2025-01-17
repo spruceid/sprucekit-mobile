@@ -41,8 +41,38 @@ pub trait KeyStore: Send + Sync {
 pub trait SigningKey: Send + Sync {
     /// Generates a public JWK for this key.
     fn jwk(&self) -> Result<String>;
-    /// Produces a raw (not DER encoded) signature.
+    /// Produces a signature of unknown encoding.
     fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>>;
+}
+
+#[derive(uniffi::Object)]
+/// Utility functions for cryptographic curves
+pub struct CryptoCurveUtils(Curve);
+
+enum Curve {
+    SecP256R1,
+}
+
+#[uniffi::export]
+impl CryptoCurveUtils {
+    #[uniffi::constructor]
+    /// Utils for the secp256r1 (aka P-256) curve.
+    pub fn secp256r1() -> Self {
+        Self(Curve::SecP256R1)
+    }
+
+    /// Returns null if the original signature encoding is not recognized.
+    pub fn ensure_raw_fixed_width_signature_encoding(&self, bytes: Vec<u8>) -> Option<Vec<u8>> {
+        match self.0 {
+            Curve::SecP256R1 => {
+                use p256::ecdsa::Signature;
+                match (Signature::from_slice(&bytes), Signature::from_der(&bytes)) {
+                    (Ok(s), _) | (_, Ok(s)) => Some(s.to_vec()),
+                    _ => None,
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
