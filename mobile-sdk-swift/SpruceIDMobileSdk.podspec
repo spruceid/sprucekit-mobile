@@ -20,7 +20,7 @@ Pod::Spec.new do |spec|
   spec.source_files  = "Sources/MobileSdk/*.swift"
 
   spec.static_framework = true
-  spec.dependency 'SpruceIDMobileSdkRs', "~> 0.5.1"
+  spec.dependency 'SpruceIDMobileSdkRs', "~> 0.7.0"
   spec.dependency 'SwiftAlgorithms', "~> 1.0.0"
   spec.frameworks = 'Foundation', 'CoreBluetooth', 'CryptoKit'
 end
