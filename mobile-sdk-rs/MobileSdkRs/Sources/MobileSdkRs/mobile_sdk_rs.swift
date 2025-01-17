@@ -1046,8 +1046,7 @@ public static func secp256r1() -> CryptoCurveUtils {
     /**
      * Returns null if the original signature encoding is not recognized.
      */
-open func 
-ensureRawFixedWidthSignatureEncoding(bytes: Data) -> Data? {
+open func ensureRawFixedWidthSignatureEncoding(bytes: Data) -> Data? {
     return try!  FfiConverterOptionData.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_cryptocurveutils_ensure_raw_fixed_width_signature_encoding(self.uniffiClonePointer(),
         FfiConverterData.lower(bytes),$0
