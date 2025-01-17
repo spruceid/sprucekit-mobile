@@ -409,7 +409,7 @@ public enum CredentialStatusList: String {
     init?(from string: String) {
         self.init(rawValue: string.uppercased())
     }
-    
+
     /// Valid credential
     case valid = "VALID"
     /// Credential revoked
