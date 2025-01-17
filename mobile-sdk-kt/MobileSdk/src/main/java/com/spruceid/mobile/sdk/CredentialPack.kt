@@ -385,7 +385,7 @@ class CredentialPackContents {
                 }
                 .mapNotNull {
                     try {
-                        return@mapNotNull ParsedCredential.parseFromCredential(it, null)
+                        return@mapNotNull ParsedCredential.parseFromCredential(it)
                     } catch (e: CredentialDecodingException) {
                         Log.w(
                             "sprucekit", "failed to parse credential '${it.id}'" +
