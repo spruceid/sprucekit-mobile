@@ -45,19 +45,19 @@ use x509_cert::{
 use crate::crypto::{KeyAlias, KeyStore};
 
 #[derive(Debug, uniffi::Error)]
-pub enum Error {
+pub enum MdlUtilError {
     General(String),
 }
 
-impl From<anyhow::Error> for Error {
+impl From<anyhow::Error> for MdlUtilError {
     fn from(value: anyhow::Error) -> Self {
         Self::General(format!("{value:#}"))
     }
 }
 
-impl std::error::Error for Error {}
+impl std::error::Error for MdlUtilError {}
 
-impl fmt::Display for Error {
+impl fmt::Display for MdlUtilError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Self::General(cause) = self;
         write!(f, "{}", cause)
@@ -69,7 +69,7 @@ impl fmt::Display for Error {
 pub fn generate_test_mdl(
     key_manager: Arc<dyn KeyStore>,
     key_alias: KeyAlias,
-) -> Result<crate::credential::mdoc::Mdoc, Error> {
+) -> Result<crate::credential::mdoc::Mdoc, MdlUtilError> {
     Ok(generate_test_mdl_inner(key_manager, key_alias)?)
 }
 
