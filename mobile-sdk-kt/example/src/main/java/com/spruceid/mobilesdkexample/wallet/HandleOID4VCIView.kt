@@ -118,14 +118,7 @@ fun HandleOID4VCIView(
                     signature?.let {
                         generatePopComplete(
                             signingInput = signingInput,
-                            signature =
-                            Base64.encodeToString(
-                                signature,
-                                Base64.URL_SAFE or
-                                        Base64.NO_PADDING or
-                                        Base64.NO_WRAP
-                            )
-                                .toByteArray()
+                            signatureDer = signature,
                         )
                     }
                 }
