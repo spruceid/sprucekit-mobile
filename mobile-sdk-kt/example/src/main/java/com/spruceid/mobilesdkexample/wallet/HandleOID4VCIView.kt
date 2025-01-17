@@ -1,7 +1,6 @@
 package com.spruceid.mobilesdkexample.wallet
 
 import android.content.Context
-import android.util.Base64
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -118,14 +117,7 @@ fun HandleOID4VCIView(
                     signature?.let {
                         generatePopComplete(
                             signingInput = signingInput,
-                            signatureDer =
-                            Base64.encodeToString(
-                                signature,
-                                Base64.URL_SAFE or
-                                        Base64.NO_PADDING or
-                                        Base64.NO_WRAP
-                            )
-                                .toByteArray()
+                            signatureDer = signature
                         )
                     }
                 }
