@@ -69,8 +69,17 @@ public class IsoMdlPresentation {
                 self.cancel()
                 return
             }
+            guard let signature = CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(bytes: derSignature) else {
+                self.callback.update(
+                    state: .error(
+                        .generic(
+                            "Failed to sign message: unrecognized signature encoding")
+                    ))
+                self.cancel()
+                return
+            }
             let response = try session.submitResponse(
-                signature: derSignature)
+                signature: signature)
             self.bleManager.writeOutgoingValue(data: response)
         } catch {
             self.callback.update(state: .error(.generic("\(error)")))
