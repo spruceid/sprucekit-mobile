@@ -40,7 +40,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.credentialStatusListFromString
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.credentials.CredentialStatusSmall
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
@@ -201,6 +203,7 @@ fun VerifierSettingsActivityLogScreenBody(
                             color = ColorStone600,
                             modifier = Modifier.padding(bottom = 4.dp),
                         )
+                        CredentialStatusSmall(status = credentialStatusListFromString(log.status))
                         Text(
                             text = formatSqlDateTime(log.verificationDateTime),
                             fontFamily = Inter,

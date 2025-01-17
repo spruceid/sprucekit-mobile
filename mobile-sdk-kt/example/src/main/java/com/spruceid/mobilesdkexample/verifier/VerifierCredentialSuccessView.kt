@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.verifier
 
+import android.util.Log
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
@@ -34,16 +36,24 @@ import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 fun VerifierCredentialSuccessView(
     rawCredential: String,
     onClose: () -> Unit,
-    logVerification: (String, String) -> Unit,
+    logVerification: (String, String, String) -> Unit,
     statusListViewModel: StatusListViewModel
 ) {
-    val credentialItem = credentialDisplaySelector(rawCredential, statusListViewModel = statusListViewModel, null, null)
+    var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var title by remember { mutableStateOf<String?>(null) }
     var issuer by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        val credential = credentialItem.credentialPack.list().first()
-        val claims = credentialItem.credentialPack.findCredentialClaims(
+        credentialItem = credentialDisplaySelector(
+            rawCredential,
+            statusListViewModel = statusListViewModel,
+            null,
+            null,
+            true
+        )
+        Log.d("AAA", "CHAMOUUU ${credentialItem!!.credentialPack.id()}")
+        val credential = credentialItem!!.credentialPack.list().first()
+        val claims = credentialItem!!.credentialPack.findCredentialClaims(
             listOf("name", "type", "description", "issuer")
         )[credential.id()]
 
@@ -68,7 +78,11 @@ fun VerifierCredentialSuccessView(
         } catch (_: Exception) {
         }
 
-        logVerification(title ?: "", issuer ?: "")
+        logVerification(
+            title ?: "",
+            issuer ?: "",
+            statusListViewModel.getStatus(credentialItem!!.credentialPack).toString()
+        )
     }
 
     Column(
@@ -110,7 +124,9 @@ fun VerifierCredentialSuccessView(
                 .fillMaxSize()
                 .weight(weight = 1f, fill = false)
         ) {
-            credentialItem.credentialDetails()
+            if (credentialItem != null) {
+                credentialItem!!.credentialDetails()
+            }
         }
 //        TODO: implement restart flow
 //        Button(

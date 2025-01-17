@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.UUID
 
 class StatusListViewModel(application: Application) : AndroidViewModel(application) {
@@ -25,6 +26,16 @@ class StatusListViewModel(application: Application) : AndroidViewModel(applicati
         } else {
             return statusLists.entries.first().value
         }
+    }
+
+    fun fetchStatusSync(credentialPack: CredentialPack) {
+        runBlocking {
+            _statusLists.value[credentialPack.id()] = fetchStatus(credentialPack)
+        }
+    }
+
+    fun getStatus(credentialPack: CredentialPack): CredentialStatusList? {
+        return _statusLists.value[credentialPack.id()]
     }
 
     fun getStatusLists(credentialPacks: List<CredentialPack>) {

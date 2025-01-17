@@ -54,6 +54,7 @@ fun VerifyEAView(
                         VerificationActivityLogs(
                             credentialTitle = "Employment Authorization",
                             issuer = "State of Utopia",
+                            status = "VALID",
                             verificationDateTime = getCurrentSqlDate(),
                             additionalInformation = ""
                         )

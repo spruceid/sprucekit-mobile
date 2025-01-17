@@ -21,6 +21,7 @@ data class VerificationActivityLogs(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val credentialTitle: String,
     val issuer: String,
+    val status: String,
     val verificationDateTime: Date,
     val additionalInformation: String,
 )

@@ -1,4 +1,5 @@
 import SwiftUI
+import SpruceIDMobileSdk
 
 struct VerifierSettingsActivityLog: Hashable {}
 
@@ -6,6 +7,7 @@ struct VerificationActivityLog: Hashable {
     let id: Int64
     let credential_title: String
     let issuer: String
+    let status: String
     let verification_date_time: String
     let additional_information: String
 }
@@ -53,11 +55,11 @@ struct VerifierSettingsActivityLogBody: View {
     @ViewBuilder
     var shareButton: some View {
         let activityLogs = verificationActivityLogsReq.map {
-            "\($0.id),\($0.credential_title),\($0.issuer),\($0.verification_date_time.replaceCommas()),\($0.additional_information)\n"
+            "\($0.id),\($0.credential_title),\($0.issuer),\($0.status),\($0.verification_date_time.replaceCommas()),\($0.additional_information)\n"
         }.joined()
         let rows = generateCSV(
             heading:
-                "ID,CredentialTitle,Issuer,VerificationDateTime,AdditionalInformation\n",
+                "ID,CredentialTitle,Issuer,Status,VerificationDateTime,AdditionalInformation\n",
             rows: activityLogs,
             filename: "activity_logs.csv"
         )
@@ -109,6 +111,7 @@ struct VerifierSettingsActivityLogBody: View {
                                         font: .inter, style: .regular, size: .p)
                                 )
                                 .foregroundColor(Color("ColorStone600"))
+                            CredentialStatusSmall(status: CredentialStatusList(rawValue: item.status))
                             Text("\(item.verification_date_time)")
                                 .font(
                                     .customFont(

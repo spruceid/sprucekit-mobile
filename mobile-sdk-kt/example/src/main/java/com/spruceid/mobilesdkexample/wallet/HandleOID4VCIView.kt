@@ -1,7 +1,6 @@
 package com.spruceid.mobilesdkexample.wallet
 
 import android.content.Context
-import android.util.Base64
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -25,8 +24,8 @@ import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
-import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request
@@ -118,7 +117,7 @@ fun HandleOID4VCIView(
                     signature?.let {
                         generatePopComplete(
                             signingInput = signingInput,
-                            signatureDer = signature,
+                            signatureDer = signature
                         )
                     }
                 }
@@ -126,10 +125,12 @@ fun HandleOID4VCIView(
             oid4vciSession.setContextMap(getVCPlaygroundOID4VCIContext(ctx = ctx))
 
             val credentials =
-                pop?.let { oid4vciSession.exchangeCredential(
-                    proofsOfPossession = listOf(pop),
-                    options = Oid4vciExchangeOptions(true),
-                ) }
+                pop?.let {
+                    oid4vciSession.exchangeCredential(
+                        proofsOfPossession = listOf(pop),
+                        options = Oid4vciExchangeOptions(true),
+                    )
+                }
 
             credentials?.forEach { cred ->
                 cred.payload.toString(Charsets.UTF_8).let { credential = it }

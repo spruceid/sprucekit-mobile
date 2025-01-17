@@ -51,7 +51,6 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.addCredential
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
-import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class GenericCredentialItem : ICredentialView {
@@ -64,8 +63,12 @@ class GenericCredentialItem : ICredentialView {
         credentialPack: CredentialPack,
         statusListViewModel: StatusListViewModel,
         onDelete: (() -> Unit)? = null,
-        onExport: ((String) -> Unit)? = null
+        onExport: ((String) -> Unit)? = null,
+        fetchStatus: Boolean = false
     ) {
+        if (fetchStatus) {
+            statusListViewModel.fetchStatusSync(credentialPack)
+        }
         this.credentialPack = credentialPack
         this.onDelete = onDelete
         this.onExport = onExport
@@ -76,9 +79,13 @@ class GenericCredentialItem : ICredentialView {
         rawCredential: String,
         statusListViewModel: StatusListViewModel,
         onDelete: (() -> Unit)? = null,
-        onExport: ((String) -> Unit)? = null
+        onExport: ((String) -> Unit)? = null,
+        fetchStatus: Boolean = false
     ) {
         this.credentialPack = addCredential(CredentialPack(), rawCredential)
+        if (fetchStatus) {
+            statusListViewModel.fetchStatusSync(credentialPack)
+        }
         this.onDelete = onDelete
         this.onExport = onExport
         this.statusListViewModel = statusListViewModel
@@ -440,7 +447,8 @@ class GenericCredentialItem : ICredentialView {
                                     "salt",
                                     "proof",
                                     "renderMethod",
-                                    "@context"
+                                    "@context",
+                                    "credentialStatus"
                                 )
                             )
                         }

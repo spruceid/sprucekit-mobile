@@ -70,7 +70,7 @@ public class IsoMdlPresentation {
                 return
             }
             let response = try session.submitResponse(
-                derSignature: derSignature)
+                signature: derSignature)
             self.bleManager.writeOutgoingValue(data: response)
         } catch {
             self.callback.update(state: .error(.generic("\(error)")))
