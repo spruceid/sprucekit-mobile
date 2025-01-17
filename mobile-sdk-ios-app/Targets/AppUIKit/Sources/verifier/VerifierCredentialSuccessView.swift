@@ -11,55 +11,6 @@ struct VerifierCredentialSuccessView: View {
     @State var title: String?
     @State var issuer: String?
 
-    //    init(rawCredential: String, onClose: @escaping () -> Void, logVerification: @escaping (String, String, String) -> Void) {
-    //        self.rawCredential = rawCredential
-    //        self.onClose = onClose
-    //        do {
-    //            let credentialItem = try credentialDisplayerSelector(rawCredential: rawCredential)
-    //            self.credentialItem = credentialItem
-    //            var credentialStatus = CredentialStatusList.undefined
-    //
-    //            let semaphore = DispatchSemaphore(value: 0)
-    //            Task {
-    //                let statusLists = await credentialItem.credentialPack.getStatusListsAsync(
-    //                    hasConnection: true)
-    //                if !statusLists.isEmpty {
-    //                    credentialStatus = statusLists.first?.value ?? CredentialStatusList.unknown
-    //                }
-    //                semaphore.signal()
-    //            }
-    //            _ = semaphore.wait(timeout: .distantFuture)
-    //
-    //            let credential = credentialItem.credentialPack.list().first
-    //            let claims = try credentialItem.credentialPack.findCredentialClaims(
-    //                claimNames: ["name", "type", "description", "issuer"]
-    //            )[credential.unwrap().id()]
-    //
-    //
-    //            var tmpTitle = claims?["name"]?.toString()
-    //            if tmpTitle == nil {
-    //                claims?["type"]?.arrayValue?.forEach {
-    //                    if $0.toString() != "VerifiableCredential" {
-    //                        tmpTitle = $0.toString().camelCaseToWords()
-    //                        return
-    //                    }
-    //                }
-    //            }
-    //            self.title = tmpTitle ?? ""
-    //
-    //            if let issuerName = claims?["issuer"]?.dictValue?["name"]?.toString() {
-    //                self.issuer = issuerName
-    //            } else {
-    //                self.issuer = ""
-    //            }
-    //            logVerification(title, issuer, credentialStatus.rawValue)
-    //        } catch {
-    //            self.credentialItem = nil
-    //            self.title = ""
-    //            self.issuer = ""
-    //        }
-    //    }
-
     var body: some View {
         VStack {
             Text(title ?? "")

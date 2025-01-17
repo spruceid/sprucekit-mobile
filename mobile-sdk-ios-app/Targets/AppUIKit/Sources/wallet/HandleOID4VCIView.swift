@@ -50,7 +50,7 @@ struct HandleOID4VCIView: View {
 
                 let pop = try SpruceIDMobileSdkRs.generatePopComplete(
                     signingInput: signingInput,
-                    signature: Data(Data(signature!).base64EncodedUrlSafe.utf8)
+                    signatureDer: Data(Data(signature!).base64EncodedUrlSafe.utf8)
                 )
 
                 try oid4vciSession.setContextMap(
