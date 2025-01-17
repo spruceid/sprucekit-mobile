@@ -3,11 +3,12 @@ use super::{
     Credential, CredentialEncodingError, CredentialFormat, VcdmVersion,
 };
 use crate::{
+    crypto::KeyAlias,
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
     },
-    CredentialType, KeyAlias,
+    CredentialType,
 };
 
 use std::sync::Arc;

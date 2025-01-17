@@ -2,6 +2,7 @@ uniffi::setup_scaffolding!();
 
 pub mod common;
 pub mod credential;
+pub mod crypto;
 pub mod did;
 pub mod local_store;
 pub mod mdl;

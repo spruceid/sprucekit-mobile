@@ -337,7 +337,7 @@ impl<'a> PresentationOptions<'a> {
         let resolver = VerificationMethodDIDResolver::new(AnyDidMethod::default());
 
         let mut proof_options = ProofOptions::new(
-            DateTimeStamp::now_ms().into(),
+            DateTimeStamp::now_ms(),
             self.verification_method_id().await?.into(),
             ProofPurpose::Authentication,
             Default::default(),
