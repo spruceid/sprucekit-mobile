@@ -1046,7 +1046,8 @@ public static func secp256r1() -> CryptoCurveUtils {
     /**
      * Returns null if the original signature encoding is not recognized.
      */
-open func ensureRawFixedWidthSignatureEncoding(bytes: Data) -> Data? {
+open func 
+ensureRawFixedWidthSignatureEncoding(bytes: Data) -> Data? {
     return try!  FfiConverterOptionData.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_cryptocurveutils_ensure_raw_fixed_width_signature_encoding(self.uniffiClonePointer(),
         FfiConverterData.lower(bytes),$0
@@ -8265,58 +8266,6 @@ extension DidMethod: Equatable, Hashable {}
 
 
 
-public enum Error {
-
-    
-    
-    case General(String
-    )
-}
-
-
-public struct FfiConverterTypeError: FfiConverterRustBuffer {
-    typealias SwiftType = Error
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Error {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-
-        
-
-        
-        case 1: return .General(
-            try FfiConverterString.read(from: &buf)
-            )
-
-         default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: Error, into buf: inout [UInt8]) {
-        switch value {
-
-        
-
-        
-        
-        case let .General(v1):
-            writeInt(&buf, Int32(1))
-            FfiConverterString.write(v1, into: &buf)
-            
-        }
-    }
-}
-
-
-extension Error: Equatable, Hashable {}
-
-extension Error: Foundation.LocalizedError {
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
-}
-
-
 public enum HttpClientError {
 
     
@@ -8934,6 +8883,58 @@ public func FfiConverterTypeMDocItem_lower(_ value: MDocItem) -> RustBuffer {
 extension MDocItem: Equatable, Hashable {}
 
 
+
+
+public enum MdlUtilError {
+
+    
+    
+    case General(String
+    )
+}
+
+
+public struct FfiConverterTypeMdlUtilError: FfiConverterRustBuffer {
+    typealias SwiftType = MdlUtilError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdlUtilError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .General(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MdlUtilError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .General(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+extension MdlUtilError: Equatable, Hashable {}
+
+extension MdlUtilError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 public enum MdocEncodingError {
@@ -12676,7 +12677,7 @@ public func generatePopPrepare(audience: String, nonce: String?, didMethod: DidM
  * Generate a new test mDL with hardcoded values, using the supplied key as the DeviceKey.
  */
 public func generateTestMdl(keyManager: KeyStore, keyAlias: KeyAlias)throws  -> Mdoc {
-    return try  FfiConverterTypeMdoc.lift(try rustCallWithError(FfiConverterTypeError.lift) {
+    return try  FfiConverterTypeMdoc.lift(try rustCallWithError(FfiConverterTypeMdlUtilError.lift) {
     uniffi_mobile_sdk_rs_fn_func_generate_test_mdl(
         FfiConverterTypeKeyStore.lower(keyManager),
         FfiConverterTypeKeyAlias.lower(keyAlias),$0
@@ -12909,7 +12910,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_generate_pop_prepare() != 54105) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 58352) {
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 22635) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
