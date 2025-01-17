@@ -12328,21 +12328,6 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_status20240406_purpose() != 20271) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_add() != 60217) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_status20240406_is_revoked() != 51346) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_status20240406_is_suspended() != 4970) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_status20240406_messages() != 22990) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_status20240406_purpose() != 20271) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_add() != 39162) {
         return InitializationResult.apiChecksumMismatch
     }

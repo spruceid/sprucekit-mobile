@@ -1,15 +1,6 @@
 {
   "pins" : [
     {
-      "identity" : "mobile-sdk-rs",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/spruceid/mobile-sdk-rs.git",
-      "state" : {
-        "revision" : "60467b604eeafe5faa824bcd5eecad41ea1efbeb",
-        "version" : "0.4.3"
-      }
-    },
-    {
       "identity" : "rive-ios",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rive-app/rive-ios",
