@@ -227,9 +227,9 @@ fun getCredentialIdTitleAndIssuer(
     credentialPack: CredentialPack,
     credential: ParsedCredential? = null
 ): Triple<String, String, String> {
-    val claims = credentialPack.findCredentialClaims(listOf("name", "type", "issuer"))
+    val claims = credentialPack.findCredentialClaims(listOf("name", "type", "issuer", "issuing_authority"))
 
-    var cred = if (credential != null) {
+    val cred = if (credential != null) {
         claims.entries.firstNotNullOf { claim ->
             if (claim.key == credential.id()) {
                 claim
@@ -240,11 +240,19 @@ fun getCredentialIdTitleAndIssuer(
     } else {
         claims.entries.firstNotNullOf { claim ->
             val c = credentialPack.getCredentialById(claim.key)
+            val mdoc = c?.asMsoMdoc()
             if (
                 c?.asSdJwt() != null ||
                 c?.asJwtVc() != null ||
                 c?.asJsonVc() != null
             ) {
+                claim
+            } else if (mdoc != null) {
+                // Assume mDL.
+                val issuer = claim.value.get("issuing_authority")
+                claim.value.put("issuer", issuer)
+                val title = "Mobile Drivers License"
+                claim.value.put("name", title)
                 claim
             } else {
                 null
@@ -279,6 +287,13 @@ fun getCredentialIdTitleAndIssuer(
     if (issuer.isBlank()) {
         try {
             issuer = credentialValue.getJSONObject("issuer").getString("id").toString()
+        } catch (_: Exception) {
+        }
+    }
+
+    if (issuer.isBlank()) {
+        try {
+            issuer = credentialValue.getString("issuer")
         } catch (_: Exception) {
         }
     }
