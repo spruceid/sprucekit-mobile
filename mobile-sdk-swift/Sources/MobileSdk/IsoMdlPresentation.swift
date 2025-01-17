@@ -69,7 +69,8 @@ public class IsoMdlPresentation {
                 self.cancel()
                 return
             }
-            guard let signature = CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(bytes: derSignature) else {
+            guard let signature =
+                    CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(bytes: derSignature) else {
                 self.callback.update(
                     state: .error(
                         .generic(

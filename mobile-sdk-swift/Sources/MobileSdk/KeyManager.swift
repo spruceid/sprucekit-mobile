@@ -10,7 +10,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore {
         }
         return P256SigningKey(alias: alias, jwkString: jwkString)
     }
-    
+
     /**
      * Resets the key store by removing all of the keys.
      */
@@ -241,21 +241,22 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore {
 public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey {
     private let alias: String
     private let jwkString: String
-    
+
     init(alias: String, jwkString: String) {
         self.alias = alias
         self.jwkString = jwkString
     }
-    
+
     public func jwk() throws -> String {
         return jwkString
     }
-    
+
     public func sign(payload: Data) throws -> Data {
         guard let signature: [UInt8] = KeyManager.signPayload(id: alias, payload: [UInt8](payload)) else {
             throw KeyManError.signing
         }
-        guard let normalizedSignature: Data = CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(bytes: Data(signature)) else {
+        guard let normalizedSignature: Data =
+               CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(bytes: Data(signature)) else {
             throw KeyManError.signatureFormat
         }
         return normalizedSignature
