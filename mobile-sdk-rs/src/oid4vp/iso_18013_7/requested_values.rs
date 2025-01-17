@@ -214,13 +214,14 @@ mod test {
 
     use super::parse_request;
 
-    #[test]
-    fn mdl_matches_presentation_definition() {
+    #[tokio::test]
+    async fn mdl_matches_presentation_definition() {
         let key_manager = Arc::new(RustTestKeyManager::default());
         let key_alias = KeyAlias("".to_string());
 
         key_manager
             .generate_p256_signing_key(key_alias.clone())
+            .await
             .unwrap();
 
         let credentials =
