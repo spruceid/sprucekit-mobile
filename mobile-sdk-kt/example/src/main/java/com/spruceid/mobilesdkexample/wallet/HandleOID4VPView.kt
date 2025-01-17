@@ -267,6 +267,7 @@ fun HandleOID4VPView(
                                 additionalInformation = ""
                             )
                         )
+                        Toast.showSuccess("Shared successfully")
                         onBack()
                     } catch (e: Exception) {
                         error =
