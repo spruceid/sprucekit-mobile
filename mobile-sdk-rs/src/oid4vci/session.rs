@@ -1,12 +1,5 @@
 use futures::lock::Mutex;
-use oid4vci::{
-    core::{
-        client, metadata,
-        profiles::{self},
-    },
-    credential_offer::CredentialOfferGrants,
-    token,
-};
+use oid4vci::{credential_offer::CredentialOfferGrants, profiles::metadata, token};
 
 use crate::credential::CredentialFormat;
 
@@ -33,7 +26,7 @@ impl Oid4vciSession {
         }
     }
 
-    pub fn get_client(&self) -> &client::Client {
+    pub fn get_client(&self) -> &oid4vci::profiles::client::Client {
         &self.client.0
     }
 
@@ -68,7 +61,7 @@ impl Oid4vciSession {
 
     pub fn get_credential_requests(
         &self,
-    ) -> Result<Vec<profiles::CoreProfilesCredentialRequest>, Oid4vciError> {
+    ) -> Result<Vec<oid4vci::profiles::ProfilesCredentialRequest>, Oid4vciError> {
         self.credential_request
             .try_lock()
             .ok_or(Oid4vciError::LockError("credential_request".into()))?
@@ -81,7 +74,7 @@ impl Oid4vciSession {
 
     pub fn set_credential_request(
         &self,
-        credential_request: profiles::CoreProfilesCredentialRequest,
+        credential_request: oid4vci::profiles::ProfilesCredentialRequest,
     ) -> Result<(), Oid4vciError> {
         *(self
             .credential_request
@@ -94,7 +87,7 @@ impl Oid4vciSession {
 
     pub fn set_credential_requests(
         &self,
-        credential_requests: Vec<profiles::CoreProfilesCredentialRequest>,
+        credential_requests: Vec<oid4vci::profiles::ProfilesCredentialRequest>,
     ) -> Result<(), Oid4vciError> {
         *(self
             .credential_request
@@ -136,17 +129,17 @@ macro_rules! wrap_external_type {
     };
 }
 
-wrap_external_type!(client::Client, Client);
+wrap_external_type!(oid4vci::profiles::client::Client, Client);
 wrap_external_type!(metadata::CredentialIssuerMetadata, CredentialIssuerMetadata);
 wrap_external_type!(
-    Vec<profiles::CoreProfilesCredentialRequest>,
+    Vec<oid4vci::profiles::ProfilesCredentialRequest>,
     CredentialRequest
 );
 wrap_external_type!(token::Response, TokenResponse);
 wrap_external_type!(CredentialOfferGrants, Grants);
 
-impl From<profiles::CoreProfilesCredentialRequest> for CredentialRequest {
-    fn from(value: profiles::CoreProfilesCredentialRequest) -> Self {
+impl From<oid4vci::profiles::ProfilesCredentialRequest> for CredentialRequest {
+    fn from(value: oid4vci::profiles::ProfilesCredentialRequest) -> Self {
         CredentialRequest(vec![value])
     }
 }

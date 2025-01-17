@@ -77,7 +77,7 @@ struct HandleOID4VPView: View {
 
     func presentCredential() async {
         do {
-            credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
+            credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
             var credentials: [ParsedCredential] = []
             credentialPacks.forEach { credentialPack in
                 credentials += credentialPack.list()

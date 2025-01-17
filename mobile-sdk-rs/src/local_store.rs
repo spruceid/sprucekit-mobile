@@ -1,34 +1,29 @@
+use async_trait::async_trait;
+
 use crate::common::*;
 use crate::storage_manager::*;
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// A version of secure storage for debugging purposes, and as a minimal interface example.  Do not
 /// use in production!  This encrypts nothing, uses a path relative to the current working directory,
 /// and is generally cavalier about errors it encounters along the way.
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct LocalStore {
-    store: Mutex<HashMap<Key, Value>>,
+    store: Arc<Mutex<HashMap<Key, Value>>>,
 }
 
 impl LocalStore {
     pub fn new() -> Self {
-        Self {
-            store: Mutex::new(HashMap::new()),
-        }
+        Self::default()
     }
 }
 
-impl Default for LocalStore {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
+#[async_trait]
 impl StorageManagerInterface for LocalStore {
     /// Add a key/value pair to storage.
-    fn add(&self, key: Key, value: Value) -> Result<(), StorageManagerError> {
+    async fn add(&self, key: Key, value: Value) -> Result<(), StorageManagerError> {
         let mut store = self.store.lock().unwrap();
 
         store.insert(key, value);
@@ -37,7 +32,7 @@ impl StorageManagerInterface for LocalStore {
     }
 
     /// Retrieve the value associated with a key.
-    fn get(&self, key: Key) -> Result<Option<Value>, StorageManagerError> {
+    async fn get(&self, key: Key) -> Result<Option<Value>, StorageManagerError> {
         let store = self.store.lock().unwrap();
 
         match store.get(&key) {
@@ -47,14 +42,14 @@ impl StorageManagerInterface for LocalStore {
     }
 
     /// List the available key/value pairs.
-    fn list(&self) -> Result<Vec<Key>, StorageManagerError> {
+    async fn list(&self) -> Result<Vec<Key>, StorageManagerError> {
         let store = self.store.lock().unwrap();
 
         Ok(store.keys().map(|x| x.to_owned()).collect())
     }
 
     /// Delete a given key/value pair from storage.
-    fn remove(&self, key: Key) -> Result<(), StorageManagerError> {
+    async fn remove(&self, key: Key) -> Result<(), StorageManagerError> {
         let mut store = self.store.lock().unwrap();
 
         _ = store.remove(&key);

@@ -169,8 +169,8 @@ fun WalletSettingsHomeBody(
         Spacer(Modifier.weight(1f))
         Button(
             onClick = {
-                credentialPacksViewModel.deleteAllCredentialPacks(onDeleteCredentialPack = { credentialPack ->
-                    GlobalScope.launch {
+                GlobalScope.launch {
+                    credentialPacksViewModel.deleteAllCredentialPacks(onDeleteCredentialPack = { credentialPack ->
                         credentialPack.list().forEach { credential ->
                             val credentialInfo =
                                 getCredentialIdTitleAndIssuer(
@@ -189,8 +189,8 @@ fun WalletSettingsHomeBody(
                                 )
                             )
                         }
-                    }
-                })
+                    })
+                }
             },
             shape = RoundedCornerShape(5.dp),
             colors = ButtonDefaults.buttonColors(

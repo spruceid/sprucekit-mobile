@@ -206,7 +206,7 @@ pub struct PresentationOptions<'a> {
     pub(crate) context_map: Option<HashMap<String, String>>,
 }
 
-impl<'a> MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions<'a> {
+impl MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions<'_> {
     #[allow(async_fn_in_trait)]
     async fn sign(
         self,
@@ -247,7 +247,7 @@ impl<'a> MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOpt
     }
 }
 
-impl<'a, M> ssi::verification_methods::Signer<M> for PresentationOptions<'a>
+impl<M> ssi::verification_methods::Signer<M> for PresentationOptions<'_>
 where
     M: ssi::verification_methods::VerificationMethod,
 {
@@ -337,7 +337,7 @@ impl<'a> PresentationOptions<'a> {
         let resolver = VerificationMethodDIDResolver::new(AnyDidMethod::default());
 
         let mut proof_options = ProofOptions::new(
-            DateTimeStamp::now_ms().into(),
+            DateTimeStamp::now_ms(),
             self.verification_method_id().await?.into(),
             ProofPurpose::Authentication,
             Default::default(),

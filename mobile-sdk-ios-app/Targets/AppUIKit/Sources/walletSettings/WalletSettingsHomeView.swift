@@ -89,29 +89,31 @@ struct WalletSettingsHomeBody: View {
     @ViewBuilder
     var deleteAllCredentials: some View {
         Button {
-            do {
-                let credentialPacks = try CredentialPack.loadAll(storageManager: storageManager)
-                try credentialPacks.forEach { credentialPack in
-                    try credentialPack.remove(storageManager: storageManager)
-                    credentialPack.list().forEach { credential in
-                        let credentialInfo = getCredentialIdTitleAndIssuer(
-                            credentialPack: credentialPack,
-                            credential: credential
-                        )
-                        _ = WalletActivityLogDataStore.shared.insert(
-                            credentialPackId: credentialPack.id.uuidString,
-                            credentialId: credentialInfo.0,
-                            credentialTitle: credentialInfo.1,
-                            issuer: credentialInfo.2,
-                            action: "Deleted",
-                            dateTime: Date(),
-                            additionalInformation: ""
-                        )
+            Task {
+                do {
+                    let credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
+                    try await credentialPacks.asyncForEach { credentialPack in
+                        try await credentialPack.remove(storageManager: storageManager)
+                        credentialPack.list().forEach { credential in
+                            let credentialInfo = getCredentialIdTitleAndIssuer(
+                                credentialPack: credentialPack,
+                                credential: credential
+                            )
+                            _ = WalletActivityLogDataStore.shared.insert(
+                                credentialPackId: credentialPack.id.uuidString,
+                                credentialId: credentialInfo.0,
+                                credentialTitle: credentialInfo.1,
+                                issuer: credentialInfo.2,
+                                action: "Deleted",
+                                dateTime: Date(),
+                                additionalInformation: ""
+                            )
+                        }
                     }
+                } catch {
+                    // TODO: display error message
+                    print(error)
                 }
-            } catch {
-                // TODO: display error message
-                print(error)
             }
         }  label: {
             Text("Delete all added credentials")

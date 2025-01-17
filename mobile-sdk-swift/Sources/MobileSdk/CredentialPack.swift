@@ -179,32 +179,32 @@ public class CredentialPack {
     /// Persists the CredentialPack in the StorageManager, and persists all credentials in the VdcCollection.
     ///
     /// If a credential already exists in the VdcCollection (matching on id), then it will be skipped without updating.
-    public func save(storageManager: StorageManagerInterface) throws {
+    public func save(storageManager: StorageManagerInterface) async throws {
         let vdcCollection = VdcCollection(engine: storageManager)
         for credential in list() {
             do {
-                if (try vdcCollection.get(id: credential.id())) == nil {
-                    try vdcCollection.add(credential: try credential.intoGenericForm())
+                if (try await vdcCollection.get(id: credential.id())) == nil {
+                    try await vdcCollection.add(credential: try credential.intoGenericForm())
                 }
             } catch {
                 throw CredentialPackError.credentialStorage(id: credential.id(), reason: error)
             }
         }
 
-        try self.intoContents().save(storageManager: storageManager)
+        try await self.intoContents().save(storageManager: storageManager)
     }
 
     /// Remove this CredentialPack from the StorageManager.
     ///
     /// Credentials that are in this pack __are__ removed from the VdcCollection.
-    public func remove(storageManager: StorageManagerInterface) throws {
-        try self.intoContents().remove(storageManager: storageManager)
+    public func remove(storageManager: StorageManagerInterface) async throws {
+        try await self.intoContents().remove(storageManager: storageManager)
     }
 
     /// Loads all CredentialPacks from the StorageManager.
-    public static func loadAll(storageManager: StorageManagerInterface) throws -> [CredentialPack] {
-        try CredentialPackContents.list(storageManager: storageManager).map { contents in
-            try contents.load(vdcCollection: VdcCollection(engine: storageManager))
+    public static func loadAll(storageManager: StorageManagerInterface) async throws -> [CredentialPack] {
+        try await CredentialPackContents.list(storageManager: storageManager).asyncMap { contents in
+            try await contents.load(vdcCollection: VdcCollection(engine: storageManager))
         }
     }
 
@@ -267,10 +267,10 @@ public struct CredentialPackContents {
     }
 
     /// Loads all of the credentials from the VdcCollection for this CredentialPack.
-    public func load(vdcCollection: VdcCollection) throws -> CredentialPack {
-        let credentials = try credentials.map { credentialId in
+    public func load(vdcCollection: VdcCollection) async throws -> CredentialPack {
+        let credentials = try await credentials.asyncMap { credentialId in
             do {
-                guard let credential = try vdcCollection.get(id: credentialId) else {
+                guard let credential = try await vdcCollection.get(id: credentialId) else {
                     throw CredentialPackError.credentialNotFound(id: credentialId)
                 }
                 return try ParsedCredential.parseFromCredential(credential: credential)
@@ -283,14 +283,14 @@ public struct CredentialPackContents {
     }
 
     /// Clears all CredentialPacks.
-    public static func clear(storageManager: StorageManagerInterface) throws {
+    public static func clear(storageManager: StorageManagerInterface) async throws {
         do {
-            try storageManager.list()
+            try await storageManager.list()
                 .filter { file in
                     file.hasPrefix(Self.storagePrefix)
                 }
-                .forEach { file in
-                    try storageManager.remove(key: file)
+                .asyncForEach { file in
+                    try await storageManager.remove(key: file)
                 }
         } catch {
             throw CredentialPackError.clearing(reason: error)
@@ -300,14 +300,14 @@ public struct CredentialPackContents {
     /// Lists all CredentialPacks.
     ///
     /// These can then be individually loaded. For eager loading of all packs, see `CredentialPack.loadAll`.
-    public static func list(storageManager: StorageManagerInterface) throws -> [CredentialPackContents] {
+    public static func list(storageManager: StorageManagerInterface) async throws -> [CredentialPackContents] {
         do {
-            return try storageManager.list()
+            return try await storageManager.list()
                 .filter { file in
                     file.hasPrefix(Self.storagePrefix)
                 }
-                .map { file in
-                    guard let contents = try storageManager.get(key: file) else {
+                .asyncMap { file in
+                    guard let contents = try await storageManager.get(key: file) else {
                         throw CredentialPackError.missing(file: file)
                     }
                     return try CredentialPackContents(fromBytes: contents)
@@ -317,10 +317,10 @@ public struct CredentialPackContents {
         }
     }
 
-    public func save(storageManager: StorageManagerInterface) throws {
+    public func save(storageManager: StorageManagerInterface) async throws {
         let bytes = try self.toBytes()
         do {
-            try storageManager.add(key: self.storageKey(), value: bytes)
+            try await storageManager.add(key: self.storageKey(), value: bytes)
         } catch {
             throw CredentialPackError.storage(reason: error)
         }
@@ -346,18 +346,18 @@ public struct CredentialPackContents {
     /// Remove this CredentialPack from the StorageManager.
     ///
     /// Credentials that are in this pack __are__ removed from the VdcCollection.
-    public func remove(storageManager: StorageManagerInterface) throws {
+    public func remove(storageManager: StorageManagerInterface) async throws {
         let vdcCollection = VdcCollection(engine: storageManager)
-        self.credentials.forEach { credential in
+        await self.credentials.asyncForEach { credential in
             do {
-                try vdcCollection.delete(id: credential)
+                try await vdcCollection.delete(id: credential)
             } catch {
                 print("failed to remove Credential '\(credential)' from the VdcCollection")
             }
         }
 
         do {
-            try storageManager.remove(key: self.storageKey())
+            try await storageManager.remove(key: self.storageKey())
         } catch {
             throw CredentialPackError.removing(reason: error)
         }

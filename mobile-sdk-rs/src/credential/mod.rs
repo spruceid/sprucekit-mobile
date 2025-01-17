@@ -8,12 +8,13 @@ pub mod vcdm2_sd_jwt;
 use std::sync::Arc;
 
 use crate::{
+    crypto::KeyAlias,
     oid4vp::{
         error::OID4VPError,
         permission_request::RequestedField,
         presentation::{CredentialPresentation, PresentationError, PresentationOptions},
     },
-    CredentialType, KeyAlias, Uuid,
+    CredentialType, Uuid,
 };
 use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};

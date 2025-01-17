@@ -25,8 +25,8 @@ import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
-import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request
@@ -118,7 +118,7 @@ fun HandleOID4VCIView(
                     signature?.let {
                         generatePopComplete(
                             signingInput = signingInput,
-                            signature =
+                            signatureDer =
                             Base64.encodeToString(
                                 signature,
                                 Base64.URL_SAFE or
@@ -133,10 +133,12 @@ fun HandleOID4VCIView(
             oid4vciSession.setContextMap(getVCPlaygroundOID4VCIContext(ctx = ctx))
 
             val credentials =
-                pop?.let { oid4vciSession.exchangeCredential(
-                    proofsOfPossession = listOf(pop),
-                    options = Oid4vciExchangeOptions(true),
-                ) }
+                pop?.let {
+                    oid4vciSession.exchangeCredential(
+                        proofsOfPossession = listOf(pop),
+                        options = Oid4vciExchangeOptions(true),
+                    )
+                }
 
             credentials?.forEach { cred ->
                 cred.payload.toString(Charsets.UTF_8).let { credential = it }

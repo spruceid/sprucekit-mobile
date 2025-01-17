@@ -10,7 +10,7 @@ use isomdl::{
 };
 use uuid::Uuid;
 
-use crate::{CredentialType, KeyAlias};
+use crate::{crypto::KeyAlias, CredentialType};
 
 use super::{Credential, CredentialFormat};
 
@@ -42,7 +42,7 @@ impl Mdoc {
         base64url_encoded_issuer_signed: String,
         key_alias: KeyAlias,
     ) -> Result<Arc<Self>, MdocInitError> {
-        let issuer_signed = serde_cbor::from_slice(
+        let issuer_signed = isomdl::cbor::from_slice(
             &BASE64_URL_SAFE_NO_PAD
                 .decode(base64url_encoded_issuer_signed)
                 .map_err(|_| MdocInitError::IssuerSignedBase64UrlDecoding)?,
@@ -70,8 +70,8 @@ impl Mdoc {
         cbor_encoded_document: Vec<u8>,
         key_alias: KeyAlias,
     ) -> Result<Arc<Self>, MdocInitError> {
-        let inner = serde_cbor::from_slice(&cbor_encoded_document)
-            .map_err(|_| MdocInitError::DocumentCborDecoding)?;
+        let inner = isomdl::cbor::from_slice(&cbor_encoded_document)
+            .map_err(|e| MdocInitError::DocumentCborDecoding(e.to_string()))?;
         Ok(Arc::new(Self { inner, key_alias }))
     }
 
@@ -121,6 +121,10 @@ impl Mdoc {
         &self.inner
     }
 
+    pub(crate) fn new_from_parts(inner: Document, key_alias: KeyAlias) -> Self {
+        Self { inner, key_alias }
+    }
+
     fn new_from_issuer_signed(
         key_alias: KeyAlias,
         IssuerSigned {
@@ -148,9 +152,10 @@ impl Mdoc {
             // Unwrap safety: safe to convert BTreeMap to NonEmptyMap since we're iterating over a NonEmptyMap.
             .unwrap();
 
-        let mso: Mso = serde_cbor::from_slice(
+        let mso: Mso = isomdl::cbor::from_slice(
             issuer_auth
-                .payload()
+                .payload
+                .as_ref()
                 .ok_or(MdocInitError::IssuerAuthPayloadMissing)?,
         )
         .map_err(|_| MdocInitError::IssuerAuthPayloadDecoding)?;
@@ -186,7 +191,7 @@ impl TryFrom<Arc<Mdoc>> for Credential {
             id: mdoc.id(),
             format: CredentialFormat::MsoMdoc,
             r#type: CredentialType(mdoc.doctype()),
-            payload: serde_cbor::to_vec(mdoc.document())
+            payload: isomdl::cbor::to_vec(mdoc.document())
                 .map_err(|_| MdocEncodingError::DocumentCborEncoding)?,
             key_alias: Some(mdoc.key_alias()),
         })
@@ -195,8 +200,8 @@ impl TryFrom<Arc<Mdoc>> for Credential {
 
 #[derive(Debug, uniffi::Error, thiserror::Error)]
 pub enum MdocInitError {
-    #[error("failed to decode Document from CBOR")]
-    DocumentCborDecoding,
+    #[error("failed to decode Document from CBOR: {0}")]
+    DocumentCborDecoding(String),
     #[error("failed to decode base64url_encoded_issuer_signed from base64url-encoded bytes")]
     IssuerSignedBase64UrlDecoding,
     #[error("failed to deocde IssuerSigned from CBOR")]
