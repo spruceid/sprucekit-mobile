@@ -21,7 +21,7 @@ cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", featur
 ] }
 isomdl = { git = "https://github.com/spruceid/isomdl", rev = "6084a83" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "e97b01e" }
-openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "5abf66b" }
+openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "8df92db" }
 ssi = { version = "0.10.2", features = ["secp256r1", "secp384r1"] }
 
 anyhow = "1.0.95"
@@ -36,6 +36,7 @@ hex = "0.4.3"
 # Default josekit uses openssl which cannot be easily used in a mobile library.
 josekit = { git = "https://github.com/cobward/josekit-rs", rev = "635c8a7" }
 json-syntax = "0.12.5"
+itertools = "0.13"
 log = { version = "0.4", features = ["std", "serde"] }
 miniz_oxide = "0.7.2"
 num-bigint = "0.4.4"
