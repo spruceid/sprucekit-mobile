@@ -8,6 +8,7 @@ use isomdl::{
     definitions::{IssuerSigned, Mso},
     presentation::{device::Document, Stringify},
 };
+use uniffi::deps::log;
 use uuid::Uuid;
 
 use crate::{crypto::KeyAlias, CredentialType};
@@ -42,13 +43,37 @@ impl Mdoc {
         base64url_encoded_issuer_signed: String,
         key_alias: KeyAlias,
     ) -> Result<Arc<Self>, MdocInitError> {
-        let issuer_signed = isomdl::cbor::from_slice(
-            &BASE64_URL_SAFE_NO_PAD
-                .decode(base64url_encoded_issuer_signed)
-                .map_err(|_| MdocInitError::IssuerSignedBase64UrlDecoding)?,
-        )
-        .map_err(|_| MdocInitError::IssuerSignedCborDecoding)?;
-        Self::new_from_issuer_signed(key_alias, issuer_signed)
+        log::debug!(
+            "base64url_encoded_issuer_signed: {}",
+            base64url_encoded_issuer_signed
+        );
+
+        let decoded_bytes = match BASE64_URL_SAFE_NO_PAD.decode(&base64url_encoded_issuer_signed) {
+            Ok(bytes) => Ok(bytes),
+            Err(_) => {
+                log::warn!("BASE64_URL_SAFE_NO_PAD decode failed... trying BASE64_STANDARD");
+                // NOTE: fallback to standard base64 decoding
+                match BASE64_STANDARD.decode(base64url_encoded_issuer_signed) {
+                    Ok(bytes) => Ok(bytes),
+                    Err(e) => {
+                        log::error!("BASE64_STANDARD: Failed to decode base64url_encoded_issuer_signed: {:?}", e);
+                        Err(MdocInitError::IssuerSignedBase64UrlDecoding(format!(
+                            "{e:?}"
+                        )))
+                    }
+                }
+            }
+        }?;
+
+        log::debug!("decoded_bytes: {:?}", decoded_bytes);
+
+        match isomdl::cbor::from_slice(&decoded_bytes) {
+            Ok(issuer_signed) => Self::new_from_issuer_signed(key_alias, issuer_signed),
+            Err(e) => {
+                log::error!("Failed to CBOR decode issuer signed bytes: {e:?}");
+                Err(MdocInitError::IssuerSignedCborDecoding)
+            }
+        }
     }
 
     #[uniffi::constructor]
@@ -202,8 +227,8 @@ impl TryFrom<Arc<Mdoc>> for Credential {
 pub enum MdocInitError {
     #[error("failed to decode Document from CBOR: {0}")]
     DocumentCborDecoding(String),
-    #[error("failed to decode base64url_encoded_issuer_signed from base64url-encoded bytes")]
-    IssuerSignedBase64UrlDecoding,
+    #[error("failed to decode base64url_encoded_issuer_signed from base64url-encoded bytes: {0}")]
+    IssuerSignedBase64UrlDecoding(String),
     #[error("failed to deocde IssuerSigned from CBOR")]
     IssuerSignedCborDecoding,
     #[error("IssuerAuth CoseSign1 has no payload")]

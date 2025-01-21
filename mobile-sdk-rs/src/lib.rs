@@ -5,6 +5,7 @@ pub mod credential;
 pub mod crypto;
 pub mod did;
 pub mod local_store;
+pub mod logger;
 pub mod mdl;
 pub mod oid4vci;
 pub mod oid4vp;
