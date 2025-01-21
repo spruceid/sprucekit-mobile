@@ -17,20 +17,24 @@ class Signer: PresentationSigner {
     private let didJwk = DidMethodUtils(method: DidMethod.jwk)
 
     init(keyId: String?) throws {
-        self.keyId = if (keyId == nil) { "reference-app/default-signing" } else { keyId! }
+        self.keyId =
+            if keyId == nil { "reference-app/default-signing" } else { keyId! }
         _ = KeyManager.generateSigningKey(id: self.keyId)
         let jwk = KeyManager.getJwk(id: self.keyId)
         if jwk == nil {
-            throw Oid4vpSignerError.illegalArgumentException(reason: "Invalid kid")
+            throw Oid4vpSignerError.illegalArgumentException(
+                reason: "Invalid kid")
         } else {
             self._jwk = jwk!
         }
     }
 
     func sign(payload: Data) async throws -> Data {
-        let signature = KeyManager.signPayload(id: keyId, payload: [UInt8](payload))
+        let signature = KeyManager.signPayload(
+            id: keyId, payload: [UInt8](payload))
         if signature == nil {
-            throw Oid4vpSignerError.illegalArgumentException(reason: "Failed to sign payload")
+            throw Oid4vpSignerError.illegalArgumentException(
+                reason: "Failed to sign payload")
         } else {
             return Data(signature!)
         }
@@ -60,6 +64,20 @@ class Signer: PresentationSigner {
     }
 }
 
+public enum OID4VPState {
+    case err, selectCredential, selectiveDisclosure, loading, none
+}
+
+public class OID4VPError {
+    let title: String
+    let details: String
+
+    init(title: String, details: String) {
+        self.title = title
+        self.details = details
+    }
+}
+
 struct HandleOID4VPView: View {
     @Binding var path: NavigationPath
     var url: String
@@ -67,11 +85,13 @@ struct HandleOID4VPView: View {
     @State private var holder: Holder?
     @State private var permissionRequest: PermissionRequest?
     @State private var permissionResponse: PermissionResponse?
-    @State private var selectedCredential: ParsedCredential?
+    @State private var lSelectedCredentials: [PresentableCredential]?
+    @State private var selectedCredential: PresentableCredential?
     @State private var credentialClaims: [String: [String: GenericJSON]] = [:]
     @State private var credentialPacks: [CredentialPack] = []
 
-    @State private var err: String?
+    @State private var err: OID4VPError?
+    @State private var state = OID4VPState.none
 
     let storageManager = StorageManager()
 
@@ -82,7 +102,9 @@ struct HandleOID4VPView: View {
             credentialPacks.forEach { credentialPack in
                 credentials += credentialPack.list()
                 credentialClaims = credentialClaims.merging(
-                    credentialPack.findCredentialClaims(claimNames: ["name", "type"])
+                    credentialPack.findCredentialClaims(claimNames: [
+                        "name", "type",
+                    ])
                 ) { (_, new) in new }
             }
 
@@ -95,19 +117,31 @@ struct HandleOID4VPView: View {
                 contextMap: getVCPlaygroundOID4VCIContext()
             )
             let newurl = url.replacing("authorize", with: "")
-            let tmpPermissionRequest = try await holder!.authorizationRequest(url: Url(newurl))
-            let permissionRequestCredentials = tmpPermissionRequest.credentials()
-            
+            let tmpPermissionRequest = try await holder!.authorizationRequest(
+                url: Url(newurl))
+            let permissionRequestCredentials =
+                tmpPermissionRequest.credentials()
+
             if permissionRequestCredentials.count == 1 {
                 selectedCredential = permissionRequestCredentials.first
-                permissionResponse = try await tmpPermissionRequest.createPermissionResponse(
-                    selectedCredentials: permissionRequestCredentials
-                )
             }
-            
+
             permissionRequest = tmpPermissionRequest
+            if !(permissionRequest?.credentials().isEmpty)! {
+                state = OID4VPState.selectCredential
+            } else {
+                err = OID4VPError(
+                    title: "No matching credential(s)",
+                    details:
+                        "There are no credentials in your wallet that match the verification request you have scanned"
+                )
+                state = .err
+            }
         } catch {
-            err = error.localizedDescription
+            err = OID4VPError(
+                title: "No matching credential(s)",
+                details: error.localizedDescription)
+            state = .err
         }
     }
 
@@ -118,103 +152,127 @@ struct HandleOID4VPView: View {
     }
 
     var body: some View {
-        if err != nil {
+        switch state {
+        case .err:
             ErrorView(
-                errorTitle: "Error Presenting Credential",
-                errorDetails: err!,
+                errorTitle: err!.title,
+                errorDetails: err!.details,
                 onClose: back
             )
-        } else {
-            if permissionRequest == nil {
-                LoadingView(loadingText: "Loading...")
-                    .task {
-                        await presentCredential()
-                    }
-            } else if permissionResponse == nil {
-                if !(permissionRequest?.credentials().isEmpty ?? false) {
-                    CredentialSelector(
-                        credentials: permissionRequest!.credentials(),
-                        credentialClaims: credentialClaims,
-                        getRequestedFields: { credential in
-                            return permissionRequest!.requestedFields(credential: credential)
-                        },
-                        onContinue: { selectedCredentials in
-                            Task {
-                                do {
-                                    selectedCredential = selectedCredentials.first
-                                    permissionResponse = try await permissionRequest!
-                                        .createPermissionResponse(
-                                            selectedCredentials: selectedCredentials
-                                        )
-                                } catch {
-                                    err = error.localizedDescription
-                                }
-                            }
-                        },
-                        onCancel: back
-                    )
-                } else {
-                    ErrorView(
-                        errorTitle: "No matching credential(s)",
-                        errorDetails:
-                            "There are no credentials in your wallet that match the verification request you have scanned",
-                        closeButtonLabel: "Cancel",
-                        onClose: back
-                    )
-                }
-            } else {
-                DataFieldSelector(
-                    requestedFields: permissionRequest!.requestedFields(
-                        credential: selectedCredential!),
-                    onContinue: {
-                        Task {
-                            do {
-                                _ = try await holder?.submitPermissionResponse(
-                                    response: permissionResponse!)
-                                let credentialPack = credentialPacks.first(where: {
+        case .selectCredential:
+            CredentialSelector(
+                credentials: permissionRequest!.credentials(),
+                credentialClaims: credentialClaims,
+                getRequestedFields: { credential in
+                    return permissionRequest!.requestedFields(
+                        credential: credential)
+                },
+                onContinue: { selectedCredentials in
+                    lSelectedCredentials = selectedCredentials
+                    selectedCredential =
+                        selectedCredentials.first
+                    state = .selectiveDisclosure
+                },
+                onCancel: back
+            )
+        case .selectiveDisclosure:
+            DataFieldSelector(
+                requestedFields: permissionRequest!.requestedFields(
+                    credential: selectedCredential!),
+                selectedCredential: selectedCredential!,
+                onContinue: { selectedFields in
+                    Task {
+                        do {
+                            permissionResponse = try await permissionRequest?
+                                .createPermissionResponse(
+                                    selectedCredentials: lSelectedCredentials!,
+                                    selectedFields: selectedFields
+                                )
+                            _ = try await holder?.submitPermissionResponse(
+                                response: permissionResponse!)
+                            let credentialPack = credentialPacks.first(
+                                where: {
                                     credentialPack in
                                     return credentialPack.get(
-                                        credentialId: selectedCredential?.id() ?? "") != nil
+                                        credentialId: selectedCredential!.asParsedCredential()
+                                            .id()) != nil
                                 })!
-                                let credentialInfo = getCredentialIdTitleAndIssuer(
+                            let credentialInfo =
+                                getCredentialIdTitleAndIssuer(
                                     credentialPack: credentialPack)
-                                _ = WalletActivityLogDataStore.shared.insert(
-                                    credentialPackId: credentialPack.id.uuidString,
-                                    credentialId: credentialInfo.0,
-                                    credentialTitle: credentialInfo.1,
-                                    issuer: credentialInfo.2,
-                                    action: "Verification",
-                                    dateTime: Date(),
-                                    additionalInformation: ""
-                                )
+                            _ = WalletActivityLogDataStore.shared.insert(
+                                credentialPackId: credentialPack.id
+                                    .uuidString,
+                                credentialId: credentialInfo.0,
+                                credentialTitle: credentialInfo.1,
+                                issuer: credentialInfo.2,
+                                action: "Verification",
+                                dateTime: Date(),
+                                additionalInformation: ""
+                            )
                                 ToastManager.shared.showSuccess(message: "Shared successfully")
-                                back()
-                            } catch {
-                                err = error.localizedDescription
-                            }
+                            back()
+                        } catch {
+                            err = OID4VPError(
+                                title: "Failed to selective disclose fields",
+                                details: error.localizedDescription
+                            )
+                            state = .err
                         }
-                    },
-                    onCancel: back
-                )
-            }
+                    }
+                },
+                onCancel: back
+            )
+        case .loading:
+            LoadingView(loadingText: "Loading...")
+        case .none:
+            LoadingView(loadingText: "Loading...")
+                .task {
+                    await presentCredential()
+                }
         }
     }
 }
 
 struct DataFieldSelector: View {
-    let requestedFields: [String]
-    let onContinue: () -> Void
+    let requestedFields: [RequestedField]
+    let selectedCredential: PresentableCredential
+    let onContinue: ([[String]]) -> Void
     let onCancel: () -> Void
 
+    @State private var selectedFields: [String]
+    let requiredFields: [String]
+
     init(
-        requestedFields: [RequestedField], onContinue: @escaping () -> Void,
+        requestedFields: [RequestedField],
+        selectedCredential: PresentableCredential,
+        onContinue: @escaping ([[String]]) -> Void,
         onCancel: @escaping () -> Void
     ) {
-        self.requestedFields = requestedFields.map { field in
-            (field.name() ?? "").capitalized
-        }
+        self.requestedFields = requestedFields
         self.onContinue = onContinue
         self.onCancel = onCancel
+        self.requiredFields =
+            requestedFields
+            .filter { $0.required() }
+            .map { $0.path() }
+        self.selectedFields = self.requiredFields
+        self.selectedCredential = selectedCredential
+    }
+
+    func toggleBinding(for field: RequestedField) -> Binding<Bool> {
+        Binding {
+            selectedFields.contains(where: { $0 == field.path() })
+        } set: { _ in
+            // TODO: update when allowing multiple
+            if selectedCredential.selectiveDisclosable() && !field.required() {
+                if selectedFields.contains(field.path()) {
+                    selectedFields.removeAll(where: { $0 == field.path() })
+                } else {
+                    selectedFields.append(field.path())
+                }
+            }
+        }
     }
 
     var body: some View {
@@ -231,10 +289,11 @@ struct DataFieldSelector: View {
 
             ScrollView {
                 ForEach(requestedFields, id: \.self) { field in
-                    Text("• \(field)")
-                        .font(.customFont(font: .inter, style: .regular, size: .h4))
-                        .foregroundStyle(Color("ColorStone950"))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    SelectiveDisclosureItem(
+                        field: field,
+                        required: field.required(),
+                        isChecked: toggleBinding(for: field)
+                    )
                 }
             }
 
@@ -244,7 +303,9 @@ struct DataFieldSelector: View {
                 } label: {
                     Text("Cancel")
                         .frame(maxWidth: .infinity)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(Color("ColorStone950"))
                 .padding(.vertical, 13)
@@ -254,11 +315,13 @@ struct DataFieldSelector: View {
                 )
 
                 Button {
-                    onContinue()
+                    onContinue([selectedFields])
                 } label: {
                     Text("Approve")
                         .frame(maxWidth: .infinity)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(.white)
                 .padding(.vertical, 13)
@@ -272,29 +335,53 @@ struct DataFieldSelector: View {
     }
 }
 
+struct SelectiveDisclosureItem: View {
+    let field: RequestedField
+    let required: Bool
+    @Binding var isChecked: Bool
+
+    var body: some View {
+        HStack {
+            Toggle(isOn: $isChecked) {
+                Text(field.name()!.capitalized)
+                    .font(.customFont(font: .inter, style: .regular, size: .h4))
+                    .foregroundStyle(Color("ColorStone950"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .toggleStyle(iOSCheckboxToggleStyle(enabled: !required))
+        }
+    }
+}
+
 struct CredentialSelector: View {
-    let credentials: [ParsedCredential]
+    let credentials: [PresentableCredential]
     let credentialClaims: [String: [String: GenericJSON]]
-    let getRequestedFields: (ParsedCredential) -> [RequestedField]
-    let onContinue: ([ParsedCredential]) -> Void
+    let getRequestedFields: (PresentableCredential) -> [RequestedField]
+    let onContinue: ([PresentableCredential]) -> Void
     let onCancel: () -> Void
     var allowMultiple: Bool = false
 
-    @State private var selectedCredentials: [ParsedCredential] = []
+    @State private var selectedCredentials: [PresentableCredential] = []
 
-    func selectCredential(credential: ParsedCredential) {
-        if allowMultiple {
-            selectedCredentials.append(credential)
+    func selectCredential(credential: PresentableCredential) {
+        if selectedCredentials.contains(where: { $0.asParsedCredential().id() == credential.asParsedCredential().id() }) {
+            selectedCredentials.removeAll(where: { $0.asParsedCredential().id() == credential.asParsedCredential().id() })
         } else {
-            selectedCredentials.removeAll()
-            selectedCredentials.append(credential)
+            if allowMultiple {
+                selectedCredentials.append(credential)
+            } else {
+                selectedCredentials.removeAll()
+                selectedCredentials.append(credential)
+            }
         }
     }
 
-    func getCredentialTitle(credential: ParsedCredential) -> String {
-        if let name = credentialClaims[credential.id()]?["name"]?.toString() {
+    func getCredentialTitle(credential: PresentableCredential) -> String {
+        if let name = credentialClaims[credential.asParsedCredential().id()]?["name"]?.toString() {
             return name
-        } else if let types = credentialClaims[credential.id()]?["type"]?.arrayValue {
+        } else if let types = credentialClaims[credential.asParsedCredential().id()]?["type"]?
+            .arrayValue
+        {
             var title = ""
             types.forEach {
                 if $0.toString() != "VerifiableCredential" {
@@ -308,9 +395,9 @@ struct CredentialSelector: View {
         }
     }
 
-    func toggleBinding(for credential: ParsedCredential) -> Binding<Bool> {
+    func toggleBinding(for credential: PresentableCredential) -> Binding<Bool> {
         Binding {
-            selectedCredentials.contains(where: { $0.id() == credential.id() })
+            selectedCredentials.contains(where: { $0.asParsedCredential().id() == credential.asParsedCredential().id() })
         } set: { _ in
             // TODO: update when allowing multiple
             selectCredential(credential: credential)
@@ -347,7 +434,9 @@ struct CredentialSelector: View {
                 } label: {
                     Text("Cancel")
                         .frame(maxWidth: .infinity)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(Color("ColorStone950"))
                 .padding(.vertical, 13)
@@ -363,7 +452,9 @@ struct CredentialSelector: View {
                 } label: {
                     Text("Continue")
                         .frame(maxWidth: .infinity)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(.white)
                 .padding(.vertical, 13)
@@ -379,17 +470,17 @@ struct CredentialSelector: View {
 }
 
 struct CredentialSelectorItem: View {
-    let credential: ParsedCredential
+    let credential: PresentableCredential
     let requestedFields: [String]
-    let getCredentialTitle: (ParsedCredential) -> String
+    let getCredentialTitle: (PresentableCredential) -> String
     @Binding var isChecked: Bool
 
     @State var expanded = false
 
     init(
-        credential: ParsedCredential,
+        credential: PresentableCredential,
         requestedFields: [RequestedField],
-        getCredentialTitle: @escaping (ParsedCredential) -> String,
+        getCredentialTitle: @escaping (PresentableCredential) -> String,
         isChecked: Binding<Bool>
     ) {
         self.credential = credential
@@ -405,7 +496,10 @@ struct CredentialSelectorItem: View {
             HStack {
                 Toggle(isOn: $isChecked) {
                     Text(getCredentialTitle(credential))
-                        .font(.customFont(font: .inter, style: .semiBold, size: .h3))
+                        .font(
+                            .customFont(
+                                font: .inter, style: .semiBold, size: .h3)
+                        )
                         .foregroundStyle(Color("ColorStone950"))
                 }
                 .toggleStyle(iOSCheckboxToggleStyle())
@@ -425,7 +519,10 @@ struct CredentialSelectorItem: View {
             VStack(alignment: .leading) {
                 ForEach(requestedFields, id: \.self) { field in
                     Text("• \(field)")
-                        .font(.customFont(font: .inter, style: .regular, size: .h4))
+                        .font(
+                            .customFont(
+                                font: .inter, style: .regular, size: .h4)
+                        )
                         .foregroundStyle(Color("ColorStone950"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
