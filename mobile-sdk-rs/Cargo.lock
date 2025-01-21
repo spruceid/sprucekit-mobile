@@ -2468,9 +2468,12 @@ dependencies = [
 
 [[package]]
 name = "inventory"
-version = "0.3.15"
+version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f958d3d68f4167080a18141e10381e7634563984a537f2a49a30fd8e53ac5767"
+checksum = "3b31349d02fe60f80bbbab1a9402364cad7460626d6030494b08ac4a2075bf81"
+dependencies = [
+ "rustversion",
+]
 
 [[package]]
 name = "ipnet"
@@ -2616,6 +2619,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
 ]
 
 [[package]]
@@ -3263,6 +3275,7 @@ dependencies = [
  "futures-util",
  "hex",
  "isomdl 0.1.0 (git+https://github.com/spruceid/isomdl?rev=6084a83)",
+ "itertools",
  "josekit",
  "json-syntax",
  "log",
@@ -3568,7 +3581,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 [[package]]
 name = "openid4vp"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=5abf66b#5abf66b2dc4db4dd597f4530c63f193964c58af5"
+source = "git+https://github.com/spruceid/openid4vp?rev=8df92db#8df92dba8bfffcd22d9648251713004cd5a39312"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3596,7 +3609,7 @@ dependencies = [
 [[package]]
 name = "openid4vp-frontend"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=5abf66b#5abf66b2dc4db4dd597f4530c63f193964c58af5"
+source = "git+https://github.com/spruceid/openid4vp?rev=8df92db#8df92dba8bfffcd22d9648251713004cd5a39312"
 dependencies = [
  "serde",
  "serde_json",

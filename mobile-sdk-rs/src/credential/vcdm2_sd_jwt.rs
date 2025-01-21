@@ -14,8 +14,10 @@ use crate::{
     CredentialType,
 };
 
+use core::str;
 use std::sync::Arc;
 
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use futures::stream::{self, StreamExt};
 use openid4vp::{
     core::{
@@ -25,16 +27,18 @@ use openid4vp::{
     JsonPath,
 };
 use reqwest::StatusCode;
-use ssi::status::bitstring_status_list_20240406::{
-    BitstringStatusListCredential, BitstringStatusListEntry,
-};
 use ssi::{
     claims::{
+        jwt::AnyClaims,
         sd_jwt::SdJwtBuf,
         vc::v2::{Credential as _, JsonCredential},
         vc_jose_cose::SdJwtVc,
     },
     prelude::AnyJsonCredential,
+    status::bitstring_status_list_20240406::{
+        BitstringStatusListCredential, BitstringStatusListEntry,
+    },
+    JsonPointerBuf,
 };
 use url::Url;
 use uuid::Uuid;
@@ -157,16 +161,70 @@ impl CredentialPresentation for VCDM2SdJwt {
     async fn as_vp_token_item<'a>(
         &self,
         _options: &'a PresentationOptions<'a>,
+        selected_fields: Option<Vec<String>>,
+        limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError> {
-        // TODO: need to provide the "filtered" (disclosed) fields of the
-        // credential to be encoded into the VpToken.
-        //
-        // Currently, this is encoding the entire revealed SD-JWT,
-        // without the selection of individual disclosed fields.
-        //
-        // We need to selectively disclosed fields.
+        if limit_disclosure {
+            return Err(OID4VPError::LimitDisclosure(
+                "Limit disclosure is required but is not supported.".to_string(),
+            ));
+        }
+
         let compact: &str = self.inner.as_ref();
-        Ok(VpTokenItem::String(compact.to_string()))
+        let vp_token = if let Some(selected_fields) = selected_fields {
+            let json = self.revealed_claims_as_json().map_err(|e| {
+                OID4VPError::CredentialEncoding(super::CredentialEncodingError::SdJwt(e))
+            })?;
+
+            let selected_fields_pointers = selected_fields
+                .into_iter()
+                .map(|sfield| {
+                    // TODO: Remove hotfix encoding and improve path usage
+                    // SAFETY: encoded by client (sprucekit-mobile@holder)
+                    let path = sfield.split(",").next().unwrap().to_owned();
+                    let path = match URL_SAFE.decode(path) {
+                        Ok(path) => path,
+                        Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
+                    };
+                    let path = match str::from_utf8(&path) {
+                        Ok(path) => path,
+                        Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
+                    };
+                    let path = match JsonPath::parse(path) {
+                        Ok(path) => path,
+                        Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
+                    };
+                    let located_node = path.query_located(&json);
+
+                    if located_node.is_empty() {
+                        Err(OID4VPError::JsonPathResolve(format!(
+                            "Unable to resolve JsonPath: {}",
+                            path
+                        )))
+                    } else {
+                        // SAFETY: Empty check above
+                        JsonPointerBuf::new(
+                            located_node.first().unwrap().location().to_json_pointer(),
+                        )
+                        .map_err(|e| OID4VPError::JsonPathToPointer(e.to_string()))
+                    }
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let ret = self
+                .inner
+                .decode_reveal::<AnyClaims>()
+                .map_err(|e| OID4VPError::Debug(e.to_string()))?
+                .retaining(&selected_fields_pointers)
+                .into_encoded()
+                .as_str()
+                .to_string();
+            ret
+        } else {
+            compact.to_string()
+        };
+
+        Ok(VpTokenItem::String(vp_token))
     }
 
     fn create_descriptor_map(
@@ -347,6 +405,27 @@ pub fn decode_reveal_sd_jwt(input: String) -> Result<String, SdJwtError> {
         .into_claims()
         .private;
     serde_json::to_string(&vc).map_err(|e| SdJwtError::Serialization(format!("{e:?}")))
+}
+
+fn inner_list_sd_fields(input: &VCDM2SdJwt) -> Result<Vec<String>, SdJwtError> {
+    let revealed_sd_jwt = SdJwtVc::decode_reveal_any(&input.inner)
+        .map_err(|e| SdJwtError::SdJwtDecoding(format!("{e:?}")))?;
+
+    Ok(revealed_sd_jwt
+        .disclosures
+        .iter()
+        .map(|(p, d)| match &d.desc {
+            ssi::claims::sd_jwt::DisclosureDescription::ObjectEntry { key: _, value: _ } => {
+                p.to_string()
+            }
+            ssi::claims::sd_jwt::DisclosureDescription::ArrayItem(_) => p.to_string(),
+        })
+        .collect())
+}
+
+#[uniffi::export]
+pub fn list_sd_fields(input: Arc<VCDM2SdJwt>) -> Result<Vec<String>, SdJwtError> {
+    inner_list_sd_fields(&input)
 }
 
 #[derive(Debug, uniffi::Error, thiserror::Error)]
