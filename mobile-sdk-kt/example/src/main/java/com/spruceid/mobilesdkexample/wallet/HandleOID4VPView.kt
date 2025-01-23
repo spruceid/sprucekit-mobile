@@ -188,13 +188,15 @@ fun HandleOID4VPView(
                     val tempPermissionRequest = holder!!.authorizationRequest(newurl)
                     val permissionRequestCredentials = tempPermissionRequest.credentials()
 
-                    if (permissionRequestCredentials.count() == 1) {
-                        selectedCredential = permissionRequestCredentials.first()
-                    }
-
                     permissionRequest = tempPermissionRequest
-                    if (permissionRequest!!.credentials().isNotEmpty()) {
-                        state = OID4VPState.SelectCredential
+                    if (permissionRequestCredentials.isNotEmpty()) {
+                        if (permissionRequestCredentials.count() == 1) {
+                            lSelectedCredentials.value = permissionRequestCredentials
+                            selectedCredential = permissionRequestCredentials.first()
+                            state = OID4VPState.SelectiveDisclosure
+                        } else {
+                            state = OID4VPState.SelectCredential
+                        }
                     } else {
                         error = OID4VPError(
                             "No matching credential(s)",
@@ -252,7 +254,9 @@ fun HandleOID4VPView(
                         holder!!.submitPermissionResponse(permissionResponse!!)
                         val credentialPack =
                             credentialPacks.value.firstOrNull { credentialPack ->
-                                credentialPack.getCredentialById(selectedCredential!!.asParsedCredential().id()) != null
+                                credentialPack.getCredentialById(
+                                    selectedCredential!!.asParsedCredential().id()
+                                ) != null
                             }!!
                         val credentialInfo =
                             getCredentialIdTitleAndIssuer(credentialPack)
