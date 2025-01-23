@@ -289,6 +289,39 @@ struct GenericCredentialItem: ICredentialView {
             }
         })
     }
+    
+    @ViewBuilder
+    func credentialRevokedInfo() -> any View {
+        let credentialTitleAndIssuer = getCredentialIdTitleAndIssuer(credentialPack: credentialPack)
+        VStack(alignment: .leading) {
+            Text("Revoked Credential")
+                .font(.customFont(font: .inter, style: .bold, size: .h0))
+                .foregroundStyle(Color("ColorStone950"))
+            Text("The following credential(s) have been revoked:")
+                .font(.customFont(font: .inter, style: .regular, size: .h4))
+                .foregroundStyle(Color("ColorStone600"))
+                .padding(.vertical, 12)
+            Text(credentialTitleAndIssuer.1)
+                .font(.customFont(font: .inter, style: .bold, size: .h4))
+                .foregroundStyle(Color("ColorRose700"))
+            Spacer()
+            Button {
+                sheetOpen = false
+            }  label: {
+                Text("Close")
+                    .frame(width: UIScreen.screenWidth)
+                    .padding(.horizontal, -20)
+                    .font(.customFont(font: .inter, style: .medium, size: .h4))
+            }
+            .foregroundColor(Color("ColorStone950"))
+            .padding(.vertical, 13)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color("ColorStone300"), lineWidth: 1)
+            )
+            .padding(.top, 10)
+        }
+    }
 
     @ViewBuilder
     public func credentialPreviewAndDetails() -> any View {
@@ -299,11 +332,19 @@ struct GenericCredentialItem: ICredentialView {
             .sheet(isPresented: $sheetOpen) {
 
             } content: {
-                AnyView(credentialReviewInfo())
-                    .padding(.top, 25)
-                    .presentationDetents([.fraction(0.85)])
-                    .presentationDragIndicator(.automatic)
-                    .presentationBackgroundInteraction(.automatic)
+                if case CredentialStatusList.revoked = credentialStatus {
+                    AnyView(credentialRevokedInfo())
+                        .padding(.top, 36)
+                        .presentationDetents([.fraction(0.40)])
+                        .presentationDragIndicator(.visible)
+                        .presentationBackgroundInteraction(.automatic)
+                } else {
+                    AnyView(credentialReviewInfo())
+                        .padding(.top, 36)
+                        .presentationDetents([.fraction(0.85)])
+                        .presentationDragIndicator(.visible)
+                        .presentationBackgroundInteraction(.automatic)
+                }
             }
             .onAppear(perform: {
                 Task {
