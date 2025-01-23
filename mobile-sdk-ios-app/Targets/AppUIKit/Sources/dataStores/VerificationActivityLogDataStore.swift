@@ -5,12 +5,14 @@ class VerificationActivityLogDataStore {
 
     static let DIR_ACTIVITY_LOG_DB = "ActivityLogDB"
     static let STORE_NAME = "verification_activity_logs_2.sqlite3"
+    static let TABLE_NAME = "verification_activity_logs"
 
-    private let verificationActivityLogs = Table("verification_activity_logs")
+    private let verificationActivityLogs = Table(TABLE_NAME)
 
     private let id = SQLite.Expression<Int64>("id")
     private let credentialTitle = SQLite.Expression<String>("credential_title")
     private let issuer = SQLite.Expression<String>("issuer")
+    private let status = SQLite.Expression<String>("status")
     private let verificationDateTime = SQLite.Expression<Date>(
         "verification_date_time")
     private let additionalInformation = SQLite.Expression<String>(
@@ -38,6 +40,7 @@ class VerificationActivityLogDataStore {
                 db = try Connection(dbPath)
                 createTable()
                 print("SQLiteDataStore init successfully at: \(dbPath) ")
+                try migration1(db: db.unwrap())
             } catch {
                 db = nil
                 print("SQLiteDataStore init error: \(error)")
@@ -57,6 +60,7 @@ class VerificationActivityLogDataStore {
                     table.column(id, primaryKey: .autoincrement)
                     table.column(credentialTitle)
                     table.column(issuer)
+                    table.column(status)
                     table.column(verificationDateTime)
                     table.column(additionalInformation)
                 })
@@ -67,7 +71,8 @@ class VerificationActivityLogDataStore {
     }
 
     func insert(
-        credentialTitle: String, issuer: String, verificationDateTime: Date,
+        credentialTitle: String, issuer: String, status: String,
+        verificationDateTime: Date,
         additionalInformation: String
     ) -> Int64? {
         guard let database = db else { return nil }
@@ -75,6 +80,7 @@ class VerificationActivityLogDataStore {
         let insert = verificationActivityLogs.insert(
             self.credentialTitle <- credentialTitle,
             self.issuer <- issuer,
+            self.status <- status,
             self.verificationDateTime <- verificationDateTime,
             self.additionalInformation <- additionalInformation)
         do {
@@ -108,6 +114,7 @@ class VerificationActivityLogDataStore {
                         credential_title: verificationActivityLog[
                             credentialTitle],
                         issuer: verificationActivityLog[issuer],
+                        status: verificationActivityLog[status],
                         verification_date_time: dateTimeFormatterDisplay.string(
                             from: verificationActivityLog[verificationDateTime]),
                         additional_information: verificationActivityLog[
@@ -150,5 +157,13 @@ class VerificationActivityLogDataStore {
             return false
         }
         return true
+    }
+
+    private func migration1(db: Connection) {
+        addColumnIfNotExists(
+            db: db,
+            tableName: VerificationActivityLogDataStore.TABLE_NAME,
+            columnName: "status",
+            columnDefinition: "TEXT DEFAULT 'UNDEFINED'")
     }
 }

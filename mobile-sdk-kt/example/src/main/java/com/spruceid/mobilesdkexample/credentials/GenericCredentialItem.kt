@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialStatusList
+import com.spruceid.mobile.sdk.jsonEncodedDetailsAll
 import com.spruceid.mobile.sdk.ui.BaseCard
 import com.spruceid.mobile.sdk.ui.CardRenderingDetailsField
 import com.spruceid.mobile.sdk.ui.CardRenderingDetailsView
@@ -50,7 +51,6 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.addCredential
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
-import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class GenericCredentialItem : ICredentialView {
@@ -63,8 +63,12 @@ class GenericCredentialItem : ICredentialView {
         credentialPack: CredentialPack,
         statusListViewModel: StatusListViewModel,
         onDelete: (() -> Unit)? = null,
-        onExport: ((String) -> Unit)? = null
+        onExport: ((String) -> Unit)? = null,
+        fetchStatus: Boolean = false
     ) {
+        if (fetchStatus) {
+            statusListViewModel.fetchStatusSync(credentialPack)
+        }
         this.credentialPack = credentialPack
         this.onDelete = onDelete
         this.onExport = onExport
@@ -75,9 +79,13 @@ class GenericCredentialItem : ICredentialView {
         rawCredential: String,
         statusListViewModel: StatusListViewModel,
         onDelete: (() -> Unit)? = null,
-        onExport: ((String) -> Unit)? = null
+        onExport: ((String) -> Unit)? = null,
+        fetchStatus: Boolean = false
     ) {
         this.credentialPack = addCredential(CredentialPack(), rawCredential)
+        if (fetchStatus) {
+            statusListViewModel.fetchStatusSync(credentialPack)
+        }
         this.onDelete = onDelete
         this.onExport = onExport
         this.statusListViewModel = statusListViewModel
@@ -88,12 +96,18 @@ class GenericCredentialItem : ICredentialView {
         val statusLists by statusListViewModel.statusLists.collectAsState()
         val credential = values.toList().firstNotNullOfOrNull {
             val cred = credentialPack.getCredentialById(it.first)
+            val mdoc = cred?.asMsoMdoc()
             try {
                 if (
                     cred?.asJwtVc() != null ||
                     cred?.asJsonVc() != null ||
                     cred?.asSdJwt() != null
                 ) {
+                    it.second
+                } else if (mdoc != null){
+                    // Assume mDL.
+                    val details = mdoc.jsonEncodedDetailsAll()
+                    it.second.put("issuer", details.get("issuing_authority"))
                     it.second
                 } else {
                     null
@@ -115,6 +129,14 @@ class GenericCredentialItem : ICredentialView {
             } catch (_: Exception) {
             }
         }
+
+        if (description.isBlank()) {
+            try {
+                description = credential?.getString("issuer").toString()
+            } catch (_: Exception) {
+            }
+        }
+
 
         Column {
             Text(
@@ -195,11 +217,16 @@ class GenericCredentialItem : ICredentialView {
                 val credential = values.toList().firstNotNullOfOrNull {
                     val cred = credentialPack.getCredentialById(it.first)
                     try {
+                        val mdoc = cred?.asMsoMdoc()
                         if (
                             cred?.asJwtVc() != null ||
                             cred?.asJsonVc() != null ||
                             cred?.asSdJwt() != null
                         ) {
+                            it.second
+                        } else if (mdoc != null){
+                            // Assume mDL.
+                            it.second.put("name", "Mobile Drivers License")
                             it.second
                         } else {
                             null
@@ -259,11 +286,16 @@ class GenericCredentialItem : ICredentialView {
                 val credential = values.toList().firstNotNullOfOrNull {
                     val cred = credentialPack.getCredentialById(it.first)
                     try {
+                        val mdoc = cred?.asMsoMdoc()
                         if (
                             cred?.asJwtVc() != null ||
                             cred?.asJsonVc() != null ||
                             cred?.asSdJwt() != null
                         ) {
+                            it.second
+                        } else if (mdoc != null){
+                            // Assume mDL.
+                            it.second.put("name", "Mobile Drivers License")
                             it.second
                         } else {
                             null
@@ -415,7 +447,8 @@ class GenericCredentialItem : ICredentialView {
                                     "salt",
                                     "proof",
                                     "renderMethod",
-                                    "@context"
+                                    "@context",
+                                    "credentialStatus"
                                 )
                             )
                         }

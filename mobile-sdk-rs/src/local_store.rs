@@ -4,27 +4,19 @@ use crate::common::*;
 use crate::storage_manager::*;
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// A version of secure storage for debugging purposes, and as a minimal interface example.  Do not
 /// use in production!  This encrypts nothing, uses a path relative to the current working directory,
 /// and is generally cavalier about errors it encounters along the way.
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct LocalStore {
-    store: Mutex<HashMap<Key, Value>>,
+    store: Arc<Mutex<HashMap<Key, Value>>>,
 }
 
 impl LocalStore {
     pub fn new() -> Self {
-        Self {
-            store: Mutex::new(HashMap::new()),
-        }
-    }
-}
-
-impl Default for LocalStore {
-    fn default() -> Self {
-        Self::new()
+        Self::default()
     }
 }
 

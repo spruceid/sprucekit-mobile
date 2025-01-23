@@ -27,6 +27,7 @@ struct VerifyDLView: View {
                                 _ = VerificationActivityLogDataStore.shared.insert(
                                     credentialTitle: "Driver's License",
                                     issuer: "Utopia Department of Motor Vehicles",
+                                    status: "VALID",
                                     verificationDateTime: Date(),
                                     additionalInformation: ""
                                 )

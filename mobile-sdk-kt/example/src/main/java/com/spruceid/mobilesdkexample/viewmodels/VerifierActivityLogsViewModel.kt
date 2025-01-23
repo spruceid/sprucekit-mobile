@@ -40,12 +40,13 @@ class VerificationActivityLogsViewModel(private val verificationActivityLogsRepo
 
     fun generateVerificationActivityLogCSV(logs: List<VerificationActivityLogs>? = null): String {
         val heading =
-            "ID, Credential Title, Issuer, Verification Date Time, Additional Information\n"
+            "ID, Credential Title, Issuer, Status, Verification Date Time, Additional Information\n"
 
         val rows = logs?.joinToString("\n") {
             "${it.id}, " +
                     "${it.credentialTitle}, " +
                     "${it.issuer}, " +
+                    "${it.status}, " +
                     "${formatSqlDateTime(it.verificationDateTime).removeCommas()}, " +
                     it.additionalInformation
         }

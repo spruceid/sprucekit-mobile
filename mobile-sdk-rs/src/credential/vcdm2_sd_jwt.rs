@@ -1,14 +1,24 @@
-use super::{Credential, CredentialFormat, ParsedCredential, ParsedCredentialInner};
+use super::{
+    status::StatusListError,
+    status_20240406::{
+        BitStringStatusListResolver20240406 as BitStringStatusListResolver, Status20240406,
+    },
+    Credential, CredentialFormat, ParsedCredential, ParsedCredentialInner,
+};
 use crate::{
+    crypto::KeyAlias,
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
     },
-    CredentialType, KeyAlias,
+    CredentialType,
 };
 
+use core::str;
 use std::sync::Arc;
 
+use base64::{engine::general_purpose::URL_SAFE, Engine as _};
+use futures::stream::{self, StreamExt};
 use openid4vp::{
     core::{
         credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
@@ -16,14 +26,21 @@ use openid4vp::{
     },
     JsonPath,
 };
+use reqwest::StatusCode;
 use ssi::{
     claims::{
+        jwt::AnyClaims,
         sd_jwt::SdJwtBuf,
         vc::v2::{Credential as _, JsonCredential},
         vc_jose_cose::SdJwtVc,
     },
     prelude::AnyJsonCredential,
+    status::bitstring_status_list_20240406::{
+        BitstringStatusListCredential, BitstringStatusListEntry,
+    },
+    JsonPointerBuf,
 };
+use url::Url;
 use uuid::Uuid;
 
 #[derive(Debug, uniffi::Object)]
@@ -63,7 +80,7 @@ impl VCDM2SdJwt {
     }
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 impl VCDM2SdJwt {
     /// Create a new SdJwt instance from a compact SD-JWS string.
     #[uniffi::constructor]
@@ -113,6 +130,14 @@ impl VCDM2SdJwt {
         serde_json::to_string(&self.credential)
             .map_err(|e| SdJwtError::Serialization(format!("{e:?}")))
     }
+
+    /// Returns the status of the credential, resolving the value in the status list,
+    /// along with the purpose of the status.
+    pub async fn status(&self) -> Result<Vec<Arc<Status20240406>>, StatusListError> {
+        self.status_list_values()
+            .await
+            .map(|v| v.into_iter().map(Arc::new).collect())
+    }
 }
 
 impl CredentialPresentation for VCDM2SdJwt {
@@ -136,16 +161,70 @@ impl CredentialPresentation for VCDM2SdJwt {
     async fn as_vp_token_item<'a>(
         &self,
         _options: &'a PresentationOptions<'a>,
+        selected_fields: Option<Vec<String>>,
+        limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError> {
-        // TODO: need to provide the "filtered" (disclosed) fields of the
-        // credential to be encoded into the VpToken.
-        //
-        // Currently, this is encoding the entire revealed SD-JWT,
-        // without the selection of individual disclosed fields.
-        //
-        // We need to selectively disclosed fields.
+        if limit_disclosure {
+            return Err(OID4VPError::LimitDisclosure(
+                "Limit disclosure is required but is not supported.".to_string(),
+            ));
+        }
+
         let compact: &str = self.inner.as_ref();
-        Ok(VpTokenItem::String(compact.to_string()))
+        let vp_token = if let Some(selected_fields) = selected_fields {
+            let json = self.revealed_claims_as_json().map_err(|e| {
+                OID4VPError::CredentialEncoding(super::CredentialEncodingError::SdJwt(e))
+            })?;
+
+            let selected_fields_pointers = selected_fields
+                .into_iter()
+                .map(|sfield| {
+                    // TODO: Remove hotfix encoding and improve path usage
+                    // SAFETY: encoded by client (sprucekit-mobile@holder)
+                    let path = sfield.split(",").next().unwrap().to_owned();
+                    let path = match URL_SAFE.decode(path) {
+                        Ok(path) => path,
+                        Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
+                    };
+                    let path = match str::from_utf8(&path) {
+                        Ok(path) => path,
+                        Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
+                    };
+                    let path = match JsonPath::parse(path) {
+                        Ok(path) => path,
+                        Err(err) => return Err(OID4VPError::JsonPathParse(err.to_string())),
+                    };
+                    let located_node = path.query_located(&json);
+
+                    if located_node.is_empty() {
+                        Err(OID4VPError::JsonPathResolve(format!(
+                            "Unable to resolve JsonPath: {}",
+                            path
+                        )))
+                    } else {
+                        // SAFETY: Empty check above
+                        JsonPointerBuf::new(
+                            located_node.first().unwrap().location().to_json_pointer(),
+                        )
+                        .map_err(|e| OID4VPError::JsonPathToPointer(e.to_string()))
+                    }
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let ret = self
+                .inner
+                .decode_reveal::<AnyClaims>()
+                .map_err(|e| OID4VPError::Debug(e.to_string()))?
+                .retaining(&selected_fields_pointers)
+                .into_encoded()
+                .as_str()
+                .to_string();
+            ret
+        } else {
+            compact.to_string()
+        };
+
+        Ok(VpTokenItem::String(vp_token))
     }
 
     fn create_descriptor_map(
@@ -166,6 +245,85 @@ impl CredentialPresentation for VCDM2SdJwt {
             path,
         ))
     }
+}
+
+#[async_trait::async_trait]
+impl BitStringStatusListResolver for VCDM2SdJwt {
+    fn status_list_entries(&self) -> Result<Vec<BitstringStatusListEntry>, StatusListError> {
+        let value = match &self
+            .credential()
+            .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?
+        {
+            AnyJsonCredential::V1(credential) => credential
+                .credential_status
+                .iter()
+                .map(serde_json::to_value)
+                .collect::<Result<serde_json::Value, serde_json::Error>>(),
+            AnyJsonCredential::V2(credential) => credential
+                .credential_status
+                .iter()
+                .map(serde_json::to_value)
+                .collect::<Result<serde_json::Value, serde_json::Error>>(),
+        }
+        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+        let entries = serde_json::from_value(value).map_err(|e| {
+            StatusListError::Resolution(format!("Failed to parse credential status: {e:?}"))
+        })?;
+
+        Ok(entries)
+    }
+
+    async fn status_list_credentials(
+        &self,
+    ) -> Result<Vec<BitstringStatusListCredential>, StatusListError> {
+        let entries = self.status_list_entries()?;
+        stream::iter(entries)
+            .map(|entry| async move {
+                let url = entry
+                    .status_list_credential
+                    .parse::<Url>()
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+                let response = reqwest::get(url)
+                    .await
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+                if response.status() != StatusCode::OK {
+                    return Err(StatusListError::Resolution(format!(
+                        "Failed to resolve status list credential: {}",
+                        response.status()
+                    )));
+                }
+
+                let sd_jwt_buf = SdJwtBuf::new(
+                    response
+                        .text()
+                        .await
+                        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?,
+                )
+                .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?;
+
+                let credential = sd_jwt_buf
+                    .decode_reveal_any()
+                    .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?
+                    .into_claims()
+                    .private;
+
+                serde_json::from_value(
+                    serde_json::to_value(credential)
+                        .map_err(|e| StatusListError::Resolution(format!("{e:?}")))?,
+                )
+                .map_err(|e| StatusListError::Resolution(format!("{e:?}")))
+            })
+            .buffer_unordered(3)
+            .collect::<Vec<Result<BitstringStatusListCredential, StatusListError>>>()
+            .await
+            .into_iter()
+            .collect()
+    }
+
+    // NOTE: The remaining methods are default implemented in the trait.
 }
 
 impl From<VCDM2SdJwt> for ParsedCredential {
@@ -247,6 +405,27 @@ pub fn decode_reveal_sd_jwt(input: String) -> Result<String, SdJwtError> {
         .into_claims()
         .private;
     serde_json::to_string(&vc).map_err(|e| SdJwtError::Serialization(format!("{e:?}")))
+}
+
+fn inner_list_sd_fields(input: &VCDM2SdJwt) -> Result<Vec<String>, SdJwtError> {
+    let revealed_sd_jwt = SdJwtVc::decode_reveal_any(&input.inner)
+        .map_err(|e| SdJwtError::SdJwtDecoding(format!("{e:?}")))?;
+
+    Ok(revealed_sd_jwt
+        .disclosures
+        .iter()
+        .map(|(p, d)| match &d.desc {
+            ssi::claims::sd_jwt::DisclosureDescription::ObjectEntry { key: _, value: _ } => {
+                p.to_string()
+            }
+            ssi::claims::sd_jwt::DisclosureDescription::ArrayItem(_) => p.to_string(),
+        })
+        .collect())
+}
+
+#[uniffi::export]
+pub fn list_sd_fields(input: Arc<VCDM2SdJwt>) -> Result<Vec<String>, SdJwtError> {
+    inner_list_sd_fields(&input)
 }
 
 #[derive(Debug, uniffi::Error, thiserror::Error)]

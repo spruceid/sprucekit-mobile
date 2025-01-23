@@ -15,6 +15,7 @@ const val ADD_TO_WALLET_PATH = "add_to_wallet/{rawCredential}"
 const val SCAN_QR_PATH = "scan_qr"
 const val HANDLE_OID4VCI_PATH = "oid4vci/{url}"
 const val HANDLE_OID4VP_PATH = "oid4vp/{url}"
+const val HANDLE_MDOC_OID4VP_PATH = "mdoc_oid4vp/{url}"
 
 sealed class Screen(val route: String) {
     object HomeScreen : Screen(HOME_SCREEN_PATH)
@@ -32,4 +33,5 @@ sealed class Screen(val route: String) {
     object ScanQRScreen : Screen(SCAN_QR_PATH)
     object HandleOID4VCI : Screen(HANDLE_OID4VCI_PATH)
     object HandleOID4VP : Screen(HANDLE_OID4VP_PATH)
+    object HandleMdocOID4VP : Screen(HANDLE_MDOC_OID4VP_PATH)
 }

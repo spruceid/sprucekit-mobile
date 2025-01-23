@@ -1,10 +1,11 @@
 use super::{Credential, CredentialEncodingError, CredentialFormat, VcdmVersion};
 use crate::{
+    crypto::KeyAlias,
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
     },
-    CredentialType, KeyAlias,
+    CredentialType,
 };
 
 use std::sync::Arc;
@@ -187,6 +188,8 @@ impl CredentialPresentation for JwtVc {
     async fn as_vp_token_item<'a>(
         &self,
         options: &'a PresentationOptions<'a>,
+        _selected_fields: Option<Vec<String>>,
+        _limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError> {
         let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec()).ok();
         let vm = options.verification_method_id().await?;

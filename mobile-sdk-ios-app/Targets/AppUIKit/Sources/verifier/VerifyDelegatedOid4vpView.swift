@@ -162,10 +162,11 @@ struct VerifyDelegatedOid4vpView: View {
                         VerifierCredentialSuccessView(
                             rawCredential: presentationUnwrapped,
                             onClose: onBack,
-                            logVerification: { title, issuer in
+                            logVerification: { title, issuer, status in
                                 _ = VerificationActivityLogDataStore.shared.insert(
                                     credentialTitle: title,
                                     issuer: issuer,
+                                    status: status,
                                     verificationDateTime: Date(),
                                     additionalInformation: ""
                                 )

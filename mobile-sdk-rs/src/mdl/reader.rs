@@ -7,14 +7,12 @@ use isomdl::{
     definitions::{
         device_request,
         helpers::{non_empty_map, NonEmptyMap},
-        validated_response,
         x509::{
             self,
-            trust_anchor::{RuleSetType, TrustAnchor, TrustAnchorRegistry, ValidationRuleSet},
-            x5chain::X509,
+            trust_anchor::{PemTrustAnchor, TrustAnchorRegistry},
         },
     },
-    presentation::reader,
+    presentation::{authentication::AuthenticationStatus, reader},
 };
 use uuid::Uuid;
 
@@ -67,21 +65,19 @@ pub fn establish_session(
                 value: format!("Unable to build namespaces: {e:?}"),
             })?;
 
-    let registry = if let Some(r) = trust_anchor_registry {
-        let trust_anchors = r
-            .iter()
-            .map(|s| names_only_registry_from_pem(s))
-            .collect::<Result<Vec<TrustAnchor>, x509::error::Error>>()
-            .map_err(|e| MDLReaderSessionError::Generic {
-                value: format!("unable to parse trust anchors: {e:?}"),
-            })?;
-        let registry = TrustAnchorRegistry {
-            certificates: trust_anchors,
-        };
-        Some(registry)
-    } else {
-        None
-    };
+    let registry = TrustAnchorRegistry::from_pem_certificates(
+        trust_anchor_registry
+            .into_iter()
+            .flat_map(|v| v.into_iter())
+            .map(|certificate_pem| PemTrustAnchor {
+                certificate_pem,
+                purpose: x509::trust_anchor::TrustPurpose::Iaca,
+            })
+            .collect(),
+    )
+    .map_err(|e| MDLReaderSessionError::Generic {
+        value: format!("unable to construct TrustAnchorRegistry: {e:?}"),
+    })?;
 
     let (manager, request, ble_ident) =
         reader::SessionManager::establish_session(uri.to_string(), namespaces, registry).map_err(
@@ -103,23 +99,6 @@ pub fn establish_session(
         ble_ident: ble_ident.to_vec(),
         uuid: *uuid,
     })
-}
-
-fn names_only_registry_from_pem(pem: &str) -> Result<TrustAnchor, x509::error::Error> {
-    let ruleset = ValidationRuleSet {
-        distinguished_names: vec!["2.5.4.6".to_string(), "2.5.4.8".to_string()],
-        typ: RuleSetType::NamesOnly,
-    };
-    let anchor: TrustAnchor = match pem_rfc7468::decode_vec(pem.as_bytes()) {
-        Ok(b) => TrustAnchor::Custom(X509 { bytes: b.1 }, ruleset),
-        Err(e) => {
-            return Err(x509::error::Error::DecodingError(format!(
-                "unable to parse pem: {:?}",
-                e
-            )))
-        }
-    };
-    Ok(anchor)
 }
 
 #[derive(thiserror::Error, uniffi::Error, Debug, PartialEq)]
@@ -196,16 +175,10 @@ pub fn handle_response(
         });
     }
     // These checks should be unreachable as they always have a corresponding entry in `errors`
-    if let validated_response::Status::Invalid = validated_response.decryption {
-        return Err(MDLReaderResponseError::InvalidDecryption);
-    }
-    if let validated_response::Status::Invalid = validated_response.parsing {
-        return Err(MDLReaderResponseError::InvalidParsing);
-    }
-    if let validated_response::Status::Invalid = validated_response.issuer_authentication {
+    if let AuthenticationStatus::Invalid = validated_response.issuer_authentication {
         return Err(MDLReaderResponseError::InvalidIssuerAuthentication);
     }
-    if let validated_response::Status::Invalid = validated_response.device_authentication {
+    if let AuthenticationStatus::Invalid = validated_response.device_authentication {
         return Err(MDLReaderResponseError::InvalidDeviceAuthentication);
     }
     // We get the namespaces directly without the top-level doc types

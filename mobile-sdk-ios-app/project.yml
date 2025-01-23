@@ -54,6 +54,10 @@ targets:
             CFBundleURLName: SPRUCEID
             CFBundleURLSchemes:
               - spruceid
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: OID4VCI
+            CFBundleURLSchemes:
+              - openid-credential-offer
         NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
         NSCameraUsageDescription: "We need to access your camera for scanning"
         ITSAppUsesNonExemptEncryption: "NO"

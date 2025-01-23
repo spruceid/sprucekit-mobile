@@ -189,12 +189,13 @@ fun VerifyDelegatedOid4vpView(
                     VerifierCredentialSuccessView(
                         rawCredential = presentation!!,
                         onClose = { back() },
-                        logVerification = { title, issuer ->
+                        logVerification = { title, issuer, status ->
                             scope.launch {
                                 verificationActivityLogsViewModel.saveVerificationActivityLog(
                                     VerificationActivityLogs(
                                         credentialTitle = title,
                                         issuer = issuer,
+                                        status = status,
                                         verificationDateTime = getCurrentSqlDate(),
                                         additionalInformation = ""
                                     )

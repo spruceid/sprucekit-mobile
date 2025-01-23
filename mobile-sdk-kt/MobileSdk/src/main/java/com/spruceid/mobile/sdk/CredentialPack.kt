@@ -110,9 +110,30 @@ class CredentialPack {
      * Get all status from all credentials async
      */
     suspend fun getStatusListsAsync(hasConnection: Boolean): Map<Uuid, CredentialStatusList> {
-        var res = mutableMapOf<Uuid, CredentialStatusList>()
+        val res = mutableMapOf<Uuid, CredentialStatusList>()
         credentials.forEach { credential ->
             val credentialId = credential.id()
+
+            credential.asSdJwt()?.let {
+                if (hasConnection) {
+                    try {
+                        val status = it.status()
+                        res[credentialId] = CredentialStatusList.VALID
+                        status.forEach {
+                            if (it.isRevoked()) {
+                                res[credentialId] = CredentialStatusList.REVOKED
+                                return@forEach
+                            } else if (it.isSuspended()) {
+                                res[credentialId] = CredentialStatusList.SUSPENDED
+                            }
+                        }
+                    } catch (_: Exception) {
+                        res[credentialId] = CredentialStatusList.UNDEFINED
+                    }
+                } else {
+                    res[credentialId] = CredentialStatusList.UNKNOWN
+                }
+            }
             credential.asJsonVc()?.let {
                 if (hasConnection) {
                     try {
@@ -125,6 +146,7 @@ class CredentialPack {
                             res[credentialId] = CredentialStatusList.VALID
                         }
                     } catch (_: Exception) {
+                        res[credentialId] = CredentialStatusList.UNDEFINED
                     }
                 } else {
                     res[credentialId] = CredentialStatusList.UNKNOWN
@@ -448,4 +470,9 @@ enum class CredentialStatusList {
      * Credential doesn't have status list
      */
     UNDEFINED
+}
+
+fun credentialStatusListFromString(value: String): CredentialStatusList {
+    return enumValues<CredentialStatusList>().find { it.name.equals(value, ignoreCase = true) }
+        ?: CredentialStatusList.UNDEFINED
 }

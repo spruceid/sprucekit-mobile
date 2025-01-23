@@ -24,6 +24,7 @@ import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewMode
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
+import com.spruceid.mobilesdkexample.wallet.HandleMdocOID4VPView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VCIView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VPView
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsActivityLogScreen
@@ -181,6 +182,21 @@ fun SetupNavGraph(
                 url = "openid4vp://$url"
             }
             HandleOID4VPView(
+                navController,
+                url,
+                credentialPacksViewModel,
+                walletActivityLogsViewModel
+            )
+        }
+        composable(
+            route = Screen.HandleMdocOID4VP.route,
+            deepLinks = listOf(navDeepLink { uriPattern = "mdoc-openid4vp://{url}" })
+        ) { backStackEntry ->
+            var url = backStackEntry.arguments?.getString("url")!!
+            if (!url.startsWith("mdoc-openid4vp")) {
+                url = "mdoc-openid4vp://$url"
+            }
+            HandleMdocOID4VPView(
                 navController,
                 url,
                 credentialPacksViewModel,

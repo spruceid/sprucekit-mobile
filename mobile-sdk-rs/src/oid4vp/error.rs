@@ -62,8 +62,20 @@ pub enum OID4VPError {
     CredentialEncoding(#[from] CredentialEncodingError),
     #[error("Failed to parse JsonPath: {0}")]
     JsonPathParse(String),
+    #[error("Failed to resolve JsonPath: {0}")]
+    JsonPathResolve(String),
+    #[error("Unable to convert JsonPath: {0} to JsonPointer")]
+    JsonPathToPointer(String),
+    #[error("Limit disclosure: {0}")]
+    LimitDisclosure(String),
     #[error("Empty Credential Subject. Failed to convert `Object` to `NonEmptyObject`: {0}")]
     EmptyCredentialSubject(String),
+    #[error("Invalid fields selected for selective disclosure")]
+    SelectiveDisclosureInvalidFields,
+    #[error("Selected fields cannot be empty")]
+    SelectiveDisclosureEmptySelection,
+    #[error("Failed to initialize metadata: {0}")]
+    Debug(String),
 }
 
 // Handle unexpected errors when calling a foreign callback

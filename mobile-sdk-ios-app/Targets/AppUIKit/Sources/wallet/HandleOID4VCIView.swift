@@ -50,7 +50,7 @@ struct HandleOID4VCIView: View {
 
                 let pop = try SpruceIDMobileSdkRs.generatePopComplete(
                     signingInput: signingInput,
-                    signature: Data(Data(signature!).base64EncodedUrlSafe.utf8)
+                    signatureDer: Data(signature!)
                 )
 
                 try oid4vciSession.setContextMap(
@@ -64,8 +64,7 @@ struct HandleOID4VCIView: View {
 
                 try credentials.forEach {
                     let cred = String(decoding: Data($0.payload), as: UTF8.self)
-                    _ = try self.credentialPack?.addJsonVc(
-                        jsonVc: JsonVc.newFromJson(utf8JsonString: cred))
+                  _ = try self.credentialPack?.tryAddRawCredential(rawCredential: cred)
                     self.credential = cred
                 }
 

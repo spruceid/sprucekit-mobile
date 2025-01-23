@@ -30,7 +30,7 @@ const val keyPEM =
 const val keyBase64 =
     "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgEAqKZdZQgPVtjlEBfz2ItHG8oXIONenOxRePtqOQ42yhRANCAATA43gI2Ib8+qKK4YEOfNCRiNOhyHaCLgAvKdhHS+y6wpG3oJ2xudXagzKKbcfvUda4x0j8zR1/oD56mpm85GbO"
 
-val trustedDids = MutableList(1) { "did:web:companion.ler-sandbox.spruceid.xyz:oid4vp:client" }
+val trustedDids = emptyList<String>()
 
 fun getCurrentSqlDate(): Date {
     val currentTimeMillis = System.currentTimeMillis()
@@ -127,7 +127,8 @@ fun credentialDisplaySelector(
     rawCredential: String,
     statusListViewModel: StatusListViewModel,
     onDelete: (() -> Unit)?,
-    onExport: ((String) -> Unit)?
+    onExport: ((String) -> Unit)?,
+    fetchStatus: Boolean = false
 ): ICredentialView {
     /* This is temporarily commented on until we define the specific AchievementCredentialItem design */
 //        try {
@@ -136,7 +137,13 @@ fun credentialDisplaySelector(
 //                credentialPack.addSdJwt(Vcdm2SdJwt.newFromCompactSdJwt(rawCredential))
 //                return AchievementCredentialItem(credentialPack, onDelete)
 //        } catch (_: Exception) {
-    return GenericCredentialItem(rawCredential, statusListViewModel, onDelete, onExport)
+    return GenericCredentialItem(
+        rawCredential,
+        statusListViewModel,
+        onDelete,
+        onExport,
+        fetchStatus
+    )
 //        }
 }
 
@@ -220,9 +227,9 @@ fun getCredentialIdTitleAndIssuer(
     credentialPack: CredentialPack,
     credential: ParsedCredential? = null
 ): Triple<String, String, String> {
-    val claims = credentialPack.findCredentialClaims(listOf("name", "type", "issuer"))
+    val claims = credentialPack.findCredentialClaims(listOf("name", "type", "issuer", "issuing_authority"))
 
-    var cred = if (credential != null) {
+    val cred = if (credential != null) {
         claims.entries.firstNotNullOf { claim ->
             if (claim.key == credential.id()) {
                 claim
@@ -233,11 +240,19 @@ fun getCredentialIdTitleAndIssuer(
     } else {
         claims.entries.firstNotNullOf { claim ->
             val c = credentialPack.getCredentialById(claim.key)
+            val mdoc = c?.asMsoMdoc()
             if (
                 c?.asSdJwt() != null ||
                 c?.asJwtVc() != null ||
                 c?.asJsonVc() != null
             ) {
+                claim
+            } else if (mdoc != null) {
+                // Assume mDL.
+                val issuer = claim.value.get("issuing_authority")
+                claim.value.put("issuer", issuer)
+                val title = "Mobile Drivers License"
+                claim.value.put("name", title)
                 claim
             } else {
                 null
@@ -272,6 +287,13 @@ fun getCredentialIdTitleAndIssuer(
     if (issuer.isBlank()) {
         try {
             issuer = credentialValue.getJSONObject("issuer").getString("id").toString()
+        } catch (_: Exception) {
+        }
+    }
+
+    if (issuer.isBlank()) {
+        try {
+            issuer = credentialValue.getString("issuer")
         } catch (_: Exception) {
         }
     }

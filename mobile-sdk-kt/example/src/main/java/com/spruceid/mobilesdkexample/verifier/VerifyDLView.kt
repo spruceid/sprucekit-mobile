@@ -40,6 +40,7 @@ fun VerifyDLView(
                         VerificationActivityLogs(
                             credentialTitle = "Driver's License",
                             issuer = "Utopia Department of Motor Vehicles",
+                            status = "VALID",
                             verificationDateTime = getCurrentSqlDate(),
                             additionalInformation = ""
                         )

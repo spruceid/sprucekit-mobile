@@ -11,6 +11,7 @@ use std::sync::Arc;
 use futures::StreamExt;
 use openid4vp::core::authorization_request::parameters::ClientIdScheme;
 use openid4vp::core::credential_format::{ClaimFormatDesignation, ClaimFormatPayload};
+use openid4vp::core::input_descriptor::ConstraintsLimitDisclosure;
 use openid4vp::core::presentation_definition::PresentationDefinition;
 use openid4vp::{
     core::{
@@ -260,6 +261,42 @@ impl Holder {
             .search_credentials_vs_presentation_definition(&mut presentation_definition)
             .await?;
 
+        // TODO: Add full support for limit_disclosure, probably this should be thrown at OID4VP
+        if presentation_definition
+            .input_descriptors()
+            .iter()
+            .any(|id| {
+                id.constraints
+                    .limit_disclosure()
+                    .is_some_and(|ld| matches!(ld, ConstraintsLimitDisclosure::Required))
+            })
+        {
+            log::debug!("Limit disclosure required for input descriptor.");
+
+            return Err(OID4VPError::LimitDisclosure(
+                "Limit disclosure required for input descriptor.".to_string(),
+            ));
+        }
+
+        let credentials = credentials
+            .into_iter()
+            .map(|c| {
+                Arc::new(PresentableCredential {
+                    inner: c.inner.clone(),
+                    limit_disclosure: presentation_definition.input_descriptors().iter().any(
+                        |descriptor| {
+                            !c.requested_fields(&presentation_definition).is_empty()
+                                && matches!(
+                                    descriptor.constraints.limit_disclosure(),
+                                    Some(ConstraintsLimitDisclosure::Required)
+                                )
+                        },
+                    ),
+                    selected_fields: None,
+                })
+            })
+            .collect::<Vec<_>>();
+
         Ok(PermissionRequest::new(
             presentation_definition.clone(),
             credentials.clone(),
@@ -442,7 +479,7 @@ pub(crate) mod tests {
 
         // Make a request to the OID4VP URL.
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(key_signer),
             None,
@@ -456,14 +493,21 @@ pub(crate) mod tests {
         assert_eq!(parsed_credentials.len(), 1);
 
         for credential in parsed_credentials.iter() {
-            let requested_fields = permission_request.requested_fields(&credential);
+            let requested_fields = permission_request.requested_fields(credential);
 
             assert!(requested_fields.len() > 0);
         }
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
         let response = permission_request
-            .create_permission_response(parsed_credentials)
+            .create_permission_response(
+                parsed_credentials,
+                vec![credential
+                    .requested_fields(&permission_request.definition)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect()],
+            )
             .await?;
 
         holder.submit_permission_response(response).await?;
@@ -499,7 +543,7 @@ pub(crate) mod tests {
         );
 
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             vec![],
             Box::new(key_signer),
             Some(context),
@@ -515,7 +559,14 @@ pub(crate) mod tests {
         let credentials = permission_request.credentials();
 
         let response = permission_request
-            .create_permission_response(credentials)
+            .create_permission_response(
+                credentials,
+                vec![credential
+                    .requested_fields(&permission_request.definition)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect()],
+            )
             .await
             .expect("failed to create permission response");
 
@@ -555,7 +606,7 @@ pub(crate) mod tests {
 
         // Make a request to the OID4VP URL.
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(key_signer),
             None,
@@ -569,14 +620,21 @@ pub(crate) mod tests {
         assert_eq!(parsed_credentials.len(), 1);
 
         for credential in parsed_credentials.iter() {
-            let requested_fields = permission_request.requested_fields(&credential);
+            let requested_fields = permission_request.requested_fields(credential);
 
             assert!(requested_fields.len() > 0);
         }
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
         let response = permission_request
-            .create_permission_response(parsed_credentials)
+            .create_permission_response(
+                parsed_credentials,
+                vec![credential
+                    .requested_fields(&permission_request.definition)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect()],
+            )
             .await?;
 
         holder.submit_permission_response(response).await?;
@@ -615,7 +673,7 @@ pub(crate) mod tests {
 
         // Make a request to the OID4VP URL.
         let holder = Holder::new_with_credentials(
-            vec![credential],
+            vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(signer),
             Some(vc_playground_context()),
@@ -636,7 +694,14 @@ pub(crate) mod tests {
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
         let response = permission_request
-            .create_permission_response(parsed_credentials)
+            .create_permission_response(
+                parsed_credentials,
+                vec![credential
+                    .requested_fields(&permission_request.definition)
+                    .iter()
+                    .map(|rf| rf.path())
+                    .collect()],
+            )
             .await?;
 
         holder.submit_permission_response(response).await?;
