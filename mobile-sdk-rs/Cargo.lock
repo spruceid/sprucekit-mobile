@@ -3262,7 +3262,7 @@ dependencies = [
 
 [[package]]
 name = "mobile-sdk-rs"
-version = "0.8.1"
+version = "0.8.3"
 dependencies = [
  "android_logger",
  "anyhow",
