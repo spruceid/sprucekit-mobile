@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.verifier
 
-import android.util.Log
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,7 +50,6 @@ fun VerifierCredentialSuccessView(
             null,
             true
         )
-        Log.d("AAA", "CHAMOUUU ${credentialItem!!.credentialPack.id()}")
         val credential = credentialItem!!.credentialPack.list().first()
         val claims = credentialItem!!.credentialPack.findCredentialClaims(
             listOf("name", "type", "description", "issuer")

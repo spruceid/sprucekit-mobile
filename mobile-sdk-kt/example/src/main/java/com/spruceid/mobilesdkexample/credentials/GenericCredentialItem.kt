@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -23,9 +25,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.rememberNestedScrollInteropConnection
 import androidx.compose.ui.res.painterResource
@@ -45,12 +49,16 @@ import com.spruceid.mobile.sdk.ui.toCardRendering
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose700
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.addCredential
+import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class GenericCredentialItem : ICredentialView {
@@ -67,7 +75,7 @@ class GenericCredentialItem : ICredentialView {
         fetchStatus: Boolean = false
     ) {
         if (fetchStatus) {
-            statusListViewModel.fetchStatusSync(credentialPack)
+            statusListViewModel.fetchAndUpdateStatusSync(credentialPack)
         }
         this.credentialPack = credentialPack
         this.onDelete = onDelete
@@ -84,7 +92,7 @@ class GenericCredentialItem : ICredentialView {
     ) {
         this.credentialPack = addCredential(CredentialPack(), rawCredential)
         if (fetchStatus) {
-            statusListViewModel.fetchStatusSync(credentialPack)
+            statusListViewModel.fetchAndUpdateStatusSync(credentialPack)
         }
         this.onDelete = onDelete
         this.onExport = onExport
@@ -93,7 +101,8 @@ class GenericCredentialItem : ICredentialView {
 
     @Composable
     private fun descriptionFormatter(values: Map<String, JSONObject>) {
-        val statusLists by statusListViewModel.statusLists.collectAsState()
+        val statusList by statusListViewModel.observeStatusForId(credentialPack.id())
+            .collectAsState()
         val credential = values.toList().firstNotNullOfOrNull {
             val cred = credentialPack.getCredentialById(it.first)
             val mdoc = cred?.asMsoMdoc()
@@ -104,7 +113,7 @@ class GenericCredentialItem : ICredentialView {
                     cred?.asSdJwt() != null
                 ) {
                     it.second
-                } else if (mdoc != null){
+                } else if (mdoc != null) {
                     // Assume mDL.
                     val details = mdoc.jsonEncodedDetailsAll()
                     it.second.put("issuer", details.get("issuing_authority"))
@@ -147,7 +156,7 @@ class GenericCredentialItem : ICredentialView {
                 color = ColorStone600
             )
             CredentialStatusSmall(
-                statusLists[credentialPack.id()] ?: CredentialStatusList.UNDEFINED
+                statusList ?: CredentialStatusList.UNDEFINED
             )
         }
     }
@@ -224,7 +233,7 @@ class GenericCredentialItem : ICredentialView {
                             cred?.asSdJwt() != null
                         ) {
                             it.second
-                        } else if (mdoc != null){
+                        } else if (mdoc != null) {
                             // Assume mDL.
                             it.second.put("name", "Mobile Drivers License")
                             it.second
@@ -293,7 +302,7 @@ class GenericCredentialItem : ICredentialView {
                             cred?.asSdJwt() != null
                         ) {
                             it.second
-                        } else if (mdoc != null){
+                        } else if (mdoc != null) {
                             // Assume mDL.
                             it.second.put("name", "Mobile Drivers License")
                             it.second
@@ -412,7 +421,8 @@ class GenericCredentialItem : ICredentialView {
 
     @Composable
     override fun credentialDetails() {
-        val statusLists by statusListViewModel.statusLists.collectAsState()
+        val statusList by statusListViewModel.observeStatusForId(credentialPack.id())
+            .collectAsState()
         val detailsRendering = CardRenderingDetailsView(
             fields = listOf(
                 CardRenderingDetailsField(
@@ -437,7 +447,7 @@ class GenericCredentialItem : ICredentialView {
                         }
                         Column {
                             CredentialStatus(
-                                statusLists[credentialPack.id()] ?: CredentialStatusList.UNDEFINED
+                                statusList ?: CredentialStatusList.UNDEFINED
                             )
                             genericObjectDisplayer(
                                 credential!!,
@@ -469,14 +479,113 @@ class GenericCredentialItem : ICredentialView {
         }
     }
 
+    @Composable
+    fun credentialReviewInfo() {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+        ) {
+            Text(
+                text = "Review Info",
+                textAlign = TextAlign.Center,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp,
+                color = ColorStone950,
+                modifier = Modifier
+                    .fillMaxWidth()
+            )
+            // Header
+            credentialListItem()
+
+            // Body
+            credentialDetails()
+        }
+    }
+
+    @Composable
+    fun credentialRevokedInfo(closeModal: () -> Unit) {
+        val credentialTitleAndIssuer = getCredentialIdTitleAndIssuer(credentialPack)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp)
+        ) {
+            Text(
+                text = "Revoked Credential",
+                textAlign = TextAlign.Left,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Bold,
+                fontSize = 24.sp,
+                color = ColorStone950,
+                modifier = Modifier
+                    .fillMaxWidth()
+            )
+            Text(
+                text = "The following credential(s) have been revoked:",
+                textAlign = TextAlign.Left,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                color = ColorStone600,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+            )
+            Text(
+                text = credentialTitleAndIssuer.second,
+                textAlign = TextAlign.Left,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp,
+                color = ColorRose700,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 45.dp)
+            )
+
+            Button(
+                onClick = {
+                    closeModal()
+                },
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = ColorStone950,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = ColorStone300,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+            ) {
+                Text(
+                    text = "Close",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorStone950,
+                )
+            }
+        }
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun credentialPreviewAndDetails() {
+        val scope = rememberCoroutineScope()
+        val statusList by statusListViewModel.observeStatusForId(credentialPack.id())
+            .collectAsState()
         var sheetOpen by remember { mutableStateOf(false) }
 
         Box(
             Modifier
                 .clickable {
+                    scope.launch {
+                        statusListViewModel.fetchAndUpdateStatus(credentialPack)
+                    }
                     sheetOpen = true
                 }
         ) {
@@ -484,37 +593,35 @@ class GenericCredentialItem : ICredentialView {
         }
 
         if (sheetOpen) {
-            ModalBottomSheet(
-                onDismissRequest = {
-                    sheetOpen = false
-                },
-                modifier = Modifier
-                    .fillMaxHeight(0.8f)
-                    .nestedScroll(rememberNestedScrollInteropConnection()),
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = ColorBase1,
-                shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
-            ) {
-                Column(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(24.dp)
+            if (statusList != CredentialStatusList.REVOKED) {
+                ModalBottomSheet(
+                    onDismissRequest = {
+                        sheetOpen = false
+                    },
+                    modifier = Modifier
+                        .fillMaxHeight(0.8f)
+                        .nestedScroll(rememberNestedScrollInteropConnection()),
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = ColorBase1,
+                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
                 ) {
-                    Text(
-                        text = "Review Info",
-                        textAlign = TextAlign.Center,
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        color = ColorStone950,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    )
-                    // Header
-                    credentialListItem()
-
-                    // Body
-                    credentialDetails()
+                    credentialReviewInfo()
+                }
+            } else {
+                ModalBottomSheet(
+                    onDismissRequest = {
+                        sheetOpen = false
+                    },
+                    modifier = Modifier
+                        .fillMaxHeight(0.4f)
+                        .nestedScroll(rememberNestedScrollInteropConnection()),
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = ColorBase1,
+                    shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)
+                ) {
+                    credentialRevokedInfo({
+                        sheetOpen = false
+                    })
                 }
             }
         }
