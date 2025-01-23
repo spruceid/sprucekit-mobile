@@ -78,9 +78,10 @@ fun HandleOID4VCIView(
                 }
             )
 
+        val fullUrl = "openid-credential-offer://$url"
         try {
             oid4vciSession.initiateWithOffer(
-                credentialOffer = url,
+                credentialOffer = fullUrl,
                 clientId = "skit-demo-wallet",
                 redirectUrl = "https://spruceid.com"
             )
@@ -117,7 +118,7 @@ fun HandleOID4VCIView(
                     signature?.let {
                         generatePopComplete(
                             signingInput = signingInput,
-                            signatureDer = signature
+                            signatureDer = signature,
                         )
                     }
                 }
