@@ -1,7 +1,5 @@
 package com.spruceid.mobilesdkexample.walletsettings
 
-import StorageManager
-import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,14 +28,11 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.KeyManager
-import com.spruceid.mobile.sdk.rs.CredentialType
-import com.spruceid.mobile.sdk.rs.Oid4vp180137
 import com.spruceid.mobile.sdk.rs.generateTestMdl
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
@@ -47,12 +42,12 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -177,71 +172,9 @@ fun WalletSettingsHomeBody(
                 )
             }
         }
-// Uncomment to add test mDL generation button to the settings page.
-//        Box(
-//            Modifier
-//                .fillMaxWidth()
-//                .clickable {
-//                    scope.launch {
-//                        val keyManager = KeyManager()
-//                        val keyAlias = "testMdl"
-//                        if (!keyManager.keyExists(keyAlias)) {
-//                            keyManager.generateSigningKey(keyAlias)
-//                        }
-//                        val mdl = generateTestMdl(KeyManager(), keyAlias)
-//                        val mdocPack =
-//                            try {
-//                                credentialPacksViewModel.credentialPacks.value.first { pack ->
-//                                    pack.list().any { credential -> credential.asMsoMdoc() != null }
-//                                }
-//                            } catch (error: NoSuchElementException) {
-//                                CredentialPack()
-//                            }
-//                        mdocPack.addMdoc(mdl);
-//                        credentialPacksViewModel.saveCredentialPack(mdocPack)
-//                    }
-//                },
-//        ) {
-//            Column {
-//                Row(
-//                    Modifier.fillMaxWidth(),
-//                    horizontalArrangement = Arrangement.SpaceBetween,
-//                    verticalAlignment = Alignment.CenterVertically,
-//                ) {
-//                    Row(
-//                        verticalAlignment = Alignment.CenterVertically,
-//                    ) {
-//                        Image(
-//                            painter = painterResource(id = R.drawable.unknown),
-//                            contentDescription = stringResource(id = R.string.unknown_check),
-//                            modifier = Modifier.padding(end = 5.dp),
-//                        )
-//                        Text(
-//                            text = "Generate mDL",
-//                            fontFamily = Inter,
-//                            fontWeight = FontWeight.Medium,
-//                            fontSize = 17.sp,
-//                            color = ColorStone950,
-//                            modifier = Modifier.padding(bottom = 5.dp, top = 5.dp),
-//                        )
-//                    }
-//
-//                    Image(
-//                        painter = painterResource(id = R.drawable.chevron),
-//                        contentDescription = stringResource(id = R.string.chevron),
-//                        modifier = Modifier.scale(0.5f)
-//                    )
-//                }
-//
-//                Text(
-//                    text = "Generate a fresh test mDL issued by the SpruceID Test CA",
-//                    fontFamily = Inter,
-//                    fontWeight = FontWeight.Normal,
-//                    fontSize = 15.sp,
-//                    color = ColorStone600,
-//                )
-//            }
-//        }
+
+        // Uncomment to add test mDL generation button to the settings page.
+        GenerateMockMdocButton(credentialPacksViewModel = credentialPacksViewModel)
 
         Spacer(Modifier.weight(1f))
         Button(
@@ -283,6 +216,86 @@ fun WalletSettingsHomeBody(
                 fontFamily = Inter,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
+            )
+        }
+    }
+}
+
+@Composable
+fun GenerateMockMdocButton(
+    credentialPacksViewModel: CredentialPacksViewModel
+) {
+    val scope = rememberCoroutineScope()
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clickable {
+                scope.launch {
+                    val keyManager = KeyManager()
+                    val keyAlias = "testMdl"
+                    if (!keyManager.keyExists(keyAlias)) {
+                        keyManager.generateSigningKey(keyAlias)
+                    }
+                    val mdl = generateTestMdl(KeyManager(), keyAlias)
+                    val mdocPack =
+                        try {
+                            credentialPacksViewModel.credentialPacks.value.first { pack ->
+                                pack
+                                    .list()
+                                    .any { credential -> credential.asMsoMdoc() != null }
+                            }
+                        } catch (error: NoSuchElementException) {
+                            CredentialPack()
+                        }
+                    if (mdocPack
+                            .list()
+                            .isEmpty()
+                    ) {
+                        mdocPack.addMdoc(mdl);
+                        credentialPacksViewModel.saveCredentialPack(mdocPack)
+                    } else {
+                        Toast.showWarning("You already have an mDL")
+                    }
+                }
+            },
+    ) {
+        Column {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.unknown),
+                        contentDescription = stringResource(id = R.string.unknown_check),
+                        modifier = Modifier.padding(end = 5.dp),
+                    )
+                    Text(
+                        text = "Generate mDL",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 17.sp,
+                        color = ColorStone950,
+                        modifier = Modifier.padding(bottom = 5.dp, top = 5.dp),
+                    )
+                }
+
+                Image(
+                    painter = painterResource(id = R.drawable.chevron),
+                    contentDescription = stringResource(id = R.string.chevron),
+                    modifier = Modifier.scale(0.5f)
+                )
+            }
+
+            Text(
+                text = "Generate a fresh test mDL issued by the SpruceID Test CA",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 15.sp,
+                color = ColorStone600,
             )
         }
     }
