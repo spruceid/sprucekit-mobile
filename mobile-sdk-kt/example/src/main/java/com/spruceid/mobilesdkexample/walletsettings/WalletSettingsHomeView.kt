@@ -174,7 +174,7 @@ fun WalletSettingsHomeBody(
         }
 
         // Uncomment to add test mDL generation button to the settings page.
-        GenerateMockMdocButton(credentialPacksViewModel = credentialPacksViewModel)
+        GenerateMockMdlButton(credentialPacksViewModel = credentialPacksViewModel)
 
         Spacer(Modifier.weight(1f))
         Button(
@@ -222,13 +222,14 @@ fun WalletSettingsHomeBody(
 }
 
 @Composable
-fun GenerateMockMdocButton(
+fun GenerateMockMdlButton(
     credentialPacksViewModel: CredentialPacksViewModel
 ) {
     val scope = rememberCoroutineScope()
     Box(
         Modifier
             .fillMaxWidth()
+            .padding(vertical = 20.dp)
             .clickable {
                 scope.launch {
                     val keyManager = KeyManager()

@@ -426,7 +426,6 @@ class GenericCredentialItem : ICredentialView {
         val detailsRendering = CardRenderingDetailsView(
             fields = listOf(
                 CardRenderingDetailsField(
-                    // it's also possible just request the credentialSubject and cast it to JSONObject
                     keys = listOf(),
                     formatter = { values ->
                         val credential = values.toList().firstNotNullOfOrNull {
@@ -449,18 +448,20 @@ class GenericCredentialItem : ICredentialView {
                             CredentialStatus(
                                 statusList ?: CredentialStatusList.UNDEFINED
                             )
-                            genericObjectDisplayer(
-                                credential!!,
-                                listOf(
-                                    "type",
-                                    "hashed",
-                                    "salt",
-                                    "proof",
-                                    "renderMethod",
-                                    "@context",
-                                    "credentialStatus"
+                            if (credential != null) {
+                                genericObjectDisplayer(
+                                    credential,
+                                    listOf(
+                                        "type",
+                                        "hashed",
+                                        "salt",
+                                        "proof",
+                                        "renderMethod",
+                                        "@context",
+                                        "credentialStatus"
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 )
