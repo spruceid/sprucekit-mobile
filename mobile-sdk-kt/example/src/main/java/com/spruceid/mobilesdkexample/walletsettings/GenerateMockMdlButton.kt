@@ -41,30 +41,34 @@ fun GenerateMockMdlButton(
             .padding(vertical = 20.dp)
             .clickable {
                 scope.launch {
-                    val keyManager = KeyManager()
-                    val keyAlias = "testMdl"
-                    if (!keyManager.keyExists(keyAlias)) {
-                        keyManager.generateSigningKey(keyAlias)
-                    }
-                    val mdl = generateTestMdl(KeyManager(), keyAlias)
-                    val mdocPack =
-                        try {
-                            credentialPacksViewModel.credentialPacks.value.first { pack ->
-                                pack
-                                    .list()
-                                    .any { credential -> credential.asMsoMdoc() != null }
-                            }
-                        } catch (error: NoSuchElementException) {
-                            CredentialPack()
+                    try {
+                        val keyManager = KeyManager()
+                        val keyAlias = "testMdl"
+                        if (!keyManager.keyExists(keyAlias)) {
+                            keyManager.generateSigningKey(keyAlias)
                         }
-                    if (mdocPack
-                            .list()
-                            .isEmpty()
-                    ) {
-                        mdocPack.addMdoc(mdl);
-                        credentialPacksViewModel.saveCredentialPack(mdocPack)
-                    } else {
-                        Toast.showWarning("You already have an mDL")
+                        val mdl = generateTestMdl(KeyManager(), keyAlias)
+                        val mdocPack =
+                            try {
+                                credentialPacksViewModel.credentialPacks.value.first { pack ->
+                                    pack
+                                        .list()
+                                        .any { credential -> credential.asMsoMdoc() != null }
+                                }
+                            } catch (error: NoSuchElementException) {
+                                CredentialPack()
+                            }
+                        if (mdocPack
+                                .list()
+                                .isEmpty()
+                        ) {
+                            mdocPack.addMdoc(mdl);
+                            credentialPacksViewModel.saveCredentialPack(mdocPack)
+                        } else {
+                            Toast.showWarning("You already have an mDL")
+                        }
+                    } catch (_: Exception) {
+                        Toast.showError("Error generating mDL")
                     }
                 }
             },
@@ -80,7 +84,7 @@ fun GenerateMockMdlButton(
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.unknown),
-                        contentDescription = stringResource(id = R.string.unknown_check),
+                        contentDescription = stringResource(id = R.string.generate_mdl),
                         modifier = Modifier.padding(end = 5.dp),
                     )
                     Text(

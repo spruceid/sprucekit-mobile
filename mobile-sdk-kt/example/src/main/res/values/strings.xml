@@ -29,4 +29,6 @@
     <string name="export">Export</string>
     <string name="success_toast_icon">Success</string>
     <string name="warning_toast_icon">Warning</string>
+    <string name="error_toast_icon">Error</string>
+    <string name="generate_mdl">Generate mDL</string>
 </resources>
