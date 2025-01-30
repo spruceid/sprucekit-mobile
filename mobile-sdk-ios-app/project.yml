@@ -40,8 +40,8 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleVersion: "1.5.2"
-        CFBundleShortVersionString: "1.5.2"
+        CFBundleVersion: "1.5.3"
+        CFBundleShortVersionString: "1.5.3"
         CFBundleDisplayName: "SpruceKit"
         CFBundleIconName: "AppIcon"
         CFBundlePackageType: "APPL"
@@ -58,6 +58,10 @@ targets:
             CFBundleURLName: OID4VCI
             CFBundleURLSchemes:
               - openid-credential-offer
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: MdocOID4VP
+            CFBundleURLSchemes:
+              - mdoc-openid4vp
         NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
         NSCameraUsageDescription: "We need to access your camera for scanning"
         ITSAppUsesNonExemptEncryption: "NO"

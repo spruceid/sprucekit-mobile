@@ -111,7 +111,7 @@ func getCredentialIdTitleAndIssuer(
     credentialPack: CredentialPack, credential: ParsedCredential? = nil
 ) -> (String, String, String) {
     let claims = credentialPack.findCredentialClaims(claimNames: [
-        "name", "type", "issuer",
+        "name", "type", "issuer", "issuing_authority"
     ])
 
     var cred: Dictionary<Uuid, [String: GenericJSON]>.Element?
@@ -126,6 +126,18 @@ func getCredentialIdTitleAndIssuer(
                 || credential?.asJsonVc() != nil
                 || credential?.asSdJwt() != nil
         })
+        // Mdoc
+        if cred == nil {
+            cred = claims
+                .first(where: {
+                return credentialPack.get(credentialId: $0.key)?.asMsoMdoc() != nil
+            }).map { claim in
+                var tmpClaim = claim
+                tmpClaim.value["issuer"] = claim.value["issuing_authority"]
+                tmpClaim.value["name"] = GenericJSON.string("Mobile Drivers License")
+                return tmpClaim
+            }
+        }
     }
 
     let credentialKey = cred.map { $0.key } ?? ""
@@ -148,6 +160,10 @@ func getCredentialIdTitleAndIssuer(
         issuer = issuerName
     } else if let issuerId = credentialValue["issuer"]?.dictValue?["id"]?
         .toString()
+    {
+        issuer = issuerId
+    }
+    else if let issuerId = credentialValue["issuer"]?.toString()
     {
         issuer = issuerId
     }
