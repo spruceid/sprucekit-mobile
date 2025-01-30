@@ -84,7 +84,7 @@
           },
           {
             "path": [
-              "$['org.iso.18013.5.1']['age_over_21']"
+              "$['org.iso.18013.5.1']['age_over_25']"
             ],
             "predicate": null,
             "intent_to_retain": true
