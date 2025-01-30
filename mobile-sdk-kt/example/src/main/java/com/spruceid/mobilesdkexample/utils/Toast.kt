@@ -26,15 +26,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.ui.theme.ColorAmber200
+import com.spruceid.mobilesdkexample.ui.theme.ColorAmber50
+import com.spruceid.mobilesdkexample.ui.theme.ColorAmber900
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald200
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald50
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose200
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose50
+import com.spruceid.mobilesdkexample.ui.theme.ColorRose900
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class ToastType {
-    SUCCESS
+    SUCCESS,
+    WARNING,
+    ERROR
 }
 
 object Toast {
@@ -43,6 +51,16 @@ object Toast {
 
     fun showSuccess(message: String) {
         toastType.value = ToastType.SUCCESS
+        toastMessage.value = message
+    }
+
+    fun showWarning(message: String) {
+        toastType.value = ToastType.WARNING
+        toastMessage.value = message
+    }
+
+    fun showError(message: String) {
+        toastType.value = ToastType.ERROR
         toastMessage.value = message
     }
 
@@ -63,6 +81,8 @@ object Toast {
             }
             when (toastType.value) {
                 ToastType.SUCCESS -> SuccessToast(message = message)
+                ToastType.WARNING -> WarningToast(message = message)
+                ToastType.ERROR -> ErrorToast(message = message)
             }
         }
     }
@@ -104,6 +124,96 @@ fun SuccessToast(
             Text(
                 text = message,
                 color = ColorEmerald900,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 15.sp,
+                modifier = Modifier.padding(start = 10.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun WarningToast(
+    message: String,
+) {
+    Box(
+        modifier = Modifier
+            .wrapContentHeight()
+            .padding(all = 20.dp)
+            .padding(top = 20.dp)
+            .background(
+                color = ColorAmber50,
+                shape = RoundedCornerShape(6.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = ColorAmber200,
+                shape = RoundedCornerShape(6.dp)
+            )
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.warning_toast_icon),
+                contentDescription = stringResource(id = R.string.warning_toast_icon),
+                modifier = Modifier
+                    .width(20.dp)
+                    .height(20.dp)
+            )
+            Text(
+                text = message,
+                color = ColorAmber900,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 15.sp,
+                modifier = Modifier.padding(start = 10.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ErrorToast(
+    message: String,
+) {
+    Box(
+        modifier = Modifier
+            .wrapContentHeight()
+            .padding(all = 20.dp)
+            .padding(top = 20.dp)
+            .background(
+                color = ColorRose50,
+                shape = RoundedCornerShape(6.dp)
+            )
+            .border(
+                width = 1.dp,
+                color = ColorRose200,
+                shape = RoundedCornerShape(6.dp)
+            )
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.error_toast_icon),
+                contentDescription = stringResource(id = R.string.error_toast_icon),
+                modifier = Modifier
+                    .width(20.dp)
+                    .height(20.dp)
+            )
+            Text(
+                text = message,
+                color = ColorRose900,
                 fontFamily = Inter,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,

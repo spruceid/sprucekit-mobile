@@ -18,8 +18,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -74,6 +72,23 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+enum class MdocOID4VPState {
+    Err,
+    SelectCredential,
+    SelectiveDisclosure,
+    Loading,
+    None,
+}
+
+class MdocOID4VPError {
+    var title: String
+    var details: String
+
+    constructor(title: String, details: String) {
+        this.title = title
+        this.details = details
+    }
+}
 
 @Composable
 fun HandleMdocOID4VPView(
@@ -90,29 +105,8 @@ fun HandleMdocOID4VPView(
     var selectedMatch by remember { mutableStateOf<RequestMatch180137?>(null) }
     val uriHandler = LocalUriHandler.current
 
-
-    var err by remember { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        try {
-            withContext(Dispatchers.IO) {
-                val credentials = mutableListOf<Mdoc>()
-                credentialPacks.value.forEach { credentialPack ->
-                    credentialPack.list().forEach { credential ->
-                        val mdoc = credential.asMsoMdoc();
-                        if (mdoc != null) {
-                            credentials.add(mdoc)
-                        }
-                    }
-                }
-                val handlerRef = Oid4vp180137(credentials, KeyManager())
-                handler = handlerRef
-                request = handlerRef.processRequest(url)
-            }
-        } catch (e: Exception) {
-            err = e.localizedMessage
-        }
-    }
+    var state by remember { mutableStateOf(MdocOID4VPState.None) }
+    var error by remember { mutableStateOf<MdocOID4VPError?>(null) }
 
     fun onBack(url: Url? = null) {
         navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
@@ -121,63 +115,106 @@ fun HandleMdocOID4VPView(
         }
     }
 
-    if (err != null) {
-        ErrorView(errorTitle = "Error Presenting Credential",
-            errorDetails = err!!,
-            onClose = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } })
-    } else {
-        if (request == null) {
-            LoadingView(loadingText = "Loading...")
-        } else if (selectedMatch == null) {
-            val matches: List<RequestMatch180137> = request!!.matches()
-            if (matches.isNotEmpty()) {
-                MdocSelector(matches,
-                    onContinue = { match -> selectedMatch = match },
-                    onCancel = { onBack() })
-            } else {
-                ErrorView(
-                    errorTitle = "No matching credential(s)",
-                    errorDetails = "There are no credentials in your wallet that match the verification request you have scanned",
-                    closeButtonLabel = "Cancel"
-                ) { onBack() }
-            }
-        } else {
-            MdocFieldSelector(match = selectedMatch!!, onContinue = { approvedResponse ->
-                scope.launch {
-                    try {
-                        val redirect = request!!.respond(approvedResponse)
-                        val credentialPack = credentialPacks.value.firstOrNull { credentialPack ->
-                            credentialPack.getCredentialById(
-                                selectedMatch!!.credentialId()
-                            ) != null
-                        }!!
-                        val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
-                        walletActivityLogsViewModel.saveWalletActivityLog(
-                            walletActivityLogs = WalletActivityLogs(
-                                credentialPackId = credentialPack.id().toString(),
-                                credentialId = credentialInfo.first,
-                                credentialTitle = credentialInfo.second,
-                                issuer = credentialInfo.third,
-                                action = "Verification",
-                                dateTime = getCurrentSqlDate(),
-                                additionalInformation = ""
-                            )
-                        )
-                        onBack(redirect)
-                    } catch (e: Exception) {
-                        err = e.localizedMessage
+    when (state) {
+        MdocOID4VPState.None ->
+            LaunchedEffect(Unit) {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val credentials = mutableListOf<Mdoc>()
+                        credentialPacks.value.forEach { credentialPack ->
+                            credentialPack.list().forEach { credential ->
+                                val mdoc = credential.asMsoMdoc()
+                                if (mdoc != null) {
+                                    credentials.add(mdoc)
+                                }
+                            }
+                        }
+                        if (credentials.isNotEmpty()) {
+                            val handlerRef = Oid4vp180137(credentials, KeyManager())
+                            handler = handlerRef
+                            request = handlerRef.processRequest(url)
+                            state = MdocOID4VPState.SelectCredential
+                        } else {
+                            error =
+                                MdocOID4VPError(
+                                    "No matching credential(s)",
+                                    "There are no credentials in your wallet that match the verification request you have scanned"
+                                )
+                            state = MdocOID4VPState.Err
+                        }
                     }
+                } catch (e: Exception) {
+                    error = MdocOID4VPError("No matching credential(s)", e.localizedMessage!!)
+                    state = MdocOID4VPState.Err
                 }
-            }, onCancel = { -> selectedMatch = null })
-        }
+            }
+
+        MdocOID4VPState.Err ->
+            ErrorView(
+                errorTitle = error!!.title,
+                errorDetails = error!!.details,
+                onClose = { onBack() }
+            )
+
+        MdocOID4VPState.SelectCredential ->
+            MdocSelector(
+                request!!.matches(),
+                onContinue = { match ->
+                    selectedMatch = match
+                    state = MdocOID4VPState.SelectiveDisclosure
+                },
+                onCancel = { onBack() }
+            )
+
+        MdocOID4VPState.SelectiveDisclosure ->
+            MdocFieldSelector(
+                match = selectedMatch!!,
+                onContinue = { approvedResponse ->
+                    scope.launch {
+                        try {
+                            val redirect = request!!.respond(approvedResponse)
+                            val credentialPack =
+                                credentialPacks.value.firstOrNull { credentialPack ->
+                                    credentialPack.getCredentialById(
+                                        selectedMatch!!.credentialId()
+                                    ) != null
+                                }!!
+                            val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+                            walletActivityLogsViewModel.saveWalletActivityLog(
+                                walletActivityLogs = WalletActivityLogs(
+                                    credentialPackId = credentialPack.id().toString(),
+                                    credentialId = credentialInfo.first,
+                                    credentialTitle = credentialInfo.second,
+                                    issuer = credentialInfo.third,
+                                    action = "Verification",
+                                    dateTime = getCurrentSqlDate(),
+                                    additionalInformation = ""
+                                )
+                            )
+                            onBack(redirect)
+                        } catch (e: Exception) {
+                            error = MdocOID4VPError(
+                                "Failed to selective disclose fields",
+                                e.localizedMessage!!
+                            )
+                            state = MdocOID4VPState.Err
+                        }
+                    }
+                },
+                onCancel = { onBack() }
+            )
+
+        MdocOID4VPState.Loading ->
+            LoadingView(loadingText = "Loading...")
     }
 }
 
 @Composable
 fun MdocFieldSelector(
-    match: RequestMatch180137, onContinue: (ApprovedResponse180137) -> Unit, onCancel: () -> Unit
+    match: RequestMatch180137,
+    onContinue: (ApprovedResponse180137) -> Unit,
+    onCancel: () -> Unit
 ) {
-
     var selectedFields by remember {
         mutableStateOf<Set<FieldId180137>>(match.requestedFields()
             .filter { field -> field.required || !field.selectivelyDisclosable }
@@ -293,43 +330,32 @@ fun MdocFieldSelectorItem(
     selectField: () -> Unit,
     deselectField: () -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .border(
-                width = 1.dp, color = ColorBase300, shape = RoundedCornerShape(8.dp)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(
+            checked,
+            onCheckedChange = { checked ->
+                if (checked) {
+                    selectField()
+                } else {
+                    deselectField()
+                }
+            },
+            enabled = field.selectivelyDisclosable,
+            colors = CheckboxDefaults.colors(
+                checkedColor = ColorBlue600,
+                uncheckedColor = ColorStone300,
             )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(end = 8.dp)
-                .padding(vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Checkbox(
-                checked, onCheckedChange = { checked ->
-                    if (checked) {
-                        selectField()
-                    } else {
-                        deselectField()
-                    }
-                }, enabled = field.selectivelyDisclosable, colors = CheckboxDefaults.colors(
-                    checkedColor = ColorBlue600,
-                    uncheckedColor = ColorStone300,
-                )
-            )
-            Text(
-                text = field.displayableName,
-                fontFamily = Inter,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp,
-                color = ColorStone950,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        )
+        Text(
+            text = field.displayableName,
+            fontFamily = Inter,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 18.sp,
+            color = ColorStone950,
+            modifier = Modifier.weight(1f)
+        )
     }
+
 }
 
 @Composable
@@ -342,6 +368,10 @@ fun MdocSelector(
 
     fun selectCredential(credential: RequestMatch180137) {
         selectedCredential = credential
+    }
+
+    fun removeCredential() {
+        selectedCredential = null
     }
 
     Column(
@@ -373,6 +403,7 @@ fun MdocSelector(
                     match,
                     isSelected = selectedCredential?.credentialId() == match.credentialId(),
                     selectCredential = { selectCredential(match) },
+                    removeCredential = { removeCredential() }
                 )
             }
         }
@@ -440,7 +471,10 @@ fun MdocSelector(
 
 @Composable
 fun MdocSelectorItem(
-    match: RequestMatch180137, isSelected: Boolean, selectCredential: () -> Unit
+    match: RequestMatch180137,
+    isSelected: Boolean,
+    selectCredential: () -> Unit,
+    removeCredential: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -462,12 +496,18 @@ fun MdocSelectorItem(
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RadioButton(
+            Checkbox(
                 isSelected,
-                onClick = { -> selectCredential() },
-                colors = RadioButtonDefaults.colors(
-                    selectedColor = ColorBlue600,
-                    unselectedColor = ColorStone300,
+                onCheckedChange = { isChecked ->
+                    if (isChecked) {
+                        selectCredential()
+                    } else {
+                        removeCredential()
+                    }
+                },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = ColorBlue600,
+                    uncheckedColor = ColorStone300
                 )
             )
             Text(
