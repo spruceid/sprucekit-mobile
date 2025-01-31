@@ -198,6 +198,7 @@ impl InProgressRequest180137 {
             &self.request,
             credential,
             approved_fields,
+            &request_match.missing_fields,
             field_map,
             mdoc_generated_nonce.clone(),
         )?;

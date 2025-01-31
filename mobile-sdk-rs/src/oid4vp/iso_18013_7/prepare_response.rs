@@ -6,6 +6,7 @@ use isomdl::{
     cbor,
     cose::sign1::PreparedCoseSign1,
     definitions::{
+        device_response::DocumentErrorCode,
         device_signed::{DeviceAuthentication, DeviceNamespaces},
         helpers::{ByteStr, NonEmptyMap, NonEmptyVec, Tag24},
         session::SessionTranscript as SessionTranscriptTrait,
@@ -117,6 +118,7 @@ pub fn prepare_response(
     request: &AuthorizationRequestObject,
     credential: &Mdoc,
     approved_fields: Vec<FieldId180137>,
+    missing_fields: &BTreeMap<String, String>,
     mut field_map: FieldMap,
     mdoc_generated_nonce: String,
 ) -> Result<DeviceResponse> {
@@ -203,6 +205,22 @@ pub fn prepare_response(
         device_auth,
     };
 
+    let mut errors: BTreeMap<String, NonEmptyMap<String, DocumentErrorCode>> = BTreeMap::new();
+    for (namespace, element_identifier) in missing_fields {
+        if let Some(elems) = errors.get_mut(namespace) {
+            elems.insert(
+                element_identifier.clone(),
+                DocumentErrorCode::DataNotReturned,
+            );
+        } else {
+            let element_map = NonEmptyMap::new(
+                element_identifier.clone(),
+                DocumentErrorCode::DataNotReturned,
+            );
+            errors.insert(namespace.clone(), element_map);
+        }
+    }
+
     let document = Document {
         doc_type: mdoc.mso.doc_type.clone(),
         issuer_signed: IssuerSigned {
@@ -210,7 +228,7 @@ pub fn prepare_response(
             namespaces: Some(revealed_namespaces),
         },
         device_signed,
-        errors: None,
+        errors: NonEmptyMap::maybe_new(errors),
     };
 
     let documents = NonEmptyVec::new(document);
