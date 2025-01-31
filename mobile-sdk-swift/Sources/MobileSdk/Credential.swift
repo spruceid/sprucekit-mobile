@@ -31,7 +31,8 @@ public extension Mdoc {
 
     private func jsonEncodedDetailsInternal(containing elementIdentifiers: [String]?) -> [String: GenericJSON] {
         // Ignore the namespaces.
-        Dictionary(uniqueKeysWithValues: details().flatMap {
+        var uniqueValues = Set<String>()
+        return Dictionary(uniqueKeysWithValues: details().flatMap {
             $1.compactMap {
                 let id = $0.identifier
 
@@ -41,9 +42,14 @@ public extension Mdoc {
                         return nil
                     }
                 }
+                // Filter duplicate fields
+                if uniqueValues.contains(id) {
+                    return nil
+                }
                 if let data = $0.value?.data(using: .utf8) {
                     do {
                         let json = try JSONDecoder().decode(GenericJSON.self, from: data)
+                        uniqueValues.insert(id)
                         return (id, json)
                     } catch let error as NSError {
                         print("failed to decode '\(id)' as JSON: \(error)")

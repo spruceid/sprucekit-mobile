@@ -1,5 +1,6 @@
-import SwiftUI
 import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
+import SwiftUI
 
 struct WalletSettingsHome: Hashable {}
 
@@ -54,7 +55,7 @@ struct WalletSettingsHomeHeader: View {
 struct WalletSettingsHomeBody: View {
     @Binding var path: NavigationPath
     var onBack: () -> Void
-    
+
     let storageManager = StorageManager()
 
     @ViewBuilder
@@ -91,9 +92,11 @@ struct WalletSettingsHomeBody: View {
         Button {
             Task {
                 do {
-                    let credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
+                    let credentialPacks = try await CredentialPack.loadAll(
+                        storageManager: storageManager)
                     try await credentialPacks.asyncForEach { credentialPack in
-                        try await credentialPack.remove(storageManager: storageManager)
+                        try await credentialPack.remove(
+                            storageManager: storageManager)
                         credentialPack.list().forEach { credential in
                             let credentialInfo = getCredentialIdTitleAndIssuer(
                                 credentialPack: credentialPack,
@@ -115,7 +118,7 @@ struct WalletSettingsHomeBody: View {
                     print(error)
                 }
             }
-        }  label: {
+        } label: {
             Text("Delete all added credentials")
                 .frame(width: UIScreen.screenWidth)
                 .padding(.horizontal, -20)
@@ -127,10 +130,81 @@ struct WalletSettingsHomeBody: View {
         .cornerRadius(8)
     }
 
+    @ViewBuilder
+    var generateMockMdlButton: some View {
+        Button {
+            Task {
+                do {
+                    let keyAlias = "testMdl"
+                    if !KeyManager.keyExists(id: keyAlias) {
+                        _ = KeyManager.generateSigningKey(id: keyAlias)
+                    }
+                    let mdl = try generateTestMdl(keyManager: KeyManager(), keyAlias: keyAlias)
+
+                    let credentialPacks = try await CredentialPack.loadAll(
+                        storageManager: storageManager
+                    )
+                    let mdocPack = credentialPacks.first { pack in
+                        pack.list().contains(where: { credential in
+                            credential.asMsoMdoc() != nil
+                        })
+                    } ?? CredentialPack()
+                    
+                    if mdocPack.list().isEmpty {
+                        _ = mdocPack.addMDoc(mdoc: mdl)
+                        try await mdocPack.save(storageManager: StorageManager())
+                        ToastManager.shared.showSuccess(message: "Test mDL added to your wallet")
+                    } else {
+                        ToastManager.shared.showWarning(message: "You already have an mDL")
+                    }
+                } catch (_) {
+                    ToastManager.shared.showError(message: "Error generating mDL")
+                }
+                
+            }
+        } label: {
+            HStack(alignment: .top) {
+                VStack {
+                    HStack {
+                        Image("Unknown")
+                            .foregroundColor(Color("ColorStone950"))
+                        Text("Generate mDL")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundColor(Color("ColorStone950"))
+                            .font(
+                                .customFont(
+                                    font: .inter,
+                                    style: .bold,
+                                    size: .h4
+                                )
+                            )
+                    }
+                    Text(
+                        "Generate a fresh test mDL issued by the SpruceID Test CA"
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.leading)
+                    .foregroundColor(Color("ColorStone600"))
+                    .font(
+                        .customFont(
+                            font: .inter,
+                            style: .regular,
+                            size: .p
+                        )
+                    )
+                }
+                Image("Chevron")
+                    .rotationEffect(.degrees(-90))
+            }
+        }
+        .padding(.vertical, 20)
+    }
+
     var body: some View {
         VStack {
             VStack {
                 activityLogButton
+                generateMockMdlButton
                 Spacer()
                 deleteAllCredentials
             }

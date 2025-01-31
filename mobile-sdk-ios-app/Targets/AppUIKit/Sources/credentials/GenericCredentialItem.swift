@@ -52,13 +52,26 @@ struct GenericCredentialItem: ICredentialView {
     func descriptionFormatter(values: [String: [String: GenericJSON]])
         -> some View
     {
-        let credential =
+        let credential: [String: GenericJSON] =
             values.first(where: {
                 let credential = credentialPack.get(credentialId: $0.key)
                 return credential?.asJwtVc() != nil
                     || credential?.asJsonVc() != nil
                     || credential?.asSdJwt() != nil
-            }).map { $0.value } ?? [:]
+                    || credential?.asMsoMdoc() != nil
+
+            }).map {
+                // Assume mDL.
+                let mdoc = credentialPack.get(
+                    credentialId: $0.key)?.asMsoMdoc()
+                if  mdoc != nil {
+                    let details = mdoc?.jsonEncodedDetails()
+                    var newValue = $0.value
+                    newValue["issuer"] = details?["issuing_authority"]
+                    return newValue
+                }
+                return $0.value
+            } ?? [:]
 
         var description = ""
         if let issuerName = credential["issuer"]?.dictValue?["name"]?.toString()
@@ -67,7 +80,11 @@ struct GenericCredentialItem: ICredentialView {
         } else if let descriptionString = credential["description"]?.toString()
         {
             description = descriptionString
+        } else if let issuerName = credential["issuer"]?.toString()
+        {
+            description = issuerName
         }
+
         return VStack(alignment: .leading, spacing: 12) {
             Text(description)
                 .font(.customFont(font: .inter, style: .regular, size: .p))
@@ -116,14 +133,25 @@ struct GenericCredentialItem: ICredentialView {
                 CardRenderingListView(
                     titleKeys: ["name", "type"],
                     titleFormatter: { (values) in
-                        let credential =
+                        let credential: [String: GenericJSON] =
                             values.first(where: {
                                 let credential = credentialPack.get(
                                     credentialId: $0.key)
                                 return credential?.asJwtVc() != nil
                                     || credential?.asJsonVc() != nil
                                     || credential?.asSdJwt() != nil
-                            }).map { $0.value } ?? [:]
+                                    || credential?.asMsoMdoc() != nil
+
+                            }).map {
+                                // Assume mDL.
+                                if credentialPack.get(
+                                    credentialId: $0.key)?.asMsoMdoc() != nil {
+                                    var newValue = $0.value
+                                    newValue["name"] = GenericJSON.string("Mobile Drivers License")
+                                    return newValue
+                                }
+                                return $0.value
+                            } ?? [:]
 
                         var title = credential["name"]?.toString()
                         if title == nil {
@@ -158,14 +186,24 @@ struct GenericCredentialItem: ICredentialView {
                 CardRenderingListView(
                     titleKeys: ["name", "type"],
                     titleFormatter: { (values) in
-                        let credential =
+                        let credential: [String : GenericJSON] =
                             values.first(where: {
                                 let credential = credentialPack.get(
                                     credentialId: $0.key)
                                 return credential?.asJwtVc() != nil
                                     || credential?.asJsonVc() != nil
                                     || credential?.asSdJwt() != nil
-                            }).map { $0.value } ?? [:]
+                                    || credential?.asMsoMdoc() != nil
+                            }).map {
+                                // Assume mDL.
+                                if credentialPack.get(
+                                    credentialId: $0.key)?.asMsoMdoc() != nil {
+                                    var newValue = $0.value
+                                    newValue["name"] = GenericJSON.string("Mobile Drivers License")
+                                    return newValue
+                                }
+                                return $0.value
+                            } ?? [:]
 
                         var title = credential["name"]?.toString()
                         if title == nil {
@@ -241,8 +279,11 @@ struct GenericCredentialItem: ICredentialView {
                                 return VStack(alignment: .leading, spacing: 20)
                                 {
                                     CredentialStatus(status: credentialStatus)
-                                    CredentialObjectDisplayer(dict: credential)
-                                        .padding(.horizontal, 4)
+                                    if !credential.isEmpty {
+                                        CredentialObjectDisplayer(dict: credential)
+                                            .padding(.horizontal, 4)
+                                    }
+                                    
                                 }
                             })
                     ]
