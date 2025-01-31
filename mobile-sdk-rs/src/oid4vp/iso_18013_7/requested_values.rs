@@ -20,6 +20,7 @@ pub struct RequestMatch180137 {
     pub credential_id: Uuid,
     pub field_map: FieldMap,
     pub requested_fields: Vec<RequestedField180137>,
+    pub missing_fields: BTreeMap<String, String>,
 }
 
 uniffi::custom_newtype!(FieldId180137, String);
@@ -76,11 +77,7 @@ where
     credentials
         .filter_map(
             |credential| match find_match(input_descriptor, credential) {
-                Ok((field_map, requested_fields)) => Some(Arc::new(RequestMatch180137 {
-                    field_map,
-                    requested_fields,
-                    credential_id: credential.id(),
-                })),
+                Ok(m) => Some(Arc::new(m)),
                 Err(e) => {
                     tracing::info!("credential did not match: {e}");
                     None
@@ -90,10 +87,7 @@ where
         .collect()
 }
 
-fn find_match(
-    input_descriptor: &InputDescriptor,
-    credential: &Mdoc,
-) -> Result<(FieldMap, Vec<RequestedField180137>)> {
+fn find_match(input_descriptor: &InputDescriptor, credential: &Mdoc) -> Result<RequestMatch180137> {
     let mdoc = credential.document();
 
     if mdoc.mso.doc_type != input_descriptor.id {
@@ -152,6 +146,7 @@ fn find_match(
     );
 
     let mut requested_fields = BTreeMap::new();
+    let mut missing_fields = BTreeMap::new();
 
     let elements_json_ref = &elements_json;
 
@@ -210,32 +205,50 @@ fn find_match(
                     },
                 );
             }
-            None if field.is_required() => bail!(
-                "missing requested field: {}",
-                field.path.as_ref()[0].to_string()
-            ),
-            None => (),
+            None => {
+                let json_path = field.path.as_ref()[0].to_string();
+                if let Some((namespace, element_identifier)) = split_json_path(&json_path) {
+                    missing_fields.insert(namespace, element_identifier);
+                } else {
+                    tracing::warn!("invalid JSON path expression: {json_path}")
+                }
+            }
         }
     }
 
     let mut seen_age_over_attestations = 0;
+    let requested_fields = requested_fields
+        .into_values()
+        // According to the rules in ISO/IEC 18013-5 Section 7.2.5, don't respond with more
+        // than 2 age over attestations.
+        .filter(|field| {
+            if field.displayable_name.starts_with("age_over_") {
+                seen_age_over_attestations += 1;
+                seen_age_over_attestations < 3
+            } else {
+                true
+            }
+        })
+        .collect();
 
-    Ok((
+    Ok(RequestMatch180137 {
+        credential_id: credential.id(),
         field_map,
-        requested_fields
-            .into_values()
-            // According to the rules in ISO/IEC 18013-5 Section 7.2.5, don't respond with more
-            // than 2 age over attestations.
-            .filter(|field| {
-                if field.displayable_name.starts_with("age_over_") {
-                    seen_age_over_attestations += 1;
-                    seen_age_over_attestations < 3
-                } else {
-                    true
-                }
-            })
-            .collect(),
-    ))
+        requested_fields,
+        missing_fields,
+    })
+}
+
+fn split_json_path(json_path: &str) -> Option<(String, String)> {
+    // Find the namespace between "$['" and "']['"".
+    let (namespace, rest) = json_path.strip_prefix("$['")?.split_once("']['")?;
+    // Find the element identifier up to "']".
+    let (element_id, "") = rest.split_once("']")? else {
+        // Unexpected trailing characters.
+        return None;
+    };
+
+    Some((namespace.to_string(), element_id.to_string()))
 }
 
 fn cbor_to_string(cbor: &Cbor) -> Option<String> {
@@ -397,13 +410,13 @@ mod test {
     use super::{parse_request, reverse_mapping};
 
     #[rstest]
-    #[case::valid("tests/examples/18013_7_presentation_definition.json", true)]
-    #[case::invalid(
-        "tests/examples/18013_7_presentation_definition_age_over_25.json",
-        false
-    )]
+    #[case::valid("tests/examples/18013_7_presentation_definition.json", 0)]
+    #[case::missing("tests/examples/18013_7_presentation_definition_age_over_25.json", 1)]
     #[tokio::test]
-    async fn mdl_matches_presentation_definition(#[case] filepath: &str, #[case] valid: bool) {
+    async fn mdl_matches_presentation_definition(
+        #[case] filepath: &str,
+        #[case] missing_fields: usize,
+    ) {
         let key_manager = Arc::new(RustTestKeyManager::default());
         let key_alias = KeyAlias("".to_string());
 
@@ -420,12 +433,11 @@ mod test {
 
         let request = parse_request(&presentation_definition, credentials.iter());
 
-        assert_eq!(request.len() == 1, valid);
+        assert_eq!(request.len(), 1);
 
-        if valid {
-            let request = &request[0];
-            assert_eq!(request.requested_fields.len(), 12)
-        }
+        let request = &request[0];
+        assert_eq!(request.requested_fields.len(), 12 - missing_fields);
+        assert_eq!(request.missing_fields.len(), missing_fields);
     }
 
     #[test]
@@ -443,5 +455,19 @@ mod test {
                 60..=99 => assert_eq!(response, 60),
                 _ => panic!("unexpected value"),
             })
+    }
+
+    #[rstest]
+    #[case::valid("$['namespace']['element_id']", true)]
+    #[case::invalid("$.namespace.element_id", false)]
+    #[case::trailing("$['namespace']['element_id']['extra']", false)]
+    fn json_path_splitting(#[case] path: &str, #[case] is_some: bool) {
+        let Some((namespace, element_id)) = super::split_json_path(path) else {
+            assert!(!is_some);
+            return;
+        };
+
+        assert_eq!(namespace, "namespace");
+        assert_eq!(element_id, "element_id");
     }
 }
