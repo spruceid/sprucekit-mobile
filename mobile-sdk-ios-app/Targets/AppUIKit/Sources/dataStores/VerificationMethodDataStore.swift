@@ -23,14 +23,17 @@ class VerificationMethodDataStore {
     private let description = SQLite.Expression<String>("description")
     private let verifierName = SQLite.Expression<String>("verifierName")
     private let url = SQLite.Expression<String>("url")
-    
+
     static let shared = VerificationMethodDataStore()
 
     private var db: Connection?
 
     private init() {
-        if let docDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let dirPath = docDir.appendingPathComponent(Self.DIR_ACTIVITY_LOG_DB)
+        if let docDir = FileManager.default.urls(
+            for: .documentDirectory, in: .userDomainMask
+        ).first {
+            let dirPath = docDir.appendingPathComponent(
+                Self.DIR_ACTIVITY_LOG_DB)
 
             do {
                 try FileManager.default.createDirectory(
@@ -38,7 +41,8 @@ class VerificationMethodDataStore {
                     withIntermediateDirectories: true,
                     attributes: nil
                 )
-                let dbPath = dirPath.appendingPathComponent(Self.STORE_NAME).path
+                let dbPath = dirPath.appendingPathComponent(Self.STORE_NAME)
+                    .path
                 db = try Connection(dbPath)
                 createTable()
                 print("SQLiteDataStore init successfully at: \(dbPath) ")
@@ -101,7 +105,9 @@ class VerificationMethodDataStore {
         guard let database = db else { return [] }
 
         do {
-            for verificationMethod in try database.prepare(self.verificationMethods) {
+            for verificationMethod in try database.prepare(
+                self.verificationMethods)
+            {
                 verificationMethods.append(
                     VerificationMethod(
                         id: verificationMethod[id],
@@ -118,14 +124,16 @@ class VerificationMethodDataStore {
         }
         return verificationMethods
     }
-    
+
     func getVerificationMethod(rowId: Int64) -> VerificationMethod? {
         guard let database = db else { return nil }
 
         do {
-            for verificationMethod in try database.prepare(self.verificationMethods) {
+            for verificationMethod in try database.prepare(
+                self.verificationMethods)
+            {
                 let elemId = verificationMethod[id]
-                if  elemId == rowId {
+                if elemId == rowId {
                     return VerificationMethod(
                         id: verificationMethod[id],
                         type: verificationMethod[type],
@@ -161,7 +169,8 @@ class VerificationMethodDataStore {
             return false
         }
         do {
-            for verificationMethod in try database.prepare(self.verificationMethods)
+            for verificationMethod in try database.prepare(
+                self.verificationMethods)
             where !delete(id: verificationMethod[id]) {
                 return false
             }

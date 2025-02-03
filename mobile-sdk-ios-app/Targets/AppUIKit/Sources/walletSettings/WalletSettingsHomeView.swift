@@ -53,10 +53,10 @@ struct WalletSettingsHomeHeader: View {
 }
 
 struct WalletSettingsHomeBody: View {
+    @EnvironmentObject private var credentialPackObservable:
+        CredentialPackObservable
     @Binding var path: NavigationPath
     var onBack: () -> Void
-
-    let storageManager = StorageManager()
 
     @ViewBuilder
     var activityLogButton: some View {
@@ -92,11 +92,11 @@ struct WalletSettingsHomeBody: View {
         Button {
             Task {
                 do {
-                    let credentialPacks = try await CredentialPack.loadAll(
-                        storageManager: storageManager)
+                    let credentialPacks = credentialPackObservable
+                        .credentialPacks
                     try await credentialPacks.asyncForEach { credentialPack in
-                        try await credentialPack.remove(
-                            storageManager: storageManager)
+                        try await credentialPackObservable.delete(
+                            credentialPack: credentialPack)
                         credentialPack.list().forEach { credential in
                             let credentialInfo = getCredentialIdTitleAndIssuer(
                                 credentialPack: credentialPack,
@@ -139,28 +139,33 @@ struct WalletSettingsHomeBody: View {
                     if !KeyManager.keyExists(id: keyAlias) {
                         _ = KeyManager.generateSigningKey(id: keyAlias)
                     }
-                    let mdl = try generateTestMdl(keyManager: KeyManager(), keyAlias: keyAlias)
+                    let mdl = try generateTestMdl(
+                        keyManager: KeyManager(), keyAlias: keyAlias)
 
-                    let credentialPacks = try await CredentialPack.loadAll(
-                        storageManager: storageManager
-                    )
-                    let mdocPack = credentialPacks.first { pack in
-                        pack.list().contains(where: { credential in
-                            credential.asMsoMdoc() != nil
-                        })
-                    } ?? CredentialPack()
-                    
+                    let credentialPacks = credentialPackObservable
+                        .credentialPacks
+                    let mdocPack =
+                        credentialPacks.first { pack in
+                            pack.list().contains(where: { credential in
+                                credential.asMsoMdoc() != nil
+                            })
+                        } ?? CredentialPack()
+
                     if mdocPack.list().isEmpty {
                         _ = mdocPack.addMDoc(mdoc: mdl)
-                        try await mdocPack.save(storageManager: StorageManager())
-                        ToastManager.shared.showSuccess(message: "Test mDL added to your wallet")
+                        try await mdocPack.save(
+                            storageManager: StorageManager())
+                        ToastManager.shared.showSuccess(
+                            message: "Test mDL added to your wallet")
                     } else {
-                        ToastManager.shared.showWarning(message: "You already have an mDL")
+                        ToastManager.shared.showWarning(
+                            message: "You already have an mDL")
                     }
                 } catch (_) {
-                    ToastManager.shared.showError(message: "Error generating mDL")
+                    ToastManager.shared.showError(
+                        message: "Error generating mDL")
                 }
-                
+
             }
         } label: {
             HStack(alignment: .top) {

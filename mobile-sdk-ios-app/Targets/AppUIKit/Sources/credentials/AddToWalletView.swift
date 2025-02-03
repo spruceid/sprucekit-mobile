@@ -1,27 +1,30 @@
-import SwiftUI
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
+import SwiftUI
 
 struct AddToWallet: Hashable {
     var rawCredential: String
 }
 
 struct AddToWalletView: View {
+    @EnvironmentObject private var credentialPackObservable:
+        CredentialPackObservable
     @Binding var path: NavigationPath
     var rawCredential: String
     var credential: GenericJSON?
     @State var presentError: Bool
     @State var errorDetails: String
     @State var storing = false
-    
+
     let credentialItem: (any ICredentialView)?
-    
+
     init(path: Binding<NavigationPath>, rawCredential: String) {
         self._path = path
         self.rawCredential = rawCredential
-        
+
         do {
-            credentialItem = try credentialDisplayerSelector(rawCredential: rawCredential)
+            credentialItem = try credentialDisplayerSelector(
+                rawCredential: rawCredential)
             errorDetails = ""
             presentError = false
         } catch {
@@ -31,20 +34,23 @@ struct AddToWalletView: View {
             credentialItem = nil
         }
     }
-    
+
     func back() {
         while !path.isEmpty {
             path.removeLast()
         }
     }
-    
+
     func addToWallet() async {
         storing = true
         do {
             let credentialPack = CredentialPack()
-            _ = try credentialPack.tryAddRawCredential(rawCredential: rawCredential)
-            try await credentialPack.save(storageManager: StorageManager())
-            let credentialInfo = getCredentialIdTitleAndIssuer(credentialPack: credentialPack)
+            _ = try credentialPack.tryAddRawCredential(
+                rawCredential: rawCredential)
+            try await credentialPackObservable.add(
+                credentialPack: credentialPack)
+            let credentialInfo = getCredentialIdTitleAndIssuer(
+                credentialPack: credentialPack)
             _ = WalletActivityLogDataStore.shared.insert(
                 credentialPackId: credentialPack.id.uuidString,
                 credentialId: credentialInfo.0,
@@ -62,8 +68,7 @@ struct AddToWalletView: View {
         }
         storing = false
     }
-    
-    
+
     var body: some View {
         ZStack {
             if presentError {
@@ -86,11 +91,13 @@ struct AddToWalletView: View {
                         Task {
                             await addToWallet()
                         }
-                    }  label: {
+                    } label: {
                         Text("Add to Wallet")
                             .frame(width: UIScreen.screenWidth)
                             .padding(.horizontal, -20)
-                            .font(.customFont(font: .inter, style: .medium, size: .h4))
+                            .font(
+                                .customFont(
+                                    font: .inter, style: .medium, size: .h4))
                     }
                     .foregroundColor(.white)
                     .padding(.vertical, 13)
@@ -98,11 +105,13 @@ struct AddToWalletView: View {
                     .cornerRadius(8)
                     Button {
                         back()
-                    }  label: {
+                    } label: {
                         Text("Decline")
                             .frame(width: UIScreen.screenWidth)
                             .padding(.horizontal, -20)
-                            .font(.customFont(font: .inter, style: .medium, size: .h4))
+                            .font(
+                                .customFont(
+                                    font: .inter, style: .medium, size: .h4))
                     }
                     .foregroundColor(Color("ColorRose600"))
                     .padding(.vertical, 13)
@@ -116,7 +125,7 @@ struct AddToWalletView: View {
 
 struct AddToWalletPreview: PreviewProvider {
     @State static var path: NavigationPath = .init()
-    
+
     static var previews: some View {
         AddToWalletView(path: $path, rawCredential: "")
     }

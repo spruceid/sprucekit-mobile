@@ -2,12 +2,13 @@ import SpruceIDMobileSdk
 import SwiftUI
 
 struct VerifierCredentialSuccessView: View {
+    @EnvironmentObject private var statusListObservable: StatusListObservable
     var rawCredential: String
     var onClose: () -> Void
     var logVerification: (String, String, String) -> Void
 
     @State var credentialPack: CredentialPack?
-    @State var credentialStatus: CredentialStatusList?
+    @State var credentialItem: (any ICredentialView)?
     @State var title: String?
     @State var issuer: String?
 
@@ -24,43 +25,10 @@ struct VerifierCredentialSuccessView: View {
                 .font(.customFont(font: .inter, style: .semiBold, size: .h3))
                 .foregroundStyle(Color("ColorStone600"))
             Divider()
-            if credentialPack != nil && credentialStatus != nil {
-                Card(
-                    credentialPack: credentialPack!,
-                    rendering: CardRendering.details(
-                        CardRenderingDetailsView(
-                            fields: [
-                                CardRenderingDetailsField(
-                                    keys: [],
-                                    formatter: { (values) in
-                                        let credential =
-                                            values.first(where: {
-                                                let credential =
-                                                credentialPack!.get(
-                                                        credentialId: $0.key)
-                                                return credential?.asJwtVc()
-                                                    != nil
-                                                    || credential?.asJsonVc()
-                                                        != nil
-                                                    || credential?.asSdJwt()
-                                                        != nil
-                                            }).map { $0.value } ?? [:]
-
-                                        return VStack(
-                                            alignment: .leading, spacing: 20
-                                        ) {
-                                            CredentialStatus(
-                                                status: credentialStatus)
-                                            CredentialObjectDisplayer(
-                                                dict: credential
-                                            )
-                                            .padding(.horizontal, 4)
-                                        }
-                                    })
-                            ]
-                        ))
-                )
-                .padding(.all, 12)
+            if credentialItem != nil {
+                AnyView(credentialItem!.credentialDetails())
+            } else {
+                Spacer()
             }
             Button {
                 onClose()
@@ -89,22 +57,20 @@ struct VerifierCredentialSuccessView: View {
                         credentialPack: CredentialPack(),
                         rawCredential: rawCredential)
 
-                    var credentialStatus = CredentialStatusList.undefined
+                    self.credentialItem = try credentialDisplayerSelector(
+                        credentialPack: credentialPack.unwrap())
 
-                    let statusLists = try await credentialPack.unwrap().getStatusListsAsync(
-                        hasConnection: true)
-                    if !statusLists.isEmpty {
-                        credentialStatus =
-                            statusLists.first?.value
-                            ?? CredentialStatusList.unknown
-                    }
-                    
-                    self.credentialStatus = credentialStatus
+                    let status =
+                        await statusListObservable.fetchAndUpdateStatus(
+                            credentialPack: credentialPack!)
 
                     let credential = try credentialPack.unwrap().list().first
-                    let claims = try credentialPack.unwrap().findCredentialClaims(
-                        claimNames: ["name", "type", "description", "issuer"]
-                    )[credential.unwrap().id()]
+                    let claims = try credentialPack.unwrap()
+                        .findCredentialClaims(
+                            claimNames: [
+                                "name", "type", "description", "issuer",
+                            ]
+                        )[credential.unwrap().id()]
 
                     var tmpTitle = claims?["name"]?.toString()
                     if tmpTitle == nil {
@@ -125,7 +91,7 @@ struct VerifierCredentialSuccessView: View {
                         self.issuer = ""
                     }
                     logVerification(
-                        title ?? "", issuer ?? "", credentialStatus.rawValue)
+                        title ?? "", issuer ?? "", status.rawValue)
                 } catch {
                     self.title = ""
                     self.issuer = ""
@@ -133,8 +99,4 @@ struct VerifierCredentialSuccessView: View {
             }
         })
     }
-}
-
-struct VerifierGenericCredentialItemSuccess {
-
 }

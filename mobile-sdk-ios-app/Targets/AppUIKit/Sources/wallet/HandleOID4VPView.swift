@@ -79,6 +79,8 @@ public class OID4VPError {
 }
 
 struct HandleOID4VPView: View {
+    @EnvironmentObject private var credentialPackObservable:
+        CredentialPackObservable
     @Binding var path: NavigationPath
     var url: String
 
@@ -93,11 +95,9 @@ struct HandleOID4VPView: View {
     @State private var err: OID4VPError?
     @State private var state = OID4VPState.none
 
-    let storageManager = StorageManager()
-
     func presentCredential() async {
         do {
-            credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
+            credentialPacks = credentialPackObservable.credentialPacks
             var credentials: [ParsedCredential] = []
             credentialPacks.forEach { credentialPack in
                 credentials += credentialPack.list()
@@ -131,7 +131,7 @@ struct HandleOID4VPView: View {
                 if permissionRequestCredentials.count == 1 {
                     lSelectedCredentials = permissionRequestCredentials
                     selectedCredential =
-                    permissionRequestCredentials.first
+                        permissionRequestCredentials.first
                     state = .selectiveDisclosure
                 } else {
                     state = OID4VPState.selectCredential
@@ -201,7 +201,8 @@ struct HandleOID4VPView: View {
                                 where: {
                                     credentialPack in
                                     return credentialPack.get(
-                                        credentialId: selectedCredential!.asParsedCredential()
+                                        credentialId: selectedCredential!
+                                            .asParsedCredential()
                                             .id()) != nil
                                 })!
                             let credentialInfo =
@@ -217,7 +218,8 @@ struct HandleOID4VPView: View {
                                 dateTime: Date(),
                                 additionalInformation: ""
                             )
-                                ToastManager.shared.showSuccess(message: "Shared successfully")
+                            ToastManager.shared.showSuccess(
+                                message: "Shared successfully")
                             back()
                         } catch {
                             err = OID4VPError(
@@ -371,8 +373,13 @@ struct CredentialSelector: View {
     @State private var selectedCredentials: [PresentableCredential] = []
 
     func selectCredential(credential: PresentableCredential) {
-        if selectedCredentials.contains(where: { $0.asParsedCredential().id() == credential.asParsedCredential().id() }) {
-            selectedCredentials.removeAll(where: { $0.asParsedCredential().id() == credential.asParsedCredential().id() })
+        if selectedCredentials.contains(where: {
+            $0.asParsedCredential().id() == credential.asParsedCredential().id()
+        }) {
+            selectedCredentials.removeAll(where: {
+                $0.asParsedCredential().id()
+                    == credential.asParsedCredential().id()
+            })
         } else {
             if allowMultiple {
                 selectedCredentials.append(credential)
@@ -384,9 +391,12 @@ struct CredentialSelector: View {
     }
 
     func getCredentialTitle(credential: PresentableCredential) -> String {
-        if let name = credentialClaims[credential.asParsedCredential().id()]?["name"]?.toString() {
+        if let name = credentialClaims[credential.asParsedCredential().id()]?[
+            "name"]?.toString()
+        {
             return name
-        } else if let types = credentialClaims[credential.asParsedCredential().id()]?["type"]?
+        } else if let types = credentialClaims[
+            credential.asParsedCredential().id()]?["type"]?
             .arrayValue
         {
             var title = ""
@@ -404,7 +414,10 @@ struct CredentialSelector: View {
 
     func toggleBinding(for credential: PresentableCredential) -> Binding<Bool> {
         Binding {
-            selectedCredentials.contains(where: { $0.asParsedCredential().id() == credential.asParsedCredential().id() })
+            selectedCredentials.contains(where: {
+                $0.asParsedCredential().id()
+                    == credential.asParsedCredential().id()
+            })
         } set: { _ in
             // TODO: update when allowing multiple
             selectCredential(credential: credential)

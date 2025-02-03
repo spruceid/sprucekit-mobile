@@ -4,11 +4,11 @@ import SwiftUI
 
 struct WalletHomeView: View {
     @Binding var path: NavigationPath
-    
+
     var body: some View {
         VStack {
             WalletHomeHeader(path: $path)
-            WalletHomeBody()
+            WalletHomeBody(path: $path)
         }
         .navigationBarBackButtonHidden(true)
     }
@@ -16,7 +16,7 @@ struct WalletHomeView: View {
 
 struct WalletHomeHeader: View {
     @Binding var path: NavigationPath
-    
+
     var body: some View {
         HStack {
             Text("Wallet")
@@ -54,71 +54,95 @@ struct WalletHomeHeader: View {
 }
 
 struct WalletHomeBody: View {
-    @State var credentialPacks: [CredentialPack] = []
-    let storageManager = StorageManager()
+    @Binding var path: NavigationPath
+    @EnvironmentObject private var statusListObservable: StatusListObservable
+    @EnvironmentObject private var credentialPackObservable:
+        CredentialPackObservable
     @State var loading = false
-    @State var hasConnection = true
-    
+
     func loadCredentials() async {
         loading = true
         do {
-            self.credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
+            let credentialPacks =
+                try await credentialPackObservable.loadAndUpdateAll()
+            Task {
+                await statusListObservable.getStatusLists(
+                    credentialPacks: credentialPacks)
+            }
         } catch {
             // TODO: display error message
             print(error)
         }
         loading = false
     }
-    
+
+    func onDelete(credentialPack: CredentialPack) {
+        Task {
+            do {
+                try await credentialPackObservable.delete(
+                    credentialPack: credentialPack)
+                credentialPack.list()
+                    .forEach { credential in
+                        let credentialInfo = getCredentialIdTitleAndIssuer(
+                            credentialPack: credentialPack,
+                            credential: credential
+                        )
+                        _ = WalletActivityLogDataStore.shared.insert(
+                            credentialPackId: credentialPack.id.uuidString,
+                            credentialId: credentialInfo.0,
+                            credentialTitle: credentialInfo.1,
+                            issuer: credentialInfo.2,
+                            action: "Deleted",
+                            dateTime: Date(),
+                            additionalInformation: ""
+                        )
+                    }
+            } catch {
+                // TODO: display error message
+                print(error)
+            }
+        }
+    }
+
     var body: some View {
         ZStack {
             if loading {
                 LoadingView(
                     loadingText: ""
                 )
-            } else if !credentialPacks.isEmpty {
+            } else if !credentialPackObservable.credentialPacks.isEmpty {
                 ZStack {
                     ScrollView(.vertical, showsIndicators: false) {
                         Section {
-                            ForEach(credentialPacks, id: \.self.id) { credentialPack in
-                                GenericCredentialItem(
-                                    credentialPack: credentialPack,
-                                    onDelete: {
-                                        Task {
-                                            do {
-                                                try await credentialPack.remove(storageManager: storageManager)
-                                                credentialPack.list().forEach { credential in
-                                                    let credentialInfo = getCredentialIdTitleAndIssuer(
-                                                        credentialPack: credentialPack,
-                                                        credential: credential
-                                                    )
-                                                    _ = WalletActivityLogDataStore.shared.insert(
-                                                        credentialPackId: credentialPack.id.uuidString,
-                                                        credentialId: credentialInfo.0,
-                                                        credentialTitle: credentialInfo.1,
-                                                        issuer: credentialInfo.2,
-                                                        action: "Deleted",
-                                                        dateTime: Date(),
-                                                        additionalInformation: ""
-                                                    )
-                                                }
-                                                self.credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
-                                            } catch {
-                                                // TODO: display error message
-                                                print(error)
-                                            }
+                            ForEach(
+                                credentialPackObservable.credentialPacks,
+                                id: \.self.id
+                            ) {
+                                credentialPack in
+                                AnyView(
+                                    credentialDisplayerSelector(
+                                        credentialPack: credentialPack,
+                                        goTo: {
+                                            path.append(
+                                                CredentialDetails(
+                                                    credentialPackId:
+                                                        credentialPack.id
+                                                        .uuidString))
+                                        },
+                                        onDelete: {
+                                            onDelete(
+                                                credentialPack: credentialPack)
                                         }
-                                    },
-                                    hasConnection: $hasConnection
+                                    )
                                 )
                             }
-                            .id(UUID()) // make sure we are recreating all items when refresh
                             //                    ShareableCredentialListItem(mdoc: mdocBase64)
                         }
                     }
-                    
+
                     .refreshable {
-                        hasConnection = checkInternetConnection()
+                        statusListObservable.hasConnection =
+                            checkInternetConnection()
                         await loadCredentials()
                     }
                     .padding(.top, 20)
@@ -137,7 +161,7 @@ struct WalletHomeBody: View {
         }
         .onAppear(perform: {
             Task {
-                hasConnection = checkInternetConnection()
+                statusListObservable.hasConnection = checkInternetConnection()
                 await loadCredentials()
             }
         })

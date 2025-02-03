@@ -1,6 +1,6 @@
-import SwiftUI
 import AVKit
 import SpruceIDMobileSdk
+import SwiftUI
 
 enum ScanningType {
     case qrcode, pdf417, mrz
@@ -34,7 +34,7 @@ struct Scanning: Hashable, Equatable {
         hasher.combine(scanningType)
     }
 
-    static func ==(s1: Scanning, s2: Scanning) -> Bool {
+    static func == (s1: Scanning, s2: Scanning) -> Bool {
         return s1.id == s2.id
     }
 
@@ -125,9 +125,12 @@ struct ScanningComponent: View {
                         subtitle: scanningParams.subtitle,
                         onRead: scanningParams.onRead,
                         onCancel: onCancel,
-                        titleFont: .customFont(font: .inter, style: .bold, size: .h0),
-                        subtitleFont: .customFont(font: .inter, style: .bold, size: .h4),
-                        cancelButtonFont: .customFont(font: .inter, style: .medium, size: .h3),
+                        titleFont: .customFont(
+                            font: .inter, style: .bold, size: .h0),
+                        subtitleFont: .customFont(
+                            font: .inter, style: .bold, size: .h4),
+                        cancelButtonFont: .customFont(
+                            font: .inter, style: .medium, size: .h3),
                         readerColor: .white
                     )
                 case .pdf417:
@@ -136,9 +139,12 @@ struct ScanningComponent: View {
                         subtitle: scanningParams.subtitle,
                         onRead: scanningParams.onRead,
                         onCancel: onCancel,
-                        titleFont: .customFont(font: .inter, style: .bold, size: .h0),
-                        subtitleFont: .customFont(font: .inter, style: .bold, size: .h4),
-                        cancelButtonFont: .customFont(font: .inter, style: .medium, size: .h3),
+                        titleFont: .customFont(
+                            font: .inter, style: .bold, size: .h0),
+                        subtitleFont: .customFont(
+                            font: .inter, style: .bold, size: .h4),
+                        cancelButtonFont: .customFont(
+                            font: .inter, style: .medium, size: .h3),
                         readerColor: .white
                     )
                 case .mrz:
@@ -147,9 +153,12 @@ struct ScanningComponent: View {
                         subtitle: scanningParams.subtitle,
                         onRead: scanningParams.onRead,
                         onCancel: onCancel,
-                        titleFont: .customFont(font: .inter, style: .bold, size: .h0),
-                        subtitleFont: .customFont(font: .inter, style: .bold, size: .h4),
-                        cancelButtonFont: .customFont(font: .inter, style: .medium, size: .h3),
+                        titleFont: .customFont(
+                            font: .inter, style: .bold, size: .h0),
+                        subtitleFont: .customFont(
+                            font: .inter, style: .bold, size: .h4),
+                        cancelButtonFont: .customFont(
+                            font: .inter, style: .medium, size: .h3),
                         readerColor: .white
                     )
                 }

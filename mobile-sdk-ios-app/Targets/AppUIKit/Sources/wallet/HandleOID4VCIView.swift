@@ -64,7 +64,8 @@ struct HandleOID4VCIView: View {
 
                 try credentials.forEach {
                     let cred = String(decoding: Data($0.payload), as: UTF8.self)
-                  _ = try self.credentialPack?.tryAddRawCredential(rawCredential: cred)
+                    _ = try self.credentialPack?.tryAddRawCredential(
+                        rawCredential: cred)
                     self.credential = cred
                 }
 

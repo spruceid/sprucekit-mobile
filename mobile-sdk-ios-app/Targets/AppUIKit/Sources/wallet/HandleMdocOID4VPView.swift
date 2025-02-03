@@ -21,6 +21,8 @@ public class MdocOID4VPError {
 }
 
 struct HandleMdocOID4VPView: View {
+    @EnvironmentObject private var credentialPackObservable:
+        CredentialPackObservable
     @Binding var path: NavigationPath
     var url: String
 
@@ -32,11 +34,10 @@ struct HandleMdocOID4VPView: View {
     @State private var err: MdocOID4VPError?
     @State private var state = MdocOID4VPState.none
 
-    let storageManager = StorageManager()
-
     func presentCredential() async {
         do {
-            credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
+            credentialPacks = credentialPackObservable.credentialPacks
+
             var credentials: [Mdoc] = []
             credentialPacks.forEach { credentialPack in
                 credentialPack.list().forEach { credential in
@@ -108,11 +109,16 @@ struct HandleMdocOID4VPView: View {
                 onContinue: { approvedResponse in
                     Task {
                         do {
-                            let redirect = try await request!.respond(approvedResponse: approvedResponse)
-                            let credentialPack = credentialPacks.first { credentialPack in
-                                return credentialPack.get(credentialId: (selectedMatch?.credentialId())!) != nil
+                            let redirect = try await request!.respond(
+                                approvedResponse: approvedResponse)
+                            let credentialPack = credentialPacks.first {
+                                credentialPack in
+                                return credentialPack.get(
+                                    credentialId: (selectedMatch?.credentialId())!
+                                ) != nil
                             }!
-                            let credentialInfo = getCredentialIdTitleAndIssuer(credentialPack: credentialPack)
+                            let credentialInfo = getCredentialIdTitleAndIssuer(
+                                credentialPack: credentialPack)
                             _ = WalletActivityLogDataStore.shared.insert(
                                 credentialPackId: credentialPack.id
                                     .uuidString,
@@ -267,7 +273,7 @@ struct MdocSelector: View {
     let matches: [RequestMatch180137]
     let onContinue: (RequestMatch180137) -> Void
     let onCancel: () -> Void
-    
+
     @State private var selectedCredential: RequestMatch180137? = nil
 
     func selectCredential(credential: RequestMatch180137) {

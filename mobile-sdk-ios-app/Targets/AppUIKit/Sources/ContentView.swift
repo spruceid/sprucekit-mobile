@@ -46,11 +46,6 @@ public struct ContentView: View {
                 .edgesIgnoringSafeArea(.all)
             NavigationStack(path: $path.animation(.easeOut)) {
                 HomeView(path: $path)
-                    .navigationDestination(for: Scanning.self) {
-                        scanningParams in
-                        ScanningView(
-                            path: $path, scanningParams: scanningParams)
-                    }
                     .navigationDestination(for: VerifyDL.self) { _ in
                         VerifyDLView(path: $path)
                     }
@@ -121,7 +116,17 @@ public struct ContentView: View {
                             url: handleMdocOID4VPParams.url
                         )
                     }
+                    .navigationDestination(for: CredentialDetails.self) {
+                        credentialDetailsParams in
+                        CredentialDetailsView(
+                            path: $path,
+                            credentialPackId: credentialDetailsParams
+                                .credentialPackId
+                        )
+                    }
             }
+            .environmentObject(StatusListObservable())
+            .environmentObject(CredentialPackObservable())
             Toast()
         }
         .onOpenURL { url in

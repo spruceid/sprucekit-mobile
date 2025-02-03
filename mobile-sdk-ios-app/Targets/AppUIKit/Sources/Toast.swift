@@ -20,7 +20,7 @@ class ToastManager: ObservableObject {
             self.isShowing = false
         }
     }
-    
+
     func showWarning(message: String, duration: TimeInterval = 3.0) {
         self.message = message
         self.type = .warning
@@ -30,7 +30,7 @@ class ToastManager: ObservableObject {
             self.isShowing = false
         }
     }
-    
+
     func showError(message: String, duration: TimeInterval = 3.0) {
         self.message = message
         self.type = .error
@@ -50,16 +50,16 @@ struct Toast: View {
             switch toastManager.type {
             case .success:
                 ToastSuccess(message: toastManager.message)
-                .transition(.opacity)
-                .animation(.easeInOut, value: toastManager.isShowing)
+                    .transition(.opacity)
+                    .animation(.easeInOut, value: toastManager.isShowing)
             case .warning:
                 ToastWarning(message: toastManager.message)
-                .transition(.opacity)
-                .animation(.easeInOut, value: toastManager.isShowing)
+                    .transition(.opacity)
+                    .animation(.easeInOut, value: toastManager.isShowing)
             case .error:
                 ToastError(message: toastManager.message)
-                .transition(.opacity)
-                .animation(.easeInOut, value: toastManager.isShowing)
+                    .transition(.opacity)
+                    .animation(.easeInOut, value: toastManager.isShowing)
             }
         }
     }
