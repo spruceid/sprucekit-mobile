@@ -17,8 +17,8 @@ import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
-import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
+import com.spruceid.mobilesdkexample.credentials.genericCredentialItem.GenericCredentialItem
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import org.json.JSONObject
 import java.sql.Date
@@ -126,25 +126,33 @@ fun keyPathFinder(json: Any, path: MutableList<String>): Any {
 fun credentialDisplaySelector(
     rawCredential: String,
     statusListViewModel: StatusListViewModel,
+    goTo: (() -> Unit)?,
     onDelete: (() -> Unit)?,
     onExport: ((String) -> Unit)?,
-    fetchStatus: Boolean = false
 ): ICredentialView {
-    /* This is temporarily commented on until we define the specific AchievementCredentialItem design */
-//        try {
-//                 Test if it is SdJwt
-//                val credentialPack = CredentialPack()
-//                credentialPack.addSdJwt(Vcdm2SdJwt.newFromCompactSdJwt(rawCredential))
-//                return AchievementCredentialItem(credentialPack, onDelete)
-//        } catch (_: Exception) {
     return GenericCredentialItem(
         rawCredential,
         statusListViewModel,
+        goTo,
         onDelete,
         onExport,
-        fetchStatus
     )
-//        }
+}
+
+fun credentialDisplaySelector(
+    credentialPack: CredentialPack,
+    statusListViewModel: StatusListViewModel,
+    goTo: (() -> Unit)?,
+    onDelete: (() -> Unit)?,
+    onExport: ((String) -> Unit)?,
+): ICredentialView {
+    return GenericCredentialItem(
+        credentialPack,
+        statusListViewModel,
+        goTo,
+        onDelete,
+        onExport
+    )
 }
 
 fun addCredential(credentialPack: CredentialPack, rawCredential: String): CredentialPack {
@@ -227,7 +235,8 @@ fun getCredentialIdTitleAndIssuer(
     credentialPack: CredentialPack,
     credential: ParsedCredential? = null
 ): Triple<String, String, String> {
-    val claims = credentialPack.findCredentialClaims(listOf("name", "type", "issuer", "issuing_authority"))
+    val claims =
+        credentialPack.findCredentialClaims(listOf("name", "type", "issuer", "issuing_authority"))
 
     val cred = if (credential != null) {
         claims.entries.firstNotNullOf { claim ->

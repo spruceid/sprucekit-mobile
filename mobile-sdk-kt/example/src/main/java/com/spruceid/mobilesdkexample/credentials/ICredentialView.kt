@@ -16,5 +16,11 @@ interface ICredentialView {
     fun credentialDetails(): Unit
 
     @Composable
+    fun credentialReviewInfo(footerActions: @Composable () -> Unit): Unit
+
+    @Composable
+    fun credentialRevokedInfo(onClose: () -> Unit): Unit
+
+    @Composable
     fun credentialPreviewAndDetails(): Unit
 }

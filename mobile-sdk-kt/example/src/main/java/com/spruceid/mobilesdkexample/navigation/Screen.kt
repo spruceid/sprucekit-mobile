@@ -16,6 +16,7 @@ const val SCAN_QR_PATH = "scan_qr"
 const val HANDLE_OID4VCI_PATH = "oid4vci/{url}"
 const val HANDLE_OID4VP_PATH = "oid4vp/{url}"
 const val HANDLE_MDOC_OID4VP_PATH = "mdoc_oid4vp/{url}"
+const val CREDENTIAL_DETAILS_PATH = "credential_details/{credential_pack_id}"
 
 sealed class Screen(val route: String) {
     object HomeScreen : Screen(HOME_SCREEN_PATH)
@@ -34,4 +35,5 @@ sealed class Screen(val route: String) {
     object HandleOID4VCI : Screen(HANDLE_OID4VCI_PATH)
     object HandleOID4VP : Screen(HANDLE_OID4VP_PATH)
     object HandleMdocOID4VP : Screen(HANDLE_MDOC_OID4VP_PATH)
+    object CredentialDetailsScreen : Screen(CREDENTIAL_DETAILS_PATH)
 }

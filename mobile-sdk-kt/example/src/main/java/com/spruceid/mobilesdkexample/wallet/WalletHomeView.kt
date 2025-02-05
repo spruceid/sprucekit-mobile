@@ -37,15 +37,16 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
-import com.spruceid.mobilesdkexample.credentials.GenericCredentialItem
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.utils.getFileContent
@@ -70,6 +71,7 @@ fun WalletHomeView(
     ) {
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
+            navController = navController,
             credentialPacksViewModel = credentialPacksViewModel,
             helpersViewModel = helpersViewModel,
             walletActivityLogsViewModel = walletActivityLogsViewModel,
@@ -135,6 +137,7 @@ fun WalletHomeHeader(navController: NavController) {
 
 @Composable
 fun WalletHomeBody(
+    navController: NavController,
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
     helpersViewModel: HelpersViewModel,
@@ -149,6 +152,47 @@ fun WalletHomeBody(
         if (credentialPacks.isNotEmpty()) {
             statusListViewModel.getStatusLists(credentialPacks)
         }
+    }
+
+    fun goTo(credentialPack: CredentialPack) {
+        navController.navigate(
+            Screen.CredentialDetailsScreen.route.replace(
+                "{credential_pack_id}",
+                credentialPack.id().toString()
+            )
+        )
+    }
+
+    fun onDelete(credentialPack: CredentialPack) {
+        scope.launch {
+            credentialPacksViewModel.deleteCredentialPack(credentialPack)
+            credentialPack.list().forEach { credential ->
+                val credentialInfo =
+                    getCredentialIdTitleAndIssuer(
+                        credentialPack,
+                        credential
+                    )
+                walletActivityLogsViewModel.saveWalletActivityLog(
+                    walletActivityLogs = WalletActivityLogs(
+                        credentialPackId = credentialPack.id().toString(),
+                        credentialId = credentialInfo.first,
+                        credentialTitle = credentialInfo.second,
+                        issuer = credentialInfo.third,
+                        action = "Deleted",
+                        dateTime = getCurrentSqlDate(),
+                        additionalInformation = ""
+                    )
+                )
+            }
+        }
+    }
+
+    fun onExport(credentialTitle: String, credentialPack: CredentialPack) {
+        helpersViewModel.exportText(
+            getFileContent(credentialPack),
+            "$credentialTitle.json",
+            "text/plain"
+        )
     }
 
     if (!loadingCredentialPacks) {
@@ -174,41 +218,20 @@ fun WalletHomeBody(
                         .padding(top = 20.dp)
                 ) {
                     credentialPacks.forEach { credentialPack ->
-                        GenericCredentialItem(
+                        val credentialItem = credentialDisplaySelector(
                             credentialPack = credentialPack,
                             statusListViewModel = statusListViewModel,
+                            goTo = {
+                                goTo(credentialPack)
+                            },
                             onDelete = {
-                                scope.launch {
-                                    credentialPacksViewModel.deleteCredentialPack(credentialPack)
-                                    credentialPack.list().forEach { credential ->
-                                        val credentialInfo =
-                                            getCredentialIdTitleAndIssuer(
-                                                credentialPack,
-                                                credential
-                                            )
-                                        walletActivityLogsViewModel.saveWalletActivityLog(
-                                            walletActivityLogs = WalletActivityLogs(
-                                                credentialPackId = credentialPack.id().toString(),
-                                                credentialId = credentialInfo.first,
-                                                credentialTitle = credentialInfo.second,
-                                                issuer = credentialInfo.third,
-                                                action = "Deleted",
-                                                dateTime = getCurrentSqlDate(),
-                                                additionalInformation = ""
-                                            )
-                                        )
-                                    }
-                                }
+                                onDelete(credentialPack)
                             },
                             onExport = { credentialTitle ->
-                                helpersViewModel.exportText(
-                                    getFileContent(credentialPack),
-                                    "$credentialTitle.json",
-                                    "text/plain"
-                                )
+                                onExport(credentialTitle, credentialPack)
                             }
                         )
-                            .credentialPreviewAndDetails()
+                        credentialItem.credentialPreviewAndDetails()
                     }
                     //        item {
                     //            ShareableCredentialListItems(mdocBase64 = mdocBase64)
