@@ -9,7 +9,8 @@ class WalletActivityLogDataStore {
     private let walletActivityLogs = Table("wallet_activity_logs")
 
     private let id = SQLite.Expression<Int64>("id")
-    private let credentialPackId = SQLite.Expression<String>("credential_pack_id")
+    private let credentialPackId = SQLite.Expression<String>(
+        "credential_pack_id")
     private let credentialId = SQLite.Expression<String>("credential_id")
     private let credentialTitle = SQLite.Expression<String>("credential_title")
     private let issuer = SQLite.Expression<String>("issuer")

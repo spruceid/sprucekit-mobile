@@ -5,9 +5,9 @@ struct ErrorView: View {
     let errorDetails: String
     var closeButtonLabel: String = "Close"
     let onClose: () -> Void
-    
+
     @State var sheetOpen: Bool = false
-    
+
     var body: some View {
         ZStack {
             VStack {
@@ -27,16 +27,18 @@ struct ErrorView: View {
                     }
             }
             .padding(.horizontal, 20)
-            
+
             VStack {
                 Spacer()
                 Button {
                     onClose()
-                }  label: {
+                } label: {
                     Text(closeButtonLabel)
                         .frame(width: UIScreen.screenWidth)
                         .padding(.horizontal, -20)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(Color("ColorStone950"))
                 .padding(.vertical, 13)
@@ -46,9 +48,9 @@ struct ErrorView: View {
                 )
                 .padding(.top, 10)
             }
-            
-        } .sheet(isPresented: $sheetOpen) {
-            
+
+        }.sheet(isPresented: $sheetOpen) {
+
         } content: {
             VStack {
                 ScrollView {
@@ -65,14 +67,16 @@ struct ErrorView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color("ColorStone300"), lineWidth: 1)
                 )
-                
+
                 Button {
                     sheetOpen = false
-                }  label: {
+                } label: {
                     Text("Close")
                         .frame(width: UIScreen.screenWidth)
                         .padding(.horizontal, -20)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(Color("ColorStone950"))
                 .padding(.vertical, 13)
@@ -81,7 +85,7 @@ struct ErrorView: View {
                         .stroke(Color("ColorStone300"), lineWidth: 1)
                 )
                 .padding(.top, 10)
-                
+
             }
             .padding(.horizontal, 20)
             .padding(.top, 30)
@@ -99,7 +103,7 @@ struct ErrorViewPreview: PreviewProvider {
             errorTitle: "Error title",
             errorDetails: "Error technical details"
         ) {
-            
+
         }
     }
 }

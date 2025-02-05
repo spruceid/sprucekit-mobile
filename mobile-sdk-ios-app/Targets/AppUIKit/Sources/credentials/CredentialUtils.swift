@@ -4,31 +4,32 @@ import SwiftUI
 
 // Get credential and throws error if can't parse
 func credentialDisplayerSelector(
-    rawCredential: String, onDelete: (() -> Void)? = nil
+    rawCredential: String,
+    goTo: (() -> Void)? = nil,
+    onDelete: (() -> Void)? = nil
 ) throws
     -> any ICredentialView
 {
     return GenericCredentialItem(
         credentialPack: try addCredential(
-            credentialPack: CredentialPack(), rawCredential: rawCredential),
+            credentialPack: CredentialPack(),
+            rawCredential: rawCredential
+        ),
+        goTo: goTo,
         onDelete: onDelete
     )
-    /* This is temporarily commented on until we define the specific AchievementCredentialItem design */
-    //    do {
-    //        // Test if it is SdJwt
-    //        let credentialPack = CredentialPack()
-    //        _ = try credentialPack.addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential))
-    //        return AchievementCredentialItem(credentialPack: credentialPack, onDelete: onDelete)
-    //    } catch {}
-    //
-    //    do {
-    //    return GenericCredentialItem(
-    //        credentialPack: try addCredential(credentialPack: CredentialPack(), rawCredential: rawCredential),
-    //        onDelete: onDelete
-    //    )
-    //    } catch {
-    //        throw error
-    //    }
+}
+
+func credentialDisplayerSelector(
+    credentialPack: CredentialPack,
+    goTo: (() -> Void)? = nil,
+    onDelete: (() -> Void)? = nil
+) -> any ICredentialView {
+    return GenericCredentialItem(
+        credentialPack: credentialPack,
+        goTo: goTo,
+        onDelete: onDelete
+    )
 }
 
 func addCredential(credentialPack: CredentialPack, rawCredential: String) throws
@@ -101,17 +102,15 @@ func genericObjectFlattener(
     return res
 }
 
-/**
-    Given a credential pack, it returns a triple with the credential id, title and issuer.
-    - Parameter credentialPack: the credential pack with credentials
-    - Parameter credential: optional credential parameter
-    - Returns: a triple of strings (id, title, issuer)
- */
+/// Given a credential pack, it returns a triple with the credential id, title and issuer.
+/// - Parameter credentialPack: the credential pack with credentials
+/// - Parameter credential: optional credential parameter
+/// - Returns: a triple of strings (id, title, issuer)
 func getCredentialIdTitleAndIssuer(
     credentialPack: CredentialPack, credential: ParsedCredential? = nil
 ) -> (String, String, String) {
     let claims = credentialPack.findCredentialClaims(claimNames: [
-        "name", "type", "issuer", "issuing_authority"
+        "name", "type", "issuer", "issuing_authority",
     ])
 
     var cred: Dictionary<Uuid, [String: GenericJSON]>.Element?
@@ -128,15 +127,18 @@ func getCredentialIdTitleAndIssuer(
         })
         // Mdoc
         if cred == nil {
-            cred = claims
+            cred =
+                claims
                 .first(where: {
-                return credentialPack.get(credentialId: $0.key)?.asMsoMdoc() != nil
-            }).map { claim in
-                var tmpClaim = claim
-                tmpClaim.value["issuer"] = claim.value["issuing_authority"]
-                tmpClaim.value["name"] = GenericJSON.string("Mobile Drivers License")
-                return tmpClaim
-            }
+                    return credentialPack.get(credentialId: $0.key)?.asMsoMdoc()
+                        != nil
+                }).map { claim in
+                    var tmpClaim = claim
+                    tmpClaim.value["issuer"] = claim.value["issuing_authority"]
+                    tmpClaim.value["name"] = GenericJSON.string(
+                        "Mobile Drivers License")
+                    return tmpClaim
+                }
         }
     }
 
@@ -162,9 +164,7 @@ func getCredentialIdTitleAndIssuer(
         .toString()
     {
         issuer = issuerId
-    }
-    else if let issuerId = credentialValue["issuer"]?.toString()
-    {
+    } else if let issuerId = credentialValue["issuer"]?.toString() {
         issuer = issuerId
     }
 

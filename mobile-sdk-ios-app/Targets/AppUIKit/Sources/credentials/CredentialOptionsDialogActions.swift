@@ -57,12 +57,13 @@ func getFileContent(credentialPack: CredentialPack) -> String {
 }
 
 func envelopVerifiableSdJwtCredential(sdJwt: String) -> String? {
-    return prettyPrintedJSONString(from: """
-        {
-          "@context": ["https://www.w3.org/ns/credentials/v2"],
-          "type": ["EnvelopedVerifiableCredential"],
-          "id": "data:application/vc+sd-jwt,\(sdJwt)"
-        }
-        """
+    return prettyPrintedJSONString(
+        from: """
+            {
+              "@context": ["https://www.w3.org/ns/credentials/v2"],
+              "type": ["EnvelopedVerifiableCredential"],
+              "id": "data:application/vc+sd-jwt,\(sdJwt)"
+            }
+            """
     )
 }

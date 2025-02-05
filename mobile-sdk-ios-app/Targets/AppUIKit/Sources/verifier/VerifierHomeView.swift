@@ -2,7 +2,7 @@ import SwiftUI
 
 struct VerifierHomeView: View {
     @Binding var path: NavigationPath
-    
+
     var body: some View {
         VStack {
             VerifierHomeHeader(path: $path)
@@ -14,7 +14,7 @@ struct VerifierHomeView: View {
 
 struct VerifierHomeHeader: View {
     @Binding var path: NavigationPath
-    
+
     var body: some View {
         HStack {
             Text("Verifier")
@@ -41,9 +41,9 @@ struct VerifierHomeHeader: View {
 
 struct VerifierHomeBody: View {
     @Binding var path: NavigationPath
-    
+
     @State var verificationMethods: [VerificationMethod] = []
-    
+
     func getBadgeType(verificationType: String) -> VerifierListItemTagType {
         switch verificationType {
         case "DelegatedVerification":
@@ -54,68 +54,77 @@ struct VerifierHomeBody: View {
     }
 
     var body: some View {
-            ScrollView(.vertical, showsIndicators: false) {
-                HStack {
-                    Text("VERIFICATIONS")
-                        .font(.customFont(font: .inter, style: .bold, size: .p))
-                        .foregroundStyle(Color("ColorStone400"))
-                    Spacer()
-                    Text("+ New Verification")
-                        .font(.customFont(font: .inter, style: .semiBold, size: .h4))
-                        .foregroundStyle(Color("ColorBlue600"))
-                        .onTapGesture {
-                            path.append(AddVerificationMethod())
-                        }
-                }
-
-                VerifierListItem(
-                    title: "Driver's License Document",
-                    description: "Verifies physical driver's licenses issued by the state of Utopia",
-                    type: VerifierListItemTagType.SCAN_QR_CODE
-                ).onTapGesture {
-                    path.append(VerifyDL())
-                }
-
-                VerifierListItem(
-                    title: "Employment Authorization Document",
-                    description: "Verifies physical Employment Authorization issued by the state of Utopia",
-                    type: VerifierListItemTagType.SCAN_QR_CODE
-                ).onTapGesture {
-                    path.append(VerifyEA())
-                }
-
-                VerifierListItem(
-                    title: "Verifiable Credential",
-                    description: "Verifies a Verifiable credential by reading the Verifiable Presentation QR Code",
-                    type: VerifierListItemTagType.SCAN_QR_CODE
-                ).onTapGesture {
-                    path.append(VerifyVC())
-                }
-
-                VerifierListItem(
-                    title: "Mobile Driver's License",
-                    description: "Verifies an ISO formatted mobile driver's license by reading a QR code",
-                    type: VerifierListItemTagType.SCAN_QR_CODE
-                ).onTapGesture {
-                    path.append(VerifyMDoc())
-                }
-                
-                ForEach(verificationMethods, id: \.self.id) { verificationMethod in
-                    VerifierListItem(
-                        title: verificationMethod.name,
-                        description: verificationMethod.description,
-                        type: getBadgeType(verificationType: verificationMethod.type)
-                    ).onTapGesture {
-                        path.append(VerifyDelegatedOid4vp(id: verificationMethod.id))
+        ScrollView(.vertical, showsIndicators: false) {
+            HStack {
+                Text("VERIFICATIONS")
+                    .font(.customFont(font: .inter, style: .bold, size: .p))
+                    .foregroundStyle(Color("ColorStone400"))
+                Spacer()
+                Text("+ New Verification")
+                    .font(
+                        .customFont(font: .inter, style: .semiBold, size: .h4)
+                    )
+                    .foregroundStyle(Color("ColorBlue600"))
+                    .onTapGesture {
+                        path.append(AddVerificationMethod())
                     }
-                }
-
             }
-            .onAppear(perform: {
-                self.verificationMethods = VerificationMethodDataStore.shared.getAllVerificationMethods()
-            })
-            .padding(.vertical, 20)
-            .padding(.horizontal, 30)
+
+            VerifierListItem(
+                title: "Driver's License Document",
+                description:
+                    "Verifies physical driver's licenses issued by the state of Utopia",
+                type: VerifierListItemTagType.SCAN_QR_CODE
+            ).onTapGesture {
+                path.append(VerifyDL())
+            }
+
+            VerifierListItem(
+                title: "Employment Authorization Document",
+                description:
+                    "Verifies physical Employment Authorization issued by the state of Utopia",
+                type: VerifierListItemTagType.SCAN_QR_CODE
+            ).onTapGesture {
+                path.append(VerifyEA())
+            }
+
+            VerifierListItem(
+                title: "Verifiable Credential",
+                description:
+                    "Verifies a Verifiable credential by reading the Verifiable Presentation QR Code",
+                type: VerifierListItemTagType.SCAN_QR_CODE
+            ).onTapGesture {
+                path.append(VerifyVC())
+            }
+
+            VerifierListItem(
+                title: "Mobile Driver's License",
+                description:
+                    "Verifies an ISO formatted mobile driver's license by reading a QR code",
+                type: VerifierListItemTagType.SCAN_QR_CODE
+            ).onTapGesture {
+                path.append(VerifyMDoc())
+            }
+
+            ForEach(verificationMethods, id: \.self.id) { verificationMethod in
+                VerifierListItem(
+                    title: verificationMethod.name,
+                    description: verificationMethod.description,
+                    type: getBadgeType(
+                        verificationType: verificationMethod.type)
+                ).onTapGesture {
+                    path.append(
+                        VerifyDelegatedOid4vp(id: verificationMethod.id))
+                }
+            }
+
+        }
+        .onAppear(perform: {
+            self.verificationMethods = VerificationMethodDataStore.shared
+                .getAllVerificationMethods()
+        })
+        .padding(.vertical, 20)
+        .padding(.horizontal, 30)
     }
 }
 
@@ -128,7 +137,9 @@ struct VerifierListItem: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center) {
                 Text(title)
-                    .font(.customFont(font: .inter, style: .semiBold, size: .h1))
+                    .font(
+                        .customFont(font: .inter, style: .semiBold, size: .h1)
+                    )
                     .foregroundStyle(Color("ColorStone950"))
                 Spacer()
                 VerifierListItemTag(type: type)
@@ -185,7 +196,7 @@ struct VerifierListItemTag: View {
 
 struct VerifierHomeViewPreview: PreviewProvider {
     @State static var path: NavigationPath = .init()
-    
+
     static var previews: some View {
         VerifierHomeView(path: $path)
     }

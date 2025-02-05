@@ -1,6 +1,6 @@
 import Foundation
-import UIKit
 import SwiftUI
+import UIKit
 
 enum CustomFonts: String {
     case inter = "Inter"
@@ -48,17 +48,18 @@ extension UIFont {
         font: CustomFonts,
         style: CustomFontStyle,
         size: CustomFontSize,
-        isScaled: Bool = true) -> UIFont {
+        isScaled: Bool = true
+    ) -> UIFont {
 
-            let fontName: String = font.rawValue + style.rawValue
+        let fontName: String = font.rawValue + style.rawValue
 
-            guard let font = UIFont(name: fontName, size: size.rawValue) else {
-                debugPrint("Font can't be loaded")
-                return UIFont.systemFont(ofSize: size.rawValue)
-            }
-
-            return isScaled ? UIFontMetrics.default.scaledFont(for: font) : font
+        guard let font = UIFont(name: fontName, size: size.rawValue) else {
+            debugPrint("Font can't be loaded")
+            return UIFont.systemFont(ofSize: size.rawValue)
         }
+
+        return isScaled ? UIFontMetrics.default.scaledFont(for: font) : font
+    }
 }
 
 extension Font {
@@ -74,14 +75,16 @@ extension Font {
         font: CustomFonts,
         style: CustomFontStyle,
         size: CustomFontSize,
-        isScaled: Bool = true) -> Font {
+        isScaled: Bool = true
+    ) -> Font {
 
-            let fontName: String = font.rawValue + style.rawValue
+        let fontName: String = font.rawValue + style.rawValue
 
-            return Font.custom(fontName, size: size.rawValue)
-        }
+        return Font.custom(fontName, size: size.rawValue)
+    }
 }
 
-let monospacedFont = Font
-            .system(size: 16)
-            .monospaced()
+let monospacedFont =
+    Font
+    .system(size: 16)
+    .monospaced()

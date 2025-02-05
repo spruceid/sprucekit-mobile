@@ -1,11 +1,11 @@
-import SwiftUI
 import RiveRuntime
+import SwiftUI
 
 struct LoadingView: View {
     var loadingText: String
     var cancelButtonLabel: String?
     var onCancel: (() -> Void)?
-    
+
     var body: some View {
         ZStack {
             VStack {
@@ -13,7 +13,9 @@ struct LoadingView: View {
                     .view()
                     .frame(width: 60, height: 60)
                 Text(loadingText)
-                    .font(.customFont(font: .inter, style: .semiBold, size: .h0))
+                    .font(
+                        .customFont(font: .inter, style: .semiBold, size: .h0)
+                    )
                     .foregroundStyle(Color("ColorBase800"))
             }
             if onCancel != nil {
@@ -21,11 +23,13 @@ struct LoadingView: View {
                     Spacer()
                     Button {
                         onCancel?()
-                    }  label: {
+                    } label: {
                         Text(cancelButtonLabel ?? "Cancel")
                             .frame(width: UIScreen.screenWidth)
                             .padding(.horizontal, -20)
-                            .font(.customFont(font: .inter, style: .medium, size: .h4))
+                            .font(
+                                .customFont(
+                                    font: .inter, style: .medium, size: .h4))
                     }
                     .foregroundColor(.black)
                     .padding(.vertical, 13)

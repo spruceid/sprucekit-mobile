@@ -16,9 +16,9 @@ struct DispatchQRView: View {
     @State var loading: Bool = false
     @State var err: String?
     @State var success: Bool?
-    
+
     @Binding var path: NavigationPath
-    
+
     func handleRequest(payload: String) {
         loading = true
         Task {
@@ -28,21 +28,26 @@ struct DispatchQRView: View {
                 path.append(HandleMdocOID4VP(url: payload))
             } else if payload.hasPrefix(OID4VCI_SCHEME) {
                 path.append(HandleOID4VCI(url: payload))
-            } else if payload.hasPrefix(HTTPS_SCHEME) || payload.hasPrefix(HTTP_SCHEME) {
-                if let url = URL(string: payload), await UIApplication.shared.canOpenURL(url) {
+            } else if payload.hasPrefix(HTTPS_SCHEME)
+                || payload.hasPrefix(HTTP_SCHEME)
+            {
+                if let url = URL(string: payload),
+                    await UIApplication.shared.canOpenURL(url)
+                {
                     await UIApplication.shared.open(url)
                     onBack()
                 }
             } else {
-                err = "The QR code you have scanned is not supported. QR code payload: \(payload)"
+                err =
+                    "The QR code you have scanned is not supported. QR code payload: \(payload)"
             }
         }
     }
-    
+
     func onBack() {
         path.removeLast()
     }
-    
+
     var body: some View {
         VStack {
             if err != nil {
