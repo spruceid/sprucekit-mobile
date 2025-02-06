@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
+import com.spruceid.mobilesdkexample.credentials.CredentialDetailsView
 import com.spruceid.mobilesdkexample.verifier.AddVerificationMethodView
 import com.spruceid.mobilesdkexample.verifier.VerifyDLView
 import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
@@ -201,6 +202,17 @@ fun SetupNavGraph(
                 url,
                 credentialPacksViewModel,
                 walletActivityLogsViewModel
+            )
+        }
+        composable(
+            route = Screen.CredentialDetailsScreen.route
+        ) { backStackEntry ->
+            val credentialPackId = backStackEntry.arguments?.getString("credential_pack_id")!!
+            CredentialDetailsView(
+                navController,
+                credentialPacksViewModel,
+                statusListViewModel,
+                credentialPackId
             )
         }
     }

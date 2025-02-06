@@ -48,8 +48,9 @@ fun VerifierCredentialSuccessView(
             statusListViewModel = statusListViewModel,
             null,
             null,
-            true
+            null
         )
+        statusListViewModel.fetchAndUpdateStatus(credentialItem!!.credentialPack)
         val credential = credentialItem!!.credentialPack.list().first()
         val claims = credentialItem!!.credentialPack.findCredentialClaims(
             listOf("name", "type", "description", "issuer")

@@ -53,6 +53,12 @@ class CredentialPacksViewModel(application: Application) : AndroidViewModel(appl
         tmpCredentialPacksList.remove(credentialPack)
         _credentialPacks.value = tmpCredentialPacksList
     }
+
+    fun getById(credentialPackId: String): CredentialPack? {
+        return _credentialPacks.value.firstOrNull { credentialPack ->
+            credentialPack.id().toString() == credentialPackId
+        }
+    }
 }
 
 class CredentialPacksViewModelFactory(private val application: Application) :
