@@ -352,7 +352,7 @@ struct SelectiveDisclosureItem: View {
     var body: some View {
         HStack {
             Toggle(isOn: $isChecked) {
-                Text(field.name()!.capitalized)
+                Text(field.name()?.capitalized ?? "")
                     .font(.customFont(font: .inter, style: .regular, size: .h4))
                     .foregroundStyle(Color("ColorStone950"))
                     .frame(maxWidth: .infinity, alignment: .leading)
