@@ -69,7 +69,6 @@ import com.spruceid.mobilesdkexample.utils.credentialPackHasMdoc
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
-import com.spruceid.mobilesdkexample.wallet.ShareView
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -308,7 +307,7 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
                 )
                 .padding(8.dp)
         ) {
-            ShareView(
+            ShareMdocView(
                 credentialViewModel = credentialViewModel,
                 onCancel = {
                     cancel()
