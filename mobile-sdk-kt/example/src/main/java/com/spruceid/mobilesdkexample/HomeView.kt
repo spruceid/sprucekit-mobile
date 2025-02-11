@@ -40,8 +40,8 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBlue900
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.verifier.VerifierHomeView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
-import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
+import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.wallet.WalletHomeView
@@ -173,5 +173,4 @@ fun HomeBottomTabs(
             }
         }
     }
-
 }

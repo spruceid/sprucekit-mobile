@@ -79,10 +79,17 @@ object Toast {
                     onDismiss()
                 }
             }
-            when (toastType.value) {
-                ToastType.SUCCESS -> SuccessToast(message = message)
-                ToastType.WARNING -> WarningToast(message = message)
-                ToastType.ERROR -> ErrorToast(message = message)
+            Box(
+                modifier = Modifier
+                    .wrapContentHeight()
+                    .padding(all = 20.dp)
+                    .padding(top = 20.dp)
+            ) {
+                when (toastType.value) {
+                    ToastType.SUCCESS -> SuccessToast(message = message)
+                    ToastType.WARNING -> WarningToast(message = message)
+                    ToastType.ERROR -> ErrorToast(message = message)
+                }
             }
         }
     }
@@ -95,8 +102,6 @@ fun SuccessToast(
     Box(
         modifier = Modifier
             .wrapContentHeight()
-            .padding(all = 20.dp)
-            .padding(top = 20.dp)
             .background(
                 color = ColorEmerald50,
                 shape = RoundedCornerShape(6.dp)
@@ -140,8 +145,6 @@ fun WarningToast(
     Box(
         modifier = Modifier
             .wrapContentHeight()
-            .padding(all = 20.dp)
-            .padding(top = 20.dp)
             .background(
                 color = ColorAmber50,
                 shape = RoundedCornerShape(6.dp)
@@ -185,8 +188,6 @@ fun ErrorToast(
     Box(
         modifier = Modifier
             .wrapContentHeight()
-            .padding(all = 20.dp)
-            .padding(top = 20.dp)
             .background(
                 color = ColorRose50,
                 shape = RoundedCornerShape(6.dp)

@@ -48,37 +48,42 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                     modifier = Modifier
                         .padding(start = 12.dp, top = 12.dp, bottom = 12.dp)
                 ) {
-                    for (i in 0 until jsonArray.length()) {
-                        if (jsonArray.optJSONObject(i) != null) {
-                            val arrayJsonObject = jsonArray.getJSONObject(i)
-                            genericObjectDisplayer(
-                                arrayJsonObject,
-                                filter,
-                                level + 1
-                            )
-                        } else {
-                            Column(
-                                Modifier.padding(bottom = 12.dp)
-                            ) {
-                                if (i == 0) {
+                    if (key.isImage()) {
+                        CredentialImage(jsonArray, key)
+                    } else {
+                        for (i in 0 until jsonArray.length()) {
+                            if (jsonArray.optJSONObject(i) != null) {
+                                val arrayJsonObject = jsonArray.getJSONObject(i)
+                                genericObjectDisplayer(
+                                    arrayJsonObject,
+                                    filter,
+                                    level + 1
+                                )
+                            } else {
+                                Column(
+                                    Modifier.padding(bottom = 12.dp)
+                                ) {
+                                    if (i == 0) {
+                                        Text(
+                                            key.splitCamelCase().removeUnderscores(),
+                                            fontFamily = Inter,
+                                            fontWeight = FontWeight.Normal,
+                                            fontSize = 16.sp,
+                                            color = ColorStone500,
+                                        )
+                                    }
                                     Text(
-                                        key.splitCamelCase().removeUnderscores(),
+                                        jsonArray.get(i).toString(),
                                         fontFamily = Inter,
                                         fontWeight = FontWeight.Normal,
-                                        fontSize = 16.sp,
-                                        color = ColorStone500,
+                                        fontSize = 17.sp,
+                                        color = ColorStone950,
                                     )
                                 }
-                                Text(
-                                    jsonArray.get(i).toString(),
-                                    fontFamily = Inter,
-                                    fontWeight = FontWeight.Normal,
-                                    fontSize = 17.sp,
-                                    color = ColorStone950,
-                                )
                             }
                         }
                     }
+
                 }
             } else {
                 val value = obj.get(key).toString()

@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
 import com.spruceid.mobile.sdk.rs.MDocItem
+import com.spruceid.mobile.sdk.rs.MdlReaderResponseData
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseException
 import com.spruceid.mobile.sdk.rs.MdlSessionManager
 import com.spruceid.mobile.sdk.rs.establishSession
@@ -47,6 +48,14 @@ class IsoMdlReader(
         try {
             val responseData = com.spruceid.mobile.sdk.rs.handleResponse(session, response)
             return responseData.verifiedResponse
+        } catch (e: MdlReaderResponseException) {
+            throw e
+        }
+    }
+
+    fun handleMdlReaderResponseData(response: ByteArray): MdlReaderResponseData {
+        try {
+            return com.spruceid.mobile.sdk.rs.handleResponse(session, response)
         } catch (e: MdlReaderResponseException) {
             throw e
         }

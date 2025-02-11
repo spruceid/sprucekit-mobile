@@ -20,15 +20,10 @@ import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.credentials.genericCredentialItem.GenericCredentialItem
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import org.json.JSONArray
 import org.json.JSONObject
 import java.sql.Date
 import java.text.SimpleDateFormat
-
-const val keyPEM =
-    "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgEAqKZdZQgPVtjlEB\nfz2ItHG8oXIONenOxRePtqOQ42yhRANCAATA43gI2Ib8+qKK4YEOfNCRiNOhyHaC\nLgAvKdhHS+y6wpG3oJ2xudXagzKKbcfvUda4x0j8zR1/oD56mpm85GbO\n-----END PRIVATE KEY-----\n-----BEGIN CERTIFICATE-----\nMIICgDCCAiWgAwIBAgIUTp04dh8m8Vxa/hX5LmTvjSWrAS8wCgYIKoZIzj0EAwIw\ngZQxCzAJBgNVBAYTAlVTMREwDwYDVQQIDAhOZXcgWW9yazERMA8GA1UEBwwITmV3\nIFlvcmsxEjAQBgNVBAoMCVNwcnVjZSBJRDESMBAGA1UECwwJU3BydWNlIElkMRIw\nEAYDVQQDDAlTcHJ1Y2UgSUQxIzAhBgkqhkiG9w0BCQEWFGNvbnRhY3RAc3BydWNl\naWQuY29tMB4XDTI0MDIxMjE2NTEwMVoXDTI1MDIxMTE2NTEwMVowgZQxCzAJBgNV\nBAYTAlVTMREwDwYDVQQIDAhOZXcgWW9yazERMA8GA1UEBwwITmV3IFlvcmsxEjAQ\nBgNVBAoMCVNwcnVjZSBJRDESMBAGA1UECwwJU3BydWNlIElkMRIwEAYDVQQDDAlT\ncHJ1Y2UgSUQxIzAhBgkqhkiG9w0BCQEWFGNvbnRhY3RAc3BydWNlaWQuY29tMFkw\nEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwON4CNiG/PqiiuGBDnzQkYjToch2gi4A\nLynYR0vsusKRt6CdsbnV2oMyim3H71HWuMdI/M0df6A+epqZvORmzqNTMFEwHQYD\nVR0OBBYEFPbjKnGAa0aSXw0oe4KfHdN5M1ssMB8GA1UdIwQYMBaAFPbjKnGAa0aS\nXw0oe4KfHdN5M1ssMA8GA1UdEwEB/wQFMAMBAf8wCgYIKoZIzj0EAwIDSQAwRgIh\nAO2msc7LSdakGcw3q7DxEySqzepr+LeWWNvPbQypQxd8AiEAj7dVI3V00gq3K3OU\nCbkeKnYiGtVCZnXnR/MW91mPeGE=\n-----END CERTIFICATE-----"
-
-const val keyBase64 =
-    "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgEAqKZdZQgPVtjlEBfz2ItHG8oXIONenOxRePtqOQ42yhRANCAATA43gI2Ib8+qKK4YEOfNCRiNOhyHaCLgAvKdhHS+y6wpG3oJ2xudXagzKKbcfvUda4x0j8zR1/oD56mpm85GbO"
 
 val trustedDids = emptyList<String>()
 
@@ -66,7 +61,7 @@ fun String.isDate(): Boolean {
 
 fun String.isImage(): Boolean {
     return lowercase().contains("image") ||
-            lowercase().contains("portrait") ||
+            (lowercase().contains("portrait") && !lowercase().contains("date")) ||
             contains("data:image")
 }
 
@@ -308,4 +303,24 @@ fun getCredentialIdTitleAndIssuer(
     }
 
     return Triple(credentialKey, title, issuer)
+}
+
+fun jsonArrayToByteArray(jsonArray: JSONArray): ByteArray {
+    val byteList = mutableListOf<Byte>()
+    for (i in 0 until jsonArray.length()) {
+        byteList.add(jsonArray.getInt(i).toByte())
+    }
+    return byteList.toByteArray()
+}
+
+fun credentialPackHasMdoc(credentialPack: CredentialPack): Boolean {
+    credentialPack.list().forEach { credential ->
+        try {
+            if (credential.asMsoMdoc() != null) {
+                return true
+            }
+        } catch (_: Exception) {
+        }
+    }
+    return false
 }

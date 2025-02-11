@@ -31,4 +31,6 @@
     <string name="warning_toast_icon">Warning</string>
     <string name="error_toast_icon">Error</string>
     <string name="generate_mdl">Generate mDL</string>
+    <string name="details_share">QR Code to share credential</string>
+    <string name="details_info">Credential information</string>
 </resources>
