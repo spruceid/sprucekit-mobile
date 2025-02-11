@@ -12,7 +12,7 @@ use isomdl::{
             trust_anchor::{PemTrustAnchor, TrustAnchorRegistry},
         },
     },
-    presentation::{authentication::AuthenticationStatus, reader},
+    presentation::{authentication::AuthenticationStatus as IsoMdlAuthenticationStatus, reader},
 };
 use uuid::Uuid;
 
@@ -151,11 +151,34 @@ impl From<serde_json::Value> for MDocItem {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, uniffi::Enum)]
+pub enum AuthenticationStatus {
+    Valid,
+    Invalid,
+    Unchecked
+}
+
+impl From<IsoMdlAuthenticationStatus> for AuthenticationStatus {
+    fn from(internal: IsoMdlAuthenticationStatus) -> Self {
+        match internal {
+            IsoMdlAuthenticationStatus::Valid => AuthenticationStatus::Valid,
+            IsoMdlAuthenticationStatus::Invalid => AuthenticationStatus::Invalid,
+            IsoMdlAuthenticationStatus::Unchecked => AuthenticationStatus::Unchecked,
+        }
+    }
+}
 #[derive(uniffi::Record, Debug)]
 pub struct MDLReaderResponseData {
     state: Arc<MDLSessionManager>,
     /// Contains the namespaces for the mDL directly, without top-level doc types
     verified_response: HashMap<String, HashMap<String, MDocItem>>,
+    /// Outcome of issuer authentication.
+    pub issuer_authentication: AuthenticationStatus,
+    /// Outcome of device authentication.
+    pub device_authentication: AuthenticationStatus,
+    /// Errors that occurred during response processing.
+    pub errors: Option<String>
 }
 
 #[uniffi::export]
@@ -165,23 +188,15 @@ pub fn handle_response(
 ) -> Result<MDLReaderResponseData, MDLReaderResponseError> {
     let mut state = state.0.clone();
     let validated_response = state.handle_response(&response);
-    if !validated_response.errors.is_empty() {
-        return Err(MDLReaderResponseError::Generic {
-            value: serde_json::to_string(&validated_response.errors).map_err(|e| {
+    let errors = if !validated_response.errors.is_empty() {
+        Some(serde_json::to_string(&validated_response.errors).map_err(|e| {
                 MDLReaderResponseError::Generic {
                     value: format!("Could not serialze errors: {e:?}"),
                 }
-            })?,
-        });
-    }
-    // These checks should be unreachable as they always have a corresponding entry in `errors`
-    if let AuthenticationStatus::Invalid = validated_response.issuer_authentication {
-        return Err(MDLReaderResponseError::InvalidIssuerAuthentication);
-    }
-    if let AuthenticationStatus::Invalid = validated_response.device_authentication {
-        return Err(MDLReaderResponseError::InvalidDeviceAuthentication);
-    }
-    // We get the namespaces directly without the top-level doc types
+            })?)
+    } else {
+        None
+    };
     let verified_response: Result<_, _> = validated_response
         .response
         .into_iter()
@@ -205,5 +220,8 @@ pub fn handle_response(
     Ok(MDLReaderResponseData {
         state: Arc::new(MDLSessionManager(state)),
         verified_response,
+        issuer_authentication: AuthenticationStatus::from(validated_response.issuer_authentication),
+        device_authentication: AuthenticationStatus::from(validated_response.device_authentication),
+        errors
     })
 }
