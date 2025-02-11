@@ -7420,15 +7420,39 @@ public struct MdlReaderResponseData {
      * Contains the namespaces for the mDL directly, without top-level doc types
      */
     public var verifiedResponse: [String: [String: MDocItem]]
+    /**
+     * Outcome of issuer authentication.
+     */
+    public var issuerAuthentication: AuthenticationStatus
+    /**
+     * Outcome of device authentication.
+     */
+    public var deviceAuthentication: AuthenticationStatus
+    /**
+     * Errors that occurred during response processing.
+     */
+    public var errors: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(state: MdlSessionManager, 
         /**
          * Contains the namespaces for the mDL directly, without top-level doc types
-         */verifiedResponse: [String: [String: MDocItem]]) {
+         */verifiedResponse: [String: [String: MDocItem]], 
+        /**
+         * Outcome of issuer authentication.
+         */issuerAuthentication: AuthenticationStatus, 
+        /**
+         * Outcome of device authentication.
+         */deviceAuthentication: AuthenticationStatus, 
+        /**
+         * Errors that occurred during response processing.
+         */errors: String?) {
         self.state = state
         self.verifiedResponse = verifiedResponse
+        self.issuerAuthentication = issuerAuthentication
+        self.deviceAuthentication = deviceAuthentication
+        self.errors = errors
     }
 }
 
@@ -7439,13 +7463,19 @@ public struct FfiConverterTypeMDLReaderResponseData: FfiConverterRustBuffer {
         return
             try MdlReaderResponseData(
                 state: FfiConverterTypeMDLSessionManager.read(from: &buf), 
-                verifiedResponse: FfiConverterDictionaryStringDictionaryStringTypeMDocItem.read(from: &buf)
+                verifiedResponse: FfiConverterDictionaryStringDictionaryStringTypeMDocItem.read(from: &buf), 
+                issuerAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
+                deviceAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
+                errors: FfiConverterOptionString.read(from: &buf)
         )
     }
 
     public static func write(_ value: MdlReaderResponseData, into buf: inout [UInt8]) {
         FfiConverterTypeMDLSessionManager.write(value.state, into: &buf)
         FfiConverterDictionaryStringDictionaryStringTypeMDocItem.write(value.verifiedResponse, into: &buf)
+        FfiConverterTypeAuthenticationStatus.write(value.issuerAuthentication, into: &buf)
+        FfiConverterTypeAuthenticationStatus.write(value.deviceAuthentication, into: &buf)
+        FfiConverterOptionString.write(value.errors, into: &buf)
     }
 }
 
@@ -7719,6 +7749,68 @@ public func FfiConverterTypeStatusMessage_lift(_ buf: RustBuffer) throws -> Stat
 public func FfiConverterTypeStatusMessage_lower(_ value: StatusMessage) -> RustBuffer {
     return FfiConverterTypeStatusMessage.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum AuthenticationStatus {
+    
+    case valid
+    case invalid
+    case unchecked
+}
+
+
+public struct FfiConverterTypeAuthenticationStatus: FfiConverterRustBuffer {
+    typealias SwiftType = AuthenticationStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AuthenticationStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .valid
+        
+        case 2: return .invalid
+        
+        case 3: return .unchecked
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AuthenticationStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .valid:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .invalid:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unchecked:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+public func FfiConverterTypeAuthenticationStatus_lift(_ buf: RustBuffer) throws -> AuthenticationStatus {
+    return try FfiConverterTypeAuthenticationStatus.lift(buf)
+}
+
+public func FfiConverterTypeAuthenticationStatus_lower(_ value: AuthenticationStatus) -> RustBuffer {
+    return FfiConverterTypeAuthenticationStatus.lower(value)
+}
+
+
+
+extension AuthenticationStatus: Equatable, Hashable {}
+
+
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.

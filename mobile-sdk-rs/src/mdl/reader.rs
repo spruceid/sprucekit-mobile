@@ -156,7 +156,7 @@ impl From<serde_json::Value> for MDocItem {
 pub enum AuthenticationStatus {
     Valid,
     Invalid,
-    Unchecked
+    Unchecked,
 }
 
 impl From<IsoMdlAuthenticationStatus> for AuthenticationStatus {
@@ -178,7 +178,7 @@ pub struct MDLReaderResponseData {
     /// Outcome of device authentication.
     pub device_authentication: AuthenticationStatus,
     /// Errors that occurred during response processing.
-    pub errors: Option<String>
+    pub errors: Option<String>,
 }
 
 #[uniffi::export]
@@ -189,11 +189,13 @@ pub fn handle_response(
     let mut state = state.0.clone();
     let validated_response = state.handle_response(&response);
     let errors = if !validated_response.errors.is_empty() {
-        Some(serde_json::to_string(&validated_response.errors).map_err(|e| {
+        Some(
+            serde_json::to_string(&validated_response.errors).map_err(|e| {
                 MDLReaderResponseError::Generic {
                     value: format!("Could not serialze errors: {e:?}"),
                 }
-            })?)
+            })?,
+        )
     } else {
         None
     };
@@ -222,6 +224,6 @@ pub fn handle_response(
         verified_response,
         issuer_authentication: AuthenticationStatus::from(validated_response.issuer_authentication),
         device_authentication: AuthenticationStatus::from(validated_response.device_authentication),
-        errors
+        errors,
     })
 }
