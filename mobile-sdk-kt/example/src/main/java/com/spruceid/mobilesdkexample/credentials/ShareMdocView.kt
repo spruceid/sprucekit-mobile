@@ -9,12 +9,15 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -39,7 +43,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.CredentialsViewModel
@@ -48,8 +56,12 @@ import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
+import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 
 @Composable
@@ -180,6 +192,15 @@ fun ShareMdocSelectiveDisclosureView(
 
     val selectNamespacesSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    LaunchedEffect(Unit) {
+        itemsRequests.map { itemsRequest ->
+            credentialViewModel.addAllAllowedNamespaces(
+                itemsRequest.docType,
+                itemsRequest.namespaces
+            )
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = {
             onCancel()
@@ -192,85 +213,117 @@ fun ShareMdocSelectiveDisclosureView(
         shape = RoundedCornerShape(8.dp)
     ) {
         Column(
-            Modifier
-                .padding(all = 12.dp)
-                .verticalScroll(rememberScrollState())
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(top = 48.dp)
         ) {
-            itemsRequests.map { itemsRequest ->
-                Column {
-                    Text(
-                        text = "Document being requested:\n\t\t${itemsRequest.docType}\n",
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                    )
-                    itemsRequest.namespaces.map { namespaceSpec ->
-                        Column {
-                            Text(
-                                text = "The following fields are being requested by the reader:\n",
-                                fontFamily = Inter,
-                                fontWeight = FontWeight.Normal,
-                                fontSize = 14.sp,
-                            )
-                            Text(
-                                text = "\t\t${namespaceSpec.key}",
-                                fontFamily = Inter,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                            )
-                            namespaceSpec.value.forEach { namespace ->
-                                ShareMdocSelectiveDisclosureNamespaceItem(
-                                    namespace = namespace,
-                                    isChecked = allowedNamespaces[itemsRequest.docType]?.get(
-                                        namespaceSpec.key
-                                    )?.contains(namespace.key) ?: false,
-                                    onCheck = { _ ->
-                                        credentialViewModel.toggleAllowedNamespace(
-                                            itemsRequest.docType,
-                                            namespaceSpec.key,
-                                            namespace.key
-                                        )
-                                    }
+            Text(
+                buildAnnotatedString {
+                    withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
+                    append(" is requesting access to the following information")
+                },
+                fontFamily = Inter,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = ColorStone950,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                textAlign = TextAlign.Center
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .weight(weight = 1f, fill = false)
+            ) {
+                itemsRequests.map { itemsRequest ->
+                    Column {
+                        itemsRequest.namespaces.map { namespaceSpec ->
+                            Column {
+                                Text(
+                                    text = namespaceSpec.key,
+                                    fontFamily = Inter,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 18.sp,
+                                    color = ColorStone950,
+                                    modifier = Modifier.padding(top = 16.dp)
                                 )
+                                namespaceSpec.value.forEach { namespace ->
+                                    ShareMdocSelectiveDisclosureNamespaceItem(
+                                        namespace = namespace,
+                                        isChecked = allowedNamespaces[itemsRequest.docType]?.get(
+                                            namespaceSpec.key
+                                        )?.contains(namespace.key) ?: false,
+                                        onCheck = { _ ->
+                                            credentialViewModel.toggleAllowedNamespace(
+                                                itemsRequest.docType,
+                                                namespaceSpec.key,
+                                                namespace.key
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .navigationBarsPadding(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Button(
-                    modifier = Modifier
-                        .padding(end = 8.dp),
+                    onClick = { onCancel() },
+                    shape = RoundedCornerShape(6.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Red,
-                        contentColor = Color.White,
+                        containerColor = Color.Transparent,
+                        contentColor = ColorStone950,
                     ),
-                    onClick = {
-                        onCancel()
-                    }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp, color = ColorStone300, shape = RoundedCornerShape(6.dp)
+                        )
+                        .weight(1f)
                 ) {
                     Text(
                         text = "Cancel",
                         fontFamily = Inter,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ColorStone950,
                     )
                 }
-                Button(onClick = {
-                    try {
-                        credentialViewModel.submitNamespaces(allowedNamespaces)
-                    } catch (e: Error) {
-                        Log.e("SelectiveDisclosureView", e.stackTraceToString())
-                    }
-                }) {
+
+                Button(
+                    onClick = {
+                        try {
+                            credentialViewModel.submitNamespaces(allowedNamespaces)
+                        } catch (e: Error) {
+                            Log.e("SelectiveDisclosureView", e.stackTraceToString())
+                        }
+                    },
+                    shape = RoundedCornerShape(6.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = ColorEmerald900,
+                            shape = RoundedCornerShape(6.dp),
+                        )
+                        .weight(1f)
+                ) {
                     Text(
-                        text = "Share fields",
+                        text = "Approve",
                         fontFamily = Inter,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ColorBase50,
                     )
                 }
             }
@@ -284,24 +337,28 @@ fun ShareMdocSelectiveDisclosureNamespaceItem(
     isChecked: Boolean,
     onCheck: (Boolean) -> Unit
 ) {
-    MobileSdkTheme {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp)
-        ) {
-            Text(
-                text = namespace.key,
-                fontFamily = Inter,
-                fontWeight = FontWeight.Normal,
-                fontSize = 14.sp,
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp)
+    ) {
+        Checkbox(
+            isChecked,
+            onCheckedChange = onCheck,
+            enabled = true,
+            colors = CheckboxDefaults.colors(
+                checkedColor = ColorBlue600,
+                uncheckedColor = ColorStone300,
             )
-            Checkbox(
-                isChecked,
-                onCheckedChange = onCheck
-            )
-        }
+        )
+        Text(
+            text = namespace.key,
+            fontFamily = Inter,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 18.sp,
+            color = ColorStone950,
+            modifier = Modifier.weight(1f)
+        )
     }
 }

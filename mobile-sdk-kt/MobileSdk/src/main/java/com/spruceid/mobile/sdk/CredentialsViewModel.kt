@@ -82,6 +82,26 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun addAllAllowedNamespaces(
+        docType: String,
+        namespace: Map<String, Map<String, Boolean>>
+    ) {
+        _allowedNamespaces.value = _allowedNamespaces.value.toMutableMap().apply {
+            val existingSpecs = this[docType]?.toMutableMap() ?: mutableMapOf()
+
+            namespace.forEach { (specName, fields) ->
+                val existingFields = existingSpecs[specName]?.toMutableList() ?: mutableListOf()
+
+                // Add to the list ignoring the boolean value
+                existingFields.addAll(fields.keys.filter { it !in existingFields })
+
+                existingSpecs[specName] = existingFields
+            }
+
+            this[docType] = existingSpecs
+        }
+    }
+
     private fun updateRequestData(data: ByteArray) {
         _itemsRequests.value = _session.value!!.handleRequest(data)
         val namespaces =
