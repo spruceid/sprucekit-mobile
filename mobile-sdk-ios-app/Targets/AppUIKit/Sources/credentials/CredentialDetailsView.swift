@@ -80,7 +80,7 @@ struct CredentialDetailsView: View {
                             .tag(index)
 
                         } else if index == 1, let credPack = credentialPack {  // Share
-                            ShareableCredentialListItemQRCode(credentialPack: credPack)
+                            ShareMdocView(credentialPack: credPack)
                             .tag(index)
                         }
                     }

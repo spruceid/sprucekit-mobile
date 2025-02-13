@@ -5,12 +5,12 @@ import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import SwiftUI
 
-struct ShareableCredentialListItemQRCode: View {
+struct ShareMdocView: View {
     let credentialPack: CredentialPack
-    @State private var qrSheetView: QRSheetView? = nil
+    @State private var qrSheetView: ShareMdocQR? = nil
 
-    func getQRSheetView() async -> QRSheetView {
-        return await QRSheetView(credentialPack: credentialPack)
+    func getQRSheetView() async -> ShareMdocQR {
+        return await ShareMdocQR(credentialPack: credentialPack)
     }
 
     var body: some View {
@@ -41,7 +41,7 @@ struct ShareableCredentialListItemQRCode: View {
     }
 }
 
-public struct QRSheetView: View {
+public struct ShareMdocQR: View {
     var credentials: CredentialStore
     @State var proceed = true
     @StateObject var delegate: ShareViewDelegate
@@ -128,7 +128,7 @@ public struct QRSheetView: View {
                 case .success:
                     Text("Successfully presented credential.")
                 case .selectNamespaces(let items):
-                    SelectiveDisclosureView(
+                    ShareMdocSelectiveDisclosureView(
                         itemsRequests: items, delegate: delegate,
                         proceed: $proceed
                     )
@@ -184,7 +184,7 @@ extension ShareViewDelegate: BLESessionStateDelegate {
     }
 }
 
-public struct SelectiveDisclosureView: View {
+public struct ShareMdocSelectiveDisclosureView: View {
     @State private var showingSDSheet = true
     @State private var itemsSelected: [String: [String: [String: Bool]]]
     @State private var itemsRequests: [ItemsRequest]
@@ -222,12 +222,11 @@ public struct SelectiveDisclosureView: View {
         .sheet(
             isPresented: $showingSDSheet
         ) {
-            SDSheetView(
+            ShareMdocSDSheetView(
                 itemsSelected: $itemsSelected,
                 itemsRequests: $itemsRequests,
                 proceed: $proceed,
                 onProceed: {
-                    //                    print(itemsSelected)
                     delegate.submitItems(items: itemsSelected)
                 },
                 onCancel: {
@@ -238,7 +237,7 @@ public struct SelectiveDisclosureView: View {
     }
 }
 
-struct SDSheetView: View {
+struct ShareMdocSDSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var itemsSelected: [String: [String: [String: Bool]]]
     @Binding var itemsRequests: [ItemsRequest]
@@ -247,49 +246,89 @@ struct SDSheetView: View {
     let onCancel: () -> Void
 
     public var body: some View {
-        NavigationStack {
-            Form {
+        VStack {
+            Group {
+                Text("Verifier ")
+                    .font(
+                        .customFont(font: .inter, style: .bold, size: .h2)
+                    )
+                    .foregroundColor(Color("ColorBlue600"))
+                    + Text(
+                        "is requesting access to the following information"
+                    )
+                    .font(
+                        .customFont(font: .inter, style: .bold, size: .h2)
+                    )
+                    .foregroundColor(Color("ColorStone950"))
+            }
+            .multilineTextAlignment(.center)
+            ScrollView {
                 ForEach(itemsRequests, id: \.self) { request in
                     let namespaces: [String: [String: Bool]] = request
                         .namespaces
-                    Section(header: Text(request.docType)) {
-                        ForEach(Array(namespaces.keys), id: \.self) {
-                            namespace in
-                            let namespaceItems: [String: Bool] = namespaces[
-                                namespace]!
-                            ForEach(Array(namespaceItems.keys), id: \.self) {
-                                item in
-                                let retain: Bool = namespaceItems[item]!
-                                VStack {
-                                    ItemToggle(
-                                        selected: self.binding(
-                                            docType: request.docType,
-                                            namespace: namespace, item: item),
-                                        name: item)
-                                    if retain {
-                                        Text(
-                                            "This piece of information will be retained by the reader."
-                                        ).font(.system(size: 10))
-                                    }
-                                }
+                    ForEach(Array(namespaces.keys), id: \.self) {
+                        namespace in
+                        let namespaceItems: [String: Bool] = namespaces[
+                            namespace]!
+                        Text(namespace)
+                            .font(.customFont(font: .inter, style: .regular, size: .h4))
+                            .foregroundStyle(Color("ColorStone950"))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        ForEach(Array(namespaceItems.keys), id: \.self) {
+                            item in
+                            VStack {
+                                ShareMdocSelectiveDisclosureNamespaceItem(
+                                    selected: self.binding(
+                                        docType: request.docType,
+                                        namespace: namespace,
+                                        item: item
+                                    ),
+                                    name: item
+                                )
                             }
                         }
+                        .padding(.leading, 8)
                     }
                 }
             }
-            .navigationTitle("Select items")
-            .toolbar(content: {
-                ToolbarItemGroup(placement: .bottomBar) {
-                    Button("Cancel", role: .cancel) {
-                        onCancel()
-                        proceed = false
-                    }.tint(.red)
-                    Button("Share") {
-                        onProceed()
-                    }
+            HStack {
+                Button {
+                    onCancel()
+                    proceed = false
+                } label: {
+                    Text("Cancel")
+                        .frame(maxWidth: .infinity)
+                        .font(
+                            .customFont(
+                                font: .inter, style: .medium, size: .h4)
+                        )
                 }
-            })
+                .foregroundColor(Color("ColorStone950"))
+                .padding(.vertical, 13)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color("ColorStone300"), lineWidth: 1)
+                )
+                Button {
+                    onProceed()
+                } label: {
+                    Text("Approve")
+                        .frame(maxWidth: .infinity)
+                        .font(
+                            .customFont(
+                                font: .inter, style: .medium, size: .h4)
+                        )
+                }
+                .foregroundColor(.white)
+                .padding(.vertical, 13)
+                .background(Color("ColorEmerald900"))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.vertical, 36)
+        .padding(.horizontal, 24)
+        .navigationBarBackButtonHidden(true)
     }
 
     private func binding(docType: String, namespace: String, item: String)
@@ -302,11 +341,19 @@ struct SDSheetView: View {
 
 }
 
-struct ItemToggle: View {
+struct ShareMdocSelectiveDisclosureNamespaceItem: View {
     @Binding var selected: Bool
     let name: String
 
     public var body: some View {
-        Toggle(name, isOn: $selected)
+        HStack {
+            Toggle(isOn: $selected) {
+                Text(name)
+                    .font(.customFont(font: .inter, style: .regular, size: .h4))
+                    .foregroundStyle(Color("ColorStone950"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .toggleStyle(iOSCheckboxToggleStyle(enabled: true))
+        }
     }
 }
