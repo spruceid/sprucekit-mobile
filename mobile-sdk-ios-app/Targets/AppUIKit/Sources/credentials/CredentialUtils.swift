@@ -70,6 +70,15 @@ func credentialHasType(credentialPack: CredentialPack, credentialType: String)
     return credentialWithType != nil ? true : false
 }
 
+func credentialPackHasMdoc(credentialPack: CredentialPack) -> Bool {
+    for credential in credentialPack.list() {
+        if credential.asMsoMdoc() != nil {
+            return true
+        }
+    }
+    return false
+}
+
 func genericObjectFlattener(
     object: [String: GenericJSON], filter: [String] = []
 ) -> [String:

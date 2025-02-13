@@ -136,10 +136,8 @@ struct WalletHomeBody: View {
                                     )
                                 )
                             }
-                            //                    ShareableCredentialListItem(mdoc: mdocBase64)
                         }
                     }
-
                     .refreshable {
                         statusListObservable.hasConnection =
                             checkInternetConnection()

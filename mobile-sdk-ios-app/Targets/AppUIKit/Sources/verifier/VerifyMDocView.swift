@@ -2,14 +2,89 @@ import CoreBluetooth
 import SwiftUI
 import SpruceIDMobileSdk
 
-extension String: Identifiable {
-    public typealias ID = Int
-    public var id: Int {
-        return hash
-    }
-}
-
 struct VerifyMDoc: Hashable {}
+
+let trustAnchorCerts = [
+            """
+-----BEGIN CERTIFICATE-----
+MIIB0zCCAXqgAwIBAgIJANVHM3D1VFaxMAoGCCqGSM49BAMCMCoxCzAJBgNVBAYT
+AlVTMRswGQYDVQQDDBJTcHJ1Y2VJRCBUZXN0IElBQ0EwHhcNMjUwMTA2MTA0MDUy
+WhcNMzAwMTA1MTA0MDUyWjAqMQswCQYDVQQGEwJVUzEbMBkGA1UEAwwSU3BydWNl
+SUQgVGVzdCBJQUNBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmAZFZftRxWrl
+Iuf1ZY4DW7QfAfTu36RumpvYZnKVFUNmyrNxGrtQlp2Tbit+9lUzjBjF9R8nvdid
+mAHOMg3zg6OBiDCBhTAdBgNVHQ4EFgQUJpZofWBt6ci5UVfOl8E9odYu8lcwDgYD
+VR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8CAQAwGwYDVR0SBBQwEoEQdGVz
+dEBleGFtcGxlLmNvbTAjBgNVHR8EHDAaMBigFqAUhhJodHRwOi8vZXhhbXBsZS5j
+b20wCgYIKoZIzj0EAwIDRwAwRAIgJFSMgE64Oiq7wdnWA3vuEuKsG0xhqW32HdjM
+LNiJpAMCIG82C+Kx875VNhx4hwfqReTRuFvZOTmFDNgKN0O/1+lI
+-----END CERTIFICATE-----
+"""
+]
+
+let defaultElements = [
+    "org.iso.18013.5.1": [
+        // Mandatory
+        "family_name": false,
+        "given_name": false,
+        "birth_date": false,
+        "issue_date": false,
+        "expiry_date": false,
+        "issuing_country": false,
+        "issuing_authority": false,
+        "document_number": false,
+        "portrait": false,
+        "driving_privileges": false,
+        // Optional
+        "middle_name": false,
+        "birth_place": false,
+        "resident_address": false,
+        "height": false,
+        "weight": false,
+        "eye_colour": false,
+        "hair_colour": false,
+        "organ_donor": false,
+        "sex": false,
+        "nationality": false,
+        "place_of_issue": false,
+        "signature": false,
+        "phone_number": false,
+        "email_address": false,
+        "emergency_contact": false,
+        "vehicle_class": false,
+        "endorsements": false,
+        "restrictions": false,
+        "barcode_data": false,
+        "card_design_issuer": false,
+        "card_expiry_date": false,
+        "time_of_issue": false,
+        "time_of_expiry": false,
+        "portrait_capture_date": false,
+        "signature_capture_date": false,
+        "document_discriminator": false,
+        "audit_information": false,
+        "compliance_type": false,
+        "permit_identifier": false,
+        "veteran_indicator": false,
+        "resident_city": false,
+        "resident_postal_code": false,
+        "resident_state": false,
+        "issuing_jurisdiction": false,
+        "age_over_18": false,
+        "age_over_21": false,
+    ],
+    "org.iso.18013.5.1.aamva": [
+        "DHS_compliance": false,
+        "DHS_temporary_lawful_status": false,
+        "real_id": false,
+        "jurisdiction_version": false,
+        "jurisdiction_id": false,
+        "organ_donor": false,
+        "domestic_driving_privileges": false,
+        "veteran": false,
+        "sex": false,
+        "name_suffix": false
+    ]
+]
 
 public struct VerifyMDocView: View {
     @Binding var path: NavigationPath
@@ -17,24 +92,6 @@ public struct VerifyMDocView: View {
     @State private var scanned: String?
     
     public var body: some View {
-        let issuer_cert = """
-            -----BEGIN CERTIFICATE-----
-            MIIChjCCAiygAwIBAgIUPgwgeCSsRYiU8iN6KHqKED3w/AAwCgYIKoZIzj0EAwIw
-            bjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAk5ZMRswGQYDVQQKDBJTcHJ1Y2VJRCBU
-            ZXN0IFJvb3QxNTAzBgNVBAMMLFNwcnVjZUlEIFRlc3QgQ2VydGlmaWNhdGUgUm9v
-            dCBPSUQ0VkNJV2FsbGV0MB4XDTI0MDgzMDE0MzQyM1oXDTM0MDgyODE0MzQyM1ow
-            bjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAk5ZMRswGQYDVQQKDBJTcHJ1Y2VJRCBU
-            ZXN0IFJvb3QxNTAzBgNVBAMMLFNwcnVjZUlEIFRlc3QgQ2VydGlmaWNhdGUgUm9v
-            dCBPSUQ0VkNJV2FsbGV0MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEPX/59+YO
-            meAfOugnUqfRi8TCHD1GC/R2Xip83aNdmM9DVP7NFiURpxIgBNDmj4VZodDoiz/B
-            GSO9l6Sypv1hYKOBpzCBpDAdBgNVHQ4EFgQU5xn7tyLS9unEonXA5D2Jm/9ERcAw
-            EgYDVR0TAQH/BAgwBgEB/wIBADA+BgNVHR8ENzA1MDOgMaAvhi1odHRwczovL2lu
-            dGVyb3BldmVudC5zcHJ1Y2VpZC5jb20vaW50ZXJvcC5jcmwwDgYDVR0PAQH/BAQD
-            AgEGMB8GA1UdEgQYMBaBFGludGVyb3BAc3BydWNlaWQuY29tMAoGCCqGSM49BAMC
-            A0gAMEUCIQCqFHqCM5NTgkiSJbOeFvGKJKBbordnzOVzb7UrFGQL5gIgKgh9gMKh
-            VixVit4VpJnYkcJXhQpTba/kWPCCfJh06kU=
-            -----END CERTIFICATE-----
-            """
         if scanned == nil {
             ScanningComponent(
                 path: $path,
@@ -49,8 +106,8 @@ public struct VerifyMDocView: View {
         } else {
             MDocReaderView(
                 uri: scanned!,
-                requestedItems: ["org.iso.18013.5.1": ["given_name": true]],
-                trustAnchorRegistry: [issuer_cert],
+                requestedItems: defaultElements,
+                trustAnchorRegistry: trustAnchorCerts,
                 onCancel: onCancel,
                 path: $path
             )

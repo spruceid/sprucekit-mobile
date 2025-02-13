@@ -17,37 +17,6 @@ extension Image {
     }
 }
 
-func generateMDoc() -> MDoc? {
-    do {
-        let mdocData = Data(base64Encoded: mdocBase64)!
-        let key = try P256.Signing.PrivateKey(pemRepresentation: keyPEM)
-
-        let attributes =
-            [
-                kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
-                kSecAttrKeyClass: kSecAttrKeyClassPrivate,
-            ] as [String: Any]
-        let secKey = SecKeyCreateWithData(
-            key.x963Representation as CFData,
-            attributes as CFDictionary,
-            nil)!
-        let query =
-            [
-                kSecClass: kSecClassKey,
-                kSecAttrApplicationLabel: "mdoc_key",
-                kSecAttrAccessible: kSecAttrAccessibleWhenUnlocked,
-                kSecUseDataProtectionKeychain: true,
-                kSecValueRef: secKey,
-            ] as [String: Any]
-        SecItemDelete(query as CFDictionary)
-        _ = SecItemAdd(query as CFDictionary, nil)
-        return MDoc(fromMDoc: mdocData, keyAlias: "mdoc_key")!
-    } catch {
-        print("\(error)")
-        return nil
-    }
-}
-
 func getGenericJSON(jsonString: String) -> GenericJSON? {
     if let data = jsonString.data(using: .utf8) {
         do {

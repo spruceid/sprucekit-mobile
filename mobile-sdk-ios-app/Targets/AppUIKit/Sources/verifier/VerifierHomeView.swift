@@ -166,6 +166,7 @@ struct VerifierListItemTag: View {
                 Image("QRCode")
                     .resizable()
                     .frame(width: 16, height: 16)
+                    .foregroundColor(Color.white)
                 Text("Display")
                     .font(.customFont(font: .inter, style: .semiBold, size: .p))
                     .foregroundStyle(Color.white)
