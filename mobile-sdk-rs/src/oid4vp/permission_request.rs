@@ -34,6 +34,10 @@ pub enum PermissionRequestError {
     #[error("Permission denied for requested presentation.")]
     PermissionDenied,
 
+    /// No credentials found matching the presentation definition.
+    #[error("No credentials found matching the presentation definition.")]
+    NoCredentialsFound,
+
     /// Credential not found for input descriptor id.
     #[error("Credential not found for input descriptor id: {0}")]
     CredentialNotFound(String),
@@ -107,6 +111,8 @@ impl From<openid4vp::core::input_descriptor::RequestedField<'_>> for RequestedFi
     }
 }
 
+/// Public methods for the RequestedField struct.
+#[uniffi::export]
 impl RequestedField {
     /// Return the unique ID for the request field.
     pub fn id(&self) -> Uuid {
@@ -114,14 +120,10 @@ impl RequestedField {
     }
 
     /// Return the input descriptor id the requested field belongs to
-    pub fn input_descriptor_id(&self) -> &String {
-        &self.input_descriptor_id
+    pub fn input_descriptor_id(&self) -> String {
+        self.input_descriptor_id.clone()
     }
-}
 
-/// Public methods for the RequestedField struct.
-#[uniffi::export]
-impl RequestedField {
     /// Return the field name
     pub fn name(&self) -> Option<String> {
         self.name.clone()
@@ -204,6 +206,23 @@ impl PermissionRequest {
         .requested_fields(&self.definition)
     }
 
+    /// Return the client ID for the authorization request.
+    ///
+    /// This can be used by the user interface to show who
+    /// is requesting the presentation from the wallet holder.
+    pub fn client_id(&self) -> String {
+        self.request.client_id().0.clone()
+    }
+
+    /// Return the domain name of the redirect URI.
+    ///
+    /// This can be used by the user interface to show where
+    /// the presentation will be sent. It may also be used to show
+    /// the domain name of the verifier as an alternative to the client_id.
+    pub fn domain(&self) -> Option<String> {
+        self.request.return_uri().domain().map(ToOwned::to_owned)
+    }
+
     /// Construct a new permission response for the given credential.
     pub async fn create_permission_response(
         &self,
@@ -259,6 +278,7 @@ impl PermissionRequest {
         .await?;
 
         let vp_token = VpToken(token_items);
+
         Ok(Arc::new(PermissionResponse {
             selected_credentials,
             presentation_definition: self.definition.clone(),
@@ -294,6 +314,14 @@ impl PermissionResponse {
     /// Return the selected credentials for the permission response.
     pub fn selected_credentials(&self) -> Vec<Arc<PresentableCredential>> {
         self.selected_credentials.clone()
+    }
+
+    /// Return the signed (prepared) vp token as a JSON-encoded utf-8 string.
+    ///
+    /// This is helpful for debugging purposes, and is not intended to be used
+    /// for submitting the response to the verifier.
+    pub fn vp_token(&self) -> Result<String, OID4VPError> {
+        serde_json::to_string(&self.vp_token).map_err(|e| OID4VPError::Token(format!("{e:?}")))
     }
 }
 
@@ -334,8 +362,13 @@ impl PermissionResponse {
     pub fn authorization_response(&self) -> Result<AuthorizationResponse, OID4VPError> {
         Ok(AuthorizationResponse::Unencoded(
             UnencodedAuthorizationResponse {
-                vp_token: self.vp_token.clone(),
                 presentation_submission: self.create_presentation_submission()?,
+                vp_token: self.vp_token.clone(),
+                state: self
+                    .authorization_request
+                    .state()
+                    .transpose()
+                    .map_err(|e| OID4VPError::ResponseSubmission(format!("{e:?}")))?,
             },
         ))
     }

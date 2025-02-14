@@ -171,7 +171,7 @@ mod tests {
             .expect("failed to parse auth_query");
 
         let request = holder
-            .authorization_request(url)
+            .authorization_request(AuthRequest::Url(url))
             .await
             .expect("authorization request failed");
 

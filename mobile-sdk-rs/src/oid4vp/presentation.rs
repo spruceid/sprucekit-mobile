@@ -238,9 +238,11 @@ impl MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions
 
         match self.signer.cryptosuite().as_ref() {
             "ecdsa-rdfc-2019" => {
-                let signature = p256::ecdsa::Signature::from_der(&signature_bytes).unwrap();
+                // Decode the signature bytes into a DER-encoded signature.
+                let der_signature = p256::ecdsa::Signature::from_der(&signature_bytes)
+                    .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
-                Ok(signature.to_vec())
+                Ok(der_signature.to_vec())
             }
             _ => Err(MessageSignatureError::UnsupportedAlgorithm(
                 self.signer.cryptosuite().to_string(),
