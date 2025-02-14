@@ -238,8 +238,8 @@ impl MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions
 
         match self.signer.cryptosuite().as_ref() {
             "ecdsa-rdfc-2019" => {
-                // Decode the signature bytes into a DER-encoded signature.
-                let der_signature = p256::ecdsa::Signature::from_der(&signature_bytes)
+                // Decode the DER-signature bytes into a fixed-width raw encoded signature.
+                let signature = p256::ecdsa::Signature::from_der(&signature_bytes)
                     .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
                 Ok(der_signature.to_vec())
