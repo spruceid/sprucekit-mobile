@@ -1,6 +1,7 @@
 import CoreBluetooth
 import SwiftUI
 import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
 
 struct VerifyMDoc: Hashable {}
 
@@ -158,11 +159,17 @@ public struct MDocReaderView: View {
         VStack {
             switch self.delegate.state {
             case .advertizing:
-                Text("Waiting for holder...")
-                cancelButton
+                LoadingView(
+                    loadingText: "Waiting for holder...",
+                    cancelButtonLabel: "Cancel",
+                    onCancel: { self.cancel() }
+                )
             case .connected:
-                Text("Connected to holder!")
-                cancelButton
+                LoadingView(
+                    loadingText: "Waiting for mDoc...",
+                    cancelButtonLabel: "Cancel",
+                    onCancel: { self.cancel() }
+                )
             case .error(let error):
                 let message = switch error {
                 case .bluetooth(let central):
@@ -198,24 +205,54 @@ public struct MDocReaderView: View {
                 case .generic(let error):
                     error
                 }
-                Text(message)
-                cancelButton
+                ErrorView(
+                    errorTitle: "Error Verifying",
+                    errorDetails: message,
+                    onClose: { self.cancel() }
+                )
             case .downloadProgress(let index):
-                ProgressView(label: {
-                    Text("Downloading... \(index) chunks received so far.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                })
-                .progressViewStyle(.circular)
-                cancelButton
-            case .success(let items):
-                VerifierSuccessView(
-                    path: $path,
-                    success: true,
-                    content: Text("\(items["org.iso.18013.5.1"]!)")
-                        .font(.customFont(font: .inter, style: .semiBold, size: .h1))
-                        .foregroundStyle(Color("ColorStone950"))
-                        .padding(.top, 20)
+                LoadingView(
+                    loadingText: "Downloading... \(index) chunks received so far.",
+                    cancelButtonLabel: "Cancel",
+                    onCancel: { self.cancel() }
+                )
+            case .success(.mdlReaderResponseData(let mdlResponseData)):
+                VerifierMdocResultView(
+                    result: mdlResponseData.verifiedResponse,
+                    issuerAuthenticationStatus: mdlResponseData.issuerAuthentication,
+                    deviceAuthenticationStatus: mdlResponseData.deviceAuthentication,
+                    responseProcessingErrors: mdlResponseData.errors,
+                    onClose: {
+                        onCancel()
+                    },
+                    logVerification: { title, issuer, status in
+                        _ = VerificationActivityLogDataStore.shared.insert(
+                            credentialTitle: title,
+                            issuer: issuer,
+                            status: status,
+                            verificationDateTime: Date(),
+                            additionalInformation: ""
+                        )
+                    }
+                )
+            case .success(.item(let mdlResponseData)):
+                VerifierMdocResultView(
+                    result: mdlResponseData,
+                    issuerAuthenticationStatus: .unchecked,
+                    deviceAuthenticationStatus: .unchecked,
+                    responseProcessingErrors: nil,
+                    onClose: {
+                        onCancel()
+                    },
+                    logVerification: { title, issuer, status in
+                        _ = VerificationActivityLogDataStore.shared.insert(
+                            credentialTitle: title,
+                            issuer: issuer,
+                            status: status,
+                            verificationDateTime: Date(),
+                            additionalInformation: ""
+                        )
+                    }
                 )
             }
         }

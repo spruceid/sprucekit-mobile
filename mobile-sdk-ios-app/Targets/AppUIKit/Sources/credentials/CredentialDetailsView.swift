@@ -115,6 +115,7 @@ struct CredentialDetailsView: View {
                                         alignment: .top
                                     )
                             }
+                            .padding(.horizontal, 12)
                         }
                         Spacer()
                     }

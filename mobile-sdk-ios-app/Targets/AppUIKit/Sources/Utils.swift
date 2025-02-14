@@ -183,3 +183,38 @@ extension Sequence {
 }
 
 let trustedDids: [String] = []
+
+func convertToGenericJSON(map: [String: [String: MDocItem]]) -> GenericJSON {
+    var jsonObject: [String: GenericJSON] = [:]
+    
+    for (key, value) in map {
+        jsonObject[key] = mapToGenericJSON(value)
+    }
+    
+    return .object(jsonObject)
+}
+
+func mapToGenericJSON(_ map: [String: MDocItem]) -> GenericJSON {
+    var jsonObject: [String: GenericJSON] = [:]
+    
+    for (key, value) in map {
+        jsonObject[key] = convertMDocItemToGenericJSON(value)
+    }
+    
+    return .object(jsonObject)
+}
+
+func convertMDocItemToGenericJSON(_ item: MDocItem) -> GenericJSON {
+    switch item {
+    case .text(let value):
+        return .string(value)
+    case .bool(let value):
+        return .bool(value)
+    case .integer(let value):
+        return .number(Double(value))
+    case .itemMap(let value):
+        return mapToGenericJSON(value)
+    case .array(let value):
+        return .array(value.map { convertMDocItemToGenericJSON($0) })
+    }
+}
