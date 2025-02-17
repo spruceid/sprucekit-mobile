@@ -183,6 +183,7 @@ mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
+                false,
             )
             .await
             .expect("failed to create permission response");

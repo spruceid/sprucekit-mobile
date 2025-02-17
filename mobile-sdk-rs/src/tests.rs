@@ -211,6 +211,7 @@ pub async fn test_vc_playground_oid4vp() {
                 .iter()
                 .map(|rf| rf.path())
                 .collect()],
+            false,
         )
         .await
         .expect("Failed to create permission response");

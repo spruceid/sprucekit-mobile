@@ -21,7 +21,7 @@ cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", featur
 ] }
 isomdl = { git = "https://github.com/spruceid/isomdl", rev = "6084a83" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "e97b01e" }
-openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "2210b2c" }
+openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "2212f78" }
 ssi = { version = "0.10.2", features = ["secp256r1", "secp384r1"] }
 
 anyhow = "1.0.95"

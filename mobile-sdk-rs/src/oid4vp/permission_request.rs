@@ -224,10 +224,15 @@ impl PermissionRequest {
     }
 
     /// Construct a new permission response for the given credential.
+    ///
+    /// NOTE: `should_strip_quotes` is a non-normative setting to determine
+    /// the behavior of removing extra quotations around a JSON
+    /// string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
     pub async fn create_permission_response(
         &self,
         selected_credentials: Vec<Arc<PresentableCredential>>,
         selected_fields: Vec<Vec<String>>,
+        should_strip_quotes: bool,
     ) -> Result<Arc<PermissionResponse>, OID4VPError> {
         log::debug!("Creating Permission Response");
 
@@ -284,6 +289,7 @@ impl PermissionRequest {
             presentation_definition: self.definition.clone(),
             authorization_request: self.request.clone(),
             vp_token,
+            should_strip_quotes,
         }))
     }
 
@@ -307,6 +313,7 @@ pub struct PermissionResponse {
     pub presentation_definition: PresentationDefinition,
     pub authorization_request: AuthorizationRequestObject,
     pub vp_token: VpToken,
+    pub should_strip_quotes: bool,
 }
 
 #[uniffi::export]
@@ -369,6 +376,7 @@ impl PermissionResponse {
                     .state()
                     .transpose()
                     .map_err(|e| OID4VPError::ResponseSubmission(format!("{e:?}")))?,
+                should_strip_quotes: self.should_strip_quotes,
             },
         ))
     }
