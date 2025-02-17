@@ -1506,12 +1506,7 @@ public protocol HolderProtocol : AnyObject {
      *
      * This will fetch the presentation definition from the verifier.
      */
-    func authorizationRequest(url: Url) async throws  -> PermissionRequest
-    
-    /**
-     * Initialize logger for the OID4VP holder.
-     */
-    func initiateLogger() 
+    func authorizationRequest(req: AuthRequest) async throws  -> PermissionRequest
     
     func submitPermissionResponse(response: PermissionResponse) async throws  -> Url?
     
@@ -1553,8 +1548,6 @@ open class Holder:
     }
     /**
      * Uses VDC collection to retrieve the credentials for a given presentation definition.
-     *
-     * If no trusted DIDs are provided then all DIDs are trusted.
      */
 public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?)async throws  {
     let pointer =
@@ -1589,8 +1582,6 @@ public convenience init(vdcCollection: VdcCollection, trustedDids: [String], sig
      *
      * This constructor will use the provided credentials for the presentation,
      * instead of searching for credentials in the VDC collection.
-     *
-     * If no trusted DIDs are provided then all DIDs are trusted.
      */
 public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?)async throws  -> Holder {
     return
@@ -1616,13 +1607,13 @@ public static func newWithCredentials(providedCredentials: [ParsedCredential], t
      *
      * This will fetch the presentation definition from the verifier.
      */
-open func authorizationRequest(url: Url)async throws  -> PermissionRequest {
+open func authorizationRequest(req: AuthRequest)async throws  -> PermissionRequest {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_holder_authorization_request(
                     self.uniffiClonePointer(),
-                    FfiConverterTypeUrl.lower(url)
+                    FfiConverterTypeAuthRequest.lower(req)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
@@ -1631,15 +1622,6 @@ open func authorizationRequest(url: Url)async throws  -> PermissionRequest {
             liftFunc: FfiConverterTypePermissionRequest.lift,
             errorHandler: FfiConverterTypeOID4VPError.lift
         )
-}
-    
-    /**
-     * Initialize logger for the OID4VP holder.
-     */
-open func initiateLogger() {try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_holder_initiate_logger(self.uniffiClonePointer(),$0
-    )
-}
 }
     
 open func submitPermissionResponse(response: PermissionResponse)async throws  -> Url? {
@@ -3906,6 +3888,19 @@ public static func newFromJson(jsonString: String)throws  -> ParsedCredential {
 }
     
     /**
+     * This method attempts to parse the credential depending on the credential format type provided.
+     */
+public static func newFromStringWithFormat(format: String, credential: String, keyAlias: KeyAlias)throws  -> ParsedCredential {
+    return try  FfiConverterTypeParsedCredential.lift(try rustCallWithError(FfiConverterTypeCredentialDecodingError.lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_from_string_with_format(
+        FfiConverterString.lower(format),
+        FfiConverterString.lower(credential),
+        FfiConverterTypeKeyAlias.lower(keyAlias),$0
+    )
+})
+}
+    
+    /**
      * Construct a new `jwt_vc_json` credential.
      */
 public static func newJwtVcJson(jwtVc: JwtVc) -> ParsedCredential {
@@ -4114,15 +4109,36 @@ public func FfiConverterTypeParsedCredential_lower(_ value: ParsedCredential) ->
 public protocol PermissionRequestProtocol : AnyObject {
     
     /**
-     * Construct a new permission response for the given credential.
+     * Return the client ID for the authorization request.
+     *
+     * This can be used by the user interface to show who
+     * is requesting the presentation from the wallet holder.
      */
-    func createPermissionResponse(selectedCredentials: [PresentableCredential], selectedFields: [[String]]) async throws  -> PermissionResponse
+    func clientId()  -> String
+    
+    /**
+     * Construct a new permission response for the given credential.
+     *
+     * NOTE: `should_strip_quotes` is a non-normative setting to determine
+     * the behavior of removing extra quotations around a JSON
+     * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
+     */
+    func createPermissionResponse(selectedCredentials: [PresentableCredential], selectedFields: [[String]], responseOptions: ResponseOptions) async throws  -> PermissionResponse
     
     /**
      * Return the filtered list of credentials that matched
      * the presentation definition.
      */
     func credentials()  -> [PresentableCredential]
+    
+    /**
+     * Return the domain name of the redirect URI.
+     *
+     * This can be used by the user interface to show where
+     * the presentation will be sent. It may also be used to show
+     * the domain name of the verifier as an alternative to the client_id.
+     */
+    func domain()  -> String?
     
     /**
      * Return the purpose of the presentation request.
@@ -4180,15 +4196,32 @@ open class PermissionRequest:
 
     
     /**
-     * Construct a new permission response for the given credential.
+     * Return the client ID for the authorization request.
+     *
+     * This can be used by the user interface to show who
+     * is requesting the presentation from the wallet holder.
      */
-open func createPermissionResponse(selectedCredentials: [PresentableCredential], selectedFields: [[String]])async throws  -> PermissionResponse {
+open func clientId() -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_permissionrequest_client_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Construct a new permission response for the given credential.
+     *
+     * NOTE: `should_strip_quotes` is a non-normative setting to determine
+     * the behavior of removing extra quotations around a JSON
+     * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
+     */
+open func createPermissionResponse(selectedCredentials: [PresentableCredential], selectedFields: [[String]], responseOptions: ResponseOptions)async throws  -> PermissionResponse {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_permissionrequest_create_permission_response(
                     self.uniffiClonePointer(),
-                    FfiConverterSequenceTypePresentableCredential.lower(selectedCredentials),FfiConverterSequenceSequenceString.lower(selectedFields)
+                    FfiConverterSequenceTypePresentableCredential.lower(selectedCredentials),FfiConverterSequenceSequenceString.lower(selectedFields),FfiConverterTypeResponseOptions.lower(responseOptions)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
@@ -4206,6 +4239,20 @@ open func createPermissionResponse(selectedCredentials: [PresentableCredential],
 open func credentials() -> [PresentableCredential] {
     return try!  FfiConverterSequenceTypePresentableCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_permissionrequest_credentials(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the domain name of the redirect URI.
+     *
+     * This can be used by the user interface to show where
+     * the presentation will be sent. It may also be used to show
+     * the domain name of the verifier as an alternative to the client_id.
+     */
+open func domain() -> String? {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_permissionrequest_domain(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -4296,6 +4343,14 @@ public protocol PermissionResponseProtocol : AnyObject {
      */
     func selectedCredentials()  -> [PresentableCredential]
     
+    /**
+     * Return the signed (prepared) vp token as a JSON-encoded utf-8 string.
+     *
+     * This is helpful for debugging purposes, and is not intended to be used
+     * for submitting the response to the verifier.
+     */
+    func vpToken() throws  -> String
+    
 }
 
 /**
@@ -4353,6 +4408,19 @@ open class PermissionResponse:
 open func selectedCredentials() -> [PresentableCredential] {
     return try!  FfiConverterSequenceTypePresentableCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_permissionresponse_selected_credentials(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the signed (prepared) vp token as a JSON-encoded utf-8 string.
+     *
+     * This is helpful for debugging purposes, and is not intended to be used
+     * for submitting the response to the verifier.
+     */
+open func vpToken()throws  -> String {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeOID4VPError.lift) {
+    uniffi_mobile_sdk_rs_fn_method_permissionresponse_vp_token(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -4656,6 +4724,16 @@ public func FfiConverterTypeRequestMatch180137_lower(_ value: RequestMatch180137
 public protocol RequestedFieldProtocol : AnyObject {
     
     /**
+     * Return the unique ID for the request field.
+     */
+    func id()  -> Uuid
+    
+    /**
+     * Return the input descriptor id the requested field belongs to
+     */
+    func inputDescriptorId()  -> String
+    
+    /**
      * Return the field name
      */
     func name()  -> String?
@@ -4727,6 +4805,26 @@ open class RequestedField:
 
     
 
+    
+    /**
+     * Return the unique ID for the request field.
+     */
+open func id() -> Uuid {
+    return try!  FfiConverterTypeUuid.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestedfield_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the input descriptor id the requested field belongs to
+     */
+open func inputDescriptorId() -> String {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestedfield_input_descriptor_id(self.uniffiClonePointer(),$0
+    )
+})
+}
     
     /**
      * Return the field name
@@ -7652,6 +7750,122 @@ public func FfiConverterTypeRequestedField180137_lower(_ value: RequestedField18
 }
 
 
+/**
+ * Non-normative response options used to provide configurable interface
+ * for handling variations in the processing of the verifiable presentation
+ * payloads in various external verifiers.
+ */
+public struct ResponseOptions {
+    /**
+     * This is an non-normative setting to determine
+     * the behavior of removing extra quotations around a JSON
+     * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
+     */
+    public var shouldStripQuotes: Bool
+    /**
+     * Boolean option of whether to use `array_or_value` serialization options
+     * for the verifiable presentation.
+     *
+     * This is provided as an option to force serializing a single verifiable
+     * credential as a member of an array, versus as a singular option, per
+     * implementation.
+     *
+     * NOTE: This may be removed in the future as the oid4vp specification becomes
+     * more solidified around `vp_token` presentation.
+     *
+     * These options are provided as configurable parameters to maintain backwards
+     * compatibility with verifier implementation versions.
+     */
+    public var forceArraySerialization: Bool
+    /**
+     * Remove the `$.vp` path prefix for the descriptor map for the verifiable credential.
+     * This is non-normative option, e.g. `$.vp` -> `$`
+     */
+    public var removeVpPathPrefix: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * This is an non-normative setting to determine
+         * the behavior of removing extra quotations around a JSON
+         * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
+         */shouldStripQuotes: Bool, 
+        /**
+         * Boolean option of whether to use `array_or_value` serialization options
+         * for the verifiable presentation.
+         *
+         * This is provided as an option to force serializing a single verifiable
+         * credential as a member of an array, versus as a singular option, per
+         * implementation.
+         *
+         * NOTE: This may be removed in the future as the oid4vp specification becomes
+         * more solidified around `vp_token` presentation.
+         *
+         * These options are provided as configurable parameters to maintain backwards
+         * compatibility with verifier implementation versions.
+         */forceArraySerialization: Bool, 
+        /**
+         * Remove the `$.vp` path prefix for the descriptor map for the verifiable credential.
+         * This is non-normative option, e.g. `$.vp` -> `$`
+         */removeVpPathPrefix: Bool) {
+        self.shouldStripQuotes = shouldStripQuotes
+        self.forceArraySerialization = forceArraySerialization
+        self.removeVpPathPrefix = removeVpPathPrefix
+    }
+}
+
+
+
+extension ResponseOptions: Equatable, Hashable {
+    public static func ==(lhs: ResponseOptions, rhs: ResponseOptions) -> Bool {
+        if lhs.shouldStripQuotes != rhs.shouldStripQuotes {
+            return false
+        }
+        if lhs.forceArraySerialization != rhs.forceArraySerialization {
+            return false
+        }
+        if lhs.removeVpPathPrefix != rhs.removeVpPathPrefix {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(shouldStripQuotes)
+        hasher.combine(forceArraySerialization)
+        hasher.combine(removeVpPathPrefix)
+    }
+}
+
+
+public struct FfiConverterTypeResponseOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ResponseOptions {
+        return
+            try ResponseOptions(
+                shouldStripQuotes: FfiConverterBool.read(from: &buf), 
+                forceArraySerialization: FfiConverterBool.read(from: &buf), 
+                removeVpPathPrefix: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ResponseOptions, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.shouldStripQuotes, into: &buf)
+        FfiConverterBool.write(value.forceArraySerialization, into: &buf)
+        FfiConverterBool.write(value.removeVpPathPrefix, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeResponseOptions_lift(_ buf: RustBuffer) throws -> ResponseOptions {
+    return try FfiConverterTypeResponseOptions.lift(buf)
+}
+
+public func FfiConverterTypeResponseOptions_lower(_ value: ResponseOptions) -> RustBuffer {
+    return FfiConverterTypeResponseOptions.lower(value)
+}
+
+
 public struct StatusMessage {
     /**
      * The value of the entry in the status list
@@ -9940,6 +10154,10 @@ public enum PermissionRequestError {
      */
     case PermissionDenied
     /**
+     * No credentials found matching the presentation definition.
+     */
+    case NoCredentialsFound
+    /**
      * Credential not found for input descriptor id.
      */
     case CredentialNotFound(String
@@ -9987,33 +10205,34 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
 
         
         case 1: return .PermissionDenied
-        case 2: return .CredentialNotFound(
+        case 2: return .NoCredentialsFound
+        case 3: return .CredentialNotFound(
             try FfiConverterString.read(from: &buf)
             )
-        case 3: return .InputDescriptorNotFound(
+        case 4: return .InputDescriptorNotFound(
             try FfiConverterString.read(from: &buf)
             )
-        case 4: return .InvalidSelectedCredential(
+        case 5: return .InvalidSelectedCredential(
             try FfiConverterString.read(from: &buf), 
             try FfiConverterString.read(from: &buf)
             )
-        case 5: return .CredentialPresentation(
+        case 6: return .CredentialPresentation(
             try FfiConverterString.read(from: &buf)
             )
-        case 6: return .RwLock(
+        case 7: return .RwLock(
             try FfiConverterString.read(from: &buf)
             )
-        case 7: return .PresentationSigning(
+        case 8: return .PresentationSigning(
             try FfiConverterString.read(from: &buf)
             )
-        case 8: return .CryptographicSuite(
+        case 9: return .CryptographicSuite(
             try FfiConverterString.read(from: &buf)
             )
-        case 9: return .VerificationMethod(
+        case 10: return .VerificationMethod(
             try FfiConverterString.read(from: &buf)
             )
-        case 10: return .LimitDisclosure
-        case 11: return .Presentation(
+        case 11: return .LimitDisclosure
+        case 12: return .Presentation(
             try FfiConverterTypePresentationError.read(from: &buf)
             )
 
@@ -10032,53 +10251,57 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(1))
         
         
-        case let .CredentialNotFound(v1):
+        case .NoCredentialsFound:
             writeInt(&buf, Int32(2))
-            FfiConverterString.write(v1, into: &buf)
-            
         
-        case let .InputDescriptorNotFound(v1):
+        
+        case let .CredentialNotFound(v1):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InvalidSelectedCredential(v1,v2):
+        case let .InputDescriptorNotFound(v1):
             writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidSelectedCredential(v1,v2):
+            writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             FfiConverterString.write(v2, into: &buf)
             
         
         case let .CredentialPresentation(v1):
-            writeInt(&buf, Int32(5))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
-        case let .RwLock(v1):
             writeInt(&buf, Int32(6))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PresentationSigning(v1):
+        case let .RwLock(v1):
             writeInt(&buf, Int32(7))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .CryptographicSuite(v1):
+        case let .PresentationSigning(v1):
             writeInt(&buf, Int32(8))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .VerificationMethod(v1):
+        case let .CryptographicSuite(v1):
             writeInt(&buf, Int32(9))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case .LimitDisclosure:
+        case let .VerificationMethod(v1):
             writeInt(&buf, Int32(10))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .LimitDisclosure:
+            writeInt(&buf, Int32(11))
         
         
         case let .Presentation(v1):
-            writeInt(&buf, Int32(11))
+            writeInt(&buf, Int32(12))
             FfiConverterTypePresentationError.write(v1, into: &buf)
             
         }
@@ -12436,6 +12659,40 @@ public func FfiConverterTypeAlgorithm_lower(_ value: Algorithm) -> RustBuffer {
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
+public typealias AuthRequest = String
+public struct FfiConverterTypeAuthRequest: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AuthRequest {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: AuthRequest, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> AuthRequest {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: AuthRequest) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+public func FfiConverterTypeAuthRequest_lift(_ value: RustBuffer) throws -> AuthRequest {
+    return try FfiConverterTypeAuthRequest.lift(value)
+}
+
+public func FfiConverterTypeAuthRequest_lower(_ value: AuthRequest) -> RustBuffer {
+    return FfiConverterTypeAuthRequest.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
 public typealias CredentialType = String
 public struct FfiConverterTypeCredentialType: FfiConverter {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CredentialType {
@@ -12889,6 +13146,17 @@ public func decodeRevealSdJwt(input: String)throws  -> String {
     )
 })
 }
+/**
+ * Return the default context for the mobile SDK
+ *
+ * Includes VC playground contexts
+ */
+public func defaultLdJsonContext() -> [String: String] {
+    return try!  FfiConverterDictionaryStringString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_default_ld_json_context($0
+    )
+})
+}
 public func establishSession(uri: String, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?)throws  -> MdlReaderSessionData {
     return try  FfiConverterTypeMDLReaderSessionData.lift(try rustCallWithError(FfiConverterTypeMDLReaderSessionError.lift) {
     uniffi_mobile_sdk_rs_fn_func_establish_session(
@@ -12938,6 +13206,16 @@ public func handleResponse(state: MdlSessionManager, response: Data)throws  -> M
         FfiConverterData.lower(response),$0
     )
 })
+}
+/**
+ * Initiate the global logger for the mobile SDK.
+ *
+ * This method should be called once per application lifecycle.
+ */
+public func initGlobalLogger() {try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_init_global_logger($0
+    )
+}
 }
 /**
  * Begin the mDL presentation process for the holder when the desired
@@ -13155,6 +13433,9 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 34951) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_default_ld_json_context() != 13685) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 26937) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -13168,6 +13449,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_init_global_logger() != 47162) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 29387) {
@@ -13227,10 +13511,7 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_didmethodutils_vm_from_jwk() != 9065) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_holder_authorization_request() != 45396) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_holder_initiate_logger() != 13216) {
+    if (uniffi_mobile_sdk_rs_checksum_method_holder_authorization_request() != 37629) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_holder_submit_permission_response() != 37701) {
@@ -13395,10 +13676,16 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_type() != 60750) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 6068) {
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_client_id() != 12377) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 13542) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credentials() != 19351) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_domain() != 60512) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_purpose() != 28780) {
@@ -13408,6 +13695,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionresponse_selected_credentials() != 2870) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionresponse_vp_token() != 26646) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_as_parsed_credential() != 56853) {
@@ -13420,6 +13710,12 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_requested_fields() != 52220) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_id() != 35305) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_input_descriptor_id() != 9742) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_name() != 19474) {
@@ -13533,10 +13829,10 @@ private var initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_didmethodutils_new() != 22235) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 8787) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 64916) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 30103) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 28515) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_ihttpclient_new_async() != 55307) {
@@ -13585,6 +13881,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_from_json() != 1837) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_from_string_with_format() != 6623) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_jwt_vc_json() != 56340) {
