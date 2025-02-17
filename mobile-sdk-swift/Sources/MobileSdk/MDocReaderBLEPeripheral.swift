@@ -102,10 +102,8 @@ class MDocReaderBLEPeripheral: NSObject {
             case .fatalError: // Something went wrong.
                 machineState = .halted
                 machinePendingState = .halted
-
-            case .complete: // Transfer complete.
+                case .complete: // Transfer complete.
                 disconnect()
-                break
 
             case .halted: // Transfer incomplete, but we gave up.
                 break
@@ -286,7 +284,7 @@ class MDocReaderBLEPeripheral: NSObject {
         print("Disconnecting...")
         peripheralManager.stopAdvertising()
         activeStream?.close()
-        
+
         if let psm = channelPSM {
             peripheralManager.unpublishL2CAPChannel(psm)
             channelPSM = nil
