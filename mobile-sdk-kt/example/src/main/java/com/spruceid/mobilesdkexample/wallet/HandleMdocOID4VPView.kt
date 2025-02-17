@@ -355,7 +355,6 @@ fun MdocFieldSelectorItem(
             modifier = Modifier.weight(1f)
         )
     }
-
 }
 
 @Composable

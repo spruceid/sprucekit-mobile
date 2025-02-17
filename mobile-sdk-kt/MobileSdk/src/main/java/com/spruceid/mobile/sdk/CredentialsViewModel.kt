@@ -4,7 +4,7 @@ import android.app.Application
 import android.bluetooth.BluetoothManager
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
+import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -12,7 +12,6 @@ import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.initializeMdlPresentationFromBytes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
 import java.security.KeyStore
 import java.security.Signature
 import java.util.UUID
@@ -35,7 +34,17 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     val itemsRequest = _itemsRequests.asStateFlow()
 
     private val _allowedNamespaces =
-        MutableStateFlow<Map<String, Map<String, List<String>>>>(mapOf())
+        MutableStateFlow<Map<String, Map<String, List<String>>>>(
+            mapOf(
+                Pair(
+                    "org.iso.18013.5.1.mDL",
+                    mapOf(
+                        Pair("org.iso.18013.5.1", listOf()),
+                        Pair("org.iso.18013.5.1.aamva", listOf())
+                    )
+                )
+            )
+        )
     val allowedNamespaces = _allowedNamespaces.asStateFlow()
 
     private val _uuid = MutableStateFlow<UUID>(UUID.randomUUID())
@@ -57,25 +66,39 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun toggleAllowedNamespace(docType: String, specName: String, fieldName: String) {
-        if (_allowedNamespaces.value.isEmpty()) {
-            _allowedNamespaces.value = mapOf(Pair(docType, mapOf(Pair(specName, listOf()))))
-        }
         val allowedForSpec = _allowedNamespaces.value[docType]!![specName]
-
         if (!allowedForSpec!!.contains(fieldName)) {
-            _allowedNamespaces.value = mapOf(
-                Pair(
-                    docType,
-                    mapOf(Pair(specName, allowedForSpec.plus(fieldName)))
-                )
-            )
+            _allowedNamespaces.value = _allowedNamespaces.value.toMutableMap().apply {
+                this[docType] = this[docType]?.toMutableMap()?.apply {
+                    this[specName] = (this[specName] ?: emptyList()) + fieldName
+                } ?: mapOf(specName to listOf(fieldName))
+            }
         } else {
-            _allowedNamespaces.value = mapOf(
-                Pair(
-                    docType,
-                    mapOf(Pair(specName, allowedForSpec.minus(fieldName)))
-                )
-            )
+            _allowedNamespaces.value = _allowedNamespaces.value.toMutableMap().apply {
+                this[docType] = this[docType]?.toMutableMap()?.apply {
+                    this[specName] = this[specName]?.filter { it != fieldName } ?: emptyList()
+                } ?: mapOf(specName to listOf())
+            }
+        }
+    }
+
+    fun addAllAllowedNamespaces(
+        docType: String,
+        namespace: Map<String, Map<String, Boolean>>
+    ) {
+        _allowedNamespaces.value = _allowedNamespaces.value.toMutableMap().apply {
+            val existingSpecs = this[docType]?.toMutableMap() ?: mutableMapOf()
+
+            namespace.forEach { (specName, fields) ->
+                val existingFields = existingSpecs[specName]?.toMutableList() ?: mutableListOf()
+
+                // Add to the list ignoring the boolean value
+                existingFields.addAll(fields.keys.filter { it !in existingFields })
+
+                existingSpecs[specName] = existingFields
+            }
+
+            this[docType] = existingSpecs
         }
     }
 
@@ -144,10 +167,13 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         try {
-            val signer = Signature.getInstance("SHA256withECDSA")
-            signer.initSign(entry.privateKey)
-            signer.update(payload)
-            val signature = signer.sign()
+            val derSigner = Signature.getInstance("SHA256withECDSA")
+            derSigner.initSign(entry.privateKey)
+            derSigner.update(payload)
+            val derSignature = derSigner.sign()
+            val signature =
+                CryptoCurveUtils.secp256r1()
+                    .ensureRawFixedWidthSignatureEncoding(bytes = derSignature)!!
             val response = _session.value!!.submitResponse(signature)
             _transport.value!!.send(response)
             _currState.value = PresentmentState.SUCCESS

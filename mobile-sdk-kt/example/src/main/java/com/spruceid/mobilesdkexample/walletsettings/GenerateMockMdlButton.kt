@@ -64,6 +64,7 @@ fun GenerateMockMdlButton(
                         ) {
                             mdocPack.addMdoc(mdl);
                             credentialPacksViewModel.saveCredentialPack(mdocPack)
+                            Toast.showSuccess("Test mDL added to your wallet")
                         } else {
                             Toast.showWarning("You already have an mDL")
                         }

@@ -38,7 +38,8 @@ fun GenericCredentialItemDetails(
                             if (
                                 cred?.asJwtVc() != null ||
                                 cred?.asJsonVc() != null ||
-                                cred?.asSdJwt() != null
+                                cred?.asSdJwt() != null ||
+                                cred?.asMsoMdoc() != null
                             ) {
                                 it.second
                             } else {
