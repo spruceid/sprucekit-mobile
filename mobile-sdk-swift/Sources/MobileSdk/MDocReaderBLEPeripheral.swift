@@ -102,7 +102,7 @@ class MDocReaderBLEPeripheral: NSObject {
             case .fatalError: // Something went wrong.
                 machineState = .halted
                 machinePendingState = .halted
-                case .complete: // Transfer complete.
+            case .complete: // Transfer complete.
                 disconnect()
 
             case .halted: // Transfer incomplete, but we gave up.
