@@ -273,7 +273,7 @@ where
     }
 }
 
-impl<'a> PresentationOptions<'a> {
+impl PresentationOptions<'_> {
     pub async fn verification_method_id(&self) -> Result<IriBuf, PresentationError> {
         self.signer
             .verification_method()
