@@ -4,6 +4,7 @@ use crate::{
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
+        PresentationError,
     },
     CredentialType,
 };
@@ -271,11 +272,14 @@ impl CredentialPresentation for JwtVc {
             .await
             .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
 
-        // Decode the signature from DER encoding.
-        let signature = p256::ecdsa::Signature::from_der(&signature)
-            .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
+        let signature = options
+            .curve_utils()
+            .map(|utils| utils.ensure_raw_fixed_width_signature_encoding(signature))?
+            .ok_or(OID4VPError::Presentation(PresentationError::Signing(
+                "Unsupported signature encoding.".into(),
+            )))?;
 
-        let signature_b64 = BASE64_URL_SAFE_NO_PAD.encode(signature.to_vec());
+        let signature_b64 = BASE64_URL_SAFE_NO_PAD.encode(&signature);
 
         let jwt_vp = format!("{unsigned_vp_token_jwt}.{signature_b64}");
 

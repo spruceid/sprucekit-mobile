@@ -1,3 +1,5 @@
+use crate::crypto::CryptoCurveUtils;
+
 use super::{error::OID4VPError, RequestedField};
 
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
@@ -237,13 +239,13 @@ impl MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions
             .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
         match self.signer.cryptosuite().as_ref() {
-            "ecdsa-rdfc-2019" => {
-                // Decode the DER-signature bytes into a fixed-width raw encoded signature.
-                let signature = p256::ecdsa::Signature::from_der(&signature_bytes)
-                    .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
-
-                Ok(der_signature.to_vec())
-            }
+            "ecdsa-rdfc-2019" => self
+                .curve_utils()
+                .map(|utils| utils.ensure_raw_fixed_width_signature_encoding(signature_bytes))
+                .map_err(|e| MessageSignatureError::UnsupportedAlgorithm(format!("{e:?}")))?
+                .ok_or(MessageSignatureError::UnsupportedAlgorithm(
+                    "Unsupported signature encoding".into(),
+                )),
             _ => Err(MessageSignatureError::UnsupportedAlgorithm(
                 self.signer.cryptosuite().to_string(),
             )),
@@ -308,6 +310,16 @@ impl<'a> PresentationOptions<'a> {
 
     pub fn jwk(&self) -> Result<JWK, PresentationError> {
         JWK::from_str(&self.signer.jwk()).map_err(|e| PresentationError::JWK(format!("{e:?}")))
+    }
+
+    /// Return the crypto curve utils based on the signing algorithm, e.g. ES256.
+    pub fn curve_utils(&self) -> Result<CryptoCurveUtils, PresentationError> {
+        match self.signer.algorithm() {
+            Algorithm::ES256 => Ok(CryptoCurveUtils::secp256r1()),
+            alg => Err(PresentationError::CryptographicSuite(format!(
+                "Unsupported curve utils for algorithm: {alg:?}"
+            ))),
+        }
     }
 
     /// Validate the signing cryptosuite against the supported request algorithms.
