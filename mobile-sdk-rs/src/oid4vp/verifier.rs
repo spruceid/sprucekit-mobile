@@ -121,7 +121,7 @@ mod tests {
     use crate::credential::vcdm2_sd_jwt::VCDM2SdJwt;
     use crate::credential::*;
     use crate::oid4vp::holder::tests::KeySigner;
-    use crate::oid4vp::holder::*;
+    use crate::oid4vp::{holder::*, ResponseOptions};
 
     // NOTE: This requires an instance of credible to be accessible
     const BASE_URL: &str = "http://localhost:3003";
@@ -183,7 +183,7 @@ mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
-                false,
+                ResponseOptions::default(),
             )
             .await
             .expect("failed to create permission response");

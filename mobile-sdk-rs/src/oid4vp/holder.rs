@@ -537,7 +537,7 @@ pub(crate) mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
-                false,
+                ResponseOptions::default(),
             )
             .await?;
 
@@ -597,7 +597,7 @@ pub(crate) mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
-                false,
+                ResponseOptions::default(),
             )
             .await
             .expect("failed to create permission response");
@@ -653,7 +653,7 @@ pub(crate) mod tests {
             .collect::<Vec<_>>();
 
         let response = permission_request
-            .create_permission_response(credentials, requested_fields, false)
+            .create_permission_response(credentials, requested_fields, ResponseOptions::default())
             .await
             .expect("failed to create permission response");
 
@@ -721,7 +721,7 @@ pub(crate) mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
-                false,
+                ResponseOptions::default(),
             )
             .await?;
 
@@ -789,7 +789,7 @@ pub(crate) mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
-                false,
+                ResponseOptions::default(),
             )
             .await?;
 

@@ -4,7 +4,7 @@ use crate::{
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
-        PresentationError,
+        PresentationError, ResponseOptions,
     },
     CredentialType,
 };
@@ -16,11 +16,14 @@ use openid4vp::core::{
     credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
     response::parameters::VpTokenItem,
 };
-use ssi::claims::{
-    jws::Header,
-    jwt::IntoDecodedJwt,
-    vc::v1::{Credential as _, JsonCredential},
-    JwsString,
+use ssi::{
+    claims::{
+        jws::Header,
+        jwt::IntoDecodedJwt,
+        vc::v1::{Credential as _, JsonCredential, JsonPresentation},
+        JwsString,
+    },
+    json_ld::iref::UriBuf,
 };
 use uuid::Uuid;
 
@@ -211,17 +214,24 @@ impl CredentialPresentation for JwtVc {
             ));
         }
 
-        let vp = serde_json::json!({
-            "@context": [
-                "https://www.w3.org/2018/credentials/v1"
-            ],
-            "type": [
-                "VerifiablePresentation"
-            ],
-            "verifiableCredential": [
-                self.jws.clone()
-            ]
-        });
+        let mut vp = serde_json::to_value(JsonPresentation::new(
+            UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec()).ok(),
+            holder_id.parse().ok(),
+            vec![self.jws.clone()],
+        ))
+        .map_err(|e| OID4VPError::VpTokenCreate(format!("{e:?}")))?;
+
+        // TODO: consider upstreaming this option to SSI library.
+        // Currently handling it here as a configurable option
+        // for backwards compatbility.
+        if options.response_options.force_array_serialization {
+            if let Some(vc) = vp.get_mut("verifiableCredential") {
+                if vc.is_object() || vc.is_string() {
+                    let vc_obj = vc.take();
+                    *vc = serde_json::Value::Array(vec![vc_obj]);
+                }
+            }
+        }
 
         let iat = time::OffsetDateTime::now_utc().unix_timestamp();
         let exp = iat + 3600;
@@ -263,12 +273,11 @@ impl CredentialPresentation for JwtVc {
             .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
 
         let unsigned_vp_token_jwt = format!("{header_b64}.{body_b64}");
-        let payload = [header_b64.as_bytes(), b".", body_b64.as_bytes()].concat();
 
         // Sign the `vp_token` if a `signer` is provided in the `VpTokenOptions`.
         let signature = options
             .signer
-            .sign(payload)
+            .sign(unsigned_vp_token_jwt.as_bytes().to_vec())
             .await
             .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
 
@@ -281,24 +290,35 @@ impl CredentialPresentation for JwtVc {
 
         let signature_b64 = BASE64_URL_SAFE_NO_PAD.encode(&signature);
 
-        let jwt_vp = format!("{unsigned_vp_token_jwt}.{signature_b64}");
-
-        Ok(VpTokenItem::String(jwt_vp))
+        Ok(VpTokenItem::String(format!(
+            "{unsigned_vp_token_jwt}.{signature_b64}"
+        )))
     }
 
     fn create_descriptor_map(
         &self,
+        options: ResponseOptions,
         input_descriptor_id: impl Into<String>,
         index: Option<usize>,
     ) -> Result<DescriptorMap, OID4VPError> {
         let id = input_descriptor_id.into();
-        let vp_path = "$"
-            .parse()
-            .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
+        let vp_path = if options.remove_vp_path_prefix {
+            "$"
+        } else {
+            "$.vp"
+        }
+        .parse()
+        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
 
         let cred_path = match index {
             Some(idx) => format!("$.verifiableCredential[{idx}]"),
-            None => "$.verifiableCredential[0]".into(),
+            None => {
+                if options.force_array_serialization {
+                    "$.verifiableCredential[0]".into()
+                } else {
+                    "$.verifiableCredential".into()
+                }
+            }
         }
         .parse()
         .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;

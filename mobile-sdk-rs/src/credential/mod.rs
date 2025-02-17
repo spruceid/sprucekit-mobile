@@ -13,6 +13,7 @@ use crate::{
         error::OID4VPError,
         permission_request::RequestedField,
         presentation::{CredentialPresentation, PresentationError, PresentationOptions},
+        ResponseOptions,
     },
     CredentialType, Uuid,
 };
@@ -339,21 +340,22 @@ impl PresentableCredential {
     /// Return the descriptor map with the associated format type of the inner credential.
     pub fn create_descriptor_map(
         self: &Arc<Self>,
+        options: ResponseOptions,
         input_descriptor_id: impl Into<String>,
         index: Option<usize>,
     ) -> Result<DescriptorMap, OID4VPError> {
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
-                sd_jwt.create_descriptor_map(input_descriptor_id, index)
+                sd_jwt.create_descriptor_map(options, input_descriptor_id, index)
             }
             ParsedCredentialInner::JwtVcJson(vc) => {
-                vc.create_descriptor_map(input_descriptor_id, index)
+                vc.create_descriptor_map(options, input_descriptor_id, index)
             }
             ParsedCredentialInner::JwtVcJsonLd(vc) => {
-                vc.create_descriptor_map(input_descriptor_id, index)
+                vc.create_descriptor_map(options, input_descriptor_id, index)
             }
             ParsedCredentialInner::LdpVc(vc) => {
-                vc.create_descriptor_map(input_descriptor_id, index)
+                vc.create_descriptor_map(options, input_descriptor_id, index)
             }
             ParsedCredentialInner::MsoMdoc(_mdoc) => {
                 unimplemented!("Mdoc create descriptor map not implemented")

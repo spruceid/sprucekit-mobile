@@ -1,6 +1,6 @@
 use crate::crypto::CryptoCurveUtils;
 
-use super::{error::OID4VPError, RequestedField};
+use super::{error::OID4VPError, RequestedField, ResponseOptions};
 
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
@@ -136,6 +136,7 @@ pub trait CredentialPresentation {
     /// presentation submission.
     fn create_descriptor_map(
         &self,
+        options: ResponseOptions,
         input_descriptor_id: impl Into<String>,
         index: Option<usize>,
     ) -> Result<DescriptorMap, OID4VPError>;
@@ -208,6 +209,7 @@ pub struct PresentationOptions<'a> {
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
     /// Optional context map for the presentation.
     pub(crate) context_map: Option<HashMap<String, String>>,
+    pub(crate) response_options: &'a ResponseOptions,
 }
 
 impl MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions<'_> {
@@ -272,18 +274,6 @@ where
 }
 
 impl<'a> PresentationOptions<'a> {
-    pub(crate) fn new(
-        request: &'a AuthorizationRequestObject,
-        signer: Arc<Box<dyn PresentationSigner>>,
-        context_map: Option<HashMap<String, String>>,
-    ) -> Self {
-        Self {
-            request,
-            signer,
-            context_map,
-        }
-    }
-
     pub async fn verification_method_id(&self) -> Result<IriBuf, PresentationError> {
         self.signer
             .verification_method()

@@ -7,6 +7,7 @@ use crate::{
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
+        ResponseOptions,
     },
     CredentialType,
 };
@@ -193,6 +194,7 @@ impl CredentialPresentation for JsonVc {
 
     fn create_descriptor_map(
         &self,
+        _options: ResponseOptions,
         input_descriptor_id: impl Into<String>,
         index: Option<usize>,
     ) -> Result<DescriptorMap, OID4VPError> {

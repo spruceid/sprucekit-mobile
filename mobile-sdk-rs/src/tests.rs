@@ -2,7 +2,7 @@ use crate::{
     context::default_ld_json_context,
     credential::{json_vc::JsonVc, ParsedCredential},
     oid4vci::AsyncHttpClient,
-    oid4vp::{holder::tests::KeySigner, presentation::PresentationSigner},
+    oid4vp::{holder::tests::KeySigner, presentation::PresentationSigner, ResponseOptions},
     proof_of_possession::{generate_pop_complete, generate_pop_prepare},
 };
 
@@ -211,7 +211,7 @@ pub async fn test_vc_playground_oid4vp() {
                 .iter()
                 .map(|rf| rf.path())
                 .collect()],
-            false,
+            ResponseOptions::default(),
         )
         .await
         .expect("Failed to create permission response");
