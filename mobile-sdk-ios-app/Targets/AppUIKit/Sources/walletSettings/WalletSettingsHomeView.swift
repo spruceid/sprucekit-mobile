@@ -135,7 +135,7 @@ struct WalletSettingsHomeBody: View {
         Button {
             Task {
                 do {
-                    let keyAlias = "testMdl"
+                    let keyAlias = "mdoc_key"
                     if !KeyManager.keyExists(id: keyAlias) {
                         _ = KeyManager.generateSigningKey(id: keyAlias)
                     }

@@ -20,6 +20,7 @@ struct GenericCredentialItemDetails: View {
                                         return credential?.asJwtVc() != nil
                                             || credential?.asJsonVc() != nil
                                             || credential?.asSdJwt() != nil
+                                            || credential?.asMsoMdoc() != nil
                                     }).map { $0.value } ?? [:]
 
                                 return VStack(alignment: .leading, spacing: 20)

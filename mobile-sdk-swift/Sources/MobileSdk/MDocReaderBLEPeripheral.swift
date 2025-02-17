@@ -84,7 +84,6 @@ class MDocReaderBLEPeripheral: NSObject {
                 }
 
             case .hardwareOn: // Hardware is ready.
-                print("Advertising...")
                 setupService()
                 peripheralManager.startAdvertising([CBAdvertisementDataServiceUUIDsKey: [serviceUuid]])
                 machineState = .servicePublished
@@ -105,6 +104,7 @@ class MDocReaderBLEPeripheral: NSObject {
                 machinePendingState = .halted
 
             case .complete: // Transfer complete.
+                disconnect()
                 break
 
             case .halted: // Transfer incomplete, but we gave up.
@@ -174,8 +174,13 @@ class MDocReaderBLEPeripheral: NSObject {
                 update = true
 
             case .l2capSendingRequest: // The request is being sent over the L2CAP stream.
+                print("l2capSendingRequest...  machinePendingState = \(machinePendingState)")
                 if machinePendingState == .l2capAwaitingResponse {
                     machineState = machinePendingState
+                    update = true
+                } else if machinePendingState == .complete {
+                    machineState = machinePendingState
+                    callback.callback(message: MDocReaderBLECallback.message(incomingMessageBuffer))
                     update = true
                 }
 
@@ -277,7 +282,32 @@ class MDocReaderBLEPeripheral: NSObject {
         peripheralManager.add(service)
     }
 
-    func disconnect() {}
+    func disconnect() {
+        print("Disconnecting...")
+        peripheralManager.stopAdvertising()
+        activeStream?.close()
+        
+        if let psm = channelPSM {
+            peripheralManager.unpublishL2CAPChannel(psm)
+            channelPSM = nil
+        }
+
+        peripheralManager.removeAllServices()
+
+        incomingMessageBuffer = Data()
+        incomingMessageIndex = 0
+        requestSent = false
+
+        machineState = .initial
+        machinePendingState = .initial
+
+        peripheralManager = CBPeripheralManager(
+            delegate: self,
+            queue: nil,
+            options: [CBPeripheralManagerOptionShowPowerAlertKey: true]
+        )
+        print("✅ Disconnected")
+    }
 
     /// Write the request using the old flow.
     func writeOutgoingValue(data: Data) {
@@ -378,7 +408,6 @@ class MDocReaderBLEPeripheral: NSObject {
             let value = channelPSM?.data ?? Data()
 
             l2capC.value = value
-            print("Sending l2cap channel update \(value.uint16).")
             peripheralManager.updateValue(value, for: l2capC, onSubscribedCentrals: nil)
         }
     }
@@ -415,7 +444,6 @@ extension MDocReaderBLEPeripheral: CBPeripheralManagerDelegate {
     func peripheralManager(_: CBPeripheralManager,
                            central _: CBCentral,
                            didSubscribeTo characteristic: CBCharacteristic) {
-        print("Subscribed to \(MDocCharacteristicNameFromUUID(characteristic.uuid))")
         callback.callback(message: .connected)
         peripheralManager?.stopAdvertising()
         switch characteristic.uuid {
@@ -432,7 +460,6 @@ extension MDocReaderBLEPeripheral: CBPeripheralManagerDelegate {
         case readerStateCharacteristicId: // If we get this, we're in the original flow.
             // TODO: See the comment block in the L2CAP characteristic, above; only one of these can be valid for
             // a given exchange.
-
             machinePendingState = .stateSubscribed
 
         case _:

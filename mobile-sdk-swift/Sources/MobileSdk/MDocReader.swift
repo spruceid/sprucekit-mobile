@@ -37,7 +37,7 @@ extension MDocReader: MDocReaderBLEDelegate {
     func callback(message: MDocReaderBLECallback) {
         switch message {
         case .done(let data):
-            self.callback.update(state: .success(data))
+            self.callback.update(state: .success(.item(data)))
         case .connected:
             self.callback.update(state: .connected)
         case .error(let error):
@@ -47,7 +47,7 @@ extension MDocReader: MDocReaderBLEDelegate {
             do {
                 let responseData = try SpruceIDMobileSdkRs.handleResponse(state: self.sessionManager, response: data)
                 self.sessionManager = responseData.state
-                self.callback.update(state: .success(responseData.verifiedResponse))
+                self.callback.update(state: .success(.mdlReaderResponseData(responseData)))
             } catch {
                 self.callback.update(state: .error(.generic("\(error)")))
                 self.cancel()
@@ -75,7 +75,12 @@ public enum BLEReaderSessionState {
     ///   - 0: The number of chunks received to far
     case downloadProgress(Int)
     /// App should display a success message and offer to close the page
-    case success([String: [String: MDocItem]])
+    case success(BLEReaderSessionStateSuccess)
+}
+
+public enum BLEReaderSessionStateSuccess {
+    case item([String: [String: MDocItem]])
+    case mdlReaderResponseData(MdlReaderResponseData)
 }
 
 public enum BleReaderSessionError {
