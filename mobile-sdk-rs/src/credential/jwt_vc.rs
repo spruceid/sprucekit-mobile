@@ -4,6 +4,7 @@ use crate::{
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
+        PresentationError, ResponseOptions,
     },
     CredentialType,
 };
@@ -35,6 +36,7 @@ pub struct JwtVc {
     credential_string: String,
     header_json_string: String,
     payload_json_string: String,
+    payload_json: serde_json::Value,
     key_alias: Option<KeyAlias>,
 }
 
@@ -142,6 +144,10 @@ impl JwtVc {
         .map_err(|_| JwtVcInitError::CredentialClaimDecoding)?;
         let credential_string = serde_json::to_string(&credential)
             .map_err(|_| JwtVcInitError::CredentialStringEncoding)?;
+
+        let payload_json = serde_json::from_str(&payload_json_string)
+            .map_err(|_| JwtVcInitError::PayloadDecoding)?;
+
         Ok(Arc::new(Self {
             id,
             jws,
@@ -149,6 +155,7 @@ impl JwtVc {
             credential_string,
             header_json_string,
             payload_json_string,
+            payload_json,
             key_alias,
         }))
     }
@@ -168,16 +175,16 @@ impl JwtVc {
 }
 
 impl CredentialPresentation for JwtVc {
-    type Credential = JsonCredential;
+    type Credential = serde_json::Value;
     type CredentialFormat = ClaimFormatDesignation;
     type PresentationFormat = ClaimFormatDesignation;
 
     fn credential(&self) -> &Self::Credential {
-        &self.credential
+        &self.payload_json
     }
 
     fn presentation_format(&self) -> Self::PresentationFormat {
-        ClaimFormatDesignation::JwtVp
+        ClaimFormatDesignation::JwtVpJson
     }
 
     fn credential_format(&self) -> Self::CredentialFormat {
@@ -191,13 +198,40 @@ impl CredentialPresentation for JwtVc {
         _selected_fields: Option<Vec<String>>,
         _limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError> {
-        let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec()).ok();
-        let vm = options.verification_method_id().await?;
-        let holder_id = options.signer.did().parse().ok();
+        let vm = options.verification_method_id().await?.to_string();
+        let holder_id = options.signer.did();
 
-        // NOTE: JwtVc types are ALWAYS VCDM 1.1,
-        // therefore using the v1::syntax::JsonPresentation type.
-        let vp = JsonPresentation::new(id, holder_id, vec![self.credential.clone()]);
+        let subject = self
+            .credential()
+            .credential_subjects
+            .iter()
+            .flat_map(|obj| obj.get("id"))
+            .find(|id| id.as_str() == Some(&holder_id));
+
+        if subject.is_none() {
+            return Err(OID4VPError::VpTokenCreate(
+                "supplied verificationMethod does not match the subject of the jwt-vc".into(),
+            ));
+        }
+
+        let mut vp = serde_json::to_value(JsonPresentation::new(
+            UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec()).ok(),
+            holder_id.parse().ok(),
+            vec![self.jws.clone()],
+        ))
+        .map_err(|e| OID4VPError::VpTokenCreate(format!("{e:?}")))?;
+
+        // TODO: consider upstreaming this option to SSI library.
+        // Currently handling it here as a configurable option
+        // for backwards compatbility.
+        if options.response_options.force_array_serialization {
+            if let Some(vc) = vp.get_mut("verifiableCredential") {
+                if vc.is_object() || vc.is_string() {
+                    let vc_obj = vc.take();
+                    *vc = serde_json::Value::Array(vec![vc_obj]);
+                }
+            }
+        }
 
         let iat = time::OffsetDateTime::now_utc().unix_timestamp();
         let exp = iat + 3600;
@@ -207,11 +241,10 @@ impl CredentialPresentation for JwtVc {
         let nonce = options.nonce();
         let subject = options.subject();
 
-        let key_id = Some(vm.to_string());
-        let algorithm = serde_json::from_str::<ssi::jwk::Algorithm>(&options.signer.cryptosuite())
-            .map_err(|e| {
-                CredentialEncodingError::VpToken(format!("Invalid Signing Algorithm: {e:?}"))
-            })?;
+        let key_id = Some(vm);
+        let algorithm = options.signer.algorithm().try_into().map_err(|e| {
+            CredentialEncodingError::VpToken(format!("Invalid Signing Algorithm: {e:?}"))
+        })?;
 
         let header = Header {
             // NOTE: The algorithm should match the signing
@@ -235,8 +268,6 @@ impl CredentialPresentation for JwtVc {
             "vp": vp,
         });
 
-        println!("Claims: {claims:?}");
-
         let body_b64 = serde_json::to_vec(&claims)
             .map(|b| BASE64_URL_SAFE_NO_PAD.encode(b))
             .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
@@ -250,6 +281,13 @@ impl CredentialPresentation for JwtVc {
             .await
             .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
 
+        let signature = options
+            .curve_utils()
+            .map(|utils| utils.ensure_raw_fixed_width_signature_encoding(signature))?
+            .ok_or(OID4VPError::Presentation(PresentationError::Signing(
+                "Unsupported signature encoding.".into(),
+            )))?;
+
         let signature_b64 = BASE64_URL_SAFE_NO_PAD.encode(&signature);
 
         Ok(VpTokenItem::String(format!(
@@ -259,24 +297,35 @@ impl CredentialPresentation for JwtVc {
 
     fn create_descriptor_map(
         &self,
+        options: ResponseOptions,
         input_descriptor_id: impl Into<String>,
         index: Option<usize>,
     ) -> Result<DescriptorMap, OID4VPError> {
-        let path = match index {
-            Some(idx) => format!("$.verifiableCredential[{idx}]"),
-            None => "$.verifiableCredential".into(),
+        let id = input_descriptor_id.into();
+        let vp_path = if options.remove_vp_path_prefix {
+            "$"
+        } else {
+            "$.vp"
         }
         .parse()
         .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
 
-        let id = input_descriptor_id.into();
-        let vp_path = "$.vp"
-            .parse()
-            .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
+        let cred_path = match index {
+            Some(idx) => format!("$.verifiableCredential[{idx}]"),
+            None => {
+                if options.force_array_serialization {
+                    "$.verifiableCredential[0]".into()
+                } else {
+                    "$.verifiableCredential".into()
+                }
+            }
+        }
+        .parse()
+        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
 
         Ok(
             DescriptorMap::new(id.clone(), self.presentation_format(), vp_path)
-                .set_path_nested(DescriptorMap::new(id, self.credential_format(), path)),
+                .set_path_nested(DescriptorMap::new(id, self.credential_format(), cred_path)),
         )
     }
 }

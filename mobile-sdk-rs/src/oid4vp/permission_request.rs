@@ -34,6 +34,10 @@ pub enum PermissionRequestError {
     #[error("Permission denied for requested presentation.")]
     PermissionDenied,
 
+    /// No credentials found matching the presentation definition.
+    #[error("No credentials found matching the presentation definition.")]
+    NoCredentialsFound,
+
     /// Credential not found for input descriptor id.
     #[error("Credential not found for input descriptor id: {0}")]
     CredentialNotFound(String),
@@ -107,6 +111,8 @@ impl From<openid4vp::core::input_descriptor::RequestedField<'_>> for RequestedFi
     }
 }
 
+/// Public methods for the RequestedField struct.
+#[uniffi::export]
 impl RequestedField {
     /// Return the unique ID for the request field.
     pub fn id(&self) -> Uuid {
@@ -114,14 +120,10 @@ impl RequestedField {
     }
 
     /// Return the input descriptor id the requested field belongs to
-    pub fn input_descriptor_id(&self) -> &String {
-        &self.input_descriptor_id
+    pub fn input_descriptor_id(&self) -> String {
+        self.input_descriptor_id.clone()
     }
-}
 
-/// Public methods for the RequestedField struct.
-#[uniffi::export]
-impl RequestedField {
     /// Return the field name
     pub fn name(&self) -> Option<String> {
         self.name.clone()
@@ -204,11 +206,33 @@ impl PermissionRequest {
         .requested_fields(&self.definition)
     }
 
+    /// Return the client ID for the authorization request.
+    ///
+    /// This can be used by the user interface to show who
+    /// is requesting the presentation from the wallet holder.
+    pub fn client_id(&self) -> String {
+        self.request.client_id().0.clone()
+    }
+
+    /// Return the domain name of the redirect URI.
+    ///
+    /// This can be used by the user interface to show where
+    /// the presentation will be sent. It may also be used to show
+    /// the domain name of the verifier as an alternative to the client_id.
+    pub fn domain(&self) -> Option<String> {
+        self.request.return_uri().domain().map(ToOwned::to_owned)
+    }
+
     /// Construct a new permission response for the given credential.
+    ///
+    /// NOTE: `should_strip_quotes` is a non-normative setting to determine
+    /// the behavior of removing extra quotations around a JSON
+    /// string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
     pub async fn create_permission_response(
         &self,
         selected_credentials: Vec<Arc<PresentableCredential>>,
         selected_fields: Vec<Vec<String>>,
+        response_options: ResponseOptions,
     ) -> Result<Arc<PermissionResponse>, OID4VPError> {
         log::debug!("Creating Permission Response");
 
@@ -248,8 +272,12 @@ impl PermissionRequest {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Set options for constructing a verifiable presentation.
-        let options =
-            PresentationOptions::new(&self.request, self.signer.clone(), self.context_map.clone());
+        let options = PresentationOptions {
+            request: &self.request,
+            signer: self.signer.clone(),
+            context_map: self.context_map.clone(),
+            response_options: &response_options,
+        };
 
         let token_items = futures::future::try_join_all(
             selected_credentials
@@ -259,11 +287,13 @@ impl PermissionRequest {
         .await?;
 
         let vp_token = VpToken(token_items);
+
         Ok(Arc::new(PermissionResponse {
             selected_credentials,
             presentation_definition: self.definition.clone(),
             authorization_request: self.request.clone(),
             vp_token,
+            options: response_options,
         }))
     }
 
@@ -271,6 +301,33 @@ impl PermissionRequest {
     pub fn purpose(&self) -> Option<String> {
         self.definition.purpose().map(ToOwned::to_owned)
     }
+}
+
+/// Non-normative response options used to provide configurable interface
+/// for handling variations in the processing of the verifiable presentation
+/// payloads in various external verifiers.
+#[derive(Debug, Clone, Default, uniffi::Record)]
+pub struct ResponseOptions {
+    /// This is an non-normative setting to determine
+    /// the behavior of removing extra quotations around a JSON
+    /// string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
+    pub should_strip_quotes: bool,
+    /// Boolean option of whether to use `array_or_value` serialization options
+    /// for the verifiable presentation.
+    ///
+    /// This is provided as an option to force serializing a single verifiable
+    /// credential as a member of an array, versus as a singular option, per
+    /// implementation.
+    ///
+    /// NOTE: This may be removed in the future as the oid4vp specification becomes
+    /// more solidified around `vp_token` presentation.
+    ///
+    /// These options are provided as configurable parameters to maintain backwards
+    /// compatibility with verifier implementation versions.
+    pub force_array_serialization: bool,
+    /// Remove the `$.vp` path prefix for the descriptor map for the verifiable credential.
+    /// This is non-normative option, e.g. `$.vp` -> `$`
+    pub remove_vp_path_prefix: bool,
 }
 
 /// This struct is used to represent the response to a permission request.
@@ -287,6 +344,7 @@ pub struct PermissionResponse {
     pub presentation_definition: PresentationDefinition,
     pub authorization_request: AuthorizationRequestObject,
     pub vp_token: VpToken,
+    pub options: ResponseOptions,
 }
 
 #[uniffi::export]
@@ -294,6 +352,14 @@ impl PermissionResponse {
     /// Return the selected credentials for the permission response.
     pub fn selected_credentials(&self) -> Vec<Arc<PresentableCredential>> {
         self.selected_credentials.clone()
+    }
+
+    /// Return the signed (prepared) vp token as a JSON-encoded utf-8 string.
+    ///
+    /// This is helpful for debugging purposes, and is not intended to be used
+    /// for submitting the response to the verifier.
+    pub fn vp_token(&self) -> Result<String, OID4VPError> {
+        serde_json::to_string(&self.vp_token).map_err(|e| OID4VPError::Token(format!("{e:?}")))
     }
 }
 
@@ -322,10 +388,14 @@ impl PermissionResponse {
                 // This will inform the descriptor map to use the credential as a
                 // root path, instead of a indexed path.
                 if idx == 0 && idx == self.presentation_definition.input_descriptors().len() - 1 {
-                    return cred.create_descriptor_map(descriptor.id.clone(), None);
+                    return cred.create_descriptor_map(
+                        self.options.clone(),
+                        descriptor.id.clone(),
+                        None,
+                    );
                 }
 
-                cred.create_descriptor_map(descriptor.id.clone(), Some(idx))
+                cred.create_descriptor_map(self.options.clone(), descriptor.id.clone(), Some(idx))
             })
             .collect()
     }
@@ -334,8 +404,14 @@ impl PermissionResponse {
     pub fn authorization_response(&self) -> Result<AuthorizationResponse, OID4VPError> {
         Ok(AuthorizationResponse::Unencoded(
             UnencodedAuthorizationResponse {
-                vp_token: self.vp_token.clone(),
                 presentation_submission: self.create_presentation_submission()?,
+                vp_token: self.vp_token.clone(),
+                state: self
+                    .authorization_request
+                    .state()
+                    .transpose()
+                    .map_err(|e| OID4VPError::ResponseSubmission(format!("{e:?}")))?,
+                should_strip_quotes: self.options.should_strip_quotes,
             },
         ))
     }
