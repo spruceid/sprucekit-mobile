@@ -73,6 +73,7 @@ android_logger = "0.13"
 
 [dev-dependencies]
 rstest = "0.22.0"
+test-log = { version = "0.2.17", features = ["trace"] }
 uniffi = { version = "0.28.1", features = ["bindgen-tests"] }
 
 [build-dependencies]

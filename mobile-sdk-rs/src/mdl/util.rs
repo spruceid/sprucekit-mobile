@@ -27,7 +27,7 @@ use ssi::crypto::rand;
 use time::OffsetDateTime;
 use x509_cert::{
     builder::{Builder, CertificateBuilder},
-    der::asn1::OctetString,
+    der::{asn1::OctetString, DecodePem as _},
     ext::pkix::{
         crl::dp::DistributionPoint,
         name::{DistributionPointName, GeneralName},
@@ -258,7 +258,9 @@ fn prepare_mdoc(pub_key: PublicKey) -> Result<isomdl::issuance::mdoc::Builder> {
 }
 
 fn setup_certificate_chain() -> Result<(Certificate, p256::ecdsa::SigningKey)> {
-    let iaca_name: Name = "CN=SpruceID Test Certificate Root,C=US,ST=NY,O=SpruceID".parse()?;
+    let iaca_cert_pem = include_str!("../../tests/res/mdl/utrecht-certificate.pem");
+    let iaca_cert = Certificate::from_pem(iaca_cert_pem)?;
+    let iaca_name: Name = iaca_cert.tbs_certificate.subject;
     let key_pem = include_str!("../../tests/res/mdl/utrecht-key.pem");
     let iaca_key = p256::ecdsa::SigningKey::from_pkcs8_pem(key_pem)?;
 
@@ -296,7 +298,7 @@ where
         rand::random::<u64>().into(),
         // Document signer certificate valid for sixty days.
         Validity::from_now(Duration::from_secs(60 * 60 * 24 * 60))?,
-        "CN=SpruceID Test DS,C=US".parse()?,
+        "CN=SpruceID Test DS,C=US,ST=NY,O=SpruceID".parse()?,
         spki,
         iaca_key,
     )?;
@@ -316,7 +318,11 @@ where
 
     builder.add_extension(&CrlDistributionPoints(vec![DistributionPoint {
         distribution_point: Some(DistributionPointName::FullName(vec![
-            GeneralName::UniformResourceIdentifier("https://interopevent.spruceid.com/interop.crl".to_string().try_into()?),
+            GeneralName::UniformResourceIdentifier(
+                "https://interopevent.spruceid.com/interop.crl"
+                    .to_string()
+                    .try_into()?,
+            ),
         ])),
         reasons: None,
         crl_issuer: None,
