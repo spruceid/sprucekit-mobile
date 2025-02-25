@@ -3,7 +3,9 @@ import SwiftUI
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 
-struct VerifyMDoc: Hashable {}
+struct VerifyMDoc: Hashable {
+    var checkAgeOver18: Bool
+}
 
 let trustAnchorCerts = [
             """
@@ -87,8 +89,15 @@ let defaultElements = [
     ]
 ]
 
+let ageOver18Elements = [
+    "org.iso.18013.5.1": [
+        "age_over_18": false
+    ]
+]
+
 public struct VerifyMDocView: View {
     @Binding var path: NavigationPath
+    var checkAgeOver18: Bool = false
     
     @State private var scanned: String?
     
@@ -107,7 +116,7 @@ public struct VerifyMDocView: View {
         } else {
             MDocReaderView(
                 uri: scanned!,
-                requestedItems: defaultElements,
+                requestedItems: !checkAgeOver18 ? defaultElements : ageOver18Elements,
                 trustAnchorRegistry: trustAnchorCerts,
                 onCancel: onCancel,
                 path: $path

@@ -55,8 +55,13 @@ public struct ContentView: View {
                     .navigationDestination(for: VerifyVC.self) { _ in
                         VerifyVCView(path: $path)
                     }
-                    .navigationDestination(for: VerifyMDoc.self) { _ in
-                        VerifyMDocView(path: $path)
+                    .navigationDestination(for: VerifyMDoc.self) {
+                        verifyMDocParams in
+                        VerifyMDocView(
+                            path: $path,
+                            checkAgeOver18: verifyMDocParams.checkAgeOver18
+                                ?? false
+                        )
                     }
                     .navigationDestination(for: VerifyDelegatedOid4vp.self) {
                         verifyDelegatedOid4vpParams in
