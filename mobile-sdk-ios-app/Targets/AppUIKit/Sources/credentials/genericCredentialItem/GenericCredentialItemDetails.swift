@@ -13,6 +13,7 @@ struct GenericCredentialItemDetails: View {
                         CardRenderingDetailsField(
                             keys: [],
                             formatter: { (values) in
+                                print(values)
                                 let credential =
                                     values.first(where: {
                                         let credential = credentialPack.get(
@@ -21,6 +22,7 @@ struct GenericCredentialItemDetails: View {
                                             || credential?.asJsonVc() != nil
                                             || credential?.asSdJwt() != nil
                                             || credential?.asMsoMdoc() != nil
+                                            || credential?.asCwt() != nil
                                     }).map { $0.value } ?? [:]
 
                                 return VStack(alignment: .leading, spacing: 20)

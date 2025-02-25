@@ -28,6 +28,7 @@ struct GenericCredentialItemListItem: View {
                                     || credential?.asJsonVc() != nil
                                     || credential?.asSdJwt() != nil
                                     || credential?.asMsoMdoc() != nil
+                                    || credential?.asCwt() != nil
 
                             }).map {
                                 // Assume mDL.

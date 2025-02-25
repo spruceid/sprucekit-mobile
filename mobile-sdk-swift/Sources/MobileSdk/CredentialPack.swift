@@ -41,6 +41,8 @@ public class CredentialPack {
             return credentials
         } else if let credentials = try? addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {
             return credentials
+        } else if let credentials = try? addCwt(cwt: Cwt.newFromBase10(payload: rawCredential)) {
+            return credentials
         } else if let credentials = try? addMDoc(mdoc: Mdoc.fromStringifiedDocument(
             stringifiedDocument: rawCredential,
             keyAlias: UUID().uuidString)
@@ -49,6 +51,12 @@ public class CredentialPack {
         } else {
             throw CredentialPackError.credentialParsing(reason: "Couldn't parse credential: \(rawCredential)")
         }
+    }
+    
+    /// Add a Cwt to the CredentialPack
+    public func addCwt(cwt: Cwt) -> [ParsedCredential] {
+        credentials.append(ParsedCredential.newCwt(cwt: cwt))
+        return credentials
     }
 
     /// Add a JsonVc to the CredentialPack.
@@ -132,6 +140,12 @@ public class CredentialPack {
                             claims = jwtVc.credentialClaims()
                         } else {
                             claims = jwtVc.credentialClaims(containing: claimNames)
+                        }
+                    } else if let cwt = credential.asCwt() {
+                        if claimNames.isEmpty {
+                            claims = cwt.credentialClaims()
+                        } else {
+                            claims = cwt.credentialClaims(containing: claimNames)
                         }
                     } else if let jsonVc = credential.asJsonVc() {
                         if claimNames.isEmpty {

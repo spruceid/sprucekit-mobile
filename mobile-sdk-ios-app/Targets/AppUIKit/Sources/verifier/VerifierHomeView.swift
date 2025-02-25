@@ -96,7 +96,7 @@ struct VerifierHomeBody: View {
             ).onTapGesture {
                 path.append(VerifyVC())
             }
-
+            
             VerifierListItem(
                 title: "Mobile Driver's License",
                 description:
@@ -104,6 +104,15 @@ struct VerifierHomeBody: View {
                 type: VerifierListItemTagType.SCAN_QR_CODE
             ).onTapGesture {
                 path.append(VerifyMDoc())
+            }
+            
+            VerifierListItem(
+                title: "CWT",
+                description:
+                    "Verifies a CWT by reading a QR code",
+                type: VerifierListItemTagType.SCAN_QR_CODE
+            ).onTapGesture {
+                path.append(VerifyCwt())
             }
 
             ForEach(verificationMethods, id: \.self.id) { verificationMethod in

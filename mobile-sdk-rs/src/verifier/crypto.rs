@@ -1,7 +1,7 @@
 use uniffi::deps::anyhow::{anyhow, Context};
 use x509_cert::der::{asn1, Encode};
 
-// TODO: Replace this with a foreign function interface into native code.
+#[uniffi::export(callback_interface)]
 pub trait Crypto {
     fn p256_verify(
         &self,
@@ -9,6 +9,17 @@ pub trait Crypto {
         payload: Vec<u8>,
         signature: Vec<u8>,
     ) -> VerificationResult;
+}
+
+impl Crypto for Box<dyn Crypto> {
+    fn p256_verify(
+        &self,
+        certificate_der: Vec<u8>,
+        payload: Vec<u8>,
+        signature: Vec<u8>,
+    ) -> VerificationResult {
+        Crypto::p256_verify(self.as_ref(), certificate_der, payload, signature)
+    }
 }
 
 #[derive(Debug, uniffi::Enum)]
