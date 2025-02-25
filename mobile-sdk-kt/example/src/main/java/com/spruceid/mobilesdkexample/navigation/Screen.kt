@@ -5,6 +5,7 @@ const val VERIFY_DL_PATH = "verify_dl"
 const val VERIFY_EA_PATH = "verify_ea"
 const val VERIFY_VC_PATH = "verify_vc"
 const val VERIFY_MDOC_PATH = "verify_mdoc"
+const val VERIFY_MDL_OVER_18_PATH = "verify_mdl_over_18"
 const val VERIFY_DELEGATED_OID4VP_PATH = "verify_delegated_oid4vp/{id}"
 const val VERIFIER_SETTINGS_HOME_PATH = "verifier_settings_home"
 const val VERIFIER_SETTINGS_ACTIVITY_LOG = "verifier_settings_activity_log"
@@ -24,6 +25,7 @@ sealed class Screen(val route: String) {
     object VerifyEAScreen : Screen(VERIFY_EA_PATH)
     object VerifyVCScreen : Screen(VERIFY_VC_PATH)
     object VerifyMDocScreen : Screen(VERIFY_MDOC_PATH)
+    object VerifyMDlOver18Screen : Screen(VERIFY_MDL_OVER_18_PATH)
     object VerifyDelegatedOid4vpScreen : Screen(VERIFY_DELEGATED_OID4VP_PATH)
     object VerifierSettingsHomeScreen : Screen(VERIFIER_SETTINGS_HOME_PATH)
     object VerifierSettingsActivityLogScreen : Screen(VERIFIER_SETTINGS_ACTIVITY_LOG)
