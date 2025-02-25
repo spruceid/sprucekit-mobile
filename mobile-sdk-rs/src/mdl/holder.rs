@@ -410,7 +410,7 @@ mod tests {
         .try_into()
         .unwrap();
         let trust_anchor = TrustAnchorRegistry::from_pem_certificates(vec![PemTrustAnchor {
-            certificate_pem: include_str!("../../tests/res/mdl/iaca-certificate.pem").to_string(),
+            certificate_pem: include_str!("../../tests/res/mdl/utrecht-certificate.pem").to_string(),
             purpose: TrustPurpose::Iaca,
         }])
         .unwrap();
@@ -481,7 +481,7 @@ mod tests {
             presentation_session.qr_code_uri.clone(),
             namespaces,
             Some(vec![include_str!(
-                "../../tests/res/mdl/iaca-certificate.pem"
+                "../../tests/res/mdl/utrecht-certificate.pem"
             )
             .to_string()]),
         )

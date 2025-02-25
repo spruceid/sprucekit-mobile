@@ -258,8 +258,8 @@ fn prepare_mdoc(pub_key: PublicKey) -> Result<isomdl::issuance::mdoc::Builder> {
 }
 
 fn setup_certificate_chain() -> Result<(Certificate, p256::ecdsa::SigningKey)> {
-    let iaca_name: Name = "CN=SpruceID Test IACA,C=US".parse()?;
-    let key_pem = include_str!("../../tests/res/mdl/iaca-key.pem");
+    let iaca_name: Name = "CN=SpruceID Test Certificate Root,C=US,ST=NY,O=SpruceID".parse()?;
+    let key_pem = include_str!("../../tests/res/mdl/utrecht-key.pem");
     let iaca_key = p256::ecdsa::SigningKey::from_pkcs8_pem(key_pem)?;
 
     let ds_key = p256::ecdsa::SigningKey::random(&mut rand::thread_rng());
@@ -311,12 +311,12 @@ where
     builder.add_extension(&KeyUsage(KeyUsages::DigitalSignature.into()))?;
 
     builder.add_extension(&IssuerAltName(vec![GeneralName::Rfc822Name(
-        "test@example.com".to_string().try_into()?,
+        "isointerop@spruceid.com".to_string().try_into()?,
     )]))?;
 
     builder.add_extension(&CrlDistributionPoints(vec![DistributionPoint {
         distribution_point: Some(DistributionPointName::FullName(vec![
-            GeneralName::UniformResourceIdentifier("http://example.com".to_string().try_into()?),
+            GeneralName::UniformResourceIdentifier("https://interopevent.spruceid.com/interop.crl".to_string().try_into()?),
         ])),
         reasons: None,
         crl_issuer: None,
