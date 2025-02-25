@@ -26,7 +26,7 @@ class MDocReaderBLEPeripheral: NSObject {
     var readCharacteristic: CBMutableCharacteristic?
     var stateCharacteristic: CBMutableCharacteristic?
     var identCharacteristic: CBMutableCharacteristic?
-    var l2capCharacteristic: CBMutableCharacteristic?
+//    var l2capCharacteristic: CBMutableCharacteristic?
     var requestData: Data
     var requestSent = false
     var maximumCharacteristicSize: Int?
@@ -38,7 +38,7 @@ class MDocReaderBLEPeripheral: NSObject {
 
     /// If this is `true`, we offer an L2CAP characteristic and set up an L2CAP stream.  If it is `false` we do neither
     /// of these things, and use the old flow.
-    var useL2CAP = true
+    var useL2CAP = false
 
     private var channelPSM: UInt16? {
         didSet {
@@ -254,29 +254,29 @@ class MDocReaderBLEPeripheral: NSObject {
                                                       value: bleIdent,
                                                       permissions: [.readable])
         // wallet-sdk-kt is failing if this is present
-        if useL2CAP {
-            // 18013-5 doesn't require .indicate, but without it we don't seem to be able to propagate the PSM
-            // through to central.
-            l2capCharacteristic = CBMutableCharacteristic(type: readerL2CAPCharacteristicId,
-                                                          properties: [.read, .indicate, .notify],
-                                                          value: nil,
-                                                          permissions: [.readable])
-
-            if let stateC = stateCharacteristic,
-               let readC = readCharacteristic,
-               let writeC = writeCharacteristic,
-               let identC = identCharacteristic,
-               let l2capC = l2capCharacteristic {
-                service.characteristics = (service.characteristics ?? []) + [stateC, readC, writeC, identC, l2capC]
-            }
-        } else {
+//        if useL2CAP {
+//            // 18013-5 doesn't require .indicate, but without it we don't seem to be able to propagate the PSM
+//            // through to central.
+//            l2capCharacteristic = CBMutableCharacteristic(type: readerL2CAPCharacteristicId,
+//                                                          properties: [.read, .indicate, .notify],
+//                                                          value: nil,
+//                                                          permissions: [.readable])
+//
+//            if let stateC = stateCharacteristic,
+//               let readC = readCharacteristic,
+//               let writeC = writeCharacteristic,
+//               let identC = identCharacteristic,
+//               let l2capC = l2capCharacteristic {
+//                service.characteristics = (service.characteristics ?? []) + [stateC, readC, writeC, identC, l2capC]
+//            }
+//        } else {
             if let stateC = stateCharacteristic,
                let readC = readCharacteristic,
                let writeC = writeCharacteristic,
                let identC = identCharacteristic {
                 service.characteristics = (service.characteristics ?? []) + [stateC, readC, writeC, identC]
             }
-        }
+//        }
         peripheralManager.add(service)
     }
 
@@ -400,14 +400,14 @@ class MDocReaderBLEPeripheral: NSObject {
 
     /// Update the channel PSM.
     private func updatePSM() {
-        l2capCharacteristic?.value = channelPSM?.data
-
-        if let l2capC = l2capCharacteristic {
-            let value = channelPSM?.data ?? Data()
-
-            l2capC.value = value
-            peripheralManager.updateValue(value, for: l2capC, onSubscribedCentrals: nil)
-        }
+//        l2capCharacteristic?.value = channelPSM?.data
+//
+//        if let l2capC = l2capCharacteristic {
+//            let value = channelPSM?.data ?? Data()
+//
+//            l2capC.value = value
+//            peripheralManager.updateValue(value, for: l2capC, onSubscribedCentrals: nil)
+//        }
     }
 }
 
@@ -445,15 +445,15 @@ extension MDocReaderBLEPeripheral: CBPeripheralManagerDelegate {
         callback.callback(message: .connected)
         peripheralManager?.stopAdvertising()
         switch characteristic.uuid {
-        case l2capCharacteristic: // If we get this, we're in the L2CAP flow.
-            // TODO: If this gets hit after a subscription to the State characteristic, something has gone wrong;
-            // the holder should choose one flow or the other.  We have options here:
-            //
-            // - ignore the corner case -- what the code is doing now, not ideal
-            // - error out -- the holder is doing something screwy, we want no part of it
-            // - try to adapt -- send the data a second time, listen on both L2CAP and normal - probably a bad idea;
-            //   it will make us mildly more tolerant of out-of-spec holders, but may increase our attack surface
-            machinePendingState = .l2capRead
+//        case l2capCharacteristic: // If we get this, we're in the L2CAP flow.
+//            // TODO: If this gets hit after a subscription to the State characteristic, something has gone wrong;
+//            // the holder should choose one flow or the other.  We have options here:
+//            //
+//            // - ignore the corner case -- what the code is doing now, not ideal
+//            // - error out -- the holder is doing something screwy, we want no part of it
+//            // - try to adapt -- send the data a second time, listen on both L2CAP and normal - probably a bad idea;
+//            //   it will make us mildly more tolerant of out-of-spec holders, but may increase our attack surface
+//            machinePendingState = .l2capRead
 
         case readerStateCharacteristicId: // If we get this, we're in the original flow.
             // TODO: See the comment block in the L2CAP characteristic, above; only one of these can be valid for

@@ -1,12 +1,11 @@
 package com.spruceid.mobile.sdk
 
-import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.util.Log
-import java.util.*
+import java.util.UUID
 
 /**
  * The role of central is to scan for a peripheral and connect. AKA holder.
@@ -170,7 +169,7 @@ class TransportBleCentralClientHolder(
             characteristicClient2ServerUuid,
             characteristicServer2ClientUuid,
             characteristicIdentUuid,
-            characteristicL2CAPUuid
+            null
         )
 
         bleCentral = BleCentral(bleCentralCallback, serviceUUID, bluetoothAdapter!!)

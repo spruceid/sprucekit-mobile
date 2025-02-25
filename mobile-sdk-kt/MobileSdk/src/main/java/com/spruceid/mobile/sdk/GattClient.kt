@@ -579,7 +579,6 @@ class GattClient(
                 var message: ByteArray?
                 try {
                     message = responseData.poll(500, TimeUnit.MILLISECONDS)
-                    reportLog("????? ${message}")
                     if (message == null) {
                         continue
                     }
@@ -697,9 +696,11 @@ class GattClient(
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && characteristicL2CAP != null) {
                 if (useL2CAP == UseL2CAP.IfAvailable) {
+                    reportLog("Using L2CAP if available: $useL2CAP")
                     useL2CAP = UseL2CAP.Yes
                 }
             } else {
+                reportLog("Using L2CAP: $useL2CAP")
                 useL2CAP = UseL2CAP.No
             }
 

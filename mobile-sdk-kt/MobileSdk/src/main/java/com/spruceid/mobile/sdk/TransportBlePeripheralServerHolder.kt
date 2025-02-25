@@ -1,13 +1,11 @@
 package com.spruceid.mobile.sdk
 
-import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
 import android.util.Log
-import androidx.annotation.NonNull
-import java.util.*
+import java.util.UUID
 
 /**
  * The responsibility of this class is to advertise data and be available for connection. AKA Holder.
@@ -121,7 +119,7 @@ class TransportBlePeripheralServerHolder(
             characteristicClient2ServerUuid,
             characteristicServer2ClientUuid,
             null,
-            characteristicL2CAPUuid
+            null
         )
 
         blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID, bluetoothAdapter!!)

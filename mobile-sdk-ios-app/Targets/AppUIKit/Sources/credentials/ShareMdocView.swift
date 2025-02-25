@@ -151,7 +151,10 @@ class ShareViewDelegate: ObservableObject {
 
     init(credentials: CredentialStore) async {
         self.sessionManager = await credentials.presentMdocBLE(
-            deviceEngagement: .QRCode, callback: self)!
+            deviceEngagement: .QRCode,
+            callback: self,
+            useL2CAP: false
+        )!
     }
 
     func cancel() {
