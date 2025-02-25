@@ -5,14 +5,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -139,6 +137,13 @@ val defaultElements: Map<String, Map<String, Boolean>> =
         )
     )
 
+val ageOver18Elements: Map<String, Map<String, Boolean>> =
+    mapOf(
+        "org.iso.18013.5.1" to mapOf(
+            "age_over_18" to false,
+        )
+    )
+
 enum class State {
     ENABLE_BLUETOOTH,
     SCANNING,
@@ -147,13 +152,14 @@ enum class State {
 }
 
 @OptIn(
-    ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3Api::class,
     ExperimentalPermissionsApi::class
 )
 @Composable
 fun VerifyMDocView(
     navController: NavController,
     verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
+    checkAgeOver18: Boolean = false
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -232,11 +238,6 @@ fun VerifyMDocView(
         }
     }
 
-    fun elementMapToList(elements: Map<String, Map<String, Boolean>>): List<String> {
-        val elementList = listOf(elements.values.map { it.keys.toList() })
-        return elementList.flatten().flatten()
-    }
-
     fun onRead(content: String) {
         scanProcessState = State.TRANSMITTING
         checkAndRequestBluetoothPermissions(
@@ -249,7 +250,11 @@ fun VerifyMDocView(
             reader = IsoMdlReader(
                 bleCallback,
                 content,
-                defaultElements,
+                if (checkAgeOver18) {
+                    ageOver18Elements
+                } else {
+                    defaultElements
+                },
                 trustAnchorCerts,
                 bluetooth!!,
                 context
