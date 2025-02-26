@@ -372,7 +372,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn end_to_end_ble_presentment_holder() {
         let key_alias = KeyAlias(Uuid::new_v4().to_string());
         let key_manager = Arc::new(RustTestKeyManager::default());
@@ -410,7 +410,8 @@ mod tests {
         .try_into()
         .unwrap();
         let trust_anchor = TrustAnchorRegistry::from_pem_certificates(vec![PemTrustAnchor {
-            certificate_pem: include_str!("../../tests/res/mdl/iaca-certificate.pem").to_string(),
+            certificate_pem: include_str!("../../tests/res/mdl/utrecht-certificate.pem")
+                .to_string(),
             purpose: TrustPurpose::Iaca,
         }])
         .unwrap();
@@ -444,7 +445,7 @@ mod tests {
         assert_eq!(res.errors, BTreeMap::new());
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn end_to_end_ble_presentment_holder_reader() {
         let key_alias = KeyAlias(Uuid::new_v4().to_string());
         let key_manager = Arc::new(RustTestKeyManager::default());
@@ -481,7 +482,7 @@ mod tests {
             presentation_session.qr_code_uri.clone(),
             namespaces,
             Some(vec![include_str!(
-                "../../tests/res/mdl/iaca-certificate.pem"
+                "../../tests/res/mdl/utrecht-certificate.pem"
             )
             .to_string()]),
         )
@@ -506,7 +507,8 @@ mod tests {
         let key = key_manager.get_signing_key(key_alias).unwrap();
         let signature = key.sign(signing_payload).unwrap();
         let response = presentation_session.submit_response(signature).unwrap();
-        let _ = crate::reader::handle_response(reader_session_data.state, response).unwrap();
+        let res = crate::reader::handle_response(reader_session_data.state, response).unwrap();
+        assert_eq!(res.errors, None);
 
         vdc_collection.delete(mdl.id).await.unwrap();
     }
