@@ -1,0 +1,16 @@
+/target
+/generated
+.build
+.swiftpm
+jna-*.jar
+*~
+MobileSdkRs/Package.swift
+MobileSdkRs/RustFramework*
+kotlin/mobilesdkrs/src/main/java/com/spruceid/mobile/sdk/rs/mobile_sdk_rs.kt
+kotlin/mobilesdkrs/src/main/jniLibs/*
+kotlin/local.properties
+.direnv
+.envrc
+**.idea
+MobileSdkRs/Package.swift
+MobileSdkRs/RustFramework*

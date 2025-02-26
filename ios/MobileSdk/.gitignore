@@ -1,0 +1,16 @@
+.DS_Store
+/.build
+/Packages
+xcuserdata/
+Derived/
+DerivedData/
+.swiftpm/configuration/registries.json
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.swiftpm/xcode/xcshareddata/xcschemes/SpruceIDMobileSdk.xcscheme
+.netrc
+MobileSdk.xcodeproj
+build/
+*~
+Info.plist
+MobileSdkRs/Package.swift
+MobileSdkRs/RustFramework*
