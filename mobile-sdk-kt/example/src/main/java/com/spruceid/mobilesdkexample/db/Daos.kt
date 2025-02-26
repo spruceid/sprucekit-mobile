@@ -64,3 +64,21 @@ interface VerificationMethodsDao {
     @Query("DELETE FROM verification_methods WHERE id = :id")
     fun deleteVerificationMethod(id: Long): Int
 }
+
+@Dao
+interface TrustedCertificatesDao {
+    @Insert
+    suspend fun insertCertificate(certificate: TrustedCertificates)
+
+    @Query("SELECT * FROM trusted_certificates")
+    fun getAllCertificates(): List<TrustedCertificates>
+
+    @Query("SELECT * FROM trusted_certificates WHERE id = :id")
+    fun getCertificate(id: Long): TrustedCertificates
+
+    @Query("DELETE FROM trusted_certificates")
+    fun deleteAllCertificates(): Int
+
+    @Query("DELETE FROM trusted_certificates WHERE id = :id")
+    fun deleteCertificate(id: Long): Int
+}

@@ -38,7 +38,7 @@ fun GenerateMockMdlButton(
     Box(
         Modifier
             .fillMaxWidth()
-            .padding(vertical = 20.dp)
+            .padding(bottom = 20.dp)
             .clickable {
                 scope.launch {
                     try {

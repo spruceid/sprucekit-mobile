@@ -16,6 +16,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.ConnectionLiveData
 import com.spruceid.mobilesdkexample.db.AppDatabase
+import com.spruceid.mobilesdkexample.db.TrustedCertificatesRepository
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogsRepository
 import com.spruceid.mobilesdkexample.db.VerificationMethodsRepository
 import com.spruceid.mobilesdkexample.db.WalletActivityLogsRepository
@@ -28,6 +29,8 @@ import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.TrustedCertificatesViewModel
+import com.spruceid.mobilesdkexample.viewmodels.TrustedCertificatesViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
@@ -113,6 +116,10 @@ class MainActivity : ComponentActivity() {
                         CredentialPacksViewModelFactory(application as MainApplication)
                     }
 
+                    val trustedCertificatesViewModel: TrustedCertificatesViewModel by viewModels {
+                        TrustedCertificatesViewModelFactory((application as MainApplication).trustedCertificatesRepository)
+                    }
+
                     val statusListViewModel: StatusListViewModel by viewModels<StatusListViewModel>()
                     connectionLiveData = ConnectionLiveData(this)
                     connectionLiveData.observe(this) { isNetworkAvailable ->
@@ -130,7 +137,8 @@ class MainActivity : ComponentActivity() {
                         walletActivityLogsViewModel = walletActivityLogsViewModel,
                         credentialPacksViewModel = credentialPacksViewModel,
                         statusListViewModel = statusListViewModel,
-                        helpersViewModel = helpersViewModel
+                        helpersViewModel = helpersViewModel,
+                        trustedCertificatesViewModel = trustedCertificatesViewModel
                     )
                 }
                 // Global Toast Host
@@ -148,4 +156,5 @@ class MainApplication : Application() {
     val verificationMethodsRepository by lazy { VerificationMethodsRepository(db.verificationMethodsDao()) }
     val verificationActivityLogsRepository by lazy { VerificationActivityLogsRepository(db.verificationActivityLogsDao()) }
     val walletActivityLogsRepository by lazy { WalletActivityLogsRepository(db.walletActivityLogsDao()) }
+    val trustedCertificatesRepository by lazy { TrustedCertificatesRepository(db.trustedCertificatesDao()) }
 }

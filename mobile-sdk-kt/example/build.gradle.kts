@@ -12,8 +12,8 @@ android {
         applicationId = "com.spruceid.mobilesdkexample"
         minSdk = 26
         targetSdk = 34
-        versionCode = 29
-        versionName = "1.7.0"
+        versionCode = 31
+        versionName = "1.7.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -51,6 +51,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
 }
 
 dependencies {

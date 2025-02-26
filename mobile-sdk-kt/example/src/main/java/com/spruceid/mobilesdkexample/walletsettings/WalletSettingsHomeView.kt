@@ -18,7 +18,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -115,62 +114,42 @@ fun WalletSettingsHomeBody(
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel
 ) {
-    val scope = rememberCoroutineScope()
     Column(
         Modifier
             .padding(top = 10.dp)
             .navigationBarsPadding(),
     ) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .clickable {
-                    navController.navigate(Screen.WalletSettingsActivityLogScreen.route)
-                },
-        ) {
-            Column {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.verification_activity_log),
-                            contentDescription = stringResource(id = R.string.verification_activity_log),
-                            modifier = Modifier.padding(end = 5.dp),
-                        )
-                        Text(
-                            text = "Activity Log",
-                            fontFamily = Inter,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 17.sp,
-                            color = ColorStone950,
-                            modifier = Modifier.padding(bottom = 5.dp, top = 5.dp),
-                        )
-                    }
-
-                    Image(
-                        painter = painterResource(id = R.drawable.chevron),
-                        contentDescription = stringResource(id = R.string.chevron),
-                        modifier = Modifier.scale(0.5f)
-                    )
-                }
-
-                Text(
-                    text = "View and export activity history",
-                    fontFamily = Inter,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 15.sp,
-                    color = ColorStone600,
+        WalletSettingsItemList(
+            icon = {
+                Image(
+                    painter = painterResource(id = R.drawable.verification_activity_log),
+                    contentDescription = stringResource(id = R.string.verification_activity_log),
+                    modifier = Modifier.padding(end = 5.dp),
                 )
+            },
+            name = "Activity Log",
+            description = "View and export activity history",
+            action = {
+                navController.navigate(Screen.WalletSettingsActivityLogScreen.route)
             }
-        }
+        )
 
-        // Uncomment to add test mDL generation button to the settings page.
         GenerateMockMdlButton(credentialPacksViewModel = credentialPacksViewModel)
+
+        WalletSettingsItemList(
+            icon = {
+                Image(
+                    painter = painterResource(id = R.drawable.unknown),
+                    contentDescription = stringResource(id = R.string.trusted_certificates),
+                    modifier = Modifier.padding(end = 5.dp),
+                )
+            },
+            name = "Trusted Certificates",
+            description = "Manage trusted certificates used during mDoc verification.",
+            action = {
+                navController.navigate(Screen.WalletSettingsTrustedCertificatesScreen.route)
+            }
+        )
 
         Spacer(Modifier.weight(1f))
         Button(
@@ -212,6 +191,60 @@ fun WalletSettingsHomeBody(
                 fontFamily = Inter,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
+            )
+        }
+    }
+}
+
+@Composable
+fun WalletSettingsItemList(
+    icon: @Composable () -> Unit,
+    name: String,
+    description: String,
+    action: () -> Unit
+) {
+
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(bottom = 20.dp)
+            .clickable {
+                action()
+            },
+    ) {
+        Column {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    icon()
+                    Text(
+                        text = name,
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 17.sp,
+                        color = ColorStone950,
+                        modifier = Modifier.padding(bottom = 5.dp, top = 5.dp),
+                    )
+                }
+
+                Image(
+                    painter = painterResource(id = R.drawable.chevron),
+                    contentDescription = stringResource(id = R.string.chevron),
+                    modifier = Modifier.scale(0.5f)
+                )
+            }
+
+            Text(
+                text = description,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 15.sp,
+                color = ColorStone600,
             )
         }
     }

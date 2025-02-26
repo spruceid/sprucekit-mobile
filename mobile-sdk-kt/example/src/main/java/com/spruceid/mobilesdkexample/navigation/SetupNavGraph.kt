@@ -21,6 +21,7 @@ import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.TrustedCertificatesViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
@@ -30,6 +31,7 @@ import com.spruceid.mobilesdkexample.wallet.HandleOID4VCIView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VPView
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
+import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsTrustedCertificatesView
 
 @Composable
 fun SetupNavGraph(
@@ -39,7 +41,8 @@ fun SetupNavGraph(
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
     credentialPacksViewModel: CredentialPacksViewModel,
     statusListViewModel: StatusListViewModel,
-    helpersViewModel: HelpersViewModel
+    helpersViewModel: HelpersViewModel,
+    trustedCertificatesViewModel: TrustedCertificatesViewModel
 ) {
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
         composable(
@@ -87,7 +90,8 @@ fun SetupNavGraph(
         ) {
             VerifyMDocView(
                 navController,
-                verificationActivityLogsViewModel = verificationActivityLogsViewModel
+                verificationActivityLogsViewModel = verificationActivityLogsViewModel,
+                trustedCertificatesViewModel = trustedCertificatesViewModel
             )
         }
         composable(
@@ -96,6 +100,7 @@ fun SetupNavGraph(
             VerifyMDocView(
                 navController,
                 verificationActivityLogsViewModel = verificationActivityLogsViewModel,
+                trustedCertificatesViewModel = trustedCertificatesViewModel,
                 checkAgeOver18 = true
             )
         }
@@ -152,6 +157,14 @@ fun SetupNavGraph(
                 navController,
                 walletActivityLogsViewModel = walletActivityLogsViewModel,
                 helpersViewModel = helpersViewModel
+            )
+        }
+        composable(
+            route = Screen.WalletSettingsTrustedCertificatesScreen.route,
+        ) {
+            WalletSettingsTrustedCertificatesView(
+                navController,
+                trustedCertificatesViewModel = trustedCertificatesViewModel
             )
         }
         composable(
