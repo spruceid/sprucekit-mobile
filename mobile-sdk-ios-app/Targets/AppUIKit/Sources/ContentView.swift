@@ -145,7 +145,7 @@ public struct ContentView: View {
             case "openid-credential-offer":
                 handleOid4vciUrl(url: url)
             case "mdoc-openid4vp":
-                handleOid4vpUrl(url: url)
+                handleMdocOid4vpUrl(url: url)
             default:
                 return
             }
