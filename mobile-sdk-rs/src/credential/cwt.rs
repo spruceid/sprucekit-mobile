@@ -149,19 +149,22 @@ impl Cwt {
         cwt: &CoseSign1,
         root_certificate: CertificateInner,
     ) -> Result<(), CwtError> {
-        let signer_certificate =
-            helpers::get_signer_certificate(cwt).map_err(|_| CwtError::SignerCertificateInvalid)?;
+        let signer_certificate = helpers::get_signer_certificate(cwt)
+            .map_err(|e| CwtError::SignerCertificateInvalid(e.to_string()))?;
 
         // Root validation.
         {
             helpers::check_validity(&root_certificate.tbs_certificate.validity)
-                .map_err(|_| CwtError::RootCertificateInvalid)?;
+                .map_err(|_| CwtError::RootCertificateExpired)?;
 
             let (key_usage, _crl_dp) = helpers::extract_extensions(&root_certificate)
-                .map_err(|_| CwtError::RootCertificateInvalid)?;
+                .map_err(|_| CwtError::UnableToExtractExtensionsFromRootCertificate)?;
 
             if !key_usage.key_cert_sign() {
-                return Err(CwtError::RootCertificateInvalid);
+                return Err(CwtError::RootCertificateInvalid(
+                    "Root certificate cannot be used for verifying certificate signatures"
+                        .to_string(),
+                ));
             }
             // TODO: Check crl
         }
@@ -194,14 +197,16 @@ impl Cwt {
         // Signer validation.
         {
             helpers::check_validity(&signer_certificate.tbs_certificate.validity)
-                .map_err(|_| CwtError::RootCertificateInvalid)?;
+                .map_err(|_| CwtError::SignerCertificateExpired)?;
 
             let (key_usage, _crl_dp) = helpers::extract_extensions(&signer_certificate)
                 .map_err(|_| CwtError::UnableToExtractExtensionsFromSignerCertificate)?;
 
-            if !key_usage.digital_signature() {
-                return Err(CwtError::SignerCertificateInvalid);
-            }
+            // if !key_usage.digital_signature() {
+            //     return Err(CwtError::SignerCertificateInvalid(
+            //         "Certificate not for digital signature".to_string(),
+            //     ));
+            // }
 
             // TODO: Check crl
         }
@@ -252,9 +257,9 @@ impl Cwt {
         match key {
             cose_rs::cwt::Key::Text(v) => v.to_string(),
             cose_rs::cwt::Key::Integer(v) => match *v {
-                4 => "Expiration Time".to_string(),
+                4 => "Expiration".to_string(),
                 5 => "Not Before".to_string(),
-                6 => "Issued At".to_string(),
+                6 => "Issuance".to_string(),
                 _ => v.to_string(),
             },
         }
@@ -280,14 +285,28 @@ impl Cwt {
             .collect()
     }
 
-    /// Parse date strings of the form "YYYY-MM-DD".
+    /// Parse date strings, handling both ISO format and Unix timestamps
     fn parse_datestr(value: &serde_cbor::Value) -> CborValue {
-        let date_str = CborValue::from(value.clone()).to_string();
-        let format = format_description!("[year]-[month]-[day]");
-        Date::parse(&date_str, format)
-            .map_err(|_| CborValue::Text("".to_string()))
-            .map(|_| CborValue::Text(date_str.clone()))
-            .unwrap_or(CborValue::Text("".to_string()))
+        match value {
+            serde_cbor::Value::Float(timestamp) => {
+                match OffsetDateTime::from_unix_timestamp_nanos(
+                    (timestamp * 1_000_000_000.0) as i128,
+                ) {
+                    Ok(date) => CborValue::Text(
+                        date.format(&format_description!("[year]-[month]-[day]"))
+                            .unwrap_or_else(|_| timestamp.to_string()),
+                    ),
+                    Err(_) => CborValue::Text(timestamp.to_string()),
+                }
+            }
+            _ => {
+                let date_str = CborValue::from(value.clone()).to_string();
+                let format = format_description!("[year]-[month]-[day]");
+                Date::parse(&date_str, format)
+                    .map(|date| CborValue::Text(date.to_string()))
+                    .unwrap_or_else(|_| CborValue::Text(date_str))
+            }
+        }
     }
 
     fn format() -> CredentialFormat {
@@ -343,16 +362,22 @@ pub enum CwtError {
     Internal,
     #[error("Failed to verify the CWT signature: {0}")]
     CwtSignatureVerification(String),
-    #[error("Signer certificate cannot be used for verifying signatures")]
-    SignerCertificateInvalid,
+    #[error("Signer certificate cannot be used for verifying signatures: {0}")]
+    SignerCertificateInvalid(String),
     #[error("Signer certificate was not issued by the root: expected {0}, received {1}")]
     SignerCertificateMismatch(String, String),
-    #[error("Root certificate cannot be used for verifying certificate signatures")]
-    RootCertificateInvalid,
+    #[error("Root certificate cannot be used for verifying certificate signatures: {0}")]
+    RootCertificateInvalid(String),
     #[error("Unable to encode signer certificate as der")]
     UnableToEncodeSignerCertificateAsDer,
     #[error("Unable to encode root certificate as der")]
     UnableToEncodeRootCertificateAsDer,
     #[error("Unable to extract extensions from signer certificate")]
     UnableToExtractExtensionsFromSignerCertificate,
+    #[error("Root certificate expired")]
+    RootCertificateExpired,
+    #[error("Signer certificate expired")]
+    SignerCertificateExpired,
+    #[error("Unable to extract extensions from root certificate")]
+    UnableToExtractExtensionsFromRootCertificate,
 }

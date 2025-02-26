@@ -9,6 +9,7 @@ struct VerifyCwtView: View {
     @State var success: Bool?
     @State var credentialPack: CredentialPack?
     @State var code: String?
+    @State var error: Error?
     
     @Binding var path: NavigationPath
     
@@ -26,11 +27,14 @@ struct VerifyCwtView: View {
                         Task {
                             do {
                                 credentialPack = CredentialPack()
-                                _ = credentialPack!.addCwt(cwt: try Cwt.newFromBase10(payload: code))
+                                let cwt = try Cwt.newFromBase10(payload: code)
+                                _ = credentialPack!.addCwt(cwt: cwt)
+                                try cwt.verify(crypto: CryptoImpl(), payload: code)
                                 self.code = code
                                 success = true
                                 // TODO: add log
                             } catch {
+                                self.error = error
                                 print(error)
                                 success = false
                             }
@@ -38,12 +42,16 @@ struct VerifyCwtView: View {
                     }
                 )
             )
-        } else {
+        } else if success == true {
             VerifierCredentialSuccessView(
                 rawCredential: self.code!,
                 onClose: { path.removeLast() },
                 logVerification: {_,_,_ in }
             )
+        } else {
+            VStack {
+                Text("\(error!)")
+            }
         }
         
     }
