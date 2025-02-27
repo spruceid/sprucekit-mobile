@@ -18,6 +18,7 @@ import com.spruceid.mobilesdkexample.verifier.VerifyMDocView
 import com.spruceid.mobilesdkexample.verifier.VerifyVCView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
+import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsTrustedCertificatesView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
@@ -31,7 +32,6 @@ import com.spruceid.mobilesdkexample.wallet.HandleOID4VCIView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VPView
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
-import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsTrustedCertificatesView
 
 @Composable
 fun SetupNavGraph(
@@ -134,6 +134,14 @@ fun SetupNavGraph(
             )
         }
         composable(
+            route = Screen.VerifierSettingsTrustedCertificatesScreen.route,
+        ) {
+            VerifierSettingsTrustedCertificatesView(
+                navController,
+                trustedCertificatesViewModel = trustedCertificatesViewModel
+            )
+        }
+        composable(
             route = Screen.AddVerificationMethodScreen.route,
         ) {
             AddVerificationMethodView(
@@ -157,14 +165,6 @@ fun SetupNavGraph(
                 navController,
                 walletActivityLogsViewModel = walletActivityLogsViewModel,
                 helpersViewModel = helpersViewModel
-            )
-        }
-        composable(
-            route = Screen.WalletSettingsTrustedCertificatesScreen.route,
-        ) {
-            WalletSettingsTrustedCertificatesView(
-                navController,
-                trustedCertificatesViewModel = trustedCertificatesViewModel
             )
         }
         composable(

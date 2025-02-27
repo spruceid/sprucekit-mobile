@@ -195,14 +195,16 @@ fun VerifierSettingsActivityLogScreenBody(
                             color = ColorStone950,
                             modifier = Modifier.padding(bottom = 4.dp),
                         )
-                        Text(
-                            text = log.issuer,
-                            fontFamily = Inter,
-                            fontWeight = FontWeight.Normal,
-                            fontSize = 15.sp,
-                            color = ColorStone600,
-                            modifier = Modifier.padding(bottom = 4.dp),
-                        )
+                        if (log.issuer.isNotBlank()) {
+                            Text(
+                                text = log.issuer,
+                                fontFamily = Inter,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 15.sp,
+                                color = ColorStone600,
+                                modifier = Modifier.padding(bottom = 4.dp),
+                            )
+                        }
                         CredentialStatusSmall(status = credentialStatusListFromString(log.status))
                         Text(
                             text = formatSqlDateTime(log.verificationDateTime),

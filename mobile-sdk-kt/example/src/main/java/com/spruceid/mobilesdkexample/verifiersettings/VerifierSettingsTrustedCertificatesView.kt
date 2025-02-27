@@ -1,4 +1,4 @@
-package com.spruceid.mobilesdkexample.walletsettings
+package com.spruceid.mobilesdkexample.verifiersettings
 
 import android.content.Context
 import android.database.Cursor
@@ -49,7 +49,7 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 @Composable
-fun WalletSettingsTrustedCertificatesView(
+fun VerifierSettingsTrustedCertificatesView(
     navController: NavController,
     trustedCertificatesViewModel: TrustedCertificatesViewModel
 ) {
@@ -58,19 +58,19 @@ fun WalletSettingsTrustedCertificatesView(
             .padding(all = 20.dp)
             .padding(top = 20.dp)
     ) {
-        WalletSettingsTrustedCertificatesHeader(
+        VerifierSettingsTrustedCertificatesHeader(
             onBack = {
                 navController.popBackStack()
             }
         )
-        WalletSettingsTrustedCertificatesBody(
+        VerifierSettingsTrustedCertificatesBody(
             trustedCertificatesViewModel = trustedCertificatesViewModel
         )
     }
 }
 
 @Composable
-fun WalletSettingsTrustedCertificatesHeader(onBack: () -> Unit) {
+fun VerifierSettingsTrustedCertificatesHeader(onBack: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -98,7 +98,7 @@ fun WalletSettingsTrustedCertificatesHeader(onBack: () -> Unit) {
 }
 
 @Composable
-fun WalletSettingsTrustedCertificatesBody(
+fun VerifierSettingsTrustedCertificatesBody(
     trustedCertificatesViewModel: TrustedCertificatesViewModel
 ) {
     val trustedCertificates by trustedCertificatesViewModel.trustedCertificates.collectAsState()
