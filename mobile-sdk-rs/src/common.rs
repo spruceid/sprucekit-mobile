@@ -149,7 +149,7 @@ impl ToString for CborValue {
         match self {
             CborValue::Null => "".to_string(),
             CborValue::Bool(v) => v.to_string(),
-            CborValue::Integer(cbor_integer) => cbor_integer.to_string(),
+            CborValue::Integer(cbor_integer) => cbor_integer.to_text(),
             CborValue::Float(v) => v.to_string(),
             CborValue::Bytes(items) => items.iter().map(|i| i.to_string()).join(","),
             CborValue::Text(v) => v.to_string(),
@@ -189,7 +189,7 @@ impl CborInteger {
             .fold(0, |acc, (i, value)| acc | ((*value as u64) << (i * 8)))
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn to_text(&self) -> String {
         let lower = self.lower_bytes();
         let upper = self.upper_bytes();
 
@@ -366,7 +366,7 @@ mod tests {
 
         for value in test_cases {
             let cbor_int = CborInteger::from(value);
-            assert_eq!(cbor_int.to_string(), value.to_string());
+            assert_eq!(cbor_int.to_text(), value.to_string());
         }
     }
 
@@ -388,13 +388,13 @@ mod tests {
         let zero = CborInteger::from(0i128);
         assert_eq!(zero.lower_bytes(), 0);
         assert_eq!(zero.upper_bytes(), 0);
-        assert_eq!(zero.to_string(), "0");
+        assert_eq!(zero.to_text(), "0");
     }
 
     #[test]
     fn test_cbor_integer_negative() {
         let negative = CborInteger::from(-42i128);
-        assert_eq!(negative.to_string(), "-42");
+        assert_eq!(negative.to_text(), "-42");
     }
 
     #[test]

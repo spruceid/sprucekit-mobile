@@ -30,7 +30,7 @@ extension CborValue {
         case .bool(let bool):
             return .bool(bool)
         case .integer(let integer):
-            return .number(Double(integer.toString())!)
+            return .number(Double(integer.toText())!)
         case .float(let double):
             return .number(double)
         case .bytes(let data):

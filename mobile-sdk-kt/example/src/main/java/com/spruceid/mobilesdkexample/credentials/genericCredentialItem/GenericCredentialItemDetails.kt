@@ -39,7 +39,8 @@ fun GenericCredentialItemDetails(
                                 cred?.asJwtVc() != null ||
                                 cred?.asJsonVc() != null ||
                                 cred?.asSdJwt() != null ||
-                                cred?.asMsoMdoc() != null
+                                cred?.asMsoMdoc() != null ||
+                                cred?.asCwt() != null
                             ) {
                                 it.second
                             } else {

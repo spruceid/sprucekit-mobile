@@ -1,5 +1,6 @@
 package com.spruceid.mobile.sdk
 
+import com.spruceid.mobile.sdk.rs.Cwt
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -90,6 +91,34 @@ fun JsonVc.credentialClaims(): JSONObject {
  * Access the specified claims from the W3C VCDM credential.
  */
 fun JsonVc.credentialClaimsFiltered(claimNames: List<String>): JSONObject {
+    val old = this.credentialClaims()
+    val new = JSONObject()
+    for (name in claimNames) {
+        new.put(name, keyPathFinder(old, name.split(".").toMutableList()))
+    }
+    return new
+}
+
+/**
+ * Access the CWT credential.
+ */
+fun Cwt.credentialClaims(): JSONObject {
+    try {
+        val jsonObject = JSONObject()
+        this.claims().forEach { (key, cborValue) ->
+            jsonObject.put(key, cborValue.toText())
+        }
+        return jsonObject
+    } catch (e: Error) {
+        print("failed to decode CWT data from UTF-8-encoded JSON")
+        return JSONObject()
+    }
+}
+
+/**
+ * Access the specified claims from the CWT credential.
+ */
+fun Cwt.credentialClaimsFiltered(claimNames: List<String>): JSONObject {
     val old = this.credentialClaims()
     val new = JSONObject()
     for (name in claimNames) {
