@@ -59,27 +59,11 @@ struct VerifierSettingsHomeBody: View {
         Button {
             path.append(VerifierSettingsActivityLog())
         } label: {
-            HStack(alignment: .top) {
-                VStack {
-                    HStack {
-                        Image("List")
-                        Text("Activity Log")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundColor(Color("ColorStone950"))
-                            .font(
-                                .customFont(
-                                    font: .inter, style: .bold, size: .h4))
-                    }
-                    Text("View and export verification history")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundColor(Color("ColorStone600"))
-                        .font(
-                            .customFont(font: .inter, style: .regular, size: .p)
-                        )
-                }
-                Image("Chevron")
-                    .rotationEffect(.degrees(-90))
-            }
+            SettingsHomeItem(
+                image: "List",
+                title: "Activity Log",
+                description: "View and export verification history."
+            )
         }
     }
 
@@ -99,10 +83,25 @@ struct VerifierSettingsHomeBody: View {
         .cornerRadius(8)
     }
 
+    @ViewBuilder
+    var trustedCertificatesButton: some View {
+        Button {
+            path.append(VerifierSettingsTrustedCertificates())
+        } label: {
+            SettingsHomeItem(
+                image: "Unknown",
+                title: "Trusted Certificates",
+                description:
+                    "Manage trusted certificates used during mDoc verification."
+            )
+        }
+    }
+
     var body: some View {
         VStack {
             VStack {
                 activityLogButton
+                trustedCertificatesButton
                 Spacer()
                 deleteAllVerificationMethodsButton
             }

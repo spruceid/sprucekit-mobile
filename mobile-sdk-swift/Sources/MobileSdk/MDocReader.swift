@@ -1,6 +1,12 @@
 import CoreBluetooth
 import SpruceIDMobileSdkRs
 
+
+enum MDocReaderError: Error {
+    /// Couldn't initialize MDocReader.
+    case initializing(message: String)
+}
+
 public class MDocReader {
     var sessionManager: MdlSessionManager
     var bleManager: MDocReaderBLEPeripheral!
@@ -11,7 +17,7 @@ public class MDocReader {
         uri: String,
         requestedItems: [String: [String: Bool]],
         trustAnchorRegistry: [String]?
-    ) {
+    ) throws {
         self.callback = callback
         do {
             let sessionData = try SpruceIDMobileSdkRs.establishSession(uri: uri,
@@ -23,8 +29,7 @@ public class MDocReader {
                                                       request: sessionData.request,
                                                       bleIdent: sessionData.bleIdent)
         } catch {
-            print("\(error)")
-            return nil
+            throw MDocReaderError.initializing(message: "\(error)")
         }
     }
 
