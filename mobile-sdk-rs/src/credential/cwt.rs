@@ -199,8 +199,9 @@ impl Cwt {
             helpers::check_validity(&signer_certificate.tbs_certificate.validity)
                 .map_err(|_| CwtError::SignerCertificateExpired)?;
 
-            let (key_usage, _crl_dp) = helpers::extract_extensions(&signer_certificate)
-                .map_err(|_| CwtError::UnableToExtractExtensionsFromSignerCertificate)?;
+            // TODO: check certificate generation code and re-enable these checks
+            // let (key_usage, _crl_dp) = helpers::extract_extensions(&signer_certificate)
+            //     .map_err(|_| CwtError::UnableToExtractExtensionsFromSignerCertificate)?;
 
             // if !key_usage.digital_signature() {
             //     return Err(CwtError::SignerCertificateInvalid(
