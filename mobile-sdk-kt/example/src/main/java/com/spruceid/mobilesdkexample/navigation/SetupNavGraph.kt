@@ -97,6 +97,15 @@ fun SetupNavGraph(
             )
         }
         composable(
+            route = Screen.VerifyMDlOver18Screen.route,
+        ) {
+            VerifyMDocView(
+                navController,
+                verificationActivityLogsViewModel = verificationActivityLogsViewModel,
+                checkAgeOver18 = true
+            )
+        }
+        composable(
             route = Screen.VerifyDelegatedOid4vpScreen.route,
         ) { backStackEntry ->
             val id = backStackEntry.arguments?.getString("id")!!

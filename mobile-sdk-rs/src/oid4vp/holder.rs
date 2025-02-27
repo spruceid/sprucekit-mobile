@@ -4,6 +4,7 @@ use super::presentation::PresentationSigner;
 use crate::common::*;
 use crate::credential::*;
 use crate::vdc_collection::VdcCollection;
+use crate::UniffiCustomTypeConverter;
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -30,6 +31,36 @@ use ssi::dids::DIDWeb;
 use ssi::dids::VerificationMethodDIDResolver;
 use ssi::prelude::AnyJwkMethod;
 use uniffi::deps::{anyhow, log};
+
+pub enum AuthRequest {
+    /// Parse the incoming string as a URL.
+    Url(Url),
+    /// Parse the incoming string as a JSON-string encoded Authorization Request Object.
+    Request(Box<AuthorizationRequestObject>),
+}
+
+uniffi::custom_type!(AuthRequest, String);
+impl UniffiCustomTypeConverter for AuthRequest {
+    type Builtin = String;
+    fn into_custom(value: Self::Builtin) -> uniffi::Result<Self> {
+        match Url::parse(&value) {
+            Ok(url) => Ok(AuthRequest::Url(url)),
+            Err(_) => {
+                let req: AuthorizationRequestObject = serde_json::from_str(&value)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse JSON: {:?}", e))?;
+                Ok(AuthRequest::Request(Box::new(req)))
+            }
+        }
+    }
+    fn from_custom(req: Self) -> Self::Builtin {
+        match req {
+            AuthRequest::Url(url) => url.to_string(),
+            AuthRequest::Request(req) => serde_json::to_string(&req)
+                // SAFETY: The authorization request object is a valid JSON object.
+                .unwrap(),
+        }
+    }
+}
 
 /// A Holder is an entity that possesses one or more Verifiable Credentials.
 /// The Holder is typically the subject of the credentials, but not always.
@@ -61,24 +92,7 @@ pub struct Holder {
 
 #[uniffi::export(async_runtime = "tokio")]
 impl Holder {
-    // NOTE: a logger is intended to be initialized once
-    // per an application, not per an instance of the holder.
-    //
-    // The following should be deprecated from the holder
-    // in favor of a global logger instance.
-    /// Initialize logger for the OID4VP holder.
-    fn initiate_logger(&self) {
-        #[cfg(target_os = "android")]
-        android_logger::init_once(
-            android_logger::Config::default()
-                .with_max_level(log::LevelFilter::Trace)
-                .with_tag("MOBILE_SDK_RS"),
-        );
-    }
-
     /// Uses VDC collection to retrieve the credentials for a given presentation definition.
-    ///
-    /// If no trusted DIDs are provided then all DIDs are trusted.
     #[uniffi::constructor]
     pub async fn new(
         vdc_collection: Arc<VdcCollection>,
@@ -105,8 +119,6 @@ impl Holder {
     ///
     /// This constructor will use the provided credentials for the presentation,
     /// instead of searching for credentials in the VDC collection.
-    ///
-    /// If no trusted DIDs are provided then all DIDs are trusted.
     #[uniffi::constructor]
     pub async fn new_with_credentials(
         provided_credentials: Vec<Arc<ParsedCredential>>,
@@ -135,22 +147,22 @@ impl Holder {
     /// This will fetch the presentation definition from the verifier.
     pub async fn authorization_request(
         &self,
-        // NOTE: This url is mutable to replace any leading host value
-        // before the `query` with an empty string.
-        mut url: Url,
+        req: AuthRequest,
         // Callback here to allow for review of untrusted DIDs.
     ) -> Result<Arc<PermissionRequest>, OID4VPError> {
-        uniffi::deps::log::debug!("Url: {url:?}");
+        let request = match req {
+            AuthRequest::Url(mut url) => {
+                // NOTE: Replace the host value with an empty string to remove any
+                // leading host value before the query.
+                url.set_host(Some(""))
+                    .map_err(|e| OID4VPError::RequestValidation(format!("{e:?}")))?;
 
-        // NOTE: Replace the host value with an empty string to remove any
-        // leading host value before the query.
-        url.set_host(Some(""))
-            .map_err(|e| OID4VPError::RequestValidation(format!("{e:?}")))?;
-
-        let request = self
-            .validate_request(url)
-            .await
-            .map_err(|e| OID4VPError::RequestValidation(format!("{e:?}")))?;
+                self.validate_request(url)
+                    .await
+                    .map_err(|e| OID4VPError::RequestValidation(format!("{e:?}")))?
+            }
+            AuthRequest::Request(req) => *req,
+        };
 
         match request.response_mode() {
             ResponseMode::DirectPost | ResponseMode::DirectPostJwt => {
@@ -166,12 +178,11 @@ impl Holder {
         &self,
         response: Arc<PermissionResponse>,
     ) -> Result<Option<Url>, OID4VPError> {
-        self.submit_response(
-            response.authorization_request.clone(),
-            response.authorization_response()?,
-        )
-        .await
-        .map_err(|e| OID4VPError::ResponseSubmission(format!("{e:?}")))
+        let auth_response = response.authorization_response()?;
+
+        self.submit_response(response.authorization_request.clone(), auth_response)
+            .await
+            .map_err(|e| OID4VPError::ResponseSubmission(format!("{e:?}")))
     }
 }
 
@@ -193,6 +204,12 @@ impl Holder {
         metadata.vp_formats_supported_mut().0.insert(
             ClaimFormatDesignation::LdpVp,
             ClaimFormatPayload::ProofType(vec!["ecdsa-rdfc-2019".into()]),
+        );
+
+        // Insert support for JwtVpJson format.
+        metadata.vp_formats_supported_mut().0.insert(
+            ClaimFormatDesignation::JwtVpJson,
+            ClaimFormatPayload::AlgValuesSupported(vec!["ES256".into()]),
         );
 
         metadata
@@ -260,6 +277,12 @@ impl Holder {
         let credentials = self
             .search_credentials_vs_presentation_definition(&mut presentation_definition)
             .await?;
+
+        if credentials.is_empty() {
+            return Err(OID4VPError::PermissionRequest(
+                PermissionRequestError::NoCredentialsFound,
+            ));
+        }
 
         // TODO: Add full support for limit_disclosure, probably this should be thrown at OID4VP
         if presentation_definition
@@ -349,11 +372,16 @@ impl RequestVerifier for Holder {
         let resolver: VerificationMethodDIDResolver<DIDKey, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDKey);
 
+        let trusted_dids = match self.trusted_dids.as_slice() {
+            [] => None,
+            dids => Some(dids),
+        };
+
         verify_with_resolver(
             &self.metadata,
             decoded_request,
             request_jwt,
-            None,
+            trusted_dids,
             &resolver,
         )
         .await?;
@@ -378,12 +406,14 @@ impl OID4VPWallet for Holder {
 pub(crate) mod tests {
     use super::*;
     use crate::{
+        context::default_ld_json_context,
         did::DidMethod,
         oid4vp::presentation::{PresentationError, PresentationSigner},
-        tests::{load_signer, vc_playground_context},
+        tests::{load_jwk, load_signer},
     };
 
     use json_vc::JsonVc;
+    use jwt_vc::JwtVc;
     use ssi::{
         claims::{data_integrity::CryptosuiteString, jws::JwsSigner},
         crypto::Algorithm,
@@ -486,7 +516,7 @@ pub(crate) mod tests {
         )
         .await?;
 
-        let permission_request = holder.authorization_request(url).await?;
+        let permission_request = holder.authorization_request(AuthRequest::Url(url)).await?;
 
         let parsed_credentials = permission_request.credentials();
 
@@ -507,6 +537,7 @@ pub(crate) mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
+                ResponseOptions::default(),
             )
             .await?;
 
@@ -552,7 +583,7 @@ pub(crate) mod tests {
         .expect("Failed to create oid4vp holder");
 
         let permission_request = holder
-            .authorization_request(auth_url)
+            .authorization_request(AuthRequest::Url(auth_url))
             .await
             .expect("Failed to authorize request URL");
 
@@ -566,11 +597,67 @@ pub(crate) mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
+                ResponseOptions::default(),
             )
             .await
             .expect("failed to create permission response");
 
         let _url = holder.submit_permission_response(response).await?;
+
+        Ok(())
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_mdl_jwt() -> Result<(), Box<dyn std::error::Error>> {
+        let auth_url = "openid4vp://?client_id=did%3Aweb%3Aqa.opencred.org&request_uri=https%3A%2F%2Fqa.opencred.org%2Fworkflows%2Fz19mLsUzMweuIUlk349cpekAz%2Fexchanges%2Fz19wpZZ49a2hnKdVd4uxgxPnC%2Fopenid%2Fclient%2Fauthorization%2Frequest";
+
+        let key_signer = KeySigner { jwk: load_jwk() };
+
+        let mdl = ParsedCredential::new_jwt_vc_json_ld(
+            JwtVc::new_from_compact_jws(include_str!("../../tests/examples/mdl.jwt").into())
+                .expect("failed to create mDL Jwt VC"),
+        );
+
+        let holder = Holder::new_with_credentials(
+            vec![mdl],
+            vec![],
+            Box::new(key_signer),
+            Some(default_ld_json_context()),
+        )
+        .await?;
+
+        let permission_request = holder
+            .authorization_request(AuthRequest::Url(
+                auth_url.parse().expect("failed to parse url"),
+            ))
+            .await?;
+
+        println!(
+            "Presentation Definition: {}",
+            serde_json::to_string_pretty(&permission_request.definition)
+                .expect("failed to serialize definition")
+        );
+
+        let credentials = permission_request.credentials();
+
+        let requested_fields = credentials
+            .iter()
+            .map(|c| {
+                permission_request
+                    .requested_fields(c)
+                    .iter()
+                    .map(|f| f.path())
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        let response = permission_request
+            .create_permission_response(credentials, requested_fields, ResponseOptions::default())
+            .await
+            .expect("failed to create permission response");
+
+        holder.submit_permission_response(response).await?;
 
         Ok(())
     }
@@ -613,7 +700,7 @@ pub(crate) mod tests {
         )
         .await?;
 
-        let permission_request = holder.authorization_request(url).await?;
+        let permission_request = holder.authorization_request(AuthRequest::Url(url)).await?;
 
         let parsed_credentials = permission_request.credentials();
 
@@ -634,6 +721,7 @@ pub(crate) mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
+                ResponseOptions::default(),
             )
             .await?;
 
@@ -676,11 +764,11 @@ pub(crate) mod tests {
             vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(signer),
-            Some(vc_playground_context()),
+            Some(default_ld_json_context()),
         )
         .await?;
 
-        let permission_request = holder.authorization_request(url).await?;
+        let permission_request = holder.authorization_request(AuthRequest::Url(url)).await?;
 
         let parsed_credentials = permission_request.credentials();
 
@@ -701,6 +789,7 @@ pub(crate) mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
+                ResponseOptions::default(),
             )
             .await?;
 

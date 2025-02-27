@@ -1,25 +1,46 @@
 import CoreBluetooth
-import SwiftUI
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
+import SwiftUI
 
-struct VerifyMDoc: Hashable {}
+struct VerifyMDoc: Hashable {
+    var checkAgeOver18: Bool = false
+}
 
 let trustAnchorCerts = [
-            """
------BEGIN CERTIFICATE-----
-MIIB0zCCAXqgAwIBAgIJANVHM3D1VFaxMAoGCCqGSM49BAMCMCoxCzAJBgNVBAYT
-AlVTMRswGQYDVQQDDBJTcHJ1Y2VJRCBUZXN0IElBQ0EwHhcNMjUwMTA2MTA0MDUy
-WhcNMzAwMTA1MTA0MDUyWjAqMQswCQYDVQQGEwJVUzEbMBkGA1UEAwwSU3BydWNl
-SUQgVGVzdCBJQUNBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmAZFZftRxWrl
-Iuf1ZY4DW7QfAfTu36RumpvYZnKVFUNmyrNxGrtQlp2Tbit+9lUzjBjF9R8nvdid
-mAHOMg3zg6OBiDCBhTAdBgNVHQ4EFgQUJpZofWBt6ci5UVfOl8E9odYu8lcwDgYD
-VR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8CAQAwGwYDVR0SBBQwEoEQdGVz
-dEBleGFtcGxlLmNvbTAjBgNVHR8EHDAaMBigFqAUhhJodHRwOi8vZXhhbXBsZS5j
-b20wCgYIKoZIzj0EAwIDRwAwRAIgJFSMgE64Oiq7wdnWA3vuEuKsG0xhqW32HdjM
-LNiJpAMCIG82C+Kx875VNhx4hwfqReTRuFvZOTmFDNgKN0O/1+lI
------END CERTIFICATE-----
-"""
+    // mobile-sdk-rs/tests/res/mdl/iaca-certificate.pem
+    """
+    -----BEGIN CERTIFICATE-----
+    MIIB0zCCAXqgAwIBAgIJANVHM3D1VFaxMAoGCCqGSM49BAMCMCoxCzAJBgNVBAYT
+    AlVTMRswGQYDVQQDDBJTcHJ1Y2VJRCBUZXN0IElBQ0EwHhcNMjUwMTA2MTA0MDUy
+    WhcNMzAwMTA1MTA0MDUyWjAqMQswCQYDVQQGEwJVUzEbMBkGA1UEAwwSU3BydWNl
+    SUQgVGVzdCBJQUNBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmAZFZftRxWrl
+    Iuf1ZY4DW7QfAfTu36RumpvYZnKVFUNmyrNxGrtQlp2Tbit+9lUzjBjF9R8nvdid
+    mAHOMg3zg6OBiDCBhTAdBgNVHQ4EFgQUJpZofWBt6ci5UVfOl8E9odYu8lcwDgYD
+    VR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8CAQAwGwYDVR0SBBQwEoEQdGVz
+    dEBleGFtcGxlLmNvbTAjBgNVHR8EHDAaMBigFqAUhhJodHRwOi8vZXhhbXBsZS5j
+    b20wCgYIKoZIzj0EAwIDRwAwRAIgJFSMgE64Oiq7wdnWA3vuEuKsG0xhqW32HdjM
+    LNiJpAMCIG82C+Kx875VNhx4hwfqReTRuFvZOTmFDNgKN0O/1+lI
+    -----END CERTIFICATE-----
+    """,
+    // mobile-sdk-rs/tests/res/mdl/utrecht-certificate.pem
+    """
+    -----BEGIN CERTIFICATE-----
+    MIICWTCCAf+gAwIBAgIULZgAnZswdEysOLq+G0uNW0svhYIwCgYIKoZIzj0EAwIw
+    VjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAk5ZMREwDwYDVQQKDAhTcHJ1Y2VJRDEn
+    MCUGA1UEAwweU3BydWNlSUQgVGVzdCBDZXJ0aWZpY2F0ZSBSb290MB4XDTI1MDIx
+    MjEwMjU0MFoXDTI2MDIxMjEwMjU0MFowVjELMAkGA1UEBhMCVVMxCzAJBgNVBAgM
+    Ak5ZMREwDwYDVQQKDAhTcHJ1Y2VJRDEnMCUGA1UEAwweU3BydWNlSUQgVGVzdCBD
+    ZXJ0aWZpY2F0ZSBSb290MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwWfpUAMW
+    HkOzSctR8szsMNLeOCMyjk9HAkAYZ0HiHsBMNyrOcTxScBhEiHj+trE5d5fVq36o
+    cvrVkt2X0yy/N6OBqjCBpzAdBgNVHQ4EFgQU+TKkY3MApIowvNzakcIr6P4ZQDQw
+    EgYDVR0TAQH/BAgwBgEB/wIBADA+BgNVHR8ENzA1MDOgMaAvhi1odHRwczovL2lu
+    dGVyb3BldmVudC5zcHJ1Y2VpZC5jb20vaW50ZXJvcC5jcmwwDgYDVR0PAQH/BAQD
+    AgEGMCIGA1UdEgQbMBmBF2lzb2ludGVyb3BAc3BydWNlaWQuY29tMAoGCCqGSM49
+    BAMCA0gAMEUCIAJrzCSS/VIjf7uTq+Kt6+97VUNSvaAAwdP6fscIvp4RAiEA0dOP
+    Ld7ivuH83lLHDuNpb4NShfdBG57jNEIPNUs9OEg=
+    -----END CERTIFICATE-----
+    """
 ]
 
 let defaultElements = [
@@ -83,15 +104,22 @@ let defaultElements = [
         "domestic_driving_privileges": false,
         "veteran": false,
         "sex": false,
-        "name_suffix": false
+        "name_suffix": false,
+    ],
+]
+
+let ageOver18Elements = [
+    "org.iso.18013.5.1": [
+        "age_over_18": false
     ]
 ]
 
 public struct VerifyMDocView: View {
     @Binding var path: NavigationPath
-    
+    var checkAgeOver18: Bool = false
+
     @State private var scanned: String?
-    
+
     public var body: some View {
         if scanned == nil {
             ScanningComponent(
@@ -107,14 +135,15 @@ public struct VerifyMDocView: View {
         } else {
             MDocReaderView(
                 uri: scanned!,
-                requestedItems: defaultElements,
+                requestedItems: !checkAgeOver18
+                    ? defaultElements : ageOver18Elements,
                 trustAnchorRegistry: trustAnchorCerts,
                 onCancel: onCancel,
                 path: $path
             )
         }
     }
-    
+
     func onCancel() {
         self.scanned = nil
         path.removeLast()
@@ -125,7 +154,7 @@ public struct MDocReaderView: View {
     @StateObject var delegate: MDocScanViewDelegate
     @Binding var path: NavigationPath
     var onCancel: () -> Void
-    
+
     init(
         uri: String,
         requestedItems: [String: [String: Bool]],
@@ -143,7 +172,7 @@ public struct MDocReaderView: View {
         self.onCancel = onCancel
         self._path = path
     }
-    
+
     @ViewBuilder
     var cancelButton: some View {
         Button("Cancel") {
@@ -154,7 +183,7 @@ public struct MDocReaderView: View {
         .tint(.red)
         .foregroundColor(.red)
     }
-    
+
     public var body: some View {
         VStack {
             switch self.delegate.state {
@@ -171,40 +200,41 @@ public struct MDocReaderView: View {
                     onCancel: { self.cancel() }
                 )
             case .error(let error):
-                let message = switch error {
-                case .bluetooth(let central):
-                    switch central.state {
-                    case .poweredOff:
-                        "Is Powered Off."
-                    case .unsupported:
-                        "Is Unsupported."
-                    case .unauthorized:
-                        switch CBManager.authorization {
-                        case .denied:
-                            "Authorization denied"
-                        case .restricted:
-                            "Authorization restricted"
-                        case .allowedAlways:
-                            "Authorized"
-                        case .notDetermined:
-                            "Authorization not determined"
+                let message =
+                    switch error {
+                    case .bluetooth(let central):
+                        switch central.state {
+                        case .poweredOff:
+                            "Is Powered Off."
+                        case .unsupported:
+                            "Is Unsupported."
+                        case .unauthorized:
+                            switch CBManager.authorization {
+                            case .denied:
+                                "Authorization denied"
+                            case .restricted:
+                                "Authorization restricted"
+                            case .allowedAlways:
+                                "Authorized"
+                            case .notDetermined:
+                                "Authorization not determined"
+                            @unknown default:
+                                "Unknown authorization error"
+                            }
+                        case .unknown:
+                            "Unknown"
+                        case .resetting:
+                            "Resetting"
+                        case .poweredOn:
+                            "Impossible"
                         @unknown default:
-                            "Unknown authorization error"
+                            "Error"
                         }
-                    case .unknown:
-                        "Unknown"
-                    case .resetting:
-                        "Resetting"
-                    case .poweredOn:
-                        "Impossible"
-                    @unknown default:
-                        "Error"
+                    case .server(let error):
+                        error
+                    case .generic(let error):
+                        error
                     }
-                case .server(let error):
-                    error
-                case .generic(let error):
-                    error
-                }
                 ErrorView(
                     errorTitle: "Error Verifying",
                     errorDetails: message,
@@ -212,15 +242,18 @@ public struct MDocReaderView: View {
                 )
             case .downloadProgress(let index):
                 LoadingView(
-                    loadingText: "Downloading... \(index) chunks received so far.",
+                    loadingText:
+                        "Downloading... \(index) chunks received so far.",
                     cancelButtonLabel: "Cancel",
                     onCancel: { self.cancel() }
                 )
             case .success(.mdlReaderResponseData(let mdlResponseData)):
                 VerifierMdocResultView(
                     result: mdlResponseData.verifiedResponse,
-                    issuerAuthenticationStatus: mdlResponseData.issuerAuthentication,
-                    deviceAuthenticationStatus: mdlResponseData.deviceAuthentication,
+                    issuerAuthenticationStatus: mdlResponseData
+                        .issuerAuthentication,
+                    deviceAuthenticationStatus: mdlResponseData
+                        .deviceAuthentication,
                     responseProcessingErrors: mdlResponseData.errors,
                     onClose: {
                         onCancel()
@@ -259,7 +292,7 @@ public struct MDocReaderView: View {
         .padding(.all, 30)
         .navigationBarBackButtonHidden(true)
     }
-    
+
     func cancel() {
         self.delegate.cancel()
         self.onCancel()
@@ -269,10 +302,10 @@ public struct MDocReaderView: View {
 class MDocScanViewDelegate: ObservableObject {
     @Published var state: BLEReaderSessionState = .advertizing
     private var mdocReader: MDocReader?
-    
+
     init(
         uri: String,
-        requestedItems: [String: [String: Bool]], 
+        requestedItems: [String: [String: Bool]],
         trustAnchorRegistry: [String]?
     ) {
         self.mdocReader = MDocReader(
@@ -282,7 +315,7 @@ class MDocScanViewDelegate: ObservableObject {
             trustAnchorRegistry: trustAnchorRegistry
         )
     }
-    
+
     func cancel() {
         self.mdocReader?.cancel()
     }

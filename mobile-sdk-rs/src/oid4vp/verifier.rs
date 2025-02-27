@@ -121,7 +121,7 @@ mod tests {
     use crate::credential::vcdm2_sd_jwt::VCDM2SdJwt;
     use crate::credential::*;
     use crate::oid4vp::holder::tests::KeySigner;
-    use crate::oid4vp::holder::*;
+    use crate::oid4vp::{holder::*, ResponseOptions};
 
     // NOTE: This requires an instance of credible to be accessible
     const BASE_URL: &str = "http://localhost:3003";
@@ -171,7 +171,7 @@ mod tests {
             .expect("failed to parse auth_query");
 
         let request = holder
-            .authorization_request(url)
+            .authorization_request(AuthRequest::Url(url))
             .await
             .expect("authorization request failed");
 
@@ -183,6 +183,7 @@ mod tests {
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
+                ResponseOptions::default(),
             )
             .await
             .expect("failed to create permission response");

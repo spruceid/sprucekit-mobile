@@ -55,8 +55,13 @@ public struct ContentView: View {
                     .navigationDestination(for: VerifyVC.self) { _ in
                         VerifyVCView(path: $path)
                     }
-                    .navigationDestination(for: VerifyMDoc.self) { _ in
-                        VerifyMDocView(path: $path)
+                    .navigationDestination(for: VerifyMDoc.self) {
+                        verifyMDocParams in
+                        VerifyMDocView(
+                            path: $path,
+                            checkAgeOver18: verifyMDocParams.checkAgeOver18
+                                ?? false
+                        )
                     }
                     .navigationDestination(for: VerifyCwt.self) { _ in
                         VerifyCwtView(path: $path)
@@ -143,7 +148,7 @@ public struct ContentView: View {
             case "openid-credential-offer":
                 handleOid4vciUrl(url: url)
             case "mdoc-openid4vp":
-                handleOid4vpUrl(url: url)
+                handleMdocOid4vpUrl(url: url)
             default:
                 return
             }

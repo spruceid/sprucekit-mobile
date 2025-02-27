@@ -1,0 +1,31 @@
+{
+  "id": "7c15977f-6162-43c6-bc40-b1f6124d0602",
+  "input_descriptors": [
+    {
+      "id": "b2644b7c-d93c-4ab9-89bf-2d8e72fcd976",
+      "constraints": {
+        "fields": [
+          {
+            // Add multiple alternative paths to the type field where the credential exists.
+            // "path": ["$.vc.type"], (fails)
+            "path": ["$.vc.type", "$.verifiableCredential.type", "$.type"],
+            "filter": {
+              "pattern": "Iso18013DriversLicenseCredential",
+              // change the type from string to array
+              // "type": "string" (fails)
+              "type": "array"
+            },
+            "predicate": null,
+            "intent_to_retain": false
+          }
+        ]
+      },
+      "purpose": "Please present your Driver's License to complete the verification process.",
+      "format": {
+        "jwt_vc_json": {
+          "alg": ["ES256"]
+        }
+      }
+    }
+  ]
+}

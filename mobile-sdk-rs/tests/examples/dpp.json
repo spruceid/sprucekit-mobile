@@ -1,0 +1,32 @@
+{
+    "@context": [
+        "https://www.w3.org/ns/credentials/v2",
+        "https://w3id.org/vc-dpp/v1rc1"
+    ],
+    "type": [
+        "VerifiableCredential",
+        "DisabledPersonParkingEntitlementCredential"
+    ],
+    "id": "urn:uuid:c3fbc3a7-67ba-46dd-81c2-5e64dfc8cd6d",
+    "validFrom": "2025-01-27T23:54:45.997Z",
+    "validUntil": "2026-01-27T23:54:45.997Z",
+    "credentialSubject": {
+        "type": "PlacardHolder",
+        "name": "TESTMOE NINETHREE",
+        "dateOfBirth": "1989-12-11",
+        "entitledPlacard": {
+            "type": "DisabledPersonParkingPlacard",
+            "placardExpirationDate": "2025-12-31",
+            "placardNumber": "123456",
+            "placardType": "Temporary"
+        }
+    },
+    "issuer": "did:web:qa.opencred.org",
+    "proof": {
+        "type": "DataIntegrityProof",
+        "verificationMethod": "did:web:qa.opencred.org#zDnaewfFz5gwQvpqbTpCbuRicyjfjg9nKX7vRBBKf45WgK4Yp",
+        "cryptosuite": "ecdsa-rdfc-2019",
+        "proofPurpose": "assertionMethod",
+        "proofValue": "zfFhf5Uk1U9AQsRLVzbDXiazTj8VqMbwAVNA2xQzD5Jt48euq5yjykSfP31HciD7GXnuxoxsqgYE9zwjacbwroag"
+    }
+}

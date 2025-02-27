@@ -1,4 +1,6 @@
-use super::{error::OID4VPError, RequestedField};
+use crate::crypto::CryptoCurveUtils;
+
+use super::{error::OID4VPError, RequestedField, ResponseOptions};
 
 use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
@@ -134,6 +136,7 @@ pub trait CredentialPresentation {
     /// presentation submission.
     fn create_descriptor_map(
         &self,
+        options: ResponseOptions,
         input_descriptor_id: impl Into<String>,
         index: Option<usize>,
     ) -> Result<DescriptorMap, OID4VPError>;
@@ -206,6 +209,7 @@ pub struct PresentationOptions<'a> {
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
     /// Optional context map for the presentation.
     pub(crate) context_map: Option<HashMap<String, String>>,
+    pub(crate) response_options: &'a ResponseOptions,
 }
 
 impl MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions<'_> {
@@ -237,11 +241,13 @@ impl MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for PresentationOptions
             .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
         match self.signer.cryptosuite().as_ref() {
-            "ecdsa-rdfc-2019" => {
-                let signature = p256::ecdsa::Signature::from_der(&signature_bytes).unwrap();
-
-                Ok(signature.to_vec())
-            }
+            "ecdsa-rdfc-2019" => self
+                .curve_utils()
+                .map(|utils| utils.ensure_raw_fixed_width_signature_encoding(signature_bytes))
+                .map_err(|e| MessageSignatureError::UnsupportedAlgorithm(format!("{e:?}")))?
+                .ok_or(MessageSignatureError::UnsupportedAlgorithm(
+                    "Unsupported signature encoding".into(),
+                )),
             _ => Err(MessageSignatureError::UnsupportedAlgorithm(
                 self.signer.cryptosuite().to_string(),
             )),
@@ -267,19 +273,7 @@ where
     }
 }
 
-impl<'a> PresentationOptions<'a> {
-    pub(crate) fn new(
-        request: &'a AuthorizationRequestObject,
-        signer: Arc<Box<dyn PresentationSigner>>,
-        context_map: Option<HashMap<String, String>>,
-    ) -> Self {
-        Self {
-            request,
-            signer,
-            context_map,
-        }
-    }
-
+impl PresentationOptions<'_> {
     pub async fn verification_method_id(&self) -> Result<IriBuf, PresentationError> {
         self.signer
             .verification_method()
@@ -306,6 +300,16 @@ impl<'a> PresentationOptions<'a> {
 
     pub fn jwk(&self) -> Result<JWK, PresentationError> {
         JWK::from_str(&self.signer.jwk()).map_err(|e| PresentationError::JWK(format!("{e:?}")))
+    }
+
+    /// Return the crypto curve utils based on the signing algorithm, e.g. ES256.
+    pub fn curve_utils(&self) -> Result<CryptoCurveUtils, PresentationError> {
+        match self.signer.algorithm() {
+            Algorithm::ES256 => Ok(CryptoCurveUtils::secp256r1()),
+            alg => Err(PresentationError::CryptographicSuite(format!(
+                "Unsupported curve utils for algorithm: {alg:?}"
+            ))),
+        }
     }
 
     /// Validate the signing cryptosuite against the supported request algorithms.

@@ -14,6 +14,7 @@ use crate::{
         error::OID4VPError,
         permission_request::RequestedField,
         presentation::{CredentialPresentation, PresentationError, PresentationOptions},
+        ResponseOptions,
     },
     CredentialType, Uuid,
 };
@@ -42,6 +43,7 @@ pub struct Credential {
     /// The raw payload of this credential. The encoding depends on the format.
     pub payload: Vec<u8>,
     /// The alias of the key that is authorized to present this credential.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key_alias: Option<KeyAlias>,
 }
 
@@ -105,6 +107,42 @@ impl PresentableCredential {
 
 #[uniffi::export]
 impl ParsedCredential {
+    /// This method attempts to parse the credential depending on the credential format type provided.
+    #[uniffi::constructor]
+    pub fn new_from_string_with_format(
+        format: String,
+        credential: String,
+        key_alias: KeyAlias,
+    ) -> Result<Arc<Self>, CredentialDecodingError> {
+        let format = CredentialFormat::from(format);
+
+        match format {
+            CredentialFormat::MsoMdoc => {
+                let mdoc = Mdoc::from_stringified_document(credential, key_alias)?;
+                Ok(ParsedCredential::new_mso_mdoc(mdoc))
+            }
+            CredentialFormat::JwtVcJson => {
+                let jwt_vc = JwtVc::new_from_compact_jws_with_key(credential, key_alias)?;
+                Ok(ParsedCredential::new_jwt_vc_json(jwt_vc))
+            }
+            CredentialFormat::JwtVcJsonLd => {
+                let jwt_vc = JwtVc::new_from_compact_jws_with_key(credential, key_alias)?;
+                Ok(ParsedCredential::new_jwt_vc_json_ld(jwt_vc))
+            }
+            CredentialFormat::LdpVc => {
+                let json_vc = JsonVc::new_from_json_with_key(credential, key_alias)?;
+                Ok(ParsedCredential::new_ldp_vc(json_vc))
+            }
+            CredentialFormat::VCDM2SdJwt => {
+                let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt_with_key(credential, key_alias)?;
+                Ok(ParsedCredential::new_sd_jwt(sd_jwt))
+            }
+            CredentialFormat::Other(_) => Err(
+                CredentialDecodingError::UnsupportedCredentialFormat(format.to_string()),
+            ),
+        }
+    }
+
     #[uniffi::constructor]
     pub fn new_from_json(json_string: String) -> Result<Arc<Self>, CredentialDecodingError> {
         let credential: Credential = serde_json::from_str(&json_string)
@@ -333,21 +371,22 @@ impl PresentableCredential {
     /// Return the descriptor map with the associated format type of the inner credential.
     pub fn create_descriptor_map(
         self: &Arc<Self>,
+        options: ResponseOptions,
         input_descriptor_id: impl Into<String>,
         index: Option<usize>,
     ) -> Result<DescriptorMap, OID4VPError> {
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
-                sd_jwt.create_descriptor_map(input_descriptor_id, index)
+                sd_jwt.create_descriptor_map(options, input_descriptor_id, index)
             }
             ParsedCredentialInner::JwtVcJson(vc) => {
-                vc.create_descriptor_map(input_descriptor_id, index)
+                vc.create_descriptor_map(options, input_descriptor_id, index)
             }
             ParsedCredentialInner::JwtVcJsonLd(vc) => {
-                vc.create_descriptor_map(input_descriptor_id, index)
+                vc.create_descriptor_map(options, input_descriptor_id, index)
             }
             ParsedCredentialInner::LdpVc(vc) => {
-                vc.create_descriptor_map(input_descriptor_id, index)
+                vc.create_descriptor_map(options, input_descriptor_id, index)
             }
             ParsedCredentialInner::MsoMdoc(_mdoc) => {
                 unimplemented!("Mdoc create descriptor map not implemented")
@@ -520,6 +559,25 @@ impl std::fmt::Display for CredentialFormat {
             CredentialFormat::VCDM2SdJwt => write!(f, "vcdm2_sd_jwt"),
             CredentialFormat::Cwt => write!(f, "cwt"),
             CredentialFormat::Other(s) => write!(f, "{s}"),
+        }
+    }
+}
+
+impl From<CredentialFormat> for String {
+    fn from(format: CredentialFormat) -> Self {
+        format.to_string()
+    }
+}
+
+impl From<String> for CredentialFormat {
+    fn from(value: String) -> Self {
+        match value.as_str() {
+            "mso_mdoc" => CredentialFormat::MsoMdoc,
+            "jwt_vc_json" => CredentialFormat::JwtVcJson,
+            "jwt_vc_json-ld" => CredentialFormat::JwtVcJsonLd,
+            "ldp_vc" => CredentialFormat::LdpVc,
+            "vcdm2_sd_jwt" => CredentialFormat::VCDM2SdJwt,
+            _ => CredentialFormat::Other(value),
         }
     }
 }
