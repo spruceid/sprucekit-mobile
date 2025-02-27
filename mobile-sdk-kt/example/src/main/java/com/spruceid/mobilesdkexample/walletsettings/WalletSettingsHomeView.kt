@@ -3,7 +3,6 @@ package com.spruceid.mobilesdkexample.walletsettings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
@@ -35,9 +33,9 @@ import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
-import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.SettingsHomeItem
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
@@ -119,7 +117,7 @@ fun WalletSettingsHomeBody(
             .padding(top = 10.dp)
             .navigationBarsPadding(),
     ) {
-        WalletSettingsItemList(
+        SettingsHomeItem(
             icon = {
                 Image(
                     painter = painterResource(id = R.drawable.verification_activity_log),
@@ -135,21 +133,6 @@ fun WalletSettingsHomeBody(
         )
 
         GenerateMockMdlButton(credentialPacksViewModel = credentialPacksViewModel)
-
-        WalletSettingsItemList(
-            icon = {
-                Image(
-                    painter = painterResource(id = R.drawable.unknown),
-                    contentDescription = stringResource(id = R.string.trusted_certificates),
-                    modifier = Modifier.padding(end = 5.dp),
-                )
-            },
-            name = "Trusted Certificates",
-            description = "Manage trusted certificates used during mDoc verification.",
-            action = {
-                navController.navigate(Screen.WalletSettingsTrustedCertificatesScreen.route)
-            }
-        )
 
         Spacer(Modifier.weight(1f))
         Button(
@@ -191,60 +174,6 @@ fun WalletSettingsHomeBody(
                 fontFamily = Inter,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
-            )
-        }
-    }
-}
-
-@Composable
-fun WalletSettingsItemList(
-    icon: @Composable () -> Unit,
-    name: String,
-    description: String,
-    action: () -> Unit
-) {
-
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .padding(bottom = 20.dp)
-            .clickable {
-                action()
-            },
-    ) {
-        Column {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    icon()
-                    Text(
-                        text = name,
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 17.sp,
-                        color = ColorStone950,
-                        modifier = Modifier.padding(bottom = 5.dp, top = 5.dp),
-                    )
-                }
-
-                Image(
-                    painter = painterResource(id = R.drawable.chevron),
-                    contentDescription = stringResource(id = R.string.chevron),
-                    modifier = Modifier.scale(0.5f)
-                )
-            }
-
-            Text(
-                text = description,
-                fontFamily = Inter,
-                fontWeight = FontWeight.Normal,
-                fontSize = 15.sp,
-                color = ColorStone600,
             )
         }
     }
