@@ -53,6 +53,7 @@ import com.spruceid.mobile.sdk.rs.PermissionResponse
 import com.spruceid.mobile.sdk.rs.PresentableCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.RequestedField
+import com.spruceid.mobile.sdk.rs.ResponseOptions
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -250,6 +251,7 @@ fun HandleOID4VPView(
                             permissionRequest!!.createPermissionResponse(
                                 lSelectedCredentials.value,
                                 it,
+                                ResponseOptions(false, false, false)
                             )
                         holder!!.submitPermissionResponse(permissionResponse!!)
                         val credentialPack =
