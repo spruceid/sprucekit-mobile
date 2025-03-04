@@ -199,15 +199,14 @@ impl Cwt {
             helpers::check_validity(&signer_certificate.tbs_certificate.validity)
                 .map_err(|_| CwtError::SignerCertificateExpired)?;
 
-            // TODO: check certificate generation code and re-enable these checks
-            // let (key_usage, _crl_dp) = helpers::extract_extensions(&signer_certificate)
-            //     .map_err(|_| CwtError::UnableToExtractExtensionsFromSignerCertificate)?;
+            let (key_usage, _crl_dp) = helpers::extract_extensions(&signer_certificate)
+                .map_err(|_| CwtError::UnableToExtractExtensionsFromSignerCertificate)?;
 
-            // if !key_usage.digital_signature() {
-            //     return Err(CwtError::SignerCertificateInvalid(
-            //         "Certificate not for digital signature".to_string(),
-            //     ));
-            // }
+            if !key_usage.digital_signature() {
+                return Err(CwtError::SignerCertificateInvalid(
+                    "Certificate not for digital signature".to_string(),
+                ));
+            }
 
             // TODO: Check crl
         }
