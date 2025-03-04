@@ -1,4 +1,4 @@
-use super::{Credential, CredentialFormat};
+use super::Credential;
 use crate::crypto::KeyAlias;
 use crate::trusted_roots;
 use crate::verifier::crypto::{CoseP256Verifier, Crypto};
@@ -73,9 +73,7 @@ impl Cwt {
     ) -> Result<(CoseSign1, Arc<Self>), CwtError> {
         let payload =
             String::from_utf8(payload).map_err(|e| CwtError::CwsPayloadDecode(e.to_string()))?;
-        let base10_str = payload
-            .strip_prefix('9')
-            .ok_or_else(|| CwtError::Base10Decode)?;
+        let base10_str = payload.strip_prefix('9').ok_or(CwtError::Base10Decode)?;
         let compressed_cwt_bytes = BigUint::from_str_radix(base10_str, 10)
             .map_err(|_| CwtError::Base10Decode)?
             .to_bytes_be();
@@ -89,7 +87,7 @@ impl Cwt {
         let claims = cwt
             .claims_set()
             .map_err(|e| CwtError::ClaimsRetrieval(e.to_string()))?
-            .ok_or_else(|| CwtError::EmptyPayload)?;
+            .ok_or(CwtError::EmptyPayload)?;
 
         let claims = Self::claims_set_to_hash_map(claims);
 
@@ -139,7 +137,7 @@ impl Cwt {
         let claims = cwt
             .claims_set()
             .map_err(|e| CwtError::ClaimsRetrieval(e.to_string()))?
-            .ok_or_else(|| CwtError::EmptyPayload)?;
+            .ok_or(CwtError::EmptyPayload)?;
 
         Self::validate_cwt(&claims)
     }
@@ -199,15 +197,14 @@ impl Cwt {
             helpers::check_validity(&signer_certificate.tbs_certificate.validity)
                 .map_err(|_| CwtError::SignerCertificateExpired)?;
 
-            // TODO: check certificate generation code and re-enable these checks
-            // let (key_usage, _crl_dp) = helpers::extract_extensions(&signer_certificate)
-            //     .map_err(|_| CwtError::UnableToExtractExtensionsFromSignerCertificate)?;
+            let (key_usage, _crl_dp) = helpers::extract_extensions(&signer_certificate)
+                .map_err(|_| CwtError::UnableToExtractExtensionsFromSignerCertificate)?;
 
-            // if !key_usage.digital_signature() {
-            //     return Err(CwtError::SignerCertificateInvalid(
-            //         "Certificate not for digital signature".to_string(),
-            //     ));
-            // }
+            if !key_usage.digital_signature() {
+                return Err(CwtError::SignerCertificateInvalid(
+                    "Certificate not for digital signature".to_string(),
+                ));
+            }
 
             // TODO: Check crl
         }
@@ -270,7 +267,7 @@ impl Cwt {
         set.iter()
             .map(|c| {
                 (
-                    Self::get_key_name(&c.0),
+                    Self::get_key_name(c.0),
                     match c.0 {
                         cose_rs::cwt::Key::Text(_) => CborValue::from(c.1.clone()),
                         cose_rs::cwt::Key::Integer(v) => {
@@ -308,10 +305,6 @@ impl Cwt {
                     .unwrap_or_else(|_| CborValue::Text(date_str))
             }
         }
-    }
-
-    fn format() -> CredentialFormat {
-        CredentialFormat::Cwt
     }
 }
 
