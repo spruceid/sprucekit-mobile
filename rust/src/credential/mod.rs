@@ -1,3 +1,4 @@
+pub mod cwt;
 pub mod json_vc;
 pub mod jwt_vc;
 pub mod mdoc;
@@ -17,6 +18,7 @@ use crate::{
     },
     CredentialType,
 };
+use cwt::Cwt;
 use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
@@ -75,6 +77,7 @@ pub(crate) enum ParsedCredentialInner {
     JwtVcJsonLd(Arc<JwtVc>),
     VCDM2SdJwt(Arc<VCDM2SdJwt>),
     LdpVc(Arc<JsonVc>),
+    Cwt(Arc<Cwt>),
     // More to come, for example:
     // SdJwt(...),
     // SdJwtJoseCose(...),
@@ -98,6 +101,7 @@ impl PresentableCredential {
             ParsedCredentialInner::JwtVcJsonLd(_) => false,
             ParsedCredentialInner::VCDM2SdJwt(_) => true,
             ParsedCredentialInner::LdpVc(_) => false,
+            ParsedCredentialInner::Cwt(_) => false,
         }
     }
 }
@@ -188,6 +192,14 @@ impl ParsedCredential {
     }
 
     #[uniffi::constructor]
+    /// Construct a new `cwt` credential.
+    pub fn new_cwt(cwt: Arc<Cwt>) -> Arc<Self> {
+        Arc::new(Self {
+            inner: ParsedCredentialInner::Cwt(cwt),
+        })
+    }
+
+    #[uniffi::constructor]
     /// Parse a credential from the generic form retrieved from storage.
     pub fn parse_from_credential(
         credential: Credential,
@@ -232,6 +244,13 @@ impl ParsedCredential {
                 payload: vc.to_json_bytes()?,
                 key_alias: vc.key_alias(),
             }),
+            ParsedCredentialInner::Cwt(cwt) => Ok(Credential {
+                id: cwt.id(),
+                format: CredentialFormat::Cwt,
+                r#type: cwt.r#type(),
+                payload: cwt.payload().as_bytes().to_vec(),
+                key_alias: cwt.key_alias(),
+            }),
         }
     }
 
@@ -242,6 +261,7 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJson(_) => CredentialFormat::JwtVcJson,
             ParsedCredentialInner::JwtVcJsonLd(_) => CredentialFormat::JwtVcJsonLd,
             ParsedCredentialInner::VCDM2SdJwt(_) => CredentialFormat::VCDM2SdJwt,
+            ParsedCredentialInner::Cwt(_) => CredentialFormat::Cwt,
             ParsedCredentialInner::LdpVc(_) => CredentialFormat::LdpVc,
         }
     }
@@ -254,6 +274,7 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJsonLd(arc) => arc.id(),
             ParsedCredentialInner::LdpVc(arc) => arc.id(),
             ParsedCredentialInner::VCDM2SdJwt(arc) => arc.id(),
+            ParsedCredentialInner::Cwt(arc) => arc.id(),
         }
     }
 
@@ -265,6 +286,7 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJsonLd(arc) => arc.key_alias(),
             ParsedCredentialInner::LdpVc(arc) => arc.key_alias(),
             ParsedCredentialInner::VCDM2SdJwt(arc) => arc.key_alias(),
+            ParsedCredentialInner::Cwt(arc) => arc.key_alias(),
         }
     }
 
@@ -276,6 +298,7 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJsonLd(arc) => arc.r#type(),
             ParsedCredentialInner::LdpVc(arc) => arc.r#type(),
             ParsedCredentialInner::VCDM2SdJwt(arc) => arc.r#type(),
+            ParsedCredentialInner::Cwt(arc) => arc.r#type(),
         }
     }
 
@@ -308,6 +331,14 @@ impl ParsedCredential {
     pub fn as_sd_jwt(&self) -> Option<Arc<VCDM2SdJwt>> {
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => Some(sd_jwt.clone()),
+            _ => None,
+        }
+    }
+
+    /// Return the credential as an CWT, if it is of that format.
+    pub fn as_cwt(&self) -> Option<Arc<Cwt>> {
+        match &self.inner {
+            ParsedCredentialInner::Cwt(cwt) => Some(cwt.clone()),
             _ => None,
         }
     }
@@ -361,6 +392,9 @@ impl PresentableCredential {
             ParsedCredentialInner::MsoMdoc(_mdoc) => {
                 unimplemented!("Mdoc create descriptor map not implemented")
             }
+            ParsedCredentialInner::Cwt(cwt) => {
+                unimplemented!("Mdoc create descriptor map not implemented")
+            }
         }
     }
 }
@@ -381,6 +415,7 @@ impl ParsedCredential {
                 sd_jwt.satisfies_presentation_definition(definition)
             }
             ParsedCredentialInner::MsoMdoc(_mdoc) => false,
+            ParsedCredentialInner::Cwt(cwt) => false,
         }
     }
 
@@ -394,6 +429,9 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJson(vc) => vc.requested_fields(definition),
             ParsedCredentialInner::JwtVcJsonLd(vc) => vc.requested_fields(definition),
             ParsedCredentialInner::LdpVc(vc) => vc.requested_fields(definition),
+            ParsedCredentialInner::Cwt(cwt) => {
+                unimplemented!("Mdoc requested fields not implemented")
+            }
             ParsedCredentialInner::MsoMdoc(_mdoc) => {
                 unimplemented!("Mdoc requested fields not implemented")
             }
@@ -507,6 +545,7 @@ pub enum CredentialFormat {
     LdpVc,
     #[serde(rename = "vcdm2_sd_jwt")]
     VCDM2SdJwt,
+    Cwt,
     #[serde(untagged)]
     Other(String), // For ease of expansion.
 }
@@ -519,6 +558,7 @@ impl std::fmt::Display for CredentialFormat {
             CredentialFormat::JwtVcJsonLd => write!(f, "jwt_vc_json-ld"),
             CredentialFormat::LdpVc => write!(f, "ldp_vc"),
             CredentialFormat::VCDM2SdJwt => write!(f, "vcdm2_sd_jwt"),
+            CredentialFormat::Cwt => write!(f, "cwt"),
             CredentialFormat::Other(s) => write!(f, "{s}"),
         }
     }
@@ -553,6 +593,7 @@ mod test {
     #[case::jwt_vc_json_ld(r#""jwt_vc_json-ld""#, CredentialFormat::JwtVcJsonLd)]
     #[case::ldp_vc(r#""ldp_vc""#, CredentialFormat::LdpVc)]
     #[case::ldp_vc(r#""vcdm2_sd_jwt""#, CredentialFormat::VCDM2SdJwt)]
+    #[case::cwt(r#""cwt""#, CredentialFormat::Cwt)]
     #[case::other(r#""something_else""#, CredentialFormat::Other("something_else".into()))]
     fn credential_format_roundtrips(#[case] expected: String, #[case] value: CredentialFormat) {
         let serialized = serde_json::to_string(&value).unwrap();
