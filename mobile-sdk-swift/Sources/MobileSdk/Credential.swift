@@ -88,6 +88,26 @@ public extension JwtVc {
     }
 }
 
+public extension Cwt {
+    /// Access the CWT credential
+    func credentialClaims() -> [String: GenericJSON] {
+        var result: [String: GenericJSON] = [:]
+
+        for (key, value) in self.claims() {
+            result[key] = value.toGenericJSON()
+        }
+        
+        return result
+    }
+
+    /// Access the specified claims from the W3C VCDM credential.
+    func credentialClaims(containing claimNames: [String]) -> [String: GenericJSON] {
+        credentialClaims().filter { key, _ in
+            claimNames.contains(key)
+        }
+    }
+}
+
 public extension JsonVc {
     /// Access the W3C VCDM credential
     func credentialClaims() -> [String: GenericJSON] {

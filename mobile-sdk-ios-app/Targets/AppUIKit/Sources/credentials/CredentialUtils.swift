@@ -44,6 +44,9 @@ func addCredential(credentialPack: CredentialPack, rawCredential: String) throws
     } else if (try? credentialPack.addSdJwt(
         sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential))) != nil
     {
+    } else if (try? credentialPack.addCwt(
+        cwt: Cwt.newFromBase10(payload: rawCredential))) != nil
+    {
     } else if (try? credentialPack.addMDoc(
         mdoc: Mdoc.fromStringifiedDocument(
             stringifiedDocument: rawCredential, keyAlias: UUID().uuidString)))
