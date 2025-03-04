@@ -18,7 +18,7 @@ use crate::{
     },
     CredentialType,
 };
-use cwt::Cwt;
+use cwt::{Cwt, CwtError};
 use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
@@ -137,6 +137,10 @@ impl ParsedCredential {
             CredentialFormat::VCDM2SdJwt => {
                 let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt_with_key(credential, key_alias)?;
                 Ok(ParsedCredential::new_sd_jwt(sd_jwt))
+            }
+            CredentialFormat::Cwt => {
+                let cwt = Cwt::new_from_base10(credential)?;
+                Ok(ParsedCredential::new_cwt(cwt))
             }
             CredentialFormat::Other(_) => Err(
                 CredentialDecodingError::UnsupportedCredentialFormat(format.to_string()),
@@ -392,8 +396,8 @@ impl PresentableCredential {
             ParsedCredentialInner::MsoMdoc(_mdoc) => {
                 unimplemented!("Mdoc create descriptor map not implemented")
             }
-            ParsedCredentialInner::Cwt(cwt) => {
-                unimplemented!("Mdoc create descriptor map not implemented")
+            ParsedCredentialInner::Cwt(_cwt) => {
+                unimplemented!("Cwt create descriptor map not implemented")
             }
         }
     }
@@ -415,7 +419,7 @@ impl ParsedCredential {
                 sd_jwt.satisfies_presentation_definition(definition)
             }
             ParsedCredentialInner::MsoMdoc(_mdoc) => false,
-            ParsedCredentialInner::Cwt(cwt) => false,
+            ParsedCredentialInner::Cwt(_cwt) => false,
         }
     }
 
@@ -429,8 +433,8 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJson(vc) => vc.requested_fields(definition),
             ParsedCredentialInner::JwtVcJsonLd(vc) => vc.requested_fields(definition),
             ParsedCredentialInner::LdpVc(vc) => vc.requested_fields(definition),
-            ParsedCredentialInner::Cwt(cwt) => {
-                unimplemented!("Mdoc requested fields not implemented")
+            ParsedCredentialInner::Cwt(_cwt) => {
+                unimplemented!("Cwt requested fields not implemented")
             }
             ParsedCredentialInner::MsoMdoc(_mdoc) => {
                 unimplemented!("Mdoc requested fields not implemented")
@@ -518,6 +522,8 @@ pub enum CredentialDecodingError {
     JwtVc(#[from] JwtVcInitError),
     #[error("SD JWT VC decoding error: {0}")]
     SdJwt(#[from] SdJwtError),
+    #[error("Cwt decoding error: {0}")]
+    Cwt(#[from] CwtError),
     #[error("Credential format is not yet supported for type: {0}")]
     UnsupportedCredentialFormat(String),
     #[error("Serialization error: {0}")]

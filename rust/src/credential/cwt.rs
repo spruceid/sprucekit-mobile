@@ -1,4 +1,4 @@
-use super::{Credential, CredentialFormat};
+use super::Credential;
 use crate::crypto::KeyAlias;
 use crate::trusted_roots;
 use crate::verifier::crypto::{CoseP256Verifier, Crypto};
@@ -308,10 +308,6 @@ impl Cwt {
                     .unwrap_or_else(|_| CborValue::Text(date_str))
             }
         }
-    }
-
-    fn format() -> CredentialFormat {
-        CredentialFormat::Cwt
     }
 }
 
