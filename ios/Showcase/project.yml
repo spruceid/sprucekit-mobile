@@ -1,0 +1,211 @@
+name: ReferenceApp
+options:
+  bundleIdPrefix: com.spruceid.mobile
+packages:
+  SpruceIDMobileSdk:
+    # url: https://github.com/spruceid/sprucekit-mobile
+    # from: 0.3.0
+    # revision: "9376148"
+    path: "../../"
+  SQLite:
+    url: https://github.com/stephencelis/SQLite.swift.git
+    revision: a95fc6df17d108bd99210db5e8a9bac90fe984b8
+    version: 0.15.3
+  RiveRuntime:
+    url: https://github.com/rive-app/rive-ios
+    revision: fa6c4ee
+    version: 6.1.6
+settings:
+  ENABLE_USER_SCRIPT_SANDBOXING: YES
+  ENABLE_MODULE_VERIFIER: YES
+  DEVELOPMENT_TEAM: FZVYR3KYL4
+  # "CODE_SIGN_IDENTITY": "Spruce Systems, Inc. (FZVYR3KYL4)"
+targets:
+  App:
+    type: application
+    supportedDestinations: [iOS]
+    platform: iOS
+    deploymentTarget: "16.4"
+    sources:
+      - path: "Targets/App/Sources"
+        createIntermediateGroups: true
+      - path: "Resources"
+        createIntermediateGroups: true
+      - path: Targets/AppUIKit/Sources/jsonLdContexts
+        createIntermediateGroups: true
+    dependencies:
+      - target: AppAppKit
+      - target: AppUIKit
+      - package: RiveRuntime
+    scheme:
+      testTargets:
+        - AppAppKitTests
+        - AppUIKitTests
+    info:
+      path: Info.plist
+      properties:
+        CFBundleVersion: "1.7.3"
+        CFBundleShortVersionString: "1.7.3"
+        CFBundleDisplayName: "SpruceKit"
+        CFBundleIconName: "AppIcon"
+        CFBundlePackageType: "APPL"
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: OID4VP
+            CFBundleURLSchemes:
+              - openid4vp
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: SPRUCEID
+            CFBundleURLSchemes:
+              - spruceid
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: OID4VCI
+            CFBundleURLSchemes:
+              - openid-credential-offer
+          - CFBundleTypeRole: Viewer
+            CFBundleURLName: MdocOID4VP
+            CFBundleURLSchemes:
+              - mdoc-openid4vp
+        NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
+        NSCameraUsageDescription: "We need to access your camera for scanning"
+        ITSAppUsesNonExemptEncryption: "NO"
+        LSRequiresIPhoneOS: true
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations: {}
+        UILaunchScreen: {}
+        UIRequiredDeviceCapabilities:
+          - armv7
+          - telephony
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIRequiresFullScreen: true
+        UIUserInterfaceStyle: "Light"
+        UIAppFonts:
+          - Inter-Black.ttf
+          - Inter-BlackItalic.ttf
+          - Inter-Bold.ttf
+          - Inter-BoldItalic.ttf
+          - Inter-ExtraBold.ttf
+          - Inter-ExtraBoldItalic.ttf
+          - Inter-ExtraLight.ttf
+          - Inter-ExtraLightItalic.ttf
+          - Inter-Italic.ttf
+          - Inter-Light.ttf
+          - Inter-LightItalic.ttf
+          - Inter-Medium.ttf
+          - Inter-MediumItalic.ttf
+          - Inter-Regular.ttf
+          - Inter-Semibold.ttf
+          - Inter-SemiboldItalic.ttf
+          - Inter-Thin.ttf
+          - Inter-ThinItalic.ttf
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spruceid.mobile
+        TARGETED_DEVICE_FAMILY: 1
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+  AppAppKit:
+    type: framework
+    supportedDestinations: [iOS]
+    platform: iOS
+    deploymentTarget: "16.4"
+    sources:
+      - path: "Targets/AppAppKit/Sources"
+        createIntermediateGroups: true
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.spruceid.mobile.kit
+        TARGETED_DEVICE_FAMILY: 1
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+  AppAppKitTests:
+    type: bundle.unit-test
+    supportedDestinations: [iOS]
+    platform: iOS
+    deploymentTarget: "16.4"
+    sources:
+      - path: "Targets/AppAppKit/Tests"
+        createIntermediateGroups: true
+    dependencies:
+      - target: AppAppKit
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.spruceid.mobile.kittests
+        TARGETED_DEVICE_FAMILY: 1
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+  AppUIKit:
+    type: framework
+    supportedDestinations: [iOS]
+    platform: iOS
+    deploymentTarget: "16.4"
+    sources:
+      - path: "Targets/AppUIKit/Sources"
+        createIntermediateGroups: true
+    dependencies:
+      - package: SpruceIDMobileSdk
+        product: SpruceIDMobileSdk
+      - package: SQLite
+      - package: RiveRuntime
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.spruceid.mobile.ui
+        TARGETED_DEVICE_FAMILY: 1
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+  AppUIKitTests:
+    type: bundle.unit-test
+    supportedDestinations: [iOS]
+    platform: iOS
+    deploymentTarget: "16.4"
+    sources:
+      - path: "Targets/AppUIKit/Tests"
+        createIntermediateGroups: true
+    dependencies:
+      - target: AppUIKit
+    settings:
+      base:
+        INFOPLIST_FILE: Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.spruceid.mobile.uitests
+        TARGETED_DEVICE_FAMILY: 1
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+configs:
+  debug: debug
+  release: release
+schemes:
+  release:
+    shared: true
+    build:
+      targets:
+        App: [build, archive]
+    run:
+      targets:
+        App: [run]
+    test:
+      targets:
+        - App
+        - AppAppKitTests
+        - AppUIKitTests
+    archive:
+      config: release
+  debug:
+    shared: true
+    build:
+      targets:
+        App: [build, archive]
+    run:
+      targets:
+        App: [run]
+    test:
+      targets:
+        - App
+        - AppAppKitTests
+        - AppUIKitTests
+    archive:
+      config: debug

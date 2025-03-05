@@ -1,0 +1,46 @@
+name: MobileSdk
+options:
+  bundleIdPrefix: com.spruceid.mobile.sdk
+packages:
+  SpruceIDMobileSdk:
+    path: "../../"
+  SwiftAlgorithms:
+    url: https://github.com/apple/swift-algorithms
+    from: 1.2.0
+  SwiftLint:
+    url: https://github.com/realm/SwiftLint
+    from: 0.54.0
+settings:
+  ENABLE_USER_SCRIPT_SANDBOXING: YES
+  GENERATE_INFOPLIST_FILE: YES
+  DEVELOPMENT_TEAM: FZVYR3KYL4
+targets:
+  MobileSdk:
+    type: library.dynamic
+    platform: iOS
+    deploymentTarget: "14.0"
+    sources:
+      - Sources
+    dependencies:
+      - package: SpruceIDMobileSdk
+        product: SpruceIDMobileSdkRs
+      - package: SwiftAlgorithms
+        product: Algorithms
+    scheme:
+      testTargets:
+        - MobileSdkTests
+    info:
+      path: Info.plist
+      properties:
+        NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
+        NSCameraUsageDescription: "QR Code Scanner"
+    buildToolPlugins:
+      - plugin: SwiftLintPlugin
+        package: SwiftLint
+  MobileSdkTests:
+    platform: iOS
+    type: bundle.unit-test
+    sources:
+      - Tests
+    dependencies:
+      - target: MobileSdk
