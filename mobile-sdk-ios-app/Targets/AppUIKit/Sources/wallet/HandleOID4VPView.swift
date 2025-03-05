@@ -118,7 +118,7 @@ struct HandleOID4VPView: View {
             )
             let newurl = url.replacing("authorize", with: "")
             let tmpPermissionRequest = try await holder!.authorizationRequest(
-                url: Url(newurl))
+                req: Url(newurl))
             let permissionRequestCredentials =
                 tmpPermissionRequest.credentials()
 
@@ -193,7 +193,12 @@ struct HandleOID4VPView: View {
                             permissionResponse = try await permissionRequest?
                                 .createPermissionResponse(
                                     selectedCredentials: lSelectedCredentials!,
-                                    selectedFields: selectedFields
+                                    selectedFields: selectedFields,
+                                    responseOptions: ResponseOptions(
+                                        shouldStripQuotes: false,
+                                        forceArraySerialization: false,
+                                        removeVpPathPrefix: false
+                                    )
                                 )
                             _ = try await holder?.submitPermissionResponse(
                                 response: permissionResponse!)

@@ -60,7 +60,6 @@ public struct ContentView: View {
                         VerifyMDocView(
                             path: $path,
                             checkAgeOver18: verifyMDocParams.checkAgeOver18
-                                ?? false
                         )
                     }
                     .navigationDestination(for: VerifyDelegatedOid4vp.self) {
@@ -86,10 +85,16 @@ public struct ContentView: View {
                     .navigationDestination(for: WalletSettingsHome.self) { _ in
                         WalletSettingsHomeView(path: $path)
                     }
-                    .navigationDestination(for: WalletSettingsActivityLog.self)
-                { _ in
-                    WalletSettingsActivityLogView(path: $path)
-                }
+                    .navigationDestination(
+                        for: WalletSettingsActivityLog.self
+                    ) { _ in
+                        WalletSettingsActivityLogView(path: $path)
+                    }
+                    .navigationDestination(
+                        for: VerifierSettingsTrustedCertificates.self
+                    ) { _ in
+                        VerifierSettingsTrustedCertificatesView(path: $path)
+                    }
                     .navigationDestination(for: AddToWallet.self) {
                         addToWalletParams in
                         AddToWalletView(

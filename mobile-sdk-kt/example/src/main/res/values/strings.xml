@@ -33,4 +33,6 @@
     <string name="generate_mdl">Generate mDL</string>
     <string name="details_share">QR Code to share credential</string>
     <string name="details_info">Credential information</string>
+    <string name="trusted_certificates">Manage trusted certificates</string>
+    <string name="delete">Delete</string>
 </resources>

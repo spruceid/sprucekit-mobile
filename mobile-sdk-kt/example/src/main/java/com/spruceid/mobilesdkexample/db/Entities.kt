@@ -41,3 +41,10 @@ data class VerificationMethods(
     val verifierName: String,
     val url: String,
 )
+
+@Entity(tableName = "trusted_certificates")
+data class TrustedCertificates(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val content: String
+)

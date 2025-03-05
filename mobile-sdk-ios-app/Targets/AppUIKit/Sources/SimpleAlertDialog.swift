@@ -9,10 +9,16 @@ struct SimpleAlertDialog: View {
             ZStack {
                 if isPresented {
                     VStack(spacing: 16) {
-                        Text(message ?? "")
-                            .font(.customFont(font: .inter, style: .regular, size: .h4))
-                            .foregroundStyle(Color("ColorStone950"))
-                            .multilineTextAlignment(.center)
+                        ScrollView {
+                            Text(message ?? "")
+                                .font(
+                                    .customFont(
+                                        font: .inter, style: .regular, size: .h4
+                                    )
+                                )
+                                .foregroundStyle(Color("ColorStone950"))
+                                .multilineTextAlignment(.center)
+                        }
                         HStack {
                             Spacer()
                             Text("Close")
@@ -27,7 +33,8 @@ struct SimpleAlertDialog: View {
                     .background(Color.white)
                     .cornerRadius(12)
                     .shadow(radius: 5)
-                    .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                    .position(
+                        x: geometry.size.width / 2, y: geometry.size.height / 2)
                 }
             }
             .animation(.easeInOut, value: isPresented)

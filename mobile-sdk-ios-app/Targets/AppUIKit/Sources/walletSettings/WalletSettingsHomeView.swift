@@ -63,27 +63,11 @@ struct WalletSettingsHomeBody: View {
         Button {
             path.append(WalletSettingsActivityLog())
         } label: {
-            HStack(alignment: .top) {
-                VStack {
-                    HStack {
-                        Image("List")
-                        Text("Activity Log")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundColor(Color("ColorStone950"))
-                            .font(
-                                .customFont(
-                                    font: .inter, style: .bold, size: .h4))
-                    }
-                    Text("View and export activity history")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundColor(Color("ColorStone600"))
-                        .font(
-                            .customFont(font: .inter, style: .regular, size: .p)
-                        )
-                }
-                Image("Chevron")
-                    .rotationEffect(.degrees(-90))
-            }
+            SettingsHomeItem(
+                image: "List",
+                title: "Activity Log",
+                description: "View and export activity history"
+            )
         }
     }
 
@@ -168,41 +152,13 @@ struct WalletSettingsHomeBody: View {
 
             }
         } label: {
-            HStack(alignment: .top) {
-                VStack {
-                    HStack {
-                        Image("Unknown")
-                            .foregroundColor(Color("ColorStone950"))
-                        Text("Generate mDL")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .foregroundColor(Color("ColorStone950"))
-                            .font(
-                                .customFont(
-                                    font: .inter,
-                                    style: .bold,
-                                    size: .h4
-                                )
-                            )
-                    }
-                    Text(
-                        "Generate a fresh test mDL issued by the SpruceID Test CA"
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .multilineTextAlignment(.leading)
-                    .foregroundColor(Color("ColorStone600"))
-                    .font(
-                        .customFont(
-                            font: .inter,
-                            style: .regular,
-                            size: .p
-                        )
-                    )
-                }
-                Image("Chevron")
-                    .rotationEffect(.degrees(-90))
-            }
+            SettingsHomeItem(
+                image: "Unknown",
+                title: "Generate mDL",
+                description:
+                    "Generate a fresh test mDL issued by the SpruceID Test CA"
+            )
         }
-        .padding(.vertical, 20)
     }
 
     var body: some View {

@@ -105,12 +105,14 @@ struct VerifierSettingsActivityLogBody: View {
                                         font: .inter, style: .bold, size: .h4)
                                 )
                                 .foregroundColor(Color("ColorStone950"))
-                            Text(item.issuer)
-                                .font(
-                                    .customFont(
-                                        font: .inter, style: .regular, size: .p)
-                                )
-                                .foregroundColor(Color("ColorStone600"))
+                            if item.issuer != "" {
+                                Text(item.issuer)
+                                    .font(
+                                        .customFont(
+                                            font: .inter, style: .regular, size: .p)
+                                    )
+                                    .foregroundColor(Color("ColorStone600"))
+                            }
                             CredentialStatusSmall(status: CredentialStatusList(rawValue: item.status))
                             Text("\(item.verification_date_time)")
                                 .font(

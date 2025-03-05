@@ -99,3 +99,33 @@ class VerificationMethodsRepository(private val verificationMethodsDao: Verifica
         return verificationMethodsDao.deleteVerificationMethod(id = id)
     }
 }
+
+class TrustedCertificatesRepository(private val trustedCertificatesDao: TrustedCertificatesDao) {
+    val trustedCertificates: List<TrustedCertificates> =
+        trustedCertificatesDao.getAllCertificates()
+
+    @WorkerThread
+    suspend fun insertCertificate(certificate: TrustedCertificates) {
+        trustedCertificatesDao.insertCertificate(certificate)
+    }
+
+    @WorkerThread
+    fun getCertificates(): List<TrustedCertificates> {
+        return trustedCertificatesDao.getAllCertificates()
+    }
+
+    @WorkerThread
+    fun getCertificate(id: Long): TrustedCertificates {
+        return trustedCertificatesDao.getCertificate(id)
+    }
+
+    @WorkerThread
+    fun deleteAllCertificates(): Int {
+        return trustedCertificatesDao.deleteAllCertificates()
+    }
+
+    @WorkerThread
+    fun deleteCertificate(id: Long): Int {
+        return trustedCertificatesDao.deleteCertificate(id = id)
+    }
+}

@@ -7,42 +7,6 @@ struct VerifyMDoc: Hashable {
     var checkAgeOver18: Bool = false
 }
 
-let trustAnchorCerts = [
-    // mobile-sdk-rs/tests/res/mdl/iaca-certificate.pem
-    """
-    -----BEGIN CERTIFICATE-----
-    MIIB0zCCAXqgAwIBAgIJANVHM3D1VFaxMAoGCCqGSM49BAMCMCoxCzAJBgNVBAYT
-    AlVTMRswGQYDVQQDDBJTcHJ1Y2VJRCBUZXN0IElBQ0EwHhcNMjUwMTA2MTA0MDUy
-    WhcNMzAwMTA1MTA0MDUyWjAqMQswCQYDVQQGEwJVUzEbMBkGA1UEAwwSU3BydWNl
-    SUQgVGVzdCBJQUNBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEmAZFZftRxWrl
-    Iuf1ZY4DW7QfAfTu36RumpvYZnKVFUNmyrNxGrtQlp2Tbit+9lUzjBjF9R8nvdid
-    mAHOMg3zg6OBiDCBhTAdBgNVHQ4EFgQUJpZofWBt6ci5UVfOl8E9odYu8lcwDgYD
-    VR0PAQH/BAQDAgEGMBIGA1UdEwEB/wQIMAYBAf8CAQAwGwYDVR0SBBQwEoEQdGVz
-    dEBleGFtcGxlLmNvbTAjBgNVHR8EHDAaMBigFqAUhhJodHRwOi8vZXhhbXBsZS5j
-    b20wCgYIKoZIzj0EAwIDRwAwRAIgJFSMgE64Oiq7wdnWA3vuEuKsG0xhqW32HdjM
-    LNiJpAMCIG82C+Kx875VNhx4hwfqReTRuFvZOTmFDNgKN0O/1+lI
-    -----END CERTIFICATE-----
-    """,
-    // mobile-sdk-rs/tests/res/mdl/utrecht-certificate.pem
-    """
-    -----BEGIN CERTIFICATE-----
-    MIICWTCCAf+gAwIBAgIULZgAnZswdEysOLq+G0uNW0svhYIwCgYIKoZIzj0EAwIw
-    VjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAk5ZMREwDwYDVQQKDAhTcHJ1Y2VJRDEn
-    MCUGA1UEAwweU3BydWNlSUQgVGVzdCBDZXJ0aWZpY2F0ZSBSb290MB4XDTI1MDIx
-    MjEwMjU0MFoXDTI2MDIxMjEwMjU0MFowVjELMAkGA1UEBhMCVVMxCzAJBgNVBAgM
-    Ak5ZMREwDwYDVQQKDAhTcHJ1Y2VJRDEnMCUGA1UEAwweU3BydWNlSUQgVGVzdCBD
-    ZXJ0aWZpY2F0ZSBSb290MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEwWfpUAMW
-    HkOzSctR8szsMNLeOCMyjk9HAkAYZ0HiHsBMNyrOcTxScBhEiHj+trE5d5fVq36o
-    cvrVkt2X0yy/N6OBqjCBpzAdBgNVHQ4EFgQU+TKkY3MApIowvNzakcIr6P4ZQDQw
-    EgYDVR0TAQH/BAgwBgEB/wIBADA+BgNVHR8ENzA1MDOgMaAvhi1odHRwczovL2lu
-    dGVyb3BldmVudC5zcHJ1Y2VpZC5jb20vaW50ZXJvcC5jcmwwDgYDVR0PAQH/BAQD
-    AgEGMCIGA1UdEgQbMBmBF2lzb2ludGVyb3BAc3BydWNlaWQuY29tMAoGCCqGSM49
-    BAMCA0gAMEUCIAJrzCSS/VIjf7uTq+Kt6+97VUNSvaAAwdP6fscIvp4RAiEA0dOP
-    Ld7ivuH83lLHDuNpb4NShfdBG57jNEIPNUs9OEg=
-    -----END CERTIFICATE-----
-    """
-]
-
 let defaultElements = [
     "org.iso.18013.5.1": [
         // Mandatory
@@ -120,6 +84,9 @@ public struct VerifyMDocView: View {
 
     @State private var scanned: String?
 
+    var trustedCertificates = TrustedCertificatesDataStore.shared
+        .getAllCertificates()
+
     public var body: some View {
         if scanned == nil {
             ScanningComponent(
@@ -137,7 +104,7 @@ public struct VerifyMDocView: View {
                 uri: scanned!,
                 requestedItems: !checkAgeOver18
                     ? defaultElements : ageOver18Elements,
-                trustAnchorRegistry: trustAnchorCerts,
+                trustAnchorRegistry: trustedCertificates.map { $0.content },
                 onCancel: onCancel,
                 path: $path
             )
@@ -166,7 +133,8 @@ public struct MDocReaderView: View {
             wrappedValue: MDocScanViewDelegate(
                 uri: uri,
                 requestedItems: requestedItems,
-                trustAnchorRegistry: trustAnchorRegistry
+                trustAnchorRegistry: trustAnchorRegistry,
+                onCancel: onCancel
             )
         )
         self.onCancel = onCancel
@@ -306,14 +274,21 @@ class MDocScanViewDelegate: ObservableObject {
     init(
         uri: String,
         requestedItems: [String: [String: Bool]],
-        trustAnchorRegistry: [String]?
+        trustAnchorRegistry: [String]?,
+        onCancel: () -> Void
     ) {
-        self.mdocReader = MDocReader(
-            callback: self,
-            uri: uri,
-            requestedItems: requestedItems,
-            trustAnchorRegistry: trustAnchorRegistry
-        )
+        do {
+            self.mdocReader = try MDocReader(
+                callback: self,
+                uri: uri,
+                requestedItems: requestedItems,
+                trustAnchorRegistry: trustAnchorRegistry
+            )
+        } catch {
+            ToastManager.shared.showError(message: "\(error)", duration: 5.0)
+            cancel()
+            onCancel()
+        }
     }
 
     func cancel() {

@@ -1,6 +1,11 @@
 import CoreBluetooth
 import SpruceIDMobileSdkRs
 
+enum MDocReaderError: Error {
+    /// Couldn't initialize MDocReader.
+    case initializing(message: String)
+}
+
 public class MDocReader {
     var sessionManager: MdlSessionManager
     var bleManager: MDocReaderBLEPeripheral!
@@ -11,20 +16,21 @@ public class MDocReader {
         uri: String,
         requestedItems: [String: [String: Bool]],
         trustAnchorRegistry: [String]?
-    ) {
+    ) throws {
         self.callback = callback
         do {
-            let sessionData = try SpruceIDMobileSdkRs.establishSession(uri: uri,
-                                                                       requestedItems: requestedItems,
-                                                                       trustAnchorRegistry: trustAnchorRegistry)
+            let sessionData = try SpruceIDMobileSdkRs.establishSession(
+                uri: uri,
+                requestedItems: requestedItems,
+                trustAnchorRegistry: trustAnchorRegistry)
             self.sessionManager = sessionData.state
-            self.bleManager = MDocReaderBLEPeripheral(callback: self,
-                                                      serviceUuid: CBUUID(string: sessionData.uuid),
-                                                      request: sessionData.request,
-                                                      bleIdent: sessionData.bleIdent)
+            self.bleManager = MDocReaderBLEPeripheral(
+                callback: self,
+                serviceUuid: CBUUID(string: sessionData.uuid),
+                request: sessionData.request,
+                bleIdent: sessionData.bleIdent)
         } catch {
-            print("\(error)")
-            return nil
+            throw MDocReaderError.initializing(message: "\(error)")
         }
     }
 
@@ -41,13 +47,16 @@ extension MDocReader: MDocReaderBLEDelegate {
         case .connected:
             self.callback.update(state: .connected)
         case .error(let error):
-            self.callback.update(state: .error(BleReaderSessionError(readerBleError: error)))
+            self.callback.update(
+                state: .error(BleReaderSessionError(readerBleError: error)))
             self.cancel()
         case .message(let data):
             do {
-                let responseData = try SpruceIDMobileSdkRs.handleResponse(state: self.sessionManager, response: data)
+                let responseData = try SpruceIDMobileSdkRs.handleResponse(
+                    state: self.sessionManager, response: data)
                 self.sessionManager = responseData.state
-                self.callback.update(state: .success(.mdlReaderResponseData(responseData)))
+                self.callback.update(
+                    state: .success(.mdlReaderResponseData(responseData)))
             } catch {
                 self.callback.update(state: .error(.generic("\(error)")))
                 self.cancel()

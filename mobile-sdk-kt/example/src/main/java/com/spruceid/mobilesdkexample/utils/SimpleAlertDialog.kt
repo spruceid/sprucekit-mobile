@@ -2,6 +2,8 @@ package com.spruceid.mobilesdkexample.utils
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,7 +38,11 @@ fun SimpleAlertDialog(
                     Text("Close")
                 }
             },
-            text = { Text(message ?: "") }
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    Text(message ?: "")
+                }
+            }
         )
     }
 }

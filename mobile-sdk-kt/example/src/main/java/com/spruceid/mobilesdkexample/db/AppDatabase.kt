@@ -1,6 +1,7 @@
 package com.spruceid.mobilesdkexample.db
 
 import android.content.Context
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -13,16 +14,21 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WalletActivityLogs::class,
         VerificationActivityLogs::class,
         RawCredentials::class,
-        VerificationMethods::class
+        VerificationMethods::class,
+        TrustedCertificates::class
     ],
-    version = 6
+    version = 7,
+    exportSchema = true,
+    autoMigrations = [
+        AutoMigration(from = 6, to = 7)
+    ]
 )
 @TypeConverters(*[DateConverter::class])
 abstract class AppDatabase : RoomDatabase() {
     abstract fun walletActivityLogsDao(): WalletActivityLogsDao
     abstract fun verificationActivityLogsDao(): VerificationActivityLogsDao
-    abstract fun rawCredentialsDao(): RawCredentialsDao
     abstract fun verificationMethodsDao(): VerificationMethodsDao
+    abstract fun trustedCertificatesDao(): TrustedCertificatesDao
 
     companion object {
         @Volatile
