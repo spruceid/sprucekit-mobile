@@ -73,9 +73,7 @@ impl Cwt {
     ) -> Result<(CoseSign1, Arc<Self>), CwtError> {
         let payload =
             String::from_utf8(payload).map_err(|e| CwtError::CwsPayloadDecode(e.to_string()))?;
-        let base10_str = payload
-            .strip_prefix('9')
-            .ok_or_else(|| CwtError::Base10Decode)?;
+        let base10_str = payload.strip_prefix('9').ok_or(CwtError::Base10Decode)?;
         let compressed_cwt_bytes = BigUint::from_str_radix(base10_str, 10)
             .map_err(|_| CwtError::Base10Decode)?
             .to_bytes_be();
@@ -89,7 +87,7 @@ impl Cwt {
         let claims = cwt
             .claims_set()
             .map_err(|e| CwtError::ClaimsRetrieval(e.to_string()))?
-            .ok_or_else(|| CwtError::EmptyPayload)?;
+            .ok_or(CwtError::EmptyPayload)?;
 
         let claims = Self::claims_set_to_hash_map(claims);
 
@@ -139,7 +137,7 @@ impl Cwt {
         let claims = cwt
             .claims_set()
             .map_err(|e| CwtError::ClaimsRetrieval(e.to_string()))?
-            .ok_or_else(|| CwtError::EmptyPayload)?;
+            .ok_or(CwtError::EmptyPayload)?;
 
         Self::validate_cwt(&claims)
     }
@@ -269,7 +267,7 @@ impl Cwt {
         set.iter()
             .map(|c| {
                 (
-                    Self::get_key_name(&c.0),
+                    Self::get_key_name(c.0),
                     match c.0 {
                         cose_rs::cwt::Key::Text(_) => CborValue::from(c.1.clone()),
                         cose_rs::cwt::Key::Integer(v) => {

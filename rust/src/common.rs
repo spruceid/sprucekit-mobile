@@ -1,6 +1,5 @@
 use std::{cmp::Ordering, collections::HashMap, ops::Deref, sync::Arc};
 
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use ssi::{claims::data_integrity::CryptosuiteString, crypto::Algorithm};
 use uniffi::deps::anyhow;
@@ -122,24 +121,42 @@ impl From<(u64, serde_cbor::Value)> for CborTag {
     }
 }
 
-impl ToString for CborValue {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for CborValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CborValue::Null => "".to_string(),
-            CborValue::Bool(v) => v.to_string(),
-            CborValue::Integer(cbor_integer) => cbor_integer.to_text(),
-            CborValue::Float(v) => v.to_string(),
-            CborValue::Bytes(items) => items.iter().map(|i| i.to_string()).join(","),
-            CborValue::Text(v) => v.to_string(),
-            CborValue::Array(cbor_values) => cbor_values.iter().map(|i| i.to_string()).join(","),
-            CborValue::ItemMap(hash_map) => serde_json::to_string(
-                &hash_map
+            CborValue::Null => write!(f, ""),
+            CborValue::Bool(v) => write!(f, "{}", v),
+            CborValue::Integer(cbor_integer) => write!(f, "{}", cbor_integer.to_text()),
+            CborValue::Float(v) => write!(f, "{}", v),
+            CborValue::Bytes(items) => items.iter().enumerate().try_fold((), |_, (i, item)| {
+                if i > 0 {
+                    write!(f, ",")?;
+                }
+                write!(f, "{}", item)
+            }),
+            CborValue::Text(v) => write!(f, "{}", v),
+            CborValue::Array(cbor_values) => {
+                cbor_values
                     .iter()
-                    .map(|(k, v)| (k, v.to_string()))
-                    .collect::<HashMap<_, _>>(),
-            )
-            .unwrap_or("{}".to_string()),
-            CborValue::Tag(cbor_tag) => cbor_tag.value().to_string(),
+                    .enumerate()
+                    .try_fold((), |_, (i, value)| {
+                        if i > 0 {
+                            write!(f, ",")?;
+                        }
+                        write!(f, "{}", value)
+                    })
+            }
+            CborValue::ItemMap(hash_map) => {
+                write!(f, "{{")?;
+                hash_map.iter().enumerate().try_fold((), |_, (i, (k, v))| {
+                    if i > 0 {
+                        write!(f, ",")?;
+                    }
+                    write!(f, r#""{}":"{}""#, k, v)
+                })?;
+                write!(f, "}}")
+            }
+            CborValue::Tag(cbor_tag) => write!(f, "{}", cbor_tag.value()),
         }
     }
 }
@@ -235,29 +252,7 @@ impl From<serde_cbor::Value> for CborValue {
             }
             serde_cbor::Value::Map(m) => Self::ItemMap(
                 m.into_iter()
-                    .map(|(k, v)| {
-                        (
-                            match k {
-                                serde_cbor::Value::Null => "".to_string(),
-                                serde_cbor::Value::Bool(v) => v.to_string(),
-                                serde_cbor::Value::Integer(v) => v.to_string(),
-                                serde_cbor::Value::Float(v) => v.to_string(),
-                                serde_cbor::Value::Bytes(items) => {
-                                    String::from_utf8(items.to_vec()).unwrap_or("".to_string())
-                                }
-                                serde_cbor::Value::Text(v) => v.to_string(),
-                                serde_cbor::Value::Array(values) => {
-                                    values.iter().map(|i| format!("{:?}", i)).collect()
-                                }
-                                serde_cbor::Value::Map(btree_map) => {
-                                    btree_map.iter().map(|t| format!("{:?}", t)).collect()
-                                }
-                                serde_cbor::Value::Tag(_, value) => format!("{:?}", *value),
-                                _ => todo!(),
-                            },
-                            v.into(),
-                        )
-                    })
+                    .map(|(k, v)| (CborValue::from(k).to_string(), v.into()))
                     .collect::<HashMap<_, CborValue>>(),
             ),
             serde_cbor::Value::Tag(id, value) => Self::Tag(Arc::new((id, *value).into())),
