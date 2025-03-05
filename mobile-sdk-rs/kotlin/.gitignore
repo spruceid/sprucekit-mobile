@@ -1,6 +1,0 @@
-walletsdkrs/src
-.gradle
-build
-kls_database.db
-*.hprof
-local.properties

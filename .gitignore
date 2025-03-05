@@ -2,3 +2,5 @@
 .idea/
 .direnv/
 .envrc
+/.build
+.swiftpm

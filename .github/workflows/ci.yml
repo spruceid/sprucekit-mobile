@@ -1,0 +1,141 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-Dwarnings"
+  CLASSPATH: "./jna-5.14.0.jar:./kotlinx-coroutines-core-jvm-1.6.4.jar"
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "default"
+          cache-on-failure: "true"
+      - name: Build
+        run: cargo build
+
+      - uses: swift-actions/setup-swift@v2
+      - name: Download JNA
+        run: wget https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.jar
+      - name: Download Kotlinx
+        run: wget https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.6.4/kotlinx-coroutines-core-jvm-1.6.4.jar
+      - name: Test
+        run: cargo test
+
+      - name: Fmt
+        run: cargo fmt -- --check
+      - name: Clippy
+        run: cargo clippy
+
+  ios:
+    runs-on: macos-15 # macos-latest is currently macos-14 and we need iOS 18.2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: "aarch64-apple-ios-sim,aarch64-apple-ios,x86_64-apple-ios"
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "ios"
+          cache-on-failure: "true"
+
+      # - uses: taiki-e/install-action@v2
+      #   with:
+      #     tool: cargo-swift
+      - name: Install unreleased version of cargo-swift
+        run: cargo install --git https://github.com/antoniusnaumann/cargo-swift
+      - run: brew install swiftlint
+
+      - name: Generate Swift package
+        run: cargo swift package -p ios -n MobileSdkRs --target aarch64-apple-ios-sim
+        working-directory: rust
+      - name: Fail if generated swift code needs update
+        run: git diff --exit-code rust/MobileSdkRs/Sources/MobileSdkRs/mobile_sdk_rs.swift
+
+      - name: Install Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+      - name: Install XCodeGen
+        run: brew install xcodegen
+      - name: Generate XCode projects
+        run: |
+          cd ios/MobileSdk
+          xcodegen generate
+          cd ../Showcase
+          xcodegen generate
+
+      - name: Test MobileSdk
+        uses: mxcl/xcodebuild@v2
+        with:
+          platform: iOS
+          swift: ^6
+          scheme: MobileSdk
+          working-directory: ios/MobileSdk
+      - name: Test Showcase
+        uses: mxcl/xcodebuild@v2
+        with:
+          platform: iOS
+          swift: ^6
+          scheme: debug
+          working-directory: ios/Showcase
+      - name: Lint MobileSdk
+        run: swiftlint lint --strict
+        working-directory: ios/MobileSdk
+        # ignoring Rs because it's automatically generated, and Showcase has many many warnings
+
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: "aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android"
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "android"
+          cache-on-failure: "true"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: "18"
+          distribution: "temurin"
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - run: touch local.properties
+      # Running each project individually to avoid race conditions (seems like e.g. MobileSdk won't wait for MobileSdkRs to be fully compiled)
+      - name: Run MobileSdkRs tests
+        run: ./gradlew :mobilesdkrs:test -Prust-target=arm64
+      - name: Run MobileSdk tests
+        run: ./gradlew :mobilesdk:test -Prust-target=arm64
+      - name: Run Showcase tests
+        run: ./gradlew :showcase:test -Prust-target=arm64
+      - name: Run MobileSdkRs lint
+        run: ./gradlew :mobilesdkrs:lint -Prust-target=arm64
+      - name: Run MobileSdk lint
+        run: ./gradlew :mobilesdk:lint -Prust-target=arm64
+      - name: Run Showcase lint
+        run: ./gradlew :showcase:lint -Prust-target=arm64
