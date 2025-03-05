@@ -59,11 +59,12 @@ jobs:
 
       - name: Populate local.properties
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
-      - name: Publish package to GHCR
-        run: ./gradlew publishReleasePublicationToGitHubPackagesRepository
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ github.event.inputs.version }}
+      # Package is tied to spruceid/mobile-sdk-rs, and it was unused so ignoring it for now
+      # - name: Publish package to GHCR
+      #   run: ./gradlew publishReleasePublicationToGitHubPackagesRepository
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     VERSION: ${{ github.event.inputs.version }}
       - name: Publish package to Central
         run: ./gradlew publishReleasePublicationToCentralPortal
         env:
