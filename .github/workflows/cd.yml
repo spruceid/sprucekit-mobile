@@ -111,6 +111,7 @@ jobs:
 
       - name: Generate Swift package
         run: cargo swift package -p ios -n MobileSdkRs --release
+        working-directory: rust
 
       - name: Compress XCFramework
         run: |
