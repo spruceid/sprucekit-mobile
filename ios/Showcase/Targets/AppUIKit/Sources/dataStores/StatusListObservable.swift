@@ -14,8 +14,7 @@ class StatusListObservable: ObservableObject {
     }
 
     @MainActor func fetchAndUpdateStatus(credentialPack: CredentialPack) async
-        -> CredentialStatusList
-    {
+        -> CredentialStatusList {
         let statusLists = await credentialPack.getStatusListsAsync(
             hasConnection: hasConnection)
         if statusLists.isEmpty {

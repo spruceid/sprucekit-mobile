@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.ContextCompat
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobile.sdk.rs.Cwt
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -171,6 +172,12 @@ fun addCredential(credentialPack: CredentialPack, rawCredential: String): Creden
 
     try {
         credentialPack.addMdoc(Mdoc.fromStringifiedDocument(rawCredential, keyAlias = Uuid()))
+        return credentialPack
+    } catch (_: Exception) {
+    }
+
+    try {
+        credentialPack.addCwt(Cwt.newFromBase10(rawCredential))
         return credentialPack
     } catch (_: Exception) {
     }

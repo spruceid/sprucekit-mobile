@@ -7,7 +7,7 @@ import SwiftUI
 
 struct ShareMdocView: View {
     let credentialPack: CredentialPack
-    @State private var qrSheetView: ShareMdocQR? = nil
+    @State private var qrSheetView: ShareMdocQR?
 
     func getQRSheetView() async -> ShareMdocQR {
         return await ShareMdocQR(credentialPack: credentialPack)
@@ -163,7 +163,7 @@ class ShareViewDelegate: ObservableObject {
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: "mdoc_key",
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true,
+            kSecReturnRef as String: true
         ]
 
         var item: CFTypeRef?
@@ -332,8 +332,7 @@ struct ShareMdocSDSheetView: View {
     }
 
     private func binding(docType: String, namespace: String, item: String)
-        -> Binding<Bool>
-    {
+        -> Binding<Bool> {
         return .init(
             get: { self.itemsSelected[docType]![namespace]![item]! },
             set: { self.itemsSelected[docType]![namespace]![item] = $0 })

@@ -68,7 +68,7 @@ struct VerifierCredentialSuccessView: View {
                     let claims = try credentialPack.unwrap()
                         .findCredentialClaims(
                             claimNames: [
-                                "name", "type", "description", "issuer",
+                                "name", "type", "description", "issuer"
                             ]
                         )[credential.unwrap().id()]
 
@@ -84,8 +84,7 @@ struct VerifierCredentialSuccessView: View {
                     self.title = tmpTitle ?? ""
 
                     if let issuerName = claims?["issuer"]?.dictValue?["name"]?
-                        .toString()
-                    {
+                        .toString() {
                         self.issuer = issuerName
                     } else {
                         self.issuer = ""

@@ -106,8 +106,7 @@ class VerificationActivityLogDataStore {
 
         do {
             for verificationActivityLog in try database.prepare(
-                self.verificationActivityLogs.order(verificationDateTime.desc))
-            {
+                self.verificationActivityLogs.order(verificationDateTime.desc)) {
                 verificationActivityLogs.append(
                     VerificationActivityLog(
                         id: verificationActivityLog[id],

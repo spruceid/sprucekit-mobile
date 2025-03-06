@@ -103,7 +103,7 @@ struct HandleOID4VPView: View {
                 credentials += credentialPack.list()
                 credentialClaims = credentialClaims.merging(
                     credentialPack.findCredentialClaims(claimNames: [
-                        "name", "type",
+                        "name", "type"
                     ])
                 ) { (_, new) in new }
             }
@@ -397,13 +397,11 @@ struct CredentialSelector: View {
 
     func getCredentialTitle(credential: PresentableCredential) -> String {
         if let name = credentialClaims[credential.asParsedCredential().id()]?[
-            "name"]?.toString()
-        {
+            "name"]?.toString() {
             return name
         } else if let types = credentialClaims[
             credential.asParsedCredential().id()]?["type"]?
-            .arrayValue
-        {
+            .arrayValue {
             var title = ""
             types.forEach {
                 if $0.toString() != "VerifiableCredential" {

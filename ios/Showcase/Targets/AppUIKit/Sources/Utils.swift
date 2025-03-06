@@ -37,11 +37,11 @@ extension RequestedField: Hashable, Equatable {
 
 struct iOSCheckboxToggleStyle: ToggleStyle {
     let enabled: Bool
-    
+
     init(enabled: Bool = true) {
         self.enabled = enabled
     }
-    
+
     func makeBody(configuration: Configuration) -> some View {
         Button(action: {
             configuration.isOn.toggle()
@@ -74,8 +74,7 @@ extension Optional {
     }
 
     func unwrap() throws -> Wrapped {
-        if let self { return self }
-        else { throw Error.unexpectedNil }
+        if let self { return self } else { throw Error.unexpectedNil }
     }
 }
 
@@ -121,7 +120,7 @@ func generateTxtFile(content: String, filename: String) -> URL? {
         fileURL = path.appendingPathComponent(filename)
 
         // append content to file
-        try content.write(to: fileURL, atomically: true , encoding: .utf8)
+        try content.write(to: fileURL, atomically: true, encoding: .utf8)
         return fileURL
     } catch {
         print("error generating .txt file")
@@ -186,21 +185,21 @@ let trustedDids: [String] = []
 
 func convertToGenericJSON(map: [String: [String: MDocItem]]) -> GenericJSON {
     var jsonObject: [String: GenericJSON] = [:]
-    
+
     for (key, value) in map {
         jsonObject[key] = mapToGenericJSON(value)
     }
-    
+
     return .object(jsonObject)
 }
 
 func mapToGenericJSON(_ map: [String: MDocItem]) -> GenericJSON {
     var jsonObject: [String: GenericJSON] = [:]
-    
+
     for (key, value) in map {
         jsonObject[key] = convertMDocItemToGenericJSON(value)
     }
-    
+
     return .object(jsonObject)
 }
 

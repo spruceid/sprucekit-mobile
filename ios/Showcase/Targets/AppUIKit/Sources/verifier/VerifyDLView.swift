@@ -4,11 +4,11 @@ import SpruceIDMobileSdkRs
 struct VerifyDL: Hashable {}
 
 struct VerifyDLView: View {
-    
+
     @State var success: Bool?
-    
+
     @Binding var path: NavigationPath
-    
+
     var body: some View {
         if success == nil {
             ScanningComponent(
@@ -49,6 +49,6 @@ struct VerifyDLView: View {
                     .padding(.top, 20)
             )
         }
-        
+
     }
 }

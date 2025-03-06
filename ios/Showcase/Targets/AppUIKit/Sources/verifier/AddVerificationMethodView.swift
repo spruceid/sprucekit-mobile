@@ -6,8 +6,8 @@ struct AddVerificationMethod: Hashable {}
 struct AddVerificationMethodView: View {
     @Binding var path: NavigationPath
 
-    @State var err: String? = nil
-    @State var qrcode: String? = nil
+    @State var err: String?
+    @State var qrcode: String?
 
     func onBack() {
         path.removeLast()

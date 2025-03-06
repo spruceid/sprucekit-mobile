@@ -62,6 +62,9 @@ public struct ContentView: View {
                             checkAgeOver18: verifyMDocParams.checkAgeOver18
                         )
                     }
+                    .navigationDestination(for: VerifyCwt.self) { _ in
+                        VerifyCwtView(path: $path)
+                    }
                     .navigationDestination(for: VerifyDelegatedOid4vp.self) {
                         verifyDelegatedOid4vpParams in
                         VerifyDelegatedOid4vpView(

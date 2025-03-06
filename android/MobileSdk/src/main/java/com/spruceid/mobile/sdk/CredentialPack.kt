@@ -2,6 +2,7 @@ package com.spruceid.mobile.sdk
 
 import android.util.Log
 import com.spruceid.mobile.sdk.rs.CredentialDecodingException
+import com.spruceid.mobile.sdk.rs.Cwt
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -68,6 +69,11 @@ class CredentialPack {
         } catch (_: Exception) {
         }
 
+        try {
+            return this.addCwt(Cwt.newFromBase10(rawCredential))
+        } catch (_: Exception) {
+        }
+
         throw ParsingException(
             message = "The credential format is not supported. Credential = $rawCredential",
             cause = null
@@ -103,6 +109,14 @@ class CredentialPack {
      */
     fun addSdJwt(sdJwt: Vcdm2SdJwt): List<ParsedCredential> {
         credentials.add(ParsedCredential.newSdJwt(sdJwt))
+        return credentials
+    }
+
+    /**
+     * Add a CWT to the CredentialPack.
+     */
+    fun addCwt(cwt: Cwt): List<ParsedCredential> {
+        credentials.add(ParsedCredential.newCwt(cwt))
         return credentials
     }
 
@@ -167,6 +181,7 @@ class CredentialPack {
                 val jwtVc = credential.asJwtVc()
                 val jsonVc = credential.asJsonVc()
                 val sdJwt = credential.asSdJwt()
+                val cwt = credential.asCwt()
 
                 if (mdoc != null) {
                     claims = if (claimNames.isNotEmpty()) {
@@ -185,6 +200,12 @@ class CredentialPack {
                         jsonVc.credentialClaimsFiltered(claimNames)
                     } else {
                         jsonVc.credentialClaims()
+                    }
+                } else if (cwt != null) {
+                    claims = if (claimNames.isNotEmpty()) {
+                        cwt.credentialClaimsFiltered(claimNames)
+                    } else {
+                        cwt.credentialClaims()
                     }
                 } else if (sdJwt != null) {
                     claims = if (claimNames.isNotEmpty()) {

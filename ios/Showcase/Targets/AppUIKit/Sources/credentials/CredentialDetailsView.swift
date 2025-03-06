@@ -56,14 +56,13 @@ struct CredentialDetailsView: View {
                     ForEach(
                         Array(credentialDetailsViewTabs.enumerated()),
                         id: \.offset
-                    ) { index, tab in
+                    ) { index, _ in
                         if index == 0 {  // Details
                             VStack {
                                 if credentialItem != nil {
                                     if CredentialStatusList.revoked
                                         != statusListObservable.statusLists[
-                                            credentialPackId]
-                                    {
+                                            credentialPackId] {
                                         AnyView(
                                             self.credentialItem!
                                                 .credentialDetails())

@@ -181,6 +181,14 @@ fun VerifierHomeBody(
                     navController.navigate(Screen.VerifyVCScreen.route)
                 }
             )
+            VerifierListItem(
+                title = "CWT",
+                description = "Verifies a CWT by reading a QR code",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyCWTScreen.route)
+                }
+            )
         }
         items(verificationMethods.value) { verificationMethod ->
             VerifierListItem(

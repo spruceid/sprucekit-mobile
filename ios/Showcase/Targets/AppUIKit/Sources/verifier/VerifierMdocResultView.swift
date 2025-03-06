@@ -9,15 +9,15 @@ struct VerifierMdocResultView: View {
     let responseProcessingErrors: String?
     var onClose: () -> Void
     var logVerification: (String, String, String) -> Void
-    
+
     let mdoc: [String: GenericJSON]
     let title = "Mobile Drivers License"
     var issuer: String
-    
+
     @State var showResponseProcessingErrors = false
-    
+
     init(
-        result: [String : [String : MDocItem]],
+        result: [String: [String: MDocItem]],
         issuerAuthenticationStatus: AuthenticationStatus,
         deviceAuthenticationStatus: AuthenticationStatus,
         responseProcessingErrors: String?,

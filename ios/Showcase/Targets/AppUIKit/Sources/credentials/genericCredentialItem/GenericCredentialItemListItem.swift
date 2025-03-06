@@ -28,12 +28,12 @@ struct GenericCredentialItemListItem: View {
                                     || credential?.asJsonVc() != nil
                                     || credential?.asSdJwt() != nil
                                     || credential?.asMsoMdoc() != nil
+                                    || credential?.asCwt() != nil
 
                             }).map {
                                 // Assume mDL.
                                 if credentialPack.get(
-                                    credentialId: $0.key)?.asMsoMdoc() != nil
-                                {
+                                    credentialId: $0.key)?.asMsoMdoc() != nil {
                                     var newValue = $0.value
                                     newValue["name"] = GenericJSON.string(
                                         "Mobile Drivers License")
@@ -101,8 +101,7 @@ struct GenericCredentialItemListItem: View {
                             }).map {
                                 // Assume mDL.
                                 if credentialPack.get(
-                                    credentialId: $0.key)?.asMsoMdoc() != nil
-                                {
+                                    credentialId: $0.key)?.asMsoMdoc() != nil {
                                     var newValue = $0.value
                                     newValue["name"] = GenericJSON.string(
                                         "Mobile Drivers License")
@@ -210,8 +209,7 @@ func genericCredentialListItemDescriptionFormatter(
     statusListObservable: StatusListObservable,
     values: [String: [String: GenericJSON]]
 )
-    -> some View
-{
+    -> some View {
     let credential: [String: GenericJSON] =
         values.first(where: {
             let credential = credentialPack.get(credentialId: $0.key)
@@ -261,8 +259,7 @@ func genericCredentialListItemLeadingIconFormatter(
     credentialPack: CredentialPack,
     values: [String: [String: GenericJSON]]
 )
-    -> some View
-{
+    -> some View {
     let credential =
         values.first(where: {
             let credential = credentialPack.get(credentialId: $0.key)
