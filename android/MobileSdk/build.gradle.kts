@@ -7,16 +7,17 @@ plugins {
 }
 
 publishing {
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/spruceid/sprucekit-mobile")
-            credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
-            }
-        }
-    }
+    // Package is tied to spruceid/mobile-sdk-rs, and it was unused so ignoring it for now
+    // repositories {
+    //     maven {
+    //         name = "GitHubPackages"
+    //         url = uri("https://maven.pkg.github.com/spruceid/sprucekit-mobile")
+    //         credentials {
+    //             username = System.getenv("GITHUB_ACTOR")
+    //             password = System.getenv("GITHUB_TOKEN")
+    //         }
+    //     }
+    // }
     publications {
         // This command must be commented on when releasing a new version.
         // create<MavenPublication>("debug") {

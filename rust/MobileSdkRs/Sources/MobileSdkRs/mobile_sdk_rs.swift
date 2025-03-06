@@ -4687,7 +4687,6 @@ public protocol ParsedCredentialProtocol: AnyObject {
     func asCwt()  -> Cwt?
     
     /**
-     * Return the credential as an CWT, if it is of that format.
      */
     func asCwt()  -> Cwt?
     
@@ -10373,7 +10372,6 @@ public struct FfiConverterTypeCwtError: FfiConverterRustBuffer {
         case let .Trust(v1):
             writeInt(&buf, Int32(11))
             FfiConverterString.write(v1, into: &buf)
-            
         
         case let .CwtExpired(v1):
             writeInt(&buf, Int32(12))
@@ -10384,7 +10382,6 @@ public struct FfiConverterTypeCwtError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(13))
             FfiConverterString.write(v1, into: &buf)
             
-        
         case .Internal:
             writeInt(&buf, Int32(14))
         

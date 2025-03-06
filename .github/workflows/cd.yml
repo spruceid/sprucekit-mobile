@@ -59,11 +59,12 @@ jobs:
 
       - name: Populate local.properties
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
-      - name: Publish package to GHCR
-        run: ./gradlew publishReleasePublicationToGitHubPackagesRepository
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ github.event.inputs.version }}
+      # Package is tied to spruceid/mobile-sdk-rs, and it was unused so ignoring it for now
+      # - name: Publish package to GHCR
+      #   run: ./gradlew publishReleasePublicationToGitHubPackagesRepository
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     VERSION: ${{ github.event.inputs.version }}
       - name: Publish package to Central
         run: ./gradlew publishReleasePublicationToCentralPortal
         env:
@@ -74,6 +75,8 @@ jobs:
   ios:
     runs-on: macos-latest
     needs: validation
+    permissions:
+      contents: write
     steps:
       - uses: actions/create-github-app-token@v1
         id: app-token
@@ -125,6 +128,7 @@ jobs:
       # If this fails due to a new commit on the main branch, it's a feature not a bug!
       # This way, there will be no confusion around what was included in the release.
       - name: Push changes and tag
+        id: commit
         run: |
           git add Package.swift
           git commit -m "Release ${{ github.event.inputs.version }}"
@@ -139,12 +143,8 @@ jobs:
           tag: ${{ github.event.inputs.version }}
           name: ${{ github.event.inputs.version }}
 
-      - name: Revert changes to Package.swift
+      - name: Revert changes to Package.swift for local development
+        if: steps.commit.outcome == 'success'
         run: |
-          sed -i '' 's/binaryTarget.*/binaryTarget(name: "RustFramework", path: "rust/MobileSdkRs/RustFramework.xcframework"),/' Package.swift
-
-      - name: Push changes
-        run: |
-          git add Package.swift
-          git commit -m "Revert changes to Package.swift for local development"
+          git revert --no-edit HEAD
           git push
