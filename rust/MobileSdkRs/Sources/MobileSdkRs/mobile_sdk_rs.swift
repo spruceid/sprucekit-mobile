@@ -4687,10 +4687,6 @@ public protocol ParsedCredentialProtocol: AnyObject {
     func asCwt()  -> Cwt?
     
     /**
-     */
-    func asCwt()  -> Cwt?
-    
-    /**
      * Return the credential as a JsonVc if it is of that format.
      */
     func asJsonVc()  -> JsonVc?
@@ -10193,6 +10189,7 @@ extension CryptoError: Foundation.LocalizedError {
 }
 
 
+
 public enum CwtError {
 
     
@@ -10372,6 +10369,7 @@ public struct FfiConverterTypeCwtError: FfiConverterRustBuffer {
         case let .Trust(v1):
             writeInt(&buf, Int32(11))
             FfiConverterString.write(v1, into: &buf)
+            
         
         case let .CwtExpired(v1):
             writeInt(&buf, Int32(12))
@@ -10382,6 +10380,7 @@ public struct FfiConverterTypeCwtError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(13))
             FfiConverterString.write(v1, into: &buf)
             
+        
         case .Internal:
             writeInt(&buf, Int32(14))
         
@@ -10459,6 +10458,7 @@ extension CwtError: Foundation.LocalizedError {
         String(reflecting: self)
     }
 }
+
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
