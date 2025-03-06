@@ -106,8 +106,7 @@ class VerificationMethodDataStore {
 
         do {
             for verificationMethod in try database.prepare(
-                self.verificationMethods)
-            {
+                self.verificationMethods) {
                 verificationMethods.append(
                     VerificationMethod(
                         id: verificationMethod[id],
@@ -130,8 +129,7 @@ class VerificationMethodDataStore {
 
         do {
             for verificationMethod in try database.prepare(
-                self.verificationMethods)
-            {
+                self.verificationMethods) {
                 let elemId = verificationMethod[id]
                 if elemId == rowId {
                     return VerificationMethod(

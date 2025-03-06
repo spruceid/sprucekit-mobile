@@ -37,8 +37,7 @@ func getFileContent(credentialPack: CredentialPack) -> String {
         if let parsedSdJwt = parsedCredential.asSdJwt() {
             if let sdJwt = try! String(
                 data: parsedCredential.intoGenericForm().payload,
-                encoding: .utf8)
-            {
+                encoding: .utf8) {
                 rawCredentials.append(
                     envelopVerifiableSdJwtCredential(
                         sdJwt: sdJwt

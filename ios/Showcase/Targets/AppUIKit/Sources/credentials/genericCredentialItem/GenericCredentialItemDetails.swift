@@ -25,8 +25,7 @@ struct GenericCredentialItemDetails: View {
                                             || credential?.asCwt() != nil
                                     }).map { $0.value } ?? [:]
 
-                                return VStack(alignment: .leading, spacing: 20)
-                                {
+                                return VStack(alignment: .leading, spacing: 20) {
                                     CredentialStatus(
                                         status:
                                             statusListObservable.statusLists[

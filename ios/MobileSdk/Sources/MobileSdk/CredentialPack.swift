@@ -52,7 +52,7 @@ public class CredentialPack {
             throw CredentialPackError.credentialParsing(reason: "Couldn't parse credential: \(rawCredential)")
         }
     }
-    
+
     /// Add a Cwt to the CredentialPack
     public func addCwt(cwt: Cwt) -> [ParsedCredential] {
         credentials.append(ParsedCredential.newCwt(cwt: cwt))

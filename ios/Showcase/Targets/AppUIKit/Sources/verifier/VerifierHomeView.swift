@@ -96,7 +96,7 @@ struct VerifierHomeBody: View {
             ).onTapGesture {
                 path.append(VerifyVC())
             }
-            
+
             VerifierListItem(
                 title: "Mobile Driver's License",
                 description:
@@ -105,7 +105,7 @@ struct VerifierHomeBody: View {
             ).onTapGesture {
                 path.append(VerifyMDoc())
             }
-            
+
             VerifierListItem(
                 title: "CWT",
                 description:

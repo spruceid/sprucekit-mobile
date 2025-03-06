@@ -96,7 +96,7 @@ public extension Cwt {
         for (key, value) in self.claims() {
             result[key] = value.toGenericJSON()
         }
-        
+
         return result
     }
 

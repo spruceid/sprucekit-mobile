@@ -114,8 +114,7 @@ class WalletActivityLogDataStore {
 
         do {
             for walletActivityLog in try database.prepare(
-                self.walletActivityLogs.order(dateTime.desc))
-            {
+                self.walletActivityLogs.order(dateTime.desc)) {
                 walletActivityLogs.append(
                     WalletActivityLog(
                         id: walletActivityLog[id],

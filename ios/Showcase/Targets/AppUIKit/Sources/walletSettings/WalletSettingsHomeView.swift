@@ -145,7 +145,7 @@ struct WalletSettingsHomeBody: View {
                         ToastManager.shared.showWarning(
                             message: "You already have an mDL")
                     }
-                } catch (_) {
+                } catch _ {
                     ToastManager.shared.showError(
                         message: "Error generating mDL")
                 }

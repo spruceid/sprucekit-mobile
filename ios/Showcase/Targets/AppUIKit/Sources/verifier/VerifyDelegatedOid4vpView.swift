@@ -18,19 +18,18 @@ struct VerifyDelegatedOid4vpView: View {
     var verificationMethod: VerificationMethod?
     var url: URL?
     var baseUrl: String
-    
+
     @State var step = VerifyDelegatedOid4vpViewSteps.loadingQrCode
     @State var status = DelegatedVerifierStatus.initiated
-    @State var loading: String? = nil
-    @State var errorTitle: String? = nil
-    @State var errorDescription: String? = nil
-    
-    @State var verifier: DelegatedVerifier? = nil
-    @State var authQuery: String? = nil
-    @State var uri: String? = nil
-    @State var presentation: String? = nil
+    @State var loading: String?
+    @State var errorTitle: String?
+    @State var errorDescription: String?
 
-    
+    @State var verifier: DelegatedVerifier?
+    @State var authQuery: String?
+    @State var uri: String?
+    @State var presentation: String?
+
     init(path: Binding<NavigationPath>, verificationId: Int64) {
         self._path = path
         self.verificationId = verificationId
@@ -40,12 +39,12 @@ struct VerifyDelegatedOid4vpView: View {
                 .shared
                 .getVerificationMethod(rowId: verificationId)
                 .unwrap()
-            
+
             // Verification method base url
             url = URL(string: verificationMethod!.url)
-            
+
             let unwrappedUrl = try url.unwrap()
-                
+
             baseUrl = unwrappedUrl
                 .absoluteString
                 .replacingOccurrences(of: unwrappedUrl.path(), with: "")
@@ -57,11 +56,11 @@ struct VerifyDelegatedOid4vpView: View {
             self.baseUrl = ""
         }
     }
-    
+
     func monitorStatus(status: DelegatedVerifierStatus) async {
         do {
             let res = try await verifier?.pollVerificationStatus(url: "\(uri.unwrap())?status=\(status)")
-            
+
             if let newStatus = res?.status {
                 switch newStatus {
                 case DelegatedVerifierStatus.initiated:
@@ -91,7 +90,7 @@ struct VerifyDelegatedOid4vpView: View {
             errorDescription = error.localizedDescription
         }
     }
-    
+
     func initiateVerification() {
         Task {
             do {
@@ -99,20 +98,20 @@ struct VerifyDelegatedOid4vpView: View {
 
                 // Delegated Verifier
                 verifier = try await DelegatedVerifier.newClient(baseUrl: baseUrl)
-                
+
                 // Get initial parameters to delegate verification
                 let delegatedVerificationUrl = "\(unwrappedUrl.path())?\(unwrappedUrl.query() ?? "")"
                 let delegatedInitializationResponse = try await verifier
                     .unwrap()
                     .requestDelegatedVerification(url: delegatedVerificationUrl)
-                    
+
                 authQuery = "openid4vp://?\(delegatedInitializationResponse.authQuery)"
-                
+
                 uri = delegatedInitializationResponse.uri
-                
+
                 // Display QR Code
                 step = VerifyDelegatedOid4vpViewSteps.presentingQrCode
-                
+
                 // Call method to start monitoring status
                 await monitorStatus(status: status)
             } catch {
@@ -121,13 +120,13 @@ struct VerifyDelegatedOid4vpView: View {
             }
         }
     }
-    
+
     func onBack() {
         while !path.isEmpty {
             path.removeLast()
         }
     }
-    
+
     var body: some View {
         ZStack {
             if errorTitle != nil && errorDescription != nil {
@@ -183,16 +182,15 @@ struct VerifyDelegatedOid4vpView: View {
     }
 }
 
-
 struct DelegatedVerifierDisplayQRCodeView: View {
     var payload: Data
     var onClose: () -> Void
-    
+
     init(payload: String, onClose: @escaping () -> Void) {
         self.payload = payload.data(using: .utf8)!
         self.onClose = onClose
     }
-    
+
     var body: some View {
         ZStack {
             VStack {

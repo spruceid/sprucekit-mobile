@@ -56,7 +56,7 @@ let defaultElements = [
         "resident_state": false,
         "issuing_jurisdiction": false,
         "age_over_18": false,
-        "age_over_21": false,
+        "age_over_21": false
     ],
     "org.iso.18013.5.1.aamva": [
         "DHS_compliance": false,
@@ -68,8 +68,8 @@ let defaultElements = [
         "domestic_driving_privileges": false,
         "veteran": false,
         "sex": false,
-        "name_suffix": false,
-    ],
+        "name_suffix": false
+    ]
 ]
 
 let ageOver18Elements = [
