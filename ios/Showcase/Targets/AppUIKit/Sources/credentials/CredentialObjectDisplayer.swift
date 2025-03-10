@@ -9,7 +9,7 @@ struct CredentialObjectDisplayer: View {
             object: dict,
             filter: [
                 "type", "hashed", "salt", "proof", "renderMethod", "@context",
-                "credentialStatus"
+                "credentialStatus", "-65537"
             ]
         )
     }

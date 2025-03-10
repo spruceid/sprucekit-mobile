@@ -68,7 +68,6 @@ fun VerifyCwtView(
         LoadingView(loadingText = "Verifying...")
     } else if (success == null) {
         ScanningComponent(
-            subtitle = "Scan the\nback of your driver's license",
             scanningType = ScanningType.QRCODE,
             onRead = ::onRead,
             onCancel = ::back
