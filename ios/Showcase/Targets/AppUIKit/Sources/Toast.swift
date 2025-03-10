@@ -7,7 +7,7 @@ public enum ToastType {
 class ToastManager: ObservableObject {
     static let shared = ToastManager()
 
-    @Published var message: String? = nil
+    @Published var message: String?
     @Published var type: ToastType = .success
     @Published var isShowing: Bool = false
 

@@ -85,7 +85,7 @@ struct VerifierSettingsActivityLogBody: View {
 
     var body: some View {
         VStack {
-            if(verificationActivityLogsReq.isEmpty) {
+            if verificationActivityLogsReq.isEmpty {
                 VStack {
                     Text("No Activity Log Found")
                         .font(

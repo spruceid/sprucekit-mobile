@@ -51,8 +51,7 @@ struct CredentialGenericJSONArrayImage: View {
 
     var body: some View {
         if let byteArray = convertGenericJSONToBytes(image),
-            let image = UIImage(data: Data(byteArray))
-        {
+            let image = UIImage(data: Data(byteArray)) {
             Image(uiImage: image)
                 .resizable()
                 .aspectRatio(contentMode: .fit)

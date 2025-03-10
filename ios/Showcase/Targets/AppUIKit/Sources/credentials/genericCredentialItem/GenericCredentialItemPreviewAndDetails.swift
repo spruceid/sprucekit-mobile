@@ -43,8 +43,7 @@ struct GenericCredentialItemPreviewAndDetails: View {
         .onTapGesture {
             if case CredentialStatusList.revoked =
                 statusListObservable.statusLists[
-                    credentialPack.id.uuidString] ?? .undefined
-            {
+                    credentialPack.id.uuidString] ?? .undefined {
                 sheetOpen.toggle()
             } else {
                 goTo?()

@@ -4,12 +4,12 @@ import SpruceIDMobileSdkRs
 struct VerifyEA: Hashable {}
 
 struct VerifyEAView: View {
-    
+
     @State var stepOneValue: String?
     @State var success: Bool?
-    
+
     @Binding var path: NavigationPath
-    
+
     var body: some View {
         if success == nil {
             if stepOneValue == nil {

@@ -107,6 +107,15 @@ struct VerifierHomeBody: View {
             }
 
             VerifierListItem(
+                title: "CWT",
+                description:
+                    "Verifies a CWT by reading a QR code",
+                type: VerifierListItemTagType.SCAN_QR_CODE
+            ).onTapGesture {
+                path.append(VerifyCwt())
+            }
+
+            VerifierListItem(
                 title: "Mobile Driver's License - Over 18",
                 description:
                     "Verifies an ISO formatted mobile driver's license by reading a QR code",

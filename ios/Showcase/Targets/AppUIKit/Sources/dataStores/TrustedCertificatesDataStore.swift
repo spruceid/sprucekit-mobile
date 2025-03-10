@@ -46,7 +46,7 @@ let DEFAULT_TRUST_ANCHOR_CERTIFICATES = [
         Ld7ivuH83lLHDuNpb4NShfdBG57jNEIPNUs9OEg=
         -----END CERTIFICATE-----
         """
-    ),
+    )
 ]
 
 class TrustedCertificatesDataStore {
@@ -150,8 +150,7 @@ class TrustedCertificatesDataStore {
 
         do {
             for certificate in try database.prepare(
-                self.trustedCertificates)
-            {
+                self.trustedCertificates) {
                 certificates.append(
                     TrustedCertificate(
                         id: certificate[id],
@@ -171,8 +170,7 @@ class TrustedCertificatesDataStore {
 
         do {
             for certificate in try database.prepare(
-                self.trustedCertificates)
-            {
+                self.trustedCertificates) {
                 let elemId = certificate[id]
                 if elemId == rowId {
                     return TrustedCertificate(

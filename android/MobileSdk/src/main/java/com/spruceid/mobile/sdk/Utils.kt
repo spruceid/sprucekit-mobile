@@ -1,5 +1,6 @@
 package com.spruceid.mobile.sdk
 
+import com.spruceid.mobile.sdk.rs.CborValue
 import com.spruceid.mobile.sdk.rs.MDocItem
 import org.json.JSONArray
 import org.json.JSONObject
@@ -60,4 +61,18 @@ fun convertToJson(map: Map<String, Map<String, MDocItem>>): JSONObject {
         jsonObject.put(key, mapToJson(value))
     }
     return jsonObject
+}
+
+fun CborValue.toText(): String {
+    return when (this) {
+        is CborValue.Text -> v1
+        is CborValue.Integer -> v1.toText()
+        is CborValue.Float -> v1.toString()
+        is CborValue.Bool -> v1.toString()
+        is CborValue.Array -> v1.map { it.toText() }.joinToString { ", " }
+        is CborValue.ItemMap -> JSONObject(v1.map { it.key to it.value.toText() }.toMap()).toString()
+        is CborValue.Tag -> v1.value().toText()
+        is CborValue.Bytes -> v1.toString()
+        CborValue.Null -> ""
+    }
 }

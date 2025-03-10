@@ -11,6 +11,7 @@ import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.credentials.CredentialDetailsView
 import com.spruceid.mobilesdkexample.verifier.AddVerificationMethodView
+import com.spruceid.mobilesdkexample.verifier.VerifyCwtView
 import com.spruceid.mobilesdkexample.verifier.VerifyDLView
 import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
 import com.spruceid.mobilesdkexample.verifier.VerifyEAView
@@ -84,6 +85,11 @@ fun SetupNavGraph(
             route = Screen.VerifyVCScreen.route,
         ) {
             VerifyVCView(navController)
+        }
+        composable(
+            route = Screen.VerifyCWTScreen.route,
+        ) {
+            VerifyCwtView(navController, verificationActivityLogsViewModel, statusListViewModel)
         }
         composable(
             route = Screen.VerifyMDocScreen.route,

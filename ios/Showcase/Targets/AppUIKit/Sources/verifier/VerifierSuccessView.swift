@@ -2,10 +2,10 @@ import SwiftUI
 
 struct VerifierSuccessView: View {
     @Binding var path: NavigationPath
-    
+
     var success: Bool
     var content: (any View)
-    
+
     var body: some View {
         VStack(alignment: .leading) {
             if success {
@@ -21,7 +21,7 @@ struct VerifierSuccessView: View {
                                 .font(.customFont(font: .inter, style: .semiBold, size: .h0))
                                 .foregroundStyle(Color.white)
                         }
-                        
+
                     }
                     .padding(.all, 20)
                 }
@@ -39,17 +39,17 @@ struct VerifierSuccessView: View {
                                 .font(.customFont(font: .inter, style: .semiBold, size: .h0))
                                 .foregroundStyle(Color.white)
                         }
-                        
+
                     }
                     .padding(.all, 20)
                 }
                 .frame(height: 250)
             }
-            
+
             AnyView(content)
-            
+
             Spacer()
-            
+
             Button {
                 while !path.isEmpty {
                     path.removeLast()
@@ -74,7 +74,7 @@ struct VerifierSuccessView: View {
 
 struct VerifierSuccessViewPreview: PreviewProvider {
     @State static var path: NavigationPath = .init()
-    
+
     static var previews: some View {
         VerifierSuccessView(
             path: $path,

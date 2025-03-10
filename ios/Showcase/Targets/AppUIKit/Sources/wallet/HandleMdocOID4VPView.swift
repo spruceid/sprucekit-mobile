@@ -274,7 +274,7 @@ struct MdocSelector: View {
     let onContinue: (RequestMatch180137) -> Void
     let onCancel: () -> Void
 
-    @State private var selectedCredential: RequestMatch180137? = nil
+    @State private var selectedCredential: RequestMatch180137?
 
     func selectCredential(credential: RequestMatch180137) {
         if selectedCredential?.credentialId() == credential.credentialId() {

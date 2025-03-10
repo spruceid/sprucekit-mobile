@@ -26,8 +26,7 @@ func generateCSV(heading: String, rows: String, filename: String) -> URL? {
     return nil
 }
 
-func columnExists(db: Connection, tableName: String, columnName: String) -> Bool
-{
+func columnExists(db: Connection, tableName: String, columnName: String) -> Bool {
     let query = "PRAGMA table_info(\(tableName))"
     do {
         for row in try db.prepare(query) {
