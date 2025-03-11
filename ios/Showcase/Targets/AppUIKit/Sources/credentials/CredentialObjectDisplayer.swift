@@ -9,18 +9,21 @@ struct CredentialObjectDisplayer: View {
             object: dict,
             filter: [
                 "type", "hashed", "salt", "proof", "renderMethod", "@context",
-                "credentialStatus", "-65537"
+                "credentialStatus", "-65537",
             ]
         )
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(
+            alignment: .leading,
+            spacing: 20
+        ) {
             ForEach(0..<display.count, id: \.self) { index in
                 display[index]
             }
-
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -43,7 +46,8 @@ func genericObjectDisplayer(
                                 Accordion(
                                     title: key, startExpanded: level < 3,
                                     content: AnyView(
-                                        VStack(alignment: .leading, spacing: 20) {
+                                        VStack(alignment: .leading, spacing: 20)
+                                        {
                                             ForEach(
                                                 0..<tmpViews.count, id: \.self
                                             ) { index in
@@ -74,7 +78,8 @@ func genericObjectDisplayer(
                 if key.lowercased().contains("image")
                     || (key.lowercased().contains("portrait")
                         && !key.lowercased().contains("date"))
-                    || value.toString().contains("data:image") {
+                    || value.toString().contains("data:image")
+                {
                     res.append(
                         AnyView(
                             VStack(alignment: .leading) {
@@ -114,7 +119,8 @@ func genericObjectDisplayer(
                                 Accordion(
                                     title: key, startExpanded: level < 3,
                                     content: AnyView(
-                                        VStack(alignment: .leading, spacing: 24) {
+                                        VStack(alignment: .leading, spacing: 24)
+                                        {
                                             VStack(
                                                 alignment: .leading, spacing: 24
                                             ) {
@@ -148,11 +154,13 @@ func genericObjectDisplayer(
                             .foregroundStyle(Color("ColorStone600"))
                             if key.lowercased().contains("image")
                                 || key.lowercased().contains("portrait")
-                                || value.toString().contains("data:image") {
+                                || value.toString().contains("data:image")
+                            {
                                 CredentialImage(image: value.toString())
                             } else if key.lowercased().contains("date")
                                 || key.lowercased().contains("from")
-                                || key.lowercased().contains("until") {
+                                || key.lowercased().contains("until")
+                            {
                                 CredentialDate(dateString: value.toString())
                             } else if key.lowercased().contains("url") {
                                 Link(
