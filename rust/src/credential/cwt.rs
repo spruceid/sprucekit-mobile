@@ -257,7 +257,7 @@ impl Cwt {
             cose_rs::cwt::Key::Integer(v) => match *v {
                 4 => "Expiration".to_string(),
                 5 => "Not Before".to_string(),
-                6 => "Issuance".to_string(),
+                6 => "Issued At".to_string(),
                 _ => v.to_string(),
             },
         }

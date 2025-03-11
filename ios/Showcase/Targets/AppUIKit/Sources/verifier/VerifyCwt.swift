@@ -18,7 +18,6 @@ struct VerifyCwtView: View {
             ScanningComponent(
                 path: $path,
                 scanningParams: Scanning(
-                    subtitle: "Scan the QR Code",
                     scanningType: .qrcode,
                     onCancel: {
                         path.removeLast()

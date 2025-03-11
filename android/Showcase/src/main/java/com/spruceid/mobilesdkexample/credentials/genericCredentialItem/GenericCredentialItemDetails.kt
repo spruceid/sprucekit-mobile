@@ -64,7 +64,8 @@ fun GenericCredentialItemDetails(
                                     "proof",
                                     "renderMethod",
                                     "@context",
-                                    "credentialStatus"
+                                    "credentialStatus",
+                                    "-65537"
                                 )
                             )
                         }

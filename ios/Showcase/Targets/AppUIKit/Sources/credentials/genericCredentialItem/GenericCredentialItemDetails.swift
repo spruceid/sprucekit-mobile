@@ -13,7 +13,6 @@ struct GenericCredentialItemDetails: View {
                         CardRenderingDetailsField(
                             keys: [],
                             formatter: { (values) in
-                                print(values)
                                 let credential =
                                     values.first(where: {
                                         let credential = credentialPack.get(
