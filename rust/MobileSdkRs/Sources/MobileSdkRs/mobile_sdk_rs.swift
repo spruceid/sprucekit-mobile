@@ -14359,7 +14359,7 @@ public enum WalletServiceError {
     /**
      * Server returned an error response
      */
-    case ServerError(status: UInt16, message: String
+    case ServerError(status: UInt16, errorMessage: String
     )
     /**
      * Failed to read the response body
@@ -14399,7 +14399,7 @@ public struct FfiConverterTypeWalletServiceError: FfiConverterRustBuffer {
             )
         case 3: return .ServerError(
             status: try FfiConverterUInt16.read(from: &buf), 
-            message: try FfiConverterString.read(from: &buf)
+            errorMessage: try FfiConverterString.read(from: &buf)
             )
         case 4: return .ResponseError(
             try FfiConverterString.read(from: &buf)
@@ -14430,10 +14430,10 @@ public struct FfiConverterTypeWalletServiceError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .ServerError(status,message):
+        case let .ServerError(status,errorMessage):
             writeInt(&buf, Int32(3))
             FfiConverterUInt16.write(status, into: &buf)
-            FfiConverterString.write(message, into: &buf)
+            FfiConverterString.write(errorMessage, into: &buf)
             
         
         case let .ResponseError(v1):

@@ -17,8 +17,8 @@ pub enum WalletServiceError {
     NetworkError(String),
 
     /// Server returned an error response
-    #[error("Server error: {status} - {message}")]
-    ServerError { status: u16, message: String },
+    #[error("Server error: {status} - {error_message}")]
+    ServerError { status: u16, error_message: String },
 
     /// Failed to read the response body
     #[error("Failed to read response body: {0}")]
@@ -154,7 +154,7 @@ impl WalletServiceClient {
             let error_text = response.text().await.unwrap_or_default();
             return Err(WalletServiceError::ServerError {
                 status,
-                message: error_text,
+                error_message: error_text,
             });
         }
 
