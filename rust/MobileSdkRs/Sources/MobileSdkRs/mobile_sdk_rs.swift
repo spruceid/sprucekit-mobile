@@ -7820,6 +7820,188 @@ public func FfiConverterTypeVdcCollection_lower(_ value: VdcCollection) -> Unsaf
 
 
 
+
+
+public protocol WalletServiceClientProtocol: AnyObject {
+    
+    /**
+     * Helper method to get an authorization header with the current token
+     */
+    func getAuthHeader() throws  -> String
+    
+    /**
+     * Returns the current client ID (sub claim from JWT)
+     */
+    func getClientId()  -> String?
+    
+    /**
+     * Returns true if the current token is valid and not expired
+     */
+    func isTokenValid()  -> Bool
+    
+    func login(jwk: String) async throws  -> String
+    
+}
+open class WalletServiceClient: WalletServiceClientProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_walletserviceclient(self.pointer, $0) }
+    }
+public convenience init(baseUrl: String) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_walletserviceclient_new(
+        FfiConverterString.lower(baseUrl),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_walletserviceclient(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Helper method to get an authorization header with the current token
+     */
+open func getAuthHeader()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeWalletServiceError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_walletserviceclient_get_auth_header(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Returns the current client ID (sub claim from JWT)
+     */
+open func getClientId() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_walletserviceclient_get_client_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Returns true if the current token is valid and not expired
+     */
+open func isTokenValid() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_walletserviceclient_is_token_valid(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func login(jwk: String)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_walletserviceclient_login(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(jwk)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeWalletServiceError.lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWalletServiceClient: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = WalletServiceClient
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> WalletServiceClient {
+        return WalletServiceClient(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: WalletServiceClient) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WalletServiceClient {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: WalletServiceClient, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWalletServiceClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> WalletServiceClient {
+    return try FfiConverterTypeWalletServiceClient.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWalletServiceClient_lower(_ value: WalletServiceClient) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeWalletServiceClient.lower(value)
+}
+
+
+
+
 public struct ApprovedResponse180137 {
     public var credentialId: Uuid
     public var approvedFields: [FieldId180137]
@@ -14160,6 +14342,145 @@ extension VerificationResult: Equatable, Hashable {}
 
 
 
+public enum WalletServiceError {
+
+    
+    
+    /**
+     * Failed to parse the JWK as valid JSON
+     */
+    case InvalidJson(String
+    )
+    /**
+     * Failed to send the login request
+     */
+    case NetworkError(String
+    )
+    /**
+     * Server returned an error response
+     */
+    case ServerError(status: UInt16, message: String
+    )
+    /**
+     * Failed to read the response body
+     */
+    case ResponseError(String
+    )
+    /**
+     * Token is expired or invalid
+     */
+    case InvalidToken
+    /**
+     * Failed to parse JWT claims
+     */
+    case JwtParseError(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeWalletServiceError: FfiConverterRustBuffer {
+    typealias SwiftType = WalletServiceError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> WalletServiceError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidJson(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .NetworkError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .ServerError(
+            status: try FfiConverterUInt16.read(from: &buf), 
+            message: try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .ResponseError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .InvalidToken
+        case 6: return .JwtParseError(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: WalletServiceError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InvalidJson(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .NetworkError(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ServerError(status,message):
+            writeInt(&buf, Int32(3))
+            FfiConverterUInt16.write(status, into: &buf)
+            FfiConverterString.write(message, into: &buf)
+            
+        
+        case let .ResponseError(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .InvalidToken:
+            writeInt(&buf, Int32(5))
+        
+        
+        case let .JwtParseError(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWalletServiceError_lift(_ buf: RustBuffer) throws -> WalletServiceError {
+    return try FfiConverterTypeWalletServiceError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeWalletServiceError_lower(_ value: WalletServiceError) -> RustBuffer {
+    return FfiConverterTypeWalletServiceError.lower(value)
+}
+
+
+extension WalletServiceError: Equatable, Hashable {}
+
+
+
+extension WalletServiceError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
 
 
 public protocol Crypto: AnyObject {
@@ -17114,6 +17435,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_get() != 1085) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_get_auth_header() != 17536) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_get_client_id() != 13815) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_is_token_valid() != 60518) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_login() != 51120) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -17211,6 +17544,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_vdccollection_new() != 31236) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_walletserviceclient_new() != 5221) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_crypto_p256_verify() != 31057) {
