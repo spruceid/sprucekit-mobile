@@ -1,10 +1,10 @@
+use base64::engine::{general_purpose::STANDARD, Engine};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use time::OffsetDateTime;
-use serde::{Deserialize, Serialize};
-use base64::engine::{general_purpose::STANDARD, Engine};
-use std::sync::{Arc, Mutex};
 
 #[derive(Error, Debug, uniffi::Error)]
 pub enum WalletServiceError {
@@ -18,10 +18,7 @@ pub enum WalletServiceError {
 
     /// Server returned an error response
     #[error("Server error: {status} - {message}")]
-    ServerError {
-        status: u16,
-        message: String,
-    },
+    ServerError { status: u16, message: String },
 
     /// Failed to read the response body
     #[error("Failed to read response body: {0}")]
@@ -38,10 +35,10 @@ pub enum WalletServiceError {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct JwtClaims {
-    iss: String,      // issuer
-    sub: String,      // subject (client_id)
-    exp: f64,         // expiration time
-    iat: f64,         // issued at
+    iss: String, // issuer
+    sub: String, // subject (client_id)
+    exp: f64,    // expiration time
+    iat: f64,    // issued at
 }
 
 #[derive(Debug, Clone)]
@@ -56,24 +53,28 @@ fn parse_jwt_claims(token: &str) -> Result<JwtClaims, WalletServiceError> {
     // Split the JWT into parts
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 3 {
-        return Err(WalletServiceError::JwtParseError("Invalid JWT format".to_string()));
+        return Err(WalletServiceError::JwtParseError(
+            "Invalid JWT format".to_string(),
+        ));
     }
 
     // Decode the payload (second part)
     let payload = parts[1];
-    
+
     // Add padding if needed
     let padded_payload = if payload.len() % 4 != 0 {
         format!("{}{}", payload, "=".repeat(4 - (payload.len() % 4)))
     } else {
         payload.to_string()
     };
-    
-    let decoded = STANDARD.decode(padded_payload)
-        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to decode JWT payload: {}", e)))?;
-    
-    let claims: JwtClaims = serde_json::from_slice(&decoded)
-        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to parse JWT claims: {}", e)))?;
+
+    let decoded = STANDARD.decode(padded_payload).map_err(|e| {
+        WalletServiceError::JwtParseError(format!("Failed to decode JWT payload: {}", e))
+    })?;
+
+    let claims: JwtClaims = serde_json::from_slice(&decoded).map_err(|e| {
+        WalletServiceError::JwtParseError(format!("Failed to parse JWT claims: {}", e))
+    })?;
 
     Ok(claims)
 }
@@ -81,8 +82,9 @@ fn parse_jwt_claims(token: &str) -> Result<JwtClaims, WalletServiceError> {
 /// Internal function to create TokenInfo from JWT
 fn create_token_info(token: String) -> Result<TokenInfo, WalletServiceError> {
     let claims = parse_jwt_claims(&token)?;
-    let expires_at = OffsetDateTime::from_unix_timestamp(claims.exp as i64)
-        .map_err(|e| WalletServiceError::JwtParseError(format!("Invalid expiration timestamp: {}", e)))?;
+    let expires_at = OffsetDateTime::from_unix_timestamp(claims.exp as i64).map_err(|e| {
+        WalletServiceError::JwtParseError(format!("Invalid expiration timestamp: {}", e))
+    })?;
 
     Ok(TokenInfo {
         token,
@@ -137,7 +139,8 @@ impl WalletServiceClient {
             .map_err(|e| WalletServiceError::InvalidJson(e.to_string()))?;
 
         // Make POST request to /login endpoint
-        let response = self.client
+        let response = self
+            .client
             .post(format!("{}/login", self.base_url))
             .header("Content-Type", "application/json")
             .json(&jwk_value)
@@ -156,7 +159,10 @@ impl WalletServiceClient {
         }
 
         // Get the response body as string
-        let token = response.text().await.map_err(|e| WalletServiceError::ResponseError(e.to_string()))?;
+        let token = response
+            .text()
+            .await
+            .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?;
 
         // Parse and validate the JWT
         let token_info = create_token_info(token.clone())?;
@@ -190,10 +196,10 @@ impl WalletServiceClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio;
-    use wiremock::{Mock, MockServer, ResponseTemplate};
-    use wiremock::matchers::{method, path};
     use time::OffsetDateTime;
+    use tokio;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     async fn setup_mock_server() -> (MockServer, String) {
         let mock_server = MockServer::start().await;
@@ -204,7 +210,7 @@ mod tests {
     fn generate_valid_jwt() -> String {
         let now = OffsetDateTime::now_utc();
         let exp = now + time::Duration::hours(1);
-        
+
         let claims = serde_json::json!({
             "iss": "wallet_service",
             "sub": "test_client_id",
@@ -236,20 +242,22 @@ mod tests {
         // Mock successful login response
         Mock::given(method("POST"))
             .and(path("/login"))
-            .respond_with(ResponseTemplate::new(200)
-                .set_body_json(serde_json::json!({
-                    "token": generate_valid_jwt()
-                })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "token": generate_valid_jwt()
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
 
         let result = client.login(&jwk).await;
         assert!(result.is_ok(), "Login should succeed with valid JWK");
-        
+
         // Verify token info was stored
         assert!(client.is_token_valid(), "Token should be valid after login");
-        assert!(client.get_client_id().is_some(), "Client ID should be available after login");
+        assert!(
+            client.get_client_id().is_some(),
+            "Client ID should be available after login"
+        );
     }
 
     #[tokio::test]
@@ -280,10 +288,9 @@ mod tests {
         // Mock server error response
         Mock::given(method("POST"))
             .and(path("/login"))
-            .respond_with(ResponseTemplate::new(500)
-                .set_body_json(serde_json::json!({
-                    "error": "Internal Server Error"
-                })))
+            .respond_with(ResponseTemplate::new(500).set_body_json(serde_json::json!({
+                "error": "Internal Server Error"
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -293,7 +300,7 @@ mod tests {
         match result.unwrap_err() {
             WalletServiceError::ServerError { status, .. } => {
                 assert_eq!(status, 500);
-            },
+            }
             _ => panic!("Expected ServerError"),
         }
     }
@@ -307,10 +314,9 @@ mod tests {
         // Mock server error response for empty JWK
         Mock::given(method("POST"))
             .and(path("/login"))
-            .respond_with(ResponseTemplate::new(400)
-                .set_body_json(serde_json::json!({
-                    "error": "Invalid JWK"
-                })))
+            .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                "error": "Invalid JWK"
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -320,7 +326,7 @@ mod tests {
         match result.unwrap_err() {
             WalletServiceError::ServerError { status, .. } => {
                 assert_eq!(status, 400);
-            },
+            }
             _ => panic!("Expected ServerError"),
         }
     }
@@ -339,10 +345,9 @@ mod tests {
         // Mock server error response for malformed JWK
         Mock::given(method("POST"))
             .and(path("/login"))
-            .respond_with(ResponseTemplate::new(400)
-                .set_body_json(serde_json::json!({
-                    "error": "Malformed JWK"
-                })))
+            .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                "error": "Malformed JWK"
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -352,7 +357,7 @@ mod tests {
         match result.unwrap_err() {
             WalletServiceError::ServerError { status, .. } => {
                 assert_eq!(status, 400);
-            },
+            }
             _ => panic!("Expected ServerError"),
         }
     }
@@ -366,23 +371,30 @@ mod tests {
         // Mock successful login response
         Mock::given(method("POST"))
             .and(path("/login"))
-            .respond_with(ResponseTemplate::new(200)
-                .set_body_json(serde_json::json!({
-                    "token": generate_valid_jwt()
-                })))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "token": generate_valid_jwt()
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
 
         // Initially, auth header should fail
-        assert!(client.get_auth_header().is_err(), "Auth header should fail before login");
+        assert!(
+            client.get_auth_header().is_err(),
+            "Auth header should fail before login"
+        );
 
         // After successful login
         let result = client.login(&jwk).await;
         assert!(result.is_ok(), "Login should succeed");
 
         // Auth header should now be available
-        let auth_header = client.get_auth_header().expect("Auth header should be available after login");
-        assert!(auth_header.starts_with("Bearer "), "Auth header should start with 'Bearer '");
+        let auth_header = client
+            .get_auth_header()
+            .expect("Auth header should be available after login");
+        assert!(
+            auth_header.starts_with("Bearer "),
+            "Auth header should start with 'Bearer '"
+        );
     }
 }
