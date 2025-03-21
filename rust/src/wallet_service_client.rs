@@ -1,7 +1,9 @@
-use base64::engine::{general_purpose::STANDARD, Engine};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ssi::{
+    claims::jwt::{ExpirationTime, StringOrURI, Subject, ToDecodedJwt},
+    prelude::*,
+};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use time::OffsetDateTime;
@@ -33,62 +35,40 @@ pub enum WalletServiceError {
     JwtParseError(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct JwtClaims {
-    iss: String, // issuer
-    sub: String, // subject (client_id)
-    exp: f64,    // expiration time
-    iat: f64,    // issued at
-}
-
 #[derive(Debug, Clone)]
 struct TokenInfo {
     token: String,
-    claims: JwtClaims,
+    claims: JWTClaims,
     expires_at: OffsetDateTime,
-}
-
-/// Internal function to parse and validate JWT claims
-fn parse_jwt_claims(token: &str) -> Result<JwtClaims, WalletServiceError> {
-    // Split the JWT into parts
-    let parts: Vec<&str> = token.split('.').collect();
-    if parts.len() != 3 {
-        return Err(WalletServiceError::JwtParseError(
-            "Invalid JWT format".to_string(),
-        ));
-    }
-
-    // Decode the payload (second part)
-    let payload = parts[1];
-
-    // Add padding if needed
-    let padded_payload = if payload.len() % 4 != 0 {
-        format!("{}{}", payload, "=".repeat(4 - (payload.len() % 4)))
-    } else {
-        payload.to_string()
-    };
-
-    let decoded = STANDARD.decode(padded_payload).map_err(|e| {
-        WalletServiceError::JwtParseError(format!("Failed to decode JWT payload: {}", e))
-    })?;
-
-    let claims: JwtClaims = serde_json::from_slice(&decoded).map_err(|e| {
-        WalletServiceError::JwtParseError(format!("Failed to parse JWT claims: {}", e))
-    })?;
-
-    Ok(claims)
 }
 
 /// Internal function to create TokenInfo from JWT
 fn create_token_info(token: String) -> Result<TokenInfo, WalletServiceError> {
-    let claims = parse_jwt_claims(&token)?;
-    let expires_at = OffsetDateTime::from_unix_timestamp(claims.exp as i64).map_err(|e| {
-        WalletServiceError::JwtParseError(format!("Invalid expiration timestamp: {}", e))
-    })?;
+    let jws_bytes: Vec<u8> = token.as_bytes().to_vec();
+
+    let jws_buf = JwsBuf::new(jws_bytes)
+        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to parse JWS: {:?}", e)))?;
+
+    let jwt_claims = jws_buf
+        .to_decoded_jwt()
+        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to decode JWT: {:?}", e)))?
+        .signing_bytes
+        .payload;
+
+    // Get expiration time from claims
+    let exp = jwt_claims
+        .registered
+        .get::<ExpirationTime>()
+        .ok_or_else(|| WalletServiceError::JwtParseError("Missing expiration time".to_string()))?;
+
+    let expires_at =
+        OffsetDateTime::from_unix_timestamp(exp.0.as_seconds() as i64).map_err(|e| {
+            WalletServiceError::JwtParseError(format!("Invalid expiration timestamp: {}", e))
+        })?;
 
     Ok(TokenInfo {
         token,
-        claims,
+        claims: jwt_claims,
         expires_at,
     })
 }
@@ -114,7 +94,15 @@ impl WalletServiceClient {
     /// Returns the current client ID (sub claim from JWT)
     pub fn get_client_id(&self) -> Option<String> {
         if let Ok(guard) = self.token_info.lock() {
-            guard.as_ref().map(|info| info.claims.sub.clone())
+            guard.as_ref().and_then(|info| {
+                info.claims
+                    .registered
+                    .get::<Subject>()
+                    .map(|sub| match &sub.0 {
+                        StringOrURI::String(s) => s.to_string(),
+                        StringOrURI::URI(u) => u.to_string(),
+                    })
+            })
         } else {
             None
         }
@@ -164,14 +152,12 @@ impl WalletServiceClient {
             .await
             .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?;
 
-        // Parse and validate the JWT
+        // Store the token info
         let token_info = create_token_info(token.clone())?;
 
-        // Store the token info
         if let Ok(mut guard) = self.token_info.lock() {
             *guard = Some(token_info);
         }
-
         Ok(token)
     }
 
@@ -196,6 +182,8 @@ impl WalletServiceClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::to_value;
+    use ssi::claims::jwt::{AnyClaims, IssuedAt, Issuer, NotBefore, NumericDate};
     use time::OffsetDateTime;
     use tokio;
     use wiremock::matchers::{method, path};
@@ -207,49 +195,59 @@ mod tests {
         (mock_server, base_url)
     }
 
-    fn generate_valid_jwt() -> String {
+    async fn generate_valid_jwt(jwk: JWK) -> String {
         let now = OffsetDateTime::now_utc();
         let exp = now + time::Duration::hours(1);
 
-        let claims = serde_json::json!({
-            "iss": "wallet_service",
-            "sub": "test_client_id",
-            "exp": exp.unix_timestamp() as f64,
-            "iat": now.unix_timestamp() as f64,
-            "nbf": now.unix_timestamp() as f64,
-            "cnf": {
-                "key_ops": ["verify"],
-                "alg": "ES256",
-                "kid": "test_kid",
-                "kty": "EC",
-                "crv": "P-256",
-                "x": "-hKdnYnv9nHSqtmsjCoOPomS2pmhvP19rkbncRKyuro",
-                "y": "oj1ucwGXBS5UVR1i4OOXdIuJKlPnqSp391oXNZjx4Ko"
-            }
-        });
+        let mut claims: JWTClaims<AnyClaims> = JWTClaims::default();
+        claims.registered.set(ExpirationTime(NumericDate::from(
+            exp.unix_timestamp() as i32
+        )));
+        claims
+            .registered
+            .set(IssuedAt(NumericDate::from(now.unix_timestamp() as i32)));
+        claims
+            .registered
+            .set(NotBefore(NumericDate::from(now.unix_timestamp() as i32)));
+        claims
+            .registered
+            .set(Issuer(StringOrURI::String("wallet_service".to_string())));
+        claims
+            .registered
+            .set(Subject(StringOrURI::String("test_client_id".to_string())));
 
-        // Create a JWT with the claims (header + payload + signature)
-        format!("eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.{}.SSMqn__aU1z73WlUKTM7rpqvjwttXUzWswL40hPNHcT1X0ENltmVMGO2bl7YIguOOxEio7jbELQZlPuab7jFJQ",
-            base64::engine::general_purpose::STANDARD.encode(claims.to_string()))
+        let public_jwk = jwk.to_public();
+        let cnf = to_value(public_jwk).unwrap();
+        claims.private.set("cnf".to_string(), cnf);
+
+        let jws = claims.sign(jwk).await.unwrap();
+
+        let token = jws.to_string();
+        token
     }
 
     #[tokio::test]
     async fn test_successful_login() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
-        let jwk = ssi::JWK::generate_p256().to_public().to_string();
+
+        // Generate a new private key for signing
+        let private_jwk = JWK::generate_p256();
+        let public_jwk = private_jwk.to_public();
+        let jwk_string = public_jwk.to_string();
 
         // Mock successful login response
         Mock::given(method("POST"))
             .and(path("/login"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "token": generate_valid_jwt()
-            })))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_bytes(generate_valid_jwt(private_jwk).await.as_bytes()),
+            )
             .expect(1)
             .mount(&mock_server)
             .await;
 
-        let result = client.login(&jwk).await;
+        let result = client.login(&jwk_string).await;
         assert!(result.is_ok(), "Login should succeed with valid JWK");
 
         // Verify token info was stored
@@ -366,14 +364,19 @@ mod tests {
     async fn test_auth_header() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
-        let jwk = ssi::JWK::generate_p256().to_public().to_string();
+
+        // Generate a new private key for signing
+        let private_jwk = JWK::generate_p256();
+        let public_jwk = private_jwk.to_public();
+        let jwk_string = public_jwk.to_string();
 
         // Mock successful login response
         Mock::given(method("POST"))
             .and(path("/login"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "token": generate_valid_jwt()
-            })))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_bytes(generate_valid_jwt(private_jwk).await.as_bytes()),
+            )
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -385,7 +388,7 @@ mod tests {
         );
 
         // After successful login
-        let result = client.login(&jwk).await;
+        let result = client.login(&jwk_string).await;
         assert!(result.is_ok(), "Login should succeed");
 
         // Auth header should now be available
