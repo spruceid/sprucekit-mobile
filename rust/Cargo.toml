@@ -75,6 +75,7 @@ android_logger = "0.13"
 rstest = "0.22.0"
 test-log = { version = "0.2.17", features = ["trace"] }
 uniffi = { version = "0.29.0", features = ["bindgen-tests"] }
+wiremock = "0.6.3"
 
 [build-dependencies]
 uniffi = { version = "0.29.0", features = ["build"] }
