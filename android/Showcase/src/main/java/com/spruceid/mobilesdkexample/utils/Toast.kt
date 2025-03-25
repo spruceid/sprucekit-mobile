@@ -65,7 +65,7 @@ object Toast {
     }
 
     @Composable
-    fun ToastHost(
+    fun Host(
         duration: Long = 3000L,
         onDismiss: () -> Unit = { toastMessage.value = null }
     ) {

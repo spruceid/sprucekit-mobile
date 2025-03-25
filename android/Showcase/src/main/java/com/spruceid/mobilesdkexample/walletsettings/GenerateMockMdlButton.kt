@@ -84,7 +84,7 @@ fun GenerateMockMdlButton(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.unknown),
+                        painter = painterResource(id = R.drawable.generate_mdl),
                         contentDescription = stringResource(id = R.string.generate_mdl),
                         modifier = Modifier.padding(end = 5.dp),
                     )
