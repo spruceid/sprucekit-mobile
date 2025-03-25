@@ -153,10 +153,29 @@ struct WalletSettingsHomeBody: View {
             }
         } label: {
             SettingsHomeItem(
-                image: "Unknown",
+                image: "GenerateMockMdl",
                 title: "Generate mDL",
                 description:
                     "Generate a fresh test mDL issued by the SpruceID Test CA"
+            )
+        }
+    }
+
+    @ViewBuilder
+    var applyForSpruceMdlButton: some View {
+        Button {
+            if let url = URL(
+                string: "https://proofing.haci.staging.spruceid.xyz")
+            {
+                UIApplication.shared.open(
+                    url, options: [:], completionHandler: nil)
+            }
+        } label: {
+            SettingsHomeItem(
+                image: "ApplySpruceMdl",
+                title: "Apply for Spruce mDL",
+                description:
+                    "Verify your identity in order to claim this high assurance credential"
             )
         }
     }
@@ -166,6 +185,7 @@ struct WalletSettingsHomeBody: View {
             VStack {
                 activityLogButton
                 generateMockMdlButton
+                applyForSpruceMdlButton
                 Spacer()
                 deleteAllCredentials
             }
