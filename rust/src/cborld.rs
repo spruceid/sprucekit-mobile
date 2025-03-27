@@ -14,22 +14,19 @@ pub enum CborLdEncodingError {
 
 impl From<InvalidIri<String>> for CborLdEncodingError {
     fn from(value: InvalidIri<String>) -> Self {
-        Self::CborEncode(format!("ssi::json_ld::InvalidIri: {}", value.to_string()))
+        Self::CborEncode(format!("ssi::json_ld::InvalidIri: {value}"))
     }
 }
 
 impl From<EncodeError> for CborLdEncodingError {
     fn from(value: EncodeError) -> Self {
-        Self::CborEncode(format!("cbor_ld::EncodeError: {}", value.to_string()))
+        Self::CborEncode(format!("cbor_ld::EncodeError: {value}"))
     }
 }
 
 impl From<ssi::json_ld::syntax::parse::Error> for CborLdEncodingError {
     fn from(value: ssi::json_ld::syntax::parse::Error) -> Self {
-        Self::JsonParse(format!(
-            "json_ld::syntax::parse::Error: {}",
-            value.to_string()
-        ))
+        Self::JsonParse(format!("json_ld::syntax::parse::Error: {value}",))
     }
 }
 
