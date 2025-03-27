@@ -1,5 +1,7 @@
 package com.spruceid.mobilesdkexample.walletsettings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -112,6 +115,8 @@ fun WalletSettingsHomeBody(
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel
 ) {
+    val context = LocalContext.current
+
     Column(
         Modifier
             .padding(top = 10.dp)
@@ -133,6 +138,22 @@ fun WalletSettingsHomeBody(
         )
 
         GenerateMockMdlButton(credentialPacksViewModel = credentialPacksViewModel)
+
+        SettingsHomeItem(
+            icon = {
+                Image(
+                    painter = painterResource(id = R.drawable.apply_spruceid_mdl),
+                    contentDescription = stringResource(id = R.string.apply_spruceid_mdl),
+                    modifier = Modifier.padding(end = 5.dp),
+                )
+            },
+            name = "Apply for Spruce mDL",
+            description = "Verify your identity in order to claim this high assurance credential",
+            action = {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://proofing.haci.staging.spruceid.xyz"))
+                context.startActivity(intent)
+            }
+        )
 
         Spacer(Modifier.weight(1f))
         Button(

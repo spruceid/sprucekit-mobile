@@ -24,6 +24,7 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.navigation.SetupNavGraph
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
+import com.spruceid.mobilesdkexample.utils.ModalBottomSheetHost
 import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModelFactory
@@ -37,6 +38,7 @@ import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModelFactory
+import com.spruceid.mobilesdkexample.wallet.ApplySpruceMdlConfirmation
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
@@ -50,6 +52,14 @@ class MainActivity : ComponentActivity() {
                         "{rawCredential}",
                         intent.data.toString().replace("spruceid://?sd-jwt=", "")
                     )
+                )
+            } else if (intent.data!!.toString().startsWith("spruceid://?spruceid-mdl=")) {
+                ModalBottomSheetHost.show(
+                    content = {
+                        ApplySpruceMdlConfirmation {
+                            ModalBottomSheetHost.hide()
+                        }
+                    }
                 )
             } else if (intent.data!!.toString().startsWith("openid4vp")) {
                 navController.navigate(
@@ -142,7 +152,10 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 // Global Toast Host
-                Toast.ToastHost()
+                Toast.Host()
+                
+                // Global Modal Bottom Sheet Host
+                ModalBottomSheetHost.Host()
             }
         }
     }

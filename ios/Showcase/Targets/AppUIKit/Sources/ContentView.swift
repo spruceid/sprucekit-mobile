@@ -2,21 +2,34 @@ import SwiftUI
 
 public struct ContentView: View {
     @State var path: NavigationPath = .init()
+    @State var sheetOpen: Bool = false
 
     public init() {}
 
     func handleSpruceIDUrl(url: URL) {
-        let query = URLComponents(string: url.absoluteString)?
+        // test if it is an sd-jwt query
+        if let sdJwtQuery = URLComponents(string: url.absoluteString)?
             .queryItems?
             .first(
                 where: {
                     $0.name == "sd-jwt"
                 }
             )?.value
-        if query != nil {
+        {
             self.path.append(
-                AddToWallet(rawCredential: query!)
+                AddToWallet(rawCredential: sdJwtQuery)
             )
+
+            // test if it is an apply for spruceid mdl callback query˜
+        } else if URLComponents(string: url.absoluteString)?
+            .queryItems?
+            .first(
+                where: {
+                    $0.name == "spruceid-mdl"
+                }
+            )?.value != nil
+        {
+            sheetOpen = true
         }
     }
 
@@ -137,6 +150,12 @@ public struct ContentView: View {
                                 .credentialPackId
                         )
                     }
+            }
+            .sheet(isPresented: $sheetOpen) {
+                ApplySpruceMdlConfirmation(sheetOpen: $sheetOpen)
+                    .presentationDetents([.fraction(0.40)])
+                    .presentationDragIndicator(.hidden)
+                    .presentationBackgroundInteraction(.automatic)
             }
             .environmentObject(StatusListObservable())
             .environmentObject(CredentialPackObservable())

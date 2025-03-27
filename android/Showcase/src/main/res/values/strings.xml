@@ -35,4 +35,5 @@
     <string name="details_info">Credential information</string>
     <string name="trusted_certificates">Manage trusted certificates</string>
     <string name="delete">Delete</string>
+    <string name="apply_spruceid_mdl">Apply for a SpruceID mDL</string>
 </resources>
