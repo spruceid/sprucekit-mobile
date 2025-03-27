@@ -9618,6 +9618,89 @@ extension AuthenticationStatus: Equatable, Hashable {}
 
 
 
+
+public enum CborLdEncodingError {
+
+    
+    
+    case JsonParse(String
+    )
+    case CborEncode(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCborLdEncodingError: FfiConverterRustBuffer {
+    typealias SwiftType = CborLdEncodingError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CborLdEncodingError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .JsonParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .CborEncode(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CborLdEncodingError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .JsonParse(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .CborEncode(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCborLdEncodingError_lift(_ buf: RustBuffer) throws -> CborLdEncodingError {
+    return try FfiConverterTypeCborLdEncodingError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCborLdEncodingError_lower(_ value: CborLdEncodingError) -> RustBuffer {
+    return FfiConverterTypeCborLdEncodingError.lower(value)
+}
+
+
+extension CborLdEncodingError: Equatable, Hashable {}
+
+
+
+extension CborLdEncodingError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -16718,6 +16801,20 @@ private func uniffiForeignFutureFree(handle: UInt64) {
 public func uniffiForeignFutureHandleCountMobileSdkRs() -> Int {
     UNIFFI_FOREIGN_FUTURE_HANDLE_MAP.count
 }
+public func cborLdEncodeToBytes(credentialStr: String, loader: [String: String]?)async throws  -> Data  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_cbor_ld_encode_to_bytes(FfiConverterString.lower(credentialStr),FfiConverterOptionDictionaryStringString.lower(loader)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterData.lift,
+            errorHandler: FfiConverterTypeCborLdEncodingError.lift
+        )
+}
 public func decodeRevealSdJwt(input: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeSdJwtError_lift) {
     uniffi_mobile_sdk_rs_fn_func_decode_reveal_sd_jwt(
@@ -17008,6 +17105,9 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_mobile_sdk_rs_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_cbor_ld_encode_to_bytes() != 12635) {
+        return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 34951) {
         return InitializationResult.apiChecksumMismatch

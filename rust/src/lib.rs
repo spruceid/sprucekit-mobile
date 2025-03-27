@@ -1,5 +1,6 @@
 uniffi::setup_scaffolding!();
 
+pub mod cborld;
 pub mod common;
 pub mod context;
 pub mod credential;

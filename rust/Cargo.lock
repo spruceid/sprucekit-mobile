@@ -663,6 +663,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "cbor-ld"
+version = "0.2.0"
+source = "git+https://github.com/spruceid/cbor-ld?rev=bc04985#bc04985ca629c0fa131b447b4fff6bcfe02d9f03"
+dependencies = [
+ "chrono",
+ "ciborium",
+ "clap",
+ "env_logger 0.11.6",
+ "hex",
+ "iref",
+ "json-ld",
+ "lazy_static",
+ "log",
+ "multibase 0.9.1",
+ "serde",
+ "static-iref",
+ "thiserror 1.0.69",
+ "tokio",
+ "toml 0.8.20",
+ "uuid",
+ "xsd-types",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3275,6 +3299,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
+ "cbor-ld 0.2.0 (git+https://github.com/spruceid/cbor-ld?rev=bc04985)",
  "ciborium",
  "cose-rs 0.1.0 (git+https://github.com/spruceid/cose-rs?rev=0018c9b)",
  "either",
@@ -6799,7 +6824,7 @@ name = "w3c-vc-barcodes"
 version = "0.1.0"
 source = "git+https://github.com/spruceid/w3c-vc-barcodes?rev=9aeb38d#9aeb38d7471a7c4c7ff8247564d4443bc4bee004"
 dependencies = [
- "cbor-ld",
+ "cbor-ld 0.2.0 (git+https://github.com/spruceid/cbor-ld.git?rev=74a439a)",
  "csv",
  "iref",
  "json-syntax",
