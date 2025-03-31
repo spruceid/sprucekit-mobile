@@ -48,6 +48,11 @@ public class CredentialPack {
             keyAlias: UUID().uuidString)
         ) {
             return credentials
+        } else if let credentials = try? addMDoc(mdoc: Mdoc.newFromBase64urlEncodedIssuerSigned(
+            base64urlEncodedIssuerSigned: rawCredential,
+            keyAlias: UUID().uuidString)
+        ) {
+            return credentials
         } else {
             throw CredentialPackError.credentialParsing(reason: "Couldn't parse credential: \(rawCredential)")
         }
@@ -436,4 +441,8 @@ public enum CredentialStatusList: String {
     case invalid = "INVALID"
     /// Credential doesn't have status list
     case undefined = "UNDEFINED"
+    /// Credential is pending approval
+    case pending = "PENDING"
+    /// Credential is ready to be claimed
+    case ready = "READY"
 }

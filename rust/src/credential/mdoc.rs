@@ -5,7 +5,7 @@ use std::{
 
 use base64::prelude::*;
 use isomdl::{
-    definitions::{IssuerSigned, Mso},
+    definitions::{helpers::Tag24, IssuerSigned, Mso},
     presentation::{device::Document, Stringify},
 };
 use uuid::Uuid;
@@ -152,7 +152,7 @@ impl Mdoc {
             // Unwrap safety: safe to convert BTreeMap to NonEmptyMap since we're iterating over a NonEmptyMap.
             .unwrap();
 
-        let mso: Mso = isomdl::cbor::from_slice(
+        let mso: Tag24<Mso> = isomdl::cbor::from_slice(
             issuer_auth
                 .payload
                 .as_ref()
@@ -166,7 +166,7 @@ impl Mdoc {
                 id: Uuid::new_v4(),
                 issuer_auth,
                 namespaces,
-                mso,
+                mso: mso.into_inner(),
             },
         }))
     }
@@ -204,7 +204,7 @@ pub enum MdocInitError {
     DocumentCborDecoding(String),
     #[error("failed to decode base64url_encoded_issuer_signed from base64url-encoded bytes")]
     IssuerSignedBase64UrlDecoding,
-    #[error("failed to deocde IssuerSigned from CBOR")]
+    #[error("failed to decode IssuerSigned from CBOR")]
     IssuerSignedCborDecoding,
     #[error("IssuerAuth CoseSign1 has no payload")]
     IssuerAuthPayloadMissing,

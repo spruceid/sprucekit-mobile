@@ -58,11 +58,14 @@ struct WalletHomeBody: View {
     @EnvironmentObject private var statusListObservable: StatusListObservable
     @EnvironmentObject private var credentialPackObservable:
         CredentialPackObservable
+    @EnvironmentObject private var hacApplicationObservable:
+        HacApplicationObservable
     @State var loading = false
 
     func loadCredentials() async {
         loading = true
         do {
+            hacApplicationObservable.loadAll()
             let credentialPacks =
                 try await credentialPackObservable.loadAndUpdateAll()
             Task {
@@ -110,10 +113,33 @@ struct WalletHomeBody: View {
                 LoadingView(
                     loadingText: ""
                 )
-            } else if !credentialPackObservable.credentialPacks.isEmpty {
+            } else if !credentialPackObservable.credentialPacks.isEmpty
+                || !hacApplicationObservable.hacApplications.isEmpty
+            {
                 ZStack {
                     ScrollView(.vertical, showsIndicators: false) {
                         Section {
+                            ForEach(
+                                hacApplicationObservable.hacApplications,
+                                id: \.self.id
+                            ) { hacApplication in
+                                HacApplicationListItem(
+                                    application: hacApplication,
+                                    startIssuance: { credentialOfferUrl in
+                                        path.append(
+                                            HandleOID4VCI(
+                                                url: credentialOfferUrl,
+                                                onSuccess: {
+                                                    _ = HacApplicationDataStore
+                                                        .shared.delete(
+                                                            id: hacApplication
+                                                                .id)
+                                                }
+                                            )
+                                        )
+                                    }
+                                )
+                            }
                             ForEach(
                                 credentialPackObservable.credentialPacks,
                                 id: \.self.id

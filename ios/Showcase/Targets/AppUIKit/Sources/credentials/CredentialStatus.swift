@@ -79,6 +79,34 @@ struct CredentialStatusSmall: View {
                 }
             case .undefined:
                 EmptyView()
+            case .pending:
+                HStack {
+                    Image("Pending")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 14, height: 14)
+                        .foregroundColor(Color("ColorBlue600"))
+                    Text("Pending")
+                        .font(
+                            .customFont(
+                                font: .inter, style: .regular, size: .small)
+                        )
+                        .foregroundStyle(Color("ColorBlue600"))
+                }
+            case .ready:
+                HStack {
+                    Image("Valid")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 14, height: 14)
+                        .foregroundColor(Color("ColorEmerald600"))
+                    Text("Ready")
+                        .font(
+                            .customFont(
+                                font: .inter, style: .regular, size: .small)
+                        )
+                        .foregroundStyle(Color("ColorEmerald600"))
+                }
             }
         } else {
             EmptyView()
@@ -249,6 +277,66 @@ struct CredentialStatus: View {
                 .padding(.leading, CGFloat(4))
             case .undefined:
                 EmptyView()
+            case .pending:
+                VStack {
+                    HStack(alignment: .center) {
+                        Text("Status")
+                            .font(
+                                .customFont(
+                                    font: .inter, style: .regular, size: .h4)
+                            )
+                            .foregroundStyle(Color("ColorBlue600"))
+                        Spacer()
+                    }
+                    HStack {
+                        Image("Pending")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 24, height: 24)
+                            .foregroundColor(Color("ColorBase50"))
+                        Text("PENDING")
+                            .font(
+                                .customFont(
+                                    font: .inter, style: .regular, size: .h3)
+                            )
+                            .foregroundStyle(Color("ColorBase50"))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
+                    .background(Color("ColorBlue600"))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .padding(.leading, CGFloat(4))
+            case .ready:
+                VStack {
+                    HStack(alignment: .center) {
+                        Text("Status")
+                            .font(
+                                .customFont(
+                                    font: .inter, style: .regular, size: .h4)
+                            )
+                            .foregroundStyle(Color("ColorStone600"))
+                        Spacer()
+                    }
+                    HStack {
+                        Image("Valid")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 24, height: 24)
+                            .foregroundColor(Color("ColorBase50"))
+                        Text("READY")
+                            .font(
+                                .customFont(
+                                    font: .inter, style: .regular, size: .h3)
+                            )
+                            .foregroundStyle(Color("ColorBase50"))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
+                    .background(Color("ColorEmerald600"))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .padding(.leading, CGFloat(4))
             }
         } else {
             EmptyView()

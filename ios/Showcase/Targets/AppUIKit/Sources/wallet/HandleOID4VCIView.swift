@@ -3,7 +3,15 @@ import SpruceIDMobileSdkRs
 import SwiftUI
 
 struct HandleOID4VCI: Hashable {
-    var url: String
+    var url: String, onSuccess: (() -> Void)? = nil
+
+    static func == (lhs: HandleOID4VCI, rhs: HandleOID4VCI) -> Bool {
+        lhs.url == rhs.url
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(url)
+    }
 }
 
 struct HandleOID4VCIView: View {
@@ -14,6 +22,7 @@ struct HandleOID4VCIView: View {
 
     @Binding var path: NavigationPath
     let url: String
+    let onSuccess: (() -> Void)?
 
     func getCredential(credentialOffer: String) {
         loading = true
@@ -59,7 +68,7 @@ struct HandleOID4VCIView: View {
                 self.credentialPack = CredentialPack()
                 let credentials = try await oid4vciSession.exchangeCredential(
                     proofsOfPossession: [pop],
-                    options: Oid4vciExchangeOptions(verifyAfterExchange: true)
+                    options: Oid4vciExchangeOptions(verifyAfterExchange: false)
                 )
 
                 try credentials.forEach {
@@ -68,6 +77,8 @@ struct HandleOID4VCIView: View {
                         rawCredential: cred)
                     self.credential = cred
                 }
+
+                onSuccess?()
 
             } catch {
                 err = error.localizedDescription

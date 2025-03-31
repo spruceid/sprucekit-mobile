@@ -20,7 +20,7 @@ public struct ContentView: View {
                 AddToWallet(rawCredential: sdJwtQuery)
             )
 
-            // test if it is an apply for spruceid mdl callback query˜
+            // test if it is an apply for spruceid mdl callback query
         } else if URLComponents(string: url.absoluteString)?
             .queryItems?
             .first(
@@ -122,7 +122,8 @@ public struct ContentView: View {
                         handleOID4VCIParams in
                         HandleOID4VCIView(
                             path: $path,
-                            url: handleOID4VCIParams.url
+                            url: handleOID4VCIParams.url,
+                            onSuccess: handleOID4VCIParams.onSuccess
                         )
                     }
                     .navigationDestination(for: DispatchQR.self) { _ in
@@ -153,12 +154,13 @@ public struct ContentView: View {
             }
             .sheet(isPresented: $sheetOpen) {
                 ApplySpruceMdlConfirmation(sheetOpen: $sheetOpen)
-                    .presentationDetents([.fraction(0.40)])
+                    .presentationDetents([.fraction(0.50)])
                     .presentationDragIndicator(.hidden)
                     .presentationBackgroundInteraction(.automatic)
             }
             .environmentObject(StatusListObservable())
             .environmentObject(CredentialPackObservable())
+            .environmentObject(HacApplicationObservable())
             Toast()
         }
         .onOpenURL { url in

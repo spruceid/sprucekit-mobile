@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
 use either::Either;
 use oid4vci::{
     client,
@@ -161,6 +162,13 @@ pub async fn oid4vci_initiate_with_offer(
                             core::profiles::jwt_vc_json_ld::CredentialRequestWithFormat::new(
                                 credential_definition,
                             ),
+                        ),
+                    )
+                }
+                CoreProfilesCredentialConfiguration::MsoMdoc(config) => {
+                    ProfilesCredentialRequestWithFormat::Core(
+                        core::profiles::CredentialRequestWithFormat::MsoMdoc(
+                            core::profiles::mso_mdoc::CredentialRequestWithFormat::new(config.doctype().to_string()),
                         ),
                     )
                 }
@@ -391,7 +399,7 @@ pub async fn oid4vci_exchange_credential(
             .collect()
     };
 
-    if options.verify_after_exchange.unwrap_or(false) {
+    if !options.verify_after_exchange.unwrap_or(false) {
         futures::future::try_join_all(credential_responses.into_iter().map(
             |credential_response| async {
                 use oid4vci::profiles::core::profiles::CoreProfilesCredentialResponseType::*;
@@ -423,7 +431,14 @@ pub async fn oid4vci_exchange_credential(
                                 payload: ret,
                             })
                         }
-                        MsoMdoc(_) => todo!(),
+                        MsoMdoc(response) => {
+                            log::trace!("processing an MsoMdoc");
+                            let ret = isomdl::cbor::to_vec(&response.0).map_err(|e| Oid4vciError::Generic(e.to_string()))?;
+                            Ok(CredentialResponse {
+                                format: CredentialFormat::MsoMdoc,
+                                payload: BASE64_URL_SAFE_NO_PAD.encode(&ret).as_bytes().to_vec(),
+                            })
+                        }
                     },
                     CredentialResponseType::Custom(custom_response) => match custom_response {
                         custom::profiles::CustomProfilesCredentialResponseType::VcSdJwt(
@@ -493,6 +508,7 @@ pub async fn oid4vci_exchange_credential(
                                 payload: response.verify(&params).await.map(|_| ret)?,
                             })
                         }
+                        // TODO: Implement version with verify
                         MsoMdoc(_) => todo!(),
                     },
                     CredentialResponseType::Custom(custom_response) => match custom_response {

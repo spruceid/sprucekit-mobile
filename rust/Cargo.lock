@@ -900,20 +900,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cose-rs"
-version = "0.1.0"
-source = "git+https://github.com/spruceid/cose-rs?rev=4104505#4104505ec2c9bddd17d8b173f96ecd027c13ab9d"
-dependencies = [
- "p256",
- "p384",
- "serde",
- "serde_bytes",
- "serde_cbor",
- "signature",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "coset"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1170,40 +1156,15 @@ dependencies = [
 
 [[package]]
 name = "der"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1a467a65c5e759bce6e65eaf91cc29f466cdc57cb65777bd646872a8a1fd4de"
-dependencies = [
- "const-oid 0.9.6",
- "der_derive 0.6.1",
- "flagset",
- "pem-rfc7468 0.6.0",
- "zeroize",
-]
-
-[[package]]
-name = "der"
 version = "0.7.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f55bf8e7b65898637379c1b74eb1551107c8294ed26d855ceb9fd1a09cfc9bc0"
 dependencies = [
  "const-oid 0.9.6",
- "der_derive 0.7.3",
+ "der_derive",
  "flagset",
  "pem-rfc7468 0.7.0",
  "zeroize",
-]
-
-[[package]]
-name = "der_derive"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ef71ddb5b3a1f53dee24817c8f70dfa1cb29e804c18d88c228d4bc9c86ee3b9"
-dependencies = [
- "proc-macro-error",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -1287,7 +1248,7 @@ dependencies = [
  "multibase 0.8.0",
  "serde_jcs",
  "serde_json",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-dids-core",
  "ssi-jwk 0.3.1",
  "ssi-verification-methods",
@@ -1330,7 +1291,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ssi-caips",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-dids-core",
  "ssi-jwk 0.3.1",
  "static-iref",
@@ -2541,7 +2502,7 @@ dependencies = [
  "hex-literal",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=6084a83)",
+ "isomdl-macros",
  "p256",
  "p384",
  "pem-rfc7468 0.7.0",
@@ -2560,42 +2521,7 @@ dependencies = [
  "time",
  "tracing",
  "uuid",
- "x509-cert 0.2.5",
- "zeroize",
-]
-
-[[package]]
-name = "isomdl"
-version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=90ce218#90ce2180a7336715ff4682dcab9bb7cfad898740"
-dependencies = [
- "aes",
- "aes-gcm",
- "anyhow",
- "async-signature",
- "base64 0.13.1",
- "cose-rs 0.1.0 (git+https://github.com/spruceid/cose-rs?rev=4104505)",
- "ecdsa",
- "elliptic-curve",
- "hex-literal",
- "hkdf",
- "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=90ce218)",
- "p256",
- "p384",
- "pem-rfc7468 0.7.0",
- "rand",
- "sec1",
- "serde",
- "serde_cbor",
- "serde_json",
- "sha2 0.10.8",
- "signature",
- "ssi-jwk 0.1.2",
- "thiserror 1.0.69",
- "time",
- "uuid",
- "x509-cert 0.1.1",
+ "x509-cert",
  "zeroize",
 ]
 
@@ -2603,16 +2529,6 @@ dependencies = [
 name = "isomdl-macros"
 version = "0.1.0"
 source = "git+https://github.com/spruceid/isomdl?rev=6084a83#6084a8355e7f194556f365f46a8c3772ad35d321"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "isomdl-macros"
-version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=90ce218#90ce2180a7336715ff4682dcab9bb7cfad898740"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3276,12 +3192,12 @@ dependencies = [
  "async-trait",
  "base64 0.22.1",
  "ciborium",
- "cose-rs 0.1.0 (git+https://github.com/spruceid/cose-rs?rev=0018c9b)",
+ "cose-rs",
  "either",
  "futures",
  "futures-util",
  "hex",
- "isomdl 0.1.0 (git+https://github.com/spruceid/isomdl?rev=6084a83)",
+ "isomdl",
  "itertools",
  "josekit",
  "json-syntax",
@@ -3314,7 +3230,7 @@ dependencies = [
  "uuid",
  "w3c-vc-barcodes",
  "wiremock",
- "x509-cert 0.2.5",
+ "x509-cert",
 ]
 
 [[package]]
@@ -3580,18 +3496,17 @@ dependencies = [
 [[package]]
 name = "oid4vci"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/oid4vci-rs?rev=e97b01e#e97b01e9fa230d6da08cc765c3674330c0c0fa32"
+source = "git+https://github.com/spruceid/oid4vci-rs?rev=3792565#37925658892379f48dd95962c9eafcc52b36a721"
 dependencies = [
  "anyhow",
  "async-signature",
  "base64 0.21.7",
  "form_urlencoded",
- "isomdl 0.1.0 (git+https://github.com/spruceid/isomdl?rev=90ce218)",
+ "isomdl",
  "oauth2",
  "percent-encoding",
  "rand",
  "serde",
- "serde_cbor",
  "serde_json",
  "serde_path_to_error",
  "serde_urlencoded",
@@ -3641,7 +3556,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
- "x509-cert 0.2.5",
+ "x509-cert",
 ]
 
 [[package]]
@@ -3812,15 +3727,6 @@ name = "pem-rfc7468"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "01de5d978f34aa4b2296576379fcc416034702fd94117c56ffd8a1a767cefb30"
-dependencies = [
- "base64ct",
-]
-
-[[package]]
-name = "pem-rfc7468"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24d159833a9105500e0398934e205e0773f0b27529557134ecfc51c27646adac"
 dependencies = [
  "base64ct",
 ]
@@ -5121,15 +5027,6 @@ dependencies = [
 
 [[package]]
 name = "spki"
-version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67cf02bbac7a337dc36e4f5a693db6c21e7863f45070f7064577eb4367a3212b"
-dependencies = [
- "der 0.6.1",
-]
-
-[[package]]
-name = "spki"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d91ed6c858b01f942cd56b37a94b3e0a1798290327d1236e4d9cf4eaca44d29d"
@@ -5159,7 +5056,7 @@ dependencies = [
  "ssi-caips",
  "ssi-claims",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-dids",
  "ssi-eip712",
  "ssi-json-ld",
@@ -5208,7 +5105,7 @@ dependencies = [
  "ssi-claims-core",
  "ssi-core",
  "ssi-cose",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-data-integrity",
  "ssi-dids-core",
  "ssi-eip712",
@@ -5234,7 +5131,7 @@ dependencies = [
  "educe 0.4.23",
  "serde",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-eip712",
  "ssi-json-ld",
  "thiserror 1.0.69",
@@ -5268,24 +5165,8 @@ dependencies = [
  "coset",
  "serde",
  "ssi-claims-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "ssi-crypto"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c511fdba8466006f4de1086fee5f38fd220eac5eeaf0270dbfde3e9d538030e7"
-dependencies = [
- "bs58",
- "digest 0.9.0",
- "k256",
- "keccak-hash",
- "ripemd160",
- "sha2 0.10.8",
- "thiserror 1.0.69",
- "zeroize",
 ]
 
 [[package]]
@@ -5330,7 +5211,7 @@ dependencies = [
  "serde_json",
  "ssi-claims-core",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-data-integrity-core",
  "ssi-data-integrity-suites",
  "ssi-di-sd-primitives",
@@ -5368,7 +5249,7 @@ dependencies = [
  "serde_json",
  "ssi-claims-core",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-json-ld",
  "ssi-jwk 0.3.1",
  "ssi-jws",
@@ -5415,7 +5296,7 @@ dependencies = [
  "ssi-claims-core",
  "ssi-contexts",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-data-integrity-core",
  "ssi-di-sd-primitives",
  "ssi-eip712",
@@ -5488,7 +5369,7 @@ dependencies = [
  "serde_urlencoded",
  "ssi-claims-core",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-json-ld",
  "ssi-jwk 0.3.1",
  "ssi-jws",
@@ -5537,32 +5418,6 @@ dependencies = [
 
 [[package]]
 name = "ssi-jwk"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2d7b2b056993e04945eade2b0bbd3049f1bb65cd2fcf661ccb15b615683b384"
-dependencies = [
- "base64 0.12.3",
- "ed25519-dalek",
- "getrandom 0.2.15",
- "k256",
- "lazy_static",
- "multibase 0.9.1",
- "num-bigint",
- "num-derive",
- "num-traits",
- "p256",
- "rand",
- "rsa",
- "serde",
- "simple_asn1",
- "ssi-crypto 0.1.1",
- "thiserror 1.0.69",
- "unsigned-varint",
- "zeroize",
-]
-
-[[package]]
-name = "ssi-jwk"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9548df4ddf50fe2ce3ad91f8505d1babf0e18cfc28b7b3d0e5d096990764d195"
@@ -5586,7 +5441,7 @@ dependencies = [
  "serde_json",
  "simple_asn1",
  "ssi-claims-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-multicodec",
  "thiserror 1.0.69",
  "zeroize",
@@ -5620,7 +5475,7 @@ dependencies = [
  "serde_json",
  "simple_asn1",
  "ssi-claims-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-multicodec",
  "thiserror 1.0.69",
  "zeroize",
@@ -5650,7 +5505,7 @@ dependencies = [
  "sha3",
  "ssi-claims-core",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-jwk 0.3.1",
  "thiserror 1.0.69",
 ]
@@ -5673,7 +5528,7 @@ dependencies = [
  "slab",
  "ssi-claims-core",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-jwk 0.3.1",
  "ssi-jws",
  "thiserror 1.0.69",
@@ -5706,7 +5561,7 @@ dependencies = [
  "linked-data",
  "rdf-types",
  "serde",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
 ]
 
 [[package]]
@@ -5889,7 +5744,7 @@ dependencies = [
  "ssi-caips",
  "ssi-claims-core",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-eip712",
  "ssi-jwk 0.3.1",
  "ssi-jws",
@@ -5917,7 +5772,7 @@ dependencies = [
  "serde_json",
  "ssi-claims-core",
  "ssi-core",
- "ssi-crypto 0.2.1",
+ "ssi-crypto",
  "ssi-json-ld",
  "ssi-jwk 0.3.1",
  "ssi-jws",
@@ -7236,18 +7091,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
 dependencies = [
  "tap",
-]
-
-[[package]]
-name = "x509-cert"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99d224a125dec5adda27d0346b9cae9794830279c4f9c27e4ab0b6c408d54012"
-dependencies = [
- "const-oid 0.9.6",
- "der 0.6.1",
- "flagset",
- "spki 0.6.0",
 ]
 
 [[package]]

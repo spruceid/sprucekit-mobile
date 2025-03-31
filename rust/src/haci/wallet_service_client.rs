@@ -1,8 +1,7 @@
 use reqwest::Client;
 use serde_json::Value;
 use ssi::{
-    claims::jwt::{ExpirationTime, StringOrURI, Subject, ToDecodedJwt},
-    prelude::*,
+    claims::jwt::{ExpirationTime, StringOrURI, Subject, ToDecodedJwt}, json_ld::rdf_types::utils::OptionIterator, prelude::*
 };
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
@@ -44,6 +43,7 @@ struct TokenInfo {
 
 /// Internal function to create TokenInfo from JWT
 fn create_token_info(token: String) -> Result<TokenInfo, WalletServiceError> {
+    println!("token: {:?}", token);
     let jws_bytes: Vec<u8> = token.as_bytes().to_vec();
 
     let jws_buf = JwsBuf::new(jws_bytes)
@@ -80,7 +80,7 @@ pub struct WalletServiceClient {
     token_info: Arc<Mutex<Option<TokenInfo>>>,
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 impl WalletServiceClient {
     #[uniffi::constructor]
     pub fn new(base_url: String) -> Self {
@@ -103,6 +103,19 @@ impl WalletServiceClient {
                         StringOrURI::URI(u) => u.to_string(),
                     })
             })
+        } else {
+            None
+        }
+    }
+
+    /// Get the current token
+    pub fn get_token(&self) -> Option<String> {
+        if let Ok(guard) = self.token_info.lock() {
+            if let Some(token_info) = guard.as_ref() {
+                Some(token_info.token.clone())
+            } else {
+                None
+            }
         } else {
             None
         }
