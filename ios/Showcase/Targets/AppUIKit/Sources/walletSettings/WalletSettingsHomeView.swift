@@ -82,7 +82,8 @@ struct WalletSettingsHomeBody: View {
                         .credentialPacks
                     try await credentialPacks.asyncForEach { credentialPack in
                         try await credentialPackObservable.delete(
-                            credentialPack: credentialPack)
+                            credentialPack: credentialPack
+                        )
                         credentialPack.list().forEach { credential in
                             let credentialInfo = getCredentialIdTitleAndIssuer(
                                 credentialPack: credentialPack,
@@ -121,27 +122,41 @@ struct WalletSettingsHomeBody: View {
         Button {
             Task {
                 do {
-                    let walletAttestation =
-                        try await hacApplicationObservable.getWalletAttestation()
-                        .unwrap()
+                    let keyAlias = "mdoc_key"
+                    if !KeyManager.keyExists(id: keyAlias) {
+                        _ = KeyManager.generateSigningKey(id: keyAlias)
+                    }
+                    let mdl = try generateTestMdl(
+                        keyManager: KeyManager(),
+                        keyAlias: keyAlias
+                    )
+                    let credentialPacks = credentialPackObservable
+                        .credentialPacks
+                    let mdocPack =
+                        credentialPacks.first { pack in
+                            pack.list().contains(where: { credential in
+                                credential.asMsoMdoc() != nil
+                            })
+                        } ?? CredentialPack()
 
-                    let issuanceClient = IssuanceServiceClient(
-                        baseUrl: SPRUCEID_HAC_ISSUANCE_SERVICE)
-                    let issuance =
-                        try await hacApplicationObservable.issuanceClient
-                        .newIssuance(walletAttestation: walletAttestation)
-
-                    if let url = URL(
-                        string:
-                            "\(SPRUCEID_HAC_PROOFING_CLIENT)?id=\(issuance)&redirect=spruceid"
-                    ) {
-                        UIApplication.shared.open(
-                            url, options: [:], completionHandler: nil)
+                    if mdocPack.list().isEmpty {
+                        _ = mdocPack.addMDoc(mdoc: mdl)
+                        try await mdocPack.save(
+                            storageManager: StorageManager()
+                        )
+                        ToastManager.shared.showSuccess(
+                            message: "Test mDL added to your wallet"
+                        )
+                    } else {
+                        ToastManager.shared.showWarning(
+                            message: "You already have an mDL"
+                        )
                     }
                 } catch {
                     print(error.localizedDescription)
                     ToastManager.shared.showError(
-                        message: "Error generating mDL")
+                        message: "Error generating mDL"
+                    )
                 }
             }
         } label: {
@@ -176,7 +191,10 @@ struct WalletSettingsHomeBody: View {
                             "\(SPRUCEID_HAC_PROOFING_CLIENT)?id=\(hacApplication!)&redirect=spruceid"
                     ) {
                         UIApplication.shared.open(
-                            url, options: [:], completionHandler: nil)
+                            url,
+                            options: [:],
+                            completionHandler: nil
+                        )
                     }
                 } catch {
                     print(error.localizedDescription)
