@@ -11339,6 +11339,11 @@ public enum IssuanceServiceError {
      */
     case InvalidAttestation(String
     )
+    /**
+     * Internal error
+     */
+    case InternalError(String
+    )
 }
 
 
@@ -11366,6 +11371,9 @@ public struct FfiConverterTypeIssuanceServiceError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 4: return .InvalidAttestation(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .InternalError(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -11398,6 +11406,11 @@ public struct FfiConverterTypeIssuanceServiceError: FfiConverterRustBuffer {
         
         case let .InvalidAttestation(v1):
             writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InternalError(v1):
+            writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -14784,6 +14797,11 @@ public enum WalletServiceError {
      */
     case JwtParseError(String
     )
+    /**
+     * Internal error
+     */
+    case InternalError(String
+    )
 }
 
 
@@ -14815,6 +14833,9 @@ public struct FfiConverterTypeWalletServiceError: FfiConverterRustBuffer {
             )
         case 5: return .InvalidToken
         case 6: return .JwtParseError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .InternalError(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -14856,6 +14877,11 @@ public struct FfiConverterTypeWalletServiceError: FfiConverterRustBuffer {
         
         case let .JwtParseError(v1):
             writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InternalError(v1):
+            writeInt(&buf, Int32(7))
             FfiConverterString.write(v1, into: &buf)
             
         }

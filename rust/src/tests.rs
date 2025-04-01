@@ -180,7 +180,7 @@ pub async fn test_mso_mdoc_oid4vci() -> Result<()> {
         .await?;
 
     let nonce = session.exchange_token().await?;
-    let metadata = session.get_metadata()?;    
+    let metadata = session.get_metadata()?;
     let audience = metadata.issuer();
     let did_method = crate::did::DidMethod::Key;
     let public_jwk = signer.jwk();
@@ -197,7 +197,12 @@ pub async fn test_mso_mdoc_oid4vci() -> Result<()> {
     session.set_context_map(default_ld_json_context())?;
 
     let credentials = session
-        .exchange_credential(vec![pop], Oid4vciExchangeOptions { verify_after_exchange: Some(false) })
+        .exchange_credential(
+            vec![pop],
+            Oid4vciExchangeOptions {
+                verify_after_exchange: Some(false),
+            },
+        )
         .await?;
 
     // Create a test key alias for the mdocs
@@ -214,14 +219,13 @@ pub async fn test_mso_mdoc_oid4vci() -> Result<()> {
         // If this is an mdoc credential, create an Mdoc object
         if *format == crate::credential::CredentialFormat::MsoMdoc {
             let utf8_payload = String::from_utf8_lossy(payload).to_string();
-            println!("utf8_payload: {utf8_payload}");
-            
+
             // Create the Mdoc using the new method that handles server payloads
             let mdoc = crate::credential::mdoc::Mdoc::new_from_base64url_encoded_issuer_signed(
                 utf8_payload,
                 key_alias.clone(),
             )?;
-            
+
             // Verify the mdoc was created correctly
             let _ = mdoc.details();
         }

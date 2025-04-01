@@ -168,7 +168,9 @@ pub async fn oid4vci_initiate_with_offer(
                 CoreProfilesCredentialConfiguration::MsoMdoc(config) => {
                     ProfilesCredentialRequestWithFormat::Core(
                         core::profiles::CredentialRequestWithFormat::MsoMdoc(
-                            core::profiles::mso_mdoc::CredentialRequestWithFormat::new(config.doctype().to_string()),
+                            core::profiles::mso_mdoc::CredentialRequestWithFormat::new(
+                                config.doctype().to_string(),
+                            ),
                         ),
                     )
                 }
@@ -433,7 +435,8 @@ pub async fn oid4vci_exchange_credential(
                         }
                         MsoMdoc(response) => {
                             log::trace!("processing an MsoMdoc");
-                            let ret = isomdl::cbor::to_vec(&response.0).map_err(|e| Oid4vciError::Generic(e.to_string()))?;
+                            let ret = isomdl::cbor::to_vec(&response.0)
+                                .map_err(|e| Oid4vciError::Generic(e.to_string()))?;
                             Ok(CredentialResponse {
                                 format: CredentialFormat::MsoMdoc,
                                 payload: BASE64_URL_SAFE_NO_PAD.encode(&ret).as_bytes().to_vec(),

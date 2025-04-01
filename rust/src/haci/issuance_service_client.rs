@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::haci::http_client::HaciHttpClient;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -20,6 +20,10 @@ pub enum IssuanceServiceError {
     /// Invalid wallet attestation
     #[error("Invalid wallet attestation: {0}")]
     InvalidAttestation(String),
+
+    /// Internal error
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -35,37 +39,41 @@ pub struct CheckStatusResponse {
 
 #[derive(uniffi::Object)]
 pub struct IssuanceServiceClient {
-    client: Client,
+    client: HaciHttpClient,
     base_url: String,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
 impl IssuanceServiceClient {
     /// Creates a new IssuanceServiceClient instance
-    /// 
+    ///
     /// # Arguments
     /// * `base_url` - The base URL of the issuance service
     #[uniffi::constructor]
     pub fn new(base_url: String) -> Self {
         Self {
-            client: Client::new(),
+            client: HaciHttpClient::new(),
             base_url,
         }
     }
 
     /// Creates a new issuance request
-    /// 
+    ///
     /// # Arguments
     /// * `wallet_attestation` - The wallet attestation JWT
-    /// 
+    ///
     /// # Returns
     /// * The issuance ID if successful
     /// * An error if the request fails
-    pub async fn new_issuance(&self, wallet_attestation: String) -> Result<String, IssuanceServiceError> {
+    pub async fn new_issuance(
+        &self,
+        wallet_attestation: String,
+    ) -> Result<String, IssuanceServiceError> {
         let url = format!("{}/issuance/new", self.base_url);
-        
-        let response = self.client
-            .get(&url)
+
+        let response = self
+            .client
+            .get(url)
             .header("OAuth-Client-Attestation", wallet_attestation)
             .send()
             .await
@@ -89,19 +97,24 @@ impl IssuanceServiceClient {
     }
 
     /// Checks the status of an issuance request
-    /// 
+    ///
     /// # Arguments
     /// * `issuance_id` - The ID of the issuance to check
     /// * `wallet_attestation` - The wallet attestation JWT
-    /// 
+    ///
     /// # Returns
     /// * The status response containing state and openid_credential_offer if successful
     /// * An error if the request fails
-    pub async fn check_status(&self, issuance_id: String, wallet_attestation: String) -> Result<CheckStatusResponse, IssuanceServiceError> {
+    pub async fn check_status(
+        &self,
+        issuance_id: String,
+        wallet_attestation: String,
+    ) -> Result<CheckStatusResponse, IssuanceServiceError> {
         let url = format!("{}/issuance/{}/status", self.base_url, issuance_id);
-        
-        let response = self.client
-            .get(&url)
+
+        let response = self
+            .client
+            .get(url)
             .header("OAuth-Client-Attestation", wallet_attestation)
             .send()
             .await
@@ -128,9 +141,9 @@ impl IssuanceServiceClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
-    use serde_json::json;
 
     async fn setup_mock_server() -> (MockServer, String) {
         let mock_server = MockServer::start().await;
@@ -146,20 +159,16 @@ mod tests {
         let expected_id = "d94062ab-e659-4b70-8532-b758973c2b40".to_string();
 
         // Mock successful new issuance response
-        Mock::given(method("GET"))
+        Mock::given(method("POST"))
             .and(path("/issuance/new"))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(json!({
-                        "id": expected_id
-                    }))
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "id": expected_id
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
 
         let result = client.new_issuance(wallet_attestation).await;
-        println!("result: {:?}", result);
         assert!(result.is_ok(), "New issuance should succeed");
         assert_eq!(result.unwrap(), expected_id);
     }
@@ -172,15 +181,12 @@ mod tests {
         let wallet_attestation = "test_attestation".to_string();
 
         // Mock successful status check response
-        Mock::given(method("GET"))
+        Mock::given(method("POST"))
             .and(path(format!("/issuance/{}/status", issuance_id)))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(json!({
-                        "state": "ReadyToProvision",
-                        "openid_credential_offer": "openid_credential_offer"
-                    }))
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "state": "ReadyToProvision",
+                "openid_credential_offer": "openid_credential_offer"
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
@@ -201,18 +207,18 @@ mod tests {
         // Mock server error response
         Mock::given(method("POST"))
             .and(path("/issuance/new"))
-            .respond_with(
-                ResponseTemplate::new(500)
-                    .set_body_json(json!({
-                        "error": "Internal Server Error"
-                    }))
-            )
+            .respond_with(ResponseTemplate::new(500).set_body_json(json!({
+                "error": "Internal Server Error"
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
 
         let result = client.new_issuance(wallet_attestation).await;
-        assert!(result.is_err(), "New issuance should fail with server error");
+        assert!(
+            result.is_err(),
+            "New issuance should fail with server error"
+        );
         match result.unwrap_err() {
             IssuanceServiceError::ServerError { status, .. } => {
                 assert_eq!(status, 500);
@@ -229,20 +235,20 @@ mod tests {
         let wallet_attestation = "test_attestation".to_string();
 
         // Mock server error response
-        Mock::given(method("GET"))
+        Mock::given(method("POST"))
             .and(path(format!("/issuance/{}/status", issuance_id)))
-            .respond_with(
-                ResponseTemplate::new(404)
-                    .set_body_json(json!({
-                        "error": "Issuance not found"
-                    }))
-            )
+            .respond_with(ResponseTemplate::new(404).set_body_json(json!({
+                "error": "Issuance not found"
+            })))
             .expect(1)
             .mount(&mock_server)
             .await;
 
         let result = client.check_status(issuance_id, wallet_attestation).await;
-        assert!(result.is_err(), "Status check should fail with server error");
+        assert!(
+            result.is_err(),
+            "Status check should fail with server error"
+        );
         match result.unwrap_err() {
             IssuanceServiceError::ServerError { status, .. } => {
                 assert_eq!(status, 404);
@@ -260,20 +266,19 @@ mod tests {
         // Mock invalid JSON response
         Mock::given(method("POST"))
             .and(path("/issuance/new"))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_string("invalid json")
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_string("invalid json"))
             .expect(1)
             .mount(&mock_server)
             .await;
 
         let result = client.new_issuance(wallet_attestation).await;
-        assert!(result.is_err(), "New issuance should fail with invalid JSON");
+        assert!(
+            result.is_err(),
+            "New issuance should fail with invalid JSON"
+        );
         match result.unwrap_err() {
             IssuanceServiceError::ResponseError(_) => (),
             _ => panic!("Expected ResponseError"),
         }
     }
 }
-
