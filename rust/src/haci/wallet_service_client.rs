@@ -48,7 +48,6 @@ struct TokenInfo {
 
 /// Internal function to create TokenInfo from JWT
 fn create_token_info(token: String) -> Result<TokenInfo, WalletServiceError> {
-    println!("token: {:?}", token);
     let jws_bytes: Vec<u8> = token.as_bytes().to_vec();
 
     let jws_buf = JwsBuf::new(jws_bytes)

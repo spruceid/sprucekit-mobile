@@ -189,8 +189,6 @@ mod tests {
 
         let url = holder.submit_permission_response(response).await;
 
-        println!("Received URL: {url:?}");
-
         // Sleep for 5 seconds
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
