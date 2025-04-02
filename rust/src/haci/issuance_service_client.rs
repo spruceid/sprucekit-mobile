@@ -159,7 +159,7 @@ mod tests {
         let expected_id = "d94062ab-e659-4b70-8532-b758973c2b40".to_string();
 
         // Mock successful new issuance response
-        Mock::given(method("POST"))
+        Mock::given(method("GET"))
             .and(path("/issuance/new"))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "id": expected_id
@@ -181,7 +181,7 @@ mod tests {
         let wallet_attestation = "test_attestation".to_string();
 
         // Mock successful status check response
-        Mock::given(method("POST"))
+        Mock::given(method("GET"))
             .and(path(format!("/issuance/{}/status", issuance_id)))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "state": "ReadyToProvision",
@@ -205,7 +205,7 @@ mod tests {
         let wallet_attestation = "test_attestation".to_string();
 
         // Mock server error response
-        Mock::given(method("POST"))
+        Mock::given(method("GET"))
             .and(path("/issuance/new"))
             .respond_with(ResponseTemplate::new(500).set_body_json(json!({
                 "error": "Internal Server Error"
@@ -235,7 +235,7 @@ mod tests {
         let wallet_attestation = "test_attestation".to_string();
 
         // Mock server error response
-        Mock::given(method("POST"))
+        Mock::given(method("GET"))
             .and(path(format!("/issuance/{}/status", issuance_id)))
             .respond_with(ResponseTemplate::new(404).set_body_json(json!({
                 "error": "Issuance not found"
@@ -264,7 +264,7 @@ mod tests {
         let wallet_attestation = "test_attestation".to_string();
 
         // Mock invalid JSON response
-        Mock::given(method("POST"))
+        Mock::given(method("GET"))
             .and(path("/issuance/new"))
             .respond_with(ResponseTemplate::new(200).set_body_string("invalid json"))
             .expect(1)
