@@ -70,6 +70,16 @@ class CredentialPack {
         }
 
         try {
+            return this.addMdoc(
+                Mdoc.newFromBase64urlEncodedIssuerSigned(
+                    rawCredential,
+                    keyAlias = Uuid()
+                )
+            )
+        } catch (_: Exception) {
+        }
+
+        try {
             return this.addCwt(Cwt.newFromBase10(rawCredential))
         } catch (_: Exception) {
         }
@@ -490,7 +500,17 @@ enum class CredentialStatusList {
     /**
      * Credential doesn't have status list
      */
-    UNDEFINED
+    UNDEFINED,
+
+    /**
+     * Credential is pending approval
+     */
+    PENDING,
+
+    /**
+     * Credential is ready to be claimed
+     */
+    READY
 }
 
 fun credentialStatusListFromString(value: String): CredentialStatusList {

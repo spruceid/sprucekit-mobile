@@ -40,6 +40,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBlue900
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.verifier.VerifierHomeView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
@@ -59,7 +60,8 @@ fun HomeView(
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
     statusListViewModel: StatusListViewModel,
-    helpersViewModel: HelpersViewModel
+    helpersViewModel: HelpersViewModel,
+    hacApplicationsViewModel: HacApplicationsViewModel
 ) {
     var tab by remember {
         if (initialTab == "verifier") {
@@ -85,7 +87,8 @@ fun HomeView(
                     credentialPacksViewModel = credentialPacksViewModel,
                     walletActivityLogsViewModel = walletActivityLogsViewModel,
                     statusListViewModel = statusListViewModel,
-                    helpersViewModel = helpersViewModel
+                    helpersViewModel = helpersViewModel,
+                    hacApplicationsViewModel = hacApplicationsViewModel
                 )
             } else {
                 VerifierHomeView(

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald600
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone100
@@ -133,6 +134,43 @@ fun CredentialStatusSmall(status: CredentialStatusList) {
         }
 
         CredentialStatusList.UNDEFINED -> {}
+        CredentialStatusList.PENDING -> Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(id = R.drawable.pending_check),
+                contentDescription = stringResource(id = R.string.pending_check),
+                colorFilter = ColorFilter.tint(ColorBlue600),
+                modifier = Modifier
+                    .width(14.dp)
+                    .height(14.dp)
+                    .padding(end = 3.dp)
+            )
+            Text(
+                text = "Pending",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 11.sp,
+                color = ColorBlue600
+            )
+        }
+
+        CredentialStatusList.READY -> Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(id = R.drawable.valid),
+                contentDescription = stringResource(id = R.string.ready_check),
+                colorFilter = ColorFilter.tint(ColorEmerald600),
+                modifier = Modifier
+                    .width(14.dp)
+                    .height(14.dp)
+                    .padding(end = 3.dp)
+            )
+            Text(
+                text = "Ready",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 11.sp,
+                color = ColorEmerald600
+            )
+        }
     }
 }
 
@@ -345,5 +383,87 @@ fun CredentialStatus(status: CredentialStatusList) {
         }
 
         CredentialStatusList.UNDEFINED -> {}
+        
+        CredentialStatusList.PENDING -> Column {
+            Text(
+                "Status",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                color = ColorStone500,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ColorBlue600)
+                    .border(
+                        width = 1.dp,
+                        color = ColorBlue600,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.pending_check),
+                    contentDescription = stringResource(id = R.string.pending_check),
+                    colorFilter = ColorFilter.tint(ColorBase50),
+                    modifier = Modifier
+                        .width(24.dp)
+                        .height(24.dp)
+                        .padding(end = 3.dp)
+                )
+                Text(
+                    text = "PENDING",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 18.sp,
+                    color = ColorBase50
+                )
+            }
+        }
+
+        CredentialStatusList.READY -> Column {
+            Text(
+                "Status",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                color = ColorStone500,
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(ColorEmerald600)
+                    .border(
+                        width = 1.dp,
+                        color = ColorEmerald600,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.valid),
+                    contentDescription = stringResource(id = R.string.ready_check),
+                    colorFilter = ColorFilter.tint(ColorBase50),
+                    modifier = Modifier
+                        .width(24.dp)
+                        .height(24.dp)
+                        .padding(end = 3.dp)
+                )
+                Text(
+                    text = "READY",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 18.sp,
+                    color = ColorBase50
+                )
+            }
+        }
     }
 }

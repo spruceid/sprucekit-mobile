@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
@@ -33,6 +34,7 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.readBytes
 import io.ktor.http.HttpMethod
 import io.ktor.util.toMap
+import kotlinx.coroutines.launch
 
 @Composable
 fun HandleOID4VCIView(
@@ -46,6 +48,9 @@ fun HandleOID4VCIView(
     var err by remember { mutableStateOf<String?>(null) }
     var credential by remember { mutableStateOf<String?>(null) }
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val callback =
+        navController.currentBackStackEntry?.savedStateHandle?.get<suspend () -> Unit>("callback")
 
     LaunchedEffect(Unit) {
         loading = true
@@ -129,7 +134,7 @@ fun HandleOID4VCIView(
                 pop?.let {
                     oid4vciSession.exchangeCredential(
                         proofsOfPossession = listOf(pop),
-                        options = Oid4vciExchangeOptions(true),
+                        options = Oid4vciExchangeOptions(false),
                     )
                 }
 
@@ -157,7 +162,13 @@ fun HandleOID4VCIView(
             rawCredential = credential!!,
             credentialPacksViewModel = credentialPacksViewModel,
             walletActivityLogsViewModel = walletActivityLogsViewModel,
-            statusListViewModel = statusListViewModel
+            statusListViewModel = statusListViewModel,
+            onSuccess = {
+                scope.launch {
+                    callback?.invoke()
+                    navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+                }
+            }
         )
     }
 }

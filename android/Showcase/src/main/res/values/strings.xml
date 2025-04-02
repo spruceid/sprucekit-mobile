@@ -14,6 +14,8 @@
     <string name="suspended_check">Suspended credential</string>
     <string name="unknown_check">Unknown credential</string>
     <string name="revoked_check">Revoked credential</string>
+    <string name="pending_check">Credential pending approval</string>
+    <string name="ready_check">Credential ready to be claimed</string>
     <string name="verification_activity_log">Verification Activity Log</string>
     <string name="chevron">Start action</string>
     <string name="empty_wallet">No credentials added yet</string>

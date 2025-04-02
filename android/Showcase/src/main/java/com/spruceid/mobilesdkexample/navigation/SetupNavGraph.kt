@@ -21,6 +21,7 @@ import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsActivityLo
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsTrustedCertificatesView
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.TrustedCertificatesViewModel
@@ -43,7 +44,8 @@ fun SetupNavGraph(
     credentialPacksViewModel: CredentialPacksViewModel,
     statusListViewModel: StatusListViewModel,
     helpersViewModel: HelpersViewModel,
-    trustedCertificatesViewModel: TrustedCertificatesViewModel
+    trustedCertificatesViewModel: TrustedCertificatesViewModel,
+    hacApplicationsViewModel: HacApplicationsViewModel
 ) {
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
         composable(
@@ -62,7 +64,8 @@ fun SetupNavGraph(
                 credentialPacksViewModel = credentialPacksViewModel,
                 walletActivityLogsViewModel = walletActivityLogsViewModel,
                 statusListViewModel = statusListViewModel,
-                helpersViewModel = helpersViewModel
+                helpersViewModel = helpersViewModel,
+                hacApplicationsViewModel = hacApplicationsViewModel
             )
         }
         composable(
@@ -161,7 +164,8 @@ fun SetupNavGraph(
             WalletSettingsHomeView(
                 navController,
                 credentialPacksViewModel,
-                walletActivityLogsViewModel
+                walletActivityLogsViewModel,
+                hacApplicationsViewModel
             )
         }
         composable(

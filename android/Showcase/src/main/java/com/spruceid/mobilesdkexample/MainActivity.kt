@@ -16,6 +16,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.ConnectionLiveData
 import com.spruceid.mobilesdkexample.db.AppDatabase
+import com.spruceid.mobilesdkexample.db.HacApplicationsRepository
 import com.spruceid.mobilesdkexample.db.TrustedCertificatesRepository
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogsRepository
 import com.spruceid.mobilesdkexample.db.VerificationMethodsRepository
@@ -28,6 +29,8 @@ import com.spruceid.mobilesdkexample.utils.ModalBottomSheetHost
 import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModelFactory
+import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModelFactory
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.TrustedCertificatesViewModel
@@ -130,6 +133,10 @@ class MainActivity : ComponentActivity() {
                         TrustedCertificatesViewModelFactory((application as MainApplication).trustedCertificatesRepository)
                     }
 
+                    val hacApplicationsViewModel: HacApplicationsViewModel by viewModels {
+                        HacApplicationsViewModelFactory((application as MainApplication).hacApplicationsRepository)
+                    }
+
                     val statusListViewModel: StatusListViewModel by viewModels<StatusListViewModel>()
                     connectionLiveData = ConnectionLiveData(this)
                     connectionLiveData.observe(this) { isNetworkAvailable ->
@@ -148,12 +155,13 @@ class MainActivity : ComponentActivity() {
                         credentialPacksViewModel = credentialPacksViewModel,
                         statusListViewModel = statusListViewModel,
                         helpersViewModel = helpersViewModel,
-                        trustedCertificatesViewModel = trustedCertificatesViewModel
+                        trustedCertificatesViewModel = trustedCertificatesViewModel,
+                        hacApplicationsViewModel = hacApplicationsViewModel
                     )
                 }
                 // Global Toast Host
                 Toast.Host()
-                
+
                 // Global Modal Bottom Sheet Host
                 ModalBottomSheetHost.Host()
             }
@@ -170,4 +178,5 @@ class MainApplication : Application() {
     val verificationActivityLogsRepository by lazy { VerificationActivityLogsRepository(db.verificationActivityLogsDao()) }
     val walletActivityLogsRepository by lazy { WalletActivityLogsRepository(db.walletActivityLogsDao()) }
     val trustedCertificatesRepository by lazy { TrustedCertificatesRepository(db.trustedCertificatesDao()) }
+    val hacApplicationsRepository by lazy { HacApplicationsRepository(db.hacApplicationsDao()) }
 }

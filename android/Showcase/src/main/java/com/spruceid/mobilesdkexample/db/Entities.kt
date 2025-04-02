@@ -48,3 +48,9 @@ data class TrustedCertificates(
     val name: String,
     val content: String
 )
+
+@Entity(tableName = "hac_applications")
+data class HacApplications(
+    @PrimaryKey val id: String = java.util.UUID.randomUUID().toString(),
+    val issuanceId: String
+)

@@ -177,6 +177,17 @@ fun addCredential(credentialPack: CredentialPack, rawCredential: String): Creden
     }
 
     try {
+        credentialPack.addMdoc(
+            Mdoc.newFromBase64urlEncodedIssuerSigned(
+                rawCredential,
+                keyAlias = Uuid()
+            )
+        )
+        return credentialPack
+    } catch (_: Exception) {
+    }
+
+    try {
         credentialPack.addCwt(Cwt.newFromBase10(rawCredential))
         return credentialPack
     } catch (_: Exception) {
