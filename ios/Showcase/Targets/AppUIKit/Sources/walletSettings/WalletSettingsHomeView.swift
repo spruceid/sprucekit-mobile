@@ -55,6 +55,8 @@ struct WalletSettingsHomeHeader: View {
 struct WalletSettingsHomeBody: View {
     @EnvironmentObject private var credentialPackObservable:
         CredentialPackObservable
+    @EnvironmentObject private var hacApplicationObservable:
+        HacApplicationObservable
     @Binding var path: NavigationPath
     var onBack: () -> Void
 
@@ -80,7 +82,8 @@ struct WalletSettingsHomeBody: View {
                         .credentialPacks
                     try await credentialPacks.asyncForEach { credentialPack in
                         try await credentialPackObservable.delete(
-                            credentialPack: credentialPack)
+                            credentialPack: credentialPack
+                        )
                         credentialPack.list().forEach { credential in
                             let credentialInfo = getCredentialIdTitleAndIssuer(
                                 credentialPack: credentialPack,
@@ -124,8 +127,9 @@ struct WalletSettingsHomeBody: View {
                         _ = KeyManager.generateSigningKey(id: keyAlias)
                     }
                     let mdl = try generateTestMdl(
-                        keyManager: KeyManager(), keyAlias: keyAlias)
-
+                        keyManager: KeyManager(),
+                        keyAlias: keyAlias
+                    )
                     let credentialPacks = credentialPackObservable
                         .credentialPacks
                     let mdocPack =
@@ -138,18 +142,22 @@ struct WalletSettingsHomeBody: View {
                     if mdocPack.list().isEmpty {
                         _ = mdocPack.addMDoc(mdoc: mdl)
                         try await mdocPack.save(
-                            storageManager: StorageManager())
+                            storageManager: StorageManager()
+                        )
                         ToastManager.shared.showSuccess(
-                            message: "Test mDL added to your wallet")
+                            message: "Test mDL added to your wallet"
+                        )
                     } else {
                         ToastManager.shared.showWarning(
-                            message: "You already have an mDL")
+                            message: "You already have an mDL"
+                        )
                     }
-                } catch _ {
+                } catch {
+                    print(error.localizedDescription)
                     ToastManager.shared.showError(
-                        message: "Error generating mDL")
+                        message: "Error generating mDL"
+                    )
                 }
-
             }
         } label: {
             SettingsHomeItem(
@@ -164,11 +172,33 @@ struct WalletSettingsHomeBody: View {
     @ViewBuilder
     var applyForSpruceMdlButton: some View {
         Button {
-            if let url = URL(
-                string: "https://proofing.haci.staging.spruceid.xyz")
-            {
-                UIApplication.shared.open(
-                    url, options: [:], completionHandler: nil)
+            Task {
+                do {
+                    let walletAttestation =
+                        try await hacApplicationObservable.getWalletAttestation()
+                        .unwrap()
+
+                    let issuance =
+                        try await hacApplicationObservable.issuanceClient
+                        .newIssuance(walletAttestation: walletAttestation)
+
+                    let hacApplication = HacApplicationDataStore.shared.insert(
+                        issuanceId: issuance
+                    )
+
+                    if let url = URL(
+                        string:
+                            "\(SPRUCEID_HAC_PROOFING_CLIENT)?id=\(hacApplication!)&redirect=spruceid"
+                    ) {
+                        UIApplication.shared.open(
+                            url,
+                            options: [:],
+                            completionHandler: nil
+                        )
+                    }
+                } catch {
+                    print(error.localizedDescription)
+                }
             }
         } label: {
             SettingsHomeItem(

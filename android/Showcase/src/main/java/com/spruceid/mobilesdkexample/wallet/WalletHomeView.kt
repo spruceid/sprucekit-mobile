@@ -51,6 +51,7 @@ import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.utils.getFileContent
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
@@ -62,7 +63,8 @@ fun WalletHomeView(
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
     statusListViewModel: StatusListViewModel,
-    helpersViewModel: HelpersViewModel
+    helpersViewModel: HelpersViewModel,
+    hacApplicationsViewModel: HacApplicationsViewModel
 ) {
     Column(
         Modifier
@@ -75,7 +77,8 @@ fun WalletHomeView(
             credentialPacksViewModel = credentialPacksViewModel,
             helpersViewModel = helpersViewModel,
             walletActivityLogsViewModel = walletActivityLogsViewModel,
-            statusListViewModel = statusListViewModel
+            statusListViewModel = statusListViewModel,
+            hacApplicationsViewModel = hacApplicationsViewModel
         )
     }
 }
@@ -141,11 +144,13 @@ fun WalletHomeBody(
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
     helpersViewModel: HelpersViewModel,
-    statusListViewModel: StatusListViewModel
+    statusListViewModel: StatusListViewModel,
+    hacApplicationsViewModel: HacApplicationsViewModel
 ) {
     val scope = rememberCoroutineScope()
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
     val loadingCredentialPacks by credentialPacksViewModel.loading.collectAsState()
+    val hacApplications by hacApplicationsViewModel.hacApplications.collectAsState()
     var isRefreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(credentialPacks) {
@@ -196,7 +201,7 @@ fun WalletHomeBody(
     }
 
     if (!loadingCredentialPacks) {
-        if (credentialPacks.isNotEmpty()) {
+        if (credentialPacks.isNotEmpty() || hacApplications.isNotEmpty()) {
             SwipeRefresh(
                 state = rememberSwipeRefreshState(isRefreshing),
                 onRefresh = {
@@ -217,6 +222,25 @@ fun WalletHomeBody(
                         .verticalScroll(rememberScrollState())
                         .padding(top = 20.dp)
                 ) {
+                    hacApplications.forEach { hacApplication ->
+                        HacApplicationListItem(
+                            application = hacApplication,
+                            startIssuance = { url, callback ->
+                                navController.navigate(
+                                    Screen.HandleOID4VCI.route
+                                        .replace(
+                                            "{url}",
+                                            url.replace("openid-credential-offer://", "")
+                                        )
+                                )
+                                navController.currentBackStackEntry?.savedStateHandle?.set(
+                                    "callback",
+                                    callback
+                                )
+                            },
+                            hacApplicationsViewModel = hacApplicationsViewModel,
+                        )
+                    }
                     credentialPacks.forEach { credentialPack ->
                         val credentialItem = credentialDisplaySelector(
                             credentialPack = credentialPack,

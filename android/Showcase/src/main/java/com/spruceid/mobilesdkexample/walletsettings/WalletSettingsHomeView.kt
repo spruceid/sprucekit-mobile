@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
@@ -42,6 +44,8 @@ import com.spruceid.mobilesdkexample.utils.SettingsHomeItem
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
+import com.spruceid.mobilesdkexample.viewmodels.SPRUCEID_HAC_PROOFING_CLIENT
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -50,7 +54,8 @@ import kotlinx.coroutines.launch
 fun WalletSettingsHomeView(
     navController: NavController,
     credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
+    hacApplicationsViewModel: HacApplicationsViewModel
 ) {
     Column(
         Modifier
@@ -69,7 +74,8 @@ fun WalletSettingsHomeView(
         WalletSettingsHomeBody(
             navController = navController,
             credentialPacksViewModel = credentialPacksViewModel,
-            walletActivityLogsViewModel = walletActivityLogsViewModel
+            walletActivityLogsViewModel = walletActivityLogsViewModel,
+            hacApplicationsViewModel = hacApplicationsViewModel
         )
     }
 }
@@ -113,9 +119,11 @@ fun WalletSettingsHomeHeader(onBack: () -> Unit) {
 fun WalletSettingsHomeBody(
     navController: NavController,
     credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
+    hacApplicationsViewModel: HacApplicationsViewModel
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Column(
         Modifier
@@ -150,8 +158,25 @@ fun WalletSettingsHomeBody(
             name = "Apply for Spruce mDL",
             description = "Verify your identity in order to claim this high assurance credential",
             action = {
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://proofing.haci.staging.spruceid.xyz"))
-                context.startActivity(intent)
+                scope.launch {
+                    val walletAttestation = hacApplicationsViewModel.getWalletAttestation()
+                    walletAttestation?.let {
+                        val issuance =
+                            hacApplicationsViewModel.issuanceClient
+                                .newIssuance(walletAttestation)
+
+                        val hacApplication = hacApplicationsViewModel.saveApplication(
+                            HacApplications(issuanceId = issuance)
+                        )
+
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.parse("${SPRUCEID_HAC_PROOFING_CLIENT}?id=${hacApplication}&redirect=spruceid")
+                        )
+
+                        context.startActivity(intent)
+                    }
+                }
             }
         )
 

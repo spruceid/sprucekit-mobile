@@ -39,6 +39,17 @@ fun ApplySpruceMdlConfirmation(
                 color = ColorBlue600
             )
 
+            Column(
+                Modifier.height(100.dp)
+            ) {
+                HacApplicationListItem(
+                    application = null,
+                    startIssuance = { _, _ -> },
+                    hacApplicationsViewModel = null
+                )
+            }
+
+
             Text(
                 text = "Your information has been submitted. Approval can take between 20 minutes and 5 days.",
                 fontSize = 16.sp,

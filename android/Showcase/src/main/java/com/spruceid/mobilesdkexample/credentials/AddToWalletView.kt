@@ -41,7 +41,8 @@ fun AddToWalletView(
     rawCredential: String,
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    statusListViewModel: StatusListViewModel
+    statusListViewModel: StatusListViewModel,
+    onSuccess: (() -> Unit)? = null
 ) {
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -86,6 +87,7 @@ fun AddToWalletView(
                 }
             }.await()
             if (error == null) {
+                onSuccess?.invoke()
                 back()
             } else {
                 err = error

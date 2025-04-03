@@ -15,9 +15,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         VerificationActivityLogs::class,
         RawCredentials::class,
         VerificationMethods::class,
-        TrustedCertificates::class
+        TrustedCertificates::class,
+        HacApplications::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 6, to = 7)
@@ -29,6 +30,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun verificationActivityLogsDao(): VerificationActivityLogsDao
     abstract fun verificationMethodsDao(): VerificationMethodsDao
     abstract fun trustedCertificatesDao(): TrustedCertificatesDao
+    abstract fun hacApplicationsDao(): HacApplicationsDao
 
     companion object {
         @Volatile
@@ -46,6 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
                         .addMigrations(MIGRATION_3_4)
                         .addMigrations(MIGRATION_4_5)
                         .addMigrations(MIGRATION_5_6)
+                        .addMigrations(MIGRATION_7_8)
                         .allowMainThreadQueries()
                         .build()
                 dbInstance = instance
@@ -108,5 +111,17 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
             "ALTER TABLE `verification_activity_logs` " +
                     "ADD COLUMN `status` TEXT NOT NULL DEFAULT 'UNDEFINED'"
         )
+    }
+}
+
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS `hac_applications` (
+                `id` TEXT NOT NULL,
+                `issuanceId` TEXT NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+        """.trimIndent())
     }
 }

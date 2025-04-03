@@ -1,4 +1,4 @@
-use reqwest::Client;
+use crate::haci::http_client::HaciHttpClient;
 use serde_json::Value;
 use ssi::{
     claims::jwt::{ExpirationTime, StringOrURI, Subject, ToDecodedJwt},
@@ -33,6 +33,10 @@ pub enum WalletServiceError {
     /// Failed to parse JWT claims
     #[error("Failed to parse JWT claims: {0}")]
     JwtParseError(String),
+
+    /// Internal error
+    #[error("Internal error: {0}")]
+    InternalError(String),
 }
 
 #[derive(Debug, Clone)]
@@ -75,17 +79,17 @@ fn create_token_info(token: String) -> Result<TokenInfo, WalletServiceError> {
 
 #[derive(uniffi::Object)]
 pub struct WalletServiceClient {
-    client: Client,
+    client: HaciHttpClient,
     base_url: String,
     token_info: Arc<Mutex<Option<TokenInfo>>>,
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 impl WalletServiceClient {
     #[uniffi::constructor]
     pub fn new(base_url: String) -> Self {
         Self {
-            client: Client::new(),
+            client: HaciHttpClient::new(),
             base_url,
             token_info: Arc::new(Mutex::new(None)),
         }
@@ -103,6 +107,15 @@ impl WalletServiceClient {
                         StringOrURI::URI(u) => u.to_string(),
                     })
             })
+        } else {
+            None
+        }
+    }
+
+    /// Get the current token
+    pub fn get_token(&self) -> Option<String> {
+        if let Ok(guard) = self.token_info.lock() {
+            guard.as_ref().map(|token_info| token_info.token.clone())
         } else {
             None
         }
@@ -222,8 +235,7 @@ mod tests {
 
         let jws = claims.sign(jwk).await.unwrap();
 
-        let token = jws.to_string();
-        token
+        jws.to_string()
     }
 
     #[tokio::test]

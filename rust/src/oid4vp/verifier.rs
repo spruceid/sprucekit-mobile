@@ -187,9 +187,7 @@ mod tests {
             .await
             .expect("failed to create permission response");
 
-        let url = holder.submit_permission_response(response).await;
-
-        println!("Received URL: {url:?}");
+        let _url = holder.submit_permission_response(response).await;
 
         // Sleep for 5 seconds
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;

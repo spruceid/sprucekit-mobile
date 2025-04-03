@@ -4,7 +4,7 @@ struct ApplySpruceMdlConfirmation: View {
     @Binding var sheetOpen: Bool
 
     var body: some View {
-        VStack {
+        ScrollView {
             VStack {
                 Text("Submitted successfully")
                     .font(
@@ -12,6 +12,12 @@ struct ApplySpruceMdlConfirmation: View {
                             font: .inter, style: .regular, size: .h0)
                     )
                     .foregroundStyle(Color("ColorBlue600"))
+                    .padding(.top, 24)
+
+                HacApplicationListItem(
+                    application: nil,
+                    startIssuance: { _ in }
+                )
 
                 Text(
                     "Your information has been submitted. Approval can take between 20 minutes and 5 days."

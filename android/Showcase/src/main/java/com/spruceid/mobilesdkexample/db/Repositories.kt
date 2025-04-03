@@ -129,3 +129,34 @@ class TrustedCertificatesRepository(private val trustedCertificatesDao: TrustedC
         return trustedCertificatesDao.deleteCertificate(id = id)
     }
 }
+
+class HacApplicationsRepository(private val hacApplicationsDao: HacApplicationsDao) {
+    val hacApplications: List<HacApplications> =
+        hacApplicationsDao.getAllApplications()
+
+    @WorkerThread
+    suspend fun insertApplication(application: HacApplications): String {
+        hacApplicationsDao.insertApplication(application)
+        return application.id
+    }
+
+    @WorkerThread
+    fun getApplications(): List<HacApplications> {
+        return hacApplicationsDao.getAllApplications()
+    }
+
+    @WorkerThread
+    fun getApplication(id: String): HacApplications {
+        return hacApplicationsDao.getApplication(id)
+    }
+
+    @WorkerThread
+    fun deleteAllApplications(): Int {
+        return hacApplicationsDao.deleteAllApplications()
+    }
+
+    @WorkerThread
+    fun deleteApplication(id: String): Int {
+        return hacApplicationsDao.deleteApplication(id = id)
+    }
+}
