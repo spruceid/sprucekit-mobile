@@ -11995,6 +11995,79 @@ extension MdlReaderResponseError: Foundation.LocalizedError {
 
 
 
+public enum MdlReaderResponseSerializeError {
+
+    
+    
+    case Generic(value: String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMDLReaderResponseSerializeError: FfiConverterRustBuffer {
+    typealias SwiftType = MdlReaderResponseSerializeError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdlReaderResponseSerializeError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Generic(
+            value: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MdlReaderResponseSerializeError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Generic(value):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(value, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMDLReaderResponseSerializeError_lift(_ buf: RustBuffer) throws -> MdlReaderResponseSerializeError {
+    return try FfiConverterTypeMDLReaderResponseSerializeError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMDLReaderResponseSerializeError_lower(_ value: MdlReaderResponseSerializeError) -> RustBuffer {
+    return FfiConverterTypeMDLReaderResponseSerializeError.lower(value)
+}
+
+
+extension MdlReaderResponseSerializeError: Equatable, Hashable {}
+
+
+
+extension MdlReaderResponseSerializeError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
 public enum MdlReaderSessionError {
 
     
@@ -17469,6 +17542,13 @@ public func vcToSignedVp(vc: String, keyStr: String)async throws  -> String  {
             errorHandler: FfiConverterTypeVPError.lift
         )
 }
+public func verifiedResponseAsJsonString(response: MdlReaderResponseData)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseSerializeError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_verified_response_as_json_string(
+        FfiConverterTypeMDLReaderResponseData_lower(response),$0
+    )
+})
+}
 public func verifyJsonVcString(json: String)async throws   {
     return
         try  await uniffiRustCallAsync(
@@ -17593,6 +17673,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_vc_to_signed_vp() != 47312) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_verified_response_as_json_string() != 8701) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_verify_json_vc_string() != 13072) {
