@@ -81,14 +81,12 @@ jobs:
         uses: mxcl/xcodebuild@v2
         with:
           platform: iOS
-          swift: ^6
           scheme: MobileSdk
           working-directory: ios/MobileSdk
       - name: Test Showcase
         uses: mxcl/xcodebuild@v2
         with:
           platform: iOS
-          swift: ^6
           scheme: debug
           working-directory: ios/Showcase
       - name: Lint MobileSdk
