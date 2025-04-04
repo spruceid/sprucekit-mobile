@@ -78,8 +78,8 @@ uniffi::custom_type!(Algorithm, String, {
     remote,
     try_lift: |alg| {
 match alg.as_ref() {
-    "ES256" => Ok(Algorithm::ES256),
-    "ES256K" => Ok(Algorithm::ES256K),
+    "ES256" => Ok(Algorithm::Es256),
+    "ES256K" => Ok(Algorithm::Es256K),
     _ => anyhow::bail!("unsupported uniffi custom type for Algorithm mapping: {alg}"),
 }
     },

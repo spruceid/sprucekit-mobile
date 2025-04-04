@@ -21,10 +21,10 @@ cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", featur
 ] }
 isomdl = { git = "https://github.com/spruceid/isomdl", rev = "6084a83" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "3792565" }
-openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "2212f78" }
-ssi = { version = "0.10.2", features = ["secp256r1", "secp384r1"] }
+openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "2a2f0b7" }
+ssi = { version = "^0.10.2", features = ["secp256r1", "secp384r1"] }
 
-anyhow = "1.0.95"
+anyhow = "1.0.97"
 async-trait = "0.1"
 base64 = "0.22.0"
 cbor-ld = { git = "https://github.com/spruceid/cbor-ld", rev = "bc04985" }
@@ -81,3 +81,6 @@ wiremock = "0.6.3"
 
 [build-dependencies]
 uniffi = { version = "0.29.0", features = ["build"] }
+
+[patch.crates-io]
+ssi = { git = "https://github.com/spruceid/ssi", rev = "82b0bf3" }

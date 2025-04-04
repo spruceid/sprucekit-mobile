@@ -304,7 +304,7 @@ impl PresentationOptions<'_> {
     /// Return the crypto curve utils based on the signing algorithm, e.g. ES256.
     pub fn curve_utils(&self) -> Result<CryptoCurveUtils, PresentationError> {
         match self.signer.algorithm() {
-            ssi::crypto::Algorithm::ES256 => Ok(CryptoCurveUtils::secp256r1()),
+            ssi::crypto::Algorithm::Es256 => Ok(CryptoCurveUtils::secp256r1()),
             alg => Err(PresentationError::CryptographicSuite(format!(
                 "Unsupported curve utils for algorithm: {alg:?}"
             ))),
@@ -342,7 +342,7 @@ impl PresentationOptions<'_> {
         let resolver = VerificationMethodDIDResolver::new(AnyDidMethod::default());
 
         let mut proof_options = ProofOptions::new(
-            DateTimeStamp::now_ms(),
+            DateTimeStamp::now_ms().into(),
             self.verification_method_id().await?.into(),
             ProofPurpose::Authentication,
             Default::default(),
