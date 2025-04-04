@@ -152,6 +152,20 @@ impl From<serde_json::Value> for MDocItem {
     }
 }
 
+impl From<&MDocItem> for serde_json::Value {
+    fn from(val: &MDocItem) -> Self {
+        match val {
+            MDocItem::Text(s) => Self::String(s.to_owned()),
+            MDocItem::Bool(b) => Self::Bool(*b),
+            MDocItem::Integer(i) => Self::Number(i.to_owned().into()),
+            MDocItem::ItemMap(m) => {
+                Self::Object(m.iter().map(|(k, v)| (k.clone(), v.into())).collect())
+            }
+            MDocItem::Array(a) => Self::Array(a.iter().map(|o| o.into()).collect()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, uniffi::Enum)]
 pub enum AuthenticationStatus {
     Valid,
@@ -179,6 +193,44 @@ pub struct MDLReaderResponseData {
     pub device_authentication: AuthenticationStatus,
     /// Errors that occurred during response processing.
     pub errors: Option<String>,
+}
+
+#[derive(thiserror::Error, uniffi::Error, Debug)]
+pub enum MDLReaderResponseSerializeError {
+    #[error("{value}")]
+    Generic { value: String },
+}
+
+impl MDLReaderResponseData {
+    pub fn verified_response_as_json(
+        &self,
+    ) -> Result<serde_json::Value, MDLReaderResponseSerializeError> {
+        serde_json::to_value(
+            self.verified_response
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        v.iter().map(|(k, v)| (k.clone(), v.into())).collect(),
+                    )
+                })
+                .collect::<HashMap<String, HashMap<String, serde_json::Value>>>(),
+        )
+        .map_err(|e| MDLReaderResponseSerializeError::Generic {
+            value: e.to_string(),
+        })
+    }
+}
+
+#[uniffi::export]
+pub fn verified_response_as_json_string(
+    response: MDLReaderResponseData,
+) -> Result<String, MDLReaderResponseSerializeError> {
+    serde_json::to_string(&response.verified_response_as_json()?).map_err(|e| {
+        MDLReaderResponseSerializeError::Generic {
+            value: e.to_string(),
+        }
+    })
 }
 
 #[uniffi::export]
