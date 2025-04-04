@@ -38,7 +38,10 @@ let package = Package(
         .target(name: "SpruceIDMobileSdkRs"),
         .product(name: "Algorithms", package: "swift-algorithms"),
       ],
-      path: "./ios/MobileSdk/Sources/MobileSdk"
+      path: "./ios/MobileSdk/Sources/MobileSdk",
+      swiftSettings: [
+        .swiftLanguageMode(.v5)  // some of our code isn't concurrent-safe (e.g. OID4VCI.swift)
+      ]
     ),
     .testTarget(
       name: "SpruceIDMobileSdkTests",
