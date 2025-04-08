@@ -119,6 +119,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore {
       let jsonObject: [String: Any]  = [
          "kty": "EC",
          "crv": "P-256",
+         "alg": "ES256",
          "x": xCoordinate,
          "y": yCoordinate
       ]
