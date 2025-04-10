@@ -134,7 +134,10 @@ class MainActivity : ComponentActivity() {
                     }
 
                     val hacApplicationsViewModel: HacApplicationsViewModel by viewModels {
-                        HacApplicationsViewModelFactory((application as MainApplication).hacApplicationsRepository)
+                        HacApplicationsViewModelFactory(
+                            application as MainApplication,
+                            (application as MainApplication).hacApplicationsRepository
+                        )
                     }
 
                     val statusListViewModel: StatusListViewModel by viewModels<StatusListViewModel>()
