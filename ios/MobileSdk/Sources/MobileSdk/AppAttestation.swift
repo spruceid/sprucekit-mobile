@@ -37,8 +37,7 @@ public class AppAttestation {
     /// - Returns: A base64 encoded string containing the assertion
     /// - Throws: AttestationError.attestationNotSupported or AttestationError.encodingError
     public func generateAssertion(id: String, clientData: Data) async throws
-        -> String
-    {
+        -> String {
         guard service.isSupported else {
             throw AttestationError.attestationNotSupported
         }
@@ -66,8 +65,7 @@ public class AppAttestation {
     /// - Returns: A base64 encoded string containing the attestation data
     /// - Throws: AttestationError.attestationNotSupported or AttestationError.encodingError
     public func generateAttestation(keyId: String, nonce: String) async throws
-        -> String
-    {
+        -> String {
         guard service.isSupported else {
             throw AttestationError.attestationNotSupported
         }
@@ -104,7 +102,8 @@ public class AppAttestation {
     /// - Parameters:
     ///   - jwk: The public JWK of the device key
     ///   - nonce: The nonce retrieved from the verification service
-    /// - Returns: A JSON string containing the complete attestation data including keyId, attestation, assertion and clientData
+    /// - Returns: A JSON string containing the complete attestation data including keyId, 
+    ///   attestation, assertion and clientData
     /// - Throws: Various AttestationError cases if any step of the attestation process fails
     public func appAttest(jwk: String, nonce: String) async throws -> String {
         guard service.isSupported else {
@@ -147,7 +146,7 @@ public class AppAttestation {
 
         let clientDataObject: [String: Any] = [
             "nonce": nonce,
-            "jwk": jwkJson,
+            "jwk": jwkJson
         ]
 
         return try JSONSerialization.data(withJSONObject: clientDataObject)
@@ -163,7 +162,7 @@ public class AppAttestation {
             "keyId": keyId,
             "keyAttestation": attestation,
             "keyAssertion": assertion,
-            "clientData": clientData,
+            "clientData": clientData
         ]
 
         let payloadData = try JSONSerialization.data(

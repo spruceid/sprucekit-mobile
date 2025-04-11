@@ -11,6 +11,7 @@ import com.spruceid.mobile.sdk.rs.IssuanceServiceClient
 import com.spruceid.mobile.sdk.rs.WalletServiceClient
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.db.HacApplicationsRepository
+import com.spruceid.mobilesdkexample.utils.Toast
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -87,6 +88,7 @@ class HacApplicationsViewModel(
                 }
             }
         } catch (e: Exception) {
+            e.localizedMessage?.let { Toast.showError(it) }
             null
         }
     }

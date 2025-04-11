@@ -178,8 +178,9 @@ struct WalletSettingsHomeBody: View {
             Task {
                 do {
                     let walletAttestation =
-                        try await hacApplicationObservable.getWalletAttestation()
-                        .unwrap()
+                        try await hacApplicationObservable
+                            .getWalletAttestation()
+                            .unwrap()
 
                     let issuance =
                         try await hacApplicationObservable.issuanceClient

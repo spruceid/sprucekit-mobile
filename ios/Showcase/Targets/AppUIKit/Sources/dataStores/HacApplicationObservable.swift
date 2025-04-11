@@ -14,6 +14,8 @@ class HacApplicationObservable: ObservableObject {
         baseUrl: SPRUCEID_HAC_ISSUANCE_SERVICE
     )
     @Published var hacApplications: [HacApplication] = []
+    @Published private(set) var walletAttestation: String?
+    private var isFetchingWalletAttestation = false
 
     init() {
         self.loadAll()
@@ -40,29 +42,45 @@ class HacApplicationObservable: ObservableObject {
     }
 
     @MainActor func getWalletAttestation() async -> String? {
-        do {
-            if walletServiceClient.isTokenValid() {
-                return walletServiceClient.getToken()
-            } else {
-                let attestation = AppAttestation()
-
-                let jwk = try getSigningJwk()
-                    .unwrap()
-                let nonce = try await getNonce()
-                    .unwrap()
-
-                let appAttestation = try await attestation.appAttest(
-                    jwk: jwk,
-                    nonce: nonce
-                )
-
-                return try await walletServiceClient.login(
-                    appAttestation: appAttestation
-                )
-            }
-        } catch {
-            print(error.localizedDescription)
+        // If we already have a valid attestation, return it
+        if let attestation = walletAttestation,
+            walletServiceClient.isTokenValid()
+        {
+            return attestation
         }
-        return nil
+
+        // If we're already fetching, wait for the result
+        if isFetchingWalletAttestation {
+            while walletAttestation == nil {
+                try? await Task.sleep(nanoseconds: 100_000_000)  // 100ms
+            }
+            return walletAttestation
+        }
+
+        // Start fetching
+        isFetchingWalletAttestation = true
+        defer { isFetchingWalletAttestation = false }
+
+        do {
+            let attestation = AppAttestation()
+            let jwk = try getSigningJwk().unwrap()
+            let nonce = try await getNonce().unwrap()
+
+            let appAttestation = try await attestation.appAttest(
+                jwk: jwk,
+                nonce: nonce
+            )
+
+            let token = try await walletServiceClient.login(
+                appAttestation: appAttestation
+            )
+
+            walletAttestation = token
+            return token
+        } catch {
+            ToastManager.shared.showError(message: error.localizedDescription, duration: 5.0)
+            print(error.localizedDescription)
+            return nil
+        }
     }
 }

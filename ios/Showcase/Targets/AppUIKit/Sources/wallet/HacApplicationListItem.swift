@@ -17,8 +17,10 @@ struct HacApplicationListItem: View {
                     Text("Mobile Drivers License")
                         .font(
                             .customFont(
-                                font: .inter, style: .semiBold,
-                                size: .h1)
+                                font: .inter,
+                                style: .semiBold,
+                                size: .h1
+                            )
                         )
                         .foregroundStyle(Color("ColorStone950"))
                     CredentialStatusSmall(
@@ -49,15 +51,17 @@ struct HacApplicationListItem: View {
             if let application = application {
                 Task {
                     do {
-                        let status = try await IssuanceServiceClient(
-                            baseUrl:
-                                SPRUCEID_HAC_ISSUANCE_SERVICE
-                        )
-                        .checkStatus(
-                            issuanceId: application.issuanceId,
-                            walletAttestation:
-                                hacApplicationObservable.getWalletAttestation()!
-                        )
+                        let walletAttestation =
+                            try await hacApplicationObservable
+                            .getWalletAttestation()
+                            .unwrap()
+
+                        let status =
+                            try await hacApplicationObservable.issuanceClient
+                            .checkStatus(
+                                issuanceId: application.issuanceId,
+                                walletAttestation: walletAttestation
+                            )
                         if status.state == "ReadyToProvision" {
                             credentialStatus = .ready
                         }
