@@ -18,7 +18,7 @@ mod error;
 
 // TODO: consider unifying prepare and complete fns by using a trait for
 // signing/crypto functions similar to `HttpClient` for requests
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn generate_pop_prepare(
     audience: String,
     nonce: Option<String>,
