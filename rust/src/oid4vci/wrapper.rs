@@ -59,7 +59,7 @@ impl Oid4vci {
     }
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 impl Oid4vci {
     #[uniffi::constructor(name = "new")]
     fn new_default() -> Arc<Self> {

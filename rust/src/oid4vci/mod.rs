@@ -47,7 +47,7 @@ mod options;
 mod session;
 mod wrapper;
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn oid4vci_initiate_with_offer(
     credential_offer: String,
     client_id: String,
@@ -227,7 +227,7 @@ pub async fn oid4vci_initiate_with_offer(
     Ok(session)
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn oid4vci_initiate(
     base_url: String,
     client_id: String,
@@ -271,7 +271,7 @@ pub async fn oid4vci_initiate(
     Ok(session)
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn oid4vci_exchange_token(
     session: Arc<Oid4vciSession>,
     http_client: Arc<IHttpClient>,
@@ -313,7 +313,7 @@ pub async fn oid4vci_exchange_token(
     Ok(nonce)
 }
 
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn oid4vci_exchange_credential(
     session: Arc<Oid4vciSession>,
     proofs_of_possession: Vec<String>,
@@ -479,14 +479,11 @@ pub async fn oid4vci_exchange_credential(
                     CredentialResponseType::Core(core_response) => match *core_response {
                         JwtVcJson(response) => {
                             log::trace!("processing a JwtVcJson");
-                            let rt = tokio::runtime::Runtime::new().unwrap();
                             let ret = response.as_bytes().to_vec();
 
                             Ok(CredentialResponse {
                                 format: CredentialFormat::JwtVcJson,
-                                payload: rt.block_on(async {
-                                    response.verify_jwt(&params).await.map(|_| ret)
-                                })?,
+                                payload: response.verify_jwt(&params).await.map(|_| ret)?,
                             })
                         }
                         JwtVcJsonLd(response) => {
