@@ -134,9 +134,38 @@ impl WalletServiceClient {
         }
     }
 
-    pub async fn login(&self, jwk: &str) -> Result<String, WalletServiceError> {
-        // Parse the JWK string into a Value to ensure it's valid JSON
-        let jwk_value: Value = serde_json::from_str(jwk)
+    /// Get a nonce from the server that expires in 5 minutes and can only be used once
+    pub async fn nonce(&self) -> Result<String, WalletServiceError> {
+        // Make GET request to /nonce endpoint
+        let response = self
+            .client
+            .get(format!("{}/nonce", self.base_url))
+            .send()
+            .await
+            .map_err(|e| WalletServiceError::NetworkError(e.to_string()))?;
+
+        // Check if the response was successful
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(WalletServiceError::ServerError {
+                status,
+                error_message: error_text,
+            });
+        }
+
+        // Get the response body as string
+        let nonce = response
+            .text()
+            .await
+            .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?;
+
+        Ok(nonce)
+    }
+
+    pub async fn login(&self, app_attestation: &str) -> Result<String, WalletServiceError> {
+        // Parse the app attestation string into a Value to ensure it's valid JSON
+        let attestation_value: Value = serde_json::from_str(app_attestation)
             .map_err(|e| WalletServiceError::InvalidJson(e.to_string()))?;
 
         // Make POST request to /login endpoint
@@ -144,7 +173,7 @@ impl WalletServiceClient {
             .client
             .post(format!("{}/login", self.base_url))
             .header("Content-Type", "application/json")
-            .json(&jwk_value)
+            .json(&attestation_value)
             .send()
             .await
             .map_err(|e| WalletServiceError::NetworkError(e.to_string()))?;
@@ -202,6 +231,9 @@ mod tests {
     use wiremock::matchers::{method, path};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
+    const MOCK_APP_ATTESTATION: &str =
+        include_str!("../../../rust/tests/res/ios-app-attestation.json");
+
     async fn setup_mock_server() -> (MockServer, String) {
         let mock_server = MockServer::start().await;
         let base_url = mock_server.uri();
@@ -239,14 +271,59 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_get_nonce() {
+        let (mock_server, base_url) = setup_mock_server().await;
+        let client = WalletServiceClient::new(base_url);
+        let expected_nonce = "test-nonce-123";
+
+        // Mock successful nonce response
+        Mock::given(method("GET"))
+            .and(path("/nonce"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(expected_nonce))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let result = client.nonce().await;
+        assert!(result.is_ok(), "Nonce request should succeed");
+        assert_eq!(result.unwrap(), expected_nonce);
+    }
+
+    #[tokio::test]
+    async fn test_nonce_server_error() {
+        let (mock_server, base_url) = setup_mock_server().await;
+        let client = WalletServiceClient::new(base_url);
+
+        // Mock server error response
+        Mock::given(method("GET"))
+            .and(path("/nonce"))
+            .respond_with(ResponseTemplate::new(500).set_body_json(serde_json::json!({
+                "error": "Internal Server Error"
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let result = client.nonce().await;
+        assert!(
+            result.is_err(),
+            "Nonce request should fail with server error"
+        );
+        match result.unwrap_err() {
+            WalletServiceError::ServerError { status, .. } => {
+                assert_eq!(status, 500);
+            }
+            _ => panic!("Expected ServerError"),
+        }
+    }
+
+    #[tokio::test]
     async fn test_successful_login() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 
         // Generate a new private key for signing
         let private_jwk = JWK::generate_p256();
-        let public_jwk = private_jwk.to_public();
-        let jwk_string = public_jwk.to_string();
 
         // Mock successful login response
         Mock::given(method("POST"))
@@ -259,8 +336,11 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = client.login(&jwk_string).await;
-        assert!(result.is_ok(), "Login should succeed with valid JWK");
+        let result = client.login(MOCK_APP_ATTESTATION).await;
+        assert!(
+            result.is_ok(),
+            "Login should succeed with valid app attestation"
+        );
 
         // Verify token info was stored
         assert!(client.is_token_valid(), "Token should be valid after login");
@@ -275,11 +355,10 @@ mod tests {
         let (_, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
         let invalid_json = r#"{
-            "crv": "P-256",
-            "kty": "EC",
-            "x": "-hKdnYnv9nHSqtmsjCoOPomS2pmhvP19rkbncRKyuro",
-            "y": "oj1ucwGXBS5UVR1i4OOXdIuJKlPnqSp391oXNZjx4Ko"
-        "#; // Missing closing brace
+            "keyAssertion": "invalid",
+            "clientData": "invalid",
+            "keyAttestation": "invalid"
+         "#; // Missing closing brace
 
         let result = client.login(invalid_json).await;
         assert!(result.is_err(), "Login should fail with invalid JSON");
@@ -293,7 +372,6 @@ mod tests {
     async fn test_server_error() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
-        let jwk = ssi::JWK::generate_p256().to_public().to_string();
 
         // Mock server error response
         Mock::given(method("POST"))
@@ -305,7 +383,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let result = client.login(&jwk).await;
+        let result = client.login(MOCK_APP_ATTESTATION).await;
         assert!(result.is_err(), "Login should fail with server error");
         match result.unwrap_err() {
             WalletServiceError::ServerError { status, .. } => {
@@ -316,23 +394,23 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_empty_jwk() {
+    async fn test_empty_attestation() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
-        let empty_jwk = "{}";
+        let empty_attestation = "{}";
 
-        // Mock server error response for empty JWK
+        // Mock server error response for empty attestation
         Mock::given(method("POST"))
             .and(path("/login"))
             .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
-                "error": "Invalid JWK"
+                "error": "Invalid Attestation"
             })))
             .expect(1)
             .mount(&mock_server)
             .await;
 
-        let result = client.login(empty_jwk).await;
-        assert!(result.is_err(), "Login should fail with empty JWK");
+        let result = client.login(empty_attestation).await;
+        assert!(result.is_err(), "Login should fail with empty attestation");
         match result.unwrap_err() {
             WalletServiceError::ServerError { status, .. } => {
                 assert_eq!(status, 400);
@@ -342,28 +420,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_malformed_jwk() {
+    async fn test_malformed_attestation() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
-        let malformed_jwk = r#"{
-            "crv": "P-256",
-            "kty": "EC",
-            "x": "invalid-base64",
-            "y": "invalid-base64"
+        let malformed_attestation = r#"{
+            "keyAssertion": "invalid-base64",
+            "clientData": "invalid-base64",
+            "keyAttestation": "invalid-base64"
         }"#;
 
-        // Mock server error response for malformed JWK
+        // Mock server error response for malformed attestation
         Mock::given(method("POST"))
             .and(path("/login"))
             .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
-                "error": "Malformed JWK"
+                "error": "Malformed Attestation"
             })))
             .expect(1)
             .mount(&mock_server)
             .await;
 
-        let result = client.login(malformed_jwk).await;
-        assert!(result.is_err(), "Login should fail with malformed JWK");
+        let result = client.login(malformed_attestation).await;
+        assert!(
+            result.is_err(),
+            "Login should fail with malformed attestation"
+        );
         match result.unwrap_err() {
             WalletServiceError::ServerError { status, .. } => {
                 assert_eq!(status, 400);
@@ -379,8 +459,6 @@ mod tests {
 
         // Generate a new private key for signing
         let private_jwk = JWK::generate_p256();
-        let public_jwk = private_jwk.to_public();
-        let jwk_string = public_jwk.to_string();
 
         // Mock successful login response
         Mock::given(method("POST"))
@@ -400,7 +478,7 @@ mod tests {
         );
 
         // After successful login
-        let result = client.login(&jwk_string).await;
+        let result = client.login(MOCK_APP_ATTESTATION).await;
         assert!(result.is_ok(), "Login should succeed");
 
         // Auth header should now be available

@@ -19,7 +19,11 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -124,6 +128,7 @@ fun WalletSettingsHomeBody(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var isApplyingForMdl by remember { mutableStateOf(false) }
 
     Column(
         Modifier
@@ -157,24 +162,30 @@ fun WalletSettingsHomeBody(
             },
             name = "Apply for Spruce mDL",
             description = "Verify your identity in order to claim this high assurance credential",
+            enabled = !isApplyingForMdl,
             action = {
                 scope.launch {
-                    val walletAttestation = hacApplicationsViewModel.getWalletAttestation()
-                    walletAttestation?.let {
-                        val issuance =
-                            hacApplicationsViewModel.issuanceClient
-                                .newIssuance(walletAttestation)
+                    isApplyingForMdl = true
+                    try {
+                        val walletAttestation = hacApplicationsViewModel.getWalletAttestation()
+                        walletAttestation?.let {
+                            val issuance =
+                                hacApplicationsViewModel.issuanceClient
+                                    .newIssuance(walletAttestation)
 
-                        val hacApplication = hacApplicationsViewModel.saveApplication(
-                            HacApplications(issuanceId = issuance)
-                        )
+                            val hacApplication = hacApplicationsViewModel.saveApplication(
+                                HacApplications(issuanceId = issuance)
+                            )
 
-                        val intent = Intent(
-                            Intent.ACTION_VIEW,
-                            Uri.parse("${SPRUCEID_HAC_PROOFING_CLIENT}?id=${hacApplication}&redirect=spruceid")
-                        )
+                            val intent = Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse("${SPRUCEID_HAC_PROOFING_CLIENT}?id=${hacApplication}&redirect=spruceid")
+                            )
 
-                        context.startActivity(intent)
+                            context.startActivity(intent)
+                        }
+                    } finally {
+                        isApplyingForMdl = false
                     }
                 }
             }

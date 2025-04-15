@@ -176,7 +176,7 @@ class KeyManager: SpruceKitKeyStore {
                             xor Base64.NO_WRAP
                 )
     
-                return """{"kty":"EC","crv":"P-256","x":"$x","y":"$y"}"""
+                return """{"kty":"EC","crv":"P-256","alg":"ES256","x":"$x","y":"$y"}"""
             }
         }
     

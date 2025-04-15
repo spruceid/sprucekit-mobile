@@ -44,8 +44,8 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleVersion: "1.9.0"
-        CFBundleShortVersionString: "1.9.0"
+        CFBundleVersion: "1.10.4"
+        CFBundleShortVersionString: "1.10.4"
         CFBundleDisplayName: "SpruceKit"
         CFBundleIconName: "AppIcon"
         CFBundlePackageType: "APPL"

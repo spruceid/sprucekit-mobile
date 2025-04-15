@@ -1,3 +1,4 @@
+import DeviceCheck
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import SwiftUI
@@ -59,6 +60,7 @@ struct WalletSettingsHomeBody: View {
         HacApplicationObservable
     @Binding var path: NavigationPath
     var onBack: () -> Void
+    @State private var isApplyingForMdl = false
 
     @ViewBuilder
     var activityLogButton: some View {
@@ -172,11 +174,13 @@ struct WalletSettingsHomeBody: View {
     @ViewBuilder
     var applyForSpruceMdlButton: some View {
         Button {
+            isApplyingForMdl = true
             Task {
                 do {
                     let walletAttestation =
-                        try await hacApplicationObservable.getWalletAttestation()
-                        .unwrap()
+                        try await hacApplicationObservable
+                            .getWalletAttestation()
+                            .unwrap()
 
                     let issuance =
                         try await hacApplicationObservable.issuanceClient
@@ -196,9 +200,19 @@ struct WalletSettingsHomeBody: View {
                             completionHandler: nil
                         )
                     }
+
+                } catch let error as DCError {
+                    ToastManager.shared.showError(
+                        message:
+                            "App Attestation failed: \(error.localizedDescription)"
+                    )
                 } catch {
-                    print(error.localizedDescription)
+                    ToastManager.shared.showError(
+                        message:
+                            "Error during attestation: \(error.localizedDescription)"
+                    )
                 }
+                isApplyingForMdl = false
             }
         } label: {
             SettingsHomeItem(
@@ -208,6 +222,8 @@ struct WalletSettingsHomeBody: View {
                     "Verify your identity in order to claim this high assurance credential"
             )
         }
+        .disabled(isApplyingForMdl)
+        .opacity(isApplyingForMdl ? 0.5 : 1.0)
     }
 
     var body: some View {

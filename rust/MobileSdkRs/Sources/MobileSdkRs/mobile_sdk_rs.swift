@@ -8168,7 +8168,12 @@ public protocol WalletServiceClientProtocol: AnyObject, Sendable {
      */
     func isTokenValid()  -> Bool
     
-    func login(jwk: String) async throws  -> String
+    func login(appAttestation: String) async throws  -> String
+    
+    /**
+     * Get a nonce from the server that expires in 5 minutes and can only be used once
+     */
+    func nonce() async throws  -> String
     
 }
 open class WalletServiceClient: WalletServiceClientProtocol, @unchecked Sendable {
@@ -8271,13 +8276,33 @@ open func isTokenValid() -> Bool  {
 })
 }
     
-open func login(jwk: String)async throws  -> String  {
+open func login(appAttestation: String)async throws  -> String  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_walletserviceclient_login(
                     self.uniffiClonePointer(),
-                    FfiConverterString.lower(jwk)
+                    FfiConverterString.lower(appAttestation)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeWalletServiceError.lift
+        )
+}
+    
+    /**
+     * Get a nonce from the server that expires in 5 minutes and can only be used once
+     */
+open func nonce()async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_walletserviceclient_nonce(
+                    self.uniffiClonePointer()
+                    
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
@@ -18194,7 +18219,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_is_token_valid() != 60518) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_login() != 51120) {
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_login() != 17740) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_nonce() != 12116) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {

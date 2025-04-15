@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -28,16 +29,18 @@ fun SettingsHomeItem(
     icon: @Composable () -> Unit,
     name: String,
     description: String,
-    action: () -> Unit
+    action: () -> Unit,
+    enabled: Boolean = true
 ) {
 
     Box(
         Modifier
             .fillMaxWidth()
             .padding(bottom = 20.dp)
-            .clickable {
+            .clickable(enabled = enabled) {
                 action()
-            },
+            }
+            .alpha(if (enabled) 1f else 0.5f),
     ) {
         Column {
             Row(

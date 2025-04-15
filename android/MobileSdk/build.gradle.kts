@@ -139,6 +139,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.0")
     /* End UI dependencies */
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("com.google.android.play:integrity:1.4.0")
+    implementation("org.bitbucket.b_c:jose4j:0.9.6")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20230618")
     androidTestImplementation("com.android.support.test:runner:1.0.2")
