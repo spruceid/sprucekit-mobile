@@ -61,7 +61,7 @@ pub enum JsonVcEncodingError {
 /// A verifiable credential secured as JSON.
 pub struct JsonVc {
     id: Uuid,
-    raw: Json,
+    pub(crate) raw: Json,
     credential_string: String,
     parsed: AnyJsonCredential,
     key_alias: Option<KeyAlias>,

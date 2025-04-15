@@ -7,7 +7,7 @@ use oid4vci::{
     },
     types::Nonce,
 };
-use ssi::{dids::DIDURLBuf, jwk::JWK};
+use ssi::jwk::JWK;
 use url::Url;
 
 pub use error::*;
@@ -26,14 +26,14 @@ pub async fn generate_pop_prepare(
     public_jwk: String,
     duration_in_secs: Option<i64>,
 ) -> Result<Vec<u8>, PopError> {
-    let issuer = did_method.did_from_jwk(&public_jwk)?;
-    let vm = did_method.vm_from_jwk(&public_jwk).await?;
+    let issuer = did_method.did_from_jwk(&public_jwk)?.to_string();
+    let vm = did_method.vm_from_jwk(&public_jwk).await?.id;
 
     let pop_params = ProofOfPossessionParams {
         audience: Url::from_str(&audience).map_err(PopError::from)?,
         issuer,
         controller: ProofOfPossessionController {
-            vm: Some(DIDURLBuf::from_string(vm).map_err(PopError::from)?),
+            vm: Some(vm),
             jwk: JWK::from_str(&public_jwk).map_err(PopError::from)?,
         },
         nonce: nonce.map(Nonce::new),
