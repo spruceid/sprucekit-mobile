@@ -175,7 +175,7 @@ fn find_match(input_descriptor: &InputDescriptor, credential: &Mdoc) -> Result<R
                     .location()
                     .iter()
                     .filter_map(|element| element.as_name())
-                    .last();
+                    .next_back();
 
                 let displayable_name = match found_name {
                     Some(name) => name.to_string(),
