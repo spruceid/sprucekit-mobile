@@ -31,7 +31,7 @@ use uuid::Uuid;
 /// A verifiable credential secured as a JWT.
 pub struct JwtVc {
     id: Uuid,
-    jws: JwsString,
+    pub(crate) jws: JwsString,
     credential: JsonCredential,
     credential_string: String,
     header_json_string: String,
