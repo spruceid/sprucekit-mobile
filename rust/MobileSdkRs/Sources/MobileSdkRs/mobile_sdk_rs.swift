@@ -8289,7 +8289,7 @@ open func login(appAttestation: String)async throws  -> String  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypeWalletServiceError.lift
+            errorHandler: FfiConverterTypeWalletServiceError_lift
         )
 }
     
