@@ -12,6 +12,7 @@ pub mod logger;
 pub mod mdl;
 pub mod oid4vci;
 pub mod oid4vp;
+pub mod presentation;
 pub mod proof_of_possession;
 pub mod storage_manager;
 #[cfg(test)]
