@@ -29,7 +29,7 @@ let package = Package(
             ],
             path: "rust/MobileSdkRs/Sources/MobileSdkRs",
             swiftSettings: [
-                .swiftLanguageMode(.v5)  // required until https://github.com/mozilla/uniffi-rs/issues/2448 is closed
+                //.swiftLanguageMode(.v5)  // required until https://github.com/mozilla/uniffi-rs/issues/2448 is closed
             ]
         ),
         .target(
@@ -40,7 +40,7 @@ let package = Package(
             ],
             path: "./ios/MobileSdk/Sources/MobileSdk",
             swiftSettings: [
-                .swiftLanguageMode(.v5)  // some of our code isn't concurrent-safe (e.g. OID4VCI.swift)
+                //.swiftLanguageMode(.v5)  // some of our code isn't concurrent-safe (e.g. OID4VCI.swift)
             ]
         ),
         .testTarget(
