@@ -37,24 +37,31 @@ public class CredentialPack {
     public func tryAddRawCredential(rawCredential: String) throws -> [ParsedCredential] {
         if let credentials = try? addJwtVc(jwtVc: JwtVc.newFromCompactJws(jws: rawCredential)) {
             return credentials
-        } else if let credentials = try? addJsonVc(jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential)) {
+        } else if let credentials = try? addJsonVc(
+            jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential))
+        {
             return credentials
-        } else if let credentials = try? addSdJwt(sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)) {
+        } else if let credentials = try? addSdJwt(
+            sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential))
+        {
             return credentials
         } else if let credentials = try? addCwt(cwt: Cwt.newFromBase10(payload: rawCredential)) {
             return credentials
-        } else if let credentials = try? addMDoc(mdoc: Mdoc.fromStringifiedDocument(
-            stringifiedDocument: rawCredential,
-            keyAlias: UUID().uuidString)
+        } else if let credentials = try? addMDoc(
+            mdoc: Mdoc.fromStringifiedDocument(
+                stringifiedDocument: rawCredential,
+                keyAlias: UUID().uuidString)
         ) {
             return credentials
-        } else if let credentials = try? addMDoc(mdoc: Mdoc.newFromBase64urlEncodedIssuerSigned(
-            base64urlEncodedIssuerSigned: rawCredential,
-            keyAlias: UUID().uuidString)
+        } else if let credentials = try? addMDoc(
+            mdoc: Mdoc.newFromBase64urlEncodedIssuerSigned(
+                base64urlEncodedIssuerSigned: rawCredential,
+                keyAlias: UUID().uuidString)
         ) {
             return credentials
         } else {
-            throw CredentialPackError.credentialParsing(reason: "Couldn't parse credential: \(rawCredential)")
+            throw CredentialPackError.credentialParsing(
+                reason: "Couldn't parse credential: \(rawCredential)")
         }
     }
 
@@ -99,7 +106,8 @@ public class CredentialPack {
                             res[credentialId] = CredentialStatusList.valid
                         }
                     } catch {
-                        res[credentialId] = CredentialStatusList.undefined}
+                        res[credentialId] = CredentialStatusList.undefined
+                    }
                 } else {
                     res[credentialId] = CredentialStatusList.unknown
                 }
@@ -221,16 +229,20 @@ public class CredentialPack {
     }
 
     /// Loads all CredentialPacks from the StorageManager.
-    public static func loadAll(storageManager: StorageManagerInterface) async throws -> [CredentialPack] {
+    public static func loadAll(storageManager: StorageManagerInterface) async throws
+        -> [CredentialPack]
+    {
         try await CredentialPackContents.list(storageManager: storageManager).asyncMap { contents in
             try await contents.load(vdcCollection: VdcCollection(engine: storageManager))
         }
     }
 
     private func intoContents() -> CredentialPackContents {
-        CredentialPackContents(id: self.id, credentials: self.credentials.map { credential in
-            credential.id()
-        })
+        CredentialPackContents(
+            id: self.id,
+            credentials: self.credentials.map { credential in
+                credential.id()
+            })
     }
 }
 
@@ -240,7 +252,7 @@ public struct CredentialPackContents {
     private let idKey = "id"
     private let credentialsKey = "credentials"
     public let id: UUID
-    let credentials: [Uuid]
+    public let credentials: [Uuid]
 
     public init(id: UUID, credentials: [Uuid]) {
         self.id = id
@@ -287,6 +299,19 @@ public struct CredentialPackContents {
 
     /// Loads all of the credentials from the VdcCollection for this CredentialPack.
     public func load(vdcCollection: VdcCollection) async throws -> CredentialPack {
+        let creds = try await vdcCollection.allEntries().asyncMap { id in
+            guard let credential = try await vdcCollection.get(id: id) else {
+                return [:] as [String: Any]
+            }
+
+            return [
+                "id": credential.id,
+                "format": credential.format,
+                "type": credential.type,
+            ]
+        }
+        print("VDC Collection Load: \(creds)")
+
         let credentials = try await credentials.asyncMap { credentialId in
             do {
                 guard let credential = try await vdcCollection.get(id: credentialId) else {
@@ -319,7 +344,9 @@ public struct CredentialPackContents {
     /// Lists all CredentialPacks.
     ///
     /// These can then be individually loaded. For eager loading of all packs, see `CredentialPack.loadAll`.
-    public static func list(storageManager: StorageManagerInterface) async throws -> [CredentialPackContents] {
+    public static func list(storageManager: StorageManagerInterface) async throws
+        -> [CredentialPackContents]
+    {
         do {
             return try await storageManager.list()
                 .filter { file in
@@ -353,7 +380,7 @@ public struct CredentialPackContents {
                     self.credentials.map { id in
                         GenericJSON.string(id)
                     }
-                )
+                ),
             ]
 
             return try JSONEncoder().encode(json)

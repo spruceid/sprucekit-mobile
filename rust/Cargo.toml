@@ -68,6 +68,7 @@ urlencoding = "2.1.3"
 uuid = { version = "1.6.1", features = ["v4"] }
 w3c-vc-barcodes = { git = "https://github.com/spruceid/w3c-vc-barcodes", rev = "9aeb38d" }
 x509-cert = { version = "0.2.5", features = ["builder", "hazmat"] }
+oslog = "0.2.0"
 
 
 [target.'cfg(target_os = "android")'.dependencies]
