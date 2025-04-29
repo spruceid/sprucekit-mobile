@@ -462,6 +462,7 @@ pub(crate) mod tests {
             DidMethod::Key
                 .vm_from_jwk(&self.jwk())
                 .await
+                // SAFETY: The JWK should always be well-formed and this method should not panic.
                 .unwrap()
                 .id
                 .to_string()
