@@ -24,4 +24,13 @@ pub enum PresentationBuilderError {
 
     #[error("Context: {_0}")]
     Context(String),
+
+    #[error("SignatureError: {_0}")]
+    SignatureError(#[from] ssi::claims::SignatureError),
+
+    #[error("Unable to pick signing suite for verification method")]
+    SigningSuitePickError,
+
+    #[error("Unsupported credential format for json-ld presentation")]
+    UnsupportedCredentialFormat,
 }

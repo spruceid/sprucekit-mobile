@@ -13917,6 +13917,12 @@ public enum PresentationBuilderError: Swift.Error {
     
     case Context(message: String)
     
+    case SignatureError(message: String)
+    
+    case SigningSuitePickError(message: String)
+    
+    case UnsupportedCredentialFormat(message: String)
+    
 }
 
 
@@ -13965,6 +13971,18 @@ public struct FfiConverterTypePresentationBuilderError: FfiConverterRustBuffer {
             message: try FfiConverterString.read(from: &buf)
         )
         
+        case 9: return .SignatureError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 10: return .SigningSuitePickError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 11: return .UnsupportedCredentialFormat(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
 
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -13992,6 +14010,12 @@ public struct FfiConverterTypePresentationBuilderError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(7))
         case .Context(_ /* message is ignored*/):
             writeInt(&buf, Int32(8))
+        case .SignatureError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(9))
+        case .SigningSuitePickError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(10))
+        case .UnsupportedCredentialFormat(_ /* message is ignored*/):
+            writeInt(&buf, Int32(11))
 
         
         }

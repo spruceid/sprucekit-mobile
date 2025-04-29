@@ -77,18 +77,24 @@ impl JsonLdPresentationBuilder {
             credentials
                 .into_iter()
                 .map(|c| match &c.inner {
-                    ParsedCredentialInner::MsoMdoc(_) => unimplemented!(),
-                    ParsedCredentialInner::JwtVcJson(jwt_vc_json) => {
-                        serde_json::Value::String(jwt_vc_json.jws.clone().into_string())
+                    ParsedCredentialInner::MsoMdoc(_) => {
+                        Err(PresentationBuilderError::UnsupportedCredentialFormat)
                     }
-                    ParsedCredentialInner::JwtVcJsonLd(jwt_vc_json_ld) => {
-                        serde_json::Value::String(jwt_vc_json_ld.jws.clone().into_string())
+                    ParsedCredentialInner::JwtVcJson(jwt_vc_json) => Ok(serde_json::Value::String(
+                        jwt_vc_json.jws.clone().into_string(),
+                    )),
+                    ParsedCredentialInner::JwtVcJsonLd(jwt_vc_json_ld) => Ok(
+                        serde_json::Value::String(jwt_vc_json_ld.jws.clone().into_string()),
+                    ),
+                    ParsedCredentialInner::VCDM2SdJwt(_) => {
+                        Err(PresentationBuilderError::UnsupportedCredentialFormat)
                     }
-                    ParsedCredentialInner::VCDM2SdJwt(_) => unimplemented!(),
-                    ParsedCredentialInner::LdpVc(ldp_vc) => ldp_vc.raw.clone(),
-                    ParsedCredentialInner::Cwt(_) => unimplemented!(),
+                    ParsedCredentialInner::LdpVc(ldp_vc) => Ok(ldp_vc.raw.clone()),
+                    ParsedCredentialInner::Cwt(_) => {
+                        Err(PresentationBuilderError::UnsupportedCredentialFormat)
+                    }
                 })
-                .collect(),
+                .collect::<Result<_, _>>()?,
         );
 
         let mut params = ProofOptions::from_method(IriBuf::new(vm)?.into());
@@ -98,7 +104,8 @@ impl JsonLdPresentationBuilder {
         params.domains = self.domain.to_owned().map(|d| vec![d]).unwrap_or_default();
 
         let resolver = VerificationMethodDIDResolver::new(AnyDidMethod::default());
-        let suite = AnySuite::pick(&key, params.verification_method.as_ref()).unwrap();
+        let suite = AnySuite::pick(&key, params.verification_method.as_ref())
+            .ok_or(PresentationBuilderError::SigningSuitePickError)?;
 
         let context = self
             .context_map
@@ -120,8 +127,7 @@ impl JsonLdPresentationBuilder {
                 params,
                 Default::default(),
             )
-            .await
-            .unwrap();
+            .await?;
 
         Ok(serde_json::to_string(&vp)?)
     }
