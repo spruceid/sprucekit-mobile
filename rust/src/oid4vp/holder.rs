@@ -471,6 +471,7 @@ pub(crate) mod tests {
         fn did(&self) -> String {
             DidMethod::Key
                 .did_from_jwk(&self.jwk())
+                // SAFETY: The JWK should always be well-formed and this method should not panic.
                 .unwrap()
                 .to_string()
         }
