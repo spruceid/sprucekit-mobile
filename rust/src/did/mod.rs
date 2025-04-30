@@ -1,4 +1,4 @@
-use ssi::dids::DIDResolver;
+use ssi::dids::{document::DIDVerificationMethod, DIDBuf, DIDResolver};
 
 pub use error::*;
 
@@ -11,16 +11,16 @@ pub enum DidMethod {
 }
 
 impl DidMethod {
-    pub fn did_from_jwk(&self, jwk: &str) -> Result<String, DidError> {
+    pub fn did_from_jwk(&self, jwk: &str) -> Result<DIDBuf, DidError> {
         let key: ssi::jwk::JWK = serde_json::from_str(jwk)?;
         let did = match &self {
             DidMethod::Jwk => ssi::dids::DIDJWK::generate(&key),
             DidMethod::Key => ssi::dids::DIDKey::generate(&key)?,
         };
-        Ok(did.to_string())
+        Ok(did)
     }
 
-    pub async fn vm_from_jwk(&self, jwk: &str) -> Result<String, DidError> {
+    pub async fn vm_from_jwk(&self, jwk: &str) -> Result<DIDVerificationMethod, DidError> {
         let key: ssi::jwk::JWK = serde_json::from_str(jwk)?;
         let vm = match &self {
             DidMethod::Jwk => {
@@ -40,7 +40,7 @@ impl DidMethod {
                     .ok_or(DidError::MissingVerificationMethod)
             }
         }?;
-        Ok(vm.id.to_string())
+        Ok(vm)
     }
 }
 
@@ -57,10 +57,13 @@ impl DidMethodUtils {
     }
 
     pub fn did_from_jwk(&self, jwk: &str) -> Result<String, DidError> {
-        self.inner.did_from_jwk(jwk)
+        self.inner.did_from_jwk(jwk).map(|d| d.to_string())
     }
 
     pub async fn vm_from_jwk(&self, jwk: &str) -> Result<String, DidError> {
-        self.inner.vm_from_jwk(jwk).await
+        self.inner
+            .vm_from_jwk(jwk)
+            .await
+            .map(|vm| vm.id.to_string())
     }
 }

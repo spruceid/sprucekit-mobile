@@ -2998,6 +2998,152 @@ public func FfiConverterTypeIssuanceServiceClient_lower(_ value: IssuanceService
 
 
 
+public protocol JsonLdPresentationBuilderProtocol: AnyObject, Sendable {
+    
+    func issuePresentation(credentials: [ParsedCredential]) async throws  -> String
+    
+}
+open class JsonLdPresentationBuilder: JsonLdPresentationBuilderProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_jsonldpresentationbuilder(self.pointer, $0) }
+    }
+public convenience init(id: String, holder: String, proofPurpose: String, challenge: String?, domain: String?, signer: PresentationSigner, contextMap: [String: String]?) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_jsonldpresentationbuilder_new(
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(holder),
+        FfiConverterString.lower(proofPurpose),
+        FfiConverterOptionString.lower(challenge),
+        FfiConverterOptionString.lower(domain),
+        FfiConverterCallbackInterfacePresentationSigner_lower(signer),
+        FfiConverterOptionDictionaryStringString.lower(contextMap),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_jsonldpresentationbuilder(pointer, $0) }
+    }
+
+    
+
+    
+open func issuePresentation(credentials: [ParsedCredential])async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_jsonldpresentationbuilder_issue_presentation(
+                    self.uniffiClonePointer(),
+                    FfiConverterSequenceTypeParsedCredential.lower(credentials)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypePresentationBuilderError_lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeJsonLdPresentationBuilder: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = JsonLdPresentationBuilder
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> JsonLdPresentationBuilder {
+        return JsonLdPresentationBuilder(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: JsonLdPresentationBuilder) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> JsonLdPresentationBuilder {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: JsonLdPresentationBuilder, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonLdPresentationBuilder_lift(_ pointer: UnsafeMutableRawPointer) throws -> JsonLdPresentationBuilder {
+    return try FfiConverterTypeJsonLdPresentationBuilder.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonLdPresentationBuilder_lower(_ value: JsonLdPresentationBuilder) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeJsonLdPresentationBuilder.lower(value)
+}
+
+
+
+
+
+
 /**
  * A verifiable credential secured as JSON.
  */
@@ -13751,6 +13897,159 @@ extension PopError: Foundation.LocalizedError {
 
 
 
+public enum PresentationBuilderError: Swift.Error {
+
+    
+    
+    case DidError(message: String)
+    
+    case UrlParseError(message: String)
+    
+    case DidUrlParseError(message: String)
+    
+    case SerializationError(message: String)
+    
+    case ConversionError(message: String)
+    
+    case IriBufError(message: String)
+    
+    case UriBufError(message: String)
+    
+    case Context(message: String)
+    
+    case SignatureError(message: String)
+    
+    case SigningSuitePickError(message: String)
+    
+    case UnsupportedCredentialFormat(message: String)
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePresentationBuilderError: FfiConverterRustBuffer {
+    typealias SwiftType = PresentationBuilderError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PresentationBuilderError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .DidError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .UrlParseError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .DidUrlParseError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 4: return .SerializationError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 5: return .ConversionError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 6: return .IriBufError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 7: return .UriBufError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 8: return .Context(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 9: return .SignatureError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 10: return .SigningSuitePickError(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 11: return .UnsupportedCredentialFormat(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PresentationBuilderError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        case .DidError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(1))
+        case .UrlParseError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(2))
+        case .DidUrlParseError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(3))
+        case .SerializationError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(4))
+        case .ConversionError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(5))
+        case .IriBufError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(6))
+        case .UriBufError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(7))
+        case .Context(_ /* message is ignored*/):
+            writeInt(&buf, Int32(8))
+        case .SignatureError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(9))
+        case .SigningSuitePickError(_ /* message is ignored*/):
+            writeInt(&buf, Int32(10))
+        case .UnsupportedCredentialFormat(_ /* message is ignored*/):
+            writeInt(&buf, Int32(11))
+
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePresentationBuilderError_lift(_ buf: RustBuffer) throws -> PresentationBuilderError {
+    return try FfiConverterTypePresentationBuilderError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePresentationBuilderError_lower(_ value: PresentationBuilderError) -> RustBuffer {
+    return FfiConverterTypePresentationBuilderError.lower(value)
+}
+
+
+extension PresentationBuilderError: Equatable, Hashable {}
+
+
+
+extension PresentationBuilderError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
 public enum PresentationError: Swift.Error {
 
     
@@ -17907,6 +18206,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_new_issuance() != 231) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_jsonldpresentationbuilder_issue_presentation() != 17531) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_jsonvc_credential_as_json_encoded_utf8_string() != 36585) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18250,6 +18552,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_issuanceserviceclient_new() != 39224) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_jsonldpresentationbuilder_new() != 15501) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_jsonvc_new_from_json() != 40674) {

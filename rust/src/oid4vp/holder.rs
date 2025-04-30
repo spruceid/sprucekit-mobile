@@ -459,11 +459,21 @@ pub(crate) mod tests {
         }
 
         async fn verification_method(&self) -> String {
-            DidMethod::Key.vm_from_jwk(&self.jwk()).await.unwrap()
+            DidMethod::Key
+                .vm_from_jwk(&self.jwk())
+                .await
+                // SAFETY: The JWK should always be well-formed and this method should not panic.
+                .unwrap()
+                .id
+                .to_string()
         }
 
         fn did(&self) -> String {
-            DidMethod::Key.did_from_jwk(&self.jwk()).unwrap()
+            DidMethod::Key
+                .did_from_jwk(&self.jwk())
+                // SAFETY: The JWK should always be well-formed and this method should not panic.
+                .unwrap()
+                .to_string()
         }
 
         fn cryptosuite(&self) -> CryptosuiteString {
