@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobilesdkexample.MainApplication
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,14 +22,19 @@ class CredentialPacksViewModel(application: Application) : AndroidViewModel(appl
     val credentialPacks = _credentialPacks.asStateFlow()
     private val _loading = MutableStateFlow(false)
     val loading = _loading.asStateFlow()
+    private val dcApiRegistry = (application as MainApplication).dcApiRegistry
 
     init {
         viewModelScope.launch {
             _loading.value = true
             this.async(Dispatchers.Default) {
                 _credentialPacks.value = CredentialPack.loadPacks(storageManager)
+                dcApiRegistry.register(credentialPacks.value)
             }.await()
             _loading.value = false
+
+            // Listed for credential pack updates and update the registry.
+            _credentialPacks.collect { packs -> dcApiRegistry.register(packs) }
         }
     }
 

@@ -1,3 +1,4 @@
+pub mod dc_api;
 pub mod error;
 pub mod holder;
 pub mod iso_18013_7;

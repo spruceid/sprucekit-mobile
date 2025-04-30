@@ -2598,9 +2598,9 @@ dependencies = [
 
 [[package]]
 name = "inventory"
-version = "0.3.19"
+version = "0.3.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54b12ebb6799019b044deaf431eadfe23245b259bba5a2c0796acec3943a3cdb"
+checksum = "ab08d7cd2c5897f2c949e5383ea7c7db03fb19130ffcfbf7eda795137ae3cb83"
 dependencies = [
  "rustversion",
 ]
@@ -3718,7 +3718,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 [[package]]
 name = "openid4vp"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=2a2f0b7#2a2f0b7465be943cf5de110b5fe871ef2d9ef985"
+source = "git+https://github.com/spruceid/openid4vp?rev=138b614#138b6145a684d8524ce85c98ff69a0e257416d69"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3746,7 +3746,7 @@ dependencies = [
 [[package]]
 name = "openid4vp-frontend"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=2a2f0b7#2a2f0b7465be943cf5de110b5fe871ef2d9ef985"
+source = "git+https://github.com/spruceid/openid4vp?rev=138b614#138b6145a684d8524ce85c98ff69a0e257416d69"
 dependencies = [
  "serde",
  "serde_json",
