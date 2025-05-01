@@ -24,7 +24,7 @@ pub enum Responder {
 
 impl Responder {
     pub fn new(request: &AuthorizationRequestObject) -> Result<Self> {
-        let state = get_state_from_request(&request)?;
+        let state = get_state_from_request(request)?;
         match request.response_mode() {
             ResponseMode::DcApi => Ok(Self::Json { state }),
             ResponseMode::DcApiJwt => {

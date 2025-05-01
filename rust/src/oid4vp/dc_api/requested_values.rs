@@ -72,13 +72,12 @@ pub fn find_match(query: &DcqlCredentialQuery, credential: &Mdoc) -> Result<Requ
     'fields: for field in query
         .claims()
         .into_iter()
-        .map(|queries| queries.iter())
-        .flatten()
+        .flat_map(|queries| queries.iter())
     {
-        let Some(DcqlCredentialClaimsQueryPath::String(namespace)) = field.path().get(0) else {
+        let Some(DcqlCredentialClaimsQueryPath::String(namespace)) = field.path().first() else {
             tracing::warn!(
                 "no valid namespace provided in query: {:?}",
-                field.path().get(0)
+                field.path().first()
             );
             continue 'fields;
         };
@@ -98,7 +97,7 @@ pub fn find_match(query: &DcqlCredentialQuery, credential: &Mdoc) -> Result<Requ
             continue 'fields;
         };
         let displayable_value = field_map
-            .get(&field_id)
+            .get(field_id)
             .and_then(|value| cbor_to_string(&value.1.as_ref().element_value));
 
         // Snake case to sentence case.

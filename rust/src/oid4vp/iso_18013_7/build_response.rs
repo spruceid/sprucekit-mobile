@@ -128,7 +128,7 @@ pub fn build_jwe(
         jwe_header.set_key_id(kid);
     }
 
-    let encrypter: EcdhEsJweEncrypter<NistP256> = josekit::jwe::ECDH_ES.encrypter_from_jwk(&jwk)?;
+    let encrypter: EcdhEsJweEncrypter<NistP256> = josekit::jwe::ECDH_ES.encrypter_from_jwk(jwk)?;
 
     let jwe = encode_with_encrypter(payload, &jwe_header, &encrypter)?;
     Ok(jwe)
