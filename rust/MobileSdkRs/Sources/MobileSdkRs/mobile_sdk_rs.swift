@@ -3994,9 +3994,15 @@ public protocol MdlPresentationSessionProtocol: AnyObject, Sendable {
     func getBleIdent()  -> Data
     
     /**
-     * Returns the generated QR code
+     * Returns NFC handover information, formatted as an NDEF record.
      */
-    func getQrCodeUri()  -> String
+    func getNfcHandover(requestMessage: Data?) throws  -> Data
+    
+    /**
+     * Returns the generated QR code URI formatted from the device
+     * engagement.
+     */
+    func getQrHandover() throws  -> String
     
     /**
      * Handle a request from a reader that is seeking information from the mDL holder.
@@ -4097,11 +4103,23 @@ open func getBleIdent() -> Data  {
 }
     
     /**
-     * Returns the generated QR code
+     * Returns NFC handover information, formatted as an NDEF record.
      */
-open func getQrCodeUri() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_get_qr_code_uri(self.uniffiClonePointer(),$0
+open func getNfcHandover(requestMessage: Data?)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeSessionError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_get_nfc_handover(self.uniffiClonePointer(),
+        FfiConverterOptionData.lower(requestMessage),$0
+    )
+})
+}
+    
+    /**
+     * Returns the generated QR code URI formatted from the device
+     * engagement.
+     */
+open func getQrHandover()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeSessionError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_get_qr_handover(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -11389,6 +11407,87 @@ extension DelegatedVerifierStatus: Equatable, Hashable {}
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Device Engagement Type Represents the different ways a device can engage with the mDL reader.
+ *
+ * Device engagement does not perform the transport of the mDL data, it is used
+ * to initiate the communication session between the device and the reader.
+ *
+ * The device retrieval process performs the transport of the mDL data.
+ */
+
+public enum DeviceEngagementType {
+    
+    /**
+     * Indicates the device engagement will be via QR code
+     */
+    case qr
+    /**
+     * Indicates the device engagement will be via Near Field Communication (NFC)
+     */
+    case nfc
+}
+
+
+#if compiler(>=6)
+extension DeviceEngagementType: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDeviceEngagementType: FfiConverterRustBuffer {
+    typealias SwiftType = DeviceEngagementType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DeviceEngagementType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .qr
+        
+        case 2: return .nfc
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DeviceEngagementType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .qr:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .nfc:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDeviceEngagementType_lift(_ buf: RustBuffer) throws -> DeviceEngagementType {
+    return try FfiConverterTypeDeviceEngagementType.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDeviceEngagementType_lower(_ value: DeviceEngagementType) -> RustBuffer {
+    return FfiConverterTypeDeviceEngagementType.lower(value)
+}
+
+
+extension DeviceEngagementType: Equatable, Hashable {}
+
+
+
 
 public enum DidError: Swift.Error {
 
@@ -18263,7 +18362,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_get_ble_ident() != 25991) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_get_qr_code_uri() != 36281) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_get_nfc_handover() != 31359) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_get_qr_handover() != 50505) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_handle_request() != 21650) {
