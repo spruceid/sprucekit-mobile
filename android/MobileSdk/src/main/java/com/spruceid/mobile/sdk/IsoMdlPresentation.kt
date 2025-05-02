@@ -19,11 +19,11 @@ abstract class BLESessionStateDelegate {
 }
 
 class IsoMdlPresentation(
-    val mdoc: Mdoc,
-    val keyAlias: String,
-    val bluetoothManager: BluetoothManager,
-    val callback: BLESessionStateDelegate,
-    val context: Context
+        val mdoc: Mdoc,
+        val keyAlias: String,
+        val bluetoothManager: BluetoothManager,
+        val callback: BLESessionStateDelegate,
+        val context: Context
 ) {
     val uuid: UUID = UUID.randomUUID()
     var session: MdlPresentationSession? = null
@@ -34,8 +34,7 @@ class IsoMdlPresentation(
         try {
             session = initializeMdlPresentationFromBytes(this.mdoc, uuid.toString())
             this.bleManager = Transport(this.bluetoothManager)
-            this.bleManager!!
-                .initialize(
+            this.bleManager!!.initialize(
                     "Holder",
                     this.uuid,
                     "BLE",
@@ -44,8 +43,8 @@ class IsoMdlPresentation(
                     ::updateRequestData,
                     context,
                     callback
-                )
-            this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
+            )
+            this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrHandover())))
         } catch (e: Error) {
             Log.e("BleSessionManager.constructor", e.toString())
         }
@@ -54,13 +53,9 @@ class IsoMdlPresentation(
     fun submitNamespaces(items: Map<String, Map<String, List<String>>>) {
         val payload = session!!.generateResponse(items)
 
-        val ks: KeyStore = KeyStore.getInstance(
-            "AndroidKeyStore"
-        )
+        val ks: KeyStore = KeyStore.getInstance("AndroidKeyStore")
 
-        ks.load(
-            null
-        )
+        ks.load(null)
 
         val entry = ks.getEntry(this.keyAlias, null)
         if (entry !is KeyStore.PrivateKeyEntry) {
@@ -75,8 +70,8 @@ class IsoMdlPresentation(
 
             val signature = signer.sign()
             val normalizedSignature =
-                CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(signature)
-                    ?: throw Error("unrecognized signature encoding")
+                    CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(signature)
+                            ?: throw Error("unrecognized signature encoding")
             val response = session!!.submitResponse(normalizedSignature)
             this.bleManager!!.send(response)
         } catch (e: Error) {
