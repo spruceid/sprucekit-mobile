@@ -2667,7 +2667,6 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=4211b69#4211b69cadcb83223b9cc1b6686208b12fde7048"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2688,54 +2687,7 @@ dependencies = [
  "hex-literal",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=4211b69)",
- "p256",
- "p384",
- "pem-rfc7468 0.7.0",
- "rand 0.8.5",
- "sec1",
- "serde",
- "serde_bytes",
- "serde_json",
- "sha1",
- "sha2 0.10.8",
- "signature",
- "ssi-jwk 0.2.1",
- "strum",
- "strum_macros",
- "thiserror 1.0.69",
- "time",
- "tracing",
- "uuid",
- "x509-cert",
- "zeroize",
-]
-
-[[package]]
-name = "isomdl"
-version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=6084a83#6084a8355e7f194556f365f46a8c3772ad35d321"
-dependencies = [
- "aes",
- "aes-gcm",
- "anyhow",
- "asn1-rs",
- "async-signature",
- "base64 0.13.1",
- "ciborium",
- "clap 4.5.37",
- "clap-stdin",
- "const-oid 0.9.6",
- "coset",
- "der 0.7.10",
- "digest 0.10.7",
- "ecdsa",
- "elliptic-curve",
- "hex",
- "hex-literal",
- "hkdf",
- "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=6084a83)",
+ "isomdl-macros",
  "p256",
  "p384",
  "pem-rfc7468 0.7.0",
@@ -2761,17 +2713,6 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=4211b69#4211b69cadcb83223b9cc1b6686208b12fde7048"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "isomdl-macros"
-version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=6084a83#6084a8355e7f194556f365f46a8c3772ad35d321"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3466,7 +3407,7 @@ dependencies = [
  "futures-util",
  "hex",
  "http 1.3.1",
- "isomdl 0.1.0 (git+https://github.com/spruceid/isomdl?rev=4211b69)",
+ "isomdl",
  "itertools",
  "josekit",
  "json-syntax",
@@ -3771,7 +3712,7 @@ dependencies = [
  "async-signature",
  "base64 0.21.7",
  "form_urlencoded",
- "isomdl 0.1.0 (git+https://github.com/spruceid/isomdl?rev=6084a83)",
+ "isomdl",
  "oauth2",
  "percent-encoding",
  "rand 0.8.5",

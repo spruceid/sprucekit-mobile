@@ -84,3 +84,6 @@ uniffi = { version = "0.29.0", features = ["build"] }
 
 [patch.crates-io]
 ssi = { git = "https://github.com/spruceid/ssi", rev = "82b0bf3" }
+
+[patch."https://github.com/spruceid/isomdl"]
+isomdl = { path = "../../isomdl" }
