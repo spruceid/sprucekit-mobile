@@ -214,7 +214,7 @@ fun MdocFieldSelector(
     match: RequestMatch180137,
     onContinue: (ApprovedResponse180137) -> Unit,
     onCancel: () -> Unit,
-    fillHeight: Boolean = true,
+    innerColumnModifier: Modifier = Modifier.fillMaxSize(),
     origin: String = "Verifier"
 ) {
     var selectedFields by remember {
@@ -245,10 +245,8 @@ fun MdocFieldSelector(
             textAlign = TextAlign.Center
         )
 
-        val columnMod = if (fillHeight) Modifier.fillMaxSize() else Modifier
-
         Column(
-            modifier = columnMod
+            modifier = innerColumnModifier
                 .verticalScroll(rememberScrollState())
                 .weight(weight = 1f, fill = false)
         ) {

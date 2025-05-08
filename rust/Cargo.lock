@@ -124,24 +124,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e999941b234f3131b00bc13c22d06e8c5ff726d1b6318ac7eb276997bbb4fef0"
 
 [[package]]
-name = "android_log-sys"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ecc8056bf6ab9892dcd53216c83d1597487d7dacac16c8df6b877d127df9937"
-
-[[package]]
-name = "android_logger"
-version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c494134f746c14dc653a35a4ea5aca24ac368529da5370ecf41fe0341c35772f"
-dependencies = [
- "android_log-sys",
- "env_logger 0.10.2",
- "log",
- "once_cell",
-]
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3369,7 +3351,6 @@ dependencies = [
 name = "mobile-sdk-rs"
 version = "0.9.0"
 dependencies = [
- "android_logger",
  "anyhow",
  "async-trait",
  "base64 0.22.1",
@@ -3408,6 +3389,7 @@ dependencies = [
  "time-macros",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "uniffi",
  "url",
  "urlencoding",
@@ -3718,7 +3700,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 [[package]]
 name = "openid4vp"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=138b614#138b6145a684d8524ce85c98ff69a0e257416d69"
+source = "git+https://github.com/spruceid/openid4vp?rev=c9f7c3d#c9f7c3d3d7d7e8407cf708f41666f7f6d45a03c7"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3746,7 +3728,7 @@ dependencies = [
 [[package]]
 name = "openid4vp-frontend"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=138b614#138b6145a684d8524ce85c98ff69a0e257416d69"
+source = "git+https://github.com/spruceid/openid4vp?rev=c9f7c3d#c9f7c3d3d7d7e8407cf708f41666f7f6d45a03c7"
 dependencies = [
  "serde",
  "serde_json",
@@ -6712,6 +6694,7 @@ dependencies = [
  "once_cell",
  "regex",
  "sharded-slab",
+ "smallvec",
  "thread_local",
  "tracing",
  "tracing-core",

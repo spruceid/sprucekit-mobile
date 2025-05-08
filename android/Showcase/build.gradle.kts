@@ -95,16 +95,5 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     // DC-API dependencies
-    implementation("androidx.credentials:credentials:1.5.0")
-    implementation("androidx.credentials.registry:registry-digitalcredentials-preview:1.0.0-alpha01")
-    implementation("androidx.credentials.registry:registry-digitalcredentials-mdoc:1.0.0-alpha01")
     implementation("androidx.credentials.registry:registry-provider:1.0.0-alpha01")
-    implementation("androidx.credentials.registry:registry-provider-play-services:1.0.0-alpha01")
-    implementation("com.google.android.gms:play-services-identity-credentials:16.0.0-alpha06")
-}
-
-configurations.all {
-    resolutionStrategy {
-        force("com.google.android.gms:play-services-identity-credentials:16.0.0-alpha06")
-    }
 }

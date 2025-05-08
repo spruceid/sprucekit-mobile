@@ -1,4 +1,4 @@
-use std::{fmt, sync::Arc};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
@@ -6,23 +6,15 @@ uniffi::custom_newtype!(KeyAlias, String);
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct KeyAlias(pub String);
 
-#[derive(Debug, uniffi::Error)]
+#[derive(Debug, uniffi::Error, thiserror::Error)]
 pub enum CryptoError {
+    #[error("{0}")]
     General(String),
 }
 
 impl From<anyhow::Error> for CryptoError {
     fn from(value: anyhow::Error) -> Self {
         Self::General(format!("{value:#}"))
-    }
-}
-
-impl std::error::Error for CryptoError {}
-
-impl fmt::Display for CryptoError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self::General(cause) = self;
-        write!(f, "{}", cause)
     }
 }
 

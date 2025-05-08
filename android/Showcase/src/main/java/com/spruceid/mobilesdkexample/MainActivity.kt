@@ -186,14 +186,4 @@ class MainApplication : Application() {
 
     // DC-API integration
     val dcApiRegistry by lazy { Registry(this, "pinecone.ico") }
-//    lateinit var dcApiRegistry: DcApiRegistry
-//
-//    override fun onCreate() {
-//        super.onCreate()
-//        try {
-//            dcApiRegistry = DcApiRegistry(this)
-//        } catch (e: Exception) {
-//            Log.e("MainApplication", "failed to setup DcApiRegistry: $e")
-//        }
-//    }
 }

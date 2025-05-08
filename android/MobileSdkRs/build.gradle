@@ -108,6 +108,10 @@ afterEvaluate {
             it.dependsOn(tasks.named("bindGen"))
         }
 
+        tasks.named("compileDebugKotlin") {
+            it.mustRunAfter(tasks.named("bindGen"))
+        }
+
         tasks.named("generate${productFlavor}${buildType}Assets") {
             it.dependsOn(tasks.named("buildCargoNdk${variant.name.capitalize()}"))
         }

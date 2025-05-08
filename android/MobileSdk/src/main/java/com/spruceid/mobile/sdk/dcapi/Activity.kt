@@ -61,9 +61,11 @@ import org.json.JSONObject
  * default, `BIOMETRIC_STRONG` or `DEVICE_CREDENTIAL` are allowed. Consider using only
  * `BIOMETRIC_STRONG` for high-assurance use-cases.
  */
-open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_CREDENTIAL): FragmentActivity() {
+open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_CREDENTIAL) :
+    FragmentActivity() {
     private val storageManager by lazy { StorageManager(application) }
-    private var activityState: MutableStateFlow<ActivityState> = MutableStateFlow(ActivityState.Processing())
+    private var activityState: MutableStateFlow<ActivityState> =
+        MutableStateFlow(ActivityState.Processing())
 
     /**
      * A view that is shown within the bottom sheet during processing.
@@ -73,7 +75,8 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
      * To change this behaviour, override [LoadingView].
      */
     @Composable
-    open fun LoadingView() {}
+    open fun LoadingView() {
+    }
 
     /**
      * A view that is shown within the bottom sheet during presentation, allowing a user to consent
@@ -100,7 +103,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
 
         this.setContent {
             val state = activityState.collectAsState().value
-            when(state) {
+            when (state) {
                 is ActivityState.Processing -> BottomSheet { LoadingView() }
                 is ActivityState.RequestingConsent -> BottomSheet {
                     ConsentView(
@@ -112,6 +115,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
                         origin = state.origin,
                     )
                 }
+
                 is ActivityState.Authenticating -> {}
             }
         }
@@ -125,8 +129,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             Log.w(TAG, "an error occurred while processing the intent", e)
             val resultData = Intent()
             PendingIntentHandler.setGetCredentialException(
-                resultData,
-                GetCredentialUnknownException()
+                resultData, GetCredentialUnknownException()
             )
             setResult(RESULT_OK, resultData)
             finish()
@@ -147,8 +150,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             val resultData = Intent()
             Log.w(TAG, "failed to successfully respond to any request")
             PendingIntentHandler.setGetCredentialException(
-                resultData,
-                GetCredentialUnknownException()
+                resultData, GetCredentialUnknownException()
             )
             setResult(RESULT_OK, resultData)
             finish()
@@ -157,18 +159,16 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
 
     @OptIn(ExperimentalDigitalCredentialApi::class)
     private fun processIntent(): List<OpenID4VPRequest> {
-        val request = PendingIntentHandler.retrieveProviderGetCredentialRequest(intent) ?: throw
-        Exception("missing request")
+        val request = PendingIntentHandler.retrieveProviderGetCredentialRequest(intent)
+            ?: throw Exception("missing request")
         val selectedEntryId = request.selectedEntryId ?: throw Exception("missing selectedEntryId")
         Log.d(TAG, "entryId: $selectedEntryId")
 
-        val providerIndex: Int
         val dcqlCredId: String
         val credentialPackId: String
         val credentialId: String
         try {
             val selectedEntryIdJson = JSONObject(selectedEntryId)
-            providerIndex = selectedEntryIdJson.getInt("provider_idx")
             dcqlCredId = selectedEntryIdJson.getString("dcql_cred_id")
             val comboId = Registry.idsFromComboId(selectedEntryIdJson.getString("id"))
             credentialPackId = comboId.first
@@ -176,35 +176,44 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         } catch (e: Exception) {
             throw Exception("unexpected format of entryId", e)
         }
-        Log.d(TAG, "providerIndex: $providerIndex")
 
         // TODO: Support requests originating from apps.
-        val origin = request.callingAppInfo.getOrigin(Registry.defaultTrustedApps)
-            ?.substringBefore(":443")
-            ?: throw Exception("unknown origin")
+        val origin =
+            request.callingAppInfo.getOrigin(Registry.defaultTrustedApps)?.substringBefore(":443")
+                ?: throw Exception("unknown origin")
         Log.d(TAG, "origin: $origin")
 
-        return request.credentialOptions
-            .mapNotNull { option -> if (option is GetDigitalCredentialOption) {
-                option
-            } else {
-                Log.d(TAG, "unsupported option: $option")
-                null
+        return request.credentialOptions.mapNotNull { option ->
+                if (option is GetDigitalCredentialOption) {
+                    option
+                } else {
+                    Log.d(TAG, "unsupported option: $option")
+                    null
+                }
+            }.map { option -> option.requestJson }
+            .flatMap { requestJson -> parseOid4vpRequestJson(requestJson) }
+            .map { openid4vp_request ->
+                Log.d(TAG, "openid4vp request: ${JSONObject(openid4vp_request)}")
+                OpenID4VPRequest(
+                    credentialPackId,
+                    credentialId,
+                    origin,
+                    openid4vp_request,
+                    dcqlCredId
+                )
             }
-            }
-            .map { option -> option.requestJson }
-            .mapNotNull { requestJson -> parseOid4vpRequestJson(requestJson, providerIndex) }
-            .map { requestJson -> OpenID4VPRequest(credentialPackId, credentialId, origin, requestJson, dcqlCredId ) }
 
     }
 
     @OptIn(ExperimentalDigitalCredentialApi::class)
     private suspend fun respond(request: OpenID4VPRequest) {
-        val pack = CredentialPack.loadPacks(storageManager).firstOrNull { it.id().toString() == request.credentialPackId }
+        val pack = CredentialPack.loadPacks(storageManager)
+            .firstOrNull { it.id().toString() == request.credentialPackId }
         val credential = pack?.getCredentialById(request.credentialId)
         val mdoc = credential?.asMsoMdoc() ?: throw Exception("selected credential not found")
 
-        val responder = handleDcApiRequest(request.dcqlCredId, mdoc, request.origin, request.oid4vpRequestJson)
+        val responder =
+            handleDcApiRequest(request.dcqlCredId, mdoc, request.origin, request.oid4vpRequestJson)
         val origin = responder.getOrigin()
 
         val consent: MutableStateFlow<ConsentOutcome?> = MutableStateFlow(null)
@@ -213,9 +222,10 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         val consentOutcome = consent.filterNotNull().first()
         val openid4vpResponse: String
 
-        when(consentOutcome) {
+        when (consentOutcome) {
             is ConsentOutcome.Cancelled -> throw Exception("user cancelled on the consent screen")
-            is ConsentOutcome.Approved -> openid4vpResponse = responder.respond(KeyManager(), consentOutcome.approvedFields)
+            is ConsentOutcome.Approved -> openid4vpResponse =
+                responder.respond(KeyManager(), consentOutcome.approvedFields)
         }
 
         activityState.value = ActivityState.Authenticating()
@@ -223,8 +233,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         val authenticate: MutableStateFlow<AuthenticationOutcome?> = MutableStateFlow(null)
 
         val biometricPrompt = BiometricPrompt(
-            this@Activity,
-            object : BiometricPrompt.AuthenticationCallback() {
+            this@Activity, object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationFailed() {
                     super.onAuthenticationFailed()
                     Log.d(TAG, "biometric authentication failed")
@@ -242,21 +251,18 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
                     Log.d(TAG, "biometric authentication succeeded")
                     authenticate.value = AuthenticationOutcome.Success()
                 }
-            }
-        )
+            })
 
         biometricPrompt.authenticate(
-            BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Verify your identity")
+            BiometricPrompt.PromptInfo.Builder().setTitle("Verify your identity")
                 .setSubtitle("Approve transmission of your data to $origin")
-                .setConfirmationRequired(false)
-                .setAllowedAuthenticators(allowedAuthenticators)
+                .setConfirmationRequired(false).setAllowedAuthenticators(allowedAuthenticators)
                 .build()
         )
 
         val authenticationOutcome = authenticate.filterNotNull().first()
 
-        when(authenticationOutcome) {
+        when (authenticationOutcome) {
             is AuthenticationOutcome.Failure -> throw Exception("biometric authentication failed")
             is AuthenticationOutcome.Success -> {}
         }
@@ -268,9 +274,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             // OpenID4VP response wasn't a JSON object, so is a JWE and can be inserted directly.
             data = JSONObject().put("response", openid4vpResponse)
         }
-        val response = JSONObject()
-            .put("protocol", "openid4vp")
-            .put("data", data).toString()
+        val response = JSONObject().put("protocol", "openid4vp").put("data", data).toString()
 
         Log.d(TAG, "Legacy: $data")
         Log.d(TAG, "Modern: $response")
@@ -285,43 +289,49 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             resultData,
             com.google.android.gms.identitycredentials.GetCredentialResponse(
                 Credential(
-                    DigitalCredential.TYPE_DIGITAL_CREDENTIAL,
-                    Bundle().apply {
-                        putByteArray("identityToken", data.toString().toByteArray())
-                    }
-                )
-            )
-        )
+                DigitalCredential.TYPE_DIGITAL_CREDENTIAL, Bundle().apply {
+                    putByteArray("identityToken", data.toString().toByteArray())
+                })))
         PendingIntentHandler.setGetCredentialResponse(
-            resultData,
-            GetCredentialResponse(DigitalCredential(response))
+            resultData, GetCredentialResponse(DigitalCredential(response))
         )
 
         setResult(RESULT_OK, resultData)
         finish()
     }
 
-    private data class OpenID4VPRequest(val credentialPackId: String, val credentialId: String, val origin: String, val oid4vpRequestJson: String, val dcqlCredId: String)
+    private data class OpenID4VPRequest(
+        val credentialPackId: String,
+        val credentialId: String,
+        val origin: String,
+        val oid4vpRequestJson: String,
+        val dcqlCredId: String
+    )
 
     private sealed class ConsentOutcome {
         class Approved(val approvedFields: List<FieldId180137>) : ConsentOutcome()
-        class Cancelled: ConsentOutcome()
+        class Cancelled : ConsentOutcome()
     }
 
     private sealed class AuthenticationOutcome {
-        class Success: AuthenticationOutcome()
-        class Failure: AuthenticationOutcome()
+        class Success : AuthenticationOutcome()
+        class Failure : AuthenticationOutcome()
     }
 
     private sealed class ActivityState() {
-        class Processing(): ActivityState()
-        class RequestingConsent(val match: RequestMatch180137, val consent: MutableStateFlow<ConsentOutcome?>, val origin: String) : ActivityState()
-        class Authenticating: ActivityState()
+        class Processing() : ActivityState()
+        class RequestingConsent(
+            val match: RequestMatch180137,
+            val consent: MutableStateFlow<ConsentOutcome?>,
+            val origin: String
+        ) : ActivityState()
+
+        class Authenticating : ActivityState()
     }
 
     @Composable
     private fun BottomSheet(content: @Composable (ColumnScope.() -> Unit)) {
-        Column (modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
+        Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
             Card {
                 content()
             }
@@ -329,24 +339,41 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
     }
 
     companion object {
-        private fun parseOid4vpRequestJson(requestJson: String, providerIndex: Int): String? {
+        private fun parseOid4vpRequestJson(requestJson: String): List<String> {
             try {
                 val request = JSONObject(requestJson)
                 Log.d(TAG, "request: $request");
 
-                val provider = request.getJSONArray("providers")[providerIndex] as JSONObject
+                // Providers is legacy, can be removed eventually in favour of requests.
+                val providers = request.optJSONArray("providers")
 
-                val protocol = provider.getString("protocol")
-                if (protocol != "openid4vp") {
-                    throw Exception("unsupported protocol '$protocol'")
+                if (providers != null) {
+                    return List(providers.length()) { providers[it] as JSONObject }.mapNotNull {
+                            if (it.getString("protocol") == "openid4vp") {
+                                it.getString("request")
+                            } else {
+                                null
+                            }
+                        }
                 }
 
-                val openid4vpRequest = provider.getString("request")
-                Log.d(TAG, "openid4vp request: ${JSONObject(openid4vpRequest)}")
-                return openid4vpRequest
+                val requests = request.optJSONArray("requests")
+
+                if (requests != null) {
+                    return List(requests.length()) { requests[it] as JSONObject }.mapNotNull {
+                            if (it.getString("protocol") == "openid4vp") {
+                                it.getString("data")
+                            } else {
+                                null
+                            }
+                        }
+                }
+
+                Log.d(TAG, "failed to match request to an expected format")
+                return emptyList()
             } catch (e: Exception) {
                 Log.e(TAG, "an error occurred while parsing the DC-API request", e)
-                return null
+                return emptyList()
             }
         }
 

@@ -16,7 +16,7 @@ import com.spruceid.mobile.sdk.rs.RequestMatch180137
 import com.spruceid.mobilesdkexample.wallet.MdocFieldSelector
 import com.spruceid.mobile.sdk.dcapi.Activity as DcApiActivity
 
-class GetCredentialActivity(): DcApiActivity() {
+class GetCredentialActivity() : DcApiActivity() {
     @Composable
     override fun ConsentView(
         match: RequestMatch180137,
@@ -28,7 +28,7 @@ class GetCredentialActivity(): DcApiActivity() {
             match = match,
             onContinue = { onContinue(it.approvedFields) },
             onCancel = onCancel,
-            fillHeight = false,
+            innerColumnModifier = Modifier,
             origin = origin
         )
     }
@@ -36,8 +36,10 @@ class GetCredentialActivity(): DcApiActivity() {
     @OptIn(ExperimentalAssetLoader::class)
     @Composable
     override fun LoadingView() {
-        Column (
-            modifier = Modifier.fillMaxWidth().padding(60.dp),
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(60.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AndroidView(

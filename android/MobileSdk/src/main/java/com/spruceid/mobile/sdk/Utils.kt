@@ -1,10 +1,38 @@
 package com.spruceid.mobile.sdk
 
+import android.util.Log
 import com.spruceid.mobile.sdk.rs.CborValue
+import com.spruceid.mobile.sdk.rs.LogWriter
 import com.spruceid.mobile.sdk.rs.MDocItem
+import com.spruceid.mobile.sdk.rs.configureLogger
 import org.json.JSONArray
 import org.json.JSONObject
 
+class RustLogger: LogWriter {
+    var buffer: ByteArray = ByteArray(0)
+
+    override fun writeToBuffer(message: ByteArray) {
+        buffer += message
+    }
+
+    override fun flush() {
+        if (enabled) Log.d("RustLogger", String(buffer))
+        buffer = ByteArray(0)
+    }
+
+    companion object {
+        var enabled = false
+
+        fun enable() {
+            enabled = true
+            configureLogger(RustLogger())
+        }
+
+        fun disable() {
+            enabled = false
+        }
+    }
+}
 
 fun hexToByteArray(value: String): ByteArray {
     val stripped = value.substring(2)
