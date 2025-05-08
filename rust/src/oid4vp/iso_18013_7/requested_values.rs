@@ -171,7 +171,6 @@ fn find_match(input_descriptor: &InputDescriptor, credential: &Mdoc) -> Result<R
                 let field_id = FieldId180137(reference.clone());
 
                 // Find the last "name" in the JSON path expression. This is probably the best name for the requested field.
-                #[allow(clippy::double_ended_iterator_last)]
                 let found_name = node
                     .location()
                     .iter()
