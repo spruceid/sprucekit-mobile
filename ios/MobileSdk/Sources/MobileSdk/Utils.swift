@@ -4,35 +4,35 @@ import SpruceIDMobileSdkRs
 public final class RustLogger: LogWriter {
     private static var enabled: Bool = false
     private let buffer: Buffer = Buffer()
-    
+
     public func writeToBuffer(message: Data) {
         Task.init {
             await buffer.append(message)
         }
     }
-    
+
     public func flush() {
         Task.init {
             await buffer.flush()
         }
     }
-    
+
     public static func disable() {
         enabled = false
     }
-    
+
     public static func enable() {
         enabled = true
         configureLogger(writer: RustLogger())
     }
-    
+
     actor Buffer {
         var buffer: Data = Data()
-        
+
         func append(_ data: Data) {
             buffer.append(data)
         }
-        
+
         func flush() {
             print(String(bytes: buffer, encoding: String.Encoding.utf8) ?? "failed to encode message")
             buffer = Data()
