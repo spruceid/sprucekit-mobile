@@ -154,6 +154,7 @@ func genericObjectDisplayer(
                             .foregroundStyle(Color("ColorStone600"))
                             if key.lowercased().contains("image")
                                 || key.lowercased().contains("portrait")
+                                   && !key.lowercased().contains("date")
                                 || value.toString().contains("data:image")
                             {
                                 CredentialImage(image: value.toString())
