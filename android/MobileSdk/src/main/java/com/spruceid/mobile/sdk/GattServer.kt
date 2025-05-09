@@ -271,7 +271,6 @@ class GattServer(private var callback: GattServerCallback,
         val chunk: ByteArray = writingQueue.poll() ?: return
 
         callback.onLog("Sending chunk with ${chunk.size} bytes (last=${chunk[0].toInt() == 0x00})")
-
         characteristicServer2Client!!.value = chunk
 
         try {

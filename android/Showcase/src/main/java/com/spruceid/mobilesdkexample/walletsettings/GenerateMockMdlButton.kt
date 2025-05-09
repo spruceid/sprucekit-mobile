@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.walletsettings
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -55,7 +56,7 @@ fun GenerateMockMdlButton(
                                         .list()
                                         .any { credential -> credential.asMsoMdoc() != null }
                                 }
-                            } catch (error: NoSuchElementException) {
+                            } catch (_: NoSuchElementException) {
                                 CredentialPack()
                             }
                         if (mdocPack

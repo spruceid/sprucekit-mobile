@@ -120,15 +120,6 @@ impl Oid4vci {
         Ok(())
     }
 
-    fn initiate_logger(&self) {
-        #[cfg(target_os = "android")]
-        android_logger::init_once(
-            android_logger::Config::default()
-                .with_max_level(log::LevelFilter::Trace)
-                .with_tag("MOBILE_SDK_RS"),
-        );
-    }
-
     pub fn get_metadata(&self) -> Result<Oid4vciMetadata, Oid4vciError> {
         oid4vci_get_metadata(self.session()?)
     }

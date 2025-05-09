@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, fmt::Debug, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use ciborium::Value as Cbor;
@@ -17,7 +17,7 @@ use openid4vp::core::{
     authorization_request::AuthorizationRequestObject,
     object::{ParsingErrorContext, TypedParameter},
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value as Json;
 use sha2::{Digest, Sha256};
 use ssi::claims::cose::coset::{self, CoseSign1Builder};
@@ -30,20 +30,18 @@ use super::{
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct Handover(ByteStr, ByteStr, String);
+pub struct Handover(ByteStr, ByteStr, String);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct SessionTranscript(Cbor, Cbor, Handover);
+struct SessionTranscript<H>(Cbor, Cbor, H);
 
-impl SessionTranscriptTrait for SessionTranscript {}
+impl<H: Serialize + DeserializeOwned> SessionTranscriptTrait for SessionTranscript<H> {}
 
 impl Handover {
-    fn new(
-        client_id: String,
-        response_uri: String,
-        nonce: String,
-        mdoc_generated_nonce: String,
-    ) -> Result<Self> {
+    pub fn new(request: &AuthorizationRequestObject, mdoc_generated_nonce: String) -> Result<Self> {
+        let client_id = request.client_id().context("missing client_id")?.0.clone();
+        let response_uri = request.get::<RawResponseUri>().parsing_error()?.0;
+        let nonce = request.nonce().to_string();
         let client_id_to_hash = Cbor::Array(vec![
             Cbor::Text(client_id),
             Cbor::Text(mdoc_generated_nonce.clone()),
@@ -80,8 +78,8 @@ impl Handover {
     }
 }
 
-impl SessionTranscript {
-    fn new(handover: Handover) -> Self {
+impl<H> SessionTranscript<H> {
+    fn new(handover: H) -> Self {
         Self(Cbor::Null, Cbor::Null, handover)
     }
 }
@@ -89,7 +87,7 @@ impl SessionTranscript {
 /// Unprocessed response_uri for use in the Handover. We don't use the default response uri type to
 /// avoid signature errors that could be caused by URL normalisation through the Url type.
 #[derive(Debug, Clone)]
-struct RawResponseUri(String);
+pub struct RawResponseUri(pub String);
 
 impl TypedParameter for RawResponseUri {
     const KEY: &'static str = "response_uri";
@@ -113,14 +111,13 @@ impl From<RawResponseUri> for Json {
     }
 }
 
-pub fn prepare_response(
+pub fn prepare_response<H: Serialize + DeserializeOwned + Debug>(
     key_store: Arc<dyn KeyStore>,
-    request: &AuthorizationRequestObject,
     credential: &Mdoc,
     approved_fields: Vec<FieldId180137>,
     missing_fields: &BTreeMap<String, String>,
     mut field_map: FieldMap,
-    mdoc_generated_nonce: String,
+    handover: H,
 ) -> Result<DeviceResponse> {
     let mdoc = credential.document();
 
@@ -150,14 +147,6 @@ pub fn prepare_response(
 
     let device_namespaces = Tag24::new(DeviceNamespaces::new())
         .context("failed to encode device namespaces as CBOR")?;
-
-    let client_id = &request.client_id().0;
-    let response_uri = request.get::<RawResponseUri>().parsing_error()?.0;
-
-    let nonce = request.nonce().to_string();
-
-    let handover = Handover::new(client_id.clone(), response_uri, nonce, mdoc_generated_nonce)
-        .context("failed to generate handover")?;
 
     let session_transcript = SessionTranscript::new(handover);
 

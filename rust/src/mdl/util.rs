@@ -1,4 +1,3 @@
-use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -21,6 +20,7 @@ use p256::{
     pkcs8::{DecodePrivateKey, EncodePublicKey, ObjectIdentifier},
     PublicKey,
 };
+use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use signature::{Keypair, KeypairRef, Signer};
 use ssi::crypto::rand;
@@ -44,23 +44,15 @@ use x509_cert::{
 
 use crate::crypto::{KeyAlias, KeyStore};
 
-#[derive(Debug, uniffi::Error)]
+#[derive(Debug, uniffi::Error, thiserror::Error)]
 pub enum MdlUtilError {
+    #[error("{0}")]
     General(String),
 }
 
 impl From<anyhow::Error> for MdlUtilError {
     fn from(value: anyhow::Error) -> Self {
-        Self::General(format!("{value:#}"))
-    }
-}
-
-impl std::error::Error for MdlUtilError {}
-
-impl fmt::Display for MdlUtilError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let Self::General(cause) = self;
-        write!(f, "{}", cause)
+        Self::General(format!("{value:#?}"))
     }
 }
 
@@ -73,17 +65,40 @@ pub fn generate_test_mdl(
     Ok(generate_test_mdl_inner(key_manager, key_alias)?)
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+struct MinimalEcJwk {
+    kty: String,
+    crv: String,
+    x: String,
+    y: String,
+}
+
 fn generate_test_mdl_inner(
     key_manager: Arc<dyn KeyStore>,
     key_alias: KeyAlias,
 ) -> Result<crate::credential::mdoc::Mdoc> {
-    let (certificate, signer) = setup_certificate_chain()?;
-    let key = key_manager.get_signing_key(key_alias.clone())?;
-    let pk = p256::PublicKey::from_jwk_str(&key.jwk()?)?;
+    tracing::info!("Generating test mDL");
+    let (certificate, signer) =
+        setup_certificate_chain().context("failed to setup certificate chain")?;
+    let key = key_manager
+        .get_signing_key(key_alias.clone())
+        .context("failed to get signing key")?;
+    // RustCrypto does not accept JWKs with additional fields, including the `alg` field, so we
+    // need to manually extract the minimal JWK.
+    let jwk: MinimalEcJwk = serde_json::from_str(&key.jwk().context("failed to get jwk")?)
+        .context("failed to parse minimal jwk")?;
+    let pk = p256::PublicKey::from_jwk_str(
+        &serde_json::to_string(&jwk).context("failed to serialize minimal jwk")?,
+    )
+    .context("failed to parse public key")?;
 
-    let mdoc_builder = prepare_mdoc(pk)?;
+    let mdoc_builder = prepare_mdoc(pk).context("failed to prepare mdoc")?;
 
-    let x5chain = X5Chain::builder().with_certificate(certificate)?.build()?;
+    let x5chain = X5Chain::builder()
+        .with_certificate(certificate)
+        .context("failed to add certificate to x5chain")?
+        .build()
+        .context("failed to build x5chain")?;
 
     let mdoc = mdoc_builder
         .issue::<p256::ecdsa::SigningKey, p256::ecdsa::Signature>(x5chain, signer)

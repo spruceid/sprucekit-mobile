@@ -1,8 +1,8 @@
 //! CLI test wallet for the 18013-7 Annex B OpenID4VP profile.
 
-mod build_response;
-mod prepare_response;
-mod requested_values;
+pub mod build_response;
+pub mod prepare_response;
+pub mod requested_values;
 
 use core::fmt;
 use std::sync::Arc;
@@ -24,7 +24,7 @@ use openid4vp::{
     },
     wallet::Wallet as OpenID4VPWallet,
 };
-use prepare_response::prepare_response;
+use prepare_response::{prepare_response, Handover};
 use requested_values::{parse_request, FieldId180137, RequestMatch180137};
 use serde_json::json;
 use ssi::crypto::rand::{thread_rng, Rng};
@@ -134,6 +134,7 @@ impl OID4VP180137 {
             .resolve_presentation_definition(self.http_client())
             .await
             .context("failed to resolve the presentation definition")?
+            .context("request object does not contain a presentation definition")?
             .into_parsed();
 
         let request_matches = parse_request(
@@ -193,14 +194,15 @@ impl InProgressRequest180137 {
         let field_map = request_match.field_map.clone();
         let mdoc_generated_nonce = generate_nonce();
 
+        let handover = Handover::new(&self.request, mdoc_generated_nonce.clone())
+            .context("failed to generate handover")?;
         let device_response = prepare_response(
             self.handler.keystore.clone(),
-            &self.request,
             credential,
             approved_fields,
             &request_match.missing_fields,
             field_map,
-            mdoc_generated_nonce.clone(),
+            handover,
         )?;
 
         let response = build_response(
@@ -233,8 +235,10 @@ impl RequestVerifier for OID4VP180137 {
     async fn x509_san_dns(
         &self,
         decoded_request: &AuthorizationRequestObject,
-        request_jwt: String,
+        request_jwt: Option<String>,
     ) -> Result<()> {
+        let request_jwt =
+            request_jwt.context("request JWT is required for x509_san_dns verification")?;
         openid4vp::core::authorization_request::verification::x509_san::validate::<P256Verifier>(
             openid4vp::verifier::client::X509SanVariant::Dns,
             &self.metadata,
@@ -245,7 +249,7 @@ impl RequestVerifier for OID4VP180137 {
     }
 }
 
-fn generate_nonce() -> String {
+pub fn generate_nonce() -> String {
     let nonce_bytes = thread_rng().gen::<[u8; 16]>();
     BASE64_URL_SAFE_NO_PAD.encode(nonce_bytes)
 }

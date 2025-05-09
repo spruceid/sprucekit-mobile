@@ -7,6 +7,7 @@ use crate::vdc_collection::VdcCollection;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use anyhow::Context;
 use futures::StreamExt;
 use openid4vp::core::authorization_request::parameters::ClientIdScheme;
 use openid4vp::core::credential_format::{ClaimFormatDesignation, ClaimFormatPayload};
@@ -164,9 +165,7 @@ impl Holder {
             ResponseMode::DirectPost | ResponseMode::DirectPostJwt => {
                 self.permission_request(request).await
             }
-            ResponseMode::Unsupported(mode) => {
-                Err(OID4VPError::UnsupportedResponseMode(mode.to_owned()))
-            }
+            mode => Err(OID4VPError::UnsupportedResponseMode(mode.to_string())),
         }
     }
 
@@ -210,7 +209,10 @@ impl Holder {
 
         metadata
             // Insert support for the DID client ID scheme.
-            .add_client_id_schemes_supported(&[ClientIdScheme::Did, ClientIdScheme::RedirectUri])
+            .add_client_id_schemes_supported(&[
+                ClientIdScheme(ClientIdScheme::DID.to_string()),
+                ClientIdScheme(ClientIdScheme::REDIRECT_URI.to_string()),
+            ])
             .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
 
         metadata
@@ -267,6 +269,8 @@ impl Holder {
         let mut presentation_definition = request
             .resolve_presentation_definition(self.http_client())
             .await
+            .map_err(|e| OID4VPError::PresentationDefinitionResolution(format!("{e:?}")))?
+            .context("request object does not contain a presentation definition")
             .map_err(|e| OID4VPError::PresentationDefinitionResolution(format!("{e:?}")))?
             .into_parsed();
 
@@ -333,9 +337,11 @@ impl RequestVerifier for Holder {
     async fn did(
         &self,
         decoded_request: &AuthorizationRequestObject,
-        request_jwt: String,
+        request_jwt: Option<String>,
     ) -> anyhow::Result<()> {
         log::debug!("Verifying DID request.");
+
+        let request_jwt = request_jwt.context("request JWT is required for did verification")?;
 
         let resolver: VerificationMethodDIDResolver<DIDWeb, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDWeb);
@@ -361,9 +367,11 @@ impl RequestVerifier for Holder {
     async fn redirect_uri(
         &self,
         decoded_request: &AuthorizationRequestObject,
-        request_jwt: String,
+        request_jwt: Option<String>,
     ) -> anyhow::Result<()> {
         log::debug!("Verifying redirect_uri request.");
+
+        let request_jwt = request_jwt.context("request JWT is required for did verification")?;
 
         let resolver: VerificationMethodDIDResolver<DIDKey, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDKey);

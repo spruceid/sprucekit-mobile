@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.ConnectionLiveData
+import com.spruceid.mobile.sdk.dcapi.Registry
 import com.spruceid.mobilesdkexample.db.AppDatabase
 import com.spruceid.mobilesdkexample.db.HacApplicationsRepository
 import com.spruceid.mobilesdkexample.db.TrustedCertificatesRepository
@@ -182,4 +183,7 @@ class MainApplication : Application() {
     val walletActivityLogsRepository by lazy { WalletActivityLogsRepository(db.walletActivityLogsDao()) }
     val trustedCertificatesRepository by lazy { TrustedCertificatesRepository(db.trustedCertificatesDao()) }
     val hacApplicationsRepository by lazy { HacApplicationsRepository(db.hacApplicationsDao()) }
+
+    // DC-API integration
+    val dcApiRegistry by lazy { Registry(this, "pinecone.ico") }
 }

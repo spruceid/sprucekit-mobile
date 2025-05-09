@@ -213,7 +213,9 @@ fun HandleMdocOID4VPView(
 fun MdocFieldSelector(
     match: RequestMatch180137,
     onContinue: (ApprovedResponse180137) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    innerColumnModifier: Modifier = Modifier.fillMaxSize(),
+    origin: String = "Verifier"
 ) {
     var selectedFields by remember {
         mutableStateOf<Set<FieldId180137>>(match.requestedFields()
@@ -230,7 +232,7 @@ fun MdocFieldSelector(
     ) {
         Text(
             buildAnnotatedString {
-                withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
+                withStyle(style = SpanStyle(color = Color.Blue)) { append(origin) }
                 append(" is requesting access to the following information")
             },
             fontFamily = Inter,
@@ -244,8 +246,7 @@ fun MdocFieldSelector(
         )
 
         Column(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = innerColumnModifier
                 .verticalScroll(rememberScrollState())
                 .weight(weight = 1f, fill = false)
         ) {

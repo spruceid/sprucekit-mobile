@@ -171,7 +171,6 @@ fn find_match(input_descriptor: &InputDescriptor, credential: &Mdoc) -> Result<R
                 let field_id = FieldId180137(reference.clone());
 
                 // Find the last "name" in the JSON path expression. This is probably the best name for the requested field.
-                #[allow(clippy::double_ended_iterator_last)]
                 let found_name = node
                     .location()
                     .iter()
@@ -252,7 +251,7 @@ fn split_json_path(json_path: &str) -> Option<(String, String)> {
     Some((namespace.to_string(), element_id.to_string()))
 }
 
-fn cbor_to_string(cbor: &Cbor) -> Option<String> {
+pub fn cbor_to_string(cbor: &Cbor) -> Option<String> {
     cbor_to_string_inner(cbor, 3)
 }
 
@@ -292,7 +291,7 @@ fn age_from_str(s: &str) -> Option<u8> {
     }
 }
 
-fn calculate_age_over_mapping(
+pub fn calculate_age_over_mapping(
     namespaces: &NonEmptyMap<String, NonEmptyMap<String, IssuerSignedItemBytes>>,
 ) -> BTreeMap<String, Vec<String>> {
     let mut age_over_x_elements: Vec<(u8, bool)> = namespaces

@@ -2791,6 +2791,166 @@ public func FfiConverterTypeInProgressRequest180137_lower(_ value: InProgressReq
 
 
 
+public protocol InProgressRequestDcApiProtocol: AnyObject, Sendable {
+    
+    func getMatch()  -> RequestMatch180137
+    
+    func getOrigin()  -> String
+    
+    /**
+     * Generate a response for the request.
+     *
+     * The response is either a JWE or a serialized JSON Object.
+     */
+    func respond(keystore: KeyStore, approvedFields: [FieldId180137]) async throws  -> String
+    
+}
+open class InProgressRequestDcApi: InProgressRequestDcApiProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_inprogressrequestdcapi(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_inprogressrequestdcapi(pointer, $0) }
+    }
+
+    
+
+    
+open func getMatch() -> RequestMatch180137  {
+    return try!  FfiConverterTypeRequestMatch180137_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_inprogressrequestdcapi_get_match(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getOrigin() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_inprogressrequestdcapi_get_origin(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Generate a response for the request.
+     *
+     * The response is either a JWE or a serialized JSON Object.
+     */
+open func respond(keystore: KeyStore, approvedFields: [FieldId180137])async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_inprogressrequestdcapi_respond(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeKeyStore_lower(keystore),FfiConverterSequenceTypeFieldId180137.lower(approvedFields)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeDcApiError_lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInProgressRequestDcApi: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = InProgressRequestDcApi
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> InProgressRequestDcApi {
+        return InProgressRequestDcApi(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: InProgressRequestDcApi) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InProgressRequestDcApi {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: InProgressRequestDcApi, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInProgressRequestDcApi_lift(_ pointer: UnsafeMutableRawPointer) throws -> InProgressRequestDcApi {
+    return try FfiConverterTypeInProgressRequestDcApi.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInProgressRequestDcApi_lower(_ value: InProgressRequestDcApi) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeInProgressRequestDcApi.lower(value)
+}
+
+
+
+
+
+
 public protocol IssuanceServiceClientProtocol: AnyObject, Sendable {
     
     /**
@@ -3862,6 +4022,209 @@ public func FfiConverterTypeKeyStore_lower(_ value: KeyStore) -> UnsafeMutableRa
 
 
 
+public protocol LogWriter: AnyObject, Sendable {
+    
+    func writeToBuffer(message: Data) 
+    
+    func flush() 
+    
+}
+open class LogWriterImpl: LogWriter, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_logwriter(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_logwriter(pointer, $0) }
+    }
+
+    
+
+    
+open func writeToBuffer(message: Data)  {try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_logwriter_write_to_buffer(self.uniffiClonePointer(),
+        FfiConverterData.lower(message),$0
+    )
+}
+}
+    
+open func flush()  {try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_logwriter_flush(self.uniffiClonePointer(),$0
+    )
+}
+}
+    
+
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceLogWriter {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceLogWriter] = [UniffiVTableCallbackInterfaceLogWriter(
+        writeToBuffer: { (
+            uniffiHandle: UInt64,
+            message: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeLogWriter.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.writeToBuffer(
+                     message: try FfiConverterData.lift(message)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        flush: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeLogWriter.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.flush(
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterTypeLogWriter.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface LogWriter: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitLogWriter() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_logwriter(UniffiCallbackInterfaceLogWriter.vtable)
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLogWriter: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<LogWriter>()
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = LogWriter
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> LogWriter {
+        return LogWriterImpl(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: LogWriter) -> UnsafeMutableRawPointer {
+        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
+            fatalError("Cast to UnsafeMutableRawPointer failed")
+        }
+        return ptr
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LogWriter {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: LogWriter, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLogWriter_lift(_ pointer: UnsafeMutableRawPointer) throws -> LogWriter {
+    return try FfiConverterTypeLogWriter.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLogWriter_lower(_ value: LogWriter) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeLogWriter.lower(value)
+}
+
+
+
+
+
+
 public protocol MdlSessionManagerProtocol: AnyObject, Sendable {
     
 }
@@ -4567,8 +4930,6 @@ public protocol Oid4vciProtocol: AnyObject, Sendable {
     
     func initiate(baseUrl: String, clientId: String, redirectUrl: String) async throws 
     
-    func initiateLogger() 
-    
     func initiateWithOffer(credentialOffer: String, clientId: String, redirectUrl: String) async throws 
     
     func setContextMap(values: [String: String]) throws 
@@ -4725,12 +5086,6 @@ open func initiate(baseUrl: String, clientId: String, redirectUrl: String)async 
             liftFunc: { $0 },
             errorHandler: FfiConverterTypeOid4vciError_lift
         )
-}
-    
-open func initiateLogger()  {try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_oid4vci_initiate_logger(self.uniffiClonePointer(),$0
-    )
-}
 }
     
 open func initiateWithOffer(credentialOffer: String, clientId: String, redirectUrl: String)async throws   {
@@ -5479,7 +5834,7 @@ public protocol PermissionRequestProtocol: AnyObject, Sendable {
      * This can be used by the user interface to show who
      * is requesting the presentation from the wallet holder.
      */
-    func clientId()  -> String
+    func clientId()  -> String?
     
     /**
      * Construct a new permission response for the given credential.
@@ -5576,8 +5931,8 @@ open class PermissionRequest: PermissionRequestProtocol, @unchecked Sendable {
      * This can be used by the user interface to show who
      * is requesting the presentation from the wallet holder.
      */
-open func clientId() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
+open func clientId() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_permissionrequest_client_id(self.uniffiClonePointer(),$0
     )
 })
@@ -11302,6 +11657,89 @@ extension CwtError: Equatable, Hashable {}
 
 
 extension CwtError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum DcApiError: Swift.Error {
+
+    
+    
+    case InvalidRequest(String
+    )
+    case InternalError(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDcApiError: FfiConverterRustBuffer {
+    typealias SwiftType = DcApiError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DcApiError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidRequest(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .InternalError(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DcApiError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InvalidRequest(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InternalError(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDcApiError_lift(_ buf: RustBuffer) throws -> DcApiError {
+    return try FfiConverterTypeDcApiError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDcApiError_lower(_ value: DcApiError) -> RustBuffer {
+    return FfiConverterTypeDcApiError.lower(value)
+}
+
+
+extension DcApiError: Equatable, Hashable {}
+
+
+
+extension DcApiError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -17770,6 +18208,17 @@ public func cborLdEncodeToBytes(credentialStr: String, loader: [String: String]?
             errorHandler: FfiConverterTypeCborLdEncodingError_lift
         )
 }
+/**
+ * Configure the global logger for the mobile SDK.
+ *
+ * This method should be called once per application lifecycle. Subsequent calls will be ignored.
+ */
+public func configureLogger(writer: LogWriter)  {try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_configure_logger(
+        FfiConverterTypeLogWriter_lower(writer),$0
+    )
+}
+}
 public func decodeRevealSdJwt(input: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeSdJwtError_lift) {
     uniffi_mobile_sdk_rs_fn_func_decode_reveal_sd_jwt(
@@ -17830,6 +18279,25 @@ public func generateTestMdl(keyManager: KeyStore, keyAlias: KeyAlias)throws  -> 
     )
 })
 }
+/**
+ * Handle a DC API request.
+ *
+ * Supports OpenID4VP Draft 24 using DCQL for mDL only.
+ */
+public func handleDcApiRequest(dcqlCredentialId: String, mdoc: Mdoc, origin: String, requestJson: String)async throws  -> InProgressRequestDcApi  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_handle_dc_api_request(FfiConverterString.lower(dcqlCredentialId),FfiConverterTypeMdoc_lower(mdoc),FfiConverterString.lower(origin),FfiConverterString.lower(requestJson)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeInProgressRequestDcApi_lift,
+            errorHandler: FfiConverterTypeDcApiError_lift
+        )
+}
 public func handleResponse(state: MdlSessionManager, response: Data)throws  -> MdlReaderResponseData  {
     return try  FfiConverterTypeMDLReaderResponseData_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
     uniffi_mobile_sdk_rs_fn_func_handle_response(
@@ -17837,16 +18305,6 @@ public func handleResponse(state: MdlSessionManager, response: Data)throws  -> M
         FfiConverterData.lower(response),$0
     )
 })
-}
-/**
- * Initiate the global logger for the mobile SDK.
- *
- * This method should be called once per application lifecycle.
- */
-public func initGlobalLogger()  {try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_func_init_global_logger($0
-    )
-}
 }
 /**
  * Begin the mDL presentation process for the holder when the desired
@@ -18071,6 +18529,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_cbor_ld_encode_to_bytes() != 12635) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_configure_logger() != 58645) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 34951) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18089,10 +18550,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 22635) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
+    if (uniffi_mobile_sdk_rs_checksum_func_handle_dc_api_request() != 11589) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_init_global_logger() != 47162) {
+    if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 29387) {
@@ -18200,6 +18661,15 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequest180137_respond() != 45984) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_get_match() != 64333) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_get_origin() != 46706) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_respond() != 18977) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_check_status() != 43341) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18257,6 +18727,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_keystore_get_signing_key() != 18910) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_logwriter_write_to_buffer() != 179) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_logwriter_flush() != 63605) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_generate_response() != 37013) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18303,9 +18779,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vci_initiate() != 12704) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vci_initiate_logger() != 11448) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vci_initiate_with_offer() != 23294) {
@@ -18365,7 +18838,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_type() != 60750) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_client_id() != 12377) {
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_client_id() != 37346) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 13542) {
@@ -18659,6 +19132,7 @@ private let initializationResult: InitializationResult = {
 
     uniffiCallbackInitAsyncHttpClient()
     uniffiCallbackInitKeyStore()
+    uniffiCallbackInitLogWriter()
     uniffiCallbackInitSigningKey()
     uniffiCallbackInitStorageManagerInterface()
     uniffiCallbackInitSyncHttpClient()

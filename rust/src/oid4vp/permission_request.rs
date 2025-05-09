@@ -209,8 +209,8 @@ impl PermissionRequest {
     ///
     /// This can be used by the user interface to show who
     /// is requesting the presentation from the wallet holder.
-    pub fn client_id(&self) -> String {
-        self.request.client_id().0.clone()
+    pub fn client_id(&self) -> Option<String> {
+        self.request.client_id().map(|id| id.0.clone())
     }
 
     /// Return the domain name of the redirect URI.
