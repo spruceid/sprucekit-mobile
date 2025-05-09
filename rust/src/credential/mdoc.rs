@@ -100,11 +100,17 @@ impl Mdoc {
                         .into_values()
                         .map(|tagged| {
                             let element = tagged.into_inner();
-                            Element {
-                                identifier: element.element_identifier,
-                                value: to_json_for_display(&element.element_value)
-                                    .and_then(|v| serde_json::to_string_pretty(&v).ok()),
+                            let identifier = element.element_identifier;
+                            let mut value = to_json_for_display(&element.element_value)
+                                .and_then(|v| serde_json::to_string_pretty(&v).ok());
+                            tracing::debug!("{identifier}: {value:?}");
+                            if identifier == "portrait" {
+                                if let Some(s) = value {
+                                    value =
+                                        Some(s.replace("application/octet-stream", "image/jpeg"));
+                                }
                             }
+                            Element { identifier, value }
                         })
                         .collect(),
                 )
@@ -258,7 +264,13 @@ fn to_json_for_display(value: &ciborium::Value) -> Option<serde_json::Value> {
                 })
                 .collect(),
         )),
-        ciborium::Value::Bytes(items) => Some(format!("0x{}", hex::encode(items)).into()),
+        ciborium::Value::Bytes(items) => Some(
+            format!(
+                "data:application/octet-stream;base64,{}",
+                BASE64_STANDARD.encode(items)
+            )
+            .into(),
+        ),
         ciborium::Value::Float(f) => {
             let Some(num) = serde_json::Number::from_f64(*f) else {
                 tracing::warn!("failed to convert float to number: {}", f);
