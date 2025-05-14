@@ -215,6 +215,7 @@ fun WalletSettingsHomeBody(
                             )
                         }
                     })
+                    hacApplicationsViewModel.deleteAllApplications()
                 }
             },
             shape = RoundedCornerShape(5.dp),

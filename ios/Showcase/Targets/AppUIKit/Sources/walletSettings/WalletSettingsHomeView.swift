@@ -102,6 +102,7 @@ struct WalletSettingsHomeBody: View {
                             )
                         }
                     }
+                    let _ = HacApplicationDataStore.shared.deleteAll()
                 } catch {
                     // TODO: display error message
                     print(error)
