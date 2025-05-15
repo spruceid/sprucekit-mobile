@@ -58,29 +58,29 @@ fun HandleOID4VCIView(
         val oid4vciSession =
             Oid4vci.newWithAsyncClient(
                 client =
-                object : AsyncHttpClient {
-                    override suspend fun httpClient(
-                        request: HttpRequest
-                    ): HttpResponse {
-                        val res =
-                            client.request(request.url) {
-                                method = HttpMethod(request.method)
-                                for ((k, v) in request.headers) {
-                                    headers[k] = v
+                    object : AsyncHttpClient {
+                        override suspend fun httpClient(
+                            request: HttpRequest
+                        ): HttpResponse {
+                            val res =
+                                client.request(request.url) {
+                                    method = HttpMethod(request.method)
+                                    for ((k, v) in request.headers) {
+                                        headers[k] = v
+                                    }
+                                    setBody(request.body)
                                 }
-                                setBody(request.body)
-                            }
 
-                        return HttpResponse(
-                            statusCode = res.status.value.toUShort(),
-                            headers =
-                            res.headers.toMap().mapValues {
-                                it.value.joinToString()
-                            },
-                            body = res.readBytes()
-                        )
+                            return HttpResponse(
+                                statusCode = res.status.value.toUShort(),
+                                headers =
+                                    res.headers.toMap().mapValues {
+                                        it.value.joinToString()
+                                    },
+                                body = res.readBytes()
+                            )
+                        }
                     }
-                }
             )
 
         val fullUrl = "openid-credential-offer://$url"
@@ -96,8 +96,13 @@ fun HandleOID4VCIView(
             val metadata = oid4vciSession.getMetadata()
 
             val keyManager = KeyManager()
-            keyManager.generateSigningKey(id = "reference-app/default-signing")
-            val jwk = keyManager.getJwk(id = "reference-app/default-signing")
+            val signingKeyId = "reference-app/default-signing"
+
+            if (!keyManager.keyExists(signingKeyId)) {
+                keyManager.generateSigningKey(signingKeyId)
+            }
+            
+            val jwk = keyManager.getJwk(id = signingKeyId)
 
             val signingInput =
                 jwk?.let {
@@ -113,7 +118,7 @@ fun HandleOID4VCIView(
             val signature =
                 signingInput?.let {
                     keyManager.signPayload(
-                        id = "reference-app/default-signing",
+                        id = signingKeyId,
                         payload = signingInput
                     )
                 }

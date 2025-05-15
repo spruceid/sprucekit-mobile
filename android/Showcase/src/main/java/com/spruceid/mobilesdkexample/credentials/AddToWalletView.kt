@@ -68,7 +68,10 @@ fun AddToWalletView(
             this.async(Dispatchers.Default) {
                 try {
                     val credentialPack = CredentialPack()
-                    credentialPack.tryAddRawCredential(rawCredential)
+                    
+                    // Try add credential in any supported format
+                    credentialPack.tryAddAnyFormat(rawCredential, "mdl")
+
                     credentialPacksViewModel.saveCredentialPack(credentialPack)
                     val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
                     walletActivityLogsViewModel.saveWalletActivityLog(

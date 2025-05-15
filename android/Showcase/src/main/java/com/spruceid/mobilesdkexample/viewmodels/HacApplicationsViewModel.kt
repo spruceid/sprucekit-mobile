@@ -44,7 +44,9 @@ class HacApplicationsViewModel(
 
     fun getSigningJwk(): String? {
         val keyId = signingKeyAlias
-        keyManager.generateSigningKey(keyId)
+        if (!keyManager.keyExists(keyId)) {
+            keyManager.generateSigningKey(keyId)
+        }
         return keyManager.getJwk(keyId)
     }
 
