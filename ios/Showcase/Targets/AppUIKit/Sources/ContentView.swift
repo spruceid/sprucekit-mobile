@@ -1,5 +1,7 @@
 import SwiftUI
 
+let DEFAULT_SIGNING_KEY_ID = "reference-app/default-signing"
+
 public struct ContentView: View {
     @State var path: NavigationPath = .init()
     @State var sheetOpen: Bool = false

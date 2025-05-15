@@ -48,7 +48,7 @@ struct AddToWalletView: View {
             let credentialPack = CredentialPack()
             _ = try credentialPack.tryAddAnyFormat(
                 rawCredential: rawCredential,
-                mdocKeyAlias: "mdl"
+                mdocKeyAlias: DEFAULT_SIGNING_KEY_ID
             )
             try await credentialPackObservable.add(
                 credentialPack: credentialPack

@@ -54,6 +54,7 @@ import com.spruceid.mobile.sdk.rs.PresentableCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.RequestedField
 import com.spruceid.mobile.sdk.rs.ResponseOptions
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -79,7 +80,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class Signer(keyId: String?) : PresentationSigner {
-    private val keyId = keyId ?: "reference-app/default-signing"
+    private val keyId = keyId ?: DEFAULT_SIGNING_KEY_ID
     private val keyManager = KeyManager()
     private var jwk: String
     private val didJwk = DidMethodUtils(DidMethod.JWK)
@@ -179,7 +180,7 @@ fun HandleOID4VPView(
                 }
 
                 withContext(Dispatchers.IO) {
-                    val signer = Signer("reference-app/default-signing")
+                    val signer = Signer(DEFAULT_SIGNING_KEY_ID)
                     holder =
                         Holder.newWithCredentials(
                             credentials,

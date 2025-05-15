@@ -40,14 +40,13 @@ struct HandleOID4VCIView: View {
 
                 let metadata = try oid4vciSession.getMetadata()
 
-                let keyId = "reference-app/default-signing"
-                if !KeyManager.keyExists(id: keyId) {
+                if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
                     _ = KeyManager.generateSigningKey(
-                        id: keyId
+                        id: DEFAULT_SIGNING_KEY_ID
                     )
                 }
 
-                let jwk = KeyManager.getJwk(id: keyId)
+                let jwk = KeyManager.getJwk(id: DEFAULT_SIGNING_KEY_ID)
 
                 let signingInput =
                     try await SpruceIDMobileSdkRs.generatePopPrepare(
@@ -59,7 +58,7 @@ struct HandleOID4VCIView: View {
                     )
 
                 let signature = KeyManager.signPayload(
-                    id: keyId,
+                    id: DEFAULT_SIGNING_KEY_ID,
                     payload: [UInt8](signingInput)
                 )
 

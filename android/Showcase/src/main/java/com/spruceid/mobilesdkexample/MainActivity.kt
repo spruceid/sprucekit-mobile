@@ -44,6 +44,8 @@ import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModelFactory
 import com.spruceid.mobilesdkexample.wallet.ApplySpruceMdlConfirmation
 
+const val DEFAULT_SIGNING_KEY_ID = "reference-app/default-signing"
+
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
     private lateinit var connectionLiveData: ConnectionLiveData

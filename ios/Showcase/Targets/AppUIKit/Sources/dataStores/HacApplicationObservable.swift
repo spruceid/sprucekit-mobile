@@ -27,11 +27,10 @@ class HacApplicationObservable: ObservableObject {
     }
 
     func getSigningJwk() -> String? {
-        let keyId = "reference-app/default-signing"
-        if !KeyManager.keyExists(id: keyId) {
-            _ = KeyManager.generateSigningKey(id: keyId)
+        if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
+            _ = KeyManager.generateSigningKey(id: DEFAULT_SIGNING_KEY_ID)
         }
-        return KeyManager.getJwk(id: keyId)
+        return KeyManager.getJwk(id: DEFAULT_SIGNING_KEY_ID)
     }
 
     @MainActor func getNonce() async -> String? {

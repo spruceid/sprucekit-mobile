@@ -13,8 +13,8 @@ android {
         applicationId = "com.spruceid.mobilesdkexample"
         minSdk = 26
         targetSdk = 34
-        versionCode = 41
-        versionName = "1.10.4"
+        versionCode = 47
+        versionName = "1.11.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

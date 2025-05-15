@@ -19,6 +19,7 @@ import com.spruceid.mobile.sdk.rs.Oid4vci
 import com.spruceid.mobile.sdk.rs.Oid4vciExchangeOptions
 import com.spruceid.mobile.sdk.rs.generatePopComplete
 import com.spruceid.mobile.sdk.rs.generatePopPrepare
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -96,13 +97,12 @@ fun HandleOID4VCIView(
             val metadata = oid4vciSession.getMetadata()
 
             val keyManager = KeyManager()
-            val signingKeyId = "reference-app/default-signing"
 
-            if (!keyManager.keyExists(signingKeyId)) {
-                keyManager.generateSigningKey(signingKeyId)
+            if (!keyManager.keyExists(DEFAULT_SIGNING_KEY_ID)) {
+                keyManager.generateSigningKey(DEFAULT_SIGNING_KEY_ID)
             }
-            
-            val jwk = keyManager.getJwk(id = signingKeyId)
+
+            val jwk = keyManager.getJwk(id = DEFAULT_SIGNING_KEY_ID)
 
             val signingInput =
                 jwk?.let {
@@ -118,7 +118,7 @@ fun HandleOID4VCIView(
             val signature =
                 signingInput?.let {
                     keyManager.signPayload(
-                        id = signingKeyId,
+                        id = DEFAULT_SIGNING_KEY_ID,
                         payload = signingInput
                     )
                 }

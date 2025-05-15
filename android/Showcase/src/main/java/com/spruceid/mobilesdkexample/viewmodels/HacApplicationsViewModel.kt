@@ -9,6 +9,7 @@ import com.spruceid.mobile.sdk.AppAttestation
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.IssuanceServiceClient
 import com.spruceid.mobile.sdk.rs.WalletServiceClient
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.db.HacApplicationsRepository
 import com.spruceid.mobilesdkexample.utils.Toast
@@ -34,7 +35,6 @@ class HacApplicationsViewModel(
     val issuanceClient = IssuanceServiceClient(SPRUCEID_HAC_ISSUANCE_SERVICE)
     private val keyManager = KeyManager()
     private val context = application as Context
-    private val signingKeyAlias = "reference-app/default-signing"
 
     init {
         viewModelScope.launch {
@@ -43,7 +43,7 @@ class HacApplicationsViewModel(
     }
 
     fun getSigningJwk(): String? {
-        val keyId = signingKeyAlias
+        val keyId = DEFAULT_SIGNING_KEY_ID
         if (!keyManager.keyExists(keyId)) {
             keyManager.generateSigningKey(keyId)
         }
@@ -70,7 +70,7 @@ class HacApplicationsViewModel(
                 getSigningJwk()
 
                 suspendCancellableCoroutine { continuation ->
-                    attestation.appAttest(nonce, signingKeyAlias) { result ->
+                    attestation.appAttest(nonce, DEFAULT_SIGNING_KEY_ID) { result ->
                         result.fold(
                             onSuccess = { payload ->
                                 viewModelScope.launch {

@@ -35,8 +35,7 @@ public class CredentialPack {
      * Try to add a credential and throws a ParsingException if not possible
      */
     public func tryAddRawCredential(rawCredential: String) throws
-        -> [ParsedCredential]
-    {
+        -> [ParsedCredential] {
         if let credentials = try? addJwtVc(
             jwtVc: JwtVc.newFromCompactJws(jws: rawCredential)
         ) {
@@ -64,8 +63,7 @@ public class CredentialPack {
      * Try to add a raw mDoc with specified keyAlias
      */
     public func tryAddRawMdoc(rawCredential: String, keyAlias: String) throws
-        -> [ParsedCredential]
-    {
+        -> [ParsedCredential] {
         if let credentials = try? addMDoc(
             mdoc: Mdoc.fromStringifiedDocument(
                 stringifiedDocument: rawCredential,
@@ -98,8 +96,7 @@ public class CredentialPack {
      * @throws CredentialPackError if the credential cannot be parsed in any supported format
      */
     public func tryAddAnyFormat(rawCredential: String, mdocKeyAlias: String)
-        throws -> [ParsedCredential]
-    {
+        throws -> [ParsedCredential] {
         // First try our standard formats (which already include mdoc but with random keyAlias)
         do {
             return try tryAddRawCredential(rawCredential: rawCredential)
@@ -145,8 +142,7 @@ public class CredentialPack {
 
     /// Get all status from all credentials async
     public func getStatusListsAsync(hasConnection: Bool) async -> [Uuid:
-        CredentialStatusList]
-    {
+        CredentialStatusList] {
         var res = [Uuid: CredentialStatusList]()
         for credential in credentials {
             let credentialId = credential.id()
@@ -195,8 +191,7 @@ public class CredentialPack {
 
     /// Find credential claims from all credentials in this CredentialPack.
     public func findCredentialClaims(claimNames: [String]) -> [Uuid: [String:
-        GenericJSON]]
-    {
+        GenericJSON]] {
         Dictionary(
             uniqueKeysWithValues: list()
                 .map { credential in
@@ -305,8 +300,7 @@ public class CredentialPack {
 
     /// Loads all CredentialPacks from the StorageManager.
     public static func loadAll(storageManager: StorageManagerInterface)
-        async throws -> [CredentialPack]
-    {
+        async throws -> [CredentialPack] {
         try await CredentialPackContents.list(storageManager: storageManager)
             .asyncMap { contents in
                 try await contents.load(
@@ -383,8 +377,7 @@ public struct CredentialPackContents {
 
     /// Loads all of the credentials from the VdcCollection for this CredentialPack.
     public func load(vdcCollection: VdcCollection) async throws
-        -> CredentialPack
-    {
+        -> CredentialPack {
         let credentials = try await credentials.asyncMap { credentialId in
             do {
                 guard
@@ -409,8 +402,7 @@ public struct CredentialPackContents {
 
     /// Clears all CredentialPacks.
     public static func clear(storageManager: StorageManagerInterface)
-        async throws
-    {
+        async throws {
         do {
             try await storageManager.list()
                 .filter { file in
@@ -428,8 +420,7 @@ public struct CredentialPackContents {
     ///
     /// These can then be individually loaded. For eager loading of all packs, see `CredentialPack.loadAll`.
     public static func list(storageManager: StorageManagerInterface)
-        async throws -> [CredentialPackContents]
-    {
+        async throws -> [CredentialPackContents] {
         do {
             return try await storageManager.list()
                 .filter { file in
@@ -464,7 +455,7 @@ public struct CredentialPackContents {
                     self.credentials.map { id in
                         GenericJSON.string(id)
                     }
-                ),
+                )
             ]
 
             return try JSONEncoder().encode(json)

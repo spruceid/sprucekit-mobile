@@ -18,7 +18,7 @@ class Signer: PresentationSigner {
 
     init(keyId: String?) throws {
         self.keyId =
-            if keyId == nil { "reference-app/default-signing" } else { keyId! }
+            if keyId == nil { DEFAULT_SIGNING_KEY_ID } else { keyId! }
         if !KeyManager.keyExists(id: self.keyId) {
             _ = KeyManager.generateSigningKey(id: self.keyId)
         }
@@ -110,7 +110,7 @@ struct HandleOID4VPView: View {
                 ) { (_, new) in new }
             }
 
-            let signer = try Signer(keyId: "reference-app/default-signing")
+            let signer = try Signer(keyId: DEFAULT_SIGNING_KEY_ID)
 
             holder = try await Holder.newWithCredentials(
                 providedCredentials: credentials,
