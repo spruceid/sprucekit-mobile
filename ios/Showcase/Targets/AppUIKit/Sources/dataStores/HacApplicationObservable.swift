@@ -28,7 +28,9 @@ class HacApplicationObservable: ObservableObject {
 
     func getSigningJwk() -> String? {
         let keyId = "reference-app/default-signing"
-        _ = KeyManager.generateSigningKey(id: keyId)
+        if !KeyManager.keyExists(id: keyId) {
+            _ = KeyManager.generateSigningKey(id: keyId)
+        }
         return KeyManager.getJwk(id: keyId)
     }
 

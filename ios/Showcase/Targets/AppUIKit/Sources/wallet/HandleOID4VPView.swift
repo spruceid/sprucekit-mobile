@@ -19,7 +19,9 @@ class Signer: PresentationSigner {
     init(keyId: String?) throws {
         self.keyId =
             if keyId == nil { "reference-app/default-signing" } else { keyId! }
-        _ = KeyManager.generateSigningKey(id: self.keyId)
+        if !KeyManager.keyExists(id: self.keyId) {
+            _ = KeyManager.generateSigningKey(id: self.keyId)
+        }
         let jwk = KeyManager.getJwk(id: self.keyId)
         if jwk == nil {
             throw Oid4vpSignerError.illegalArgumentException(
