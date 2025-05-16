@@ -24,7 +24,8 @@ struct AddToWalletView: View {
 
         do {
             credentialItem = try credentialDisplayerSelector(
-                rawCredential: rawCredential)
+                rawCredential: rawCredential
+            )
             errorDetails = ""
             presentError = false
         } catch {
@@ -45,12 +46,16 @@ struct AddToWalletView: View {
         storing = true
         do {
             let credentialPack = CredentialPack()
-            _ = try credentialPack.tryAddRawCredential(
-                rawCredential: rawCredential)
+            _ = try credentialPack.tryAddAnyFormat(
+                rawCredential: rawCredential,
+                mdocKeyAlias: DEFAULT_SIGNING_KEY_ID
+            )
             try await credentialPackObservable.add(
-                credentialPack: credentialPack)
+                credentialPack: credentialPack
+            )
             let credentialInfo = getCredentialIdTitleAndIssuer(
-                credentialPack: credentialPack)
+                credentialPack: credentialPack
+            )
             _ = WalletActivityLogDataStore.shared.insert(
                 credentialPackId: credentialPack.id.uuidString,
                 credentialId: credentialInfo.0,
@@ -97,7 +102,11 @@ struct AddToWalletView: View {
                             .padding(.horizontal, -20)
                             .font(
                                 .customFont(
-                                    font: .inter, style: .medium, size: .h4))
+                                    font: .inter,
+                                    style: .medium,
+                                    size: .h4
+                                )
+                            )
                     }
                     .foregroundColor(.white)
                     .padding(.vertical, 13)
@@ -111,7 +120,11 @@ struct AddToWalletView: View {
                             .padding(.horizontal, -20)
                             .font(
                                 .customFont(
-                                    font: .inter, style: .medium, size: .h4))
+                                    font: .inter,
+                                    style: .medium,
+                                    size: .h4
+                                )
+                            )
                     }
                     .foregroundColor(Color("ColorRose600"))
                     .padding(.vertical, 13)

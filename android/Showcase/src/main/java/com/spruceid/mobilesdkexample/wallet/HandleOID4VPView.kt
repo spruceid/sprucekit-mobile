@@ -54,6 +54,7 @@ import com.spruceid.mobile.sdk.rs.PresentableCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.RequestedField
 import com.spruceid.mobile.sdk.rs.ResponseOptions
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -79,13 +80,15 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class Signer(keyId: String?) : PresentationSigner {
-    private val keyId = keyId ?: "reference-app/default-signing"
+    private val keyId = keyId ?: DEFAULT_SIGNING_KEY_ID
     private val keyManager = KeyManager()
     private var jwk: String
     private val didJwk = DidMethodUtils(DidMethod.JWK)
 
     init {
-        keyManager.generateSigningKey(id = this.keyId)
+        if (!keyManager.keyExists(this.keyId)) {
+            keyManager.generateSigningKey(id = this.keyId)
+        }
         this.jwk = keyManager.getJwk(this.keyId) ?: throw IllegalArgumentException("Invalid kid")
     }
 
@@ -177,7 +180,7 @@ fun HandleOID4VPView(
                 }
 
                 withContext(Dispatchers.IO) {
-                    val signer = Signer("reference-app/default-signing")
+                    val signer = Signer(DEFAULT_SIGNING_KEY_ID)
                     holder =
                         Holder.newWithCredentials(
                             credentials,
@@ -243,7 +246,7 @@ fun HandleOID4VPView(
 
         OID4VPState.SelectiveDisclosure -> DataFieldSelector(
             requestedFields =
-            permissionRequest!!.requestedFields(selectedCredential!!),
+                permissionRequest!!.requestedFields(selectedCredential!!),
             onContinue = {
                 scope.launch {
                     try {
@@ -326,10 +329,10 @@ fun DataFieldSelector(
 
         Column(
             modifier =
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .weight(weight = 1f, fill = false)
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .weight(weight = 1f, fill = false)
         ) {
             requestedFields.forEach {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -358,29 +361,29 @@ fun DataFieldSelector(
 
         Row(
             modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp)
-                .navigationBarsPadding(),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .navigationBarsPadding(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
                 onClick = { onCancel() },
                 shape = RoundedCornerShape(6.dp),
                 colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = ColorStone950,
-                ),
+                    ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = ColorStone950,
+                    ),
                 modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = 1.dp,
-                        color = ColorStone300,
-                        shape = RoundedCornerShape(6.dp)
-                    )
-                    .weight(1f)
+                    Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp,
+                            color = ColorStone300,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .weight(1f)
             ) {
                 Text(
                     text = "Cancel",
@@ -395,13 +398,13 @@ fun DataFieldSelector(
                 shape = RoundedCornerShape(6.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
                 modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .background(
-                        color = ColorEmerald900,
-                        shape = RoundedCornerShape(6.dp),
-                    )
-                    .weight(1f)
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = ColorEmerald900,
+                            shape = RoundedCornerShape(6.dp),
+                        )
+                        .weight(1f)
             ) {
                 Text(
                     text = "Approve",
@@ -486,18 +489,18 @@ fun CredentialSelector(
                 fontSize = 15.sp,
                 color = ColorBlue600,
                 modifier =
-                Modifier.clickable {
-                    // TODO: implement select all
-                }
+                    Modifier.clickable {
+                        // TODO: implement select all
+                    }
             )
         }
 
         Column(
             modifier =
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .weight(weight = 1f, fill = false)
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .weight(weight = 1f, fill = false)
         ) {
             credentials.forEach { credential ->
                 CredentialSelectorItem(
@@ -513,29 +516,29 @@ fun CredentialSelector(
 
         Row(
             modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp)
-                .navigationBarsPadding(),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .navigationBarsPadding(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
                 onClick = { onCancel() },
                 shape = RoundedCornerShape(6.dp),
                 colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = ColorStone950,
-                ),
+                    ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = ColorStone950,
+                    ),
                 modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .border(
-                        width = 1.dp,
-                        color = ColorStone300,
-                        shape = RoundedCornerShape(6.dp)
-                    )
-                    .weight(1f)
+                    Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp,
+                            color = ColorStone300,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .weight(1f)
             ) {
                 Text(
                     text = "Cancel",
@@ -553,27 +556,27 @@ fun CredentialSelector(
                 },
                 shape = RoundedCornerShape(6.dp),
                 colors =
-                ButtonDefaults.buttonColors(
-                    containerColor =
-                    if (selectedCredentials.isNotEmpty()) {
-                        ColorStone600
-                    } else {
-                        Color.Gray
-                    }
-                ),
+                    ButtonDefaults.buttonColors(
+                        containerColor =
+                            if (selectedCredentials.isNotEmpty()) {
+                                ColorStone600
+                            } else {
+                                Color.Gray
+                            }
+                    ),
                 modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .background(
-                        color =
-                        if (selectedCredentials.isNotEmpty()) {
-                            ColorStone600
-                        } else {
-                            Color.Gray
-                        },
-                        shape = RoundedCornerShape(6.dp),
-                    )
-                    .weight(1f)
+                    Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color =
+                                if (selectedCredentials.isNotEmpty()) {
+                                    ColorStone600
+                                } else {
+                                    Color.Gray
+                                },
+                            shape = RoundedCornerShape(6.dp),
+                        )
+                        .weight(1f)
             ) {
                 Text(
                     text = "Continue",
@@ -604,14 +607,14 @@ fun CredentialSelectorItem(
 
     Column(
         modifier =
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .border(
-                width = 1.dp,
-                color = ColorBase300,
-                shape = RoundedCornerShape(8.dp)
-            )
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+                .border(
+                    width = 1.dp,
+                    color = ColorBase300,
+                    shape = RoundedCornerShape(8.dp)
+                )
     ) {
         Row(
             modifier = Modifier
@@ -630,10 +633,10 @@ fun CredentialSelectorItem(
                     }
                 },
                 colors =
-                CheckboxDefaults.colors(
-                    checkedColor = ColorBlue600,
-                    uncheckedColor = ColorStone300
-                )
+                    CheckboxDefaults.colors(
+                        checkedColor = ColorBlue600,
+                        uncheckedColor = ColorStone300
+                    )
             )
             Text(
                 text = getCredentialTitle(credential),

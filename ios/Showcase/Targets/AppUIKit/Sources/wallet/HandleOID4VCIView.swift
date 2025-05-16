@@ -40,9 +40,13 @@ struct HandleOID4VCIView: View {
 
                 let metadata = try oid4vciSession.getMetadata()
 
-                _ = KeyManager.generateSigningKey(
-                    id: "reference-app/default-signing")
-                let jwk = KeyManager.getJwk(id: "reference-app/default-signing")
+                if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
+                    _ = KeyManager.generateSigningKey(
+                        id: DEFAULT_SIGNING_KEY_ID
+                    )
+                }
+
+                let jwk = KeyManager.getJwk(id: DEFAULT_SIGNING_KEY_ID)
 
                 let signingInput =
                     try await SpruceIDMobileSdkRs.generatePopPrepare(
@@ -54,8 +58,9 @@ struct HandleOID4VCIView: View {
                     )
 
                 let signature = KeyManager.signPayload(
-                    id: "reference-app/default-signing",
-                    payload: [UInt8](signingInput))
+                    id: DEFAULT_SIGNING_KEY_ID,
+                    payload: [UInt8](signingInput)
+                )
 
                 let pop = try SpruceIDMobileSdkRs.generatePopComplete(
                     signingInput: signingInput,
@@ -63,7 +68,8 @@ struct HandleOID4VCIView: View {
                 )
 
                 try oid4vciSession.setContextMap(
-                    values: getVCPlaygroundOID4VCIContext())
+                    values: getVCPlaygroundOID4VCIContext()
+                )
 
                 self.credentialPack = CredentialPack()
                 let credentials = try await oid4vciSession.exchangeCredential(
@@ -71,10 +77,8 @@ struct HandleOID4VCIView: View {
                     options: Oid4vciExchangeOptions(verifyAfterExchange: false)
                 )
 
-                try credentials.forEach {
+                credentials.forEach {
                     let cred = String(decoding: Data($0.payload), as: UTF8.self)
-                    _ = try self.credentialPack?.tryAddRawCredential(
-                        rawCredential: cred)
                     self.credential = cred
                 }
 
@@ -119,40 +123,62 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     var context: [String: String] = [:]
 
     var path = Bundle.main.path(
-        forResource: "w3id.org_first-responder_v1", ofType: "json")
+        forResource: "w3id.org_first-responder_v1",
+        ofType: "json"
+    )
     context["https://w3id.org/first-responder/v1"] = try String(
-        contentsOfFile: path!, encoding: String.Encoding.utf8)
+        contentsOfFile: path!,
+        encoding: String.Encoding.utf8
+    )
 
     path = Bundle.main.path(
-        forResource: "w3id.org_vdl_aamva_v1", ofType: "json")
+        forResource: "w3id.org_vdl_aamva_v1",
+        ofType: "json"
+    )
     context["https://w3id.org/vdl/aamva/v1"] = try String(
-        contentsOfFile: path!, encoding: String.Encoding.utf8)
+        contentsOfFile: path!,
+        encoding: String.Encoding.utf8
+    )
 
     path = Bundle.main.path(
-        forResource: "w3id.org_citizenship_v3", ofType: "json")
+        forResource: "w3id.org_citizenship_v3",
+        ofType: "json"
+    )
     context["https://w3id.org/citizenship/v3"] = try String(
-        contentsOfFile: path!, encoding: String.Encoding.utf8)
+        contentsOfFile: path!,
+        encoding: String.Encoding.utf8
+    )
 
     path = Bundle.main.path(
         forResource: "purl.imsglobal.org_spec_ob_v3p0_context-3.0.2",
-        ofType: "json")
+        ofType: "json"
+    )
     context["https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.2.json"] =
         try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
 
     path = Bundle.main.path(
-        forResource: "w3id.org_citizenship_v4rc1", ofType: "json")
+        forResource: "w3id.org_citizenship_v4rc1",
+        ofType: "json"
+    )
     context["https://w3id.org/citizenship/v4rc1"] = try String(
-        contentsOfFile: path!, encoding: String.Encoding.utf8)
+        contentsOfFile: path!,
+        encoding: String.Encoding.utf8
+    )
 
     path = Bundle.main.path(
-        forResource: "w3id.org_vc_render-method_v2rc1", ofType: "json")
+        forResource: "w3id.org_vc_render-method_v2rc1",
+        ofType: "json"
+    )
     context["https://w3id.org/vc/render-method/v2rc1"] = try String(
-        contentsOfFile: path!, encoding: String.Encoding.utf8)
+        contentsOfFile: path!,
+        encoding: String.Encoding.utf8
+    )
 
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_alumni_v2",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/alumni/v2.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -160,7 +186,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_first-responder_v1",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/first-responder/v1.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -168,7 +195,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_shim-render-method-term_v1",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/shim-render-method-term/v1.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -176,7 +204,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_shim-VCv1.1-common-example-terms_v1",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/shim-VCv1.1-common-example-terms/v1.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -184,7 +213,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_utopia-natcert_v1",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/utopia-natcert/v1.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -192,7 +222,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "w3.org_ns_controller_v1",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://www.w3.org/ns/controller/v1"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -200,7 +231,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_movie-ticket_v2",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/movie-ticket/v2.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -208,7 +240,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_food-safety-certification_v1",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/food-safety-certification/v1.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -216,7 +249,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_academic-course-credential_v1",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/academic-course-credential/v1.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -224,7 +258,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_gs1-8110-coupon_v2",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/gs1-8110-coupon/v2.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -232,7 +267,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_customer-loyalty_v1",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/customer-loyalty/v1.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)
@@ -240,7 +276,8 @@ func getVCPlaygroundOID4VCIContext() throws -> [String: String] {
     path = Bundle.main.path(
         forResource:
             "examples.vcplayground.org_contexts_movie-ticket-vcdm-v2_v1",
-        ofType: "json")
+        ofType: "json"
+    )
     context[
         "https://examples.vcplayground.org/contexts/movie-ticket-vcdm-v2/v1.json"
     ] = try String(contentsOfFile: path!, encoding: String.Encoding.utf8)

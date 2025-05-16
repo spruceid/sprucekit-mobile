@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
@@ -68,7 +69,10 @@ fun AddToWalletView(
             this.async(Dispatchers.Default) {
                 try {
                     val credentialPack = CredentialPack()
-                    credentialPack.tryAddRawCredential(rawCredential)
+
+                    // Try add credential in any supported format
+                    credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
+
                     credentialPacksViewModel.saveCredentialPack(credentialPack)
                     val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
                     walletActivityLogsViewModel.saveWalletActivityLog(

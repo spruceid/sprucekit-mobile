@@ -184,13 +184,13 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         Log.d(TAG, "origin: $origin")
 
         return request.credentialOptions.mapNotNull { option ->
-                if (option is GetDigitalCredentialOption) {
-                    option
-                } else {
-                    Log.d(TAG, "unsupported option: $option")
-                    null
-                }
-            }.map { option -> option.requestJson }
+            if (option is GetDigitalCredentialOption) {
+                option
+            } else {
+                Log.d(TAG, "unsupported option: $option")
+                null
+            }
+        }.map { option -> option.requestJson }
             .flatMap { requestJson -> parseOid4vpRequestJson(requestJson) }
             .map { openid4vp_request ->
                 Log.d(TAG, "openid4vp request: ${JSONObject(openid4vp_request)}")
@@ -289,9 +289,11 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             resultData,
             com.google.android.gms.identitycredentials.GetCredentialResponse(
                 Credential(
-                DigitalCredential.TYPE_DIGITAL_CREDENTIAL, Bundle().apply {
-                    putByteArray("identityToken", data.toString().toByteArray())
-                })))
+                    DigitalCredential.TYPE_DIGITAL_CREDENTIAL, Bundle().apply {
+                        putByteArray("identityToken", data.toString().toByteArray())
+                    })
+            )
+        )
         PendingIntentHandler.setGetCredentialResponse(
             resultData, GetCredentialResponse(DigitalCredential(response))
         )
@@ -349,24 +351,24 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
 
                 if (providers != null) {
                     return List(providers.length()) { providers[it] as JSONObject }.mapNotNull {
-                            if (it.getString("protocol") == "openid4vp") {
-                                it.getString("request")
-                            } else {
-                                null
-                            }
+                        if (it.getString("protocol") == "openid4vp") {
+                            it.getString("request")
+                        } else {
+                            null
                         }
+                    }
                 }
 
                 val requests = request.optJSONArray("requests")
 
                 if (requests != null) {
                     return List(requests.length()) { requests[it] as JSONObject }.mapNotNull {
-                            if (it.getString("protocol") == "openid4vp") {
-                                it.getString("data")
-                            } else {
-                                null
-                            }
+                        if (it.getString("protocol") == "openid4vp") {
+                            it.getString("data")
+                        } else {
+                            null
                         }
+                    }
                 }
 
                 Log.d(TAG, "failed to match request to an expected format")
