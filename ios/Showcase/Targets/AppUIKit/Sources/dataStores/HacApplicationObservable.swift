@@ -1,24 +1,42 @@
+import Combine
 import Foundation
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 
-let SPRUCEID_HAC_PROOFING_CLIENT = "https://proofing.haci.staging.spruceid.xyz"
-let SPRUCEID_HAC_WALLET_SERVICE = "https://wallet.haci.staging.spruceid.xyz"
-let SPRUCEID_HAC_ISSUANCE_SERVICE = "https://issuance.haci.staging.spruceid.xyz"
-
 class HacApplicationObservable: ObservableObject {
-    @Published var walletServiceClient = WalletServiceClient(
-        baseUrl: SPRUCEID_HAC_WALLET_SERVICE
-    )
-    @Published var issuanceClient = IssuanceServiceClient(
-        baseUrl: SPRUCEID_HAC_ISSUANCE_SERVICE
-    )
+    @Published private(set) var walletServiceClient: WalletServiceClient
+    @Published private(set) var issuanceClient: IssuanceServiceClient
     @Published var hacApplications: [HacApplication] = []
     @Published private(set) var walletAttestation: String?
     private var isFetchingWalletAttestation = false
+    private var cancellables = Set<AnyCancellable>()
 
     init() {
+        // Initialize with current URLs
+        self.walletServiceClient = WalletServiceClient(
+            baseUrl: EnvironmentConfig.shared.walletServiceUrl
+        )
+        self.issuanceClient = IssuanceServiceClient(
+            baseUrl: EnvironmentConfig.shared.issuanceServiceUrl
+        )
+
+        // Observe environment changes
+        EnvironmentConfig.shared.isDevModePublisher
+            .sink { [weak self] _ in
+                self?.updateClients()
+            }
+            .store(in: &cancellables)
+
         self.loadAll()
+    }
+
+    private func updateClients() {
+        self.walletServiceClient = WalletServiceClient(
+            baseUrl: EnvironmentConfig.shared.walletServiceUrl
+        )
+        self.issuanceClient = IssuanceServiceClient(
+            baseUrl: EnvironmentConfig.shared.issuanceServiceUrl
+        )
     }
 
     func loadAll() {
@@ -79,7 +97,10 @@ class HacApplicationObservable: ObservableObject {
             walletAttestation = token
             return token
         } catch {
-            ToastManager.shared.showError(message: error.localizedDescription, duration: 5.0)
+            ToastManager.shared.showError(
+                message: error.localizedDescription,
+                duration: 5.0
+            )
             print(error.localizedDescription)
             return nil
         }
