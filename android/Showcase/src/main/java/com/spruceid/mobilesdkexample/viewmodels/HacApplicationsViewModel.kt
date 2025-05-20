@@ -10,6 +10,7 @@ import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.IssuanceServiceClient
 import com.spruceid.mobile.sdk.rs.WalletServiceClient
 import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
+import com.spruceid.mobilesdkexample.config.EnvironmentConfig
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.db.HacApplicationsRepository
 import com.spruceid.mobilesdkexample.utils.Toast
@@ -20,10 +21,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-const val SPRUCEID_HAC_PROOFING_CLIENT = "https://proofing.haci.staging.spruceid.xyz"
-const val SPRUCEID_HAC_WALLET_SERVICE = "https://wallet.haci.staging.spruceid.xyz"
-const val SPRUCEID_HAC_ISSUANCE_SERVICE = "https://issuance.haci.staging.spruceid.xyz"
-
 class HacApplicationsViewModel(
     application: Application,
     private val hacApplicationsRepository: HacApplicationsRepository
@@ -31,14 +28,39 @@ class HacApplicationsViewModel(
     ViewModel() {
     private val _hacApplications = MutableStateFlow(listOf<HacApplications>())
     val hacApplications = _hacApplications.asStateFlow()
-    val walletServiceClient = WalletServiceClient(SPRUCEID_HAC_WALLET_SERVICE)
-    val issuanceClient = IssuanceServiceClient(SPRUCEID_HAC_ISSUANCE_SERVICE)
+
+    private var _walletServiceClient: WalletServiceClient? = null
+    private var _issuanceClient: IssuanceServiceClient? = null
+
+    val walletServiceClient: WalletServiceClient
+        get() {
+            if (_walletServiceClient == null) {
+                _walletServiceClient = WalletServiceClient(EnvironmentConfig.walletServiceUrl)
+            }
+            return _walletServiceClient!!
+        }
+
+    val issuanceClient: IssuanceServiceClient
+        get() {
+            if (_issuanceClient == null) {
+                _issuanceClient = IssuanceServiceClient(EnvironmentConfig.issuanceServiceUrl)
+            }
+            return _issuanceClient!!
+        }
+
     private val keyManager = KeyManager()
     private val context = application as Context
 
     init {
         viewModelScope.launch {
             _hacApplications.value = hacApplicationsRepository.hacApplications
+
+            // Observe changes in dev mode
+            EnvironmentConfig.isDevMode.collect { isDevMode ->
+                // Reset clients when dev mode changes
+                _walletServiceClient = null
+                _issuanceClient = null
+            }
         }
     }
 

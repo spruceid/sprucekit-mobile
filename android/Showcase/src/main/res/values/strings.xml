@@ -38,4 +38,5 @@
     <string name="trusted_certificates">Manage trusted certificates</string>
     <string name="delete">Delete</string>
     <string name="apply_spruceid_mdl">Apply for a SpruceID mDL</string>
+    <string name="dev_mode">Enable/disable dev mode</string>
 </resources>
