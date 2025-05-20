@@ -58,6 +58,7 @@ struct WalletSettingsHomeBody: View {
         CredentialPackObservable
     @EnvironmentObject private var hacApplicationObservable:
         HacApplicationObservable
+    @StateObject private var environmentConfig = EnvironmentConfig.shared
     @Binding var path: NavigationPath
     var onBack: () -> Void
     @State private var isApplyingForMdl = false
@@ -180,8 +181,8 @@ struct WalletSettingsHomeBody: View {
                 do {
                     let walletAttestation =
                         try await hacApplicationObservable
-                            .getWalletAttestation()
-                            .unwrap()
+                        .getWalletAttestation()
+                        .unwrap()
 
                     let issuance =
                         try await hacApplicationObservable.issuanceClient
@@ -193,7 +194,7 @@ struct WalletSettingsHomeBody: View {
 
                     if let url = URL(
                         string:
-                            "\(SPRUCEID_HAC_PROOFING_CLIENT)?id=\(hacApplication!)&redirect=spruceid"
+                            "\(environmentConfig.proofingClientUrl)?id=\(hacApplication!)&redirect=spruceid"
                     ) {
                         UIApplication.shared.open(
                             url,
@@ -227,12 +228,28 @@ struct WalletSettingsHomeBody: View {
         .opacity(isApplyingForMdl ? 0.5 : 1.0)
     }
 
+    @ViewBuilder
+    var devModeButton: some View {
+        Button {
+            environmentConfig.toggleDevMode()
+        } label: {
+            SettingsHomeItem(
+                image: "DevMode",
+                title:
+                    "\(environmentConfig.isDevMode ? "Disable" : "Enable") Dev Mode",
+                description:
+                    "Warning: Dev mode will use in development services and is not recommended for production use"
+            )
+        }
+    }
+
     var body: some View {
         VStack {
             VStack {
                 activityLogButton
                 generateMockMdlButton
                 applyForSpruceMdlButton
+                devModeButton
                 Spacer()
                 deleteAllCredentials
             }
