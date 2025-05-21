@@ -25,7 +25,7 @@ let DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD = (
     3q8/uns9PMOOf6rqN2R2hB7nUK5DEcVW
     -----END CERTIFICATE-----
     """
-    )
+)
 
 let DEFAULT_TRUST_ANCHOR_CERTIFICATES = [
     // rust/tests/res/mdl/iaca-certificate.pem
@@ -68,14 +68,14 @@ let DEFAULT_TRUST_ANCHOR_CERTIFICATES = [
         """
     ),
     // IACA Spruce HACI Prod
-    DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD
+    DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD,
 ]
 
 class TrustedCertificatesDataStore {
 
     static let DIR_ACTIVITY_LOG_DB = "TrustedCertificatesDB"
     static let STORE_NAME = "trusted_certificates.sqlite3"
-    static let CURRENT_DB_VERSION = 2 // Increment this when adding new migrations
+    static let CURRENT_DB_VERSION = 2  // Increment this when adding new migrations
 
     private let trustedCertificates = Table("trusted_certificates")
     private let dbVersion = Table("db_version")
@@ -91,10 +91,12 @@ class TrustedCertificatesDataStore {
 
     private init() {
         if let docDir = FileManager.default.urls(
-            for: .documentDirectory, in: .userDomainMask
+            for: .documentDirectory,
+            in: .userDomainMask
         ).first {
             let dirPath = docDir.appendingPathComponent(
-                Self.DIR_ACTIVITY_LOG_DB)
+                Self.DIR_ACTIVITY_LOG_DB
+            )
 
             do {
                 try FileManager.default.createDirectory(
@@ -129,13 +131,15 @@ class TrustedCertificatesDataStore {
                     table.column(id, primaryKey: .autoincrement)
                     table.column(name)
                     table.column(content)
-                })
-            
+                }
+            )
+
             try database.run(
                 dbVersion.create(ifNotExists: true) { table in
                     table.column(version)
-                })
-            
+                }
+            )
+
             print("Tables Created...")
         } catch {
             print(error)
@@ -144,10 +148,10 @@ class TrustedCertificatesDataStore {
 
     private func runMigrations() {
         guard let database = db else { return }
-        
+
         do {
             let currentVersion = try database.scalar(dbVersion.select(version))
-            
+
             if currentVersion < 2 {
                 // Migration to version 2: Add HACI Prod certificate
                 try database.transaction {
@@ -155,10 +159,11 @@ class TrustedCertificatesDataStore {
                     let insert = trustedCertificates.insert(
                         or: .ignore,
                         name <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD.0,
-                        content <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD.1
+                        content
+                            <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD.1
                     )
                     try database.run(insert)
-                    
+
                     // Update version
                     try database.run(dbVersion.update(version <- 2))
                 }
@@ -208,7 +213,8 @@ class TrustedCertificatesDataStore {
 
         do {
             for certificate in try database.prepare(
-                self.trustedCertificates) {
+                self.trustedCertificates
+            ) {
                 certificates.append(
                     TrustedCertificate(
                         id: certificate[id],
@@ -228,7 +234,8 @@ class TrustedCertificatesDataStore {
 
         do {
             for certificate in try database.prepare(
-                self.trustedCertificates) {
+                self.trustedCertificates
+            ) {
                 let elemId = certificate[id]
                 if elemId == rowId {
                     return TrustedCertificate(
@@ -264,7 +271,8 @@ class TrustedCertificatesDataStore {
         }
         do {
             for certificate in try database.prepare(
-                self.trustedCertificates)
+                self.trustedCertificates
+            )
             where !delete(id: certificate[id]) {
                 return false
             }

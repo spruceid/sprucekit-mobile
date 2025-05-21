@@ -129,7 +129,9 @@ struct WalletSettingsHomeBody: View {
                     print(1)
                     if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
                         print(2)
-                        _ = KeyManager.generateSigningKey(id: DEFAULT_SIGNING_KEY_ID)
+                        _ = KeyManager.generateSigningKey(
+                            id: DEFAULT_SIGNING_KEY_ID
+                        )
                     }
                     print(3)
                     let mdl = try generateTestMdl(

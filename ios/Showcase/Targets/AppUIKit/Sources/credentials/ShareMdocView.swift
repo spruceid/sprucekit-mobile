@@ -48,7 +48,8 @@ public struct ShareMdocQR: View {
 
     init(credentialPack: CredentialPack) async {
         let credentialStore = CredentialStore(
-            credentials: credentialPack.list())
+            credentials: credentialPack.list()
+        )
         self.credentials = credentialStore
         let viewDelegate = await ShareViewDelegate(credentials: credentialStore)
         self._delegate = StateObject(wrappedValue: viewDelegate)
@@ -115,7 +116,8 @@ public struct ShareMdocQR: View {
                     Text(message)
                 case .uploadProgress(let value, let total):
                     ProgressView(
-                        value: Double(value), total: Double(total),
+                        value: Double(value),
+                        total: Double(total),
                         label: {
                             Text("Uploading...").padding(.bottom, 4)
                         },
@@ -129,7 +131,8 @@ public struct ShareMdocQR: View {
                     Text("Successfully presented credential.")
                 case .selectNamespaces(let items):
                     ShareMdocSelectiveDisclosureView(
-                        itemsRequests: items, delegate: delegate,
+                        itemsRequests: items,
+                        delegate: delegate,
                         proceed: $proceed
                     )
                     .onChange(of: proceed) { _ in
@@ -151,7 +154,9 @@ class ShareViewDelegate: ObservableObject {
 
     init(credentials: CredentialStore) async {
         self.sessionManager = await credentials.presentMdocBLE(
-            deviceEngagement: .QRCode, callback: self)!
+            deviceEngagement: .QRCode,
+            callback: self
+        )!
     }
 
     func cancel() {
@@ -163,7 +168,7 @@ class ShareViewDelegate: ObservableObject {
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: DEFAULT_SIGNING_KEY_ID,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true
+            kSecReturnRef as String: true,
         ]
 
         var item: CFTypeRef?
@@ -174,7 +179,9 @@ class ShareViewDelegate: ObservableObject {
                 return namespaces.mapValues { items in
                     Array(items.filter { $0.value }.keys)
                 }
-            }, signingKey: key)
+            },
+            signingKey: key
+        )
     }
 }
 
@@ -192,7 +199,8 @@ public struct ShareMdocSelectiveDisclosureView: View {
     @StateObject var delegate: ShareViewDelegate
 
     init(
-        itemsRequests: [ItemsRequest], delegate: ShareViewDelegate,
+        itemsRequests: [ItemsRequest],
+        delegate: ShareViewDelegate,
         proceed: Binding<Bool>
     ) {
         self.itemsRequests = itemsRequests
@@ -269,9 +277,16 @@ struct ShareMdocSDSheetView: View {
                     ForEach(Array(namespaces.keys), id: \.self) {
                         namespace in
                         let namespaceItems: [String: Bool] = namespaces[
-                            namespace]!
+                            namespace
+                        ]!
                         Text(namespace)
-                            .font(.customFont(font: .inter, style: .regular, size: .h4))
+                            .font(
+                                .customFont(
+                                    font: .inter,
+                                    style: .regular,
+                                    size: .h4
+                                )
+                            )
                             .foregroundStyle(Color("ColorStone950"))
                             .frame(maxWidth: .infinity, alignment: .leading)
                         ForEach(Array(namespaceItems.keys), id: \.self) {
@@ -300,7 +315,10 @@ struct ShareMdocSDSheetView: View {
                         .frame(maxWidth: .infinity)
                         .font(
                             .customFont(
-                                font: .inter, style: .medium, size: .h4)
+                                font: .inter,
+                                style: .medium,
+                                size: .h4
+                            )
                         )
                 }
                 .foregroundColor(Color("ColorStone950"))
@@ -316,7 +334,10 @@ struct ShareMdocSDSheetView: View {
                         .frame(maxWidth: .infinity)
                         .font(
                             .customFont(
-                                font: .inter, style: .medium, size: .h4)
+                                font: .inter,
+                                style: .medium,
+                                size: .h4
+                            )
                         )
                 }
                 .foregroundColor(.white)
@@ -332,10 +353,12 @@ struct ShareMdocSDSheetView: View {
     }
 
     private func binding(docType: String, namespace: String, item: String)
-        -> Binding<Bool> {
+        -> Binding<Bool>
+    {
         return .init(
             get: { self.itemsSelected[docType]![namespace]![item]! },
-            set: { self.itemsSelected[docType]![namespace]![item] = $0 })
+            set: { self.itemsSelected[docType]![namespace]![item] = $0 }
+        )
     }
 
 }
