@@ -161,7 +161,7 @@ class ShareViewDelegate: ObservableObject {
     func submitItems(items: [String: [String: [String: Bool]]]) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: "mdoc_key",
+            kSecAttrApplicationTag as String: DEFAULT_SIGNING_KEY_ID,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
             kSecReturnRef as String: true
         ]

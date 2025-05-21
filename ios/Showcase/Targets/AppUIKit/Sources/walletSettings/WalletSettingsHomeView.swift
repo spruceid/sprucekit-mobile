@@ -126,13 +126,15 @@ struct WalletSettingsHomeBody: View {
         Button {
             Task {
                 do {
-                    let keyAlias = "mdoc_key"
-                    if !KeyManager.keyExists(id: keyAlias) {
-                        _ = KeyManager.generateSigningKey(id: keyAlias)
+                    print(1)
+                    if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
+                        print(2)
+                        _ = KeyManager.generateSigningKey(id: DEFAULT_SIGNING_KEY_ID)
                     }
+                    print(3)
                     let mdl = try generateTestMdl(
                         keyManager: KeyManager(),
-                        keyAlias: keyAlias
+                        keyAlias: DEFAULT_SIGNING_KEY_ID
                     )
                     let credentialPacks = credentialPackObservable
                         .credentialPacks
