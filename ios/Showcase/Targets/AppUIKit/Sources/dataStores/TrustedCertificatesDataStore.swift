@@ -75,9 +75,10 @@ class TrustedCertificatesDataStore {
 
     static let DIR_ACTIVITY_LOG_DB = "TrustedCertificatesDB"
     static let STORE_NAME = "trusted_certificates.sqlite3"
-    static let CURRENT_DB_VERSION = 2  // Increment this when adding new migrations
+    static let TABLE_NAME = "trusted_certificates"
 
-    private let trustedCertificates = Table("trusted_certificates")
+    private let CURRENT_DB_VERSION = 2  // Increment this when adding new migrations
+    private let trustedCertificates = Table(TABLE_NAME)
     private let dbVersion = Table("db_version")
 
     private let id = SQLite.Expression<Int64>("id")
@@ -109,9 +110,7 @@ class TrustedCertificatesDataStore {
                 db = try Connection(dbPath)
                 createTables()
                 print("SQLiteDataStore init successfully at: \(dbPath) ")
-
                 checkAndInsertDefaultCertificates()
-                runMigrations()
             } catch {
                 db = nil
                 print("SQLiteDataStore init error: \(error)")
@@ -140,20 +139,25 @@ class TrustedCertificatesDataStore {
                 }
             )
 
+            // Insert initial version if table is empty
+            let count = try database.scalar(dbVersion.count)
+            if count == 0 {
+                MIGRATION_0_2(database)
+            }
+
             print("Tables Created...")
         } catch {
-            print(error)
+            print("Error creating tables: \(error)")
         }
     }
 
-    private func runMigrations() {
-        guard let database = db else { return }
-
+    // Migration to version 2: Add HACI Prod certificate
+    private func MIGRATION_0_2(_ database: Connection) {
         do {
-            let currentVersion = try database.scalar(dbVersion.select(version))
-
-            if currentVersion < 2 {
-                // Migration to version 2: Add HACI Prod certificate
+            let count = try database.scalar(trustedCertificates.count)
+            if count == 0 {
+                checkAndInsertDefaultCertificates()
+            } else {
                 try database.transaction {
                     // Insert the new certificate only if it doesn't exist
                     let insert = trustedCertificates.insert(
@@ -169,7 +173,7 @@ class TrustedCertificatesDataStore {
                 }
             }
         } catch {
-            print("Migration error: \(error)")
+            print("Migration 0 -> 2 error: \(error)")
         }
     }
 
