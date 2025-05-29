@@ -127,7 +127,7 @@ fn generate_test_mdl_inner(
     .unwrap();
 
     let document = Document {
-        id: Default::default(),
+        id: uuid::Uuid::new_v4(),
         issuer_auth: mdoc.issuer_auth,
         mso: mdoc.mso,
         namespaces,
