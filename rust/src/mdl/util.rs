@@ -20,6 +20,7 @@ use p256::{
     pkcs8::{DecodePrivateKey, EncodePublicKey, ObjectIdentifier},
     PublicKey,
 };
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use signature::{Keypair, KeypairRef, Signer};
@@ -126,7 +127,7 @@ fn generate_test_mdl_inner(
     .unwrap();
 
     let document = Document {
-        id: Default::default(),
+        id: uuid::Uuid::new_v4(),
         issuer_auth: mdoc.issuer_auth,
         mso: mdoc.mso,
         namespaces,
@@ -147,7 +148,7 @@ fn prepare_mdoc(pub_key: PublicKey) -> Result<isomdl::issuance::mdoc::Builder> {
           "expiry_date":"2030-01-01",
           "issuing_country":"US",
           "issuing_authority":"NY DMV",
-          "document_number":"DL12345678",
+          "document_number": format!("DL{}", rand::thread_rng().gen_range(10_000_000..100_000_000)),
           "portrait":include_str!("../../tests/res/mdl/portrait.base64"),
           "driving_privileges":[
             {
