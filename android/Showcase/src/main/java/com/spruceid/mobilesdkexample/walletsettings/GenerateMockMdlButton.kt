@@ -49,26 +49,11 @@ fun GenerateMockMdlButton(
                             keyManager.generateSigningKey(keyAlias)
                         }
                         val mdl = generateTestMdl(KeyManager(), keyAlias)
-                        val mdocPack =
-                            try {
-                                credentialPacksViewModel.credentialPacks.value.first { pack ->
-                                    pack
-                                        .list()
-                                        .any { credential -> credential.asMsoMdoc() != null }
-                                }
-                            } catch (_: NoSuchElementException) {
-                                CredentialPack()
-                            }
-                        if (mdocPack
-                                .list()
-                                .isEmpty()
-                        ) {
-                            mdocPack.addMdoc(mdl);
-                            credentialPacksViewModel.saveCredentialPack(mdocPack)
-                            Toast.showSuccess("Test mDL added to your wallet")
-                        } else {
-                            Toast.showWarning("You already have an mDL")
-                        }
+                        val mdocPack = CredentialPack()
+
+                        mdocPack.addMdoc(mdl);
+                        credentialPacksViewModel.saveCredentialPack(mdocPack)
+                        Toast.showSuccess("Test mDL added to your wallet")
                     } catch (_: Exception) {
                         Toast.showError("Error generating mDL")
                     }
