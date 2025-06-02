@@ -126,40 +126,26 @@ struct WalletSettingsHomeBody: View {
         Button {
             Task {
                 do {
-                    print(1)
                     if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
-                        print(2)
                         _ = KeyManager.generateSigningKey(
                             id: DEFAULT_SIGNING_KEY_ID
                         )
                     }
-                    print(3)
                     let mdl = try generateTestMdl(
                         keyManager: KeyManager(),
                         keyAlias: DEFAULT_SIGNING_KEY_ID
                     )
-                    let credentialPacks = credentialPackObservable
-                        .credentialPacks
-                    let mdocPack =
-                        credentialPacks.first { pack in
-                            pack.list().contains(where: { credential in
-                                credential.asMsoMdoc() != nil
-                            })
-                        } ?? CredentialPack()
-
-                    if mdocPack.list().isEmpty {
-                        _ = mdocPack.addMDoc(mdoc: mdl)
-                        try await mdocPack.save(
-                            storageManager: StorageManager()
-                        )
-                        ToastManager.shared.showSuccess(
-                            message: "Test mDL added to your wallet"
-                        )
-                    } else {
-                        ToastManager.shared.showWarning(
-                            message: "You already have an mDL"
-                        )
-                    }
+                    let mdocPack = CredentialPack()
+                    
+                    _ = mdocPack.addMDoc(mdoc: mdl)
+                    
+                    try await mdocPack.save(
+                        storageManager: StorageManager()
+                    )
+                    ToastManager.shared.showSuccess(
+                        message: "Test mDL added to your wallet"
+                    )
+                    
                 } catch {
                     print(error.localizedDescription)
                     ToastManager.shared.showError(
