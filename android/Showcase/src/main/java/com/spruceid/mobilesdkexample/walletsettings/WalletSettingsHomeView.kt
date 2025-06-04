@@ -181,7 +181,7 @@ fun WalletSettingsHomeBody(
 
                             val intent = Intent(
                                 Intent.ACTION_VIEW,
-                                Uri.parse("${EnvironmentConfig.proofingClientUrl}?id=${hacApplication}&redirect=spruceid")
+                                Uri.parse("${EnvironmentConfig.proofingClientUrl}/proofing?id=${hacApplication}&redirect=spruceid")
                             )
 
                             context.startActivity(intent)
