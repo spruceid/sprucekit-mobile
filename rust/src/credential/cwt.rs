@@ -147,7 +147,7 @@ impl Cwt {
             helpers::check_validity(&root_certificate.tbs_certificate.validity)
                 .map_err(|_| CwtError::RootCertificateExpired)?;
 
-            let (key_usage, _crl_dp) = helpers::extract_extensions(&root_certificate)
+            let (key_usage, _crl_dp) = helpers::extract_extensions(root_certificate)
                 .map_err(|_| CwtError::UnableToExtractExtensionsFromRootCertificate)?;
 
             if !key_usage.key_cert_sign() {
@@ -189,7 +189,7 @@ impl Cwt {
             helpers::check_validity(&signer_certificate.tbs_certificate.validity)
                 .map_err(|_| CwtError::SignerCertificateExpired)?;
 
-            let (key_usage, _crl_dp) = helpers::extract_extensions(&signer_certificate)
+            let (key_usage, _crl_dp) = helpers::extract_extensions(signer_certificate)
                 .map_err(|_| CwtError::UnableToExtractExtensionsFromSignerCertificate)?;
 
             if !key_usage.digital_signature() {

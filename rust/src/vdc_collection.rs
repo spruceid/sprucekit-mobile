@@ -226,6 +226,6 @@ mod tests {
             .await
             .expect("Failed to delete the third value.");
 
-        assert!(vdc.all_entries().await.unwrap().len() == 0);
+        assert!(vdc.all_entries().await.unwrap().is_empty());
     }
 }

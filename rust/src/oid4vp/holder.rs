@@ -539,7 +539,7 @@ pub(crate) mod tests {
         for credential in parsed_credentials.iter() {
             let requested_fields = permission_request.requested_fields(credential);
 
-            assert!(requested_fields.len() > 0);
+            assert!(!requested_fields.is_empty());
         }
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
@@ -723,7 +723,7 @@ pub(crate) mod tests {
         for credential in parsed_credentials.iter() {
             let requested_fields = permission_request.requested_fields(credential);
 
-            assert!(requested_fields.len() > 0);
+            assert!(!requested_fields.is_empty());
         }
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
@@ -789,9 +789,9 @@ pub(crate) mod tests {
         assert_eq!(parsed_credentials.len(), 1);
 
         for credential in parsed_credentials.iter() {
-            let requested_fields = permission_request.requested_fields(&credential);
+            let requested_fields = permission_request.requested_fields(credential);
 
-            assert!(requested_fields.len() > 0);
+            assert!(!requested_fields.is_empty());
         }
 
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
