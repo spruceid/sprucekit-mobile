@@ -184,7 +184,7 @@ struct WalletSettingsHomeBody: View {
 
                     if let url = URL(
                         string:
-                            "\(environmentConfig.proofingClientUrl)?id=\(hacApplication!)&redirect=spruceid"
+                            "\(environmentConfig.proofingClientUrl)/proofing?id=\(hacApplication!)&redirect=spruceid"
                     ) {
                         UIApplication.shared.open(
                             url,
