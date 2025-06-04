@@ -2,10 +2,6 @@ import CoreBluetooth
 import Foundation
 import SpruceIDMobileSdkRs
 
-public enum DeviceEngagement {
-    case QRCode
-}
-
 /// To be implemented by the consumer to update the UI
 public protocol BLESessionStateDelegate: AnyObject {
     func update(state: BLESessionState)
@@ -20,7 +16,7 @@ public class IsoMdlPresentation {
     var useL2CAP: Bool
 
     public init?(
-        mdoc: MDoc, engagement: DeviceEngagement,
+        mdoc: MDoc, engagement: DeviceEngagementType,
         callback: BLESessionStateDelegate, useL2CAP: Bool
     ) {
         self.callback = callback
@@ -35,13 +31,27 @@ public class IsoMdlPresentation {
                 callback: self,
                 serviceUuid: CBUUID(nsuuid: self.uuid),
                 useL2CAP: useL2CAP)
-            self.callback.update(
-                state: .engagingQRCode(
-                    session.getQrCodeUri().data(using: .ascii)!))
+            // Update based on engagement type
+            switch engagement {
+            case .qr:
+                self.callback.update(
+                    state: .engagingQRCode(
+                        try session.getQrHandover().data(using: .ascii)!))
+            case .nfc:
+                self.callback.update(
+                    state: .nfcHandover(
+                        try session.getNfcHandover(requestMessage: nil)))
+            }
+
         } catch {
             print("\(error)")
             return nil
         }
+    }
+
+    // Return the NFC Handover bytes from the underlying mDL session.
+    public func getNfcHandover(requestMessage: Data?) throws -> Data {
+        return try session.getNfcHandover(requestMessage: requestMessage)
     }
 
     // Cancel the request mid-transaction and gracefully clean up the BLE stack.
@@ -69,8 +79,11 @@ public class IsoMdlPresentation {
                 self.cancel()
                 return
             }
-            guard let signature =
-                    CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(bytes: derSignature) else {
+            guard
+                let signature =
+                    CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(
+                        bytes: derSignature)
+            else {
                 self.callback.update(
                     state: .error(
                         .generic(
@@ -137,6 +150,8 @@ public enum BLESessionState {
     case error(BleSessionError)
     /// App should display the QR code
     case engagingQRCode(Data)
+    /// App should handle NFC device engagement
+    case nfcHandover(Data)
     /// App should indicate to the user that BLE connection has been made
     case connected
     /// App should display an interactive page for the user to chose which values to reveal

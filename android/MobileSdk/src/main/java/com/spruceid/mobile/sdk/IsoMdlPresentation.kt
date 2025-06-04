@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
+import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -20,6 +21,7 @@ abstract class BLESessionStateDelegate {
 
 class IsoMdlPresentation(
         val mdoc: Mdoc,
+        val engagement: DeviceEngagementType,
         val keyAlias: String,
         val bluetoothManager: BluetoothManager,
         val callback: BLESessionStateDelegate,
@@ -44,7 +46,23 @@ class IsoMdlPresentation(
                     context,
                     callback
             )
-            this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrHandover())))
+            var requestMessage = null
+            val handoverData =
+                    when (engagement) {
+                        DeviceEngagementType.QR ->
+                                mapOf(Pair("engagingQRCode", session!!.getQrHandover()))
+                        DeviceEngagementType.NFC ->
+                                mapOf(Pair("nfcHandover", session!!.getNfcHandover(requestMessage)))
+                        else ->
+                                mapOf(
+                                        Pair("engagingQRCode", session!!.getQrHandover()),
+                                        Pair(
+                                                "nfcHandover",
+                                                session!!.getNfcHandover(requestMessage)
+                                        )
+                                )
+                    }
+            this.callback.update(handoverData)
         } catch (e: Error) {
             Log.e("BleSessionManager.constructor", e.toString())
         }

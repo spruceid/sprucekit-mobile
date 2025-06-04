@@ -17965,11 +17965,11 @@ public func initGlobalLogger()  {try! rustCall() {
  * String containing the BLE ident.
 
  */
-public func initializeMdlPresentation(mdocId: Uuid, uuid: Uuid, storageManager: StorageManagerInterface)async throws  -> MdlPresentationSession  {
+public func initializeMdlPresentation(mdocId: Uuid, engagement: DeviceEngagementType, uuid: Uuid, storageManager: StorageManagerInterface)async throws  -> MdlPresentationSession  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_func_initialize_mdl_presentation(FfiConverterTypeUuid_lower(mdocId),FfiConverterTypeUuid_lower(uuid),FfiConverterTypeStorageManagerInterface_lower(storageManager)
+                uniffi_mobile_sdk_rs_fn_func_initialize_mdl_presentation(FfiConverterTypeUuid_lower(mdocId),FfiConverterTypeDeviceEngagementType_lower(engagement),FfiConverterTypeUuid_lower(uuid),FfiConverterTypeStorageManagerInterface_lower(storageManager)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
@@ -18194,7 +18194,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_init_global_logger() != 47162) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 29387) {
+    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 57158) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 26972) {

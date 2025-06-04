@@ -49,6 +49,7 @@ use uuid::Uuid;
 #[uniffi::export]
 pub async fn initialize_mdl_presentation(
     mdoc_id: Uuid,
+    engagement: DeviceEngagementType,
     uuid: Uuid,
     storage_manager: Arc<dyn StorageManagerInterface>,
 ) -> Result<MdlPresentationSession, SessionError> {
@@ -86,7 +87,7 @@ pub async fn initialize_mdl_presentation(
         })?
         .to_vec();
     let engaged_state = session
-        .engage(DeviceEngagementType::QR.into())
+        .engage(engagement.into())
         .map_err(|e| SessionError::Generic {
             value: format!("Could not generate qr engagement: {e:?}"),
         })?;
