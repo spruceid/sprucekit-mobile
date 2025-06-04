@@ -395,7 +395,13 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 
 
 // Public interface members begin here.
-
+// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+private let IDX_CALLBACK_FREE: Int32 = 0
+// Callback return codes
+private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
+private let UNIFFI_CALLBACK_ERROR: Int32 = 1
+private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -639,13 +645,7 @@ open func httpClient(request: HttpRequest)async throws  -> HttpResponse  {
     
 
 }
-// Magic number for the Rust proxy to call using the same mechanism as every other method,
-// to free the callback once it's dropped by Rust.
-private let IDX_CALLBACK_FREE: Int32 = 0
-// Callback return codes
-private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
-private let UNIFFI_CALLBACK_ERROR: Int32 = 1
-private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
+
 
 // Put the implementation in a struct so we don't pollute the top-level namespace
 fileprivate struct UniffiCallbackInterfaceAsyncHttpClient {
@@ -1381,6 +1381,186 @@ public func FfiConverterTypeCredentialRequest_lower(_ value: CredentialRequest) 
 
 
 
+public protocol Crypto: AnyObject, Sendable {
+    
+    func p256Verify(certificateDer: Data, payload: Data, signature: Data)  -> VerificationResult
+    
+}
+open class CryptoImpl: Crypto, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_crypto(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_crypto(pointer, $0) }
+    }
+
+    
+
+    
+open func p256Verify(certificateDer: Data, payload: Data, signature: Data) -> VerificationResult  {
+    return try!  FfiConverterTypeVerificationResult_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_crypto_p256_verify(self.uniffiClonePointer(),
+        FfiConverterData.lower(certificateDer),
+        FfiConverterData.lower(payload),
+        FfiConverterData.lower(signature),$0
+    )
+})
+}
+    
+
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceCrypto {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceCrypto] = [UniffiVTableCallbackInterfaceCrypto(
+        p256Verify: { (
+            uniffiHandle: UInt64,
+            certificateDer: RustBuffer,
+            payload: RustBuffer,
+            signature: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> VerificationResult in
+                guard let uniffiObj = try? FfiConverterTypeCrypto.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.p256Verify(
+                     certificateDer: try FfiConverterData.lift(certificateDer),
+                     payload: try FfiConverterData.lift(payload),
+                     signature: try FfiConverterData.lift(signature)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeVerificationResult_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterTypeCrypto.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface Crypto: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitCrypto() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_crypto(UniffiCallbackInterfaceCrypto.vtable)
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCrypto: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<Crypto>()
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Crypto
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Crypto {
+        return CryptoImpl(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Crypto) -> UnsafeMutableRawPointer {
+        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
+            fatalError("Cast to UnsafeMutableRawPointer failed")
+        }
+        return ptr
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Crypto {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Crypto, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCrypto_lift(_ pointer: UnsafeMutableRawPointer) throws -> Crypto {
+    return try FfiConverterTypeCrypto.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCrypto_lower(_ value: Crypto) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeCrypto.lower(value)
+}
+
+
+
+
+
+
 /**
  * Utility functions for cryptographic curves
  */
@@ -1543,11 +1723,9 @@ public protocol CwtProtocol: AnyObject, Sendable {
      */
     func keyAlias()  -> KeyAlias?
     
-    func payload()  -> String
-    
     func type()  -> CredentialType
     
-    func verify(crypto: Crypto, payload: String) throws 
+    func verify(crypto: Crypto) async throws 
     
 }
 open class Cwt: CwtProtocol, @unchecked Sendable {
@@ -1600,11 +1778,6 @@ open class Cwt: CwtProtocol, @unchecked Sendable {
     }
 
     
-    /**
-     * Construct a new credential from a compact JWS (of the form
-     * `<base64-encoded-header>.<base64-encoded-payload>.<base64-encoded-signature>`),
-     * without an associated keypair.
-     */
 public static func newFromBase10(payload: String)throws  -> Cwt  {
     return try  FfiConverterTypeCwt_lift(try rustCallWithError(FfiConverterTypeCwtError_lift) {
     uniffi_mobile_sdk_rs_fn_constructor_cwt_new_from_base10(
@@ -1645,13 +1818,6 @@ open func keyAlias() -> KeyAlias?  {
 })
 }
     
-open func payload() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_cwt_payload(self.uniffiClonePointer(),$0
-    )
-})
-}
-    
 open func type() -> CredentialType  {
     return try!  FfiConverterTypeCredentialType_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_cwt_type(self.uniffiClonePointer(),$0
@@ -1659,12 +1825,21 @@ open func type() -> CredentialType  {
 })
 }
     
-open func verify(crypto: Crypto, payload: String)throws   {try rustCallWithError(FfiConverterTypeCwtError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_cwt_verify(self.uniffiClonePointer(),
-        FfiConverterCallbackInterfaceCrypto_lower(crypto),
-        FfiConverterString.lower(payload),$0
-    )
-}
+open func verify(crypto: Crypto)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_cwt_verify(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeCrypto_lower(crypto)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCwtError_lift
+        )
 }
     
 
@@ -10557,6 +10732,9 @@ extension AuthenticationStatus: Equatable, Hashable {}
 
 
 
+
+
+
 public enum CborLdEncodingError: Swift.Error {
 
     
@@ -10632,11 +10810,14 @@ extension CborLdEncodingError: Equatable, Hashable {}
 
 
 
+
 extension CborLdEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -10777,6 +10958,8 @@ public func FfiConverterTypeCborValue_lower(_ value: CborValue) -> RustBuffer {
 
 
 
+
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -10869,6 +11052,9 @@ public func FfiConverterTypeClaimValue_lower(_ value: ClaimValue) -> RustBuffer 
 
 
 extension ClaimValue: Equatable, Hashable {}
+
+
+
 
 
 
@@ -11008,11 +11194,14 @@ extension CredentialDecodingError: Equatable, Hashable {}
 
 
 
+
 extension CredentialDecodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -11121,11 +11310,14 @@ extension CredentialEncodingError: Equatable, Hashable {}
 
 
 
+
 extension CredentialEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -11237,6 +11429,9 @@ extension CredentialFormat: Equatable, Hashable {}
 
 
 
+
+
+
 public enum CredentialPresentationError: Swift.Error {
 
     
@@ -11312,11 +11507,14 @@ extension CredentialPresentationError: Equatable, Hashable {}
 
 
 
+
 extension CredentialPresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -11385,11 +11583,14 @@ extension CryptoError: Equatable, Hashable {}
 
 
 
+
 extension CryptoError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -11656,11 +11857,14 @@ extension CwtError: Equatable, Hashable {}
 
 
 
+
 extension CwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -11739,11 +11943,14 @@ extension DcApiError: Equatable, Hashable {}
 
 
 
+
 extension DcApiError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -11824,6 +12031,9 @@ public func FfiConverterTypeDelegatedVerifierStatus_lower(_ value: DelegatedVeri
 
 
 extension DelegatedVerifierStatus: Equatable, Hashable {}
+
+
+
 
 
 
@@ -11917,11 +12127,14 @@ extension DidError: Equatable, Hashable {}
 
 
 
+
 extension DidError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -11988,6 +12201,9 @@ public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
 
 
 extension DidMethod: Equatable, Hashable {}
+
+
+
 
 
 
@@ -12119,11 +12335,14 @@ extension HttpClientError: Equatable, Hashable {}
 
 
 
+
 extension HttpClientError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -12252,11 +12471,14 @@ extension IssuanceServiceError: Equatable, Hashable {}
 
 
 
+
 extension IssuanceServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -12321,11 +12543,14 @@ extension JsonVcEncodingError: Equatable, Hashable {}
 
 
 
+
 extension JsonVcEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -12408,11 +12633,14 @@ extension JsonVcInitError: Equatable, Hashable {}
 
 
 
+
 extension JsonVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -12519,11 +12747,14 @@ extension JwtVcInitError: Equatable, Hashable {}
 
 
 
+
 extension JwtVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -12622,11 +12853,14 @@ extension KeyTransformationError: Equatable, Hashable {}
 
 
 
+
 extension KeyTransformationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -12719,11 +12953,14 @@ extension MdlReaderResponseError: Equatable, Hashable {}
 
 
 
+
 extension MdlReaderResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -12792,11 +13029,14 @@ extension MdlReaderResponseSerializeError: Equatable, Hashable {}
 
 
 
+
 extension MdlReaderResponseSerializeError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -12865,11 +13105,14 @@ extension MdlReaderSessionError: Equatable, Hashable {}
 
 
 
+
 extension MdlReaderSessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -12976,6 +13219,9 @@ extension MDocItem: Equatable, Hashable {}
 
 
 
+
+
+
 public enum MdlUtilError: Swift.Error {
 
     
@@ -13041,11 +13287,14 @@ extension MdlUtilError: Equatable, Hashable {}
 
 
 
+
 extension MdlUtilError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -13110,11 +13359,14 @@ extension MdocEncodingError: Equatable, Hashable {}
 
 
 
+
 extension MdocEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -13225,11 +13477,14 @@ extension MdocInitError: Equatable, Hashable {}
 
 
 
+
 extension MdocInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -13318,11 +13573,14 @@ extension Oid4vp180137Error: Equatable, Hashable {}
 
 
 
+
 extension Oid4vp180137Error: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -13701,11 +13959,14 @@ extension Oid4vpError: Equatable, Hashable {}
 
 
 
+
 extension Oid4vpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -13862,11 +14123,14 @@ extension Oid4vciError: Equatable, Hashable {}
 
 
 
+
 extension Oid4vciError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -13945,11 +14209,14 @@ extension Oid4vpVerifierError: Equatable, Hashable {}
 
 
 
+
 extension Oid4vpVerifierError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -14032,6 +14299,9 @@ public func FfiConverterTypeOutcome_lower(_ value: Outcome) -> RustBuffer {
 
 
 extension Outcome: Equatable, Hashable {}
+
+
+
 
 
 
@@ -14222,11 +14492,14 @@ extension PermissionRequestError: Equatable, Hashable {}
 
 
 
+
 extension PermissionRequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14327,11 +14600,14 @@ extension PopError: Equatable, Hashable {}
 
 
 
+
 extension PopError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14480,11 +14756,14 @@ extension PresentationBuilderError: Equatable, Hashable {}
 
 
 
+
 extension PresentationBuilderError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14593,11 +14872,14 @@ extension PresentationError: Equatable, Hashable {}
 
 
 
+
 extension PresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14666,11 +14948,14 @@ extension RequestError: Equatable, Hashable {}
 
 
 
+
 extension RequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14745,11 +15030,14 @@ extension ResponseError: Equatable, Hashable {}
 
 
 
+
 extension ResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14864,11 +15152,14 @@ extension SdJwtError: Equatable, Hashable {}
 
 
 
+
 extension SdJwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14937,11 +15228,14 @@ extension SessionError: Equatable, Hashable {}
 
 
 
+
 extension SessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15026,11 +15320,14 @@ extension SignatureError: Equatable, Hashable {}
 
 
 
+
 extension SignatureError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15105,11 +15402,14 @@ extension StatusListError: Equatable, Hashable {}
 
 
 
+
 extension StatusListError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15220,11 +15520,14 @@ extension StorageManagerError: Equatable, Hashable {}
 
 
 
+
 extension StorageManagerError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15293,11 +15596,14 @@ extension TerminationError: Equatable, Hashable {}
 
 
 
+
 extension TerminationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15372,11 +15678,14 @@ extension VcbVerificationError: Equatable, Hashable {}
 
 
 
+
 extension VcbVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15445,11 +15754,14 @@ extension VcVerificationError: Equatable, Hashable {}
 
 
 
+
 extension VcVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15540,11 +15852,14 @@ extension VpError: Equatable, Hashable {}
 
 
 
+
 extension VpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -15611,6 +15926,9 @@ public func FfiConverterTypeVcdmVersion_lower(_ value: VcdmVersion) -> RustBuffe
 
 
 extension VcdmVersion: Equatable, Hashable {}
+
+
+
 
 
 
@@ -15727,11 +16045,14 @@ extension VdcCollectionError: Equatable, Hashable {}
 
 
 
+
 extension VdcCollectionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -15801,6 +16122,9 @@ public func FfiConverterTypeVerificationResult_lower(_ value: VerificationResult
 
 
 extension VerificationResult: Equatable, Hashable {}
+
+
+
 
 
 
@@ -15949,6 +16273,7 @@ extension WalletServiceError: Equatable, Hashable {}
 
 
 
+
 extension WalletServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15957,124 +16282,6 @@ extension WalletServiceError: Foundation.LocalizedError {
 
 
 
-
-
-public protocol Crypto: AnyObject, Sendable {
-    
-    func p256Verify(certificateDer: Data, payload: Data, signature: Data)  -> VerificationResult
-    
-}
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceCrypto {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceCrypto] = [UniffiVTableCallbackInterfaceCrypto(
-        p256Verify: { (
-            uniffiHandle: UInt64,
-            certificateDer: RustBuffer,
-            payload: RustBuffer,
-            signature: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> VerificationResult in
-                guard let uniffiObj = try? FfiConverterCallbackInterfaceCrypto.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.p256Verify(
-                     certificateDer: try FfiConverterData.lift(certificateDer),
-                     payload: try FfiConverterData.lift(payload),
-                     signature: try FfiConverterData.lift(signature)
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeVerificationResult_lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            let result = try? FfiConverterCallbackInterfaceCrypto.handleMap.remove(handle: uniffiHandle)
-            if result == nil {
-                print("Uniffi callback interface Crypto: handle missing in uniffiFree")
-            }
-        }
-    )]
-}
-
-private func uniffiCallbackInitCrypto() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_crypto(UniffiCallbackInterfaceCrypto.vtable)
-}
-
-// FfiConverter protocol for callback interfaces
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterCallbackInterfaceCrypto {
-    fileprivate static let handleMap = UniffiHandleMap<Crypto>()
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-extension FfiConverterCallbackInterfaceCrypto : FfiConverter {
-    typealias SwiftType = Crypto
-    typealias FfiType = UInt64
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public static func lift(_ handle: UInt64) throws -> SwiftType {
-        try handleMap.get(handle: handle)
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public static func lower(_ v: SwiftType) -> UInt64 {
-        return handleMap.insert(obj: v)
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(v))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterCallbackInterfaceCrypto_lift(_ handle: UInt64) throws -> Crypto {
-    return try FfiConverterCallbackInterfaceCrypto.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterCallbackInterfaceCrypto_lower(_ v: Crypto) -> UInt64 {
-    return FfiConverterCallbackInterfaceCrypto.lower(v)
-}
 
 
 
@@ -18616,6 +18823,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cbortag_value() != 9924) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_crypto_p256_verify() != 31057) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_cryptocurveutils_ensure_raw_fixed_width_signature_encoding() != 55703) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18628,13 +18838,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_key_alias() != 20086) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_payload() != 50256) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_type() != 62248) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify() != 33782) {
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify() != 48612) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_poll_verification_status() != 35131) {
@@ -19003,7 +19210,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_cwt_new_from_base10() != 31506) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_cwt_new_from_base10() != 28565) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 15415) {
@@ -19108,9 +19315,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_walletserviceclient_new() != 5221) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_crypto_p256_verify() != 31057) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_sign() != 27180) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19131,12 +19335,12 @@ private let initializationResult: InitializationResult = {
     }
 
     uniffiCallbackInitAsyncHttpClient()
+    uniffiCallbackInitCrypto()
     uniffiCallbackInitKeyStore()
     uniffiCallbackInitLogWriter()
     uniffiCallbackInitSigningKey()
     uniffiCallbackInitStorageManagerInterface()
     uniffiCallbackInitSyncHttpClient()
-    uniffiCallbackInitCrypto()
     uniffiCallbackInitPresentationSigner()
     return InitializationResult.ok
 }()

@@ -28,7 +28,7 @@ struct VerifyCwtView: View {
                                 credentialPack = CredentialPack()
                                 let cwt = try Cwt.newFromBase10(payload: code)
                                 _ = credentialPack!.addCwt(cwt: cwt)
-                                try cwt.verify(crypto: CryptoImpl(), payload: code)
+                                try await cwt.verify(crypto: CryptoImpl())
                                 self.code = code
                                 success = true
                                 // TODO: add log

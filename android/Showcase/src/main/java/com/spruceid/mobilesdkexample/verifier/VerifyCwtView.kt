@@ -43,7 +43,7 @@ fun VerifyCwtView(
             GlobalScope.launch {
                 try {
                     code = content
-                    Cwt.newFromBase10(code).verify(CryptoImpl(), code)
+                    Cwt.newFromBase10(code).verify(CryptoImpl())
                     success = true
                     // TODO: add log
                 } catch (e: Exception) {

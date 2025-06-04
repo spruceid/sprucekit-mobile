@@ -1,8 +1,8 @@
 use uniffi::deps::anyhow::{anyhow, Context};
 use x509_cert::der::{asn1, Encode};
 
-#[uniffi::export(callback_interface)]
-pub trait Crypto {
+#[uniffi::export(with_foreign)]
+pub trait Crypto: Send + Sync {
     fn p256_verify(
         &self,
         certificate_der: Vec<u8>,
