@@ -1381,6 +1381,186 @@ public func FfiConverterTypeCredentialRequest_lower(_ value: CredentialRequest) 
 
 
 
+public protocol Crypto: AnyObject, Sendable {
+    
+    func p256Verify(certificateDer: Data, payload: Data, signature: Data)  -> VerificationResult
+    
+}
+open class CryptoImpl: Crypto, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_crypto(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_crypto(pointer, $0) }
+    }
+
+    
+
+    
+open func p256Verify(certificateDer: Data, payload: Data, signature: Data) -> VerificationResult  {
+    return try!  FfiConverterTypeVerificationResult_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_crypto_p256_verify(self.uniffiClonePointer(),
+        FfiConverterData.lower(certificateDer),
+        FfiConverterData.lower(payload),
+        FfiConverterData.lower(signature),$0
+    )
+})
+}
+    
+
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceCrypto {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceCrypto] = [UniffiVTableCallbackInterfaceCrypto(
+        p256Verify: { (
+            uniffiHandle: UInt64,
+            certificateDer: RustBuffer,
+            payload: RustBuffer,
+            signature: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> VerificationResult in
+                guard let uniffiObj = try? FfiConverterTypeCrypto.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.p256Verify(
+                     certificateDer: try FfiConverterData.lift(certificateDer),
+                     payload: try FfiConverterData.lift(payload),
+                     signature: try FfiConverterData.lift(signature)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeVerificationResult_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterTypeCrypto.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface Crypto: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitCrypto() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_crypto(UniffiCallbackInterfaceCrypto.vtable)
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCrypto: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<Crypto>()
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Crypto
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Crypto {
+        return CryptoImpl(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Crypto) -> UnsafeMutableRawPointer {
+        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
+            fatalError("Cast to UnsafeMutableRawPointer failed")
+        }
+        return ptr
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Crypto {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Crypto, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCrypto_lift(_ pointer: UnsafeMutableRawPointer) throws -> Crypto {
+    return try FfiConverterTypeCrypto.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCrypto_lower(_ value: Crypto) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeCrypto.lower(value)
+}
+
+
+
+
+
+
 /**
  * Utility functions for cryptographic curves
  */
@@ -1543,11 +1723,9 @@ public protocol CwtProtocol: AnyObject, Sendable {
      */
     func keyAlias()  -> KeyAlias?
     
-    func payload()  -> String
-    
     func type()  -> CredentialType
     
-    func verify(crypto: Crypto, payload: String) throws 
+    func verify(crypto: Crypto) async throws 
     
 }
 open class Cwt: CwtProtocol, @unchecked Sendable {
@@ -1600,11 +1778,6 @@ open class Cwt: CwtProtocol, @unchecked Sendable {
     }
 
     
-    /**
-     * Construct a new credential from a compact JWS (of the form
-     * `<base64-encoded-header>.<base64-encoded-payload>.<base64-encoded-signature>`),
-     * without an associated keypair.
-     */
 public static func newFromBase10(payload: String)throws  -> Cwt  {
     return try  FfiConverterTypeCwt_lift(try rustCallWithError(FfiConverterTypeCwtError_lift) {
     uniffi_mobile_sdk_rs_fn_constructor_cwt_new_from_base10(
@@ -1645,13 +1818,6 @@ open func keyAlias() -> KeyAlias?  {
 })
 }
     
-open func payload() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_cwt_payload(self.uniffiClonePointer(),$0
-    )
-})
-}
-    
 open func type() -> CredentialType  {
     return try!  FfiConverterTypeCredentialType_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_cwt_type(self.uniffiClonePointer(),$0
@@ -1659,12 +1825,21 @@ open func type() -> CredentialType  {
 })
 }
     
-open func verify(crypto: Crypto, payload: String)throws   {try rustCallWithError(FfiConverterTypeCwtError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_cwt_verify(self.uniffiClonePointer(),
-        FfiConverterCallbackInterfaceCrypto_lower(crypto),
-        FfiConverterString.lower(payload),$0
-    )
-}
+open func verify(crypto: Crypto)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_cwt_verify(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeCrypto_lower(crypto)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCwtError_lift
+        )
 }
     
 
@@ -15959,126 +16134,6 @@ extension WalletServiceError: Foundation.LocalizedError {
 
 
 
-public protocol Crypto: AnyObject, Sendable {
-    
-    func p256Verify(certificateDer: Data, payload: Data, signature: Data)  -> VerificationResult
-    
-}
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceCrypto {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceCrypto] = [UniffiVTableCallbackInterfaceCrypto(
-        p256Verify: { (
-            uniffiHandle: UInt64,
-            certificateDer: RustBuffer,
-            payload: RustBuffer,
-            signature: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> VerificationResult in
-                guard let uniffiObj = try? FfiConverterCallbackInterfaceCrypto.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return uniffiObj.p256Verify(
-                     certificateDer: try FfiConverterData.lift(certificateDer),
-                     payload: try FfiConverterData.lift(payload),
-                     signature: try FfiConverterData.lift(signature)
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeVerificationResult_lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn
-            )
-        },
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            let result = try? FfiConverterCallbackInterfaceCrypto.handleMap.remove(handle: uniffiHandle)
-            if result == nil {
-                print("Uniffi callback interface Crypto: handle missing in uniffiFree")
-            }
-        }
-    )]
-}
-
-private func uniffiCallbackInitCrypto() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_crypto(UniffiCallbackInterfaceCrypto.vtable)
-}
-
-// FfiConverter protocol for callback interfaces
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterCallbackInterfaceCrypto {
-    fileprivate static let handleMap = UniffiHandleMap<Crypto>()
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-extension FfiConverterCallbackInterfaceCrypto : FfiConverter {
-    typealias SwiftType = Crypto
-    typealias FfiType = UInt64
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public static func lift(_ handle: UInt64) throws -> SwiftType {
-        try handleMap.get(handle: handle)
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public static func lower(_ v: SwiftType) -> UInt64 {
-        return handleMap.insert(obj: v)
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(v))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterCallbackInterfaceCrypto_lift(_ handle: UInt64) throws -> Crypto {
-    return try FfiConverterCallbackInterfaceCrypto.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterCallbackInterfaceCrypto_lower(_ v: Crypto) -> UInt64 {
-    return FfiConverterCallbackInterfaceCrypto.lower(v)
-}
-
-
-
-
 /**
  * The `PresentationSigner` foreign callback interface to be implemented
  * by the host environment, e.g. Kotlin or Swift.
@@ -18616,6 +18671,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cbortag_value() != 9924) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_crypto_p256_verify() != 31057) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_cryptocurveutils_ensure_raw_fixed_width_signature_encoding() != 55703) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -18628,13 +18686,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_key_alias() != 20086) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_payload() != 50256) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_type() != 62248) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify() != 33782) {
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify() != 48612) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_poll_verification_status() != 35131) {
@@ -19003,7 +19058,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_cwt_new_from_base10() != 31506) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_cwt_new_from_base10() != 28565) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 15415) {
@@ -19108,9 +19163,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_walletserviceclient_new() != 5221) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_crypto_p256_verify() != 31057) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_sign() != 27180) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19131,12 +19183,12 @@ private let initializationResult: InitializationResult = {
     }
 
     uniffiCallbackInitAsyncHttpClient()
+    uniffiCallbackInitCrypto()
     uniffiCallbackInitKeyStore()
     uniffiCallbackInitLogWriter()
     uniffiCallbackInitSigningKey()
     uniffiCallbackInitStorageManagerInterface()
     uniffiCallbackInitSyncHttpClient()
-    uniffiCallbackInitCrypto()
     uniffiCallbackInitPresentationSigner()
     return InitializationResult.ok
 }()

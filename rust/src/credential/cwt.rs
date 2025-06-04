@@ -8,6 +8,9 @@ use cose_rs::cwt::claim::ExpirationTime;
 use cose_rs::{cwt::ClaimsSet, CoseSign1};
 use num_bigint::BigUint;
 use num_traits::Num;
+use ssi::dids::{AnyDidMethod, VerificationMethodDIDResolver};
+use ssi::jwk::JWKResolver;
+use ssi::prelude::AnyJwkMethod;
 use std::collections::HashMap;
 
 use std::sync::Arc;
@@ -22,24 +25,18 @@ use x509_cert::{certificate::CertificateInner, der::Encode};
 #[derive(uniffi::Object, Debug, Clone)]
 pub struct Cwt {
     id: Uuid,
-    claims: HashMap<String, CborValue>,
-    payload: String,
+    payload: Vec<u8>,
+    cwt: CoseSign1,
+    claims: ClaimsSet,
     key_alias: Option<KeyAlias>,
 }
 
 #[uniffi::export]
 impl Cwt {
     #[uniffi::constructor]
-    /// Construct a new credential from a compact JWS (of the form
-    /// `<base64-encoded-header>.<base64-encoded-payload>.<base64-encoded-signature>`),
-    /// without an associated keypair.
     pub fn new_from_base10(payload: String) -> Result<Arc<Self>, CwtError> {
         let id = Uuid::new_v4();
-        Self::from_base10(id, payload.as_bytes().to_vec()).map(|(_, cwt)| cwt)
-    }
-
-    pub fn verify(&self, crypto: Box<dyn Crypto>, payload: String) -> Result<(), CwtError> {
-        self.validate(&crypto, payload)
+        Ok(Self::from_base10(id, payload.as_bytes().to_vec())?.into())
     }
 
     /// The VdcCollection ID for this credential.
@@ -47,13 +44,9 @@ impl Cwt {
         self.id
     }
 
-    pub fn payload(&self) -> String {
-        self.payload.clone()
-    }
-
     /// The version of the Verifiable Credential Data Model that this credential conforms to.
     pub fn claims(&self) -> HashMap<String, CborValue> {
-        self.claims.clone()
+        Self::claims_set_to_hash_map(self.claims.clone())
     }
 
     pub fn r#type(&self) -> CredentialType {
@@ -66,11 +59,16 @@ impl Cwt {
     }
 }
 
+#[uniffi::export(async_runtime = "tokio")]
 impl Cwt {
-    pub(crate) fn from_base10(
-        id: Uuid,
-        payload: Vec<u8>,
-    ) -> Result<(CoseSign1, Arc<Self>), CwtError> {
+    pub async fn verify(&self, crypto: &dyn Crypto) -> Result<(), CwtError> {
+        self.validate(crypto).await
+    }
+}
+
+impl Cwt {
+    pub(crate) fn from_base10(id: Uuid, payload: Vec<u8>) -> Result<Self, CwtError> {
+        let raw_payload = payload.clone();
         let payload =
             String::from_utf8(payload).map_err(|e| CwtError::CwsPayloadDecode(e.to_string()))?;
         let base10_str = payload.strip_prefix('9').ok_or(CwtError::Base10Decode)?;
@@ -89,27 +87,30 @@ impl Cwt {
             .map_err(|e| CwtError::ClaimsRetrieval(e.to_string()))?
             .ok_or(CwtError::EmptyPayload)?;
 
-        let claims = Self::claims_set_to_hash_map(claims);
-
-        Ok((
+        Ok(Cwt {
+            id,
+            payload: raw_payload,
             cwt,
-            Cwt {
-                id,
-                claims,
-                payload,
-                key_alias: None,
-            }
-            .into(),
-        ))
+            claims,
+            key_alias: None,
+        })
     }
 
-    fn validate<C: Crypto>(&self, crypto: &C, cwt: String) -> Result<(), CwtError> {
-        let (cwt, _) = Self::from_base10(self.id, cwt.as_bytes().to_vec())
-            .map_err(|e| CwtError::CwsPayloadDecode(e.to_string()))?;
+    async fn validate(&self, crypto: &dyn Crypto) -> Result<(), CwtError> {
+        self.validate_claims()?;
+
+        let Ok(signer_certificate) = helpers::get_signer_certificate(&self.cwt) else {
+            if let Some(CborValue::Text(issuer_did)) = self.claims().get("Issuer") {
+                return self.validate_using_issuer_did(issuer_did).await;
+            } else {
+                return Err(CwtError::Trust(
+                    "no signer certificate or issuer DID found".to_string(),
+                ));
+            }
+        };
+
         let trusted_roots = trusted_roots::trusted_roots()
             .map_err(|e| CwtError::LoadRootCertificate(e.to_string()))?;
-        let signer_certificate =
-            helpers::get_signer_certificate(&cwt).map_err(|e| CwtError::Trust(e.to_string()))?;
 
         // We want to manually handle the Err to get all errors, so try_fold would not work
         #[allow(clippy::manual_try_fold)]
@@ -120,7 +121,7 @@ impl Cwt {
             })
             .fold(Result::Err("\n".to_string()), |res, cert| match res {
                 Ok(_) => Ok(()),
-                Err(err) => match Self::validate_certificate_chain(crypto, &cwt, cert.clone()) {
+                Err(err) => match self.validate_certificate_chain(crypto, &cert, &signer_certificate) {
                     Ok(_) => Ok(()),
                     Err(e) => Err(format!("{}\n--------------\n{}", err, e)),
                 },
@@ -132,24 +133,15 @@ impl Cwt {
                     err
                 })
             })
-                    .map_err(|e|CwtError::Trust(e.to_string()))?;
-
-        let claims = cwt
-            .claims_set()
-            .map_err(|e| CwtError::ClaimsRetrieval(e.to_string()))?
-            .ok_or(CwtError::EmptyPayload)?;
-
-        Self::validate_cwt(&claims)
+                    .map_err(|e|CwtError::Trust(e.to_string()))
     }
 
     fn validate_certificate_chain(
+        &self,
         crypto: &dyn Crypto,
-        cwt: &CoseSign1,
-        root_certificate: CertificateInner,
+        root_certificate: &CertificateInner,
+        signer_certificate: &CertificateInner,
     ) -> Result<(), CwtError> {
-        let signer_certificate = helpers::get_signer_certificate(cwt)
-            .map_err(|e| CwtError::SignerCertificateInvalid(e.to_string()))?;
-
         // Root validation.
         {
             helpers::check_validity(&root_certificate.tbs_certificate.validity)
@@ -217,7 +209,7 @@ impl Cwt {
                 .map_err(|_| CwtError::UnableToEncodeSignerCertificateAsDer)?,
         };
 
-        match cwt.verify(&verifier, None, None) {
+        match self.cwt.verify(&verifier, None, None) {
             VerificationResult::Success => Ok(()),
             VerificationResult::Failure(e) => {
                 Err(CwtError::CwtSignatureVerification(e.to_string()))
@@ -226,9 +218,38 @@ impl Cwt {
         }
     }
 
-    fn validate_cwt(claims: &ClaimsSet) -> Result<(), CwtError> {
+    async fn validate_using_issuer_did(&self, issuer_did: &str) -> Result<(), CwtError> {
+        let resolver: VerificationMethodDIDResolver<AnyDidMethod, AnyJwkMethod> =
+            Default::default();
+        let jwk = resolver
+            .fetch_public_jwk(Some(issuer_did))
+            .await
+            .map_err(|e| CwtError::Trust(format!("Failed to resolve issuer DID: {e}")))?;
+        let jwk_str = serde_json::to_string(&jwk).map_err(|e| {
+            tracing::error!("Failed to serialize JWK: {e}");
+            CwtError::Internal
+        })?;
+        let verifier: p256::ecdsa::VerifyingKey = p256::PublicKey::from_jwk_str(&jwk_str)
+            .map_err(|e| {
+                tracing::error!("Failed to parse JWK: {e}");
+                CwtError::Internal
+            })?
+            .into();
+        let verification_result = self
+            .cwt
+            .verify::<_, p256::ecdsa::Signature>(&verifier, None, None);
+        match verification_result {
+            VerificationResult::Success => Ok(()),
+            VerificationResult::Failure(e) => {
+                Err(CwtError::CwtSignatureVerification(e.to_string()))
+            }
+            VerificationResult::Error(e) => Err(CwtError::CwtSignatureVerification(e.to_string())),
+        }
+    }
+
+    fn validate_claims(&self) -> Result<(), CwtError> {
         // Validate the expiration time claim
-        if let Some(ExpirationTime(exp)) = claims.get_claim().map_err(|e| {
+        if let Some(ExpirationTime(exp)) = self.claims.get_claim().map_err(|e| {
             CwtError::MalformedClaim(
                 "exp".to_string(),
                 e.to_string(),
@@ -255,6 +276,7 @@ impl Cwt {
         match key {
             cose_rs::cwt::Key::Text(v) => v.to_string(),
             cose_rs::cwt::Key::Integer(v) => match *v {
+                1 => "Issuer".to_string(),
                 4 => "Expiration".to_string(),
                 5 => "Not Before".to_string(),
                 6 => "Issued At".to_string(),
@@ -306,13 +328,17 @@ impl Cwt {
             }
         }
     }
+
+    pub fn payload(&self) -> Vec<u8> {
+        self.payload.clone()
+    }
 }
 
 impl TryFrom<Credential> for Arc<Cwt> {
     type Error = CwtError;
 
     fn try_from(credential: Credential) -> Result<Self, Self::Error> {
-        Cwt::from_base10(credential.id, credential.payload).map(|(_, cwt)| cwt)
+        Cwt::from_base10(credential.id, credential.payload).map(|cwt| cwt.into())
     }
 }
 
@@ -320,7 +346,7 @@ impl TryFrom<&Credential> for Arc<Cwt> {
     type Error = CwtError;
 
     fn try_from(credential: &Credential) -> Result<Self, Self::Error> {
-        Cwt::from_base10(credential.id, credential.payload.clone()).map(|(_, cwt)| cwt)
+        Cwt::from_base10(credential.id, credential.payload.clone()).map(|cwt| cwt.into())
     }
 }
 
