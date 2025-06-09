@@ -4,7 +4,10 @@ use ssi::{
     claims::jwt::{ExpirationTime, StringOrURI, Subject, ToDecodedJwt},
     prelude::*,
 };
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex, RwLock},
+};
 use thiserror::Error;
 use time::OffsetDateTime;
 
@@ -37,6 +40,10 @@ pub enum WalletServiceError {
     /// Internal error
     #[error("Internal error: {0}")]
     InternalError(String),
+
+    /// Missing endpoint
+    #[error("Endpoint key does not exists: {0}. Available keys: {1}")]
+    MissingEndpoint(String, String),
 }
 
 #[derive(Debug, Clone)]
@@ -82,6 +89,7 @@ pub struct WalletServiceClient {
     client: HaciHttpClient,
     base_url: String,
     token_info: Arc<Mutex<Option<TokenInfo>>>,
+    endpoints: RwLock<Option<HashMap<String, String>>>,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -92,6 +100,81 @@ impl WalletServiceClient {
             client: HaciHttpClient::new(),
             base_url,
             token_info: Arc::new(Mutex::new(None)),
+            endpoints: RwLock::new(None),
+        }
+    }
+
+    /// Lazy fetch or return cached endpoints
+    pub async fn get_or_fetch_endpoints(
+        &self,
+    ) -> Result<HashMap<String, String>, WalletServiceError> {
+        {
+            let read_guard = self.endpoints.read().unwrap();
+            if let Some(ref endpoints) = *read_guard {
+                return Ok(endpoints.clone());
+            }
+        }
+        let endpoints = self.fetch_wellknown_from_api().await?;
+        let mut write_guard = self.endpoints.write().unwrap();
+        *write_guard = Some(endpoints.clone());
+
+        Ok(endpoints)
+    }
+
+    /// Loads the available endpoints dynamically from the API
+    async fn fetch_wellknown_from_api(
+        &self,
+    ) -> Result<HashMap<String, String>, WalletServiceError> {
+        let url = format!("{}/.well-known/showcase-endpoints", self.base_url);
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| WalletServiceError::NetworkError(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(WalletServiceError::ServerError {
+                status,
+                error_message: error_text,
+            });
+        }
+
+        let endpoints: HashMap<String, String> = response
+            .json()
+            .await
+            .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?;
+
+        Ok(endpoints)
+    }
+
+    /// Clear endpoints cache
+    pub fn clear_cached_endpoints(&self) {
+        let mut guard = self.endpoints.write().unwrap();
+        *guard = None;
+    }
+
+    // Helper to resolve an endpoint based on it's key.
+    fn resolve_endpoint(&self, key: &str) -> Result<String, WalletServiceError> {
+        let guard = self.endpoints.read().unwrap();
+
+        match guard.as_ref() {
+            Some(map) => match map.get(key) {
+                Some(path) => Ok(format!("{}{}", self.base_url, path)),
+                None => {
+                    let available_keys = map.keys().cloned().collect::<Vec<_>>().join(", ");
+                    Err(WalletServiceError::MissingEndpoint(
+                        key.to_string(),
+                        available_keys,
+                    ))
+                }
+            },
+            None => Err(WalletServiceError::MissingEndpoint(
+                key.to_string(),
+                "<no endpoints loaded>".into(),
+            )),
         }
     }
 
@@ -136,10 +219,14 @@ impl WalletServiceClient {
 
     /// Get a nonce from the server that expires in 5 minutes and can only be used once
     pub async fn nonce(&self) -> Result<String, WalletServiceError> {
+        // Get the nonce endpoint dynamically
+        self.get_or_fetch_endpoints().await?;
+        let url = self.resolve_endpoint("nonce")?;
+
         // Make GET request to /nonce endpoint
         let response = self
             .client
-            .get(format!("{}/nonce", self.base_url))
+            .get(url)
             .send()
             .await
             .map_err(|e| WalletServiceError::NetworkError(e.to_string()))?;
@@ -164,6 +251,10 @@ impl WalletServiceClient {
     }
 
     pub async fn login(&self, app_attestation: &str) -> Result<String, WalletServiceError> {
+        // Get the login endpoint dynamically
+        self.get_or_fetch_endpoints().await?;
+        let url = self.resolve_endpoint("login")?;
+
         // Parse the app attestation string into a Value to ensure it's valid JSON
         let attestation_value: Value = serde_json::from_str(app_attestation)
             .map_err(|e| WalletServiceError::InvalidJson(e.to_string()))?;
@@ -171,7 +262,7 @@ impl WalletServiceClient {
         // Make POST request to /login endpoint
         let response = self
             .client
-            .post(format!("{}/login", self.base_url))
+            .post(url)
             .header("Content-Type", "application/json")
             .json(&attestation_value)
             .send()
@@ -274,6 +365,20 @@ mod tests {
     async fn test_get_nonce() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         let expected_nonce = "test-nonce-123";
 
         // Mock successful nonce response
@@ -293,6 +398,19 @@ mod tests {
     async fn test_nonce_server_error() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
 
         // Mock server error response
         Mock::given(method("GET"))
@@ -321,6 +439,19 @@ mod tests {
     async fn test_successful_login() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
 
         // Generate a new private key for signing
         let private_jwk = JWK::generate_p256();
@@ -373,6 +504,19 @@ mod tests {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
 
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(2)
+            .mount(&mock_server)
+            .await;
+
         // Mock server error response
         Mock::given(method("POST"))
             .and(path("/login"))
@@ -397,6 +541,20 @@ mod tests {
     async fn test_empty_attestation() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         let empty_attestation = "{}";
 
         // Mock server error response for empty attestation
@@ -423,6 +581,20 @@ mod tests {
     async fn test_malformed_attestation() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         let malformed_attestation = r#"{
             "keyAssertion": "invalid-base64",
             "clientData": "invalid-base64",
@@ -453,9 +625,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_auth_header() {
+    async fn test_auth_header() -> Result<(), WalletServiceError> {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
 
         // Generate a new private key for signing
         let private_jwk = JWK::generate_p256();
@@ -489,5 +674,7 @@ mod tests {
             auth_header.starts_with("Bearer "),
             "Auth header should start with 'Bearer '"
         );
+
+        Ok(())
     }
 }
