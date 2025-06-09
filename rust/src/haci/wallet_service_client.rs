@@ -483,8 +483,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_json() {
-        let (_, base_url) = setup_mock_server().await;
+        let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         let invalid_json = r#"{
             "keyAssertion": "invalid",
             "clientData": "invalid",
@@ -513,7 +526,7 @@ mod tests {
                     "nonce": "/nonce"
                 }"#,
             ))
-            .expect(2)
+            .expect(1)
             .mount(&mock_server)
             .await;
 
