@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::RwLock;
+
 use crate::haci::http_client::HaciHttpClient;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -24,6 +27,10 @@ pub enum IssuanceServiceError {
     /// Internal error
     #[error("Internal error: {0}")]
     InternalError(String),
+
+    /// Missing endpoint
+    #[error("Endpoint key does not exists: {0}. Available keys: {1}")]
+    MissingEndpoint(String, String),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -41,6 +48,7 @@ pub struct CheckStatusResponse {
 pub struct IssuanceServiceClient {
     client: HaciHttpClient,
     base_url: String,
+    endpoints: RwLock<Option<HashMap<String, String>>>,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -54,6 +62,82 @@ impl IssuanceServiceClient {
         Self {
             client: HaciHttpClient::new(),
             base_url,
+            endpoints: RwLock::new(None),
+        }
+    }
+
+    /// Loads the available endpoints dynamically from the API
+    async fn fetch_wellknown_from_api(
+        &self,
+    ) -> Result<HashMap<String, String>, IssuanceServiceError> {
+        let url = format!("{}/.well-known/showcase-endpoints", self.base_url);
+        print!("URL: {:?}", url);
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| IssuanceServiceError::NetworkError(e.to_string()))?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(IssuanceServiceError::ServerError {
+                status,
+                error_message: error_text,
+            });
+        }
+
+        let endpoints: HashMap<String, String> = response
+            .json()
+            .await
+            .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?;
+
+        Ok(endpoints)
+    }
+
+    /// Lazy fetch or return cached endpoints
+    pub async fn get_or_fetch_endpoints(
+        &self,
+    ) -> Result<HashMap<String, String>, IssuanceServiceError> {
+        {
+            let read_guard = self.endpoints.read().unwrap();
+            if let Some(ref endpoints) = *read_guard {
+                return Ok(endpoints.clone());
+            }
+        }
+        let endpoints = self.fetch_wellknown_from_api().await?;
+        let mut write_guard = self.endpoints.write().unwrap();
+        *write_guard = Some(endpoints.clone());
+
+        Ok(endpoints)
+    }
+
+    /// Clear endpoints cache
+    pub fn clear_cached_endpoints(&self) {
+        let mut guard = self.endpoints.write().unwrap();
+        *guard = None;
+    }
+
+    // Helper to resolve an endpoint based on it's key.
+    fn resolve_endpoint(&self, key: &str) -> Result<String, IssuanceServiceError> {
+        let guard = self.endpoints.read().unwrap();
+
+        match guard.as_ref() {
+            Some(map) => match map.get(key) {
+                Some(path) => Ok(format!("{}{}", self.base_url, path)),
+                None => {
+                    let available_keys = map.keys().cloned().collect::<Vec<_>>().join(", ");
+                    Err(IssuanceServiceError::MissingEndpoint(
+                        key.to_string(),
+                        available_keys,
+                    ))
+                }
+            },
+            None => Err(IssuanceServiceError::MissingEndpoint(
+                key.to_string(),
+                "<no endpoints loaded>".into(),
+            )),
         }
     }
 
@@ -69,7 +153,8 @@ impl IssuanceServiceClient {
         &self,
         wallet_attestation: String,
     ) -> Result<String, IssuanceServiceError> {
-        let url = format!("{}/issuance/new", self.base_url);
+        self.get_or_fetch_endpoints().await?;
+        let url = self.resolve_endpoint("initiate_issuance")?;
 
         let response = self
             .client
@@ -152,15 +237,34 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_successful_new_issuance() {
+    async fn test_successful_new_issuance() -> Result<(), IssuanceServiceError> {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = IssuanceServiceClient::new(base_url);
         let wallet_attestation = "test_attestation".to_string();
         let expected_id = "d94062ab-e659-4b70-8532-b758973c2b40".to_string();
 
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "base_url": "http://localhost:3002",
+                    "initiate_issuance": "/issuance/new",
+                    "wallet_service_base_url": "http://localhost:3001"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let endpoints = client.get_or_fetch_endpoints().await?;
+        let maybe_endpoint = endpoints
+            .get("initiate_issuance")
+            .expect("Expected 'initiate_issuance' endpoint to exist");
+
         // Mock successful new issuance response
         Mock::given(method("GET"))
-            .and(path("/issuance/new"))
+            .and(path(maybe_endpoint))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "id": expected_id
             })))
@@ -171,6 +275,8 @@ mod tests {
         let result = client.new_issuance(wallet_attestation).await;
         assert!(result.is_ok(), "New issuance should succeed");
         assert_eq!(result.unwrap(), expected_id);
+
+        Ok(())
     }
 
     #[tokio::test]
@@ -199,14 +305,33 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_server_error_new_issuance() {
+    async fn test_server_error_new_issuance() -> Result<(), IssuanceServiceError> {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = IssuanceServiceClient::new(base_url);
         let wallet_attestation = "test_attestation".to_string();
 
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "base_url": "http://localhost:3002",
+                    "initiate_issuance": "/issuance/new",
+                    "wallet_service_base_url": "http://localhost:3001"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let endpoints = client.get_or_fetch_endpoints().await?;
+        let maybe_endpoint = endpoints
+            .get("initiate_issuance")
+            .expect("Expected 'initiate_issuance' endpoint to exist");
+
         // Mock server error response
         Mock::given(method("GET"))
-            .and(path("/issuance/new"))
+            .and(path(maybe_endpoint))
             .respond_with(ResponseTemplate::new(500).set_body_json(json!({
                 "error": "Internal Server Error"
             })))
@@ -225,6 +350,8 @@ mod tests {
             }
             _ => panic!("Expected ServerError"),
         }
+
+        Ok(())
     }
 
     #[tokio::test]
@@ -258,14 +385,33 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_invalid_json_response() {
+    async fn test_invalid_json_response() -> Result<(), IssuanceServiceError> {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = IssuanceServiceClient::new(base_url);
         let wallet_attestation = "test_attestation".to_string();
 
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "base_url": "http://localhost:3002",
+                    "initiate_issuance": "/issuance/new",
+                    "wallet_service_base_url": "http://localhost:3001"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let endpoints = client.get_or_fetch_endpoints().await?;
+        let maybe_endpoint = endpoints
+            .get("initiate_issuance")
+            .expect("Expected 'initiate_issuance' endpoint to exist");
+
         // Mock invalid JSON response
         Mock::given(method("GET"))
-            .and(path("/issuance/new"))
+            .and(path(maybe_endpoint))
             .respond_with(ResponseTemplate::new(200).set_body_string("invalid json"))
             .expect(1)
             .mount(&mock_server)
@@ -280,5 +426,7 @@ mod tests {
             IssuanceServiceError::ResponseError(_) => (),
             _ => panic!("Expected ResponseError"),
         }
+
+        Ok(())
     }
 }
