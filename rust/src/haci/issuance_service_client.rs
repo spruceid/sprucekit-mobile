@@ -82,12 +82,29 @@ impl IssuanceServiceClient {
         }
     }
 
-    /// Loads the available endpoints dynamically from the API
+    /// Lazy fetch or return cached endpoints
+    pub async fn get_or_fetch_endpoints(
+        &self,
+    ) -> Result<HashMap<String, String>, IssuanceServiceError> {
+        {
+            let read_guard = self.endpoints.read().unwrap();
+            if let Some(ref endpoints) = *read_guard {
+                return Ok(endpoints.clone());
+            }
+        }
+        let endpoints = self.fetch_wellknown_from_api().await?;
+        let mut write_guard = self.endpoints.write().unwrap();
+        *write_guard = Some(endpoints.clone());
+
+        Ok(endpoints)
+    }
+
+    /// Loads the available endpoints dynamically from the API - I would like to not expose it to
+    /// the app, but I'm not sure how to do it.
     async fn fetch_wellknown_from_api(
         &self,
     ) -> Result<HashMap<String, String>, IssuanceServiceError> {
         let url = format!("{}/.well-known/showcase-endpoints", self.base_url);
-        print!("URL: {:?}", url);
         let response = self
             .client
             .get(url)
@@ -108,23 +125,6 @@ impl IssuanceServiceClient {
             .json()
             .await
             .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?;
-
-        Ok(endpoints)
-    }
-
-    /// Lazy fetch or return cached endpoints
-    pub async fn get_or_fetch_endpoints(
-        &self,
-    ) -> Result<HashMap<String, String>, IssuanceServiceError> {
-        {
-            let read_guard = self.endpoints.read().unwrap();
-            if let Some(ref endpoints) = *read_guard {
-                return Ok(endpoints.clone());
-            }
-        }
-        let endpoints = self.fetch_wellknown_from_api().await?;
-        let mut write_guard = self.endpoints.write().unwrap();
-        *write_guard = Some(endpoints.clone());
 
         Ok(endpoints)
     }
