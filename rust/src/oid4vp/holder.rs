@@ -463,7 +463,7 @@ pub(crate) mod tests {
             self.jwk
                 .algorithm
                 .map(Algorithm::from)
-                .unwrap_or(Algorithm::Es256)
+                .unwrap_or(Algorithm::ES256)
         }
 
         async fn verification_method(&self) -> String {
