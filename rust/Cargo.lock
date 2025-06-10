@@ -3575,7 +3575,7 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 [[package]]
 name = "openid4vp"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=511c95b#511c95b885b1b68cfecc1ca97214a04f26c51388"
+source = "git+https://github.com/spruceid/openid4vp?rev=f9348cc#f9348cc1bd2e6a216719cfd1be45a255d9ea7317"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3603,7 +3603,7 @@ dependencies = [
 [[package]]
 name = "openid4vp-frontend"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=511c95b#511c95b885b1b68cfecc1ca97214a04f26c51388"
+source = "git+https://github.com/spruceid/openid4vp?rev=f9348cc#f9348cc1bd2e6a216719cfd1be45a255d9ea7317"
 dependencies = [
  "serde",
  "serde_json",
@@ -6733,7 +6733,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "w3c-vc-barcodes"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/w3c-vc-barcodes?rev=794b988#794b98816bf46427ea451a307078861d4c37b6f1"
+source = "git+https://github.com/spruceid/w3c-vc-barcodes?rev=18f0b5a#18f0b5a6723bfbc951e45a60fc7d0334812f5760"
 dependencies = [
  "cbor-ld 0.2.0 (git+https://github.com/spruceid/cbor-ld.git?rev=74a439a)",
  "csv",

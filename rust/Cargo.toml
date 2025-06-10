@@ -21,7 +21,7 @@ cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", featur
 ] }
 isomdl = { git = "https://github.com/spruceid/isomdl", rev = "6084a83" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "081eb4" }
-openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "511c95b" }
+openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "f9348cc" }
 ssi = { version = "0.12", features = ["secp256r1", "secp384r1"] }
 
 anyhow = "1.0.97"
@@ -67,7 +67,7 @@ uniffi = { version = "0.29.1", features = ["cli", "tokio"] }
 url = { version = "2.5", features = ["serde"] }
 urlencoding = "2.1.3"
 uuid = { version = "1.6.1", features = ["v4"] }
-w3c-vc-barcodes = { git = "https://github.com/spruceid/w3c-vc-barcodes", rev = "794b988" }
+w3c-vc-barcodes = { git = "https://github.com/spruceid/w3c-vc-barcodes", rev = "18f0b5a" }
 x509-cert = { version = "0.2.5", features = ["builder", "hazmat"] }
 
 
