@@ -44,8 +44,12 @@ fun HacApplicationListItem(
                 )
                 if (status?.state == "ReadyToProvision") {
                     credentialStatus = CredentialStatusList.READY
+                    credentialOfferUrl = status?.openidCredentialOffer
+                } else  { // status.state == "ProofingRequired"
+                    credentialStatus = CredentialStatusList.PENDING
+                    credentialOfferUrl = status?.proofingUrl
                 }
-                credentialOfferUrl = status?.openidCredentialOffer
+
             } catch (e: Exception) {
                 println(e.message)
             }
