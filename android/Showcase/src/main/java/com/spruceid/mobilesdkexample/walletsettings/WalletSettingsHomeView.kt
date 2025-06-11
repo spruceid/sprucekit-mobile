@@ -178,13 +178,22 @@ fun WalletSettingsHomeBody(
                             val hacApplication = hacApplicationsViewModel.saveApplication(
                                 HacApplications(issuanceId = issuance)
                             )
+                            val status = hacApplicationsViewModel.issuanceClient.checkStatus(issuance, walletAttestation)
+                            if (status.state == "ProofingRequired") {
+                                val baseUrlTemplate = status.proofingUrl
+                                // %7BID%7D = {ID}
+                                val filledUrlString = baseUrlTemplate?.replace("%7BID%7D", hacApplication)
 
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("${EnvironmentConfig.proofingClientUrl}/proofing?id=${hacApplication}&redirect=spruceid")
-                            )
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse(filledUrlString)
+                                )
+                                context.startActivity(intent)
+                            } else {
+                                print("Issuance started with invalid state, please check.")
+                            }
 
-                            context.startActivity(intent)
+
                         }
                     } finally {
                         isApplyingForMdl = false
