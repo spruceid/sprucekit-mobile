@@ -302,7 +302,38 @@ mod tests {
         assert!(result.is_ok(), "Status check should succeed");
         let response = result.unwrap();
         assert_eq!(response.state, "ReadyToProvision");
-        assert_eq!(response.openid_credential_offer, "openid_credential_offer");
+        assert_eq!(
+            response.openid_credential_offer.as_deref(),
+            Some("openid_credential_offer")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_successful_check_status_proofing_required() {
+        let (mock_server, base_url) = setup_mock_server().await;
+        let client = IssuanceServiceClient::new(base_url);
+        let issuance_id = "5431d6df-63da-4803-a9fc-d92e5c36b9f8".to_string();
+        let wallet_attestation = "test_attestation".to_string();
+
+        // Mock successful status check response
+        Mock::given(method("GET"))
+            .and(path(format!("/issuance/{}/status", issuance_id)))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "state": "ProofingRequired",
+                "proofing_url": "proofing_url"
+            })))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let result = client.check_status(issuance_id, wallet_attestation).await;
+        assert!(result.is_ok(), "Status check should succeed");
+        let response = result.unwrap();
+        assert_eq!(response.state, "ProofingRequired");
+        assert_eq!(
+            response.proofing_url.as_deref(),
+            Some("proofing_url")
+        );
     }
 
     #[tokio::test]
