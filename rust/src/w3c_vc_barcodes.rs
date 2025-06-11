@@ -4,8 +4,11 @@ use ssi::{
     dids::{AnyDidMethod, DIDResolver},
     json_ld::iref::Uri,
     status::{
-        bitstring_status_list::{
-            BitstringStatusListCredential, StatusList, StatusPurpose, TimeToLive,
+        bitstring_status_list::{BitstringStatusListCredential, StatusList, TimeToLive},
+        bitstring_status_list_20240406::{
+            BitstringStatusListCredential as BitstringStatusListCredential20240406,
+            StatusList as StatusList20240406, StatusPurpose, StatusSize,
+            TimeToLive as TimeToLive20240406,
         },
         client::{MaybeCached, ProviderError, TypedStatusMapProvider},
     },
@@ -127,6 +130,17 @@ impl TypedStatusMapProvider<Uri, BitstringStatusListCredential> for StatusLists 
         Ok(MaybeCached::NotCached(StatusList::from_bytes(
             vec![0u8; 125],
             TimeToLive::DEFAULT,
+        )))
+    }
+}
+
+impl TypedStatusMapProvider<Uri, BitstringStatusListCredential20240406> for StatusLists {
+    async fn get_typed(&self, _: &Uri) -> Result<MaybeCached<StatusList20240406>, ProviderError> {
+        // @TODO: replace with a valid status list verification when a valid test is available
+        Ok(MaybeCached::NotCached(StatusList20240406::from_bytes(
+            StatusSize::DEFAULT,
+            vec![0u8; 125],
+            TimeToLive20240406::DEFAULT,
         )))
     }
 }
