@@ -395,13 +395,7 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 
 
 // Public interface members begin here.
-// Magic number for the Rust proxy to call using the same mechanism as every other method,
-// to free the callback once it's dropped by Rust.
-private let IDX_CALLBACK_FREE: Int32 = 0
-// Callback return codes
-private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
-private let UNIFFI_CALLBACK_ERROR: Int32 = 1
-private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
+
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -645,7 +639,13 @@ open func httpClient(request: HttpRequest)async throws  -> HttpResponse  {
     
 
 }
-
+// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+private let IDX_CALLBACK_FREE: Int32 = 0
+// Callback return codes
+private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
+private let UNIFFI_CALLBACK_ERROR: Int32 = 1
+private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
 // Put the implementation in a struct so we don't pollute the top-level namespace
 fileprivate struct UniffiCallbackInterfaceAsyncHttpClient {
@@ -3142,6 +3142,22 @@ public protocol IssuanceServiceClientProtocol: AnyObject, Sendable {
     func checkStatus(issuanceId: String, walletAttestation: String) async throws  -> CheckStatusResponse
     
     /**
+     * Clear endpoints cache
+     */
+    func clearCachedEndpoints() 
+    
+    /**
+     * Loads the available endpoints dynamically from the API - I would like to not expose it to
+     * the app, but I'm not sure how to do it.
+     */
+    func fetchWellknownFromApi() async throws  -> [String: String]
+    
+    /**
+     * Lazy fetch or return cached endpoints
+     */
+    func getOrFetchEndpoints() async throws  -> [String: String]
+    
+    /**
      * Creates a new issuance request
      *
      * # Arguments
@@ -3152,6 +3168,8 @@ public protocol IssuanceServiceClientProtocol: AnyObject, Sendable {
      * * An error if the request fails
      */
     func newIssuance(walletAttestation: String) async throws  -> String
+    
+    func resolveEndpoint(key: String) throws  -> String
     
 }
 open class IssuanceServiceClient: IssuanceServiceClientProtocol, @unchecked Sendable {
@@ -3249,6 +3267,56 @@ open func checkStatus(issuanceId: String, walletAttestation: String)async throws
 }
     
     /**
+     * Clear endpoints cache
+     */
+open func clearCachedEndpoints()  {try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_issuanceserviceclient_clear_cached_endpoints(self.uniffiClonePointer(),$0
+    )
+}
+}
+    
+    /**
+     * Loads the available endpoints dynamically from the API - I would like to not expose it to
+     * the app, but I'm not sure how to do it.
+     */
+open func fetchWellknownFromApi()async throws  -> [String: String]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_issuanceserviceclient_fetch_wellknown_from_api(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterDictionaryStringString.lift,
+            errorHandler: FfiConverterTypeIssuanceServiceError_lift
+        )
+}
+    
+    /**
+     * Lazy fetch or return cached endpoints
+     */
+open func getOrFetchEndpoints()async throws  -> [String: String]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_issuanceserviceclient_get_or_fetch_endpoints(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterDictionaryStringString.lift,
+            errorHandler: FfiConverterTypeIssuanceServiceError_lift
+        )
+}
+    
+    /**
      * Creates a new issuance request
      *
      * # Arguments
@@ -3273,6 +3341,14 @@ open func newIssuance(walletAttestation: String)async throws  -> String  {
             liftFunc: FfiConverterString.lift,
             errorHandler: FfiConverterTypeIssuanceServiceError_lift
         )
+}
+    
+open func resolveEndpoint(key: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeIssuanceServiceError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_issuanceserviceclient_resolve_endpoint(self.uniffiClonePointer(),
+        FfiConverterString.lower(key),$0
+    )
+})
 }
     
 
@@ -8825,6 +8901,16 @@ public func FfiConverterTypeVdcCollection_lower(_ value: VdcCollection) -> Unsaf
 public protocol WalletServiceClientProtocol: AnyObject, Sendable {
     
     /**
+     * Clear endpoints cache
+     */
+    func clearCachedEndpoints() 
+    
+    /**
+     * Loads the available endpoints dynamically from the API
+     */
+    func fetchWellknownFromApi() async throws  -> [String: String]
+    
+    /**
      * Helper method to get an authorization header with the current token
      */
     func getAuthHeader() throws  -> String
@@ -8833,6 +8919,11 @@ public protocol WalletServiceClientProtocol: AnyObject, Sendable {
      * Returns the current client ID (sub claim from JWT)
      */
     func getClientId()  -> String?
+    
+    /**
+     * Lazy fetch or return cached endpoints
+     */
+    func getOrFetchEndpoints() async throws  -> [String: String]
     
     /**
      * Get the current token
@@ -8850,6 +8941,8 @@ public protocol WalletServiceClientProtocol: AnyObject, Sendable {
      * Get a nonce from the server that expires in 5 minutes and can only be used once
      */
     func nonce() async throws  -> String
+    
+    func resolveEndpoint(key: String) throws  -> String
     
 }
 open class WalletServiceClient: WalletServiceClientProtocol, @unchecked Sendable {
@@ -8913,6 +9006,35 @@ public convenience init(baseUrl: String) {
 
     
     /**
+     * Clear endpoints cache
+     */
+open func clearCachedEndpoints()  {try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_walletserviceclient_clear_cached_endpoints(self.uniffiClonePointer(),$0
+    )
+}
+}
+    
+    /**
+     * Loads the available endpoints dynamically from the API
+     */
+open func fetchWellknownFromApi()async throws  -> [String: String]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_walletserviceclient_fetch_wellknown_from_api(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterDictionaryStringString.lift,
+            errorHandler: FfiConverterTypeWalletServiceError_lift
+        )
+}
+    
+    /**
      * Helper method to get an authorization header with the current token
      */
 open func getAuthHeader()throws  -> String  {
@@ -8930,6 +9052,26 @@ open func getClientId() -> String?  {
     uniffi_mobile_sdk_rs_fn_method_walletserviceclient_get_client_id(self.uniffiClonePointer(),$0
     )
 })
+}
+    
+    /**
+     * Lazy fetch or return cached endpoints
+     */
+open func getOrFetchEndpoints()async throws  -> [String: String]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_walletserviceclient_get_or_fetch_endpoints(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterDictionaryStringString.lift,
+            errorHandler: FfiConverterTypeWalletServiceError_lift
+        )
 }
     
     /**
@@ -8987,6 +9129,14 @@ open func nonce()async throws  -> String  {
             liftFunc: FfiConverterString.lift,
             errorHandler: FfiConverterTypeWalletServiceError_lift
         )
+}
+    
+open func resolveEndpoint(key: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeWalletServiceError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_walletserviceclient_resolve_endpoint(self.uniffiClonePointer(),
+        FfiConverterString.lower(key),$0
+    )
+})
 }
     
 
@@ -9117,13 +9267,15 @@ public func FfiConverterTypeApprovedResponse180137_lower(_ value: ApprovedRespon
 
 public struct CheckStatusResponse {
     public var state: String
-    public var openidCredentialOffer: String
+    public var openidCredentialOffer: String?
+    public var proofingUrl: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(state: String, openidCredentialOffer: String) {
+    public init(state: String, openidCredentialOffer: String?, proofingUrl: String?) {
         self.state = state
         self.openidCredentialOffer = openidCredentialOffer
+        self.proofingUrl = proofingUrl
     }
 }
 
@@ -9140,12 +9292,16 @@ extension CheckStatusResponse: Equatable, Hashable {
         if lhs.openidCredentialOffer != rhs.openidCredentialOffer {
             return false
         }
+        if lhs.proofingUrl != rhs.proofingUrl {
+            return false
+        }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(state)
         hasher.combine(openidCredentialOffer)
+        hasher.combine(proofingUrl)
     }
 }
 
@@ -9159,13 +9315,15 @@ public struct FfiConverterTypeCheckStatusResponse: FfiConverterRustBuffer {
         return
             try CheckStatusResponse(
                 state: FfiConverterString.read(from: &buf), 
-                openidCredentialOffer: FfiConverterString.read(from: &buf)
+                openidCredentialOffer: FfiConverterOptionString.read(from: &buf), 
+                proofingUrl: FfiConverterOptionString.read(from: &buf)
         )
     }
 
     public static func write(_ value: CheckStatusResponse, into buf: inout [UInt8]) {
         FfiConverterString.write(value.state, into: &buf)
-        FfiConverterString.write(value.openidCredentialOffer, into: &buf)
+        FfiConverterOptionString.write(value.openidCredentialOffer, into: &buf)
+        FfiConverterOptionString.write(value.proofingUrl, into: &buf)
     }
 }
 
@@ -10732,9 +10890,6 @@ extension AuthenticationStatus: Equatable, Hashable {}
 
 
 
-
-
-
 public enum CborLdEncodingError: Swift.Error {
 
     
@@ -10810,14 +10965,11 @@ extension CborLdEncodingError: Equatable, Hashable {}
 
 
 
-
 extension CborLdEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -10958,8 +11110,6 @@ public func FfiConverterTypeCborValue_lower(_ value: CborValue) -> RustBuffer {
 
 
 
-
-
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -11052,9 +11202,6 @@ public func FfiConverterTypeClaimValue_lower(_ value: ClaimValue) -> RustBuffer 
 
 
 extension ClaimValue: Equatable, Hashable {}
-
-
-
 
 
 
@@ -11194,14 +11341,11 @@ extension CredentialDecodingError: Equatable, Hashable {}
 
 
 
-
 extension CredentialDecodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -11310,14 +11454,11 @@ extension CredentialEncodingError: Equatable, Hashable {}
 
 
 
-
 extension CredentialEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -11429,9 +11570,6 @@ extension CredentialFormat: Equatable, Hashable {}
 
 
 
-
-
-
 public enum CredentialPresentationError: Swift.Error {
 
     
@@ -11507,14 +11645,11 @@ extension CredentialPresentationError: Equatable, Hashable {}
 
 
 
-
 extension CredentialPresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -11583,14 +11718,11 @@ extension CryptoError: Equatable, Hashable {}
 
 
 
-
 extension CryptoError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -11857,14 +11989,11 @@ extension CwtError: Equatable, Hashable {}
 
 
 
-
 extension CwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -11943,14 +12072,11 @@ extension DcApiError: Equatable, Hashable {}
 
 
 
-
 extension DcApiError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -12031,9 +12157,6 @@ public func FfiConverterTypeDelegatedVerifierStatus_lower(_ value: DelegatedVeri
 
 
 extension DelegatedVerifierStatus: Equatable, Hashable {}
-
-
-
 
 
 
@@ -12127,14 +12250,11 @@ extension DidError: Equatable, Hashable {}
 
 
 
-
 extension DidError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -12201,9 +12321,6 @@ public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
 
 
 extension DidMethod: Equatable, Hashable {}
-
-
-
 
 
 
@@ -12335,14 +12452,11 @@ extension HttpClientError: Equatable, Hashable {}
 
 
 
-
 extension HttpClientError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -12378,6 +12492,11 @@ public enum IssuanceServiceError: Swift.Error {
      */
     case InternalError(String
     )
+    /**
+     * Missing endpoint
+     */
+    case MissingEndpoint(String,String
+    )
 }
 
 
@@ -12408,6 +12527,10 @@ public struct FfiConverterTypeIssuanceServiceError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 5: return .InternalError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .MissingEndpoint(
+            try FfiConverterString.read(from: &buf), 
             try FfiConverterString.read(from: &buf)
             )
 
@@ -12447,6 +12570,12 @@ public struct FfiConverterTypeIssuanceServiceError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             
+        
+        case let .MissingEndpoint(v1,v2):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            FfiConverterString.write(v2, into: &buf)
+            
         }
     }
 }
@@ -12471,14 +12600,11 @@ extension IssuanceServiceError: Equatable, Hashable {}
 
 
 
-
 extension IssuanceServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -12543,14 +12669,11 @@ extension JsonVcEncodingError: Equatable, Hashable {}
 
 
 
-
 extension JsonVcEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -12633,14 +12756,11 @@ extension JsonVcInitError: Equatable, Hashable {}
 
 
 
-
 extension JsonVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -12747,14 +12867,11 @@ extension JwtVcInitError: Equatable, Hashable {}
 
 
 
-
 extension JwtVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -12853,14 +12970,11 @@ extension KeyTransformationError: Equatable, Hashable {}
 
 
 
-
 extension KeyTransformationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -12953,14 +13067,11 @@ extension MdlReaderResponseError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13029,14 +13140,11 @@ extension MdlReaderResponseSerializeError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderResponseSerializeError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13105,14 +13213,11 @@ extension MdlReaderSessionError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderSessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -13219,9 +13324,6 @@ extension MDocItem: Equatable, Hashable {}
 
 
 
-
-
-
 public enum MdlUtilError: Swift.Error {
 
     
@@ -13287,14 +13389,11 @@ extension MdlUtilError: Equatable, Hashable {}
 
 
 
-
 extension MdlUtilError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13359,14 +13458,11 @@ extension MdocEncodingError: Equatable, Hashable {}
 
 
 
-
 extension MdocEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13477,14 +13573,11 @@ extension MdocInitError: Equatable, Hashable {}
 
 
 
-
 extension MdocInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13573,14 +13666,11 @@ extension Oid4vp180137Error: Equatable, Hashable {}
 
 
 
-
 extension Oid4vp180137Error: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13959,14 +14049,11 @@ extension Oid4vpError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14123,14 +14210,11 @@ extension Oid4vciError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vciError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14209,14 +14293,11 @@ extension Oid4vpVerifierError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vpVerifierError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -14299,9 +14380,6 @@ public func FfiConverterTypeOutcome_lower(_ value: Outcome) -> RustBuffer {
 
 
 extension Outcome: Equatable, Hashable {}
-
-
-
 
 
 
@@ -14492,14 +14570,11 @@ extension PermissionRequestError: Equatable, Hashable {}
 
 
 
-
 extension PermissionRequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14600,14 +14675,11 @@ extension PopError: Equatable, Hashable {}
 
 
 
-
 extension PopError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14756,14 +14828,11 @@ extension PresentationBuilderError: Equatable, Hashable {}
 
 
 
-
 extension PresentationBuilderError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14872,14 +14941,11 @@ extension PresentationError: Equatable, Hashable {}
 
 
 
-
 extension PresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14948,14 +15014,11 @@ extension RequestError: Equatable, Hashable {}
 
 
 
-
 extension RequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15030,14 +15093,11 @@ extension ResponseError: Equatable, Hashable {}
 
 
 
-
 extension ResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15152,14 +15212,11 @@ extension SdJwtError: Equatable, Hashable {}
 
 
 
-
 extension SdJwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15228,14 +15285,11 @@ extension SessionError: Equatable, Hashable {}
 
 
 
-
 extension SessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15320,14 +15374,11 @@ extension SignatureError: Equatable, Hashable {}
 
 
 
-
 extension SignatureError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15402,14 +15453,11 @@ extension StatusListError: Equatable, Hashable {}
 
 
 
-
 extension StatusListError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15520,14 +15568,11 @@ extension StorageManagerError: Equatable, Hashable {}
 
 
 
-
 extension StorageManagerError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15596,14 +15641,11 @@ extension TerminationError: Equatable, Hashable {}
 
 
 
-
 extension TerminationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15678,14 +15720,11 @@ extension VcbVerificationError: Equatable, Hashable {}
 
 
 
-
 extension VcbVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15754,14 +15793,11 @@ extension VcVerificationError: Equatable, Hashable {}
 
 
 
-
 extension VcVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15852,14 +15888,11 @@ extension VpError: Equatable, Hashable {}
 
 
 
-
 extension VpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -15926,9 +15959,6 @@ public func FfiConverterTypeVcdmVersion_lower(_ value: VcdmVersion) -> RustBuffe
 
 
 extension VcdmVersion: Equatable, Hashable {}
-
-
-
 
 
 
@@ -16045,14 +16075,11 @@ extension VdcCollectionError: Equatable, Hashable {}
 
 
 
-
 extension VdcCollectionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -16126,9 +16153,6 @@ extension VerificationResult: Equatable, Hashable {}
 
 
 
-
-
-
 public enum WalletServiceError: Swift.Error {
 
     
@@ -16167,6 +16191,11 @@ public enum WalletServiceError: Swift.Error {
      */
     case InternalError(String
     )
+    /**
+     * Missing endpoint
+     */
+    case MissingEndpoint(String,String
+    )
 }
 
 
@@ -16201,6 +16230,10 @@ public struct FfiConverterTypeWalletServiceError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 7: return .InternalError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .MissingEndpoint(
+            try FfiConverterString.read(from: &buf), 
             try FfiConverterString.read(from: &buf)
             )
 
@@ -16249,6 +16282,12 @@ public struct FfiConverterTypeWalletServiceError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(7))
             FfiConverterString.write(v1, into: &buf)
             
+        
+        case let .MissingEndpoint(v1,v2):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            FfiConverterString.write(v2, into: &buf)
+            
         }
     }
 }
@@ -16273,14 +16312,11 @@ extension WalletServiceError: Equatable, Hashable {}
 
 
 
-
 extension WalletServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -18880,7 +18916,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_check_status() != 43341) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_clear_cached_endpoints() != 51097) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_fetch_wellknown_from_api() != 63776) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_get_or_fetch_endpoints() != 4824) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_new_issuance() != 231) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_resolve_endpoint() != 18963) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_jsonldpresentationbuilder_issue_presentation() != 17531) {
@@ -19189,10 +19237,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_get() != 1085) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_clear_cached_endpoints() != 42914) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_fetch_wellknown_from_api() != 62040) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_get_auth_header() != 17536) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_get_client_id() != 13815) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_get_or_fetch_endpoints() != 20451) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_get_token() != 48766) {
@@ -19205,6 +19262,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_nonce() != 12116) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_resolve_endpoint() != 51799) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {

@@ -41,7 +41,8 @@ struct NewIssuanceResponse {
 #[derive(Debug, Serialize, Deserialize, uniffi::Record)]
 pub struct CheckStatusResponse {
     state: String,
-    openid_credential_offer: String,
+    openid_credential_offer: Option<String>,
+    proofing_url: Option<String>,
 }
 
 #[derive(uniffi::Object)]
