@@ -54,6 +54,7 @@ import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.net.URLDecoder
 
 @Composable
 fun WalletSettingsHomeView(
@@ -181,9 +182,9 @@ fun WalletSettingsHomeBody(
                             val status = hacApplicationsViewModel.issuanceClient.checkStatus(issuance, walletAttestation)
                             if (status.state == "ProofingRequired") {
                                 val baseUrlTemplate = status.proofingUrl
-                                // %7BID%7D = {ID}
-                                val filledUrlString = baseUrlTemplate?.replace("%7BID%7D", hacApplication)
-
+                                val filledUrlString = baseUrlTemplate?.let { template ->
+                                    URLDecoder.decode(template, "UTF-8").replace("{ID}", hacApplication)
+                                }
                                 val intent = Intent(
                                     Intent.ACTION_VIEW,
                                     Uri.parse(filledUrlString)

@@ -165,7 +165,10 @@ struct WalletSettingsHomeBody: View {
                         let baseUrlTemplate = status.proofingUrl
                         if let hacApplication = hacApplication {
                             // %7BID%7D = {ID}
-                            let filledUrlString = baseUrlTemplate?.replacingOccurrences(of: "%7BID%7D", with: hacApplication.uuidString)
+                            let filledUrlString = baseUrlTemplate?
+                                .removingPercentEncoding?
+                                .replacingOccurrences(of: "{ID}", with: hacApplication.uuidString)
+//                            let filledUrlString = baseUrlTemplate?.replacingOccurrences(of: "%7BID%7D", with: hacApplication.uuidString)
 
                             if let url = URL(string: filledUrlString!) {
                                 UIApplication.shared.open(
