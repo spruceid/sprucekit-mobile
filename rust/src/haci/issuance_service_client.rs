@@ -211,11 +211,27 @@ impl IssuanceServiceClient {
         issuance_id: String,
         wallet_attestation: String,
     ) -> Result<FlowState, IssuanceServiceError> {
-        let url = format!("{}/issuance/{}/status", self.base_url, issuance_id);
+        self.get_or_fetch_endpoints().await?;
+        // This endpoint is expected to have an {issuance_id} space
+        // get_issuance_status: "/issuance/{issuance_id}/status"
+        let url = self.resolve_endpoint("get_issuance_status")?;
+
+        if !url.contains("{issuance_id}") {
+            return Err(IssuanceServiceError::InternalError(
+                "URL template missing {issuance_id} placeholder".to_string(),
+            ));
+        }
+        let complete_url = url.replace("{issuance_id}", issuance_id.as_str());
+
+        if complete_url.contains("{issuance_id}") {
+            return Err(IssuanceServiceError::InternalError(
+                "Failed to replace {issuance_id} placeholder".to_string(),
+            ));
+        }
 
         let response = self
             .client
-            .get(url)
+            .get(complete_url)
             .header("OAuth-Client-Attestation", wallet_attestation)
             .send()
             .await
