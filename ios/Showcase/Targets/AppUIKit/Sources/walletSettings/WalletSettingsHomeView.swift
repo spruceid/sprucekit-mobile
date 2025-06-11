@@ -182,15 +182,29 @@ struct WalletSettingsHomeBody: View {
                         issuanceId: issuance
                     )
 
-                    if let url = URL(
-                        string:
-                            "\(environmentConfig.proofingClientUrl)/proofing?id=\(hacApplication!)&redirect=spruceid"
-                    ) {
-                        UIApplication.shared.open(
-                            url,
-                            options: [:],
-                            completionHandler: nil
-                        )
+                    let status = try await hacApplicationObservable.issuanceClient.checkStatus(
+                        issuanceId: issuance,
+                        walletAttestation: walletAttestation
+                    )
+
+                    if status.state == "ProofingRequired" {
+                        let baseUrlTemplate = status.proofingUrl
+                        if let hacApplication = hacApplication {
+                            // %7BID%7D = {ID}
+                            let filledUrlString = baseUrlTemplate?.replacingOccurrences(of: "%7BID%7D", with: hacApplication.uuidString)
+
+                            if let url = URL(string: filledUrlString!) {
+                                UIApplication.shared.open(
+                                    url,
+                                    options: [:],
+                                    completionHandler: nil
+                                )
+                            } else {
+                                print("Invalid URL after replacing {ID}")
+                            }
+                        } else {
+                            print("hacApplication is nil")
+                        }
                     }
 
                 } catch let error as DCError {

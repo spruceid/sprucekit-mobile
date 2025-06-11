@@ -64,8 +64,11 @@ struct HacApplicationListItem: View {
                             )
                         if status.state == "ReadyToProvision" {
                             credentialStatus = .ready
+                            credentialOfferUrl = status.openidCredentialOffer
+                        } else { // status.state == "ProofingRequired"
+                            credentialStatus = .pending
+                            credentialOfferUrl = status.proofingUrl
                         }
-                        credentialOfferUrl = status.openidCredentialOffer
                     } catch {
                         print(error.localizedDescription)
                     }
