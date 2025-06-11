@@ -330,10 +330,7 @@ mod tests {
         assert!(result.is_ok(), "Status check should succeed");
         let response = result.unwrap();
         assert_eq!(response.state, "ProofingRequired");
-        assert_eq!(
-            response.proofing_url.as_deref(),
-            Some("proofing_url")
-        );
+        assert_eq!(response.proofing_url.as_deref(), Some("proofing_url"));
     }
 
     #[tokio::test]
