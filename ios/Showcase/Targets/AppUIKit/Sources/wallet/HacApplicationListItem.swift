@@ -65,10 +65,14 @@ struct HacApplicationListItem: View {
                         if status.state == "ReadyToProvision" {
                             credentialStatus = .ready
                             credentialOfferUrl = status.openidCredentialOffer
-                        } else { // status.state == "ProofingRequired"
+                        } else if status.state == "ProofingRequired" {
                             credentialStatus = .pending
                             credentialOfferUrl = status.proofingUrl
+                        } else {
+                            print("Invalid credential state: ", status.state)
+                            ToastManager.shared.showError(message: "Invalid credential state: \(status.state)");
                         }
+
                     } catch {
                         print(error.localizedDescription)
                     }

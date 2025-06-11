@@ -24,6 +24,8 @@ import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.ErrorToast
+import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 
 @Composable
@@ -45,9 +47,12 @@ fun HacApplicationListItem(
                 if (status?.state == "ReadyToProvision") {
                     credentialStatus = CredentialStatusList.READY
                     credentialOfferUrl = status?.openidCredentialOffer
-                } else  { // status.state == "ProofingRequired"
+                } else if (status?.state == "ProofingRequired"){
                     credentialStatus = CredentialStatusList.PENDING
                     credentialOfferUrl = status?.proofingUrl
+                } else {
+                   print("Invalid credential state: ${status?.state}")
+                   Toast.showError("Invalid credential state: ${status?.state}");
                 }
 
             } catch (e: Exception) {
