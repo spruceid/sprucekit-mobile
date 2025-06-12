@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.CredentialStatusList
+import com.spruceid.mobile.sdk.rs.CheckStatusResponse
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.config.EnvironmentConfig
 import com.spruceid.mobilesdkexample.db.HacApplications
@@ -180,21 +182,23 @@ fun WalletSettingsHomeBody(
                                 HacApplications(issuanceId = issuance)
                             )
                             val status = hacApplicationsViewModel.issuanceClient.checkStatus(issuance, walletAttestation)
-                            if (status.state == "ProofingRequired") {
-                                val baseUrlTemplate = status.proofingUrl
-                                val filledUrlString = baseUrlTemplate?.let { template ->
-                                    URLDecoder.decode(template, "UTF-8").replace("{ID}", hacApplication)
+
+                            when (status) {
+                                is CheckStatusResponse.ProofingRequired -> {
+                                    val baseUrlTemplate = status.proofingUrl
+                                    val filledUrlString = baseUrlTemplate?.let { template ->
+                                        URLDecoder.decode(template, "UTF-8").replace("{ID}", hacApplication)
+                                    }
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse(filledUrlString)
+                                    )
+                                    context.startActivity(intent)
                                 }
-                                val intent = Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse(filledUrlString)
-                                )
-                                context.startActivity(intent)
-                            } else {
-                                print("Issuance started with invalid state, please check.")
+                                is CheckStatusResponse.ReadyToProvision -> {
+                                    print("Issuance started with invalid state, please check.")
+                                }
                             }
-
-
                         }
                     } finally {
                         isApplyingForMdl = false

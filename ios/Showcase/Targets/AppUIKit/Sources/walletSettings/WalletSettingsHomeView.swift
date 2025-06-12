@@ -161,27 +161,33 @@ struct WalletSettingsHomeBody: View {
                         walletAttestation: walletAttestation
                     )
 
-                    if status.state == "ProofingRequired" {
-                        let baseUrlTemplate = status.proofingUrl
-                        if let hacApplication = hacApplication {
-                            // %7BID%7D = {ID}
-                            let filledUrlString = baseUrlTemplate?
-                                .removingPercentEncoding?
-                                .replacingOccurrences(of: "{ID}", with: hacApplication.uuidString)
-//                            let filledUrlString = baseUrlTemplate?.replacingOccurrences(of: "%7BID%7D", with: hacApplication.uuidString)
+                    switch status {
+                        case .proofingRequired(let proofingUrl):
+                            if let hacApplication = hacApplication {
+                                // %7BID%7D = {ID}
+                                let filledUrlString = proofingUrl
+                                    .removingPercentEncoding?
+                                    .replacingOccurrences(of: "{ID}", with: hacApplication.uuidString)
 
-                            if let url = URL(string: filledUrlString!) {
-                                UIApplication.shared.open(
-                                    url,
-                                    options: [:],
-                                    completionHandler: nil
-                                )
+                                if let url = URL(string: filledUrlString!) {
+                                    UIApplication.shared.open(
+                                        url,
+                                        options: [:],
+                                        completionHandler: nil
+                                    )
+                                } else {
+                                    print("Invalid URL after replacing {ID}")
+                                }
                             } else {
-                                print("Invalid URL after replacing {ID}")
+                                print("hacApplication is nil")
                             }
-                        } else {
-                            print("hacApplication is nil")
-                        }
+
+                        case .readyToProvision(_):
+                            print("Expected ProofingRequired status")
+                            ToastManager.shared.showError(
+                                message:
+                                    "Error during attestation: Expected ProofingRequired status"
+                            )
                     }
 
                 } catch let error as DCError {

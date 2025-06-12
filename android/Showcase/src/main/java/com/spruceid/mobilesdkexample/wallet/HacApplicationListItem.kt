@@ -45,8 +45,6 @@ fun HacApplicationListItem(
 
     LaunchedEffect(application) {
         if (application != null) {
-            // TODO: Create a 'loading' status
-            credentialStatus = CredentialStatusList.UNKNOWN
             try {
                 issuanceStatus = hacApplicationsViewModel?.issuanceClient?.checkStatus(
                     issuanceId = application.issuanceId,
