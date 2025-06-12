@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-use std::sync::RwLock;
-
 use crate::haci::http_client::HaciHttpClient;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::sync::OnceCell;
 
 /// Represents errors that may occur during issuance operations
 #[derive(Error, Debug, uniffi::Error)]
@@ -49,7 +47,50 @@ pub enum CheckStatusResponse {
 pub struct IssuanceServiceClient {
     client: HaciHttpClient,
     base_url: String,
-    endpoints: RwLock<Option<HashMap<String, String>>>,
+    endpoints: OnceCell<IssuanceEndpoints>,
+}
+
+#[derive(Debug, Deserialize, Clone, uniffi::Object)]
+pub struct IssuanceEndpoints {
+    #[serde(skip_serializing)]
+    base_url: String,
+    initiate_issuance: String,
+    get_issuance_status: String,
+}
+
+impl IssuanceEndpoints {
+    /// Loads the available endpoints dynamically from the API - I would like to not expose it to
+    /// the app, but I'm not sure how to do it.
+    async fn fetch_wellknown_from_api(
+        client: &HaciHttpClient,
+        base_url: &String,
+    ) -> Result<Self, IssuanceServiceError> {
+        let url = format!("{}/.well-known/showcase-endpoints", base_url);
+        let response = client.get(url).send().await.map_err(|e| {
+            IssuanceServiceError::NetworkError(format!(
+                "Issuance endpoints fetching error: {:?}",
+                e.to_string()
+            ))
+        })?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(IssuanceServiceError::ServerError {
+                status,
+                error_message: format!("Issuance endpoints fetching error: {:?}", error_text),
+            });
+        }
+
+        let endpoints: Self = response.json().await.map_err(|e| {
+            IssuanceServiceError::ResponseError(format!(
+                "Issuance endpoints fetching error: {:?}",
+                e.to_string()
+            ))
+        })?;
+
+        Ok(endpoints)
+    }
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -68,83 +109,23 @@ impl IssuanceServiceClient {
         Self {
             client: HaciHttpClient::new(),
             base_url: actual_url,
-            endpoints: RwLock::new(None),
+            endpoints: OnceCell::new(),
         }
     }
 
     /// Lazy fetch or return cached endpoints
-    pub async fn get_or_fetch_endpoints(
-        &self,
-    ) -> Result<HashMap<String, String>, IssuanceServiceError> {
-        {
-            let read_guard = self.endpoints.read().unwrap();
-            if let Some(ref endpoints) = *read_guard {
-                return Ok(endpoints.clone());
-            }
-        }
-        let endpoints = self.fetch_wellknown_from_api().await?;
-        let mut write_guard = self.endpoints.write().unwrap();
-        *write_guard = Some(endpoints.clone());
-
-        Ok(endpoints)
-    }
-
-    /// Loads the available endpoints dynamically from the API - I would like to not expose it to
-    /// the app, but I'm not sure how to do it.
-    async fn fetch_wellknown_from_api(
-        &self,
-    ) -> Result<HashMap<String, String>, IssuanceServiceError> {
-        let url = format!("{}/.well-known/showcase-endpoints", self.base_url);
-        let response = self
-            .client
-            .get(url)
-            .send()
+    async fn get_or_fetch_endpoints(&self) -> Result<IssuanceEndpoints, IssuanceServiceError> {
+        self.endpoints
+            .get_or_try_init(async || {
+                IssuanceEndpoints::fetch_wellknown_from_api(&self.client, &self.base_url).await
+            })
             .await
-            .map_err(|e| IssuanceServiceError::NetworkError(e.to_string()))?;
-
-        if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(IssuanceServiceError::ServerError {
-                status,
-                error_message: error_text,
-            });
-        }
-
-        let endpoints: HashMap<String, String> = response
-            .json()
-            .await
-            .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?;
-
-        Ok(endpoints)
+            .cloned()
     }
 
-    /// Clear endpoints cache
-    pub fn clear_cached_endpoints(&self) {
-        let mut guard = self.endpoints.write().unwrap();
-        *guard = None;
-    }
-
-    // Helper to resolve an endpoint based on it's key.
-    fn resolve_endpoint(&self, key: &str) -> Result<String, IssuanceServiceError> {
-        let guard = self.endpoints.read().unwrap();
-
-        match guard.as_ref() {
-            Some(map) => match map.get(key) {
-                Some(path) => Ok(format!("{}{}", self.base_url, path)),
-                None => {
-                    let available_keys = map.keys().cloned().collect::<Vec<_>>().join(", ");
-                    Err(IssuanceServiceError::MissingEndpoint(
-                        key.to_string(),
-                        available_keys,
-                    ))
-                }
-            },
-            None => Err(IssuanceServiceError::MissingEndpoint(
-                key.to_string(),
-                "<no endpoints loaded>".into(),
-            )),
-        }
+    /// Format the endpoint
+    fn format_endpoint(&self, path: String) -> String {
+        format!("{}{}", self.base_url, path)
     }
 
     /// Creates a new issuance request
@@ -159,8 +140,13 @@ impl IssuanceServiceClient {
         &self,
         wallet_attestation: String,
     ) -> Result<String, IssuanceServiceError> {
-        self.get_or_fetch_endpoints().await?;
-        let url = self.resolve_endpoint("initiate_issuance")?;
+        let path = &self
+            .get_or_fetch_endpoints()
+            .await
+            .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?
+            .initiate_issuance;
+
+        let url = self.format_endpoint(path.clone());
 
         let response = self
             .client
@@ -201,10 +187,15 @@ impl IssuanceServiceClient {
         issuance_id: String,
         wallet_attestation: String,
     ) -> Result<CheckStatusResponse, IssuanceServiceError> {
-        self.get_or_fetch_endpoints().await?;
         // This endpoint is expected to have an {issuance_id} space
         // get_issuance_status: "/issuance/{issuance_id}/status"
-        let url = self.resolve_endpoint("get_issuance_status")?;
+        let path = &self
+            .get_or_fetch_endpoints()
+            .await
+            .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?
+            .get_issuance_status;
+
+        let url = self.format_endpoint(path.clone());
 
         if !url.contains("{issuance_id}") {
             return Err(IssuanceServiceError::InternalError(
@@ -272,21 +263,22 @@ mod tests {
                 r#"{
                     "base_url": "http://localhost:3002",
                     "initiate_issuance": "/issuance/new",
-                    "wallet_service_base_url": "http://localhost:3001"
+                    "get_issuance_status": "/issuance/{issuance_id}/status"
                 }"#,
             ))
             .expect(1)
             .mount(&mock_server)
             .await;
 
-        let endpoints = client.get_or_fetch_endpoints().await?;
-        let maybe_endpoint = endpoints
-            .get("initiate_issuance")
-            .expect("Expected 'initiate_issuance' endpoint to exist");
+        let endpoint = &client
+            .get_or_fetch_endpoints()
+            .await
+            .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?
+            .initiate_issuance;
 
         // Mock successful new issuance response
         Mock::given(method("GET"))
-            .and(path(maybe_endpoint))
+            .and(path(endpoint))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "id": expected_id
             })))
@@ -418,14 +410,15 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let endpoints = client.get_or_fetch_endpoints().await?;
-        let maybe_endpoint = endpoints
-            .get("initiate_issuance")
-            .expect("Expected 'initiate_issuance' endpoint to exist");
+        let endpoint = &client
+            .get_or_fetch_endpoints()
+            .await
+            .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?
+            .initiate_issuance;
 
         // Mock server error response
         Mock::given(method("GET"))
-            .and(path(maybe_endpoint))
+            .and(path(endpoint))
             .respond_with(ResponseTemplate::new(500).set_body_json(json!({
                 "error": "Internal Server Error"
             })))
@@ -512,14 +505,15 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let endpoints = client.get_or_fetch_endpoints().await?;
-        let maybe_endpoint = endpoints
-            .get("initiate_issuance")
-            .expect("Expected 'initiate_issuance' endpoint to exist");
+        let endpoint = &client
+            .get_or_fetch_endpoints()
+            .await
+            .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?
+            .initiate_issuance;
 
         // Mock invalid JSON response
         Mock::given(method("GET"))
-            .and(path(maybe_endpoint))
+            .and(path(endpoint))
             .respond_with(ResponseTemplate::new(200).set_body_string("invalid json"))
             .expect(1)
             .mount(&mock_server)

@@ -1,15 +1,14 @@
 use crate::haci::http_client::HaciHttpClient;
+use serde::Deserialize;
 use serde_json::Value;
 use ssi::{
     claims::jwt::{ExpirationTime, StringOrURI, Subject, ToDecodedJwt},
     prelude::*,
 };
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex, RwLock},
-};
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use time::OffsetDateTime;
+use tokio::sync::OnceCell;
 
 #[derive(Error, Debug, uniffi::Error)]
 pub enum WalletServiceError {
@@ -89,7 +88,47 @@ pub struct WalletServiceClient {
     client: HaciHttpClient,
     base_url: String,
     token_info: Arc<Mutex<Option<TokenInfo>>>,
-    endpoints: RwLock<Option<HashMap<String, String>>>,
+    endpoints: OnceCell<WalletEndpoints>,
+}
+
+#[derive(Debug, Deserialize, Clone, uniffi::Object)]
+pub struct WalletEndpoints {
+    nonce: String,
+    login: String,
+}
+
+impl WalletEndpoints {
+    /// Loads the available endpoints dynamically from the API
+    async fn fetch_wellknown_from_api(
+        client: &HaciHttpClient,
+        base_url: &String,
+    ) -> Result<Self, WalletServiceError> {
+        let url = format!("{}/.well-known/showcase-endpoints", base_url);
+        let response = client.get(url).send().await.map_err(|e| {
+            WalletServiceError::NetworkError(format!(
+                "Wallet endpoints fetching error: {:?}",
+                e.to_string()
+            ))
+        })?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(WalletServiceError::ServerError {
+                status,
+                error_message: format!("Wallet endpoints fetching error: {:?}", error_text),
+            });
+        }
+
+        let endpoints: Self = response.json().await.map_err(|e| {
+            WalletServiceError::ResponseError(format!(
+                "Wallet endpoints fetching error: {:?}",
+                e.to_string()
+            ))
+        })?;
+
+        Ok(endpoints)
+    }
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -105,82 +144,22 @@ impl WalletServiceClient {
             client: HaciHttpClient::new(),
             base_url: actual_url,
             token_info: Arc::new(Mutex::new(None)),
-            endpoints: RwLock::new(None),
+            endpoints: OnceCell::new(),
         }
     }
 
     /// Lazy fetch or return cached endpoints
-    pub async fn get_or_fetch_endpoints(
-        &self,
-    ) -> Result<HashMap<String, String>, WalletServiceError> {
-        {
-            let read_guard = self.endpoints.read().unwrap();
-            if let Some(ref endpoints) = *read_guard {
-                return Ok(endpoints.clone());
-            }
-        }
-        let endpoints = self.fetch_wellknown_from_api().await?;
-        let mut write_guard = self.endpoints.write().unwrap();
-        *write_guard = Some(endpoints.clone());
-
-        Ok(endpoints)
-    }
-
-    /// Loads the available endpoints dynamically from the API
-    async fn fetch_wellknown_from_api(
-        &self,
-    ) -> Result<HashMap<String, String>, WalletServiceError> {
-        let url = format!("{}/.well-known/showcase-endpoints", self.base_url);
-        let response = self
-            .client
-            .get(url)
-            .send()
+    pub async fn get_or_fetch_endpoints(&self) -> Result<WalletEndpoints, WalletServiceError> {
+        self.endpoints
+            .get_or_try_init(async || {
+                WalletEndpoints::fetch_wellknown_from_api(&self.client, &self.base_url).await
+            })
             .await
-            .map_err(|e| WalletServiceError::NetworkError(e.to_string()))?;
-
-        if !response.status().is_success() {
-            let status = response.status().as_u16();
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(WalletServiceError::ServerError {
-                status,
-                error_message: error_text,
-            });
-        }
-
-        let endpoints: HashMap<String, String> = response
-            .json()
-            .await
-            .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?;
-
-        Ok(endpoints)
+            .cloned()
     }
-
-    /// Clear endpoints cache
-    pub fn clear_cached_endpoints(&self) {
-        let mut guard = self.endpoints.write().unwrap();
-        *guard = None;
-    }
-
-    // Helper to resolve an endpoint based on it's key.
-    fn resolve_endpoint(&self, key: &str) -> Result<String, WalletServiceError> {
-        let guard = self.endpoints.read().unwrap();
-
-        match guard.as_ref() {
-            Some(map) => match map.get(key) {
-                Some(path) => Ok(format!("{}{}", self.base_url, path)),
-                None => {
-                    let available_keys = map.keys().cloned().collect::<Vec<_>>().join(", ");
-                    Err(WalletServiceError::MissingEndpoint(
-                        key.to_string(),
-                        available_keys,
-                    ))
-                }
-            },
-            None => Err(WalletServiceError::MissingEndpoint(
-                key.to_string(),
-                "<no endpoints loaded>".into(),
-            )),
-        }
+    /// Format the endpoint
+    fn format_endpoint(&self, path: String) -> String {
+        format!("{}{}", self.base_url, path)
     }
 
     /// Returns the current client ID (sub claim from JWT)
@@ -225,8 +204,13 @@ impl WalletServiceClient {
     /// Get a nonce from the server that expires in 5 minutes and can only be used once
     pub async fn nonce(&self) -> Result<String, WalletServiceError> {
         // Get the nonce endpoint dynamically
-        self.get_or_fetch_endpoints().await?;
-        let url = self.resolve_endpoint("nonce")?;
+        let path = &self
+            .get_or_fetch_endpoints()
+            .await
+            .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?
+            .nonce;
+
+        let url = self.format_endpoint(path.clone());
 
         // Make GET request to /nonce endpoint
         let response = self
@@ -257,8 +241,13 @@ impl WalletServiceClient {
 
     pub async fn login(&self, app_attestation: &str) -> Result<String, WalletServiceError> {
         // Get the login endpoint dynamically
-        self.get_or_fetch_endpoints().await?;
-        let url = self.resolve_endpoint("login")?;
+        let path = &self
+            .get_or_fetch_endpoints()
+            .await
+            .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?
+            .login;
+
+        let url = self.format_endpoint(path.clone());
 
         // Parse the app attestation string into a Value to ensure it's valid JSON
         let attestation_value: Value = serde_json::from_str(app_attestation)
