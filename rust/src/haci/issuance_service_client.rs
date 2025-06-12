@@ -52,8 +52,6 @@ pub struct IssuanceServiceClient {
 
 #[derive(Debug, Deserialize, Clone, uniffi::Object)]
 pub struct IssuanceEndpoints {
-    #[serde(skip_serializing)]
-    base_url: String,
     initiate_issuance: String,
     get_issuance_status: String,
 }
