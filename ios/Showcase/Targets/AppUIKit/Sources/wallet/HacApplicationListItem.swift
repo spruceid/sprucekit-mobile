@@ -48,6 +48,8 @@ struct HacApplicationListItem: View {
             }
         }
         .onAppear {
+            // TODO: Create a 'loading' status
+            credentialStatus = .unknown;
             if let application = application {
                 Task {
                     do {
