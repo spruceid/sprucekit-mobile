@@ -96,9 +96,14 @@ pub struct WalletServiceClient {
 impl WalletServiceClient {
     #[uniffi::constructor]
     pub fn new(base_url: String) -> Self {
+        let actual_url = base_url
+            .trim()
+            .strip_suffix('/')
+            .unwrap_or(&base_url)
+            .to_string();
         Self {
             client: HaciHttpClient::new(),
-            base_url,
+            base_url: actual_url,
             token_info: Arc::new(Mutex::new(None)),
             endpoints: RwLock::new(None),
         }

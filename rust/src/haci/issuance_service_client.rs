@@ -60,9 +60,10 @@ impl IssuanceServiceClient {
     /// * `base_url` - The base URL of the issuance service
     #[uniffi::constructor]
     pub fn new(base_url: String) -> Self {
+        let actual_url = base_url.trim().strip_suffix('/').unwrap_or(&base_url).to_string();
         Self {
             client: HaciHttpClient::new(),
-            base_url,
+            base_url: actual_url,
             endpoints: RwLock::new(None),
         }
     }
