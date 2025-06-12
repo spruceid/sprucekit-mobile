@@ -64,15 +64,14 @@ struct HacApplicationListItem: View {
                                 issuanceId: application.issuanceId,
                                 walletAttestation: walletAttestation
                             )
-                        if status.state == "ReadyToProvision" {
-                            credentialStatus = .ready
-                            credentialOfferUrl = status.openidCredentialOffer
-                        } else if status.state == "ProofingRequired" {
-                            credentialStatus = .pending
-                            credentialOfferUrl = status.proofingUrl
-                        } else {
-                            print("Invalid credential state: ", status.state)
-                            ToastManager.shared.showError(message: "Invalid credential state: \(status.state)");
+
+                        switch status {
+                            case .readyToProvision(let openidCredentialOffer):
+                                credentialStatus = .ready
+                                credentialOfferUrl = openidCredentialOffer
+                            case .proofingRequired(let proofingUrl):
+                                credentialStatus = .pending
+                                credentialOfferUrl = proofingUrl
                         }
 
                     } catch {

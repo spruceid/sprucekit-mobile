@@ -38,11 +38,11 @@ struct NewIssuanceResponse {
     id: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, uniffi::Record)]
-pub struct CheckStatusResponse {
-    state: String,
-    openid_credential_offer: Option<String>,
-    proofing_url: Option<String>,
+#[derive(Debug, Serialize, Deserialize, uniffi::Enum)]
+#[serde(tag = "state")]
+pub enum CheckStatusResponse {
+    ProofingRequired { proofing_url: String },
+    ReadyToProvision { openid_credential_offer: String },
 }
 
 #[derive(uniffi::Object)]
@@ -60,7 +60,11 @@ impl IssuanceServiceClient {
     /// * `base_url` - The base URL of the issuance service
     #[uniffi::constructor]
     pub fn new(base_url: String) -> Self {
-        let actual_url = base_url.trim().strip_suffix('/').unwrap_or(&base_url).to_string();
+        let actual_url = base_url
+            .trim()
+            .strip_suffix('/')
+            .unwrap_or(&base_url)
+            .to_string();
         Self {
             client: HaciHttpClient::new(),
             base_url: actual_url,
@@ -304,6 +308,20 @@ mod tests {
         let issuance_id = "5431d6df-63da-4803-a9fc-d92e5c36b9f8".to_string();
         let wallet_attestation = "test_attestation".to_string();
 
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "base_url": "http://localhost:3002",
+                    "initiate_issuance": "/issuance/new",
+                    "get_issuance_status": "/issuance/{issuance_id}/status"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         // Mock successful status check response
         Mock::given(method("GET"))
             .and(path(format!("/issuance/{}/status", issuance_id)))
@@ -318,11 +336,17 @@ mod tests {
         let result = client.check_status(issuance_id, wallet_attestation).await;
         assert!(result.is_ok(), "Status check should succeed");
         let response = result.unwrap();
-        assert_eq!(response.state, "ReadyToProvision");
-        assert_eq!(
-            response.openid_credential_offer.as_deref(),
-            Some("openid_credential_offer")
-        );
+
+        match response {
+            CheckStatusResponse::ReadyToProvision {
+                openid_credential_offer,
+            } => {
+                assert_eq!(openid_credential_offer, "openid_credential_offer");
+            }
+            CheckStatusResponse::ProofingRequired { proofing_url: _ } => {
+                panic!("Expected ReadyToProvision state")
+            }
+        }
     }
 
     #[tokio::test]
@@ -331,6 +355,20 @@ mod tests {
         let client = IssuanceServiceClient::new(base_url);
         let issuance_id = "5431d6df-63da-4803-a9fc-d92e5c36b9f8".to_string();
         let wallet_attestation = "test_attestation".to_string();
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "base_url": "http://localhost:3002",
+                    "initiate_issuance": "/issuance/new",
+                    "get_issuance_status": "/issuance/{issuance_id}/status"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
 
         // Mock successful status check response
         Mock::given(method("GET"))
@@ -344,10 +382,20 @@ mod tests {
             .await;
 
         let result = client.check_status(issuance_id, wallet_attestation).await;
+        println!("Result {:?}", result);
         assert!(result.is_ok(), "Status check should succeed");
         let response = result.unwrap();
-        assert_eq!(response.state, "ProofingRequired");
-        assert_eq!(response.proofing_url.as_deref(), Some("proofing_url"));
+
+        match response {
+            CheckStatusResponse::ReadyToProvision {
+                openid_credential_offer: _,
+            } => {
+                panic!("Expected ProofingRequired state")
+            }
+            CheckStatusResponse::ProofingRequired { proofing_url } => {
+                assert_eq!(proofing_url, "proofing_url");
+            }
+        }
     }
 
     #[tokio::test]
@@ -363,7 +411,7 @@ mod tests {
                 r#"{
                     "base_url": "http://localhost:3002",
                     "initiate_issuance": "/issuance/new",
-                    "wallet_service_base_url": "http://localhost:3001"
+                    "get_issuance_status": "/issuance/{issuance_id}/status"
                 }"#,
             ))
             .expect(1)
@@ -407,6 +455,20 @@ mod tests {
         let issuance_id = "5431d6df-63da-4803-a9fc-d92e5c36b9f8".to_string();
         let wallet_attestation = "test_attestation".to_string();
 
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "base_url": "http://localhost:3002",
+                    "initiate_issuance": "/issuance/new",
+                    "get_issuance_status": "/issuance/{issuance_id}/status"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         // Mock server error response
         Mock::given(method("GET"))
             .and(path(format!("/issuance/{}/status", issuance_id)))
@@ -443,7 +505,7 @@ mod tests {
                 r#"{
                     "base_url": "http://localhost:3002",
                     "initiate_issuance": "/issuance/new",
-                    "wallet_service_base_url": "http://localhost:3001"
+                    "get_issuance_status": "/issuance/{issuance_id}/status"
                 }"#,
             ))
             .expect(1)

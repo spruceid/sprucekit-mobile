@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.CredentialStatusList
+import com.spruceid.mobile.sdk.rs.CheckStatusResponse
 import com.spruceid.mobilesdkexample.credentials.CredentialStatusSmall
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
@@ -46,15 +47,20 @@ fun HacApplicationListItem(
                     issuanceId = application.issuanceId,
                     walletAttestation = hacApplicationsViewModel.getWalletAttestation()!!
                 )
-                if (status?.state == "ReadyToProvision") {
-                    credentialStatus = CredentialStatusList.READY
-                    credentialOfferUrl = status?.openidCredentialOffer
-                } else if (status?.state == "ProofingRequired"){
-                    credentialStatus = CredentialStatusList.PENDING
-                    credentialOfferUrl = status?.proofingUrl
-                } else {
-                   print("Invalid credential state: ${status?.state}")
-                   Toast.showError("Invalid credential state: ${status?.state}");
+
+                when (status) {
+                    is CheckStatusResponse.ReadyToProvision -> {
+                        credentialStatus = CredentialStatusList.READY
+                        credentialOfferUrl = status.openidCredentialOffer
+                    }
+                    is CheckStatusResponse.ProofingRequired -> {
+                        credentialStatus = CredentialStatusList.PENDING
+                        credentialOfferUrl = status.proofingUrl
+                    }
+                    null -> {
+                        credentialStatus = CredentialStatusList.UNKNOWN
+                        print("Invalid credential state.")
+                    }
                 }
 
             } catch (e: Exception) {
