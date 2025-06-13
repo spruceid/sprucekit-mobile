@@ -104,16 +104,14 @@ class HacApplicationDataStore {
         guard let database = db else { return nil }
 
         do {
-            for application in try database.prepare(
-                self.hacApplications) {
-                let elemId = UUID(uuidString: application[self.id]) ?? UUID()
-                if elemId == id {
-                    return HacApplication(
-                        id: elemId,
-                        issuanceId: application[issuanceId]
-                    )
-                }
+            let filter  = hacApplications.filter(self.issuanceId == id.uuidString)
+            if let application = try database.pluck(filter) {
+                return HacApplication(
+                    id: UUID(uuidString: application[self.id]) ?? UUID(),
+                    issuanceId: application[self.issuanceId]
+                )
             }
+                
         } catch {
             print(error)
         }

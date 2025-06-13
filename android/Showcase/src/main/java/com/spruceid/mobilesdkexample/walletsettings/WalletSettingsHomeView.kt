@@ -37,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.CredentialStatusList
+import com.spruceid.mobile.sdk.rs.CheckStatusResponse
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.config.EnvironmentConfig
 import com.spruceid.mobilesdkexample.db.HacApplications
@@ -54,6 +56,7 @@ import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.net.URLDecoder
 
 @Composable
 fun WalletSettingsHomeView(
@@ -178,13 +181,20 @@ fun WalletSettingsHomeBody(
                             val hacApplication = hacApplicationsViewModel.saveApplication(
                                 HacApplications(issuanceId = issuance)
                             )
+                            val status = hacApplicationsViewModel.issuanceClient.checkStatus(issuance, walletAttestation)
 
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("${EnvironmentConfig.proofingClientUrl}/proofing?id=${hacApplication}&redirect=spruceid")
-                            )
-
-                            context.startActivity(intent)
+                            when (status) {
+                                is CheckStatusResponse.ProofingRequired -> {
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse(status.proofingUrl)
+                                    )
+                                    context.startActivity(intent)
+                                }
+                                is CheckStatusResponse.ReadyToProvision -> {
+                                    print("Issuance started with invalid state, please check.")
+                                }
+                            }
                         }
                     } finally {
                         isApplyingForMdl = false
