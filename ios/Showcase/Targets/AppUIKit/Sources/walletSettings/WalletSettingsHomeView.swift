@@ -164,19 +164,14 @@ struct WalletSettingsHomeBody: View {
                     switch status {
                         case .proofingRequired(let proofingUrl):
                             if let hacApplication = hacApplication {
-                                // %7BID%7D = {ID}
-                                let filledUrlString = proofingUrl
-                                    .removingPercentEncoding?
-                                    .replacingOccurrences(of: "{ID}", with: hacApplication.uuidString)
-
-                                if let url = URL(string: filledUrlString!) {
+                                if let url = URL(string: proofingUrl) {
                                     UIApplication.shared.open(
                                         url,
                                         options: [:],
                                         completionHandler: nil
                                     )
                                 } else {
-                                    print("Invalid URL after replacing {ID}")
+                                    print("Invalid proofing URL")
                                 }
                             } else {
                                 print("hacApplication is nil")
