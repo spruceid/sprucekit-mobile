@@ -185,13 +185,9 @@ fun WalletSettingsHomeBody(
 
                             when (status) {
                                 is CheckStatusResponse.ProofingRequired -> {
-                                    val baseUrlTemplate = status.proofingUrl
-                                    val filledUrlString = baseUrlTemplate?.let { template ->
-                                        URLDecoder.decode(template, "UTF-8").replace("{ID}", hacApplication)
-                                    }
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
-                                        Uri.parse(filledUrlString)
+                                        Uri.parse(status.proofingUrl)
                                     )
                                     context.startActivity(intent)
                                 }
