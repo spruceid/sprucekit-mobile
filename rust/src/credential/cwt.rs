@@ -1,8 +1,8 @@
 use super::Credential;
 use crate::crypto::KeyAlias;
-use crate::{trusted_roots, CborKeyMapper};
 use crate::verifier::crypto::{CoseP256Verifier, Crypto};
 use crate::verifier::helpers;
+use crate::{trusted_roots, CborKeyMapper};
 use crate::{CborValue, CredentialType};
 use cose_rs::cwt::claim::ExpirationTime;
 use cose_rs::{cwt::ClaimsSet, CoseSign1};
