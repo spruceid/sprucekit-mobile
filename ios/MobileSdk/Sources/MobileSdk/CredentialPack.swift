@@ -195,7 +195,8 @@ public class CredentialPack {
         Dictionary(
             uniqueKeysWithValues: list()
                 .map { credential in
-                    let claims: [String: GenericJSON] = getCredentialClaims(credential: credential, claimNames: claimNames)
+                    let claims: [String: GenericJSON] =
+                        getCredentialClaims(credential: credential, claimNames: claimNames)
                     return (credential.id(), claims)
                 }
         )
