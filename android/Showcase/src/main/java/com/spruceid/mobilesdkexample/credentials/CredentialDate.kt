@@ -11,10 +11,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun CredentialDate(dateString: String) {
@@ -49,6 +52,17 @@ fun CredentialDate(dateString: String) {
             date = dateFormat.format(zonedDateTime)
             return@LaunchedEffect
         } catch (_: Exception) {
+        }
+
+        // timestamp
+        try {
+            val timestamp = dateString.toDouble()
+            val instant = Instant.ofEpochSecond(timestamp.toLong())
+            val dateTime = instant.atZone(ZoneOffset.UTC)
+            val dateFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy").withLocale(Locale.US)
+            date = dateFormatter.format(dateTime)
+            return@LaunchedEffect
+        } catch (_: Exception){
         }
 
         date = dateString
