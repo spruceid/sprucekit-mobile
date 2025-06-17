@@ -65,25 +65,37 @@ struct VerifierCredentialSuccessView: View {
                             credentialPack: credentialPack!)
 
                     let credential = try credentialPack.unwrap().list().first
-                    let claims = try credentialPack.unwrap()
-                        .findCredentialClaims(
-                            claimNames: [
-                                "name", "type", "description", "issuer"
-                            ]
-                        )[credential.unwrap().id()]
 
-                    var tmpTitle = claims?["name"]?.toString()
+                    let claims = try credentialPack.unwrap().getCredentialClaims(
+                        credential: credential.unwrap(),
+                        claimNames: [
+                            "name", "type", "description", "issuer", "Given Names", "Family Name"
+                        ]
+                    )
+
+                    var tmpTitle = claims["name"]?.toString()
                     if tmpTitle == nil {
-                        claims?["type"]?.arrayValue?.forEach {
+                        claims["type"]?.arrayValue?.forEach {
                             if $0.toString() != "VerifiableCredential" {
                                 tmpTitle = $0.toString().camelCaseToWords()
                                 return
                             }
                         }
                     }
+
+                    // Birth Certificate Title
+                    if tmpTitle == nil {
+                        do {
+                            let names = try claims["Given Names"].unwrap().toString()
+                            let family = try claims["Family Name"].unwrap().toString()
+                            tmpTitle = names + " " + family
+                        } catch {
+                            print("It does not have a Given Names or Family Name attribute.")
+                        }
+                    }
                     self.title = tmpTitle ?? ""
 
-                    if let issuerName = claims?["issuer"]?.dictValue?["name"]?
+                    if let issuerName = claims["issuer"]?.dictValue?["name"]?
                         .toString() {
                         self.issuer = issuerName
                     } else {
