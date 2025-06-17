@@ -30,13 +30,15 @@ func getGenericJSON(jsonString: String) -> GenericJSON? {
 
 extension String {
     func camelCaseToWords() -> String {
-        return unicodeScalars.reduce("") {
-            if CharacterSet.uppercaseLetters.contains($1) {
-                if $0.count > 0 {
-                    return ($0 + " " + String($1))
-                }
+        return unicodeScalars.reduce("") { acc, scalar in
+            let char = String(scalar)
+            if CharacterSet.uppercaseLetters.contains(scalar),
+               acc.count > 0,
+               !acc.hasSuffix(" ") {
+               return acc + " " + char
+            } else {
+                return acc + char
             }
-            return $0 + String($1)
         }
     }
 
