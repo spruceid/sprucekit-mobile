@@ -1,6 +1,6 @@
 use super::Credential;
 use crate::crypto::KeyAlias;
-use crate::trusted_roots;
+use crate::{trusted_roots, CborKeyMapper};
 use crate::verifier::crypto::{CoseP256Verifier, Crypto};
 use crate::verifier::helpers;
 use crate::{CborValue, CredentialType};
@@ -274,14 +274,14 @@ impl Cwt {
 
     fn get_key_name(key: &cose_rs::cwt::Key) -> String {
         match key {
-            cose_rs::cwt::Key::Text(v) => v.to_string(),
-            cose_rs::cwt::Key::Integer(v) => match *v {
-                1 => "Issuer".to_string(),
-                4 => "Expiration".to_string(),
-                5 => "Not Before".to_string(),
-                6 => "Issued At".to_string(),
-                _ => v.to_string(),
-            },
+            cose_rs::cwt::Key::Text(v) => {
+                let key_string = v.to_string();
+                match key_string.trim().parse::<i128>() {
+                    Ok(num) => CborKeyMapper::key_to_string(num),
+                    Err(_) => key_string.to_string(),
+                }
+            }
+            cose_rs::cwt::Key::Integer(v) => CborKeyMapper::key_to_string(*v),
         }
     }
 
