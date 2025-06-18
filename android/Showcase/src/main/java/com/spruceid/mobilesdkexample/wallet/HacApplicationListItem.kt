@@ -19,11 +19,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.CredentialStatusList
+import com.spruceid.mobile.sdk.rs.CheckStatusResponse
 import com.spruceid.mobilesdkexample.credentials.CredentialStatusSmall
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.ErrorToast
+import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 
 @Composable
@@ -37,15 +40,29 @@ fun HacApplicationListItem(
 
     LaunchedEffect(application) {
         if (application != null) {
+            // TODO: Create a 'loading' status
+            credentialStatus = CredentialStatusList.UNKNOWN
             try {
                 val status = hacApplicationsViewModel?.issuanceClient?.checkStatus(
                     issuanceId = application.issuanceId,
                     walletAttestation = hacApplicationsViewModel.getWalletAttestation()!!
                 )
-                if (status?.state == "ReadyToProvision") {
-                    credentialStatus = CredentialStatusList.READY
+
+                when (status) {
+                    is CheckStatusResponse.ReadyToProvision -> {
+                        credentialStatus = CredentialStatusList.READY
+                        credentialOfferUrl = status.openidCredentialOffer
+                    }
+                    is CheckStatusResponse.ProofingRequired -> {
+                        credentialStatus = CredentialStatusList.PENDING
+                        credentialOfferUrl = status.proofingUrl
+                    }
+                    null -> {
+                        credentialStatus = CredentialStatusList.UNKNOWN
+                        print("Invalid credential state.")
+                    }
                 }
-                credentialOfferUrl = status?.openidCredentialOffer
+
             } catch (e: Exception) {
                 println(e.message)
             }

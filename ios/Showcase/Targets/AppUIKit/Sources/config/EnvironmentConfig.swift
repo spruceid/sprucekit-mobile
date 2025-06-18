@@ -4,12 +4,9 @@ import Foundation
 class EnvironmentConfig: ObservableObject {
     static let shared = EnvironmentConfig()
 
-    private let PROD_PROOFING_CLIENT = "https://proofing.haci.spruceid.xyz"
     private let PROD_WALLET_SERVICE = "https://wallet.haci.spruceid.xyz"
     private let PROD_ISSUANCE_SERVICE = "https://issuance.haci.spruceid.xyz"
 
-    private let DEV_PROOFING_CLIENT =
-        "https://proofing.haci.staging.spruceid.xyz"
     private let DEV_WALLET_SERVICE = "https://wallet.haci.staging.spruceid.xyz"
     private let DEV_ISSUANCE_SERVICE =
         "https://issuance.haci.staging.spruceid.xyz"
@@ -29,10 +26,6 @@ class EnvironmentConfig: ObservableObject {
 
     func toggleDevMode() {
         isDevMode = !isDevMode
-    }
-
-    var proofingClientUrl: String {
-        _isDevMode.value ? DEV_PROOFING_CLIENT : PROD_PROOFING_CLIENT
     }
 
     var walletServiceUrl: String {
