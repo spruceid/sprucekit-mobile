@@ -227,57 +227,63 @@ class CredentialPack {
     fun findCredentialClaims(claimNames: List<String>): Map<String, JSONObject> =
         this.list()
             .map { credential ->
-                val claims: JSONObject
-                val mdoc = credential.asMsoMdoc()
-                val jwtVc = credential.asJwtVc()
-                val jsonVc = credential.asJsonVc()
-                val sdJwt = credential.asSdJwt()
-                val cwt = credential.asCwt()
-
-                if (mdoc != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        mdoc.jsonEncodedDetailsFiltered(claimNames)
-                    } else {
-                        mdoc.jsonEncodedDetailsAll()
-                    }
-                } else if (jwtVc != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        jwtVc.credentialClaimsFiltered(claimNames)
-                    } else {
-                        jwtVc.credentialClaims()
-                    }
-                } else if (jsonVc != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        jsonVc.credentialClaimsFiltered(claimNames)
-                    } else {
-                        jsonVc.credentialClaims()
-                    }
-                } else if (cwt != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        cwt.credentialClaimsFiltered(claimNames)
-                    } else {
-                        cwt.credentialClaims()
-                    }
-                } else if (sdJwt != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        sdJwt.credentialClaimsFiltered(claimNames)
-                    } else {
-                        sdJwt.credentialClaims()
-                    }
-                } else {
-                    var type: String
-                    try {
-                        type = credential.intoGenericForm().type
-                    } catch (e: Error) {
-                        type = "unknown"
-                    }
-                    Log.e("sprucekit", "unsupported credential type: $type")
-                    claims = JSONObject()
-                }
-
+                val claims = getCredentialClaims(credential, claimNames)
                 return@map Pair(credential.id(), claims)
             }
             .toMap()
+    /**
+     * Find credential claims from a specific credential.
+     */
+    fun getCredentialClaims(credential: ParsedCredential, claimNames: List<String>): JSONObject {
+        val claims: JSONObject
+        val mdoc = credential.asMsoMdoc()
+        val jwtVc = credential.asJwtVc()
+        val jsonVc = credential.asJsonVc()
+        val sdJwt = credential.asSdJwt()
+        val cwt = credential.asCwt()
+
+        if (mdoc != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                mdoc.jsonEncodedDetailsFiltered(claimNames)
+            } else {
+                mdoc.jsonEncodedDetailsAll()
+            }
+        } else if (jwtVc != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                jwtVc.credentialClaimsFiltered(claimNames)
+            } else {
+                jwtVc.credentialClaims()
+            }
+        } else if (jsonVc != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                jsonVc.credentialClaimsFiltered(claimNames)
+            } else {
+                jsonVc.credentialClaims()
+            }
+        } else if (cwt != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                cwt.credentialClaimsFiltered(claimNames)
+            } else {
+                cwt.credentialClaims()
+            }
+        } else if (sdJwt != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                sdJwt.credentialClaimsFiltered(claimNames)
+            } else {
+                sdJwt.credentialClaims()
+            }
+        } else {
+            var type: String
+            try {
+                type = credential.intoGenericForm().type
+            } catch (e: Error) {
+                type = "unknown"
+            }
+            Log.e("sprucekit", "unsupported credential type: $type")
+            claims = JSONObject()
+        }
+        return claims
+    }
 
 
     /**

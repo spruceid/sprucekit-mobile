@@ -195,60 +195,67 @@ public class CredentialPack {
         Dictionary(
             uniqueKeysWithValues: list()
                 .map { credential in
-                    var claims: [String: GenericJSON]
-                    if let mdoc = credential.asMsoMdoc() {
-                        if claimNames.isEmpty {
-                            claims = mdoc.jsonEncodedDetails()
-                        } else {
-                            claims = mdoc.jsonEncodedDetails(
-                                containing: claimNames
-                            )
-                        }
-                    } else if let jwtVc = credential.asJwtVc() {
-                        if claimNames.isEmpty {
-                            claims = jwtVc.credentialClaims()
-                        } else {
-                            claims = jwtVc.credentialClaims(
-                                containing: claimNames
-                            )
-                        }
-                    } else if let cwt = credential.asCwt() {
-                        if claimNames.isEmpty {
-                            claims = cwt.credentialClaims()
-                        } else {
-                            claims = cwt.credentialClaims(
-                                containing: claimNames
-                            )
-                        }
-                    } else if let jsonVc = credential.asJsonVc() {
-                        if claimNames.isEmpty {
-                            claims = jsonVc.credentialClaims()
-                        } else {
-                            claims = jsonVc.credentialClaims(
-                                containing: claimNames
-                            )
-                        }
-                    } else if let sdJwt = credential.asSdJwt() {
-                        if claimNames.isEmpty {
-                            claims = sdJwt.credentialClaims()
-                        } else {
-                            claims = sdJwt.credentialClaims(
-                                containing: claimNames
-                            )
-                        }
-                    } else {
-                        var type: String
-                        do {
-                            type = try credential.intoGenericForm().type
-                        } catch {
-                            type = "unknown"
-                        }
-                        print("unsupported credential type: \(type)")
-                        claims = [:]
-                    }
+                    let claims: [String: GenericJSON] =
+                        getCredentialClaims(credential: credential, claimNames: claimNames)
                     return (credential.id(), claims)
                 }
         )
+    }
+
+    /// Find credential claims from a specific credential.
+    public func getCredentialClaims(credential: ParsedCredential, claimNames: [String]) -> [String: GenericJSON] {
+
+        if let mdoc = credential.asMsoMdoc() {
+            if claimNames.isEmpty {
+                return mdoc.jsonEncodedDetails()
+            } else {
+                return mdoc.jsonEncodedDetails(
+                    containing: claimNames
+                )
+            }
+        } else if let jwtVc = credential.asJwtVc() {
+            if claimNames.isEmpty {
+                return jwtVc.credentialClaims()
+            } else {
+                return jwtVc.credentialClaims(
+                    containing: claimNames
+                )
+            }
+        } else if let cwt = credential.asCwt() {
+            if claimNames.isEmpty {
+                return cwt.credentialClaims()
+            } else {
+                return cwt.credentialClaims(
+                    containing: claimNames
+                )
+            }
+        } else if let jsonVc = credential.asJsonVc() {
+            if claimNames.isEmpty {
+                return jsonVc.credentialClaims()
+            } else {
+                return jsonVc.credentialClaims(
+                    containing: claimNames
+                )
+            }
+        } else if let sdJwt = credential.asSdJwt() {
+            if claimNames.isEmpty {
+                return sdJwt.credentialClaims()
+            } else {
+                return sdJwt.credentialClaims(
+                    containing: claimNames
+                )
+            }
+        } else {
+            var type: String
+            do {
+                type = try credential.intoGenericForm().type
+            } catch {
+                type = "unknown"
+            }
+            print("unsupported credential type: \(type)")
+            return [:]
+        }
+
     }
 
     /// Get credentials by id.

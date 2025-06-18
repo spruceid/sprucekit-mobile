@@ -46,6 +46,7 @@ fun String.splitCamelCase() = replace(
         "(?<=[A-Za-z])(?=[^A-Za-z])"
     ).toRegex(), " "
 )
+    .replace("\\s+".toRegex(), " ")
     .replaceFirstChar(Char::titlecase)
 
 fun String.removeUnderscores() = replace("_", "")

@@ -52,14 +52,15 @@ fun VerifierCredentialSuccessView(
         )
         statusListViewModel.fetchAndUpdateStatus(credentialItem!!.credentialPack)
         val credential = credentialItem!!.credentialPack.list().first()
-        val claims = credentialItem!!.credentialPack.findCredentialClaims(
-            listOf("name", "type", "description", "issuer")
-        )[credential.id()]
+        val claims = credentialItem!!.credentialPack.getCredentialClaims(
+            credential,
+            listOf("name", "type", "description", "issuer", "Given Names", "Family Name")
+        )
 
         try {
-            title = claims?.get("name").toString()
-            if (title?.isBlank() == true) {
-                val arrayTypes = claims?.getJSONArray("type")
+            title = claims.optString("name")?.takeIf { it.isNotBlank() }
+            if (title.isNullOrBlank()) {
+                val arrayTypes = claims.optJSONArray("type")
                 if (arrayTypes != null) {
                     for (i in 0 until arrayTypes.length()) {
                         if (arrayTypes.get(i).toString() != "VerifiableCredential") {
@@ -69,11 +70,16 @@ fun VerifierCredentialSuccessView(
                     }
                 }
             }
+            if (title.isNullOrBlank()) {
+                val names = claims.get("Given Names").toString()
+                val family = claims.get("Family Name").toString()
+                title = "$names $family"
+            }
         } catch (_: Exception) {
         }
 
         try {
-            issuer = claims?.getJSONObject("issuer")?.getString("name").toString()
+            issuer = claims.getJSONObject("issuer").getString("name").toString()
         } catch (_: Exception) {
         }
 
