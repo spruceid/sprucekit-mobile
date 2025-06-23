@@ -48,6 +48,8 @@ struct HacApplicationListItem: View {
             }
         }
         .onAppear {
+            // TODO: Create a 'loading' status
+            credentialStatus = .unknown;
             if let application = application {
                 Task {
                     do {
@@ -62,10 +64,16 @@ struct HacApplicationListItem: View {
                                 issuanceId: application.issuanceId,
                                 walletAttestation: walletAttestation
                             )
-                        if status.state == "ReadyToProvision" {
-                            credentialStatus = .ready
+
+                        switch status {
+                            case .readyToProvision(let openidCredentialOffer):
+                                credentialStatus = .ready
+                                credentialOfferUrl = openidCredentialOffer
+                            case .proofingRequired(let proofingUrl):
+                                credentialStatus = .pending
+                                credentialOfferUrl = proofingUrl
                         }
-                        credentialOfferUrl = status.openidCredentialOffer
+
                     } catch {
                         print(error.localizedDescription)
                     }
