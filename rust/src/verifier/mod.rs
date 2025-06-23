@@ -21,10 +21,10 @@ use uniffi::deps::anyhow::{self, anyhow, bail, Context, Error};
 use x509_cert::{certificate::CertificateInner, der::Encode, Certificate};
 
 pub trait Credential {
-    const SCHEMA: &'static str;
     const TITLE: &'static str;
     const IMAGE: &'static [u8];
 
+    fn schemas() -> Vec<&'static str>;
     fn parse_claims(claims: ClaimsSet) -> Result<HashMap<String, ClaimValue>>;
 }
 
@@ -62,8 +62,13 @@ pub trait Verifiable: Credential {
             .remove_i(-65537)
             .ok_or_else(|| Failure::missing_claim("Credential Schema"))?
         {
-            serde_cbor::Value::Text(s) if s == Self::SCHEMA => (),
-            v => return Err(Failure::incorrect_credential(Self::SCHEMA, v)),
+            serde_cbor::Value::Text(s) if Self::schemas().contains(&s.as_str()) => (),
+            v => {
+                return Err(Failure::incorrect_credential(
+                    format!("{:?}", Self::schemas()),
+                    v,
+                ))
+            }
         }
 
         let claims = Self::parse_claims(claims)?;
