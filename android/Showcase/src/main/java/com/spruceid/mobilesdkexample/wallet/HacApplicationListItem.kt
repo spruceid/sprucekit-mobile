@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import com.spruceid.mobile.sdk.rs.FlowState
-import com.spruceid.mobilesdkexample.config.EnvironmentConfig
 import com.spruceid.mobilesdkexample.credentials.ApplicationStatusSmall
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
@@ -75,7 +74,7 @@ fun HacApplicationListItem(
                             is FlowState.ProofingRequired -> {
                                 val intent = Intent(
                                     Intent.ACTION_VIEW,
-                                    "${EnvironmentConfig.proofingClientUrl}/proofing?id=${application?.id}&redirect=spruceid".toUri()
+                                    it.proofingUrl.toUri()
                                 )
                                 context.startActivity(intent)
                             }
