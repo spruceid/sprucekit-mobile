@@ -63,6 +63,8 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase100
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue100
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue800
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue900
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
@@ -91,7 +93,7 @@ fun WalletHomeView(
     Column(
         Modifier
             .padding(all = 20.dp)
-            .padding(top = 20.dp)
+            .padding(top = 30.dp)
     ) {
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
@@ -311,63 +313,78 @@ fun WalletHomeBody(
 fun NoCredentialCard(
     onGenerateMockMdl: () -> Unit
 ) {
-    AnimatedVisibility (
-        visible = true,
-        enter = EnterTransition.None,
-        exit = fadeOut()
+    Box(
+        modifier = Modifier
+            // Shadow is not quite accurate
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(12.dp),
+                ambientColor = Color.Black.copy(alpha = 0.6f),
+                spotColor = Color.Black.copy(alpha = 0.6f),
+            )
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(ColorBase100, ColorBlue100),
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .border(
+                width = 2.dp,
+                color = Color.White,
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 16.dp)
     ) {
-        Box(
-            modifier = Modifier
-                // Shadow is not quite accurate
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(12.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.6f),
-                    spotColor = Color.Black.copy(alpha = 0.6f),
-                )
-                .background(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(ColorBase100, ColorBlue100),
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .border(
-                    width = 2.dp,
-                    color = Color.White,
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .padding(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 16.dp)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(36.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Title + Subtitle
             Column(
-                verticalArrangement = Arrangement.spacedBy(36.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Title + Subtitle
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = "Welcome!",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.W600,
-                        color = ColorBlue600
-                    )
-                    Text(
-                        text = "You currently have no credentials in your wallet",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.W500,
-                        color = ColorStone600
-                    )
-                }
-
-                // Image (mDL)
-                Image(
-                    painter = painterResource(id = R.drawable.mdl_image),
-                    contentDescription = "mDL Image"
+                Text(
+                    text = "Welcome!",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.W600,
+                    color = ColorBlue600
                 )
+                Text(
+                    text = "You currently have no credentials in your wallet",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.W500,
+                    color = ColorStone600
+                )
+            }
 
-                // Button
+            // Image (mDL)
+            Image(
+                painter = painterResource(id = R.drawable.mdl_image),
+                contentDescription = "mDL Image"
+            )
+
+            // Button (in a box wrapper for shadowing)
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp, vertical = 8.dp)
+                    .fillMaxWidth()
+                    .height(40.dp)
+                    .border(
+                        width = 2.dp,
+                        brush = Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color.White.copy(alpha = 0.2f),
+                                0.4f to ColorBlue800,
+                                1.0f to ColorBlue900
+                            ),
+                            startY = 0f,
+                            endY = Float.POSITIVE_INFINITY
+                        ),
+                        shape = RoundedCornerShape(100.dp)
+                    )
+                    .clip(RoundedCornerShape(100.dp))
+            ) {
                 Button(
                     onClick = onGenerateMockMdl,
                     colors = ButtonDefaults.buttonColors(
@@ -376,9 +393,7 @@ fun NoCredentialCard(
                     ),
                     shape = RoundedCornerShape(100.dp),
                     modifier = Modifier
-                        .height(55.dp)
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .fillMaxSize()
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.generate_mdl),
