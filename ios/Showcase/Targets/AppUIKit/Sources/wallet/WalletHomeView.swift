@@ -233,7 +233,7 @@ struct WalletHomeViewNoCredentials: View {
                             }
                         } label: {
                             HStack(spacing: 6) {
-                                Image("Processing")
+                                Image("GenerateMockMdl")
                                     .renderingMode(.template)
                                     .foregroundColor(.white)
                                     .frame(width: 20, height: 20)
@@ -244,18 +244,38 @@ struct WalletHomeViewNoCredentials: View {
                                     )
                             }
                             .frame(maxWidth: .infinity, alignment: .center)
+                            .frame(height: 25)
                             .padding(.vertical, 8)
                             .padding(.horizontal, 20)
                         }
                         .background(Color("ColorBlue600"))
                         .cornerRadius(100)
                         .foregroundColor(.white)
-                        //.shadow(color: Color("ColorBlue900"), radius: 0, x: 0, y: -2)
-                        //.shadow(color: Color("ColorBlue900"), radius: 0, x: 0, y: 1)
-                        //.shadow(color: Color("ColorBlue900"), radius: 0, x: -1, y: 0)
-                        //.shadow(color: Color("ColorBlue900"), radius: 0, x: 1, y: -2)
-                        //.shadow(color: Color("FDFDFC").opacity(0.2), radius: 0, x: 1, y: -2)
-                    } // Finish button
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 100)
+                            .strokeBorder(
+                                LinearGradient(
+                                    gradient: Gradient(stops: [
+                                        .init(
+                                            color: Color.white.opacity(0.2),
+                                            location: 0.0
+                                        ),
+                                        .init(
+                                            color: Color("ColorBlue800"),
+                                            location: 0.4
+                                        ),
+                                        .init(
+                                            color: Color("ColorBlue900"),
+                                            location: 1.0
+                                        ),
+                                    ]),
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 2
+                            )
+                        )
+                    }
                     .padding(EdgeInsets(top: 24, leading: 20, bottom: 16, trailing: 20))
                     .background(
                         LinearGradient(

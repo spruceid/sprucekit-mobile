@@ -129,7 +129,7 @@ struct WalletSettingsHomeBody: View {
             }
         } label: {
             SettingsHomeItem(
-                image: "Processing",
+                image: "GenerateMockMdl",
                 title: "Generate mDL",
                 description:
                     "Generate a fresh test mDL issued by the SpruceID Test CA"
