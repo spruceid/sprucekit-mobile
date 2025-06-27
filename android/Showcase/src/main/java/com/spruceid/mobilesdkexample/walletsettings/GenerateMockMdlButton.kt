@@ -42,21 +42,7 @@ fun GenerateMockMdlButton(
             .padding(bottom = 20.dp)
             .clickable {
                 scope.launch {
-                    try {
-                        val keyManager = KeyManager()
-                        val keyAlias = "testMdl"
-                        if (!keyManager.keyExists(keyAlias)) {
-                            keyManager.generateSigningKey(keyAlias)
-                        }
-                        val mdl = generateTestMdl(KeyManager(), keyAlias)
-                        val mdocPack = CredentialPack()
-
-                        mdocPack.addMdoc(mdl);
-                        credentialPacksViewModel.saveCredentialPack(mdocPack)
-                        Toast.showSuccess("Test mDL added to your wallet")
-                    } catch (_: Exception) {
-                        Toast.showError("Error generating mDL")
-                    }
+                    generateMockMdl(credentialPacksViewModel)
                 }
             },
     ) {
