@@ -189,8 +189,7 @@ impl CborInteger {
         let upper = self.upper_bytes();
 
         // Safety: we are doing all the operations from splitting to joining
-        u128::cast_signed(((upper as u128) << 64) | (lower as u128))
-            .to_string()
+        u128::cast_signed(((upper as u128) << 64) | (lower as u128)).to_string()
     }
 }
 
