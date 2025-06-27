@@ -210,9 +210,12 @@ mod tests {
         let result = client.check_status(issuance_id, wallet_attestation).await;
         assert!(result.is_ok(), "Status check should succeed");
         let response = result.unwrap();
-        assert_eq!(response, FlowState::ReadyToProvision {
-            openid_credential_offer: Url::parse("https://openid_credential_offer.com").unwrap(),
-        });
+        assert_eq!(
+            response,
+            FlowState::ReadyToProvision {
+                openid_credential_offer: Url::parse("https://openid_credential_offer.com").unwrap(),
+            }
+        );
     }
 
     #[tokio::test]
