@@ -124,20 +124,8 @@ struct WalletHomeBody: View {
                                 id: \.self.id
                             ) { hacApplication in
                                 HacApplicationListItem(
-                                    application: hacApplication,
-                                    startIssuance: { credentialOfferUrl in
-                                        path.append(
-                                            HandleOID4VCI(
-                                                url: credentialOfferUrl,
-                                                onSuccess: {
-                                                    _ = HacApplicationDataStore
-                                                        .shared.delete(
-                                                            id: hacApplication
-                                                                .id)
-                                                }
-                                            )
-                                        )
-                                    }
+                                    path: Binding<NavigationPath?>($path),
+                                    hacApplication: hacApplication
                                 )
                             }
                             ForEach(

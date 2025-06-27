@@ -15,8 +15,7 @@ struct ApplySpruceMdlConfirmation: View {
                     .padding(.top, 24)
 
                 HacApplicationListItem(
-                    application: nil,
-                    startIssuance: { _ in }
+                    hacApplication: nil
                 )
 
                 Text(
