@@ -1,6 +1,7 @@
 use crate::haci::http_client::HaciHttpClient;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use url::Url;
 
 /// Represents errors that may occur during issuance operations
 #[derive(Error, Debug, uniffi::Error)]
@@ -31,10 +32,25 @@ struct NewIssuanceResponse {
     id: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, uniffi::Record)]
-pub struct CheckStatusResponse {
-    state: String,
-    openid_credential_offer: String,
+/// Issuance flow state.
+#[derive(Debug, Serialize, Deserialize, uniffi::Enum, PartialEq)]
+#[serde(tag = "state")]
+pub enum FlowState {
+    // The credential needs identity proofing
+    ProofingRequired {
+        proofing_url: Url,
+    },
+    /// The credential needs manual review
+    AwaitingManualReview,
+    /// The credential is ready to be provisioned.
+    ReadyToProvision {
+        /// OID4VCI Credential Offer, to begin the OID4VCI flow.
+        ///
+        /// See: <https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer>
+        openid_credential_offer: Url,
+    },
+    /// Application Denied
+    ApplicationDenied,
 }
 
 #[derive(uniffi::Object)]
@@ -109,7 +125,7 @@ impl IssuanceServiceClient {
         &self,
         issuance_id: String,
         wallet_attestation: String,
-    ) -> Result<CheckStatusResponse, IssuanceServiceError> {
+    ) -> Result<FlowState, IssuanceServiceError> {
         let url = format!("{}/issuance/{}/status", self.base_url, issuance_id);
 
         let response = self
@@ -129,7 +145,7 @@ impl IssuanceServiceClient {
             });
         }
 
-        let status_response: CheckStatusResponse = response
+        let status_response: FlowState = response
             .json()
             .await
             .map_err(|e| IssuanceServiceError::ResponseError(e.to_string()))?;
@@ -185,7 +201,7 @@ mod tests {
             .and(path(format!("/issuance/{}/status", issuance_id)))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "state": "ReadyToProvision",
-                "openid_credential_offer": "openid_credential_offer"
+                "openid_credential_offer": "https://openid_credential_offer.com"
             })))
             .expect(1)
             .mount(&mock_server)
@@ -194,8 +210,9 @@ mod tests {
         let result = client.check_status(issuance_id, wallet_attestation).await;
         assert!(result.is_ok(), "Status check should succeed");
         let response = result.unwrap();
-        assert_eq!(response.state, "ReadyToProvision");
-        assert_eq!(response.openid_credential_offer, "openid_credential_offer");
+        assert_eq!(response, FlowState::ReadyToProvision {
+            openid_credential_offer: Url::parse("https://openid_credential_offer.com").unwrap(),
+        });
     }
 
     #[tokio::test]
