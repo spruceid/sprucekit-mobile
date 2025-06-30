@@ -3,12 +3,29 @@ import SpruceIDMobileSdkRs
 import SwiftUI
 
 struct HacApplicationListItem: View {
+    @Binding var path: NavigationPath?
     @EnvironmentObject var hacApplicationObservable: HacApplicationObservable
 
-    let application: HacApplication?
-    let startIssuance: (String) -> Void
-    @State var credentialOfferUrl: String?
-    @State var credentialStatus: CredentialStatusList = .undefined
+    let hacApplication: HacApplication?
+    @State var issuanceStatus: FlowState?
+    @State var showDeleteDialog: Bool = false
+
+    init(
+        path: Binding<NavigationPath?> = .constant(nil),
+        hacApplication: HacApplication?
+    ) {
+        self._path = path
+        self.hacApplication = hacApplication
+    }
+
+    func deleteApplication() {
+        if let application = hacApplication {
+            _ = HacApplicationDataStore
+                .shared.delete(
+                    id: application.id
+                )
+        }
+    }
 
     var body: some View {
         HStack {
@@ -23,8 +40,8 @@ struct HacApplicationListItem: View {
                             )
                         )
                         .foregroundStyle(Color("ColorStone950"))
-                    CredentialStatusSmall(
-                        status: credentialStatus
+                    ApplicationStatusSmall(
+                        status: issuanceStatus
                     )
                 }
                 .padding(.leading, 12)
@@ -42,13 +59,48 @@ struct HacApplicationListItem: View {
                 .stroke(Color("ColorBase300"), lineWidth: 1)
         )
         .padding(12)
+        .alert("Delete Application", isPresented: $showDeleteDialog) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                deleteApplication()
+            }
+        } message: {
+            Text(
+                "Are you sure you want to delete this application? This action cannot be undone."
+            )
+        }
         .onTapGesture {
-            if let credentialOfferUrl = credentialOfferUrl {
-                startIssuance(credentialOfferUrl)
+            if let status = issuanceStatus {
+                switch status {
+                case .proofingRequired(let proofingUrl):
+                    if let url = URL(
+                        string:
+                            proofingUrl
+                    ) {
+                        UIApplication.shared.open(
+                            url,
+                            options: [:],
+                            completionHandler: nil
+                        )
+                    }
+                case .awaitingManualReview:
+                    return
+                case .readyToProvision(let openidCredentialOffer):
+                    path?.append(
+                        HandleOID4VCI(
+                            url: openidCredentialOffer,
+                            onSuccess: {
+                                deleteApplication()
+                            }
+                        )
+                    )
+                case .applicationDenied:
+                    showDeleteDialog = true
+                }
             }
         }
         .onAppear {
-            if let application = application {
+            if let application = hacApplication {
                 Task {
                     do {
                         let walletAttestation =
@@ -56,22 +108,16 @@ struct HacApplicationListItem: View {
                             .getWalletAttestation()
                             .unwrap()
 
-                        let status =
+                        issuanceStatus =
                             try await hacApplicationObservable.issuanceClient
                             .checkStatus(
                                 issuanceId: application.issuanceId,
                                 walletAttestation: walletAttestation
                             )
-                        if status.state == "ReadyToProvision" {
-                            credentialStatus = .ready
-                        }
-                        credentialOfferUrl = status.openidCredentialOffer
                     } catch {
                         print(error.localizedDescription)
                     }
                 }
-            } else {
-                credentialStatus = .pending
             }
         }
     }
