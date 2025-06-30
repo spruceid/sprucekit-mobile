@@ -156,16 +156,46 @@ struct WalletSettingsHomeBody: View {
                         issuanceId: issuance
                     )
 
-                    if let url = URL(
-                        string:
-                            "\(environmentConfig.proofingClientUrl)/proofing?id=\(hacApplication!)&redirect=spruceid"
-                    ) {
-                        UIApplication.shared.open(
-                            url,
-                            options: [:],
-                            completionHandler: nil
-                        )
-                    }
+                    let status = try await hacApplicationObservable.issuanceClient.checkStatus(
+                        issuanceId: issuance,
+                        walletAttestation: walletAttestation
+                    )
+
+                    switch status {
+                        case .proofingRequired(let proofingUrl):
+                            if let hacApplication = hacApplication {
+                                if let url = URL(string: proofingUrl) {
+                                    UIApplication.shared.open(
+                                        url,
+                                        options: [:],
+                                        completionHandler: nil
+                                    )
+                                } else {
+                                    print("Invalid proofing URL")
+                                }
+                            } else {
+                                print("hacApplication is nil")
+                            }
+
+                        case .readyToProvision(_):
+                            print("Expected ProofingRequired status")
+                            ToastManager.shared.showError(
+                                message:
+                                    "Error during attestation: Expected ProofingRequired status"
+                            )
+                        case .awaitingManualReview:
+                            print("Expected ProofingRequired status")
+                            ToastManager.shared.showError(
+                                message:
+                                    "Error during attestation: Expected ProofingRequired status"
+                            )
+                        case .applicationDenied:
+                            print("Expected ProofingRequired status")
+                            ToastManager.shared.showError(
+                                message:
+                                    "Error during attestation: Expected ProofingRequired status"
+                            )
+                        }
 
                 } catch let error as DCError {
                     ToastManager.shared.showError(

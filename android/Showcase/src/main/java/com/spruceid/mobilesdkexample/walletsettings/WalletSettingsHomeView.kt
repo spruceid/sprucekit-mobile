@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.rs.FlowState
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.config.EnvironmentConfig
 import com.spruceid.mobilesdkexample.db.HacApplications
@@ -178,13 +179,26 @@ fun WalletSettingsHomeBody(
                             val hacApplication = hacApplicationsViewModel.saveApplication(
                                 HacApplications(issuanceId = issuance)
                             )
+                            val status = hacApplicationsViewModel.issuanceClient.checkStatus(issuance, walletAttestation)
 
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("${EnvironmentConfig.proofingClientUrl}/proofing?id=${hacApplication}&redirect=spruceid")
-                            )
-
-                            context.startActivity(intent)
+                            when (status) {
+                                is FlowState.ProofingRequired -> {
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse(status.proofingUrl)
+                                    )
+                                    context.startActivity(intent)
+                                }
+                                is FlowState.ReadyToProvision -> {
+                                    print("Issuance started with invalid state, please check.")
+                                }
+                                is FlowState.ApplicationDenied -> {
+                                    print("Issuance started with invalid state, please check.")
+                                }
+                                is FlowState.AwaitingManualReview -> {
+                                    print("Issuance started with invalid state, please check.")
+                                }
+                            }
                         }
                     } finally {
                         isApplyingForMdl = false
