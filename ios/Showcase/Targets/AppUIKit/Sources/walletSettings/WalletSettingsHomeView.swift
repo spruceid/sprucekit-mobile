@@ -183,7 +183,19 @@ struct WalletSettingsHomeBody: View {
                                 message:
                                     "Error during attestation: Expected ProofingRequired status"
                             )
-                    }
+                        case .awaitingManualReview:
+                            print("Expected ProofingRequired status")
+                            ToastManager.shared.showError(
+                                message:
+                                    "Error during attestation: Expected ProofingRequired status"
+                            )
+                        case .applicationDenied:
+                            print("Expected ProofingRequired status")
+                            ToastManager.shared.showError(
+                                message:
+                                    "Error during attestation: Expected ProofingRequired status"
+                            )
+                        }
 
                 } catch let error as DCError {
                     ToastManager.shared.showError(
