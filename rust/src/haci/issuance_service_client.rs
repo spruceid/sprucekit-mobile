@@ -1,8 +1,8 @@
 use crate::haci::http_client::HaciHttpClient;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use url::Url;
 use tokio::sync::OnceCell;
+use url::Url;
 
 /// Represents errors that may occur during issuance operations
 #[derive(Error, Debug, uniffi::Error)]
@@ -252,6 +252,8 @@ impl IssuanceServiceClient {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
     use serde_json::json;
     use wiremock::matchers::{method, path};
@@ -373,28 +375,35 @@ mod tests {
 
         // Mock successful status check response
         Mock::given(method("GET"))
-            .and(path(format!("/issuance/{}/status", issuance_id)))
+            .and(path(format!("/issuance/{issuance_id}/status")))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "state": "ProofingRequired",
-                "proofing_url": "proofing_url"
+                "proofing_url": "http://www.teste.com.br/"
             })))
             .expect(1)
             .mount(&mock_server)
             .await;
 
         let result = client.check_status(issuance_id, wallet_attestation).await;
-        println!("Result {:?}", result);
         assert!(result.is_ok(), "Status check should succeed");
         let response = result.unwrap();
 
         match response {
-            CheckStatusResponse::ReadyToProvision {
+            FlowState::ReadyToProvision {
                 openid_credential_offer: _,
             } => {
                 panic!("Expected ProofingRequired state")
             }
-            CheckStatusResponse::ProofingRequired { proofing_url } => {
-                assert_eq!(proofing_url, "proofing_url");
+            FlowState::ApplicationDenied => {
+                panic!("Expected ProofingRequired state")
+            }
+
+            FlowState::AwaitingManualReview => {
+                panic!("Expected ProofingRequired state")
+            }
+            FlowState::ProofingRequired { proofing_url } => {
+                let expected_url = Url::from_str("http://www.teste.com.br").expect("Invalid URL");
+                assert_eq!(proofing_url, expected_url);
             }
         }
     }
@@ -473,7 +482,7 @@ mod tests {
 
         // Mock server error response
         Mock::given(method("GET"))
-            .and(path(format!("/issuance/{}/status", issuance_id)))
+            .and(path(format!("/issuance/{issuance_id}/status")))
             .respond_with(ResponseTemplate::new(404).set_body_json(json!({
                 "error": "Issuance not found"
             })))
