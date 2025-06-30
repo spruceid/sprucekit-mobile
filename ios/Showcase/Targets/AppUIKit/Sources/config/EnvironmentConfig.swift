@@ -4,12 +4,11 @@ import Foundation
 class EnvironmentConfig: ObservableObject {
     static let shared = EnvironmentConfig()
 
-    private let PROD_WALLET_SERVICE = "https://wallet.haci.spruceid.xyz"
-    private let PROD_ISSUANCE_SERVICE = "https://issuance.haci.spruceid.xyz"
+    private let PROD_WALLET_SERVICE = "https://wallet.grove.spruceid.xyz"
+    private let PROD_ISSUANCE_SERVICE = "https://issuance.grove.spruceid.xyz"
 
-    private let DEV_WALLET_SERVICE = "https://wallet.haci.staging.spruceid.xyz"
-    private let DEV_ISSUANCE_SERVICE =
-        "https://issuance.haci.staging.spruceid.xyz"
+    private let DEV_WALLET_SERVICE = "https://wallet.grove.staging.spruceid.xyz"
+    private let DEV_ISSUANCE_SERVICE = "https://issuance.grove.staging.spruceid.xyz"
 
     private let _isDevMode = CurrentValueSubject<Bool, Never>(false)
 
