@@ -201,7 +201,7 @@ mod tests {
             .and(path(format!("/issuance/{}/status", issuance_id)))
             .respond_with(ResponseTemplate::new(200).set_body_json(json!({
                 "state": "ReadyToProvision",
-                "openid_credential_offer": "https://openid_credential_offer.com"
+                "openid_credential_offer": "openid-credential-offer://"
             })))
             .expect(1)
             .mount(&mock_server)
@@ -213,7 +213,7 @@ mod tests {
         assert_eq!(
             response,
             FlowState::ReadyToProvision {
-                openid_credential_offer: Url::parse("https://openid_credential_offer.com").unwrap(),
+                openid_credential_offer: Url::parse("openid-credential-offer://").unwrap(),
             }
         );
     }
