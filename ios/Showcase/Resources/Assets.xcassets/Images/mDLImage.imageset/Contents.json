@@ -6,12 +6,12 @@
       "scale" : "1x"
     },
     {
-      "filename" : "mDLImage 1.png",
+      "filename" : "mDLImage@2x.png",
       "idiom" : "universal",
       "scale" : "2x"
     },
     {
-      "filename" : "mDLImage 2.png",
+      "filename" : "mDLImage@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
     }
