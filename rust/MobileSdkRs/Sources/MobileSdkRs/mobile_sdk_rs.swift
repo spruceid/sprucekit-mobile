@@ -3252,7 +3252,7 @@ public protocol IssuanceServiceClientProtocol: AnyObject, Sendable {
      * * The status response containing state and openid_credential_offer if successful
      * * An error if the request fails
      */
-    func checkStatus(issuanceId: String, walletAttestation: String) async throws  -> CheckStatusResponse
+    func checkStatus(issuanceId: String, walletAttestation: String) async throws  -> FlowState
     
     /**
      * Format the endpoint
@@ -3354,7 +3354,7 @@ public convenience init(baseUrl: String) {
      * * The status response containing state and openid_credential_offer if successful
      * * An error if the request fails
      */
-open func checkStatus(issuanceId: String, walletAttestation: String)async throws  -> CheckStatusResponse  {
+open func checkStatus(issuanceId: String, walletAttestation: String)async throws  -> FlowState  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
@@ -3366,7 +3366,7 @@ open func checkStatus(issuanceId: String, walletAttestation: String)async throws
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterTypeCheckStatusResponse_lift,
+            liftFunc: FfiConverterTypeFlowState_lift,
             errorHandler: FfiConverterTypeIssuanceServiceError_lift
         )
 }
@@ -12521,6 +12521,113 @@ extension DidMethod: Equatable, Hashable {}
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Issuance flow state.
+ */
+
+public enum FlowState {
+    
+    case proofingRequired(proofingUrl: Url
+    )
+    /**
+     * The credential needs manual review
+     */
+    case awaitingManualReview
+    /**
+     * The credential is ready to be provisioned.
+     */
+    case readyToProvision(
+        /**
+         * OID4VCI Credential Offer, to begin the OID4VCI flow.
+         *
+         * See: <https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html#name-credential-offer>
+         */openidCredentialOffer: Url
+    )
+    /**
+     * Application Denied
+     */
+    case applicationDenied
+}
+
+
+#if compiler(>=6)
+extension FlowState: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFlowState: FfiConverterRustBuffer {
+    typealias SwiftType = FlowState
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FlowState {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .proofingRequired(proofingUrl: try FfiConverterTypeUrl.read(from: &buf)
+        )
+        
+        case 2: return .awaitingManualReview
+        
+        case 3: return .readyToProvision(openidCredentialOffer: try FfiConverterTypeUrl.read(from: &buf)
+        )
+        
+        case 4: return .applicationDenied
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FlowState, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .proofingRequired(proofingUrl):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeUrl.write(proofingUrl, into: &buf)
+            
+        
+        case .awaitingManualReview:
+            writeInt(&buf, Int32(2))
+        
+        
+        case let .readyToProvision(openidCredentialOffer):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeUrl.write(openidCredentialOffer, into: &buf)
+            
+        
+        case .applicationDenied:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlowState_lift(_ buf: RustBuffer) throws -> FlowState {
+    return try FfiConverterTypeFlowState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFlowState_lower(_ value: FlowState) -> RustBuffer {
+    return FfiConverterTypeFlowState.lower(value)
+}
+
+
+extension FlowState: Equatable, Hashable {}
+
+
+
+
+
+
 
 public enum HttpClientError: Swift.Error {
 
@@ -19228,6 +19335,7 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_get_or_fetch_endpoints() != 15181) {
+    if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_check_status() != 42578) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_new_issuance() != 231) {

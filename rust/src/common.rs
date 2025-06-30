@@ -78,8 +78,8 @@ uniffi::custom_type!(Algorithm, String, {
     remote,
     try_lift: |alg| {
 match alg.as_ref() {
-    "ES256" => Ok(Algorithm::Es256),
-    "ES256K" => Ok(Algorithm::Es256K),
+    "ES256" => Ok(Algorithm::ES256),
+    "ES256K" => Ok(Algorithm::ES256K),
     _ => anyhow::bail!("unsupported uniffi custom type for Algorithm mapping: {alg}"),
 }
     },
@@ -320,6 +320,96 @@ impl CborValue {
     }
 }
 
+// CBOR key constants - generic names for reusability
+pub mod cbor_keys {
+    // Standard CBOR claims
+    pub const ISSUER: i128 = 1;
+    pub const EXPIRES: i128 = 4;
+    pub const NOT_BEFORE: i128 = 5;
+    pub const ISSUED: i128 = 6;
+
+    // Identity/Personal Info (70001-70010)
+    pub const FULL_NAME: i128 = -70001;
+    pub const EMAIL: i128 = -70002;
+    pub const COMPANY: i128 = -70003;
+
+    // Birth Certificate fields (70011-70020)
+    pub const BIRTH_CERT_NUMBER: i128 = -70011;
+    pub const GIVEN_NAMES: i128 = -70012;
+    pub const FAMILY_NAME: i128 = -70013;
+    pub const BIRTH_DATE: i128 = -70014;
+    pub const SEX: i128 = -70015;
+    pub const BIRTH_LOCALITY: i128 = -70016;
+    pub const COUNTY_FIPS_CODE: i128 = -70017;
+    pub const MOTHER: i128 = -70018;
+    pub const FATHER: i128 = -70019;
+    pub const REGISTRATION_DATE: i128 = -70020;
+}
+
+/// Bidirectional mapping between CBOR keys and human-readable strings
+pub struct CborKeyMapper;
+
+impl CborKeyMapper {
+    /// Convert CBOR integer key to human-readable string
+    pub fn key_to_string(key: i128) -> String {
+        match key {
+            // Standard CBOR claims
+            cbor_keys::ISSUER => "Issuer".to_string(),
+            cbor_keys::EXPIRES => "Expires".to_string(),
+            cbor_keys::NOT_BEFORE => "Not Before".to_string(),
+            cbor_keys::ISSUED => "Issued".to_string(),
+
+            // Identity/Personal Info
+            cbor_keys::FULL_NAME => "Full Name".to_string(),
+            cbor_keys::EMAIL => "Email".to_string(),
+            cbor_keys::COMPANY => "Company".to_string(),
+
+            // Birth Certificate fields
+            cbor_keys::BIRTH_CERT_NUMBER => "birthCertificateNumber".to_string(),
+            cbor_keys::GIVEN_NAMES => "Given Names".to_string(),
+            cbor_keys::FAMILY_NAME => "Family Name".to_string(),
+            cbor_keys::BIRTH_DATE => "Birth Date".to_string(),
+            cbor_keys::SEX => "Sex".to_string(),
+            cbor_keys::BIRTH_LOCALITY => "Birth Locality".to_string(),
+            cbor_keys::COUNTY_FIPS_CODE => "County FIPS Code".to_string(),
+            cbor_keys::MOTHER => "Mother".to_string(),
+            cbor_keys::FATHER => "Father".to_string(),
+            cbor_keys::REGISTRATION_DATE => "Registration Date".to_string(),
+
+            _ => key.to_string(),
+        }
+    }
+
+    /// Convert human-readable string to CBOR integer key (if exists)
+    pub fn string_to_key(key_str: &str) -> Option<i128> {
+        match key_str {
+            // Standard CBOR claims
+            "Expires" => Some(cbor_keys::EXPIRES),
+            "Not Before" => Some(cbor_keys::NOT_BEFORE),
+            "Issued" => Some(cbor_keys::ISSUED),
+
+            // Identity/Personal Info
+            "Full Name" => Some(cbor_keys::FULL_NAME),
+            "Email" => Some(cbor_keys::EMAIL),
+            "Company" => Some(cbor_keys::COMPANY),
+
+            // Birth Certificate fields
+            "Birth Certificate Number" => Some(cbor_keys::BIRTH_CERT_NUMBER),
+            "Given Names" => Some(cbor_keys::GIVEN_NAMES),
+            "Family Name" => Some(cbor_keys::FAMILY_NAME),
+            "Birth Date" => Some(cbor_keys::BIRTH_DATE),
+            "Sex" => Some(cbor_keys::SEX),
+            "Birth Locality" => Some(cbor_keys::BIRTH_LOCALITY),
+            "County FIPS Code" => Some(cbor_keys::COUNTY_FIPS_CODE),
+            "Mother" => Some(cbor_keys::MOTHER),
+            "Father" => Some(cbor_keys::FATHER),
+            "Registration Date" => Some(cbor_keys::REGISTRATION_DATE),
+
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -449,5 +539,67 @@ mod tests {
             value: Box::new(CborValue::Text("tagged".into())),
         };
         assert_eq!(CborValue::Tag(Arc::new(tag)).to_string(), "tagged");
+    }
+
+    #[test]
+    fn test_cbor_key_mapping_bidirectional() {
+        // Test key to string
+        assert_eq!(
+            CborKeyMapper::key_to_string(cbor_keys::FULL_NAME),
+            "Full Name"
+        );
+        assert_eq!(CborKeyMapper::key_to_string(cbor_keys::EMAIL), "Email");
+        assert_eq!(
+            CborKeyMapper::key_to_string(cbor_keys::BIRTH_DATE),
+            "Birth Date"
+        );
+
+        // Test string to key
+        assert_eq!(
+            CborKeyMapper::string_to_key("Full Name"),
+            Some(cbor_keys::FULL_NAME)
+        );
+        assert_eq!(
+            CborKeyMapper::string_to_key("Email"),
+            Some(cbor_keys::EMAIL)
+        );
+        assert_eq!(
+            CborKeyMapper::string_to_key("Birth Date"),
+            Some(cbor_keys::BIRTH_DATE)
+        );
+
+        // Test unknown key
+        assert_eq!(CborKeyMapper::string_to_key("Unknown"), None);
+        assert_eq!(CborKeyMapper::key_to_string(999), "999");
+    }
+
+    #[test]
+    fn test_standard_cbor_keys() {
+        // Test standard CBOR keys
+        assert_eq!(CborKeyMapper::key_to_string(cbor_keys::EXPIRES), "Expires");
+        assert_eq!(
+            CborKeyMapper::key_to_string(cbor_keys::NOT_BEFORE),
+            "Not Before"
+        );
+        assert_eq!(CborKeyMapper::key_to_string(cbor_keys::ISSUED), "Issued");
+
+        // Test reverse mapping
+        assert_eq!(
+            CborKeyMapper::string_to_key("Expires"),
+            Some(cbor_keys::EXPIRES)
+        );
+        assert_eq!(
+            CborKeyMapper::string_to_key("Not Before"),
+            Some(cbor_keys::NOT_BEFORE)
+        );
+        assert_eq!(
+            CborKeyMapper::string_to_key("Issued"),
+            Some(cbor_keys::ISSUED)
+        );
+
+        // Verify the actual values match CBOR spec
+        assert_eq!(cbor_keys::EXPIRES, 4);
+        assert_eq!(cbor_keys::NOT_BEFORE, 5);
+        assert_eq!(cbor_keys::ISSUED, 6);
     }
 }

@@ -55,6 +55,7 @@ import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
+import com.spruceid.mobilesdkexample.walletsettings.generateMockMdl
 import kotlinx.coroutines.launch
 
 @Composable
@@ -69,7 +70,7 @@ fun WalletHomeView(
     Column(
         Modifier
             .padding(all = 20.dp)
-            .padding(top = 20.dp)
+            .padding(top = 30.dp)
     ) {
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
@@ -265,14 +266,17 @@ fun WalletHomeBody(
         } else {
             Box(Modifier.fillMaxSize()) {
                 Column(
-                    Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.empty_wallet),
-                        contentDescription = stringResource(id = R.string.empty_wallet),
-                    )
+                    Spacer(modifier = Modifier.height(30.dp))
+                    WalletHomeViewNoCredentials(onGenerateMockMdl = {
+                        isRefreshing = true
+                        scope.launch {
+                            generateMockMdl(credentialPacksViewModel)
+                        }
+                        isRefreshing = false
+                    })
                 }
             }
         }

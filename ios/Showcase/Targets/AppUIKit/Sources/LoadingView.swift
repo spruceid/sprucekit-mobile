@@ -42,6 +42,7 @@ struct LoadingView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

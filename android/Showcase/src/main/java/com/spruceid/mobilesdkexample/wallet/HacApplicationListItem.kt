@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.wallet
 
+import android.content.Intent
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -13,21 +14,23 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.spruceid.mobile.sdk.CredentialStatusList
-import com.spruceid.mobile.sdk.rs.CheckStatusResponse
-import com.spruceid.mobilesdkexample.credentials.CredentialStatusSmall
+import androidx.core.net.toUri
+import com.spruceid.mobile.sdk.rs.FlowState
+import com.spruceid.mobilesdkexample.credentials.ApplicationStatusSmall
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.utils.ErrorToast
-import com.spruceid.mobilesdkexample.utils.Toast
+import com.spruceid.mobilesdkexample.utils.ControlledSimpleDeleteAlertDialog
 import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun HacApplicationListItem(
@@ -35,39 +38,23 @@ fun HacApplicationListItem(
     startIssuance: (String, suspend () -> Unit) -> Unit,
     hacApplicationsViewModel: HacApplicationsViewModel?
 ) {
-    var credentialOfferUrl by remember { mutableStateOf<String?>(null) }
-    var credentialStatus by remember { mutableStateOf(CredentialStatusList.UNDEFINED) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var issuanceStatus by remember { mutableStateOf<FlowState?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(application) {
         if (application != null) {
             // TODO: Create a 'loading' status
             credentialStatus = CredentialStatusList.UNKNOWN
             try {
-                val status = hacApplicationsViewModel?.issuanceClient?.checkStatus(
+                issuanceStatus = hacApplicationsViewModel?.issuanceClient?.checkStatus(
                     issuanceId = application.issuanceId,
                     walletAttestation = hacApplicationsViewModel.getWalletAttestation()!!
                 )
-
-                when (status) {
-                    is CheckStatusResponse.ReadyToProvision -> {
-                        credentialStatus = CredentialStatusList.READY
-                        credentialOfferUrl = status.openidCredentialOffer
-                    }
-                    is CheckStatusResponse.ProofingRequired -> {
-                        credentialStatus = CredentialStatusList.PENDING
-                        credentialOfferUrl = status.proofingUrl
-                    }
-                    null -> {
-                        credentialStatus = CredentialStatusList.UNKNOWN
-                        print("Invalid credential state.")
-                    }
-                }
-
             } catch (e: Exception) {
                 println(e.message)
             }
-        } else {
-            credentialStatus = CredentialStatusList.PENDING
         }
     }
 
@@ -82,13 +69,31 @@ fun HacApplicationListItem(
             )
             .padding(12.dp)
             .clickable(
-                enabled = credentialOfferUrl != null,
+                enabled = issuanceStatus != FlowState.AwaitingManualReview,
                 onClick = {
-                    credentialOfferUrl?.let { url ->
-                        startIssuance(url) {
-                            application?.let {
-                                hacApplicationsViewModel?.deleteApplication(application.id)
+                    issuanceStatus?.let {
+                        when (it) {
+                            is FlowState.ProofingRequired -> {
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    it.proofingUrl.toUri()
+                                )
+                                context.startActivity(intent)
                             }
+
+                            is FlowState.ReadyToProvision -> {
+                                startIssuance(it.openidCredentialOffer) {
+                                    application?.let {
+                                        hacApplicationsViewModel?.deleteApplication(application.id)
+                                    }
+                                }
+                            }
+
+                            FlowState.ApplicationDenied -> {
+                                showDeleteDialog = true
+                            }
+
+                            else -> {}
                         }
                     }
                 }
@@ -103,9 +108,28 @@ fun HacApplicationListItem(
                 color = ColorStone950,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            CredentialStatusSmall(status = credentialStatus)
+            issuanceStatus?.let {
+                ApplicationStatusSmall(status = it)
+            }
         }
         Spacer(modifier = Modifier.weight(1f))
     }
+
+    ControlledSimpleDeleteAlertDialog(
+        showDialog = showDeleteDialog,
+        message = "Are you sure you want to delete this application? This action cannot be undone.",
+        onConfirm = {
+            scope.launch {
+                application?.let {
+                    hacApplicationsViewModel?.deleteApplication(application.id)
+                    showDeleteDialog = false
+                }
+            }
+        },
+        onClose = {
+            showDeleteDialog = false
+        },
+        confirmButtonText = "Delete"
+    )
 }
 

@@ -124,20 +124,8 @@ struct WalletHomeBody: View {
                                 id: \.self.id
                             ) { hacApplication in
                                 HacApplicationListItem(
-                                    application: hacApplication,
-                                    startIssuance: { credentialOfferUrl in
-                                        path.append(
-                                            HandleOID4VCI(
-                                                url: credentialOfferUrl,
-                                                onSuccess: {
-                                                    _ = HacApplicationDataStore
-                                                        .shared.delete(
-                                                            id: hacApplication
-                                                                .id)
-                                                }
-                                            )
-                                        )
-                                    }
+                                    path: Binding<NavigationPath?>($path),
+                                    hacApplication: hacApplication
                                 )
                             }
                             ForEach(
@@ -172,17 +160,18 @@ struct WalletHomeBody: View {
                     .padding(.top, 20)
                 }
             } else {
-                ZStack {
-                    VStack {
-                        Spacer()
-                        Section {
-                            Image("EmptyWallet")
+                WalletHomeViewNoCredentials(
+                    onButtonClick: {
+                        Task {
+                            await generateMockMdl()
+                            statusListObservable.hasConnection = checkInternetConnection()
+                            await loadCredentials()
                         }
-                        Spacer()
                     }
-                }
+                )
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: loading)
         .onAppear(perform: {
             Task {
                 statusListObservable.hasConnection = checkInternetConnection()
@@ -199,3 +188,4 @@ struct WalletHomeViewPreview: PreviewProvider {
         WalletHomeView(path: $path)
     }
 }
+

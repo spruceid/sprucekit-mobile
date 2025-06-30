@@ -9,6 +9,7 @@ struct CredentialDate: View {
         dtFormatter.dateStyle = .medium
         dtFormatter.timeStyle = .short
         dtFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dtFormatter.timeZone = TimeZone(secondsFromGMT: 0)
         return dtFormatter
     }()
 
@@ -17,6 +18,7 @@ struct CredentialDate: View {
         dtFormatter.dateStyle = .medium
         dtFormatter.timeStyle = .none
         dtFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dtFormatter.timeZone = TimeZone(secondsFromGMT: 0)
         return dtFormatter
     }()
 
@@ -24,6 +26,7 @@ struct CredentialDate: View {
         let dtFormatter = DateFormatter()
         dtFormatter.locale = Locale(identifier: "en_US_POSIX")  // set locale to reliable US_POSIX
         dtFormatter.dateFormat = "yyyy-MM-dd"
+        dtFormatter.timeZone = TimeZone(secondsFromGMT: 0)
         return dtFormatter
     }()
 
@@ -46,6 +49,9 @@ struct CredentialDate: View {
         } else if let date = genericDateTimeFormatter.date(from: dateString) {
             self.parsedDate = dateTimeFormatter.string(from: date)
         } else if let date = genericDateOnlyFormatter.date(from: dateString) {
+            self.parsedDate = dateOnlyFormatter.string(from: date)
+        } else if let timestamp = Double(dateString) {
+            let date = Date(timeIntervalSince1970: timestamp);
             self.parsedDate = dateOnlyFormatter.string(from: date)
         } else {
             print("no... \(dateString)")

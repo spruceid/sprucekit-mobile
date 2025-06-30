@@ -304,7 +304,7 @@ impl PresentationOptions<'_> {
     /// Return the crypto curve utils based on the signing algorithm, e.g. ES256.
     pub fn curve_utils(&self) -> Result<CryptoCurveUtils, PresentationError> {
         match self.signer.algorithm() {
-            ssi::crypto::Algorithm::Es256 => Ok(CryptoCurveUtils::secp256r1()),
+            ssi::crypto::Algorithm::ES256 => Ok(CryptoCurveUtils::secp256r1()),
             alg => Err(PresentationError::CryptographicSuite(format!(
                 "Unsupported curve utils for algorithm: {alg:?}"
             ))),
@@ -378,15 +378,17 @@ impl PresentationOptions<'_> {
 
         let suite = self.signer.cryptosuite();
 
+        let env = SignatureEnvironment {
+            json_ld_loader: context,
+            eip712_loader: (),
+        };
+
         // Use the cryptosuite-specific signing method to sign the presentation.
         match suite.as_ref() {
             "ecdsa-rdfc-2019" => {
                 AnySuite::EcdsaRdfc2019
                     .sign_with(
-                        SignatureEnvironment {
-                            json_ld_loader: context,
-                            eip712_loader: (),
-                        },
+                        &env,
                         presentation,
                         resolver,
                         self,
@@ -398,10 +400,7 @@ impl PresentationOptions<'_> {
             JsonWebSignature2020::NAME => {
                 AnySuite::JsonWebSignature2020
                     .sign_with(
-                        SignatureEnvironment {
-                            json_ld_loader: context,
-                            eip712_loader: (),
-                        },
+                        &env,
                         presentation,
                         resolver,
                         self,

@@ -155,7 +155,7 @@ impl MessageSigner<WithProtocol<ssi::crypto::Algorithm, AnyProtocol>>
             .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
         let curve_utils = match self.signer.algorithm() {
-            ssi::crypto::Algorithm::Es256 => Ok(CryptoCurveUtils::secp256r1()),
+            ssi::crypto::Algorithm::ES256 => Ok(CryptoCurveUtils::secp256r1()),
             alg => Err(MessageSignatureError::UnsupportedAlgorithm(format!(
                 "Unsupported curve utils for algorithm: {alg:?}"
             ))),
