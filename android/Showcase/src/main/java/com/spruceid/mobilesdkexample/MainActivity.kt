@@ -43,12 +43,15 @@ import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModelFact
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModelFactory
 import com.spruceid.mobilesdkexample.wallet.ApplySpruceMdlConfirmation
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 const val DEFAULT_SIGNING_KEY_ID = "reference-app/default-signing"
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
     private lateinit var connectionLiveData: ConnectionLiveData
+    private lateinit var hacApplicationsViewModel: HacApplicationsViewModel
 
     override fun onNewIntent(intent: Intent?) {
         if (intent != null && intent.action == "android.intent.action.VIEW" && intent.data != null) {
@@ -60,13 +63,26 @@ class MainActivity : ComponentActivity() {
                     )
                 )
             } else if (intent.data!!.toString().startsWith("spruceid://?spruceid-mdl=")) {
-                ModalBottomSheetHost.show(
-                    content = {
-                        ApplySpruceMdlConfirmation {
-                            ModalBottomSheetHost.hide()
-                        }
+                GlobalScope.launch {
+                    val id = intent.data.toString().replace("spruceid://?spruceid-mdl=", "")
+                    val application = hacApplicationsViewModel.getApplicationByIssuanceId(id)
+                    application?.let {
+                        hacApplicationsViewModel.updateIssuanceState(
+                            application.id,
+                            application.issuanceId
+                        )
+                        ModalBottomSheetHost.show(
+                            content = {
+                                ApplySpruceMdlConfirmation(
+                                    application = application,
+                                    hacApplicationsViewModel = hacApplicationsViewModel
+                                ) {
+                                    ModalBottomSheetHost.hide()
+                                }
+                            }
+                        )
                     }
-                )
+                }
             } else if (intent.data!!.toString().startsWith("openid4vp")) {
                 navController.navigate(
                     Screen.HandleOID4VP.route.replace(
@@ -136,12 +152,12 @@ class MainActivity : ComponentActivity() {
                         TrustedCertificatesViewModelFactory((application as MainApplication).trustedCertificatesRepository)
                     }
 
-                    val hacApplicationsViewModel: HacApplicationsViewModel by viewModels {
+                    hacApplicationsViewModel = viewModels<HacApplicationsViewModel> {
                         HacApplicationsViewModelFactory(
                             application as MainApplication,
                             (application as MainApplication).hacApplicationsRepository
                         )
-                    }
+                    }.value
 
                     val statusListViewModel: StatusListViewModel by viewModels<StatusListViewModel>()
                     connectionLiveData = ConnectionLiveData(this)

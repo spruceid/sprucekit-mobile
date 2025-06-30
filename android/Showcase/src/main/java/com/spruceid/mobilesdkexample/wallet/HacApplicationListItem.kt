@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,25 +35,20 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun HacApplicationListItem(
-    application: HacApplications?,
+    application: HacApplications,
     startIssuance: (String, suspend () -> Unit) -> Unit,
-    hacApplicationsViewModel: HacApplicationsViewModel?
+    hacApplicationsViewModel: HacApplicationsViewModel
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var issuanceStatus by remember { mutableStateOf<FlowState?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(application) {
-        if (application != null) {
-            try {
-                issuanceStatus = hacApplicationsViewModel?.issuanceClient?.checkStatus(
-                    issuanceId = application.issuanceId,
-                    walletAttestation = hacApplicationsViewModel.getWalletAttestation()!!
-                )
-            } catch (e: Exception) {
-                println(e.message)
-            }
+    val issuanceStates by hacApplicationsViewModel.issuanceStates.collectAsState()
+    val issuanceStatus = issuanceStates[application.id]
+
+    LaunchedEffect(application.id) {
+        if (issuanceStates[application.id] == null) {
+            hacApplicationsViewModel.updateIssuanceState(application.id, application.issuanceId)
         }
     }
 
@@ -69,20 +65,20 @@ fun HacApplicationListItem(
             .clickable(
                 enabled = issuanceStatus != FlowState.AwaitingManualReview,
                 onClick = {
-                    issuanceStatus?.let {
-                        when (it) {
+                    issuanceStatus?.let { status ->
+                        when (status) {
                             is FlowState.ProofingRequired -> {
                                 val intent = Intent(
                                     Intent.ACTION_VIEW,
-                                    it.proofingUrl.toUri()
+                                    status.proofingUrl.toUri()
                                 )
                                 context.startActivity(intent)
                             }
 
                             is FlowState.ReadyToProvision -> {
-                                startIssuance(it.openidCredentialOffer) {
-                                    application?.let {
-                                        hacApplicationsViewModel?.deleteApplication(application.id)
+                                startIssuance(status.openidCredentialOffer) {
+                                    scope.launch {
+                                        hacApplicationsViewModel.deleteApplication(application.id)
                                     }
                                 }
                             }
@@ -106,8 +102,8 @@ fun HacApplicationListItem(
                 color = ColorStone950,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            issuanceStatus?.let {
-                ApplicationStatusSmall(status = it)
+            issuanceStatus?.let { status ->
+                ApplicationStatusSmall(status = status)
             }
         }
         Spacer(modifier = Modifier.weight(1f))
@@ -118,10 +114,8 @@ fun HacApplicationListItem(
         message = "Are you sure you want to delete this application? This action cannot be undone.",
         onConfirm = {
             scope.launch {
-                application?.let {
-                    hacApplicationsViewModel?.deleteApplication(application.id)
-                    showDeleteDialog = false
-                }
+                hacApplicationsViewModel.deleteApplication(application.id)
+                showDeleteDialog = false
             }
         },
         onClose = {

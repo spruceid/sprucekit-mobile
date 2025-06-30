@@ -14,13 +14,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone700
+import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 
 @Composable
 fun ApplySpruceMdlConfirmation(
+    application: HacApplications,
+    hacApplicationsViewModel: HacApplicationsViewModel,
     onDismiss: () -> Unit
 ) {
     Column(
@@ -43,9 +47,12 @@ fun ApplySpruceMdlConfirmation(
                 Modifier.height(100.dp)
             ) {
                 HacApplicationListItem(
-                    application = null,
+                    application = HacApplications(
+                        application.id,
+                        application.issuanceId
+                    ),
                     startIssuance = { _, _ -> },
-                    hacApplicationsViewModel = null
+                    hacApplicationsViewModel = hacApplicationsViewModel
                 )
             }
 
