@@ -11200,82 +11200,6 @@ public func FfiConverterTypeCborValue_lower(_ value: CborValue) -> RustBuffer {
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum CheckStatusResponse {
-    
-    case proofingRequired(proofingUrl: String
-    )
-    case readyToProvision(openidCredentialOffer: String
-    )
-}
-
-
-#if compiler(>=6)
-extension CheckStatusResponse: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeCheckStatusResponse: FfiConverterRustBuffer {
-    typealias SwiftType = CheckStatusResponse
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CheckStatusResponse {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .proofingRequired(proofingUrl: try FfiConverterString.read(from: &buf)
-        )
-        
-        case 2: return .readyToProvision(openidCredentialOffer: try FfiConverterString.read(from: &buf)
-        )
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: CheckStatusResponse, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case let .proofingRequired(proofingUrl):
-            writeInt(&buf, Int32(1))
-            FfiConverterString.write(proofingUrl, into: &buf)
-            
-        
-        case let .readyToProvision(openidCredentialOffer):
-            writeInt(&buf, Int32(2))
-            FfiConverterString.write(openidCredentialOffer, into: &buf)
-            
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeCheckStatusResponse_lift(_ buf: RustBuffer) throws -> CheckStatusResponse {
-    return try FfiConverterTypeCheckStatusResponse.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeCheckStatusResponse_lower(_ value: CheckStatusResponse) -> RustBuffer {
-    return FfiConverterTypeCheckStatusResponse.lower(value)
-}
-
-
-extension CheckStatusResponse: Equatable, Hashable {}
-
-
-
-
-
-
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
  * Credential claim values.
  */
@@ -19328,14 +19252,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_respond() != 18977) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_check_status() != 59324) {
+    if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_check_status() != 42578) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_format_endpoint() != 2127) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_get_or_fetch_endpoints() != 15181) {
-    if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_check_status() != 42578) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_issuanceserviceclient_new_issuance() != 231) {
