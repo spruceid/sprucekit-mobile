@@ -77,9 +77,7 @@ fun HacApplicationListItem(
 
                             is FlowState.ReadyToProvision -> {
                                 startIssuance(status.openidCredentialOffer) {
-                                    scope.launch {
-                                        hacApplicationsViewModel.deleteApplication(application.id)
-                                    }
+                                    hacApplicationsViewModel.deleteApplication(application.id)
                                 }
                             }
 

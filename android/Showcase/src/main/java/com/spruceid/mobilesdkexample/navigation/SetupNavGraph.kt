@@ -180,16 +180,26 @@ fun SetupNavGraph(
         composable(
             route = Screen.AddToWalletScreen.route,
             deepLinks =
-            listOf(navDeepLink { uriPattern = "spruceid://?sd-jwt={rawCredential}" })
+                listOf(navDeepLink {
+                    uriPattern = "spruceid://?sd-jwt={rawCredential}"
+                })
         ) { backStackEntry ->
-            val rawCredential = backStackEntry.arguments?.getString("rawCredential")!!
-            AddToWalletView(
-                navController,
-                rawCredential,
-                credentialPacksViewModel,
-                walletActivityLogsViewModel,
-                statusListViewModel
-            )
+            val rawCredential = backStackEntry.arguments?.getString("rawCredential")
+
+            // Check if is a valid sd-jwt
+            if (!rawCredential.isNullOrEmpty()) {
+                AddToWalletView(
+                    navController,
+                    rawCredential,
+                    credentialPacksViewModel,
+                    walletActivityLogsViewModel,
+                    statusListViewModel
+                )
+            } else {
+                navController.navigate(Screen.HomeScreen.route) {
+                    popUpTo(Screen.HomeScreen.route) { inclusive = true }
+                }
+            }
         }
         composable(
             route = Screen.ScanQRScreen.route,
