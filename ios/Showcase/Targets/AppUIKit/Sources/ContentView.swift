@@ -5,6 +5,7 @@ let DEFAULT_SIGNING_KEY_ID = "reference-app/default-signing"
 public struct ContentView: View {
     @State var path: NavigationPath = .init()
     @State var sheetOpen: Bool = false
+    @State var spruceMdlId: String?
 
     public init() {}
 
@@ -23,15 +24,16 @@ public struct ContentView: View {
             )
 
             // test if it is an apply for spruceid mdl callback query
-        } else if URLComponents(string: url.absoluteString)?
+        } else if let id = URLComponents(string: url.absoluteString)?
             .queryItems?
             .first(
                 where: {
                     $0.name == "spruceid-mdl"
                 }
-            )?.value != nil
+            )?.value
         {
             sheetOpen = true
+            spruceMdlId = id
         }
     }
 
@@ -155,10 +157,13 @@ public struct ContentView: View {
                     }
             }
             .sheet(isPresented: $sheetOpen) {
-                ApplySpruceMdlConfirmation(sheetOpen: $sheetOpen)
-                    .presentationDetents([.fraction(0.50)])
-                    .presentationDragIndicator(.hidden)
-                    .presentationBackgroundInteraction(.automatic)
+                ApplySpruceMdlConfirmation(
+                    applicationId: $spruceMdlId,
+                    sheetOpen: $sheetOpen,
+                )
+                .presentationDetents([.fraction(0.50)])
+                .presentationDragIndicator(.hidden)
+                .presentationBackgroundInteraction(.automatic)
             }
             .environmentObject(StatusListObservable())
             .environmentObject(CredentialPackObservable())
