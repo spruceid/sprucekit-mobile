@@ -159,7 +159,7 @@ public struct ContentView: View {
             .sheet(isPresented: $sheetOpen) {
                 ApplySpruceMdlConfirmation(
                     applicationId: $spruceMdlId,
-                    sheetOpen: $sheetOpen,
+                    sheetOpen: $sheetOpen
                 )
                 .presentationDetents([.fraction(0.50)])
                 .presentationDragIndicator(.hidden)
