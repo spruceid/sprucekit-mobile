@@ -27,7 +27,9 @@ jobs:
       - name: Build
         run: cargo build
 
-      - uses: swift-actions/setup-swift@v2
+      - name: Verify Swift installation
+        run: swift --version
+      
       - name: Download JNA
         run: wget https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.jar
       - name: Download Kotlinx

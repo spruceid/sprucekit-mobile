@@ -8,6 +8,7 @@ class HacApplicationObservable: ObservableObject {
     @Published private(set) var issuanceClient: IssuanceServiceClient
     @Published var hacApplications: [HacApplication] = []
     @Published private(set) var walletAttestation: String?
+    @Published var issuanceStates: [UUID: FlowState] = [:]
     private var isFetchingWalletAttestation = false
     private var cancellables = Set<AnyCancellable>()
 
@@ -42,6 +43,12 @@ class HacApplicationObservable: ObservableObject {
     func loadAll() {
         self.hacApplications = HacApplicationDataStore.shared
             .getAllHacApplications()
+    }
+
+    func getApplication(issuanceId: String) -> HacApplication? {
+        return HacApplicationDataStore.shared.getHacApplication(
+            issuanceId: issuanceId
+        )
     }
 
     func getSigningJwk() -> String? {
@@ -104,5 +111,45 @@ class HacApplicationObservable: ObservableObject {
             print(error.localizedDescription)
             return nil
         }
+    }
+
+    // MARK: - Issuance State Management
+
+    @MainActor func updateIssuanceState(applicationId: UUID, issuanceId: String)
+        async
+    {
+        do {
+            let walletAttestation = try await getWalletAttestation().unwrap()
+            let status = try await issuanceClient.checkStatus(
+                issuanceId: issuanceId,
+                walletAttestation: walletAttestation
+            )
+            issuanceStates[applicationId] = status
+        } catch {
+            print(
+                "Failed to update issuance state for \(applicationId): \(error.localizedDescription)"
+            )
+        }
+    }
+
+    @MainActor func updateAllIssuanceStates() async {
+        await withTaskGroup(of: Void.self) { group in
+            for application in hacApplications {
+                group.addTask {
+                    await self.updateIssuanceState(
+                        applicationId: application.id,
+                        issuanceId: application.issuanceId
+                    )
+                }
+            }
+        }
+    }
+
+    func getIssuanceState(for applicationId: UUID) -> FlowState? {
+        return issuanceStates[applicationId]
+    }
+
+    func clearIssuanceState(for applicationId: UUID) {
+        issuanceStates.removeValue(forKey: applicationId)
     }
 }

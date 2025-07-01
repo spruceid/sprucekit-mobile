@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobile.sdk.AppAttestation
 import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.sdk.rs.FlowState
 import com.spruceid.mobile.sdk.rs.IssuanceServiceClient
 import com.spruceid.mobile.sdk.rs.WalletServiceClient
 import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
@@ -28,6 +29,9 @@ class HacApplicationsViewModel(
     ViewModel() {
     private val _hacApplications = MutableStateFlow(listOf<HacApplications>())
     val hacApplications = _hacApplications.asStateFlow()
+
+    private val _issuanceStates = MutableStateFlow<Map<String, FlowState>>(emptyMap())
+    val issuanceStates = _issuanceStates.asStateFlow()
 
     private var _walletServiceClient: WalletServiceClient? = null
     private var _issuanceClient: IssuanceServiceClient? = null
@@ -62,6 +66,57 @@ class HacApplicationsViewModel(
                 _issuanceClient = null
             }
         }
+    }
+
+    fun getIssuanceState(hacId: String): FlowState? {
+        return _issuanceStates.value[hacId]
+    }
+
+    suspend fun updateIssuanceState(hacId: String, issuanceId: String) {
+        try {
+            val walletAttestation = getWalletAttestation()
+            if (walletAttestation != null) {
+                val status = issuanceClient.checkStatus(
+                    issuanceId = issuanceId,
+                    walletAttestation = walletAttestation
+                )
+
+                val currentStates = _issuanceStates.value.toMutableMap()
+                currentStates[hacId] = status
+                _issuanceStates.value = currentStates
+            }
+        } catch (e: Exception) {
+            println("Error updating issuance state for $hacId: ${e.message}")
+        }
+    }
+
+    suspend fun updateAllIssuanceStates() {
+        val applications = _hacApplications.value
+        val walletAttestation = getWalletAttestation()
+
+        if (walletAttestation != null) {
+            val newStates = mutableMapOf<String, FlowState>()
+
+            applications.forEach { application ->
+                try {
+                    val status = issuanceClient.checkStatus(
+                        issuanceId = application.issuanceId,
+                        walletAttestation = walletAttestation
+                    )
+                    newStates[application.id] = status
+                } catch (e: Exception) {
+                    println("Error updating issuance state for ${application.id}: ${e.message}")
+                }
+            }
+
+            _issuanceStates.value = newStates
+        }
+    }
+
+    private fun clearIssuanceState(hacId: String) {
+        val currentStates = _issuanceStates.value.toMutableMap()
+        currentStates.remove(hacId)
+        _issuanceStates.value = currentStates
     }
 
     fun getSigningJwk(): String? {
@@ -120,21 +175,27 @@ class HacApplicationsViewModel(
     suspend fun saveApplication(application: HacApplications): String {
         val id = hacApplicationsRepository.insertApplication(application)
         _hacApplications.value = hacApplicationsRepository.getApplications()
+
+        updateIssuanceState(application.id, application.issuanceId)
+
         return id
     }
 
-    suspend fun getApplication(id: String): HacApplications {
-        return hacApplicationsRepository.getApplication(id)
+    suspend fun getApplicationByIssuanceId(issuanceId: String): HacApplications? {
+        return hacApplicationsRepository.getApplications()
+            .find { it -> it.issuanceId == issuanceId }
     }
 
     suspend fun deleteAllApplications() {
         hacApplicationsRepository.deleteAllApplications()
         _hacApplications.value = hacApplicationsRepository.getApplications()
+        _issuanceStates.value = emptyMap()
     }
 
     suspend fun deleteApplication(id: String) {
         hacApplicationsRepository.deleteApplication(id)
         _hacApplications.value = hacApplicationsRepository.getApplications()
+        clearIssuanceState(id)
     }
 }
 

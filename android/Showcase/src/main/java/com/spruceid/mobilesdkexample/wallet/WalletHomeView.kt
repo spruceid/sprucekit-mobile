@@ -98,13 +98,13 @@ fun WalletHomeHeader(navController: NavController) {
         Box(
             contentAlignment = Alignment.Center,
             modifier =
-            Modifier
-                .width(36.dp)
-                .height(36.dp)
-                .padding(start = 4.dp)
-                .clip(shape = RoundedCornerShape(8.dp))
-                .background(ColorBase150)
-                .clickable { navController.navigate(Screen.ScanQRScreen.route) }
+                Modifier
+                    .width(36.dp)
+                    .height(36.dp)
+                    .padding(start = 4.dp)
+                    .clip(shape = RoundedCornerShape(8.dp))
+                    .background(ColorBase150)
+                    .clickable { navController.navigate(Screen.ScanQRScreen.route) }
         ) {
             Image(
                 painter = painterResource(id = R.drawable.qrcode_scanner),
@@ -118,15 +118,15 @@ fun WalletHomeHeader(navController: NavController) {
         Box(
             contentAlignment = Alignment.Center,
             modifier =
-            Modifier
-                .width(36.dp)
-                .height(36.dp)
-                .padding(start = 4.dp)
-                .clip(shape = RoundedCornerShape(8.dp))
-                .background(ColorBase150)
-                .clickable {
-                    navController.navigate(Screen.WalletSettingsHomeScreen.route)
-                }
+                Modifier
+                    .width(36.dp)
+                    .height(36.dp)
+                    .padding(start = 4.dp)
+                    .clip(shape = RoundedCornerShape(8.dp))
+                    .background(ColorBase150)
+                    .clickable {
+                        navController.navigate(Screen.WalletSettingsHomeScreen.route)
+                    }
         ) {
             Image(
                 painter = painterResource(id = R.drawable.user),
@@ -158,6 +158,7 @@ fun WalletHomeBody(
         if (credentialPacks.isNotEmpty()) {
             statusListViewModel.getStatusLists(credentialPacks)
         }
+        hacApplicationsViewModel.updateAllIssuanceStates()
     }
 
     fun goTo(credentialPack: CredentialPack) {
@@ -211,6 +212,7 @@ fun WalletHomeBody(
                         if (credentialPacks.isNotEmpty()) {
                             statusListViewModel.getStatusLists(credentialPacks)
                         }
+                        hacApplicationsViewModel.updateAllIssuanceStates()
                         isRefreshing = false
                     }
                 },

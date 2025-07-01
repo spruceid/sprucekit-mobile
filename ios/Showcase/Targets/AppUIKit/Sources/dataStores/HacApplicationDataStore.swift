@@ -22,10 +22,12 @@ class HacApplicationDataStore {
 
     private init() {
         if let docDir = FileManager.default.urls(
-            for: .documentDirectory, in: .userDomainMask
+            for: .documentDirectory,
+            in: .userDomainMask
         ).first {
             let dirPath = docDir.appendingPathComponent(
-                Self.DIR_ACTIVITY_LOG_DB)
+                Self.DIR_ACTIVITY_LOG_DB
+            )
 
             do {
                 try FileManager.default.createDirectory(
@@ -56,7 +58,8 @@ class HacApplicationDataStore {
                 hacApplications.create { table in
                     table.column(id, primaryKey: true)
                     table.column(issuanceId)
-                })
+                }
+            )
             print("Table Created...")
         } catch {
             print(error)
@@ -86,7 +89,8 @@ class HacApplicationDataStore {
 
         do {
             for application in try database.prepare(
-                self.hacApplications) {
+                self.hacApplications
+            ) {
                 applications.append(
                     HacApplication(
                         id: UUID(uuidString: application[id]) ?? UUID(),
@@ -100,18 +104,18 @@ class HacApplicationDataStore {
         return applications
     }
 
-    func getHacApplication(id: UUID) -> HacApplication? {
+    func getHacApplication(issuanceId: String) -> HacApplication? {
         guard let database = db else { return nil }
 
         do {
-            let filter  = hacApplications.filter(self.issuanceId == id.uuidString)
+            let filter = hacApplications.filter(self.issuanceId == issuanceId)
             if let application = try database.pluck(filter) {
                 return HacApplication(
                     id: UUID(uuidString: application[self.id]) ?? UUID(),
                     issuanceId: application[self.issuanceId]
                 )
             }
-                
+
         } catch {
             print(error)
         }
@@ -138,7 +142,8 @@ class HacApplicationDataStore {
         }
         do {
             for application in try database.prepare(
-                self.hacApplications)
+                self.hacApplications
+            )
             where !delete(id: UUID(uuidString: application[id]) ?? UUID()) {
                 return false
             }
