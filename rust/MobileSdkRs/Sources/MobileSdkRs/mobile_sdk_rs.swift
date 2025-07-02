@@ -395,13 +395,7 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 
 
 // Public interface members begin here.
-// Magic number for the Rust proxy to call using the same mechanism as every other method,
-// to free the callback once it's dropped by Rust.
-private let IDX_CALLBACK_FREE: Int32 = 0
-// Callback return codes
-private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
-private let UNIFFI_CALLBACK_ERROR: Int32 = 1
-private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
+
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -569,7 +563,7 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 
 
-public protocol AsyncHttpClient: AnyObject, Sendable {
+public protocol AsyncHttpClient: AnyObject {
     
     func httpClient(request: HttpRequest) async throws  -> HttpResponse
     
@@ -588,9 +582,6 @@ open class AsyncHttpClientImpl: AsyncHttpClient, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -639,13 +630,19 @@ open func httpClient(request: HttpRequest)async throws  -> HttpResponse  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeHttpResponse_lift,
-            errorHandler: FfiConverterTypeHttpClientError_lift
+            errorHandler: FfiConverterTypeHttpClientError.lift
         )
 }
     
 
 }
-
+// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+private let IDX_CALLBACK_FREE: Int32 = 0
+// Callback return codes
+private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
+private let UNIFFI_CALLBACK_ERROR: Int32 = 1
+private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
 // Put the implementation in a struct so we don't pollute the top-level namespace
 fileprivate struct UniffiCallbackInterfaceAsyncHttpClient {
@@ -771,7 +768,7 @@ public func FfiConverterTypeAsyncHttpClient_lower(_ value: AsyncHttpClient) -> U
 
 
 
-public protocol CborIntegerProtocol: AnyObject, Sendable {
+public protocol CborIntegerProtocol: AnyObject {
     
     func lowerBytes()  -> UInt64
     
@@ -794,9 +791,6 @@ open class CborInteger: CborIntegerProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -911,7 +905,7 @@ public func FfiConverterTypeCborInteger_lower(_ value: CborInteger) -> UnsafeMut
 
 
 
-public protocol CborTagProtocol: AnyObject, Sendable {
+public protocol CborTagProtocol: AnyObject {
     
     func id()  -> UInt64
     
@@ -932,9 +926,6 @@ open class CborTag: CborTagProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -1042,7 +1033,7 @@ public func FfiConverterTypeCborTag_lower(_ value: CborTag) -> UnsafeMutableRawP
 
 
 
-public protocol ClientProtocol: AnyObject, Sendable {
+public protocol ClientProtocol: AnyObject {
     
 }
 open class Client: ClientProtocol, @unchecked Sendable {
@@ -1059,9 +1050,6 @@ open class Client: ClientProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -1155,7 +1143,7 @@ public func FfiConverterTypeClient_lower(_ value: Client) -> UnsafeMutableRawPoi
 
 
 
-public protocol CredentialIssuerMetadataProtocol: AnyObject, Sendable {
+public protocol CredentialIssuerMetadataProtocol: AnyObject {
     
 }
 open class CredentialIssuerMetadata: CredentialIssuerMetadataProtocol, @unchecked Sendable {
@@ -1172,9 +1160,6 @@ open class CredentialIssuerMetadata: CredentialIssuerMetadataProtocol, @unchecke
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -1268,7 +1253,7 @@ public func FfiConverterTypeCredentialIssuerMetadata_lower(_ value: CredentialIs
 
 
 
-public protocol CredentialRequestProtocol: AnyObject, Sendable {
+public protocol CredentialRequestProtocol: AnyObject {
     
 }
 open class CredentialRequest: CredentialRequestProtocol, @unchecked Sendable {
@@ -1285,9 +1270,6 @@ open class CredentialRequest: CredentialRequestProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -1381,7 +1363,7 @@ public func FfiConverterTypeCredentialRequest_lower(_ value: CredentialRequest) 
 
 
 
-public protocol Crypto: AnyObject, Sendable {
+public protocol Crypto: AnyObject {
     
     func p256Verify(certificateDer: Data, payload: Data, signature: Data)  -> VerificationResult
     
@@ -1400,9 +1382,6 @@ open class CryptoImpl: Crypto, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -1564,7 +1543,7 @@ public func FfiConverterTypeCrypto_lower(_ value: Crypto) -> UnsafeMutableRawPoi
 /**
  * Utility functions for cryptographic curves
  */
-public protocol CryptoCurveUtilsProtocol: AnyObject, Sendable {
+public protocol CryptoCurveUtilsProtocol: AnyObject {
     
     /**
      * Returns null if the original signature encoding is not recognized.
@@ -1589,9 +1568,6 @@ open class CryptoCurveUtils: CryptoCurveUtilsProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -1706,7 +1682,7 @@ public func FfiConverterTypeCryptoCurveUtils_lower(_ value: CryptoCurveUtils) ->
 
 
 
-public protocol CwtProtocol: AnyObject, Sendable {
+public protocol CwtProtocol: AnyObject {
     
     /**
      * The version of the Verifiable Credential Data Model that this credential conforms to.
@@ -1742,9 +1718,6 @@ open class Cwt: CwtProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -1838,7 +1811,7 @@ open func verify(crypto: Crypto)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeCwtError_lift
+            errorHandler: FfiConverterTypeCwtError.lift
         )
 }
     
@@ -1900,7 +1873,7 @@ public func FfiConverterTypeCwt_lower(_ value: Cwt) -> UnsafeMutableRawPointer {
 
 
 
-public protocol DelegatedVerifierProtocol: AnyObject, Sendable {
+public protocol DelegatedVerifierProtocol: AnyObject {
     
     func pollVerificationStatus(url: String) async throws  -> DelegatedVerifierStatusResponse
     
@@ -1931,9 +1904,6 @@ open class DelegatedVerifier: DelegatedVerifierProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -1978,7 +1948,7 @@ public static func newClient(baseUrl: Url)async throws  -> DelegatedVerifier  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeDelegatedVerifier_lift,
-            errorHandler: FfiConverterTypeOid4vpVerifierError_lift
+            errorHandler: FfiConverterTypeOid4vpVerifierError.lift
         )
 }
     
@@ -1997,7 +1967,7 @@ open func pollVerificationStatus(url: String)async throws  -> DelegatedVerifierS
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeDelegatedVerifierStatusResponse_lift,
-            errorHandler: FfiConverterTypeOid4vpVerifierError_lift
+            errorHandler: FfiConverterTypeOid4vpVerifierError.lift
         )
 }
     
@@ -2024,7 +1994,7 @@ open func requestDelegatedVerification(url: String)async throws  -> DelegateInit
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeDelegateInitializationResponse_lift,
-            errorHandler: FfiConverterTypeOid4vpVerifierError_lift
+            errorHandler: FfiConverterTypeOid4vpVerifierError.lift
         )
 }
     
@@ -2086,7 +2056,7 @@ public func FfiConverterTypeDelegatedVerifier_lower(_ value: DelegatedVerifier) 
 
 
 
-public protocol DidMethodUtilsProtocol: AnyObject, Sendable {
+public protocol DidMethodUtilsProtocol: AnyObject {
     
     func didFromJwk(jwk: String) throws  -> String
     
@@ -2107,9 +2077,6 @@ open class DidMethodUtils: DidMethodUtilsProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -2174,7 +2141,7 @@ open func vmFromJwk(jwk: String)async throws  -> String  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypeDidError_lift
+            errorHandler: FfiConverterTypeDidError.lift
         )
 }
     
@@ -2236,7 +2203,7 @@ public func FfiConverterTypeDidMethodUtils_lower(_ value: DidMethodUtils) -> Uns
 
 
 
-public protocol GrantsProtocol: AnyObject, Sendable {
+public protocol GrantsProtocol: AnyObject {
     
 }
 open class Grants: GrantsProtocol, @unchecked Sendable {
@@ -2253,9 +2220,6 @@ open class Grants: GrantsProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -2355,7 +2319,7 @@ public func FfiConverterTypeGrants_lower(_ value: Grants) -> UnsafeMutableRawPoi
  * The Holder has the ability to generate Verifiable Presentations from
  * these credentials and share them with Verifiers.
  */
-public protocol HolderProtocol: AnyObject, Sendable {
+public protocol HolderProtocol: AnyObject {
     
     /**
      * Given an authorization request URL, return a permission request,
@@ -2389,9 +2353,6 @@ open class Holder: HolderProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -2428,7 +2389,7 @@ public convenience init(vdcCollection: VdcCollection, trustedDids: [String], sig
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeHolder_lift,
-            errorHandler: FfiConverterTypeOID4VPError_lift
+            errorHandler: FfiConverterTypeOID4VPError.lift
         )
         
         .uniffiClonePointer()
@@ -2462,7 +2423,7 @@ public static func newWithCredentials(providedCredentials: [ParsedCredential], t
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeHolder_lift,
-            errorHandler: FfiConverterTypeOID4VPError_lift
+            errorHandler: FfiConverterTypeOID4VPError.lift
         )
 }
     
@@ -2488,7 +2449,7 @@ open func authorizationRequest(req: AuthRequest)async throws  -> PermissionReque
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypePermissionRequest_lift,
-            errorHandler: FfiConverterTypeOID4VPError_lift
+            errorHandler: FfiConverterTypeOID4VPError.lift
         )
 }
     
@@ -2505,7 +2466,7 @@ open func submitPermissionResponse(response: PermissionResponse)async throws  ->
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionTypeUrl.lift,
-            errorHandler: FfiConverterTypeOID4VPError_lift
+            errorHandler: FfiConverterTypeOID4VPError.lift
         )
 }
     
@@ -2575,7 +2536,7 @@ public func FfiConverterTypeHolder_lower(_ value: Holder) -> UnsafeMutableRawPoi
  * `Arc` is wrapped with `IArc` to facilitate trait implementation from
  * `openidconnect` library used by request builders and client on `oid4vci-rs`.
  */
-public protocol IHttpClientProtocol: AnyObject, Sendable {
+public protocol IHttpClientProtocol: AnyObject {
     
 }
 /**
@@ -2600,9 +2561,6 @@ open class IHttpClient: IHttpClientProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -2712,7 +2670,609 @@ public func FfiConverterTypeIHttpClient_lower(_ value: IHttpClient) -> UnsafeMut
 
 
 
-public protocol InProcessRecordProtocol: AnyObject, Sendable {
+public protocol Iosiso18013MobileDocumentRequestProtocol: AnyObject {
+    
+    func toMatches(parsedCredentials: [ParsedCredential])  -> [RequestMatch180137]
+    
+}
+open class Iosiso18013MobileDocumentRequest: Iosiso18013MobileDocumentRequestProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequest(self.pointer, $0) }
+    }
+public convenience init(presentmentRequests: [Iosiso18013MobileDocumentRequestPresentmentRequest]) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequest_new(
+        FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestPresentmentRequest.lower(presentmentRequests),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequest(pointer, $0) }
+    }
+
+    
+
+    
+open func toMatches(parsedCredentials: [ParsedCredential]) -> [RequestMatch180137]  {
+    return try!  FfiConverterSequenceTypeRequestMatch180137.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_iosiso18013mobiledocumentrequest_to_matches(self.uniffiClonePointer(),
+        FfiConverterSequenceTypeParsedCredential.lower(parsedCredentials),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequest: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequest
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequest {
+        return Iosiso18013MobileDocumentRequest(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequest) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequest {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequest, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequest_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequest {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequest.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequest_lower(_ value: Iosiso18013MobileDocumentRequest) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequest.lower(value)
+}
+
+
+
+
+
+
+public protocol Iosiso18013MobileDocumentRequestDocumentRequestProtocol: AnyObject {
+    
+}
+open class Iosiso18013MobileDocumentRequestDocumentRequest: Iosiso18013MobileDocumentRequestDocumentRequestProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequestdocumentrequest(self.pointer, $0) }
+    }
+public convenience init(documentType: String, namespaces: [String: [String: Iosiso18013MobileDocumentRequestElementInfo]]) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequestdocumentrequest_new(
+        FfiConverterString.lower(documentType),
+        FfiConverterDictionaryStringDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo.lower(namespaces),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequestdocumentrequest(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequestDocumentRequest
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestDocumentRequest {
+        return Iosiso18013MobileDocumentRequestDocumentRequest(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequestDocumentRequest) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequestDocumentRequest {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequestDocumentRequest, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestDocumentRequest {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest_lower(_ value: Iosiso18013MobileDocumentRequestDocumentRequest) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest.lower(value)
+}
+
+
+
+
+
+
+public protocol Iosiso18013MobileDocumentRequestDocumentRequestSetProtocol: AnyObject {
+    
+}
+open class Iosiso18013MobileDocumentRequestDocumentRequestSet: Iosiso18013MobileDocumentRequestDocumentRequestSetProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequestdocumentrequestset(self.pointer, $0) }
+    }
+public convenience init(requests: [Iosiso18013MobileDocumentRequestDocumentRequest]) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequestdocumentrequestset_new(
+        FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestDocumentRequest.lower(requests),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequestdocumentrequestset(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequestDocumentRequestSet
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestDocumentRequestSet {
+        return Iosiso18013MobileDocumentRequestDocumentRequestSet(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequestDocumentRequestSet) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequestDocumentRequestSet {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequestDocumentRequestSet, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestDocumentRequestSet {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet_lower(_ value: Iosiso18013MobileDocumentRequestDocumentRequestSet) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.lower(value)
+}
+
+
+
+
+
+
+public protocol Iosiso18013MobileDocumentRequestElementInfoProtocol: AnyObject {
+    
+}
+open class Iosiso18013MobileDocumentRequestElementInfo: Iosiso18013MobileDocumentRequestElementInfoProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequestelementinfo(self.pointer, $0) }
+    }
+public convenience init(isRetaining: Bool) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequestelementinfo_new(
+        FfiConverterBool.lower(isRetaining),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequestelementinfo(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequestElementInfo
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestElementInfo {
+        return Iosiso18013MobileDocumentRequestElementInfo(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequestElementInfo) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequestElementInfo {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequestElementInfo, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestElementInfo {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo_lower(_ value: Iosiso18013MobileDocumentRequestElementInfo) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo.lower(value)
+}
+
+
+
+
+
+
+public protocol Iosiso18013MobileDocumentRequestPresentmentRequestProtocol: AnyObject {
+    
+}
+open class Iosiso18013MobileDocumentRequestPresentmentRequest: Iosiso18013MobileDocumentRequestPresentmentRequestProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequestpresentmentrequest(self.pointer, $0) }
+    }
+public convenience init(documentRequestSets: [Iosiso18013MobileDocumentRequestDocumentRequestSet], isMandatory: Bool) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequestpresentmentrequest_new(
+        FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.lower(documentRequestSets),
+        FfiConverterBool.lower(isMandatory),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequestpresentmentrequest(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequestPresentmentRequest
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestPresentmentRequest {
+        return Iosiso18013MobileDocumentRequestPresentmentRequest(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequestPresentmentRequest) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequestPresentmentRequest {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequestPresentmentRequest, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestPresentmentRequest {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest_lower(_ value: Iosiso18013MobileDocumentRequestPresentmentRequest) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest.lower(value)
+}
+
+
+
+
+
+
+public protocol InProcessRecordProtocol: AnyObject {
     
 }
 open class InProcessRecord: InProcessRecordProtocol, @unchecked Sendable {
@@ -2729,9 +3289,6 @@ open class InProcessRecord: InProcessRecordProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -2825,7 +3382,7 @@ public func FfiConverterTypeInProcessRecord_lower(_ value: InProcessRecord) -> U
 
 
 
-public protocol InProgressRequest180137Protocol: AnyObject, Sendable {
+public protocol InProgressRequest180137Protocol: AnyObject {
     
     func matches()  -> [RequestMatch180137]
     
@@ -2846,9 +3403,6 @@ open class InProgressRequest180137: InProgressRequest180137Protocol, @unchecked 
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -2904,7 +3458,7 @@ open func respond(approvedResponse: ApprovedResponse180137)async throws  -> Url?
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionTypeUrl.lift,
-            errorHandler: FfiConverterTypeOID4VP180137Error_lift
+            errorHandler: FfiConverterTypeOID4VP180137Error.lift
         )
 }
     
@@ -2966,7 +3520,7 @@ public func FfiConverterTypeInProgressRequest180137_lower(_ value: InProgressReq
 
 
 
-public protocol InProgressRequestDcApiProtocol: AnyObject, Sendable {
+public protocol InProgressRequestDcApiProtocol: AnyObject {
     
     func getMatch()  -> RequestMatch180137
     
@@ -2994,9 +3548,6 @@ open class InProgressRequestDcApi: InProgressRequestDcApiProtocol, @unchecked Se
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -3064,7 +3615,7 @@ open func respond(keystore: KeyStore, approvedFields: [FieldId180137])async thro
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypeDcApiError_lift
+            errorHandler: FfiConverterTypeDcApiError.lift
         )
 }
     
@@ -3126,7 +3677,7 @@ public func FfiConverterTypeInProgressRequestDcApi_lower(_ value: InProgressRequ
 
 
 
-public protocol IssuanceEndpointsProtocol: AnyObject, Sendable {
+public protocol IssuanceEndpointsProtocol: AnyObject {
     
 }
 open class IssuanceEndpoints: IssuanceEndpointsProtocol, @unchecked Sendable {
@@ -3143,9 +3694,6 @@ open class IssuanceEndpoints: IssuanceEndpointsProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -3239,7 +3787,7 @@ public func FfiConverterTypeIssuanceEndpoints_lower(_ value: IssuanceEndpoints) 
 
 
 
-public protocol IssuanceServiceClientProtocol: AnyObject, Sendable {
+public protocol IssuanceServiceClientProtocol: AnyObject {
     
     /**
      * Checks the status of an issuance request
@@ -3291,9 +3839,6 @@ open class IssuanceServiceClient: IssuanceServiceClientProtocol, @unchecked Send
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -3367,7 +3912,7 @@ open func checkStatus(issuanceId: String, walletAttestation: String)async throws
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterTypeFlowState_lift,
-            errorHandler: FfiConverterTypeIssuanceServiceError_lift
+            errorHandler: FfiConverterTypeIssuanceServiceError.lift
         )
 }
     
@@ -3398,7 +3943,7 @@ open func getOrFetchEndpoints()async throws  -> IssuanceEndpoints  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeIssuanceEndpoints_lift,
-            errorHandler: FfiConverterTypeIssuanceServiceError_lift
+            errorHandler: FfiConverterTypeIssuanceServiceError.lift
         )
 }
     
@@ -3425,7 +3970,7 @@ open func newIssuance(walletAttestation: String)async throws  -> String  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypeIssuanceServiceError_lift
+            errorHandler: FfiConverterTypeIssuanceServiceError.lift
         )
 }
     
@@ -3487,7 +4032,7 @@ public func FfiConverterTypeIssuanceServiceClient_lower(_ value: IssuanceService
 
 
 
-public protocol JsonLdPresentationBuilderProtocol: AnyObject, Sendable {
+public protocol JsonLdPresentationBuilderProtocol: AnyObject {
     
     func issuePresentation(credentials: [ParsedCredential]) async throws  -> String
     
@@ -3506,9 +4051,6 @@ open class JsonLdPresentationBuilder: JsonLdPresentationBuilderProtocol, @unchec
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -3571,7 +4113,7 @@ open func issuePresentation(credentials: [ParsedCredential])async throws  -> Str
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypePresentationBuilderError_lift
+            errorHandler: FfiConverterTypePresentationBuilderError.lift
         )
 }
     
@@ -3636,7 +4178,7 @@ public func FfiConverterTypeJsonLdPresentationBuilder_lower(_ value: JsonLdPrese
 /**
  * A verifiable credential secured as JSON.
  */
-public protocol JsonVcProtocol: AnyObject, Sendable {
+public protocol JsonVcProtocol: AnyObject {
     
     /**
      * Access the W3C VCDM credential as a JSON encoded UTF-8 string.
@@ -3693,9 +4235,6 @@ open class JsonVc: JsonVcProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -3801,7 +4340,7 @@ open func status()async throws  -> Status  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeStatus_lift,
-            errorHandler: FfiConverterTypeStatusListError_lift
+            errorHandler: FfiConverterTypeStatusListError.lift
         )
 }
     
@@ -3897,7 +4436,7 @@ public func FfiConverterTypeJsonVc_lower(_ value: JsonVc) -> UnsafeMutableRawPoi
 /**
  * A verifiable credential secured as a JWT.
  */
-public protocol JwtVcProtocol: AnyObject, Sendable {
+public protocol JwtVcProtocol: AnyObject {
     
     /**
      * Access the W3C VCDM credential as a JSON encoded UTF-8 string.
@@ -3958,9 +4497,6 @@ open class JwtVc: JwtVcProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -4165,7 +4701,7 @@ public func FfiConverterTypeJwtVc_lower(_ value: JwtVc) -> UnsafeMutableRawPoint
 /**
  * An interface that can provide access to cryptographic keypairs from the native crypto API.
  */
-public protocol KeyStore: AnyObject, Sendable {
+public protocol KeyStore: AnyObject {
     
     /**
      * Retrieve a cryptographic keypair by alias. The cryptographic key must be usable for
@@ -4191,9 +4727,6 @@ open class KeyStoreImpl: KeyStore, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -4351,7 +4884,7 @@ public func FfiConverterTypeKeyStore_lower(_ value: KeyStore) -> UnsafeMutableRa
 
 
 
-public protocol LogWriter: AnyObject, Sendable {
+public protocol LogWriter: AnyObject {
     
     func writeToBuffer(message: Data) 
     
@@ -4372,9 +4905,6 @@ open class LogWriterImpl: LogWriter, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -4554,7 +5084,7 @@ public func FfiConverterTypeLogWriter_lower(_ value: LogWriter) -> UnsafeMutable
 
 
 
-public protocol MdlSessionManagerProtocol: AnyObject, Sendable {
+public protocol MdlSessionManagerProtocol: AnyObject {
     
 }
 open class MdlSessionManager: MdlSessionManagerProtocol, @unchecked Sendable {
@@ -4571,9 +5101,6 @@ open class MdlSessionManager: MdlSessionManagerProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -4667,7 +5194,7 @@ public func FfiConverterTypeMDLSessionManager_lower(_ value: MdlSessionManager) 
 
 
 
-public protocol MdlPresentationSessionProtocol: AnyObject, Sendable {
+public protocol MdlPresentationSessionProtocol: AnyObject {
     
     /**
      * Constructs the response to be sent from the holder to the reader containing
@@ -4723,9 +5250,6 @@ open class MdlPresentationSession: MdlPresentationSessionProtocol, @unchecked Se
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -4891,7 +5415,7 @@ public func FfiConverterTypeMdlPresentationSession_lower(_ value: MdlPresentatio
 
 
 
-public protocol MdocProtocol: AnyObject, Sendable {
+public protocol MdocProtocol: AnyObject {
     
     /**
      * Simple representation of mdoc namespace and data elements for display in the UI.
@@ -4907,6 +5431,8 @@ public protocol MdocProtocol: AnyObject, Sendable {
      * The local ID of this credential.
      */
     func id()  -> Uuid
+    
+    func invalidationDate() throws  -> String
     
     func keyAlias()  -> KeyAlias
     
@@ -4925,9 +5451,6 @@ open class Mdoc: MdocProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -5031,6 +5554,13 @@ open func id() -> Uuid  {
 })
 }
     
+open func invalidationDate()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMdocDateError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_mdoc_invalidation_date(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
 open func keyAlias() -> KeyAlias  {
     return try!  FfiConverterTypeKeyAlias_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_mdoc_key_alias(self.uniffiClonePointer(),$0
@@ -5101,7 +5631,7 @@ public func FfiConverterTypeMdoc_lower(_ value: Mdoc) -> UnsafeMutableRawPointer
  *
  * Notably this supports requests which use the URI scheme `mdoc-openid4vp://`.
  */
-public protocol Oid4vp180137Protocol: AnyObject, Sendable {
+public protocol Oid4vp180137Protocol: AnyObject {
     
     func processRequest(url: Url) async throws  -> InProgressRequest180137
     
@@ -5125,9 +5655,6 @@ open class Oid4vp180137: Oid4vp180137Protocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -5185,7 +5712,7 @@ open func processRequest(url: Url)async throws  -> InProgressRequest180137  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeInProgressRequest180137_lift,
-            errorHandler: FfiConverterTypeOID4VP180137Error_lift
+            errorHandler: FfiConverterTypeOID4VP180137Error.lift
         )
 }
     
@@ -5247,7 +5774,7 @@ public func FfiConverterTypeOID4VP180137_lower(_ value: Oid4vp180137) -> UnsafeM
 
 
 
-public protocol Oid4vciProtocol: AnyObject, Sendable {
+public protocol Oid4vciProtocol: AnyObject {
     
     func clearContextMap() throws 
     
@@ -5278,9 +5805,6 @@ open class Oid4vci: Oid4vciProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -5372,7 +5896,7 @@ open func exchangeCredential(proofsOfPossession: [String], options: Oid4vciExcha
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterSequenceTypeCredentialResponse.lift,
-            errorHandler: FfiConverterTypeOid4vciError_lift
+            errorHandler: FfiConverterTypeOid4vciError.lift
         )
 }
     
@@ -5389,7 +5913,7 @@ open func exchangeToken()async throws  -> String?  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionString.lift,
-            errorHandler: FfiConverterTypeOid4vciError_lift
+            errorHandler: FfiConverterTypeOid4vciError.lift
         )
 }
     
@@ -5413,7 +5937,7 @@ open func initiate(baseUrl: String, clientId: String, redirectUrl: String)async 
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeOid4vciError_lift
+            errorHandler: FfiConverterTypeOid4vciError.lift
         )
 }
     
@@ -5430,7 +5954,7 @@ open func initiateWithOffer(credentialOffer: String, clientId: String, redirectU
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeOid4vciError_lift
+            errorHandler: FfiConverterTypeOid4vciError.lift
         )
 }
     
@@ -5499,7 +6023,7 @@ public func FfiConverterTypeOid4vci_lower(_ value: Oid4vci) -> UnsafeMutableRawP
 
 
 
-public protocol Oid4vciMetadataProtocol: AnyObject, Sendable {
+public protocol Oid4vciMetadataProtocol: AnyObject {
     
     func authorizationServers()  -> [String]?
     
@@ -5530,9 +6054,6 @@ open class Oid4vciMetadata: Oid4vciMetadataProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -5675,7 +6196,7 @@ public func FfiConverterTypeOid4vciMetadata_lower(_ value: Oid4vciMetadata) -> U
 
 
 
-public protocol Oid4vciSessionProtocol: AnyObject, Sendable {
+public protocol Oid4vciSessionProtocol: AnyObject {
     
 }
 open class Oid4vciSession: Oid4vciSessionProtocol, @unchecked Sendable {
@@ -5692,9 +6213,6 @@ open class Oid4vciSession: Oid4vciSessionProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -5791,7 +6309,7 @@ public func FfiConverterTypeOid4vciSession_lower(_ value: Oid4vciSession) -> Uns
 /**
  * A credential that has been parsed as a known variant.
  */
-public protocol ParsedCredentialProtocol: AnyObject, Sendable {
+public protocol ParsedCredentialProtocol: AnyObject {
     
     /**
      * Return the credential as an CWT, if it is of that format.
@@ -5861,9 +6379,6 @@ open class ParsedCredential: ParsedCredentialProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -6155,7 +6670,7 @@ public func FfiConverterTypeParsedCredential_lower(_ value: ParsedCredential) ->
 
 
 
-public protocol PermissionRequestProtocol: AnyObject, Sendable {
+public protocol PermissionRequestProtocol: AnyObject {
     
     /**
      * Return the client ID for the authorization request.
@@ -6216,9 +6731,6 @@ open class PermissionRequest: PermissionRequestProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -6287,7 +6799,7 @@ open func createPermissionResponse(selectedCredentials: [PresentableCredential],
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypePermissionResponse_lift,
-            errorHandler: FfiConverterTypeOID4VPError_lift
+            errorHandler: FfiConverterTypeOID4VPError.lift
         )
 }
     
@@ -6405,7 +6917,7 @@ public func FfiConverterTypePermissionRequest_lower(_ value: PermissionRequest) 
  * The Requested Fields are created by calling the [PermissionRequest::requested_fields] method, and then
  * explicitly setting the permission to true or false, based on the holder's decision.
  */
-public protocol PermissionResponseProtocol: AnyObject, Sendable {
+public protocol PermissionResponseProtocol: AnyObject {
     
     /**
      * Return the selected credentials for the permission response.
@@ -6443,9 +6955,6 @@ open class PermissionResponse: PermissionResponseProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -6565,7 +7074,7 @@ public func FfiConverterTypePermissionResponse_lower(_ value: PermissionResponse
 /**
  * A credential that has been parsed as a known variant.
  */
-public protocol PresentableCredentialProtocol: AnyObject, Sendable {
+public protocol PresentableCredentialProtocol: AnyObject {
     
     /**
      * Converts to the primitive ParsedCredential type
@@ -6596,9 +7105,6 @@ open class PresentableCredential: PresentableCredentialProtocol, @unchecked Send
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -6716,7 +7222,7 @@ public func FfiConverterTypePresentableCredential_lower(_ value: PresentableCred
 /**
  * A viable match for the credential request.
  */
-public protocol RequestMatch180137Protocol: AnyObject, Sendable {
+public protocol RequestMatch180137Protocol: AnyObject {
     
     func credentialId()  -> Uuid
     
@@ -6740,9 +7246,6 @@ open class RequestMatch180137: RequestMatch180137Protocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -6850,7 +7353,7 @@ public func FfiConverterTypeRequestMatch180137_lower(_ value: RequestMatch180137
 
 
 
-public protocol RequestedFieldProtocol: AnyObject, Sendable {
+public protocol RequestedFieldProtocol: AnyObject {
     
     /**
      * Return the unique ID for the request field.
@@ -6907,9 +7410,6 @@ open class RequestedField: RequestedFieldProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -7086,7 +7586,7 @@ public func FfiConverterTypeRequestedField_lower(_ value: RequestedField) -> Uns
 /**
  * A cryptographic keypair that can be used for signing.
  */
-public protocol SigningKey: AnyObject, Sendable {
+public protocol SigningKey: AnyObject {
     
     /**
      * Generates a public JWK for this key.
@@ -7116,9 +7616,6 @@ open class SigningKeyImpl: SigningKey, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -7315,7 +7812,7 @@ public func FfiConverterTypeSigningKey_lower(_ value: SigningKey) -> UnsafeMutab
  * and the purpose is the purpose of the credential, which is used
  * to interpret the value.
  */
-public protocol StatusProtocol: AnyObject, Sendable {
+public protocol StatusProtocol: AnyObject {
     
     /**
      * Return whether the credential status has a message.
@@ -7364,9 +7861,6 @@ open class Status: StatusProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -7517,7 +8011,7 @@ public func FfiConverterTypeStatus_lower(_ value: Status) -> UnsafeMutableRawPoi
  * and the purpose is the purpose of the credential, which is used
  * to interpret the value.
  */
-public protocol Status20240406Protocol: AnyObject, Sendable {
+public protocol Status20240406Protocol: AnyObject {
     
     /**
      * Return whether the credential status has a message.
@@ -7566,9 +8060,6 @@ open class Status20240406: Status20240406Protocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -7724,7 +8215,7 @@ public func FfiConverterTypeStatus20240406_lower(_ value: Status20240406) -> Uns
  * We use the older callback_interface to keep the required version level of our Android API
  * low.
  */
-public protocol StorageManagerInterface: AnyObject, Sendable {
+public protocol StorageManagerInterface: AnyObject {
     
     /**
      * Function: add
@@ -7790,9 +8281,6 @@ open class StorageManagerInterfaceImpl: StorageManagerInterface, @unchecked Send
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -7851,7 +8339,7 @@ open func add(key: Key, value: Value)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeStorageManagerError_lift
+            errorHandler: FfiConverterTypeStorageManagerError.lift
         )
 }
     
@@ -7874,7 +8362,7 @@ open func get(key: Key)async throws  -> Value?  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionTypeValue.lift,
-            errorHandler: FfiConverterTypeStorageManagerError_lift
+            errorHandler: FfiConverterTypeStorageManagerError.lift
         )
 }
     
@@ -7896,7 +8384,7 @@ open func list()async throws  -> [Key]  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterSequenceTypeKey.lift,
-            errorHandler: FfiConverterTypeStorageManagerError_lift
+            errorHandler: FfiConverterTypeStorageManagerError.lift
         )
 }
     
@@ -7921,7 +8409,7 @@ open func remove(key: Key)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeStorageManagerError_lift
+            errorHandler: FfiConverterTypeStorageManagerError.lift
         )
 }
     
@@ -8178,7 +8666,7 @@ public func FfiConverterTypeStorageManagerInterface_lower(_ value: StorageManage
 
 
 
-public protocol SyncHttpClient: AnyObject, Sendable {
+public protocol SyncHttpClient: AnyObject {
     
     func httpClient(request: HttpRequest) throws  -> HttpResponse
     
@@ -8197,9 +8685,6 @@ open class SyncHttpClientImpl: SyncHttpClient, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -8353,7 +8838,7 @@ public func FfiConverterTypeSyncHttpClient_lower(_ value: SyncHttpClient) -> Uns
 
 
 
-public protocol TokenResponseProtocol: AnyObject, Sendable {
+public protocol TokenResponseProtocol: AnyObject {
     
 }
 open class TokenResponse: TokenResponseProtocol, @unchecked Sendable {
@@ -8370,9 +8855,6 @@ open class TokenResponse: TokenResponseProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -8466,7 +8948,7 @@ public func FfiConverterTypeTokenResponse_lower(_ value: TokenResponse) -> Unsaf
 
 
 
-public protocol Vcdm2SdJwtProtocol: AnyObject, Sendable {
+public protocol Vcdm2SdJwtProtocol: AnyObject {
     
     /**
      * Return the ID for the SdJwt instance.
@@ -8510,9 +8992,6 @@ open class Vcdm2SdJwt: Vcdm2SdJwtProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -8618,7 +9097,7 @@ open func status()async throws  -> [Status20240406]  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterSequenceTypeStatus20240406.lift,
-            errorHandler: FfiConverterTypeStatusListError_lift
+            errorHandler: FfiConverterTypeStatusListError.lift
         )
 }
     
@@ -8696,7 +9175,7 @@ public func FfiConverterTypeVCDM2SdJwt_lower(_ value: Vcdm2SdJwt) -> UnsafeMutab
  *
  * This is the main interface to credentials.
  */
-public protocol VdcCollectionProtocol: AnyObject, Sendable {
+public protocol VdcCollectionProtocol: AnyObject {
     
     /**
      * Add a credential to the set.
@@ -8748,9 +9227,6 @@ open class VdcCollection: VdcCollectionProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -8813,7 +9289,7 @@ open func add(credential: Credential)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeVdcCollectionError_lift
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
         )
 }
     
@@ -8833,7 +9309,7 @@ open func allEntries()async throws  -> [Uuid]  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterSequenceTypeUuid.lift,
-            errorHandler: FfiConverterTypeVdcCollectionError_lift
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
         )
 }
     
@@ -8853,7 +9329,7 @@ open func allEntriesByType(ctype: CredentialType)async throws  -> [Uuid]  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterSequenceTypeUuid.lift,
-            errorHandler: FfiConverterTypeVdcCollectionError_lift
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
         )
 }
     
@@ -8873,7 +9349,7 @@ open func delete(id: Uuid)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeVdcCollectionError_lift
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
         )
 }
     
@@ -8914,7 +9390,7 @@ open func get(id: Uuid)async throws  -> Credential?  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionTypeCredential.lift,
-            errorHandler: FfiConverterTypeVdcCollectionError_lift
+            errorHandler: FfiConverterTypeVdcCollectionError.lift
         )
 }
     
@@ -8976,7 +9452,7 @@ public func FfiConverterTypeVdcCollection_lower(_ value: VdcCollection) -> Unsaf
 
 
 
-public protocol WalletEndpointsProtocol: AnyObject, Sendable {
+public protocol WalletEndpointsProtocol: AnyObject {
     
 }
 open class WalletEndpoints: WalletEndpointsProtocol, @unchecked Sendable {
@@ -8993,9 +9469,6 @@ open class WalletEndpoints: WalletEndpointsProtocol, @unchecked Sendable {
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -9089,7 +9562,7 @@ public func FfiConverterTypeWalletEndpoints_lower(_ value: WalletEndpoints) -> U
 
 
 
-public protocol WalletServiceClientProtocol: AnyObject, Sendable {
+public protocol WalletServiceClientProtocol: AnyObject {
     
     /**
      * Format the endpoint
@@ -9143,9 +9616,6 @@ open class WalletServiceClient: WalletServiceClientProtocol, @unchecked Sendable
     // TODO: We'd like this to be `private` but for Swifty reasons,
     // we can't implement `FfiConverter` without making this `required` and we can't
     // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
     required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
         self.pointer = pointer
     }
@@ -9236,7 +9706,7 @@ open func getOrFetchEndpoints()async throws  -> WalletEndpoints  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeWalletEndpoints_lift,
-            errorHandler: FfiConverterTypeWalletServiceError_lift
+            errorHandler: FfiConverterTypeWalletServiceError.lift
         )
 }
     
@@ -9273,7 +9743,7 @@ open func login(appAttestation: String)async throws  -> String  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypeWalletServiceError_lift
+            errorHandler: FfiConverterTypeWalletServiceError.lift
         )
 }
     
@@ -9293,7 +9763,7 @@ open func nonce()async throws  -> String  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypeWalletServiceError_lift
+            errorHandler: FfiConverterTypeWalletServiceError.lift
         )
 }
     
@@ -10970,10 +11440,7 @@ extension AuthenticationStatus: Equatable, Hashable {}
 
 
 
-
-
-
-public enum CborLdEncodingError: Swift.Error {
+public enum CborLdEncodingError {
 
     
     
@@ -11048,14 +11515,11 @@ extension CborLdEncodingError: Equatable, Hashable {}
 
 
 
-
 extension CborLdEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -11196,8 +11660,6 @@ public func FfiConverterTypeCborValue_lower(_ value: CborValue) -> RustBuffer {
 
 
 
-
-
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -11294,10 +11756,7 @@ extension ClaimValue: Equatable, Hashable {}
 
 
 
-
-
-
-public enum CredentialDecodingError: Swift.Error {
+public enum CredentialDecodingError {
 
     
     
@@ -11432,7 +11891,6 @@ extension CredentialDecodingError: Equatable, Hashable {}
 
 
 
-
 extension CredentialDecodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -11441,9 +11899,7 @@ extension CredentialDecodingError: Foundation.LocalizedError {
 
 
 
-
-
-public enum CredentialEncodingError: Swift.Error {
+public enum CredentialEncodingError {
 
     
     
@@ -11548,14 +12004,11 @@ extension CredentialEncodingError: Equatable, Hashable {}
 
 
 
-
 extension CredentialEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -11667,10 +12120,7 @@ extension CredentialFormat: Equatable, Hashable {}
 
 
 
-
-
-
-public enum CredentialPresentationError: Swift.Error {
+public enum CredentialPresentationError {
 
     
     
@@ -11745,7 +12195,6 @@ extension CredentialPresentationError: Equatable, Hashable {}
 
 
 
-
 extension CredentialPresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -11754,9 +12203,7 @@ extension CredentialPresentationError: Foundation.LocalizedError {
 
 
 
-
-
-public enum CryptoError: Swift.Error {
+public enum CryptoError {
 
     
     
@@ -11821,7 +12268,6 @@ extension CryptoError: Equatable, Hashable {}
 
 
 
-
 extension CryptoError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -11830,9 +12276,7 @@ extension CryptoError: Foundation.LocalizedError {
 
 
 
-
-
-public enum CwtError: Swift.Error {
+public enum CwtError {
 
     
     
@@ -12095,7 +12539,6 @@ extension CwtError: Equatable, Hashable {}
 
 
 
-
 extension CwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -12104,9 +12547,7 @@ extension CwtError: Foundation.LocalizedError {
 
 
 
-
-
-public enum DcApiError: Swift.Error {
+public enum DcApiError {
 
     
     
@@ -12181,14 +12622,11 @@ extension DcApiError: Equatable, Hashable {}
 
 
 
-
 extension DcApiError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -12273,10 +12711,7 @@ extension DelegatedVerifierStatus: Equatable, Hashable {}
 
 
 
-
-
-
-public enum DidError: Swift.Error {
+public enum DidError {
 
     
     
@@ -12365,14 +12800,11 @@ extension DidError: Equatable, Hashable {}
 
 
 
-
 extension DidError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -12439,9 +12871,6 @@ public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
 
 
 extension DidMethod: Equatable, Hashable {}
-
-
-
 
 
 
@@ -12550,10 +12979,7 @@ extension FlowState: Equatable, Hashable {}
 
 
 
-
-
-
-public enum HttpClientError: Swift.Error {
+public enum HttpClientError {
 
     
     
@@ -12680,7 +13106,6 @@ extension HttpClientError: Equatable, Hashable {}
 
 
 
-
 extension HttpClientError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -12689,12 +13114,10 @@ extension HttpClientError: Foundation.LocalizedError {
 
 
 
-
-
 /**
  * Represents errors that may occur during issuance operations
  */
-public enum IssuanceServiceError: Swift.Error {
+public enum IssuanceServiceError {
 
     
     
@@ -12831,7 +13254,6 @@ extension IssuanceServiceError: Equatable, Hashable {}
 
 
 
-
 extension IssuanceServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -12840,9 +13262,7 @@ extension IssuanceServiceError: Foundation.LocalizedError {
 
 
 
-
-
-public enum JsonVcEncodingError: Swift.Error {
+public enum JsonVcEncodingError {
 
     
     
@@ -12903,7 +13323,6 @@ extension JsonVcEncodingError: Equatable, Hashable {}
 
 
 
-
 extension JsonVcEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -12912,9 +13331,7 @@ extension JsonVcEncodingError: Foundation.LocalizedError {
 
 
 
-
-
-public enum JsonVcInitError: Swift.Error {
+public enum JsonVcInitError {
 
     
     
@@ -12993,7 +13410,6 @@ extension JsonVcInitError: Equatable, Hashable {}
 
 
 
-
 extension JsonVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -13002,9 +13418,7 @@ extension JsonVcInitError: Foundation.LocalizedError {
 
 
 
-
-
-public enum JwtVcInitError: Swift.Error {
+public enum JwtVcInitError {
 
     
     
@@ -13107,7 +13521,6 @@ extension JwtVcInitError: Equatable, Hashable {}
 
 
 
-
 extension JwtVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -13116,9 +13529,7 @@ extension JwtVcInitError: Foundation.LocalizedError {
 
 
 
-
-
-public enum KeyTransformationError: Swift.Error {
+public enum KeyTransformationError {
 
     
     
@@ -13213,7 +13624,6 @@ extension KeyTransformationError: Equatable, Hashable {}
 
 
 
-
 extension KeyTransformationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -13222,9 +13632,7 @@ extension KeyTransformationError: Foundation.LocalizedError {
 
 
 
-
-
-public enum MdlReaderResponseError: Swift.Error {
+public enum MdlReaderResponseError {
 
     
     
@@ -13313,7 +13721,6 @@ extension MdlReaderResponseError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -13322,9 +13729,7 @@ extension MdlReaderResponseError: Foundation.LocalizedError {
 
 
 
-
-
-public enum MdlReaderResponseSerializeError: Swift.Error {
+public enum MdlReaderResponseSerializeError {
 
     
     
@@ -13389,7 +13794,6 @@ extension MdlReaderResponseSerializeError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderResponseSerializeError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -13398,9 +13802,7 @@ extension MdlReaderResponseSerializeError: Foundation.LocalizedError {
 
 
 
-
-
-public enum MdlReaderSessionError: Swift.Error {
+public enum MdlReaderSessionError {
 
     
     
@@ -13465,14 +13867,11 @@ extension MdlReaderSessionError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderSessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -13579,10 +13978,7 @@ extension MDocItem: Equatable, Hashable {}
 
 
 
-
-
-
-public enum MdlUtilError: Swift.Error {
+public enum MdlUtilError {
 
     
     
@@ -13647,7 +14043,6 @@ extension MdlUtilError: Equatable, Hashable {}
 
 
 
-
 extension MdlUtilError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -13656,9 +14051,80 @@ extension MdlUtilError: Foundation.LocalizedError {
 
 
 
+public enum MdocDateError {
+
+    
+    
+    case Formatting(String
+    )
+}
 
 
-public enum MdocEncodingError: Swift.Error {
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMdocDateError: FfiConverterRustBuffer {
+    typealias SwiftType = MdocDateError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdocDateError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Formatting(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MdocDateError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Formatting(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocDateError_lift(_ buf: RustBuffer) throws -> MdocDateError {
+    return try FfiConverterTypeMdocDateError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocDateError_lower(_ value: MdocDateError) -> RustBuffer {
+    return FfiConverterTypeMdocDateError.lower(value)
+}
+
+
+extension MdocDateError: Equatable, Hashable {}
+
+
+
+extension MdocDateError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum MdocEncodingError {
 
     
     
@@ -13719,7 +14185,6 @@ extension MdocEncodingError: Equatable, Hashable {}
 
 
 
-
 extension MdocEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -13728,9 +14193,7 @@ extension MdocEncodingError: Foundation.LocalizedError {
 
 
 
-
-
-public enum MdocInitError: Swift.Error {
+public enum MdocInitError {
 
     
     
@@ -13837,7 +14300,6 @@ extension MdocInitError: Equatable, Hashable {}
 
 
 
-
 extension MdocInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -13846,9 +14308,7 @@ extension MdocInitError: Foundation.LocalizedError {
 
 
 
-
-
-public enum Oid4vp180137Error: Swift.Error {
+public enum Oid4vp180137Error {
 
     
     
@@ -13933,7 +14393,6 @@ extension Oid4vp180137Error: Equatable, Hashable {}
 
 
 
-
 extension Oid4vp180137Error: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -13942,13 +14401,11 @@ extension Oid4vp180137Error: Foundation.LocalizedError {
 
 
 
-
-
 /**
  * The [OID4VPError] enum represents the errors that can occur
  * when using the oid4vp foreign library.
  */
-public enum Oid4vpError: Swift.Error {
+public enum Oid4vpError {
 
     
     
@@ -14319,7 +14776,6 @@ extension Oid4vpError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -14328,9 +14784,7 @@ extension Oid4vpError: Foundation.LocalizedError {
 
 
 
-
-
-public enum Oid4vciError: Swift.Error {
+public enum Oid4vciError {
 
     
     
@@ -14483,7 +14937,6 @@ extension Oid4vciError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vciError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -14492,9 +14945,7 @@ extension Oid4vciError: Foundation.LocalizedError {
 
 
 
-
-
-public enum Oid4vpVerifierError: Swift.Error {
+public enum Oid4vpVerifierError {
 
     
     
@@ -14569,14 +15020,11 @@ extension Oid4vpVerifierError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vpVerifierError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -14663,10 +15111,7 @@ extension Outcome: Equatable, Hashable {}
 
 
 
-
-
-
-public enum PermissionRequestError: Swift.Error {
+public enum PermissionRequestError {
 
     
     
@@ -14852,7 +15297,6 @@ extension PermissionRequestError: Equatable, Hashable {}
 
 
 
-
 extension PermissionRequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -14861,9 +15305,7 @@ extension PermissionRequestError: Foundation.LocalizedError {
 
 
 
-
-
-public enum PopError: Swift.Error {
+public enum PopError {
 
     
     
@@ -14960,7 +15402,6 @@ extension PopError: Equatable, Hashable {}
 
 
 
-
 extension PopError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -14969,9 +15410,7 @@ extension PopError: Foundation.LocalizedError {
 
 
 
-
-
-public enum PresentationBuilderError: Swift.Error {
+public enum PresentationBuilderError {
 
     
     
@@ -15116,7 +15555,6 @@ extension PresentationBuilderError: Equatable, Hashable {}
 
 
 
-
 extension PresentationBuilderError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15125,9 +15563,7 @@ extension PresentationBuilderError: Foundation.LocalizedError {
 
 
 
-
-
-public enum PresentationError: Swift.Error {
+public enum PresentationError {
 
     
     
@@ -15232,7 +15668,6 @@ extension PresentationError: Equatable, Hashable {}
 
 
 
-
 extension PresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15241,9 +15676,7 @@ extension PresentationError: Foundation.LocalizedError {
 
 
 
-
-
-public enum RequestError: Swift.Error {
+public enum RequestError {
 
     
     
@@ -15308,7 +15741,6 @@ extension RequestError: Equatable, Hashable {}
 
 
 
-
 extension RequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15317,9 +15749,7 @@ extension RequestError: Foundation.LocalizedError {
 
 
 
-
-
-public enum ResponseError: Swift.Error {
+public enum ResponseError {
 
     
     
@@ -15390,7 +15820,6 @@ extension ResponseError: Equatable, Hashable {}
 
 
 
-
 extension ResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15399,9 +15828,7 @@ extension ResponseError: Foundation.LocalizedError {
 
 
 
-
-
-public enum SdJwtError: Swift.Error {
+public enum SdJwtError {
 
     
     
@@ -15512,7 +15939,6 @@ extension SdJwtError: Equatable, Hashable {}
 
 
 
-
 extension SdJwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15521,9 +15947,7 @@ extension SdJwtError: Foundation.LocalizedError {
 
 
 
-
-
-public enum SessionError: Swift.Error {
+public enum SessionError {
 
     
     
@@ -15588,7 +16012,6 @@ extension SessionError: Equatable, Hashable {}
 
 
 
-
 extension SessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15597,9 +16020,7 @@ extension SessionError: Foundation.LocalizedError {
 
 
 
-
-
-public enum SignatureError: Swift.Error {
+public enum SignatureError {
 
     
     
@@ -15680,7 +16101,6 @@ extension SignatureError: Equatable, Hashable {}
 
 
 
-
 extension SignatureError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15689,9 +16109,7 @@ extension SignatureError: Foundation.LocalizedError {
 
 
 
-
-
-public enum StatusListError: Swift.Error {
+public enum StatusListError {
 
     
     
@@ -15762,7 +16180,6 @@ extension StatusListError: Equatable, Hashable {}
 
 
 
-
 extension StatusListError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15771,14 +16188,12 @@ extension StatusListError: Foundation.LocalizedError {
 
 
 
-
-
 /**
  * Enum: StorageManagerError
  *
  * Represents errors that may occur during storage management operations
  */
-public enum StorageManagerError: Swift.Error {
+public enum StorageManagerError {
 
     
     
@@ -15880,7 +16295,6 @@ extension StorageManagerError: Equatable, Hashable {}
 
 
 
-
 extension StorageManagerError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15889,9 +16303,7 @@ extension StorageManagerError: Foundation.LocalizedError {
 
 
 
-
-
-public enum TerminationError: Swift.Error {
+public enum TerminationError {
 
     
     
@@ -15956,7 +16368,6 @@ extension TerminationError: Equatable, Hashable {}
 
 
 
-
 extension TerminationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -15965,9 +16376,7 @@ extension TerminationError: Foundation.LocalizedError {
 
 
 
-
-
-public enum VcbVerificationError: Swift.Error {
+public enum VcbVerificationError {
 
     
     
@@ -16038,7 +16447,6 @@ extension VcbVerificationError: Equatable, Hashable {}
 
 
 
-
 extension VcbVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -16047,9 +16455,7 @@ extension VcbVerificationError: Foundation.LocalizedError {
 
 
 
-
-
-public enum VcVerificationError: Swift.Error {
+public enum VcVerificationError {
 
     
     
@@ -16114,7 +16520,6 @@ extension VcVerificationError: Equatable, Hashable {}
 
 
 
-
 extension VcVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
@@ -16123,9 +16528,7 @@ extension VcVerificationError: Foundation.LocalizedError {
 
 
 
-
-
-public enum VpError: Swift.Error {
+public enum VpError {
 
     
     
@@ -16212,14 +16615,11 @@ extension VpError: Equatable, Hashable {}
 
 
 
-
 extension VpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -16290,10 +16690,7 @@ extension VcdmVersion: Equatable, Hashable {}
 
 
 
-
-
-
-public enum VdcCollectionError: Swift.Error {
+public enum VdcCollectionError {
 
     
     
@@ -16405,14 +16802,11 @@ extension VdcCollectionError: Equatable, Hashable {}
 
 
 
-
 extension VdcCollectionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -16486,10 +16880,7 @@ extension VerificationResult: Equatable, Hashable {}
 
 
 
-
-
-
-public enum WalletServiceError: Swift.Error {
+public enum WalletServiceError {
 
     
     
@@ -16648,14 +17039,11 @@ extension WalletServiceError: Equatable, Hashable {}
 
 
 
-
 extension WalletServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16674,7 +17062,7 @@ extension WalletServiceError: Foundation.LocalizedError {
  * For example, in the case of `JwtVc` credential format,
  * the signing payload consists of the JWT header and payload (JWS).
  */
-public protocol PresentationSigner: AnyObject, Sendable {
+public protocol PresentationSigner: AnyObject {
     
     /**
      * Sign the payload with the private key and return the signature.
@@ -17411,6 +17799,81 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestDocumentRequest: FfiConverterRustBuffer {
+    typealias SwiftType = [Iosiso18013MobileDocumentRequestDocumentRequest]
+
+    public static func write(_ value: [Iosiso18013MobileDocumentRequestDocumentRequest], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Iosiso18013MobileDocumentRequestDocumentRequest] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Iosiso18013MobileDocumentRequestDocumentRequest]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestDocumentRequestSet: FfiConverterRustBuffer {
+    typealias SwiftType = [Iosiso18013MobileDocumentRequestDocumentRequestSet]
+
+    public static func write(_ value: [Iosiso18013MobileDocumentRequestDocumentRequestSet], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Iosiso18013MobileDocumentRequestDocumentRequestSet] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Iosiso18013MobileDocumentRequestDocumentRequestSet]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestPresentmentRequest: FfiConverterRustBuffer {
+    typealias SwiftType = [Iosiso18013MobileDocumentRequestPresentmentRequest]
+
+    public static func write(_ value: [Iosiso18013MobileDocumentRequestPresentmentRequest], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Iosiso18013MobileDocumentRequestPresentmentRequest] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Iosiso18013MobileDocumentRequestPresentmentRequest]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMdoc: FfiConverterRustBuffer {
     typealias SwiftType = [Mdoc]
 
@@ -17888,6 +18351,32 @@ fileprivate struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo: FfiConverterRustBuffer {
+    public static func write(_ value: [String: Iosiso18013MobileDocumentRequestElementInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: Iosiso18013MobileDocumentRequestElementInfo] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: Iosiso18013MobileDocumentRequestElementInfo]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterDictionaryStringTypeCborValue: FfiConverterRustBuffer {
     public static func write(_ value: [String: CborValue], into buf: inout [UInt8]) {
         let len = Int32(value.count)
@@ -18009,6 +18498,32 @@ fileprivate struct FfiConverterDictionaryStringDictionaryStringBool: FfiConverte
         for _ in 0..<len {
             let key = try FfiConverterString.read(from: &buf)
             let value = try FfiConverterDictionaryStringBool.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryStringDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo: FfiConverterRustBuffer {
+    public static func write(_ value: [String: [String: Iosiso18013MobileDocumentRequestElementInfo]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: [String: Iosiso18013MobileDocumentRequestElementInfo]] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: [String: Iosiso18013MobileDocumentRequestElementInfo]]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo.read(from: &buf)
             dict[key] = value
         }
         return dict
@@ -18776,6 +19291,20 @@ private func uniffiForeignFutureFree(handle: UInt64) {
 public func uniffiForeignFutureHandleCountMobileSdkRs() -> Int {
     UNIFFI_FOREIGN_FUTURE_HANDLE_MAP.count
 }
+public func buildAnnexCResponse(request: Data, origin: String, selectedMatch: RequestMatch180137, parsedCredentials: [ParsedCredential], approvedResponse: ApprovedResponse180137, keyStore: KeyStore)async throws  -> Data  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_build_annex_c_response(FfiConverterData.lower(request),FfiConverterString.lower(origin),FfiConverterTypeRequestMatch180137_lower(selectedMatch),FfiConverterSequenceTypeParsedCredential.lower(parsedCredentials),FfiConverterTypeApprovedResponse180137_lower(approvedResponse),FfiConverterTypeKeyStore_lower(keyStore)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterData.lift,
+            errorHandler: FfiConverterTypeDcApiError.lift
+        )
+}
 public func cborLdEncodeToBytes(credentialStr: String, loader: [String: String]?)async throws  -> Data  {
     return
         try  await uniffiRustCallAsync(
@@ -18787,7 +19316,7 @@ public func cborLdEncodeToBytes(credentialStr: String, loader: [String: String]?
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterData.lift,
-            errorHandler: FfiConverterTypeCborLdEncodingError_lift
+            errorHandler: FfiConverterTypeCborLdEncodingError.lift
         )
 }
 /**
@@ -18847,7 +19376,7 @@ public func generatePopPrepare(audience: String, nonce: String?, didMethod: DidM
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterData.lift,
-            errorHandler: FfiConverterTypePopError_lift
+            errorHandler: FfiConverterTypePopError.lift
         )
 }
 /**
@@ -18877,7 +19406,7 @@ public func handleDcApiRequest(dcqlCredentialId: String, mdoc: Mdoc, origin: Str
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeInProgressRequestDcApi_lift,
-            errorHandler: FfiConverterTypeDcApiError_lift
+            errorHandler: FfiConverterTypeDcApiError.lift
         )
 }
 public func handleResponse(state: MdlSessionManager, response: Data)throws  -> MdlReaderResponseData  {
@@ -18917,7 +19446,7 @@ public func initializeMdlPresentation(mdocId: Uuid, uuid: Uuid, storageManager: 
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeMdlPresentationSession_lift,
-            errorHandler: FfiConverterTypeSessionError_lift
+            errorHandler: FfiConverterTypeSessionError.lift
         )
 }
 /**
@@ -18963,7 +19492,7 @@ public func oid4vciExchangeCredential(session: Oid4vciSession, proofsOfPossessio
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterSequenceTypeCredentialResponse.lift,
-            errorHandler: FfiConverterTypeOid4vciError_lift
+            errorHandler: FfiConverterTypeOid4vciError.lift
         )
 }
 public func oid4vciExchangeToken(session: Oid4vciSession, httpClient: IHttpClient)async throws  -> String?  {
@@ -18977,7 +19506,7 @@ public func oid4vciExchangeToken(session: Oid4vciSession, httpClient: IHttpClien
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionString.lift,
-            errorHandler: FfiConverterTypeOid4vciError_lift
+            errorHandler: FfiConverterTypeOid4vciError.lift
         )
 }
 public func oid4vciGetMetadata(session: Oid4vciSession)throws  -> Oid4vciMetadata  {
@@ -18998,7 +19527,7 @@ public func oid4vciInitiate(baseUrl: String, clientId: String, redirectUrl: Stri
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeOid4vciSession_lift,
-            errorHandler: FfiConverterTypeOid4vciError_lift
+            errorHandler: FfiConverterTypeOid4vciError.lift
         )
 }
 public func oid4vciInitiateWithOffer(credentialOffer: String, clientId: String, redirectUrl: String, httpClient: IHttpClient)async throws  -> Oid4vciSession  {
@@ -19012,7 +19541,7 @@ public func oid4vciInitiateWithOffer(credentialOffer: String, clientId: String, 
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeOid4vciSession_lift,
-            errorHandler: FfiConverterTypeOid4vciError_lift
+            errorHandler: FfiConverterTypeOid4vciError.lift
         )
 }
 public func vcToSignedVp(vc: String, keyStr: String)async throws  -> String  {
@@ -19026,7 +19555,7 @@ public func vcToSignedVp(vc: String, keyStr: String)async throws  -> String  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypeVPError_lift
+            errorHandler: FfiConverterTypeVPError.lift
         )
 }
 public func verifiedResponseAsJsonString(response: MdlReaderResponseData)throws  -> String  {
@@ -19047,7 +19576,7 @@ public func verifyJsonVcString(json: String)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeVCVerificationError_lift
+            errorHandler: FfiConverterTypeVCVerificationError.lift
         )
 }
 public func verifyJwtVp(jwtVp: String)async throws   {
@@ -19061,7 +19590,7 @@ public func verifyJwtVp(jwtVp: String)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeVPError_lift
+            errorHandler: FfiConverterTypeVPError.lift
         )
 }
 public func verifyPdf417Barcode(payload: String)async throws   {
@@ -19075,7 +19604,7 @@ public func verifyPdf417Barcode(payload: String)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeVCBVerificationError_lift
+            errorHandler: FfiConverterTypeVCBVerificationError.lift
         )
 }
 public func verifyVcbQrcodeAgainstMrz(mrzPayload: String, qrPayload: String)async throws   {
@@ -19089,7 +19618,7 @@ public func verifyVcbQrcodeAgainstMrz(mrzPayload: String, qrPayload: String)asyn
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeVCBVerificationError_lift
+            errorHandler: FfiConverterTypeVCBVerificationError.lift
         )
 }
 
@@ -19107,6 +19636,9 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_mobile_sdk_rs_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_build_annex_c_response() != 28694) {
+        return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_cbor_ld_encode_to_bytes() != 12635) {
         return InitializationResult.apiChecksumMismatch
@@ -19237,6 +19769,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_holder_submit_permission_response() != 37701) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_iosiso18013mobiledocumentrequest_to_matches() != 17136) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequest180137_matches() != 21157) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19346,6 +19881,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_id() != 18877) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_invalidation_date() != 39511) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 39341) {
@@ -19616,6 +20154,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_ihttpclient_new_sync() != 47576) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequest_new() != 7957) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestdocumentrequest_new() != 47367) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestdocumentrequestset_new() != 24023) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestelementinfo_new() != 44967) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestpresentmentrequest_new() != 37016) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_issuanceserviceclient_new() != 39224) {
