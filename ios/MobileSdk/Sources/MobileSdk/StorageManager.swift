@@ -28,12 +28,26 @@ public class StorageManager: NSObject, StorageManagerInterface {
             // This does imply that `file` should be a valid filename.
 
             let fileman = FileManager.default
-            let bundle = Bundle.main
+            var bundle = Bundle.main
+            
+            // getting the bundle of the main app if we are in an app extension
+            if bundle.bundleURL.pathExtension == "appex" {
+                // Peel off two directory levels - MY_APP.app/PlugIns/MY_APP_EXTENSION.appex
+                let url = bundle.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
+                if let otherBundle = Bundle(url: url) {
+                    bundle = otherBundle
+                }
+            }
 
-            let asdir = try fileman.url(for: .applicationSupportDirectory,
+            var asdir = try fileman.url(for: .applicationSupportDirectory,
                                    in: .userDomainMask,
                                    appropriateFor: nil, // Ignored
                                    create: true) // May not exist, make if necessary.
+            if let groupId = bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String {
+                if let url = fileman.containerURL(forSecurityApplicationGroupIdentifier: groupId) {
+                    asdir = url
+                }
+            }
 
             //    If we create subdirectories in the application support directory, we need to put them in a subdir
             // named after the app; normally, that's `CFBundleDisplayName` from `info.plist`, but that key doesn't

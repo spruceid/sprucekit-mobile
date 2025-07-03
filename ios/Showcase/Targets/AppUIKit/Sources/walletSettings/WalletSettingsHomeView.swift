@@ -54,10 +54,8 @@ struct WalletSettingsHomeHeader: View {
 }
 
 struct WalletSettingsHomeBody: View {
-    @EnvironmentObject private var credentialPackObservable:
-        CredentialPackObservable
-    @EnvironmentObject private var hacApplicationObservable:
-        HacApplicationObservable
+    @EnvironmentObject private var credentialPackObservable: CredentialPackObservable
+    @EnvironmentObject private var hacApplicationObservable: HacApplicationObservable
     @StateObject private var environmentConfig = EnvironmentConfig.shared
     @Binding var path: NavigationPath
     var onBack: () -> Void
@@ -162,40 +160,40 @@ struct WalletSettingsHomeBody: View {
                     )
 
                     switch status {
-                        case .proofingRequired(let proofingUrl):
-                            if let hacApplication = hacApplication {
-                                if let url = URL(string: proofingUrl) {
-                                    UIApplication.shared.open(
-                                        url,
-                                        options: [:],
-                                        completionHandler: nil
-                                    )
-                                } else {
-                                    print("Invalid proofing URL")
-                                }
+                    case .proofingRequired(let proofingUrl):
+                        if let hacApplication = hacApplication {
+                            if let url = URL(string: proofingUrl) {
+                                UIApplication.shared.open(
+                                    url,
+                                    options: [:],
+                                    completionHandler: nil
+                                )
                             } else {
-                                print("hacApplication is nil")
+                                print("Invalid proofing URL")
                             }
-
-                        case .readyToProvision(_):
-                            print("Expected ProofingRequired status")
-                            ToastManager.shared.showError(
-                                message:
-                                    "Error during attestation: Expected ProofingRequired status"
-                            )
-                        case .awaitingManualReview:
-                            print("Expected ProofingRequired status")
-                            ToastManager.shared.showError(
-                                message:
-                                    "Error during attestation: Expected ProofingRequired status"
-                            )
-                        case .applicationDenied:
-                            print("Expected ProofingRequired status")
-                            ToastManager.shared.showError(
-                                message:
-                                    "Error during attestation: Expected ProofingRequired status"
-                            )
+                        } else {
+                            print("hacApplication is nil")
                         }
+
+                    case .readyToProvision(_):
+                        print("Expected ProofingRequired status")
+                        ToastManager.shared.showError(
+                            message:
+                                "Error during attestation: Expected ProofingRequired status"
+                        )
+                    case .awaitingManualReview:
+                        print("Expected ProofingRequired status")
+                        ToastManager.shared.showError(
+                            message:
+                                "Error during attestation: Expected ProofingRequired status"
+                        )
+                    case .applicationDenied:
+                        print("Expected ProofingRequired status")
+                        ToastManager.shared.showError(
+                            message:
+                                "Error during attestation: Expected ProofingRequired status"
+                        )
+                    }
 
                 } catch let error as DCError {
                     ToastManager.shared.showError(

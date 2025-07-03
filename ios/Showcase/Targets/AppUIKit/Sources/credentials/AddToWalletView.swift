@@ -16,24 +16,14 @@ struct AddToWalletView: View {
     @State var errorDetails: String
     @State var storing = false
 
-    let credentialItem: (any ICredentialView)?
+    @State var credentialItem: (any ICredentialView)?
 
     init(path: Binding<NavigationPath>, rawCredential: String) {
         self._path = path
         self.rawCredential = rawCredential
-
-        do {
-            credentialItem = try credentialDisplayerSelector(
-                rawCredential: rawCredential
-            )
-            errorDetails = ""
-            presentError = false
-        } catch {
-            print(error)
-            errorDetails = "Error: \(error)"
-            presentError = true
-            credentialItem = nil
-        }
+        self.credentialItem = nil
+        self.presentError = false
+        self.errorDetails = ""
     }
 
     func back() {
@@ -46,7 +36,7 @@ struct AddToWalletView: View {
         storing = true
         do {
             let credentialPack = CredentialPack()
-            _ = try credentialPack.tryAddAnyFormat(
+            _ = try await credentialPack.tryAddAnyFormat(
                 rawCredential: rawCredential,
                 mdocKeyAlias: DEFAULT_SIGNING_KEY_ID
             )
@@ -133,6 +123,17 @@ struct AddToWalletView: View {
             }
         }
         .navigationBarBackButtonHidden(true)
+        .task {
+            do {
+                credentialItem = try await credentialDisplayerSelector(
+                    rawCredential: rawCredential
+                )
+            } catch {
+                print(error)
+                errorDetails = "Error: \(error)"
+                presentError = true
+            }
+        }
     }
 }
 
