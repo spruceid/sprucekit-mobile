@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, sync::Arc};
+use std::sync::Arc;
 
 use base64::prelude::*;
 use ciborium::Value as Cbor;

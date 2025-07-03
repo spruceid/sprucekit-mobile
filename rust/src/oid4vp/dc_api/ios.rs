@@ -175,6 +175,7 @@ impl IOSISO18013MobileDocumentRequest {
     }
 }
 
+#[allow(dead_code)]
 #[derive(uniffi::Object)]
 pub struct IOSISO18013MobileDocumentRequestPresentmentRequest {
     document_request_sets: Vec<Arc<IOSISO18013MobileDocumentRequestDocumentRequestSet>>,
