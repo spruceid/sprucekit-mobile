@@ -124,7 +124,12 @@ impl Mdoc {
     }
 
     pub fn invalidation_date(&self) -> Result<String, MdocDateError> {
-        self.inner.mso.validity_info.valid_until.format(&Iso8601::DEFAULT).map_err(|e| MdocDateError::Formatting(format!("{e:?}")))
+        self.inner
+            .mso
+            .validity_info
+            .valid_until
+            .format(&Iso8601::DEFAULT)
+            .map_err(|e| MdocDateError::Formatting(format!("{e:?}")))
     }
 }
 
