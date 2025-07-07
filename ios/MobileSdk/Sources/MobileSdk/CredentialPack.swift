@@ -140,6 +140,7 @@ public class CredentialPack {
 
     /// Add an Mdoc to the CredentialPack.
     public func addMDoc(mdoc: Mdoc) async throws -> [ParsedCredential] {
+        #if canImport(IdentityDocumentServices)
         if #available(iOS 26.0, *), mdoc.doctype() == "org.iso.18013.5.1.mDL" {
             let store = IdentityDocumentProviderRegistrationStore()
             do {
@@ -163,6 +164,7 @@ public class CredentialPack {
                 )
             }
         }
+        #endif
         credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc))
         return credentials
     }
@@ -329,6 +331,7 @@ public class CredentialPack {
     ///
     /// Credentials that are in this pack __are__ removed from the VdcCollection.
     public func remove(storageManager: StorageManagerInterface) async throws {
+        #if canImport(IdentityDocumentServices)
         if #available(iOS 26.0, *) {
             let store = IdentityDocumentProviderRegistrationStore()
             do {
@@ -349,6 +352,7 @@ public class CredentialPack {
                 print("Failed to remove document from document store: \(error)")
             }
         }
+        #endif
         try await self.intoContents().remove(storageManager: storageManager)
     }
 

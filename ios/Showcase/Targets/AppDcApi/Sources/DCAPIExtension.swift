@@ -1,9 +1,6 @@
-#if canImport(IdentityDocumentServices)
+#if canImport(IdentityDocumentServices) && canImport(IdentityDocumentServicesUI)
 import IdentityDocumentServices
-#endif
-#if canImport(IdentityDocumentServicesUI)
 import IdentityDocumentServicesUI
-#endif
 import SwiftUI
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
@@ -24,3 +21,4 @@ struct DocumentProviderExtension: IdentityDocumentProvider {
         }
     }
 }
+#endif
