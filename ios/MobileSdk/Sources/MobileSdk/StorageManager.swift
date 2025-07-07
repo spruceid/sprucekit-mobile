@@ -29,7 +29,7 @@ public class StorageManager: NSObject, StorageManagerInterface {
 
             let fileman = FileManager.default
             var bundle = Bundle.main
-            
+
             // getting the bundle of the main app if we are in an app extension
             if bundle.bundleURL.pathExtension == "appex" {
                 // Peel off two directory levels - MY_APP.app/PlugIns/MY_APP_EXTENSION.appex

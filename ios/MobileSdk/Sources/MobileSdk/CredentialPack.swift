@@ -147,17 +147,19 @@ public class CredentialPack {
                 let dateFormatter = ISO8601DateFormatter()
                 let isoDateString = try mdoc.invalidationDate()
                 // remove unsupported milliseconds
-                let trimmedIsoString = isoDateString.replacingOccurrences(of: "\\.\\d+", with: "", options: .regularExpression)
-                let date_until = dateFormatter.date(from:trimmedIsoString)!
+                let trimmedIsoString = isoDateString.replacingOccurrences(of: "\\.\\d+",
+                                                                          with: "",
+                                                                          options: .regularExpression)
+                let dateUntil = dateFormatter.date(from: trimmedIsoString)!
                 let registration = MobileDocumentRegistration(
                     mobileDocumentType: "org.iso.18013.5.1.mDL",
                     supportedAuthorityKeyIdentifiers: [],  // TODO
                     documentIdentifier: mdoc.id(),
-                    invalidationDate: date_until
+                    invalidationDate: dateUntil
                 )
                 try await store.addRegistration(registration)
             } catch IdentityDocumentProviderRegistrationStore.RegistrationError.notAuthorized {
-                print("Device not authorized to use id document store, are you using a simulator or did the user disable document registration?")
+                print("Device not authorized to use id document store, did the user disable document registration?")
             } catch {
                 throw CredentialPackError.idService(
                     reason: error
