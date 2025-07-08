@@ -109,7 +109,7 @@ class CredentialPack {
     /**
      * Try to add a credential in any supported format (standard credential or mdoc).
      * Attempts to parse as standard credential first, then as mdoc if that fails.
-     * 
+     *
      * @param rawCredential The raw credential data as a string
      * @param mdocKeyAlias The key alias to use if parsing as mdoc is needed
      * @return List of parsed credentials

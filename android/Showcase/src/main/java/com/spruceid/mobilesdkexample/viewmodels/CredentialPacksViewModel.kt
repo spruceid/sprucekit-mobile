@@ -33,7 +33,7 @@ class CredentialPacksViewModel(application: Application) : AndroidViewModel(appl
             }.await()
             _loading.value = false
 
-            // Listed for credential pack updates and update the registry.
+            // Listen for credential pack updates and update the registry.
             _credentialPacks.collect { packs -> dcApiRegistry.register(packs) }
         }
     }
