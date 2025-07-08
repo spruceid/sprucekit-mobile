@@ -8,7 +8,6 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.KeyAlias
-import com.spruceid.mobile.sdk.rs.KeyStore as SpruceKitKeyStore
 import com.spruceid.mobile.sdk.rs.SigningKey
 import java.security.KeyPairGenerator
 import java.security.KeyStore
@@ -19,11 +18,13 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.SecretKeySpec
+import com.spruceid.mobile.sdk.rs.KeyStore as SpruceKitKeyStore
 
 /**
  * Implementation of the secure key management with Strongbox and TEE as backup.
  */
-class KeyManager: SpruceKitKeyStore {
+class KeyManager : SpruceKitKeyStore {
 
     /**
      * Returns the Android Keystore.
@@ -42,13 +43,13 @@ class KeyManager: SpruceKitKeyStore {
      */
     private fun getSecretKey(id: String): SecretKey? {
         val ks = getKeyStore()
-    
+
         val entry: KeyStore.Entry = ks.getEntry(id, null)
         if (entry !is KeyStore.SecretKeyEntry) {
             Log.w("KEYMAN", "Not an instance of a SecretKeyEntry")
             return null
         }
-    
+
         return entry.secretKey
     }
 
@@ -96,7 +97,7 @@ class KeyManager: SpruceKitKeyStore {
             KeyProperties.KEY_ALGORITHM_EC,
             "AndroidKeyStore",
         )
-    
+
         val spec = KeyGenParameterSpec.Builder(
             id,
             KeyProperties.PURPOSE_SIGN
@@ -106,7 +107,7 @@ class KeyManager: SpruceKitKeyStore {
             .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
             .setIsStrongBoxBacked(true)
             .build()
-    
+
         generator.initialize(spec)
         generator.generateKeyPair()
     }
@@ -145,7 +146,7 @@ class KeyManager: SpruceKitKeyStore {
         return if (input.size > 32) {
             input.drop(1).toByteArray()
         } else if (input.size < 32) {
-            List(32 - input.size){ 0.toByte() }.toByteArray() + input
+            List(32 - input.size) { 0.toByte() }.toByteArray() + input
         } else {
             input
         }
@@ -159,7 +160,7 @@ class KeyManager: SpruceKitKeyStore {
     fun getJwk(id: String): String? {
         val ks = getKeyStore()
         val key = ks.getEntry(id, null)
-    
+
         if (key is KeyStore.PrivateKeyEntry) {
             if (key.certificate.publicKey is ECPublicKey) {
                 val ecPublicKey = key.certificate.publicKey as ECPublicKey
@@ -175,11 +176,11 @@ class KeyManager: SpruceKitKeyStore {
                             xor Base64.NO_PADDING
                             xor Base64.NO_WRAP
                 )
-    
+
                 return """{"kty":"EC","crv":"P-256","alg":"ES256","x":"$x","y":"$y"}"""
             }
         }
-    
+
         return null
     }
 
@@ -206,7 +207,7 @@ class KeyManager: SpruceKitKeyStore {
             Log.w("KEYMAN", "Not an instance of a PrivateKeyEntry")
             return null
         }
-    
+
         return Signature.getInstance("SHA256withECDSA").run {
             initSign(entry.privateKey)
             update(payload)
@@ -247,7 +248,7 @@ class KeyManager: SpruceKitKeyStore {
             KeyProperties.KEY_ALGORITHM_AES,
             "AndroidKeyStore",
         )
-    
+
         val spec = KeyGenParameterSpec.Builder(
             id,
             KeyProperties.PURPOSE_ENCRYPT
@@ -257,7 +258,7 @@ class KeyManager: SpruceKitKeyStore {
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setIsStrongBoxBacked(true)
             .build()
-    
+
         generator.init(spec)
         generator.generateKey()
     }
@@ -293,7 +294,7 @@ class KeyManager: SpruceKitKeyStore {
      */
     fun encryptPayload(id: String, payload: ByteArray): Pair<ByteArray, ByteArray> {
         val secretKey = getSecretKey(id)
-    
+
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, secretKey)
         val iv = cipher.iv
@@ -316,6 +317,47 @@ class KeyManager: SpruceKitKeyStore {
         return cipher.doFinal(payload)
     }
 
+    /**
+     * Encrypts data using envelope encryption pattern with direct AES/GCM.
+     * This method is much faster for large payloads than hardware security modules.
+     *
+     * Reference:https://cloud.google.com/kms/docs/envelope-encryption
+     *
+     * @property key 32-byte AES key (data encryption key)
+     * @property data Data to encrypt
+     * @return Pair<IV, EncryptedData>
+     */
+    fun encryptWithDirectKey(key: ByteArray, data: ByteArray): Pair<ByteArray, ByteArray> {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        val secretKey = SecretKeySpec(key, "AES")
+
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+        val iv = cipher.iv
+        val encrypted = cipher.doFinal(data)
+
+        return Pair(iv, encrypted)
+    }
+
+    /**
+     * Decrypts data using envelope encryption pattern with direct AES/GCM.
+     * This method is much faster for large payloads than hardware security modules.
+     *
+     * Reference: https://cloud.google.com/kms/docs/envelope-encryption
+     *
+     * @property key 32-byte AES key (data encryption key)
+     * @property iv Initialization vector
+     * @property encryptedData Data to decrypt
+     * @return Decrypted data
+     */
+    fun decryptWithDirectKey(key: ByteArray, iv: ByteArray, encryptedData: ByteArray): ByteArray {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        val secretKey = SecretKeySpec(key, "AES")
+        val spec = GCMParameterSpec(128, iv)
+
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
+        return cipher.doFinal(encryptedData)
+    }
+
     override fun getSigningKey(alias: KeyAlias): SigningKey {
         val jwk = this.getJwk(alias) ?: throw Error("key not found");
         return P256SigningKey(alias, jwk)
@@ -328,7 +370,7 @@ class P256SigningKey(private val alias: String, private val jwk: String) : Signi
 
     override fun sign(payload: ByteArray): ByteArray {
         val derSignature = KeyManager().signPayload(alias, payload) ?: throw Error("key not found");
-        return CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(derSignature) ?:
-            throw Error("signature encoding not recognized");
+        return CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(derSignature)
+            ?: throw Error("signature encoding not recognized");
     }
 }
