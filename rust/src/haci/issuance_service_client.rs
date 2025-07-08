@@ -78,7 +78,7 @@ impl IssuanceEndpoints {
         client: &HaciHttpClient,
         base_url: &String,
     ) -> Result<Self, IssuanceServiceError> {
-        let url = format!("{}/.well-known/showcase-endpoints", base_url);
+        let url = format!("{base_url}/.well-known/showcase-endpoints");
         let response = client.get(url).send().await.map_err(|e| {
             IssuanceServiceError::NetworkError(format!(
                 "Issuance endpoints fetching error: {:?}",
@@ -91,7 +91,7 @@ impl IssuanceEndpoints {
             let error_text = response.text().await.unwrap_or_default();
             return Err(IssuanceServiceError::ServerError {
                 status,
-                error_message: format!("Issuance endpoints fetching error: {:?}", error_text),
+                error_message: format!("Issuance endpoints fetching error: {error_text:?}"),
             });
         }
 

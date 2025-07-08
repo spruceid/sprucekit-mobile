@@ -210,7 +210,7 @@ pub async fn oid4vci_initiate_with_offer(
         })
         .collect();
 
-    log::trace!("Credential requests: {:#?}", credential_requests);
+    log::trace!("Credential requests: {credential_requests:#?}");
 
     let client = client::Client::from_issuer_metadata(
         ClientId::new(client_id),

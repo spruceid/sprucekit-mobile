@@ -14,7 +14,7 @@ impl HaciHttpClient {
                 .use_rustls_tls()
                 .timeout(std::time::Duration::from_secs(30))
                 .build()
-                .unwrap_or_else(|e| panic!("Failed to build HTTP client: {}", e)),
+                .unwrap_or_else(|e| panic!("Failed to build HTTP client: {e}")),
         )
     }
 

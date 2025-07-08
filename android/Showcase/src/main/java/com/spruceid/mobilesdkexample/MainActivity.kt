@@ -53,8 +53,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var connectionLiveData: ConnectionLiveData
     private lateinit var hacApplicationsViewModel: HacApplicationsViewModel
 
-    override fun onNewIntent(intent: Intent?) {
-        if (intent != null && intent.action == "android.intent.action.VIEW" && intent.data != null) {
+    override fun onNewIntent(intent: Intent) {
+        if (intent.action == "android.intent.action.VIEW" && intent.data != null) {
             if (intent.data!!.toString().startsWith("spruceid://?sd-jwt=")) {
                 navController.navigate(
                     Screen.AddToWalletScreen.route.replace(
