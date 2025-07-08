@@ -167,6 +167,7 @@ class TrustedCertificatesDataStore {
             if count == 0 {
                 MIGRATION_0_2(database)
             }
+            MIGRATION_2_3(database)
 
             print("Tables Created...")
         } catch {
@@ -197,6 +198,27 @@ class TrustedCertificatesDataStore {
             }
         } catch {
             print("Migration 0 -> 2 error: \(error)")
+        }
+    }
+
+    // Migration to version 3: Add HACI Staging certificate
+    private func MIGRATION_2_3(_ database: Connection) {
+        do {
+            try database.transaction {
+                // Insert the new certificate only if it doesn't exist
+                let insert = trustedCertificates.insert(
+                    or: .ignore,
+                    name <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.0,
+                    content
+                        <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.1
+                )
+                try database.run(insert)
+
+                // Update version
+                try database.run(dbVersion.update(version <- 3))
+            }
+        } catch {
+            print("Migration 2 -> 3 error: \(error)")
         }
     }
 

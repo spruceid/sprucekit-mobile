@@ -9,6 +9,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.spruceid.mobilesdkexample.viewmodels.DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD
+import com.spruceid.mobilesdkexample.viewmodels.DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING
 
 @Database(
     entities = [
@@ -19,7 +20,7 @@ import com.spruceid.mobilesdkexample.viewmodels.DEFAULT_TRUST_ANCHOR_IACA_SPRUCE
         TrustedCertificates::class,
         HacApplications::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 6, to = 7)
@@ -51,6 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
                         .addMigrations(MIGRATION_5_6)
                         .addMigrations(MIGRATION_7_8)
                         .addMigrations(MIGRATION_8_9)
+                        .addMigrations(MIGRATION_9_10)
                         .allowMainThreadQueries()
                         .build()
                 dbInstance = instance
@@ -139,6 +141,21 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
                 VALUES (
                     '${DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD.name}',
                     '${DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD.content}'
+                )
+            """.trimIndent()
+        )
+    }
+}
+
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Insert the new Spruce HACI prod certificate only if it doesn't exist
+        database.execSQL(
+            """
+                INSERT OR IGNORE INTO trusted_certificates (name, content)
+                VALUES (
+                    '${DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.name}',
+                    '${DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.content}'
                 )
             """.trimIndent()
         )
