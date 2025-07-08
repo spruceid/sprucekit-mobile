@@ -5,9 +5,7 @@ use anyhow::{Context, Result};
 use isomdl::{
     definitions::{
         helpers::NonEmptyMap,
-        namespaces::{
-            org_iso_18013_5_1::OrgIso1801351, org_iso_18013_5_1_aamva::OrgIso1801351Aamva,
-        },
+        namespaces::org_iso_18013_5_1::OrgIso1801351,
         traits::{FromJson, ToNamespaceMap},
         x509::X5Chain,
         CoseKey, DeviceKeyInfo, DigestAlgorithm, EC2Curve, ValidityInfo, EC2Y,
@@ -141,104 +139,45 @@ fn generate_test_mdl_inner(
 fn prepare_mdoc(pub_key: PublicKey) -> Result<isomdl::issuance::mdoc::Builder> {
     let isomdl_data = serde_json::json!(
         {
-          "family_name":"Smith",
-          "given_name":"Alice",
-          "birth_date":"1980-01-01",
+          "family_name":"Doe",
+          "given_name":"John",
+          "birth_date":"1990-01-01",
           "issue_date":"2020-01-01",
           "expiry_date":"2030-01-01",
           "issuing_country":"US",
-          "issuing_authority":"NY DMV",
+          "issuing_authority":"SpruceID",
           "document_number": format!("DL{}", rand::thread_rng().gen_range(10_000_000..100_000_000)),
           "portrait":include_str!("../../tests/res/mdl/portrait.base64"),
-          "driving_privileges":[
-            {
-               "vehicle_category_code":"A",
-               "issue_date":"2020-01-01",
-               "expiry_date":"2030-01-01"
-            },
-            {
-               "vehicle_category_code":"B",
-               "issue_date":"2020-01-01",
-               "expiry_date":"2030-01-01"
-            }
-          ],
+          "driving_privileges":[],
           "un_distinguishing_sign":"USA",
-          "administrative_number":"ABC123",
+          "administrative_number":format!("ADM{}", rand::thread_rng().gen_range(10_000_000..100_000_000)),
           "sex":1,
-          "height":170,
-          "weight":70,
-          "eye_colour":"hazel",
-          "hair_colour":"red",
-          "birth_place":"Canada",
-          "resident_address":"138 Eagle Street",
+          "height":180,
+          "weight":75,
+          "eye_colour":"blue",
+          "hair_colour":"black",
+          "birth_place":"USA, California",
+          "resident_address":"123 Main St, Los Angeles, California, 90001",
           "portrait_capture_date":"2020-01-01T12:00:00Z",
-          "age_in_years":43,
-          "age_birth_year":1980,
+          "age_in_years":35,
+          "age_birth_year":1990,
           "age_over_18":true,
           "age_over_21":true,
-          "issuing_jurisdiction":"US-NY",
+          "age_over_60":false,
           "nationality":"US",
-          "resident_city":"Albany",
-          "resident_state":"New York",
-          "resident_postal_code":"12202-1719",
+          "resident_city":"Los Angeles",
+          "resident_state":"CA",
+          "resident_postal_code":"90001",
           "resident_country": "US"
-        }
-    );
-
-    let aamva_isomdl_data = serde_json::json!(
-        {
-          "domestic_driving_privileges":[
-            {
-              "domestic_vehicle_class":{
-                "domestic_vehicle_class_code":"A",
-                "domestic_vehicle_class_description":"unknown",
-                "issue_date":"2020-01-01",
-                "expiry_date":"2030-01-01"
-              }
-            },
-            {
-              "domestic_vehicle_class":{
-                "domestic_vehicle_class_code":"B",
-                "domestic_vehicle_class_description":"unknown",
-                "issue_date":"2020-01-01",
-                "expiry_date":"2030-01-01"
-              }
-            }
-          ],
-          "name_suffix":"1ST",
-          "organ_donor":1,
-          "veteran":1,
-          "family_name_truncation":"N",
-          "given_name_truncation":"N",
-          "aka_family_name.v2":"Smithy",
-          "aka_given_name.v2":"Ally",
-          "aka_suffix":"I",
-          "weight_range":3,
-          "race_ethnicity":"AI",
-          "EDL_credential":1,
-          "sex":1,
-          "DHS_compliance":"F",
-          "resident_county":"001",
-          "hazmat_endorsement_expiration_date":"2024-01-30",
-          "CDL_indicator":1,
-          "DHS_compliance_text":"Compliant",
-          "DHS_temporary_lawful_status":1,
         }
     );
 
     let doc_type = String::from("org.iso.18013.5.1.mDL");
     let isomdl_namespace = String::from("org.iso.18013.5.1");
-    let aamva_namespace = String::from("org.iso.18013.5.1.aamva");
 
     let isomdl_data = OrgIso1801351::from_json(&isomdl_data)?.to_ns_map();
-    let aamva_data = OrgIso1801351Aamva::from_json(&aamva_isomdl_data)?.to_ns_map();
 
-    let namespaces = [
-        (isomdl_namespace, isomdl_data),
-        (aamva_namespace, aamva_data),
-    ]
-    .into_iter()
-    .collect();
+    let namespaces = [(isomdl_namespace, isomdl_data)].into_iter().collect();
 
     let validity_info = ValidityInfo {
         signed: OffsetDateTime::now_utc(),
