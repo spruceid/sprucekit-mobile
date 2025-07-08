@@ -57,11 +57,11 @@ fn create_token_info(token: String) -> Result<TokenInfo, WalletServiceError> {
     let jws_bytes: Vec<u8> = token.as_bytes().to_vec();
 
     let jws_buf = JwsBuf::new(jws_bytes)
-        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to parse JWS: {:?}", e)))?;
+        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to parse JWS: {e:?}")))?;
 
     let jwt_claims = jws_buf
         .to_decoded_jwt()
-        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to decode JWT: {:?}", e)))?
+        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to decode JWT: {e:?}")))?
         .signing_bytes
         .payload;
 
@@ -73,7 +73,7 @@ fn create_token_info(token: String) -> Result<TokenInfo, WalletServiceError> {
 
     let expires_at =
         OffsetDateTime::from_unix_timestamp(exp.0.as_seconds() as i64).map_err(|e| {
-            WalletServiceError::JwtParseError(format!("Invalid expiration timestamp: {}", e))
+            WalletServiceError::JwtParseError(format!("Invalid expiration timestamp: {e}"))
         })?;
 
     Ok(TokenInfo {
@@ -103,7 +103,7 @@ impl WalletEndpoints {
         client: &HaciHttpClient,
         base_url: &String,
     ) -> Result<Self, WalletServiceError> {
-        let url = format!("{}/.well-known/showcase-endpoints", base_url);
+        let url = format!("{base_url}/.well-known/showcase-endpoints");
         let response = client.get(url).send().await.map_err(|e| {
             WalletServiceError::NetworkError(format!(
                 "Wallet endpoints fetching error: {:?}",
@@ -116,7 +116,7 @@ impl WalletEndpoints {
             let error_text = response.text().await.unwrap_or_default();
             return Err(WalletServiceError::ServerError {
                 status,
-                error_message: format!("Wallet endpoints fetching error: {:?}", error_text),
+                error_message: format!("Wallet endpoints fetching error: {error_text:?}"),
             });
         }
 

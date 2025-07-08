@@ -102,7 +102,7 @@ pub trait Verifiable: Credential {
                 Ok(_) => Ok(()),
                 Err(err) => match self.validate_certificate_chain(crypto, &cwt, cert.clone()) {
                     Ok(_) => Ok(()),
-                    Err(e) => Err(format!("{}\n--------------\n{}", err, e)),
+                    Err(e) => Err(format!("{err}\n--------------\n{e}")),
                 },
             })
             .map_err(|err| {

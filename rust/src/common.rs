@@ -42,7 +42,7 @@ pub struct Key(pub String);
 impl Key {
     /// Create a new key with a prefix
     pub fn with_prefix(prefix: &str, key: &str) -> Self {
-        Self(format!("{}{}", prefix, key))
+        Self(format!("{prefix}{key}"))
     }
 
     /// Strip the prefix from the key, returning the key without the prefix
@@ -125,16 +125,16 @@ impl std::fmt::Display for CborValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             CborValue::Null => write!(f, ""),
-            CborValue::Bool(v) => write!(f, "{}", v),
+            CborValue::Bool(v) => write!(f, "{v}"),
             CborValue::Integer(cbor_integer) => write!(f, "{}", cbor_integer.to_text()),
-            CborValue::Float(v) => write!(f, "{}", v),
+            CborValue::Float(v) => write!(f, "{v}"),
             CborValue::Bytes(items) => items.iter().enumerate().try_fold((), |_, (i, item)| {
                 if i > 0 {
                     write!(f, ",")?;
                 }
-                write!(f, "{}", item)
+                write!(f, "{item}")
             }),
-            CborValue::Text(v) => write!(f, "{}", v),
+            CborValue::Text(v) => write!(f, "{v}"),
             CborValue::Array(cbor_values) => {
                 cbor_values
                     .iter()
@@ -143,7 +143,7 @@ impl std::fmt::Display for CborValue {
                         if i > 0 {
                             write!(f, ",")?;
                         }
-                        write!(f, "{}", value)
+                        write!(f, "{value}")
                     })
             }
             CborValue::ItemMap(hash_map) => {
@@ -152,7 +152,7 @@ impl std::fmt::Display for CborValue {
                     if i > 0 {
                         write!(f, ",")?;
                     }
-                    write!(f, r#""{}":"{}""#, k, v)
+                    write!(f, r#""{k}":"{v}""#)
                 })?;
                 write!(f, "}}")
             }
