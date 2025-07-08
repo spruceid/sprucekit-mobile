@@ -27,6 +27,27 @@ let DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD = (
     """
 )
 
+let DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING = (
+    "spruceid-haci-staging-certificate.pem",
+    """
+    -----BEGIN CERTIFICATE-----
+    MIICPjCCAeWgAwIBAgIIWVEstjwOoOAwCgYIKoZIzj0EAwIwUTERMA8GA1UECgwI
+    U3BydWNlSUQxCzAJBgNVBAgMAk5ZMQswCQYDVQQGEwJVUzEiMCAGA1UEAwwZU3By
+    dWNlSUQgbURMIENBIChTdGFnaW5nKTAeFw0yNTA0MDQxMTAxNDZaFw0zMDA0MDMx
+    MTAxNDZaMFExETAPBgNVBAoMCFNwcnVjZUlEMQswCQYDVQQIDAJOWTELMAkGA1UE
+    BhMCVVMxIjAgBgNVBAMMGVNwcnVjZUlEIG1ETCBDQSAoU3RhZ2luZykwWTATBgcq
+    hkjOPQIBBggqhkjOPQMBBwNCAASJt4BBmA/JSHiIrWI00MMIgi8cJb0n67hpZjS6
+    NipkOe8UIQtHzH+gyN8EARfwFD14X/vmy0wsWlQx3UlFL9wDo4GmMIGjMB0GA1Ud
+    DgQWBBSMXLgb59dX6Vway9tD6N+5kGDktjAfBgNVHRIEGDAWhhRodHRwczovL3Nw
+    cnVjZWlkLmNvbTA9BgNVHR8ENjA0MDKgMKAuhixodHRwczovL2NybC5oYWNpLnN0
+    YWdpbmcuc3BydWNlaWQueHl6L2lhY2EtMDAOBgNVHQ8BAf8EBAMCAQYwEgYDVR0T
+    AQH/BAgwBgEB/wIBADAKBggqhkjOPQQDAgNHADBEAiAiOqzt3ToFMtKdfw/ymsLm
+    YulhRGtKCN95+3sKsGRxBwIgYU/+vwMuO6hY6KZYXb5FUS51xV6PSGUopGiBuTtM
+    t7U=
+    -----END CERTIFICATE-----
+    """
+)
+
 let DEFAULT_TRUST_ANCHOR_CERTIFICATES = [
     // rust/tests/res/mdl/iaca-certificate.pem
     (
@@ -67,6 +88,8 @@ let DEFAULT_TRUST_ANCHOR_CERTIFICATES = [
         -----END CERTIFICATE-----
         """
     ),
+    // IACA Spruce HACI Staging
+    DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING,
     // IACA Spruce HACI Prod
     DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD,
 ]
@@ -144,6 +167,7 @@ class TrustedCertificatesDataStore {
             if count == 0 {
                 MIGRATION_0_2(database)
             }
+            MIGRATION_2_3(database)
 
             print("Tables Created...")
         } catch {
@@ -174,6 +198,27 @@ class TrustedCertificatesDataStore {
             }
         } catch {
             print("Migration 0 -> 2 error: \(error)")
+        }
+    }
+
+    // Migration to version 3: Add HACI Staging certificate
+    private func MIGRATION_2_3(_ database: Connection) {
+        do {
+            try database.transaction {
+                // Insert the new certificate only if it doesn't exist
+                let insert = trustedCertificates.insert(
+                    or: .ignore,
+                    name <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.0,
+                    content
+                        <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.1
+                )
+                try database.run(insert)
+
+                // Update version
+                try database.run(dbVersion.update(version <- 3))
+            }
+        } catch {
+            print("Migration 2 -> 3 error: \(error)")
         }
     }
 
