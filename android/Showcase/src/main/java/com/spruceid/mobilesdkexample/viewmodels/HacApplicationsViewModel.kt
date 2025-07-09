@@ -15,12 +15,16 @@ import com.spruceid.mobilesdkexample.config.EnvironmentConfig
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.db.HacApplicationsRepository
 import com.spruceid.mobilesdkexample.utils.Toast
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import java.util.concurrent.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.CancellationException as KotlinCancellationException
 
 class HacApplicationsViewModel(
     application: Application,
@@ -128,12 +132,14 @@ class HacApplicationsViewModel(
     }
 
     suspend fun getNonce(): String? {
-        try {
-            return walletServiceClient.nonce()
-        } catch (e: Exception) {
-            e.printStackTrace()
+        return withContext(Dispatchers.IO) {
+            try {
+                walletServiceClient.nonce()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
         }
-        return null
     }
 
     suspend fun getWalletAttestation(): String? {
@@ -146,28 +152,39 @@ class HacApplicationsViewModel(
 
                 getSigningJwk()
 
-                suspendCancellableCoroutine { continuation ->
+                val payload = suspendCancellableCoroutine { continuation ->
+                    if (!continuation.isActive) {
+                        return@suspendCancellableCoroutine
+                    }
                     attestation.appAttest(nonce, DEFAULT_SIGNING_KEY_ID) { result ->
                         result.fold(
                             onSuccess = { payload ->
-                                viewModelScope.launch {
-                                    try {
-                                        continuation.resume(walletServiceClient.login(payload))
-                                    } catch (e: Exception) {
-                                        continuation.resumeWithException(e)
-                                    }
+                                if (continuation.isActive) {
+                                    continuation.resume(payload)
                                 }
                             },
                             onFailure = { error ->
-                                error.printStackTrace()
-                                continuation.resumeWithException(error)
+                                if (continuation.isActive) {
+                                    continuation.resumeWithException(error)
+                                }
                             }
                         )
                     }
                 }
+                withContext(Dispatchers.IO) {
+                    walletServiceClient.login(payload)
+                }
             }
+        } catch (e: CancellationException) {
+            null
+        } catch (e: KotlinCancellationException) {
+            null
         } catch (e: Exception) {
-            e.localizedMessage?.let { Toast.showError(it) }
+            if (!e.message.orEmpty().contains("composition") &&
+                !e.message.orEmpty().contains("scope left")
+            ) {
+                e.localizedMessage?.let { Toast.showError(it) }
+            }
             null
         }
     }
