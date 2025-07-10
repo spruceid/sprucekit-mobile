@@ -27,6 +27,15 @@ struct CredentialObjectDisplayer: View {
     }
 }
 
+func formatValueString(_ value: GenericJSON) -> String {
+    if case let .number(num) = value {
+        if num.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(format: "%.0f", num)
+        }
+    }
+    return value.toString()
+}
+
 func genericObjectDisplayer(
     object: [String: GenericJSON], filter: [String] = [], level: Int = 1
 ) -> [AnyView] {
@@ -168,7 +177,7 @@ func genericObjectDisplayer(
                                     value.toString(),
                                     destination: URL(string: value.toString())!)
                             } else {
-                                Text(value.toString())
+                                Text(formatValueString(value))
                             }
                         }))
             }
