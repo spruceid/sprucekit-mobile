@@ -14,11 +14,11 @@ struct GenericCredentialItem: ICredentialView {
         rawCredential: String,
         goTo: (() -> Void)? = nil,
         onDelete: (() -> Void)? = nil
-    ) {
+    ) async {
         self.goTo = goTo
         self.onDelete = onDelete
         do {
-            self.credentialPack = try addCredential(
+            self.credentialPack = try await addCredential(
                 credentialPack: CredentialPack(),
                 rawCredential: rawCredential
             )

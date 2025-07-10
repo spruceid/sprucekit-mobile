@@ -73,3 +73,4 @@ Tuist/Dependencies
 .build
 archive.xcarchive
 Info.plist
+App.entitlements

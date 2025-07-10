@@ -15,7 +15,7 @@ public func generateMockMdl() async {
         )
         let mdocPack = CredentialPack()
 
-        _ = mdocPack.addMDoc(mdoc: mdl)
+        _ = try await mdocPack.addMDoc(mdoc: mdl)
 
         try await mdocPack.save(
             storageManager: StorageManager()

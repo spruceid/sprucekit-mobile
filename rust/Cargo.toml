@@ -34,6 +34,7 @@ futures = "0.3"
 futures-util = "0.3.31"
 hex = "0.4.3"
 http = "1.1.0"
+hpke = { version = "0.13.0", default-features = false, features = ["alloc", "p256"] }
 # Patch of josekit to support RustCrypto for JWE generation in the 18013-7 Annex B OID4VP profile.
 # Default josekit uses openssl which cannot be easily used in a mobile library.
 josekit = { git = "https://github.com/cobward/josekit-rs", rev = "635c8a7" }
@@ -45,6 +46,7 @@ num-bigint = "0.4.4"
 num-traits = "0.2.19"
 p256 = { version = "0.13.2", features = ["pkcs8"] }
 pem-rfc7468 = "0.7.0"
+rand = "0.9.1"
 reqwest = { version = "0.12.5", features = ["blocking", "rustls-tls"] }
 serde = { version = "1.0.204", features = ["derive"] }
 serde_cbor = "0.11.2"
