@@ -1,18 +1,21 @@
 package com.spruceid.mobilesdkexample.viewmodels
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.db.WalletActivityLogsRepository
 import com.spruceid.mobilesdkexample.utils.formatSqlDateTime
 import com.spruceid.mobilesdkexample.utils.removeCommas
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class WalletActivityLogsViewModel(private val walletActivityLogsRepository: WalletActivityLogsRepository) :
-    ViewModel() {
+@HiltViewModel
+class WalletActivityLogsViewModel @Inject constructor(
+    private val walletActivityLogsRepository: WalletActivityLogsRepository
+) : ViewModel() {
     private val _walletActivityLogs = MutableStateFlow(listOf<WalletActivityLogs>())
     val walletActivityLogs = _walletActivityLogs.asStateFlow()
 
@@ -56,11 +59,4 @@ class WalletActivityLogsViewModel(private val walletActivityLogsRepository: Wall
 
         return heading + rows
     }
-}
-
-class WalletActivityLogsViewModelFactory(private val repository: WalletActivityLogsRepository) :
-    ViewModelProvider.NewInstanceFactory() {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        WalletActivityLogsViewModel(repository) as T
 }

@@ -25,9 +25,6 @@ import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
-import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
-import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
-import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request
@@ -40,10 +37,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HandleOID4VCIView(
     navController: NavHostController,
-    url: String,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    statusListViewModel: StatusListViewModel
+    url: String
 ) {
     var loading by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -165,9 +159,6 @@ fun HandleOID4VCIView(
         AddToWalletView(
             navController = navController,
             rawCredential = credential!!,
-            credentialPacksViewModel = credentialPacksViewModel,
-            walletActivityLogsViewModel = walletActivityLogsViewModel,
-            statusListViewModel = statusListViewModel,
             onSuccess = {
                 scope.launch {
                     callback?.invoke()

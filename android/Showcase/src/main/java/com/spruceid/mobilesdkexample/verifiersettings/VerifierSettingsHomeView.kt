@@ -35,14 +35,14 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.SettingsHomeItem
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 @Composable
 fun VerifierSettingsHomeView(
-    navController: NavController,
-    verificationMethodsViewModel: VerificationMethodsViewModel
+    navController: NavController
 ) {
     Column(
         Modifier
@@ -59,8 +59,7 @@ fun VerifierSettingsHomeView(
             }
         )
         VerifierSettingsHomeBody(
-            navController = navController,
-            verificationMethodsViewModel = verificationMethodsViewModel,
+            navController = navController
         )
     }
 }
@@ -102,9 +101,10 @@ fun VerifierSettingsHomeHeader(onBack: () -> Unit) {
 
 @Composable
 fun VerifierSettingsHomeBody(
-    navController: NavController,
-    verificationMethodsViewModel: VerificationMethodsViewModel,
+    navController: NavController
 ) {
+    val verificationMethodsViewModel: VerificationMethodsViewModel = activityHiltViewModel()
+
     Column(
         Modifier
             .padding(top = 10.dp)

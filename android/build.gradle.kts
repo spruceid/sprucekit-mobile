@@ -7,4 +7,5 @@ plugins {
     id("com.google.devtools.ksp") version "2.1.0-1.0.29" apply false
     id("com.github.willir.rust.cargo-ndk-android") version "0.3.4" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
+    id("com.google.dagger.hilt.android") version "2.51.1" apply false
 }

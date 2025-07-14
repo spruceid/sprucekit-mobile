@@ -54,6 +54,7 @@ import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.ParsedCredential
+import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
@@ -64,6 +65,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.credentialPackHasMdoc
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
@@ -80,10 +82,10 @@ class CredentialDetailsViewTabs(
 @Composable
 fun CredentialDetailsView(
     navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    statusListViewModel: StatusListViewModel,
     credentialPackId: String
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val statusListViewModel: StatusListViewModel = activityHiltViewModel()
     var credentialTitle by remember { mutableStateOf<String?>(null) }
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var credentialPack by remember { mutableStateOf<CredentialPack?>(null) }
@@ -107,8 +109,27 @@ fun CredentialDetailsView(
     )
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        credentialPack = credentialPacksViewModel.getById(credentialPackId) ?: CredentialPack()
+    val isLoading by credentialPacksViewModel.loading.collectAsState()
+    val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
+
+    fun back() {
+        navController.navigate(Screen.HomeScreen.route) {
+            popUpTo(0)
+        }
+    }
+
+    LaunchedEffect(isLoading, credentialPacks) {
+        if (isLoading) {
+            return@LaunchedEffect
+        }
+
+        credentialPack = credentialPacksViewModel.getById(credentialPackId)
+
+        if (credentialPack == null) {
+            back()
+            return@LaunchedEffect
+        }
+
         if (credentialPackHasMdoc(credentialPack!!)) {
             val tmpTabs = tabs.toMutableList()
             tmpTabs.add(
@@ -119,21 +140,34 @@ fun CredentialDetailsView(
             )
             tabs = tmpTabs
         }
-        credentialTitle = getCredentialIdTitleAndIssuer(credentialPack!!).second
-        credentialItem = credentialDisplaySelector(
-            credentialPack!!,
-            statusListViewModel,
-            null,
-            null,
-            null
-        )
-        statusListViewModel.fetchAndUpdateStatus(credentialPack!!)
+
+        try {
+            credentialTitle = getCredentialIdTitleAndIssuer(credentialPack!!).second
+            credentialItem = credentialDisplaySelector(
+                credentialPack!!,
+                statusListViewModel,
+                null,
+                null,
+                null
+            )
+            statusListViewModel.fetchAndUpdateStatus(credentialPack!!)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            back()
+        }
     }
 
-    fun back() {
-        navController.navigate(Screen.HomeScreen.route) {
-            popUpTo(0)
+    if (isLoading) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            LoadingView(loadingText = "Loading credential details...")
         }
+        return
     }
 
     Column(
@@ -188,9 +222,9 @@ fun CredentialDetailsView(
                                 if (statusList != CredentialStatusList.REVOKED) {
                                     credentialItem!!.credentialDetails()
                                 } else {
-                                    credentialItem!!.credentialRevokedInfo({
+                                    credentialItem!!.credentialRevokedInfo {
                                         back()
-                                    })
+                                    }
                                 }
                             }
                         }

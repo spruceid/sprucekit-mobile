@@ -1,6 +1,5 @@
 package com.spruceid.mobilesdkexample.walletsettings
 
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,14 +19,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.spruceid.mobile.sdk.CredentialPack
-import com.spruceid.mobile.sdk.KeyManager
-import com.spruceid.mobile.sdk.rs.generateTestMdl
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import kotlinx.coroutines.launch
 

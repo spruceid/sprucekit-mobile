@@ -48,6 +48,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.SettingsHomeItem
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
@@ -58,10 +59,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun WalletSettingsHomeView(
-    navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    navController: NavController
 ) {
     Column(
         Modifier
@@ -78,10 +76,7 @@ fun WalletSettingsHomeView(
             }
         )
         WalletSettingsHomeBody(
-            navController = navController,
-            credentialPacksViewModel = credentialPacksViewModel,
-            walletActivityLogsViewModel = walletActivityLogsViewModel,
-            hacApplicationsViewModel = hacApplicationsViewModel
+            navController = navController
         )
     }
 }
@@ -123,13 +118,14 @@ fun WalletSettingsHomeHeader(onBack: () -> Unit) {
 
 @Composable
 fun WalletSettingsHomeBody(
-    navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    navController: NavController
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
+    val hacApplicationsViewModel: HacApplicationsViewModel = activityHiltViewModel()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
     var isApplyingForMdl by remember { mutableStateOf(false) }
     val isDevMode by EnvironmentConfig.isDevMode.collectAsState()
 
@@ -179,7 +175,10 @@ fun WalletSettingsHomeBody(
                             val hacApplication = hacApplicationsViewModel.saveApplication(
                                 HacApplications(issuanceId = issuance)
                             )
-                            val status = hacApplicationsViewModel.issuanceClient.checkStatus(issuance, walletAttestation)
+                            val status = hacApplicationsViewModel.issuanceClient.checkStatus(
+                                issuance,
+                                walletAttestation
+                            )
 
                             when (status) {
                                 is FlowState.ProofingRequired -> {
@@ -189,12 +188,15 @@ fun WalletSettingsHomeBody(
                                     )
                                     context.startActivity(intent)
                                 }
+
                                 is FlowState.ReadyToProvision -> {
                                     print("Issuance started with invalid state, please check.")
                                 }
+
                                 is FlowState.ApplicationDenied -> {
                                     print("Issuance started with invalid state, please check.")
                                 }
+
                                 is FlowState.AwaitingManualReview -> {
                                     print("Issuance started with invalid state, please check.")
                                 }

@@ -1,18 +1,19 @@
 package com.spruceid.mobilesdkexample.viewmodels
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.spruceid.mobilesdkexample.db.RawCredentials
-import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
-import com.spruceid.mobilesdkexample.db.VerificationActivityLogsRepository
 import com.spruceid.mobilesdkexample.db.VerificationMethods
 import com.spruceid.mobilesdkexample.db.VerificationMethodsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class VerificationMethodsViewModel(private val verificationMethodsRepository: VerificationMethodsRepository) :
+@HiltViewModel
+class VerificationMethodsViewModel @Inject constructor(
+    private val verificationMethodsRepository: VerificationMethodsRepository
+) :
     ViewModel() {
     private val _verificationMethods = MutableStateFlow(listOf<VerificationMethods>())
     val verificationMethods = _verificationMethods.asStateFlow()
@@ -42,10 +43,4 @@ class VerificationMethodsViewModel(private val verificationMethodsRepository: Ve
         verificationMethodsRepository.deleteVerificationMethod(id = id)
         _verificationMethods.value = verificationMethodsRepository.getVerificationMethods()
     }
-}
-
-class VerificationMethodsViewModelFactory(private val repository: VerificationMethodsRepository) :
-    ViewModelProvider.NewInstanceFactory() {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T = VerificationMethodsViewModel(repository) as T
 }

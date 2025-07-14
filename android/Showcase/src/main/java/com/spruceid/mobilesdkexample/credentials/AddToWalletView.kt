@@ -26,6 +26,7 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
@@ -40,11 +41,11 @@ import kotlinx.coroutines.launch
 fun AddToWalletView(
     navController: NavHostController,
     rawCredential: String,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    statusListViewModel: StatusListViewModel,
     onSuccess: (() -> Unit)? = null
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
+    val statusListViewModel: StatusListViewModel = activityHiltViewModel()
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
     var storing by remember { mutableStateOf(false) }

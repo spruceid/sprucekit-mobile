@@ -46,6 +46,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
@@ -60,12 +61,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun WalletHomeView(
-    navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    statusListViewModel: StatusListViewModel,
-    helpersViewModel: HelpersViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    navController: NavController
 ) {
     Column(
         Modifier
@@ -74,12 +70,7 @@ fun WalletHomeView(
     ) {
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
-            navController = navController,
-            credentialPacksViewModel = credentialPacksViewModel,
-            helpersViewModel = helpersViewModel,
-            walletActivityLogsViewModel = walletActivityLogsViewModel,
-            statusListViewModel = statusListViewModel,
-            hacApplicationsViewModel = hacApplicationsViewModel
+            navController = navController
         )
     }
 }
@@ -141,13 +132,14 @@ fun WalletHomeHeader(navController: NavController) {
 
 @Composable
 fun WalletHomeBody(
-    navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    helpersViewModel: HelpersViewModel,
-    statusListViewModel: StatusListViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    navController: NavController
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
+    val statusListViewModel: StatusListViewModel = activityHiltViewModel()
+    val helpersViewModel: HelpersViewModel = activityHiltViewModel()
+    val hacApplicationsViewModel: HacApplicationsViewModel = activityHiltViewModel()
+
     val scope = rememberCoroutineScope()
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
     val loadingCredentialPacks by credentialPacksViewModel.loading.collectAsState()
