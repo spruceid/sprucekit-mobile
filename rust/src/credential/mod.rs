@@ -67,6 +67,9 @@ pub struct PresentableCredential {
     pub(crate) inner: ParsedCredentialInner,
     pub(crate) limit_disclosure: bool,
     pub(crate) selected_fields: Option<Vec<String>>,
+    // This is the ID of the input descriptor that matches
+    // the credential being presented.
+    pub(crate) input_descriptor_id: String,
 }
 
 /// A credential that has been parsed as a known variant.

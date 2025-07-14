@@ -265,6 +265,7 @@ impl PermissionRequest {
                     inner: sc.inner.clone(),
                     limit_disclosure: sc.limit_disclosure,
                     selected_fields: Some(sf),
+                    input_descriptor_id: sc.input_descriptor_id.clone(),
                 }
                 .into())
             })
@@ -299,6 +300,36 @@ impl PermissionRequest {
     /// Return the purpose of the presentation request.
     pub fn purpose(&self) -> Option<String> {
         self.definition.purpose().map(ToOwned::to_owned)
+    }
+
+    /// Return whether the presentation definition is requesting
+    /// multiple credentials to satisfy the presentation.
+    ///
+    /// Will return true IFF multiple input descriptors exist
+    /// in the presentation definition.
+    ///
+    /// NOTE: Based on the oid4vp specification that each input descriptor
+    /// corresponds to a single credential type.
+    ///
+    /// In cases where multiple credentials are requested, for example,
+    /// an mDL and a vehicle title, each input descriptor would match
+    /// only one credential type.
+    pub fn is_multi_credential_selection(&self) -> bool {
+        self.definition.input_descriptors().len() > 1
+    }
+
+    /// Returns boolean whether the presentation definition
+    /// matches multiple credentials of the same type that
+    /// can satisfy the request.
+    pub fn is_multi_credential_matching(&self) -> bool {
+        // Group credentials by input_descriptor_id and check if any group has multiple credentials
+        let mut descriptor_counts: HashMap<&String, usize> = HashMap::new();
+        for cred in &self.credentials {
+            *descriptor_counts
+                .entry(&cred.input_descriptor_id)
+                .or_insert(0) += 1;
+        }
+        descriptor_counts.values().any(|&count| count > 1)
     }
 }
 
