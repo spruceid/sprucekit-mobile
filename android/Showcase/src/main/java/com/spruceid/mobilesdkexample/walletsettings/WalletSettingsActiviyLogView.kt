@@ -40,16 +40,17 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.formatSqlDateTime
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 
 @Composable
 fun WalletSettingsActivityLogScreen(
-    navController: NavController,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    helpersViewModel: HelpersViewModel
+    navController: NavController
 ) {
+    val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
+    val helpersViewModel: HelpersViewModel = activityHiltViewModel()
     val walletActivityLogs by walletActivityLogsViewModel.walletActivityLogs.collectAsState()
 
     Column(

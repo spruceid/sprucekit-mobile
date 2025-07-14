@@ -21,6 +21,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +65,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
@@ -80,25 +82,18 @@ enum class MdocOID4VPState {
     None,
 }
 
-class MdocOID4VPError {
-    var title: String
-    var details: String
-
-    constructor(title: String, details: String) {
-        this.title = title
-        this.details = details
-    }
-}
+class MdocOID4VPError(var title: String, var details: String)
 
 @Composable
 fun HandleMdocOID4VPView(
     navController: NavController,
-    url: String,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel
+    url: String
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
     val scope = rememberCoroutineScope()
-    val credentialPacks = credentialPacksViewModel.credentialPacks
+    val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
+    val isLoadingCredentials by credentialPacksViewModel.loading.collectAsState()
 
     var handler by remember { mutableStateOf<Oid4vp180137?>(null) }
     var request by remember { mutableStateOf<InProgressRequest180137?>(null) }
@@ -115,39 +110,58 @@ fun HandleMdocOID4VPView(
         }
     }
 
-    when (state) {
-        MdocOID4VPState.None ->
-            LaunchedEffect(Unit) {
-                try {
-                    withContext(Dispatchers.IO) {
-                        val credentials = mutableListOf<Mdoc>()
-                        credentialPacks.value.forEach { credentialPack ->
-                            credentialPack.list().forEach { credential ->
-                                val mdoc = credential.asMsoMdoc()
-                                if (mdoc != null) {
-                                    credentials.add(mdoc)
-                                }
+    LaunchedEffect(isLoadingCredentials) {
+        if (isLoadingCredentials && state == MdocOID4VPState.None) {
+            state = MdocOID4VPState.Loading
+        }
+    }
+
+    // Process credentials when loading is complete and credentials are available
+    LaunchedEffect(isLoadingCredentials, credentialPacks.size) {
+        if (!isLoadingCredentials && credentialPacks.isNotEmpty()) {
+            try {
+                withContext(Dispatchers.IO) {
+                    val credentials = mutableListOf<Mdoc>()
+                    credentialPacks.forEach { credentialPack ->
+                        credentialPack.list().forEach { credential ->
+                            val mdoc = credential.asMsoMdoc()
+                            if (mdoc != null) {
+                                credentials.add(mdoc)
                             }
                         }
-                        if (credentials.isNotEmpty()) {
-                            val handlerRef = Oid4vp180137(credentials, KeyManager())
-                            handler = handlerRef
-                            request = handlerRef.processRequest(url)
-                            state = MdocOID4VPState.SelectCredential
-                        } else {
-                            error =
-                                MdocOID4VPError(
-                                    "No matching credential(s)",
-                                    "There are no credentials in your wallet that match the verification request you have scanned"
-                                )
-                            state = MdocOID4VPState.Err
-                        }
                     }
-                } catch (e: Exception) {
-                    error = MdocOID4VPError("No matching credential(s)", e.localizedMessage!!)
-                    state = MdocOID4VPState.Err
+                    if (credentials.isNotEmpty()) {
+                        val handlerRef = Oid4vp180137(credentials, KeyManager())
+                        handler = handlerRef
+                        request = handlerRef.processRequest(url)
+                        state = MdocOID4VPState.SelectCredential
+                    } else {
+                        error =
+                            MdocOID4VPError(
+                                "No matching credential(s)",
+                                "There are no credentials in your wallet that match the verification request you have scanned"
+                            )
+                        state = MdocOID4VPState.Err
+                    }
                 }
+            } catch (e: Exception) {
+                error = MdocOID4VPError("No matching credential(s)", e.localizedMessage!!)
+                state = MdocOID4VPState.Err
             }
+        } else if (!isLoadingCredentials) {
+            error =
+                MdocOID4VPError(
+                    "No matching credential(s)",
+                    "There are no credentials in your wallet that match the verification request you have scanned"
+                )
+            state = MdocOID4VPState.Err
+        }
+    }
+
+    when (state) {
+        MdocOID4VPState.None -> {
+            // Initial state - LaunchedEffects above will handle the transitions
+        }
 
         MdocOID4VPState.Err ->
             ErrorView(
@@ -174,7 +188,7 @@ fun HandleMdocOID4VPView(
                         try {
                             val redirect = request!!.respond(approvedResponse)
                             val credentialPack =
-                                credentialPacks.value.firstOrNull { credentialPack ->
+                                credentialPacks.firstOrNull { credentialPack ->
                                     credentialPack.getCredentialById(
                                         selectedMatch!!.credentialId()
                                     ) != null
@@ -218,9 +232,10 @@ fun MdocFieldSelector(
     origin: String = "Verifier"
 ) {
     var selectedFields by remember {
-        mutableStateOf<Set<FieldId180137>>(match.requestedFields()
-            .filter { field -> field.required || !field.selectivelyDisclosable }
-            .map { field -> field.id }.toHashSet()
+        mutableStateOf<Set<FieldId180137>>(
+            match.requestedFields()
+                .filter { field -> field.required || !field.selectivelyDisclosable }
+                .map { field -> field.id }.toHashSet()
         )
     }
 
@@ -251,7 +266,8 @@ fun MdocFieldSelector(
                 .weight(weight = 1f, fill = false)
         ) {
             match.requestedFields().forEach { field ->
-                MdocFieldSelectorItem(field,
+                MdocFieldSelectorItem(
+                    field,
                     checked = selectedFields.contains(field.id),
                     selectField = {
                         val newSet: MutableSet<FieldId180137> = selectedFields.toMutableSet()
@@ -519,11 +535,13 @@ fun MdocSelectorItem(
                 modifier = Modifier.weight(1f)
             )
             if (expanded) {
-                Image(painter = painterResource(id = R.drawable.collapse),
+                Image(
+                    painter = painterResource(id = R.drawable.collapse),
                     contentDescription = stringResource(id = R.string.collapse),
                     modifier = Modifier.clickable { expanded = false })
             } else {
-                Image(painter = painterResource(id = R.drawable.expand),
+                Image(
+                    painter = painterResource(id = R.drawable.expand),
                     contentDescription = stringResource(id = R.string.expand),
                     modifier = Modifier.clickable { expanded = true })
             }

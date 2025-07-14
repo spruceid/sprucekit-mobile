@@ -51,6 +51,7 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.Toast
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.TrustedCertificatesViewModel
@@ -144,10 +145,11 @@ enum class State {
 @Composable
 fun VerifyMDocView(
     navController: NavController,
-    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
-    trustedCertificatesViewModel: TrustedCertificatesViewModel,
     checkAgeOver18: Boolean = false
 ) {
+    val verificationActivityLogsViewModel: VerificationActivityLogsViewModel =
+        activityHiltViewModel()
+    val trustedCertificatesViewModel: TrustedCertificatesViewModel = activityHiltViewModel()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var reader: IsoMdlReader? = null

@@ -20,14 +20,6 @@ import com.spruceid.mobilesdkexample.verifier.VerifyVCView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsTrustedCertificatesView
-import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
-import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
-import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
-import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
-import com.spruceid.mobilesdkexample.viewmodels.TrustedCertificatesViewModel
-import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
-import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
-import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.HandleMdocOID4VPView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VCIView
@@ -37,15 +29,7 @@ import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
 
 @Composable
 fun SetupNavGraph(
-    navController: NavHostController,
-    verificationMethodsViewModel: VerificationMethodsViewModel,
-    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    statusListViewModel: StatusListViewModel,
-    helpersViewModel: HelpersViewModel,
-    trustedCertificatesViewModel: TrustedCertificatesViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    navController: NavHostController
 ) {
     NavHost(navController = navController, startDestination = Screen.HomeScreen.route) {
         composable(
@@ -59,30 +43,18 @@ fun SetupNavGraph(
             val tab = backStackEntry.arguments?.getString("tab")!!
             HomeView(
                 navController,
-                initialTab = tab,
-                verificationMethodsViewModel = verificationMethodsViewModel,
-                credentialPacksViewModel = credentialPacksViewModel,
-                walletActivityLogsViewModel = walletActivityLogsViewModel,
-                statusListViewModel = statusListViewModel,
-                helpersViewModel = helpersViewModel,
-                hacApplicationsViewModel = hacApplicationsViewModel
+                initialTab = tab
             )
         }
         composable(
             route = Screen.VerifyDLScreen.route,
         ) {
-            VerifyDLView(
-                navController,
-                verificationActivityLogsViewModel = verificationActivityLogsViewModel
-            )
+            VerifyDLView(navController)
         }
         composable(
             route = Screen.VerifyEAScreen.route,
         ) {
-            VerifyEAView(
-                navController,
-                verificationActivityLogsViewModel = verificationActivityLogsViewModel
-            )
+            VerifyEAView(navController)
         }
         composable(
             route = Screen.VerifyVCScreen.route,
@@ -92,24 +64,18 @@ fun SetupNavGraph(
         composable(
             route = Screen.VerifyCWTScreen.route,
         ) {
-            VerifyCwtView(navController, verificationActivityLogsViewModel, statusListViewModel)
+            VerifyCwtView(navController)
         }
         composable(
             route = Screen.VerifyMDocScreen.route,
         ) {
-            VerifyMDocView(
-                navController,
-                verificationActivityLogsViewModel = verificationActivityLogsViewModel,
-                trustedCertificatesViewModel = trustedCertificatesViewModel
-            )
+            VerifyMDocView(navController)
         }
         composable(
             route = Screen.VerifyMDlOver18Screen.route,
         ) {
             VerifyMDocView(
                 navController,
-                verificationActivityLogsViewModel = verificationActivityLogsViewModel,
-                trustedCertificatesViewModel = trustedCertificatesViewModel,
                 checkAgeOver18 = true
             )
         }
@@ -119,63 +85,38 @@ fun SetupNavGraph(
             val id = backStackEntry.arguments?.getString("id")!!
             VerifyDelegatedOid4vpView(
                 navController,
-                verificationId = id,
-                verificationMethodsViewModel = verificationMethodsViewModel,
-                verificationActivityLogsViewModel = verificationActivityLogsViewModel,
-                statusListViewModel = statusListViewModel
+                verificationId = id
             )
         }
         composable(
             route = Screen.VerifierSettingsHomeScreen.route,
         ) {
-            VerifierSettingsHomeView(
-                navController,
-                verificationMethodsViewModel = verificationMethodsViewModel
-            )
+            VerifierSettingsHomeView(navController)
         }
         composable(
             route = Screen.VerifierSettingsActivityLogScreen.route,
         ) {
-            VerifierSettingsActivityLogScreen(
-                navController,
-                verificationActivityLogsViewModel = verificationActivityLogsViewModel,
-                helpersViewModel = helpersViewModel
-            )
+            VerifierSettingsActivityLogScreen(navController)
         }
         composable(
             route = Screen.VerifierSettingsTrustedCertificatesScreen.route,
         ) {
-            VerifierSettingsTrustedCertificatesView(
-                navController,
-                trustedCertificatesViewModel = trustedCertificatesViewModel
-            )
+            VerifierSettingsTrustedCertificatesView(navController)
         }
         composable(
             route = Screen.AddVerificationMethodScreen.route,
         ) {
-            AddVerificationMethodView(
-                navController,
-                verificationMethodsViewModel = verificationMethodsViewModel
-            )
+            AddVerificationMethodView(navController)
         }
         composable(
             route = Screen.WalletSettingsHomeScreen.route,
         ) {
-            WalletSettingsHomeView(
-                navController,
-                credentialPacksViewModel,
-                walletActivityLogsViewModel,
-                hacApplicationsViewModel
-            )
+            WalletSettingsHomeView(navController)
         }
         composable(
             route = Screen.WalletSettingsActivityLogScreen.route,
         ) {
-            WalletSettingsActivityLogScreen(
-                navController,
-                walletActivityLogsViewModel = walletActivityLogsViewModel,
-                helpersViewModel = helpersViewModel
-            )
+            WalletSettingsActivityLogScreen(navController)
         }
         composable(
             route = Screen.AddToWalletScreen.route,
@@ -190,10 +131,7 @@ fun SetupNavGraph(
             if (!rawCredential.isNullOrEmpty()) {
                 AddToWalletView(
                     navController,
-                    rawCredential,
-                    credentialPacksViewModel,
-                    walletActivityLogsViewModel,
-                    statusListViewModel
+                    rawCredential
                 )
             } else {
                 navController.navigate(Screen.HomeScreen.route) {
@@ -210,10 +148,7 @@ fun SetupNavGraph(
             val url = backStackEntry.arguments?.getString("url")!!
             HandleOID4VCIView(
                 navController,
-                url,
-                credentialPacksViewModel,
-                walletActivityLogsViewModel,
-                statusListViewModel
+                url
             )
         }
         composable(
@@ -226,9 +161,7 @@ fun SetupNavGraph(
             }
             HandleOID4VPView(
                 navController,
-                url,
-                credentialPacksViewModel,
-                walletActivityLogsViewModel
+                url
             )
         }
         composable(
@@ -241,9 +174,7 @@ fun SetupNavGraph(
             }
             HandleMdocOID4VPView(
                 navController,
-                url,
-                credentialPacksViewModel,
-                walletActivityLogsViewModel
+                url
             )
         }
         composable(
@@ -252,8 +183,6 @@ fun SetupNavGraph(
             val credentialPackId = backStackEntry.arguments?.getString("credential_pack_id")!!
             CredentialDetailsView(
                 navController,
-                credentialPacksViewModel,
-                statusListViewModel,
                 credentialPackId
             )
         }

@@ -38,12 +38,12 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.ColorTerracotta600
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 
 @Composable
 fun VerifierHomeView(
-    navController: NavController,
-    verificationMethodsViewModel: VerificationMethodsViewModel
+    navController: NavController
 ) {
     Column(
         Modifier
@@ -52,8 +52,7 @@ fun VerifierHomeView(
     ) {
         VerifierHomeHeader(navController = navController)
         VerifierHomeBody(
-            navController = navController,
-            verificationMethodsViewModel = verificationMethodsViewModel
+            navController = navController
         )
     }
 }
@@ -96,9 +95,9 @@ fun VerifierHomeHeader(
 
 @Composable
 fun VerifierHomeBody(
-    navController: NavController,
-    verificationMethodsViewModel: VerificationMethodsViewModel
+    navController: NavController
 ) {
+    val verificationMethodsViewModel: VerificationMethodsViewModel = activityHiltViewModel()
     val verificationMethods = remember { verificationMethodsViewModel.verificationMethods }
 
     fun getBadgeType(verificationType: String): VerifierListItemTagType {

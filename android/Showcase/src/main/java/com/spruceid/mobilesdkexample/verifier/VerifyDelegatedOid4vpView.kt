@@ -36,6 +36,7 @@ import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
@@ -53,11 +54,12 @@ enum class VerifyDelegatedOid4vpViewSteps {
 @Composable
 fun VerifyDelegatedOid4vpView(
     navController: NavController,
-    verificationId: String,
-    verificationMethodsViewModel: VerificationMethodsViewModel,
-    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
-    statusListViewModel: StatusListViewModel
+    verificationId: String
 ) {
+    val verificationMethodsViewModel: VerificationMethodsViewModel = activityHiltViewModel()
+    val verificationActivityLogsViewModel: VerificationActivityLogsViewModel =
+        activityHiltViewModel()
+    val statusListViewModel: StatusListViewModel = activityHiltViewModel()
     val scope = rememberCoroutineScope()
 
     lateinit var verificationMethod: VerificationMethods
@@ -214,20 +216,20 @@ fun VerifyDelegatedOid4vpView(
 fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
     Column(
         modifier =
-        Modifier
-            .fillMaxWidth()
-            .padding(top = 60.dp)
-            .padding(bottom = 40.dp)
-            .padding(horizontal = 30.dp)
-            .navigationBarsPadding(),
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 60.dp)
+                .padding(bottom = 40.dp)
+                .padding(horizontal = 30.dp)
+                .navigationBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
             painter = rememberQrBitmapPainter(payload, size = 300.dp),
             contentDescription =
-            stringResource(
-                id = com.spruceid.mobilesdkexample.R.string.delegated_oid4vp_qrcode
-            ),
+                stringResource(
+                    id = com.spruceid.mobilesdkexample.R.string.delegated_oid4vp_qrcode
+                ),
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxWidth()
@@ -238,18 +240,18 @@ fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
             onClick = { onClose() },
             shape = RoundedCornerShape(6.dp),
             colors =
-            ButtonDefaults.buttonColors(
-                containerColor = Color.Transparent,
-                contentColor = ColorStone950,
-            ),
+                ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = ColorStone950,
+                ),
             modifier =
-            Modifier
-                .fillMaxWidth()
-                .border(
-                    width = 1.dp,
-                    color = ColorStone300,
-                    shape = RoundedCornerShape(6.dp)
-                )
+                Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = ColorStone300,
+                        shape = RoundedCornerShape(6.dp)
+                    )
         ) {
             Text(
                 text = "Cancel",

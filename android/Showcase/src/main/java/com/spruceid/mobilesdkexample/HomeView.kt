@@ -39,12 +39,6 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBlue500
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue900
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.verifier.VerifierHomeView
-import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
-import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
-import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
-import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
-import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
-import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import com.spruceid.mobilesdkexample.wallet.WalletHomeView
 
 enum class HomeTabs {
@@ -55,13 +49,7 @@ enum class HomeTabs {
 @Composable
 fun HomeView(
     navController: NavController,
-    initialTab: String,
-    verificationMethodsViewModel: VerificationMethodsViewModel,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    statusListViewModel: StatusListViewModel,
-    helpersViewModel: HelpersViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    initialTab: String
 ) {
     var tab by remember {
         if (initialTab == "verifier") {
@@ -82,19 +70,9 @@ fun HomeView(
     ) {
         Box(modifier = Modifier.padding(bottom = 60.dp)) {
             if (tab == HomeTabs.WALLET) {
-                WalletHomeView(
-                    navController,
-                    credentialPacksViewModel = credentialPacksViewModel,
-                    walletActivityLogsViewModel = walletActivityLogsViewModel,
-                    statusListViewModel = statusListViewModel,
-                    helpersViewModel = helpersViewModel,
-                    hacApplicationsViewModel = hacApplicationsViewModel
-                )
+                WalletHomeView(navController)
             } else {
-                VerifierHomeView(
-                    navController = navController,
-                    verificationMethodsViewModel = verificationMethodsViewModel
-                )
+                VerifierHomeView(navController)
             }
         }
     }
