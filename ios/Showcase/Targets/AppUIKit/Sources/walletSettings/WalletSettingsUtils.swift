@@ -1,3 +1,4 @@
+import Foundation
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 
@@ -17,8 +18,11 @@ public func generateMockMdl() async {
 
         _ = try await mdocPack.addMDoc(mdoc: mdl)
 
+        let bundle = Bundle.main
+        let storageManager = StorageManager(
+            appGroupId: bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String)
         try await mdocPack.save(
-            storageManager: StorageManager()
+            storageManager: storageManager
         )
         ToastManager.shared.showSuccess(
             message: "Test mDL added to your wallet"

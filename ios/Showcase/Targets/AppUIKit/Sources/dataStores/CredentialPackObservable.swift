@@ -3,9 +3,12 @@ import SpruceIDMobileSdk
 
 class CredentialPackObservable: ObservableObject {
     @Published var credentialPacks: [CredentialPack]
-    let storageManager = StorageManager()
+    let storageManager: StorageManager
 
     init(credentialPacks: [CredentialPack] = []) {
+        let bundle = Bundle.main
+        self.storageManager = StorageManager(
+            appGroupId: bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String)
         self.credentialPacks = credentialPacks
     }
 

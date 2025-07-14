@@ -13,6 +13,12 @@ import SpruceIDMobileSdkRs
 
 /// Store and retrieve sensitive data.
 public class StorageManager: NSObject, StorageManagerInterface {
+    let appGroupId: String?
+    
+    public init(appGroupId: String?) {
+        self.appGroupId = appGroupId
+    }
+    
     /// Get the path to the application support dir, appending the given file name to it.
     ///
     /// We use the application support directory because its contents are not shared.
@@ -21,7 +27,6 @@ public class StorageManager: NSObject, StorageManagerInterface {
     ///    - file: the name of the file
     ///
     /// - Returns: An URL for the named file in the app's Application Support directory.
-
     private func path(file: String) async -> URL? {
         do {
             //    Get the applications support dir, and tack the name of the thing we're storing on the end of it.
@@ -39,14 +44,16 @@ public class StorageManager: NSObject, StorageManagerInterface {
                 }
             }
 
-            var asdir = try fileman.url(for: .applicationSupportDirectory,
-                                   in: .userDomainMask,
-                                   appropriateFor: nil, // Ignored
-                                   create: true) // May not exist, make if necessary.
-            if let groupId = bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String {
-                if let url = fileman.containerURL(forSecurityApplicationGroupIdentifier: groupId) {
-                    asdir = url
-                }
+            guard let asdir = if let id = appGroupId {
+                fileman.containerURL(forSecurityApplicationGroupIdentifier: id)
+            } else {
+                try fileman.url(for: .applicationSupportDirectory,
+                                in: .userDomainMask,
+                                appropriateFor: nil, // Ignored
+                                create: true) // May not exist, make if necessary.
+            }
+            else {
+                return nil
             }
 
             //    If we create subdirectories in the application support directory, we need to put them in a subdir

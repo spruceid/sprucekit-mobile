@@ -11,6 +11,7 @@ enum DCAPIState {
     case selectiveDisclosure(RequestMatch180137, [ParsedCredential], URL)
 }
 
+@available(iOS 26.0, *)
 public struct DocumentProviderExtensionView: View {
     @State private var state: DCAPIState = .selectCredential
     @State private var initLoad: MdocSelector? = nil;
