@@ -304,6 +304,15 @@ impl Holder {
         let credentials = credentials
             .into_iter()
             .map(|c| {
+                let input_descriptor_id = presentation_definition
+                    .input_descriptors()
+                    .iter()
+                    .find(|_| !c.requested_fields(&presentation_definition).is_empty())
+                    .map(|descriptor| descriptor.id.clone())
+                    // SAFETY: the credential will always match at least one input descriptor
+                    // at this point.
+                    .unwrap();
+
                 Arc::new(PresentableCredential {
                     inner: c.inner.clone(),
                     limit_disclosure: presentation_definition.input_descriptors().iter().any(
@@ -316,6 +325,7 @@ impl Holder {
                         },
                     ),
                     selected_fields: None,
+                    input_descriptor_id,
                 })
             })
             .collect::<Vec<_>>();
