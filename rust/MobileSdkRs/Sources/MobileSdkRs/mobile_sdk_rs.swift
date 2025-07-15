@@ -6190,6 +6190,29 @@ public protocol PermissionRequestProtocol: AnyObject, Sendable {
     func domain()  -> String?
     
     /**
+     * Returns boolean whether the presentation definition
+     * matches multiple credentials of the same type that
+     * can satisfy the request.
+     */
+    func isMultiCredentialMatching()  -> Bool
+    
+    /**
+     * Return whether the presentation definition is requesting
+     * multiple credentials to satisfy the presentation.
+     *
+     * Will return true IFF multiple input descriptors exist
+     * in the presentation definition.
+     *
+     * NOTE: Based on the oid4vp specification that each input descriptor
+     * corresponds to a single credential type.
+     *
+     * In cases where multiple credentials are requested, for example,
+     * an mDL and a vehicle title, each input descriptor would match
+     * only one credential type.
+     */
+    func isMultiCredentialSelection()  -> Bool
+    
+    /**
      * Return the purpose of the presentation request.
      */
     func purpose()  -> String?
@@ -6312,6 +6335,39 @@ open func credentials() -> [PresentableCredential]  {
 open func domain() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_permissionrequest_domain(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Returns boolean whether the presentation definition
+     * matches multiple credentials of the same type that
+     * can satisfy the request.
+     */
+open func isMultiCredentialMatching() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_permissionrequest_is_multi_credential_matching(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return whether the presentation definition is requesting
+     * multiple credentials to satisfy the presentation.
+     *
+     * Will return true IFF multiple input descriptors exist
+     * in the presentation definition.
+     *
+     * NOTE: Based on the oid4vp specification that each input descriptor
+     * corresponds to a single credential type.
+     *
+     * In cases where multiple credentials are requested, for example,
+     * an mDL and a vehicle title, each input descriptor would match
+     * only one credential type.
+     */
+open func isMultiCredentialSelection() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_permissionrequest_is_multi_credential_selection(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -19436,6 +19492,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_domain() != 60512) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_is_multi_credential_matching() != 46216) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_is_multi_credential_selection() != 28994) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_purpose() != 28780) {
