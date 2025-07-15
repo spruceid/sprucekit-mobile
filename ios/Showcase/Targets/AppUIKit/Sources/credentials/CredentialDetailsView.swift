@@ -10,8 +10,7 @@ struct CredentialDetailsViewTab {
 }
 
 struct CredentialDetailsView: View {
-    @EnvironmentObject private var credentialPackObservable:
-        CredentialPackObservable
+    @EnvironmentObject private var credentialPackObservable: CredentialPackObservable
     @EnvironmentObject private var statusListObservable: StatusListObservable
     @Binding var path: NavigationPath
     let credentialPackId: String
@@ -62,7 +61,8 @@ struct CredentialDetailsView: View {
                                 if credentialItem != nil {
                                     if CredentialStatusList.revoked
                                         != statusListObservable.statusLists[
-                                            credentialPackId] {
+                                            credentialPackId]
+                                    {
                                         AnyView(
                                             self.credentialItem!
                                                 .credentialDetails())
@@ -80,7 +80,10 @@ struct CredentialDetailsView: View {
 
                         } else if index == 1, let credPack = credentialPack {  // Share
                             ShareMdocView(credentialPack: credPack)
-                            .tag(index)
+                                .tag(index)
+                        } else if index == 2, let credPack = credentialPack {  // Share
+                            ShareMdocView(credentialPack: credPack)
+                                .tag(index)
                         }
                     }
                 }
@@ -131,6 +134,9 @@ struct CredentialDetailsView: View {
             if credentialPackHasMdoc(credentialPack: credentialPack!) {
                 credentialDetailsViewTabs.append(
                     CredentialDetailsViewTab(image: "QRCode")
+                )
+                credentialDetailsViewTabs.append(
+                    CredentialDetailsViewTab(image: "NFC")
                 )
             }
             credentialTitle =
