@@ -78,8 +78,13 @@ fn generate_test_mdl_inner(
     key_alias: KeyAlias,
 ) -> Result<crate::credential::mdoc::Mdoc> {
     let (certificate, signer) = setup_certificate_chain()?;
+
+    log::debug!("Setup certificate chain");
+
     let key = key_manager.get_signing_key(key_alias.clone())?;
     let pk = p256::PublicKey::from_jwk_str(&key.jwk()?)?;
+
+    log::debug!("Retrieved signing key");
 
     let mdoc_builder = prepare_mdoc(pk)?;
 

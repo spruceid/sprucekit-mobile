@@ -76,6 +76,8 @@ public struct ShareMdocQR: View {
                         .resizable()
                         .scaledToFit()
                         .aspectRatio(contentMode: .fit)
+                case .nfcHandover(let _data):
+                    Text("NFC Handover not yet implemented")
                 case .error(let error):
                     let message =
                         switch error {
@@ -151,7 +153,7 @@ class ShareViewDelegate: ObservableObject {
 
     init(credentials: CredentialStore) async {
         self.sessionManager = await credentials.presentMdocBLE(
-            deviceEngagement: .QRCode, callback: self)!
+            deviceEngagement: .qr, callback: self)!
     }
 
     func cancel() {
