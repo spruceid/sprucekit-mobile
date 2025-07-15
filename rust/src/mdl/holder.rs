@@ -50,6 +50,13 @@ use uuid::Uuid;
 pub async fn initialize_mdl_presentation(
     mdoc_id: Uuid,
     engagement: DeviceEngagementType,
+    // TODO: We need to pass in the NfcHandoverRequestMessage
+    // into the presentation handler for negotiated handover.
+    // The Request Message will contain a list of Alternative Carrier Records
+    // that the mDL holder (mdoc) will select from. The responds to the
+    // mDL Reader over NFC for device engagement will include the HandoverSelectMessage,
+    // that contains a single alternative carrier record, selecting the device retrieval
+    // transmission protocol.
     uuid: Uuid,
     storage_manager: Arc<dyn StorageManagerInterface>,
 ) -> Result<MdlPresentationSession, SessionError> {
@@ -450,9 +457,14 @@ mod tests {
         let vdc_collection = VdcCollection::new(smi.clone());
         vdc_collection.add(&mdl).await.unwrap();
 
-        let presentation_session = initialize_mdl_presentation(mdl.id, Uuid::new_v4(), smi.clone())
-            .await
-            .unwrap();
+        let presentation_session = initialize_mdl_presentation(
+            mdl.id,
+            DeviceEngagementType::QR,
+            Uuid::new_v4(),
+            smi.clone(),
+        )
+        .await
+        .unwrap();
         let namespaces: device_request::Namespaces = [(
             "org.iso.18013.5.1".to_string(),
             [
@@ -533,9 +545,14 @@ mod tests {
         let vdc_collection = VdcCollection::new(smi.clone());
         vdc_collection.add(&mdl).await.unwrap();
 
-        let presentation_session = initialize_mdl_presentation(mdl.id, Uuid::new_v4(), smi.clone())
-            .await
-            .unwrap();
+        let presentation_session = initialize_mdl_presentation(
+            mdl.id,
+            DeviceEngagementType::QR,
+            Uuid::new_v4(),
+            smi.clone(),
+        )
+        .await
+        .unwrap();
         let namespaces = [(
             "org.iso.18013.5.1".to_string(),
             [
