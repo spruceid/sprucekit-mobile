@@ -7,6 +7,47 @@ struct TrustedCertificate: Hashable {
     let content: String
 }
 
+let DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD = (
+    "spruceid-haci-prod-certificate.pem",
+    """
+    -----BEGIN CERTIFICATE-----
+    MIICJDCCAcqgAwIBAgIJAOE5hRXm8PnwMAoGCCqGSM49BAMCMEcxETAPBgNVBAoM
+    CFNwcnVjZUlEMQswCQYDVQQIDAJOWTELMAkGA1UEBhMCVVMxGDAWBgNVBAMMD1Nw
+    cnVjZUlEIG1ETCBDQTAeFw0yNTA1MjAxMDQyMDNaFw0zMDA1MTkxMDQyMDNaMEcx
+    ETAPBgNVBAoMCFNwcnVjZUlEMQswCQYDVQQIDAJOWTELMAkGA1UEBhMCVVMxGDAW
+    BgNVBAMMD1NwcnVjZUlEIG1ETCBDQTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA
+    BCl9YgK2qfIu4zO1br3YKeys5N7gznqjtW27w8brS4ejqeVYejdsoonT3GMSiJgs
+    CjUgISZGZGTLD5uj8Qq5xImjgZ4wgZswHQYDVR0OBBYEFFEvLAdYAIUGN5BJiBOz
+    VFFUphVhMB8GA1UdEgQYMBaGFGh0dHBzOi8vc3BydWNlaWQuY29tMDUGA1UdHwQu
+    MCwwKqAooCaGJGh0dHBzOi8vY3JsLmhhY2kuc3BydWNlaWQueHl6L2lhY2EtMDAO
+    BgNVHQ8BAf8EBAMCAQYwEgYDVR0TAQH/BAgwBgEB/wIBADAKBggqhkjOPQQDAgNI
+    ADBFAiA3KpzFogVdNUCV+NTyBu+pEBDOmRFa735AFJMAOutzbAIhAJaRGpHvii65
+    3q8/uns9PMOOf6rqN2R2hB7nUK5DEcVW
+    -----END CERTIFICATE-----
+    """
+)
+
+let DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING = (
+    "spruceid-haci-staging-certificate.pem",
+    """
+    -----BEGIN CERTIFICATE-----
+    MIICPjCCAeWgAwIBAgIIWVEstjwOoOAwCgYIKoZIzj0EAwIwUTERMA8GA1UECgwI
+    U3BydWNlSUQxCzAJBgNVBAgMAk5ZMQswCQYDVQQGEwJVUzEiMCAGA1UEAwwZU3By
+    dWNlSUQgbURMIENBIChTdGFnaW5nKTAeFw0yNTA0MDQxMTAxNDZaFw0zMDA0MDMx
+    MTAxNDZaMFExETAPBgNVBAoMCFNwcnVjZUlEMQswCQYDVQQIDAJOWTELMAkGA1UE
+    BhMCVVMxIjAgBgNVBAMMGVNwcnVjZUlEIG1ETCBDQSAoU3RhZ2luZykwWTATBgcq
+    hkjOPQIBBggqhkjOPQMBBwNCAASJt4BBmA/JSHiIrWI00MMIgi8cJb0n67hpZjS6
+    NipkOe8UIQtHzH+gyN8EARfwFD14X/vmy0wsWlQx3UlFL9wDo4GmMIGjMB0GA1Ud
+    DgQWBBSMXLgb59dX6Vway9tD6N+5kGDktjAfBgNVHRIEGDAWhhRodHRwczovL3Nw
+    cnVjZWlkLmNvbTA9BgNVHR8ENjA0MDKgMKAuhixodHRwczovL2NybC5oYWNpLnN0
+    YWdpbmcuc3BydWNlaWQueHl6L2lhY2EtMDAOBgNVHQ8BAf8EBAMCAQYwEgYDVR0T
+    AQH/BAgwBgEB/wIBADAKBggqhkjOPQQDAgNHADBEAiAiOqzt3ToFMtKdfw/ymsLm
+    YulhRGtKCN95+3sKsGRxBwIgYU/+vwMuO6hY6KZYXb5FUS51xV6PSGUopGiBuTtM
+    t7U=
+    -----END CERTIFICATE-----
+    """
+)
+
 let DEFAULT_TRUST_ANCHOR_CERTIFICATES = [
     // rust/tests/res/mdl/iaca-certificate.pem
     (
@@ -46,19 +87,27 @@ let DEFAULT_TRUST_ANCHOR_CERTIFICATES = [
         Ld7ivuH83lLHDuNpb4NShfdBG57jNEIPNUs9OEg=
         -----END CERTIFICATE-----
         """
-    )
+    ),
+    // IACA Spruce HACI Staging
+    DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING,
+    // IACA Spruce HACI Prod
+    DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD,
 ]
 
 class TrustedCertificatesDataStore {
 
     static let DIR_ACTIVITY_LOG_DB = "TrustedCertificatesDB"
     static let STORE_NAME = "trusted_certificates.sqlite3"
+    static let TABLE_NAME = "trusted_certificates"
 
-    private let trustedCertificates = Table("trusted_certificates")
+    private let CURRENT_DB_VERSION = 2  // Increment this when adding new migrations
+    private let trustedCertificates = Table(TABLE_NAME)
+    private let dbVersion = Table("db_version")
 
     private let id = SQLite.Expression<Int64>("id")
     private let name = SQLite.Expression<String>("name")
     private let content = SQLite.Expression<String>("content")
+    private let version = SQLite.Expression<Int>("version")
 
     static let shared = TrustedCertificatesDataStore()
 
@@ -66,10 +115,12 @@ class TrustedCertificatesDataStore {
 
     private init() {
         if let docDir = FileManager.default.urls(
-            for: .documentDirectory, in: .userDomainMask
+            for: .documentDirectory,
+            in: .userDomainMask
         ).first {
             let dirPath = docDir.appendingPathComponent(
-                Self.DIR_ACTIVITY_LOG_DB)
+                Self.DIR_ACTIVITY_LOG_DB
+            )
 
             do {
                 try FileManager.default.createDirectory(
@@ -80,9 +131,8 @@ class TrustedCertificatesDataStore {
                 let dbPath = dirPath.appendingPathComponent(Self.STORE_NAME)
                     .path
                 db = try Connection(dbPath)
-                createTable()
+                createTables()
                 print("SQLiteDataStore init successfully at: \(dbPath) ")
-
                 checkAndInsertDefaultCertificates()
             } catch {
                 db = nil
@@ -93,20 +143,82 @@ class TrustedCertificatesDataStore {
         }
     }
 
-    private func createTable() {
+    private func createTables() {
         guard let database = db else {
             return
         }
         do {
             try database.run(
-                trustedCertificates.create { table in
+                trustedCertificates.create(ifNotExists: true) { table in
                     table.column(id, primaryKey: .autoincrement)
                     table.column(name)
                     table.column(content)
-                })
-            print("Table Created...")
+                }
+            )
+
+            try database.run(
+                dbVersion.create(ifNotExists: true) { table in
+                    table.column(version)
+                }
+            )
+
+            // Insert initial version if table is empty
+            let count = try database.scalar(dbVersion.count)
+            if count == 0 {
+                MIGRATION_0_2(database)
+            }
+            MIGRATION_2_3(database)
+
+            print("Tables Created...")
         } catch {
-            print(error)
+            print("Error creating tables: \(error)")
+        }
+    }
+
+    // Migration to version 2: Add HACI Prod certificate
+    private func MIGRATION_0_2(_ database: Connection) {
+        do {
+            let count = try database.scalar(trustedCertificates.count)
+            if count == 0 {
+                checkAndInsertDefaultCertificates()
+            } else {
+                try database.transaction {
+                    // Insert the new certificate only if it doesn't exist
+                    let insert = trustedCertificates.insert(
+                        or: .ignore,
+                        name <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD.0,
+                        content
+                            <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD.1
+                    )
+                    try database.run(insert)
+
+                    // Update version
+                    try database.run(dbVersion.update(version <- 2))
+                }
+            }
+        } catch {
+            print("Migration 0 -> 2 error: \(error)")
+        }
+    }
+
+    // Migration to version 3: Add HACI Staging certificate
+    private func MIGRATION_2_3(_ database: Connection) {
+        do {
+            try database.transaction {
+                // Insert the new certificate only if it doesn't exist
+                let insert = trustedCertificates.insert(
+                    or: .ignore,
+                    name <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.0,
+                    content
+                        <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.1
+                )
+                try database.run(insert)
+
+                // Update version
+                try database.run(dbVersion.update(version <- 3))
+            }
+        } catch {
+            print("Migration 2 -> 3 error: \(error)")
         }
     }
 
@@ -150,7 +262,8 @@ class TrustedCertificatesDataStore {
 
         do {
             for certificate in try database.prepare(
-                self.trustedCertificates) {
+                self.trustedCertificates
+            ) {
                 certificates.append(
                     TrustedCertificate(
                         id: certificate[id],
@@ -170,7 +283,8 @@ class TrustedCertificatesDataStore {
 
         do {
             for certificate in try database.prepare(
-                self.trustedCertificates) {
+                self.trustedCertificates
+            ) {
                 let elemId = certificate[id]
                 if elemId == rowId {
                     return TrustedCertificate(
@@ -206,7 +320,8 @@ class TrustedCertificatesDataStore {
         }
         do {
             for certificate in try database.prepare(
-                self.trustedCertificates)
+                self.trustedCertificates
+            )
             where !delete(id: certificate[id]) {
                 return false
             }

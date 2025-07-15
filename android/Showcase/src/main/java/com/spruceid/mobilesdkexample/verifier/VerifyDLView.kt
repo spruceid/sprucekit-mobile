@@ -14,6 +14,7 @@ import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
@@ -22,9 +23,10 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun VerifyDLView(
-    navController: NavController,
-    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
+    navController: NavController
 ) {
+    val verificationActivityLogsViewModel: VerificationActivityLogsViewModel =
+        activityHiltViewModel()
     var success by remember { mutableStateOf<Boolean?>(null) }
     var verifying by remember { mutableStateOf<Boolean>(false) }
 

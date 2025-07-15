@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +37,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.rs.FlowState
 import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.config.EnvironmentConfig
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
@@ -45,21 +48,18 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.SettingsHomeItem
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
-import com.spruceid.mobilesdkexample.viewmodels.SPRUCEID_HAC_PROOFING_CLIENT
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 @Composable
 fun WalletSettingsHomeView(
-    navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    navController: NavController
 ) {
     Column(
         Modifier
@@ -76,10 +76,7 @@ fun WalletSettingsHomeView(
             }
         )
         WalletSettingsHomeBody(
-            navController = navController,
-            credentialPacksViewModel = credentialPacksViewModel,
-            walletActivityLogsViewModel = walletActivityLogsViewModel,
-            hacApplicationsViewModel = hacApplicationsViewModel
+            navController = navController
         )
     }
 }
@@ -121,14 +118,16 @@ fun WalletSettingsHomeHeader(onBack: () -> Unit) {
 
 @Composable
 fun WalletSettingsHomeBody(
-    navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    navController: NavController
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
+    val hacApplicationsViewModel: HacApplicationsViewModel = activityHiltViewModel()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
     var isApplyingForMdl by remember { mutableStateOf(false) }
+    val isDevMode by EnvironmentConfig.isDevMode.collectAsState()
 
     Column(
         Modifier
@@ -176,18 +175,52 @@ fun WalletSettingsHomeBody(
                             val hacApplication = hacApplicationsViewModel.saveApplication(
                                 HacApplications(issuanceId = issuance)
                             )
-
-                            val intent = Intent(
-                                Intent.ACTION_VIEW,
-                                Uri.parse("${SPRUCEID_HAC_PROOFING_CLIENT}?id=${hacApplication}&redirect=spruceid")
+                            val status = hacApplicationsViewModel.issuanceClient.checkStatus(
+                                issuance,
+                                walletAttestation
                             )
 
-                            context.startActivity(intent)
+                            when (status) {
+                                is FlowState.ProofingRequired -> {
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse(status.proofingUrl)
+                                    )
+                                    context.startActivity(intent)
+                                }
+
+                                is FlowState.ReadyToProvision -> {
+                                    print("Issuance started with invalid state, please check.")
+                                }
+
+                                is FlowState.ApplicationDenied -> {
+                                    print("Issuance started with invalid state, please check.")
+                                }
+
+                                is FlowState.AwaitingManualReview -> {
+                                    print("Issuance started with invalid state, please check.")
+                                }
+                            }
                         }
                     } finally {
                         isApplyingForMdl = false
                     }
                 }
+            }
+        )
+
+        SettingsHomeItem(
+            icon = {
+                Image(
+                    painter = painterResource(id = R.drawable.dev_mode),
+                    contentDescription = stringResource(id = R.string.dev_mode),
+                    modifier = Modifier.padding(end = 5.dp),
+                )
+            },
+            name = "${if (isDevMode) "Disable" else "Enable"} Dev Mode",
+            description = "Warning: Dev mode will use in development services and is not recommended for production use",
+            action = {
+                EnvironmentConfig.toggleDevMode()
             }
         )
 
@@ -215,6 +248,7 @@ fun WalletSettingsHomeBody(
                             )
                         }
                     })
+                    hacApplicationsViewModel.deleteAllApplications()
                 }
             },
             shape = RoundedCornerShape(5.dp),

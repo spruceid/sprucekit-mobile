@@ -58,6 +58,7 @@ struct WalletSettingsHomeBody: View {
         CredentialPackObservable
     @EnvironmentObject private var hacApplicationObservable:
         HacApplicationObservable
+    @StateObject private var environmentConfig = EnvironmentConfig.shared
     @Binding var path: NavigationPath
     var onBack: () -> Void
     @State private var isApplyingForMdl = false
@@ -102,6 +103,7 @@ struct WalletSettingsHomeBody: View {
                             )
                         }
                     }
+                    let _ = HacApplicationDataStore.shared.deleteAll()
                 } catch {
                     // TODO: display error message
                     print(error)
@@ -123,43 +125,7 @@ struct WalletSettingsHomeBody: View {
     var generateMockMdlButton: some View {
         Button {
             Task {
-                do {
-                    let keyAlias = "mdoc_key"
-                    if !KeyManager.keyExists(id: keyAlias) {
-                        _ = KeyManager.generateSigningKey(id: keyAlias)
-                    }
-                    let mdl = try generateTestMdl(
-                        keyManager: KeyManager(),
-                        keyAlias: keyAlias
-                    )
-                    let credentialPacks = credentialPackObservable
-                        .credentialPacks
-                    let mdocPack =
-                        credentialPacks.first { pack in
-                            pack.list().contains(where: { credential in
-                                credential.asMsoMdoc() != nil
-                            })
-                        } ?? CredentialPack()
-
-                    if mdocPack.list().isEmpty {
-                        _ = mdocPack.addMDoc(mdoc: mdl)
-                        try await mdocPack.save(
-                            storageManager: StorageManager()
-                        )
-                        ToastManager.shared.showSuccess(
-                            message: "Test mDL added to your wallet"
-                        )
-                    } else {
-                        ToastManager.shared.showWarning(
-                            message: "You already have an mDL"
-                        )
-                    }
-                } catch {
-                    print(error.localizedDescription)
-                    ToastManager.shared.showError(
-                        message: "Error generating mDL"
-                    )
-                }
+                await generateMockMdl()
             }
         } label: {
             SettingsHomeItem(
@@ -179,8 +145,8 @@ struct WalletSettingsHomeBody: View {
                 do {
                     let walletAttestation =
                         try await hacApplicationObservable
-                            .getWalletAttestation()
-                            .unwrap()
+                        .getWalletAttestation()
+                        .unwrap()
 
                     let issuance =
                         try await hacApplicationObservable.issuanceClient
@@ -190,16 +156,46 @@ struct WalletSettingsHomeBody: View {
                         issuanceId: issuance
                     )
 
-                    if let url = URL(
-                        string:
-                            "\(SPRUCEID_HAC_PROOFING_CLIENT)?id=\(hacApplication!)&redirect=spruceid"
-                    ) {
-                        UIApplication.shared.open(
-                            url,
-                            options: [:],
-                            completionHandler: nil
-                        )
-                    }
+                    let status = try await hacApplicationObservable.issuanceClient.checkStatus(
+                        issuanceId: issuance,
+                        walletAttestation: walletAttestation
+                    )
+
+                    switch status {
+                        case .proofingRequired(let proofingUrl):
+                            if let hacApplication = hacApplication {
+                                if let url = URL(string: proofingUrl) {
+                                    UIApplication.shared.open(
+                                        url,
+                                        options: [:],
+                                        completionHandler: nil
+                                    )
+                                } else {
+                                    print("Invalid proofing URL")
+                                }
+                            } else {
+                                print("hacApplication is nil")
+                            }
+
+                        case .readyToProvision(_):
+                            print("Expected ProofingRequired status")
+                            ToastManager.shared.showError(
+                                message:
+                                    "Error during attestation: Expected ProofingRequired status"
+                            )
+                        case .awaitingManualReview:
+                            print("Expected ProofingRequired status")
+                            ToastManager.shared.showError(
+                                message:
+                                    "Error during attestation: Expected ProofingRequired status"
+                            )
+                        case .applicationDenied:
+                            print("Expected ProofingRequired status")
+                            ToastManager.shared.showError(
+                                message:
+                                    "Error during attestation: Expected ProofingRequired status"
+                            )
+                        }
 
                 } catch let error as DCError {
                     ToastManager.shared.showError(
@@ -226,12 +222,28 @@ struct WalletSettingsHomeBody: View {
         .opacity(isApplyingForMdl ? 0.5 : 1.0)
     }
 
+    @ViewBuilder
+    var devModeButton: some View {
+        Button {
+            environmentConfig.toggleDevMode()
+        } label: {
+            SettingsHomeItem(
+                image: "DevMode",
+                title:
+                    "\(environmentConfig.isDevMode ? "Disable" : "Enable") Dev Mode",
+                description:
+                    "Warning: Dev mode will use in development services and is not recommended for production use"
+            )
+        }
+    }
+
     var body: some View {
         VStack {
             VStack {
                 activityLogButton
                 generateMockMdlButton
                 applyForSpruceMdlButton
+                devModeButton
                 Spacer()
                 deleteAllCredentials
             }

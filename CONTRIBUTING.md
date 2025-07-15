@@ -49,6 +49,9 @@ You explore the Gradle tasks with `./gradlew projects`, `./gradlew tasks` and `.
 - `./gradlew lint` will lint everything
 - `./gradlew test` will test everything
 
+For developing the wallet application, use `./gradlew assembleDebug`. In newer versions of Android Studio you may need to add this as
+a 'gradle-aware make' task to the 'Before launch' configuration. 
+
 <details>
 <summary>If you get this error: `> java.io.FileNotFoundException: .../local.properties (No such file or directory)`</summary>
 

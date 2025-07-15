@@ -91,7 +91,7 @@ interface HacApplicationsDao {
     @Query("SELECT * FROM hac_applications")
     fun getAllApplications(): List<HacApplications>
 
-    @Query("SELECT * FROM hac_applications WHERE id = :id")
+    @Query("SELECT * FROM hac_applications WHERE issuanceId = :id")
     fun getApplication(id: String): HacApplications
 
     @Query("DELETE FROM hac_applications")

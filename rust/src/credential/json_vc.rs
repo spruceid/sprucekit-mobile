@@ -328,6 +328,8 @@ fn try_map_subjects<T, U, E: std::fmt::Debug>(
     f: impl FnMut(T) -> Result<U, E>,
 ) -> Result<JsonCredentialV2<U>, OID4VPError> {
     Ok(JsonCredentialV2 {
+        name: cred.name,
+        description: cred.description,
         context: cred.context,
         id: cred.id,
         types: cred.types,

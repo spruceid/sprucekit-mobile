@@ -46,6 +46,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
@@ -55,30 +56,21 @@ import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
+import com.spruceid.mobilesdkexample.walletsettings.generateMockMdl
 import kotlinx.coroutines.launch
 
 @Composable
 fun WalletHomeView(
-    navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    statusListViewModel: StatusListViewModel,
-    helpersViewModel: HelpersViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    navController: NavController
 ) {
     Column(
         Modifier
             .padding(all = 20.dp)
-            .padding(top = 20.dp)
+            .padding(top = 30.dp)
     ) {
         WalletHomeHeader(navController = navController)
         WalletHomeBody(
-            navController = navController,
-            credentialPacksViewModel = credentialPacksViewModel,
-            helpersViewModel = helpersViewModel,
-            walletActivityLogsViewModel = walletActivityLogsViewModel,
-            statusListViewModel = statusListViewModel,
-            hacApplicationsViewModel = hacApplicationsViewModel
+            navController = navController
         )
     }
 }
@@ -97,13 +89,13 @@ fun WalletHomeHeader(navController: NavController) {
         Box(
             contentAlignment = Alignment.Center,
             modifier =
-            Modifier
-                .width(36.dp)
-                .height(36.dp)
-                .padding(start = 4.dp)
-                .clip(shape = RoundedCornerShape(8.dp))
-                .background(ColorBase150)
-                .clickable { navController.navigate(Screen.ScanQRScreen.route) }
+                Modifier
+                    .width(36.dp)
+                    .height(36.dp)
+                    .padding(start = 4.dp)
+                    .clip(shape = RoundedCornerShape(8.dp))
+                    .background(ColorBase150)
+                    .clickable { navController.navigate(Screen.ScanQRScreen.route) }
         ) {
             Image(
                 painter = painterResource(id = R.drawable.qrcode_scanner),
@@ -117,15 +109,15 @@ fun WalletHomeHeader(navController: NavController) {
         Box(
             contentAlignment = Alignment.Center,
             modifier =
-            Modifier
-                .width(36.dp)
-                .height(36.dp)
-                .padding(start = 4.dp)
-                .clip(shape = RoundedCornerShape(8.dp))
-                .background(ColorBase150)
-                .clickable {
-                    navController.navigate(Screen.WalletSettingsHomeScreen.route)
-                }
+                Modifier
+                    .width(36.dp)
+                    .height(36.dp)
+                    .padding(start = 4.dp)
+                    .clip(shape = RoundedCornerShape(8.dp))
+                    .background(ColorBase150)
+                    .clickable {
+                        navController.navigate(Screen.WalletSettingsHomeScreen.route)
+                    }
         ) {
             Image(
                 painter = painterResource(id = R.drawable.user),
@@ -140,13 +132,14 @@ fun WalletHomeHeader(navController: NavController) {
 
 @Composable
 fun WalletHomeBody(
-    navController: NavController,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    helpersViewModel: HelpersViewModel,
-    statusListViewModel: StatusListViewModel,
-    hacApplicationsViewModel: HacApplicationsViewModel
+    navController: NavController
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
+    val statusListViewModel: StatusListViewModel = activityHiltViewModel()
+    val helpersViewModel: HelpersViewModel = activityHiltViewModel()
+    val hacApplicationsViewModel: HacApplicationsViewModel = activityHiltViewModel()
+
     val scope = rememberCoroutineScope()
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
     val loadingCredentialPacks by credentialPacksViewModel.loading.collectAsState()
@@ -157,6 +150,7 @@ fun WalletHomeBody(
         if (credentialPacks.isNotEmpty()) {
             statusListViewModel.getStatusLists(credentialPacks)
         }
+        hacApplicationsViewModel.updateAllIssuanceStates()
     }
 
     fun goTo(credentialPack: CredentialPack) {
@@ -210,6 +204,7 @@ fun WalletHomeBody(
                         if (credentialPacks.isNotEmpty()) {
                             statusListViewModel.getStatusLists(credentialPacks)
                         }
+                        hacApplicationsViewModel.updateAllIssuanceStates()
                         isRefreshing = false
                     }
                 },
@@ -265,14 +260,17 @@ fun WalletHomeBody(
         } else {
             Box(Modifier.fillMaxSize()) {
                 Column(
-                    Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.empty_wallet),
-                        contentDescription = stringResource(id = R.string.empty_wallet),
-                    )
+                    Spacer(modifier = Modifier.height(30.dp))
+                    WalletHomeViewNoCredentials(onGenerateMockMdl = {
+                        isRefreshing = true
+                        scope.launch {
+                            generateMockMdl(credentialPacksViewModel)
+                        }
+                        isRefreshing = false
+                    })
                 }
             }
         }

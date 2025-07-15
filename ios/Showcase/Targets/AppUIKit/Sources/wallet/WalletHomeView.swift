@@ -70,7 +70,8 @@ struct WalletHomeBody: View {
                 try await credentialPackObservable.loadAndUpdateAll()
             Task {
                 await statusListObservable.getStatusLists(
-                    credentialPacks: credentialPacks)
+                    credentialPacks: credentialPacks
+                )
             }
         } catch {
             // TODO: display error message
@@ -83,7 +84,8 @@ struct WalletHomeBody: View {
         Task {
             do {
                 try await credentialPackObservable.delete(
-                    credentialPack: credentialPack)
+                    credentialPack: credentialPack
+                )
                 credentialPack.list()
                     .forEach { credential in
                         let credentialInfo = getCredentialIdTitleAndIssuer(
@@ -124,20 +126,8 @@ struct WalletHomeBody: View {
                                 id: \.self.id
                             ) { hacApplication in
                                 HacApplicationListItem(
-                                    application: hacApplication,
-                                    startIssuance: { credentialOfferUrl in
-                                        path.append(
-                                            HandleOID4VCI(
-                                                url: credentialOfferUrl,
-                                                onSuccess: {
-                                                    _ = HacApplicationDataStore
-                                                        .shared.delete(
-                                                            id: hacApplication
-                                                                .id)
-                                                }
-                                            )
-                                        )
-                                    }
+                                    path: Binding<NavigationPath?>($path),
+                                    hacApplication: hacApplication
                                 )
                             }
                             ForEach(
@@ -153,11 +143,14 @@ struct WalletHomeBody: View {
                                                 CredentialDetails(
                                                     credentialPackId:
                                                         credentialPack.id
-                                                        .uuidString))
+                                                        .uuidString
+                                                )
+                                            )
                                         },
                                         onDelete: {
                                             onDelete(
-                                                credentialPack: credentialPack)
+                                                credentialPack: credentialPack
+                                            )
                                         }
                                     )
                                 )
@@ -168,21 +161,24 @@ struct WalletHomeBody: View {
                         statusListObservable.hasConnection =
                             checkInternetConnection()
                         await loadCredentials()
+                        await hacApplicationObservable.updateAllIssuanceStates()
                     }
                     .padding(.top, 20)
                 }
             } else {
-                ZStack {
-                    VStack {
-                        Spacer()
-                        Section {
-                            Image("EmptyWallet")
+                WalletHomeViewNoCredentials(
+                    onButtonClick: {
+                        Task {
+                            await generateMockMdl()
+                            statusListObservable.hasConnection =
+                                checkInternetConnection()
+                            await loadCredentials()
                         }
-                        Spacer()
                     }
-                }
+                )
             }
         }
+        .animation(.easeInOut(duration: 0.3), value: loading)
         .onAppear(perform: {
             Task {
                 statusListObservable.hasConnection = checkInternetConnection()

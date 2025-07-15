@@ -65,21 +65,6 @@ class CredentialPack {
         }
 
         try {
-            return this.addMdoc(Mdoc.fromStringifiedDocument(rawCredential, keyAlias = Uuid()))
-        } catch (_: Exception) {
-        }
-
-        try {
-            return this.addMdoc(
-                Mdoc.newFromBase64urlEncodedIssuerSigned(
-                    rawCredential,
-                    keyAlias = Uuid()
-                )
-            )
-        } catch (_: Exception) {
-        }
-
-        try {
             return this.addCwt(Cwt.newFromBase10(rawCredential))
         } catch (_: Exception) {
         }
@@ -88,6 +73,62 @@ class CredentialPack {
             message = "The credential format is not supported. Credential = $rawCredential",
             cause = null
         )
+    }
+
+    /**
+     * Try to add a raw mDoc and throws a ParsingException if not possible
+     */
+    @Throws(ParsingException::class)
+    fun tryAddRawMdoc(rawCredential: String, keyAlias: String): List<ParsedCredential> {
+        val keyManager = KeyManager()
+        if (!keyManager.keyExists(keyAlias)) {
+            keyManager.generateSigningKey(keyAlias)
+        }
+
+        try {
+            return this.addMdoc(Mdoc.fromStringifiedDocument(rawCredential, keyAlias))
+        } catch (_: Exception) {
+        }
+
+        try {
+            return this.addMdoc(
+                Mdoc.newFromBase64urlEncodedIssuerSigned(
+                    rawCredential,
+                    keyAlias
+                )
+            )
+        } catch (_: Exception) {
+        }
+
+        throw ParsingException(
+            message = "The mdoc format is not supported. Credential = $rawCredential",
+            cause = null
+        )
+    }
+
+    /**
+     * Try to add a credential in any supported format (standard credential or mdoc).
+     * Attempts to parse as standard credential first, then as mdoc if that fails.
+     *
+     * @param rawCredential The raw credential data as a string
+     * @param mdocKeyAlias The key alias to use if parsing as mdoc is needed
+     * @return List of parsed credentials
+     * @throws ParsingException if the credential cannot be parsed in any supported format
+     */
+    @Throws(ParsingException::class)
+    fun tryAddAnyFormat(rawCredential: String, mdocKeyAlias: String): List<ParsedCredential> {
+        try {
+            return tryAddRawCredential(rawCredential)
+        } catch (e: Exception) {
+            try {
+                return tryAddRawMdoc(rawCredential, mdocKeyAlias)
+            } catch (innerE: Exception) {
+                throw ParsingException(
+                    message = "The credential format is not supported in any format. Credential = $rawCredential",
+                    cause = innerE
+                )
+            }
+        }
     }
 
     /**
@@ -186,57 +227,63 @@ class CredentialPack {
     fun findCredentialClaims(claimNames: List<String>): Map<String, JSONObject> =
         this.list()
             .map { credential ->
-                val claims: JSONObject
-                val mdoc = credential.asMsoMdoc()
-                val jwtVc = credential.asJwtVc()
-                val jsonVc = credential.asJsonVc()
-                val sdJwt = credential.asSdJwt()
-                val cwt = credential.asCwt()
-
-                if (mdoc != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        mdoc.jsonEncodedDetailsFiltered(claimNames)
-                    } else {
-                        mdoc.jsonEncodedDetailsAll()
-                    }
-                } else if (jwtVc != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        jwtVc.credentialClaimsFiltered(claimNames)
-                    } else {
-                        jwtVc.credentialClaims()
-                    }
-                } else if (jsonVc != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        jsonVc.credentialClaimsFiltered(claimNames)
-                    } else {
-                        jsonVc.credentialClaims()
-                    }
-                } else if (cwt != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        cwt.credentialClaimsFiltered(claimNames)
-                    } else {
-                        cwt.credentialClaims()
-                    }
-                } else if (sdJwt != null) {
-                    claims = if (claimNames.isNotEmpty()) {
-                        sdJwt.credentialClaimsFiltered(claimNames)
-                    } else {
-                        sdJwt.credentialClaims()
-                    }
-                } else {
-                    var type: String
-                    try {
-                        type = credential.intoGenericForm().type
-                    } catch (e: Error) {
-                        type = "unknown"
-                    }
-                    Log.e("sprucekit", "unsupported credential type: $type")
-                    claims = JSONObject()
-                }
-
+                val claims = getCredentialClaims(credential, claimNames)
                 return@map Pair(credential.id(), claims)
             }
             .toMap()
+    /**
+     * Find credential claims from a specific credential.
+     */
+    fun getCredentialClaims(credential: ParsedCredential, claimNames: List<String>): JSONObject {
+        val claims: JSONObject
+        val mdoc = credential.asMsoMdoc()
+        val jwtVc = credential.asJwtVc()
+        val jsonVc = credential.asJsonVc()
+        val sdJwt = credential.asSdJwt()
+        val cwt = credential.asCwt()
+
+        if (mdoc != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                mdoc.jsonEncodedDetailsFiltered(claimNames)
+            } else {
+                mdoc.jsonEncodedDetailsAll()
+            }
+        } else if (jwtVc != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                jwtVc.credentialClaimsFiltered(claimNames)
+            } else {
+                jwtVc.credentialClaims()
+            }
+        } else if (jsonVc != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                jsonVc.credentialClaimsFiltered(claimNames)
+            } else {
+                jsonVc.credentialClaims()
+            }
+        } else if (cwt != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                cwt.credentialClaimsFiltered(claimNames)
+            } else {
+                cwt.credentialClaims()
+            }
+        } else if (sdJwt != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                sdJwt.credentialClaimsFiltered(claimNames)
+            } else {
+                sdJwt.credentialClaims()
+            }
+        } else {
+            var type: String
+            try {
+                type = credential.intoGenericForm().type
+            } catch (e: Error) {
+                type = "unknown"
+            }
+            Log.e("sprucekit", "unsupported credential type: $type")
+            claims = JSONObject()
+        }
+        return claims
+    }
 
 
     /**

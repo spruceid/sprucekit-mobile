@@ -134,7 +134,7 @@ impl VdcCollection {
 impl VdcCollection {
     /// Convert a UUID to a storage key.
     fn id_to_key(id: Uuid) -> Key {
-        Key(format!("{}{}", KEY_PREFIX, id))
+        Key(format!("{KEY_PREFIX}{id}"))
     }
 
     /// Convert a string ref to a storage key.
@@ -226,6 +226,6 @@ mod tests {
             .await
             .expect("Failed to delete the third value.");
 
-        assert!(vdc.all_entries().await.unwrap().len() == 0);
+        assert!(vdc.all_entries().await.unwrap().is_empty());
     }
 }

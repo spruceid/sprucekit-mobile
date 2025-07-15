@@ -19,14 +19,12 @@ import com.spruceid.mobile.sdk.rs.Oid4vci
 import com.spruceid.mobile.sdk.rs.Oid4vciExchangeOptions
 import com.spruceid.mobile.sdk.rs.generatePopComplete
 import com.spruceid.mobile.sdk.rs.generatePopPrepare
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
-import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
-import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
-import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request
@@ -39,10 +37,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HandleOID4VCIView(
     navController: NavHostController,
-    url: String,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    statusListViewModel: StatusListViewModel
+    url: String
 ) {
     var loading by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
@@ -58,29 +53,29 @@ fun HandleOID4VCIView(
         val oid4vciSession =
             Oid4vci.newWithAsyncClient(
                 client =
-                object : AsyncHttpClient {
-                    override suspend fun httpClient(
-                        request: HttpRequest
-                    ): HttpResponse {
-                        val res =
-                            client.request(request.url) {
-                                method = HttpMethod(request.method)
-                                for ((k, v) in request.headers) {
-                                    headers[k] = v
+                    object : AsyncHttpClient {
+                        override suspend fun httpClient(
+                            request: HttpRequest
+                        ): HttpResponse {
+                            val res =
+                                client.request(request.url) {
+                                    method = HttpMethod(request.method)
+                                    for ((k, v) in request.headers) {
+                                        headers[k] = v
+                                    }
+                                    setBody(request.body)
                                 }
-                                setBody(request.body)
-                            }
 
-                        return HttpResponse(
-                            statusCode = res.status.value.toUShort(),
-                            headers =
-                            res.headers.toMap().mapValues {
-                                it.value.joinToString()
-                            },
-                            body = res.readBytes()
-                        )
+                            return HttpResponse(
+                                statusCode = res.status.value.toUShort(),
+                                headers =
+                                    res.headers.toMap().mapValues {
+                                        it.value.joinToString()
+                                    },
+                                body = res.readBytes()
+                            )
+                        }
                     }
-                }
             )
 
         val fullUrl = "openid-credential-offer://$url"
@@ -96,8 +91,12 @@ fun HandleOID4VCIView(
             val metadata = oid4vciSession.getMetadata()
 
             val keyManager = KeyManager()
-            keyManager.generateSigningKey(id = "reference-app/default-signing")
-            val jwk = keyManager.getJwk(id = "reference-app/default-signing")
+
+            if (!keyManager.keyExists(DEFAULT_SIGNING_KEY_ID)) {
+                keyManager.generateSigningKey(DEFAULT_SIGNING_KEY_ID)
+            }
+
+            val jwk = keyManager.getJwk(id = DEFAULT_SIGNING_KEY_ID)
 
             val signingInput =
                 jwk?.let {
@@ -113,7 +112,7 @@ fun HandleOID4VCIView(
             val signature =
                 signingInput?.let {
                     keyManager.signPayload(
-                        id = "reference-app/default-signing",
+                        id = DEFAULT_SIGNING_KEY_ID,
                         payload = signingInput
                     )
                 }
@@ -160,9 +159,6 @@ fun HandleOID4VCIView(
         AddToWalletView(
             navController = navController,
             rawCredential = credential!!,
-            credentialPacksViewModel = credentialPacksViewModel,
-            walletActivityLogsViewModel = walletActivityLogsViewModel,
-            statusListViewModel = statusListViewModel,
             onSuccess = {
                 scope.launch {
                     callback?.invoke()

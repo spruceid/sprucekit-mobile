@@ -15,6 +15,7 @@ import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.db.VerificationMethods
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -22,9 +23,9 @@ import org.json.JSONArray
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun AddVerificationMethodView(
-    navController: NavController,
-    verificationMethodsViewModel: VerificationMethodsViewModel
+    navController: NavController
 ) {
+    val verificationMethodsViewModel: VerificationMethodsViewModel = activityHiltViewModel()
     val scope = rememberCoroutineScope()
     var err by remember { mutableStateOf<String?>(null) }
     var qrcode by remember { mutableStateOf<String?>(null) }

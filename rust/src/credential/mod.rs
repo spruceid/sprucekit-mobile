@@ -252,7 +252,7 @@ impl ParsedCredential {
                 id: cwt.id(),
                 format: CredentialFormat::Cwt,
                 r#type: cwt.r#type(),
-                payload: cwt.payload().as_bytes().to_vec(),
+                payload: cwt.payload(),
                 key_alias: cwt.key_alias(),
             }),
         }

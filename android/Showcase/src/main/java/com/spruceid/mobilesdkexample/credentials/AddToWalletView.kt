@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
@@ -25,6 +26,7 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
@@ -39,11 +41,11 @@ import kotlinx.coroutines.launch
 fun AddToWalletView(
     navController: NavHostController,
     rawCredential: String,
-    credentialPacksViewModel: CredentialPacksViewModel,
-    walletActivityLogsViewModel: WalletActivityLogsViewModel,
-    statusListViewModel: StatusListViewModel,
     onSuccess: (() -> Unit)? = null
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
+    val statusListViewModel: StatusListViewModel = activityHiltViewModel()
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var err by remember { mutableStateOf<String?>(null) }
     var storing by remember { mutableStateOf(false) }
@@ -68,7 +70,10 @@ fun AddToWalletView(
             this.async(Dispatchers.Default) {
                 try {
                     val credentialPack = CredentialPack()
-                    credentialPack.tryAddRawCredential(rawCredential)
+
+                    // Try add credential in any supported format
+                    credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
+
                     credentialPacksViewModel.saveCredentialPack(credentialPack)
                     val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
                     walletActivityLogsViewModel.saveWalletActivityLog(

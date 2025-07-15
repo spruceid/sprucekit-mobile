@@ -1,18 +1,21 @@
 package com.spruceid.mobilesdkexample.viewmodels
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogsRepository
 import com.spruceid.mobilesdkexample.utils.formatSqlDateTime
 import com.spruceid.mobilesdkexample.utils.removeCommas
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class VerificationActivityLogsViewModel(private val verificationActivityLogsRepository: VerificationActivityLogsRepository) :
-    ViewModel() {
+@HiltViewModel
+class VerificationActivityLogsViewModel @Inject constructor(
+    private val verificationActivityLogsRepository: VerificationActivityLogsRepository
+) : ViewModel() {
     private val _verificationActivityLogs = MutableStateFlow(listOf<VerificationActivityLogs>())
     val verificationActivityLogs = _verificationActivityLogs.asStateFlow()
 
@@ -60,11 +63,4 @@ class VerificationActivityLogsViewModel(private val verificationActivityLogsRepo
 
         return heading + rows
     }
-}
-
-class VerificationActivityLogsViewModelFactory(private val repository: VerificationActivityLogsRepository) :
-    ViewModelProvider.NewInstanceFactory() {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        VerificationActivityLogsViewModel(repository) as T
 }

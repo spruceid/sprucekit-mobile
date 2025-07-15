@@ -1,4 +1,5 @@
 use crate::haci::http_client::HaciHttpClient;
+use serde::Deserialize;
 use serde_json::Value;
 use ssi::{
     claims::jwt::{ExpirationTime, StringOrURI, Subject, ToDecodedJwt},
@@ -7,6 +8,7 @@ use ssi::{
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use time::OffsetDateTime;
+use tokio::sync::OnceCell;
 
 #[derive(Error, Debug, uniffi::Error)]
 pub enum WalletServiceError {
@@ -37,6 +39,10 @@ pub enum WalletServiceError {
     /// Internal error
     #[error("Internal error: {0}")]
     InternalError(String),
+
+    /// Missing endpoint
+    #[error("Endpoint key does not exists: {0}. Available keys: {1}")]
+    MissingEndpoint(String, String),
 }
 
 #[derive(Debug, Clone)]
@@ -51,11 +57,11 @@ fn create_token_info(token: String) -> Result<TokenInfo, WalletServiceError> {
     let jws_bytes: Vec<u8> = token.as_bytes().to_vec();
 
     let jws_buf = JwsBuf::new(jws_bytes)
-        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to parse JWS: {:?}", e)))?;
+        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to parse JWS: {e:?}")))?;
 
     let jwt_claims = jws_buf
         .to_decoded_jwt()
-        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to decode JWT: {:?}", e)))?
+        .map_err(|e| WalletServiceError::JwtParseError(format!("Failed to decode JWT: {e:?}")))?
         .signing_bytes
         .payload;
 
@@ -67,7 +73,7 @@ fn create_token_info(token: String) -> Result<TokenInfo, WalletServiceError> {
 
     let expires_at =
         OffsetDateTime::from_unix_timestamp(exp.0.as_seconds() as i64).map_err(|e| {
-            WalletServiceError::JwtParseError(format!("Invalid expiration timestamp: {}", e))
+            WalletServiceError::JwtParseError(format!("Invalid expiration timestamp: {e}"))
         })?;
 
     Ok(TokenInfo {
@@ -82,17 +88,78 @@ pub struct WalletServiceClient {
     client: HaciHttpClient,
     base_url: String,
     token_info: Arc<Mutex<Option<TokenInfo>>>,
+    endpoints: OnceCell<WalletEndpoints>,
+}
+
+#[derive(Debug, Deserialize, Clone, uniffi::Object)]
+pub struct WalletEndpoints {
+    nonce: String,
+    login: String,
+}
+
+impl WalletEndpoints {
+    /// Loads the available endpoints dynamically from the API
+    async fn fetch_wellknown_from_api(
+        client: &HaciHttpClient,
+        base_url: &String,
+    ) -> Result<Self, WalletServiceError> {
+        let url = format!("{base_url}/.well-known/showcase-endpoints");
+        let response = client.get(url).send().await.map_err(|e| {
+            WalletServiceError::NetworkError(format!(
+                "Wallet endpoints fetching error: {:?}",
+                e.to_string()
+            ))
+        })?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let error_text = response.text().await.unwrap_or_default();
+            return Err(WalletServiceError::ServerError {
+                status,
+                error_message: format!("Wallet endpoints fetching error: {error_text:?}"),
+            });
+        }
+
+        let endpoints: Self = response.json().await.map_err(|e| {
+            WalletServiceError::ResponseError(format!(
+                "Wallet endpoints fetching error: {:?}",
+                e.to_string()
+            ))
+        })?;
+
+        Ok(endpoints)
+    }
 }
 
 #[uniffi::export(async_runtime = "tokio")]
 impl WalletServiceClient {
     #[uniffi::constructor]
     pub fn new(base_url: String) -> Self {
+        let actual_url = base_url
+            .trim()
+            .strip_suffix('/')
+            .unwrap_or(&base_url)
+            .to_string();
         Self {
             client: HaciHttpClient::new(),
-            base_url,
+            base_url: actual_url,
             token_info: Arc::new(Mutex::new(None)),
+            endpoints: OnceCell::new(),
         }
+    }
+
+    /// Lazy fetch or return cached endpoints
+    pub async fn get_or_fetch_endpoints(&self) -> Result<WalletEndpoints, WalletServiceError> {
+        self.endpoints
+            .get_or_try_init(async || {
+                WalletEndpoints::fetch_wellknown_from_api(&self.client, &self.base_url).await
+            })
+            .await
+            .cloned()
+    }
+    /// Format the endpoint
+    fn format_endpoint(&self, path: String) -> String {
+        format!("{}{}", self.base_url, path)
     }
 
     /// Returns the current client ID (sub claim from JWT)
@@ -136,10 +203,19 @@ impl WalletServiceClient {
 
     /// Get a nonce from the server that expires in 5 minutes and can only be used once
     pub async fn nonce(&self) -> Result<String, WalletServiceError> {
+        // Get the nonce endpoint dynamically
+        let path = &self
+            .get_or_fetch_endpoints()
+            .await
+            .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?
+            .nonce;
+
+        let url = self.format_endpoint(path.clone());
+
         // Make GET request to /nonce endpoint
         let response = self
             .client
-            .get(format!("{}/nonce", self.base_url))
+            .get(url)
             .send()
             .await
             .map_err(|e| WalletServiceError::NetworkError(e.to_string()))?;
@@ -164,6 +240,15 @@ impl WalletServiceClient {
     }
 
     pub async fn login(&self, app_attestation: &str) -> Result<String, WalletServiceError> {
+        // Get the login endpoint dynamically
+        let path = &self
+            .get_or_fetch_endpoints()
+            .await
+            .map_err(|e| WalletServiceError::ResponseError(e.to_string()))?
+            .login;
+
+        let url = self.format_endpoint(path.clone());
+
         // Parse the app attestation string into a Value to ensure it's valid JSON
         let attestation_value: Value = serde_json::from_str(app_attestation)
             .map_err(|e| WalletServiceError::InvalidJson(e.to_string()))?;
@@ -171,7 +256,7 @@ impl WalletServiceClient {
         // Make POST request to /login endpoint
         let response = self
             .client
-            .post(format!("{}/login", self.base_url))
+            .post(url)
             .header("Content-Type", "application/json")
             .json(&attestation_value)
             .send()
@@ -274,6 +359,20 @@ mod tests {
     async fn test_get_nonce() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         let expected_nonce = "test-nonce-123";
 
         // Mock successful nonce response
@@ -293,6 +392,19 @@ mod tests {
     async fn test_nonce_server_error() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
 
         // Mock server error response
         Mock::given(method("GET"))
@@ -321,6 +433,19 @@ mod tests {
     async fn test_successful_login() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
 
         // Generate a new private key for signing
         let private_jwk = JWK::generate_p256();
@@ -352,8 +477,21 @@ mod tests {
 
     #[tokio::test]
     async fn test_invalid_json() {
-        let (_, base_url) = setup_mock_server().await;
+        let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         let invalid_json = r#"{
             "keyAssertion": "invalid",
             "clientData": "invalid",
@@ -372,6 +510,19 @@ mod tests {
     async fn test_server_error() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
 
         // Mock server error response
         Mock::given(method("POST"))
@@ -397,6 +548,20 @@ mod tests {
     async fn test_empty_attestation() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         let empty_attestation = "{}";
 
         // Mock server error response for empty attestation
@@ -423,6 +588,20 @@ mod tests {
     async fn test_malformed_attestation() {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
         let malformed_attestation = r#"{
             "keyAssertion": "invalid-base64",
             "clientData": "invalid-base64",
@@ -453,9 +632,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_auth_header() {
+    async fn test_auth_header() -> Result<(), WalletServiceError> {
         let (mock_server, base_url) = setup_mock_server().await;
         let client = WalletServiceClient::new(base_url);
+
+        // Mock lazy call to discover available endpoints
+        Mock::given(method("GET"))
+            .and(path("/.well-known/showcase-endpoints"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{
+                    "login": "/login",
+                    "nonce": "/nonce"
+                }"#,
+            ))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
 
         // Generate a new private key for signing
         let private_jwk = JWK::generate_p256();
@@ -489,5 +681,7 @@ mod tests {
             auth_header.starts_with("Bearer "),
             "Auth header should start with 'Bearer '"
         );
+
+        Ok(())
     }
 }

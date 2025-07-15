@@ -100,10 +100,17 @@ impl Mdoc {
                         .into_values()
                         .map(|tagged| {
                             let element = tagged.into_inner();
-                            Element {
-                                identifier: element.element_identifier,
-                                value: serde_json::to_string_pretty(&element.element_value).ok(),
+                            let identifier = element.element_identifier;
+                            let mut value = to_json_for_display(&element.element_value)
+                                .and_then(|v| serde_json::to_string_pretty(&v).ok());
+                            tracing::debug!("{identifier}: {value:?}");
+                            if identifier == "portrait" {
+                                if let Some(s) = value {
+                                    value =
+                                        Some(s.replace("application/octet-stream", "image/jpeg"));
+                                }
                             }
+                            Element { identifier, value }
                         })
                         .collect(),
                 )
@@ -222,4 +229,61 @@ pub enum MdocInitError {
 pub enum MdocEncodingError {
     #[error("failed to encode Document to CBOR")]
     DocumentCborEncoding,
+}
+
+/// Convert a ciborium value to a serde_json value for display.
+fn to_json_for_display(value: &ciborium::Value) -> Option<serde_json::Value> {
+    /// Convert integer and text keys to strings for display.
+    fn key_to_string_for_display(value: &ciborium::Value) -> Option<String> {
+        match value {
+            ciborium::Value::Integer(i) => Some(<i128>::from(*i).to_string()),
+            ciborium::Value::Text(s) => Some(s.clone()),
+            ciborium::Value::Float(f) => Some(f.to_string()),
+            ciborium::Value::Bool(b) => Some(b.to_string()),
+            ciborium::Value::Null => Some("null".to_string()),
+            ciborium::Value::Tag(_, v) => key_to_string_for_display(v),
+            _ => {
+                tracing::warn!("unsupported key type: {:?}", value);
+                None
+            }
+        }
+    }
+
+    match value {
+        ciborium::Value::Integer(i) => Some(serde_json::Value::Number(i128::from(*i).into())),
+        ciborium::Value::Text(s) => Some(serde_json::Value::String(s.clone())),
+        ciborium::Value::Array(a) => Some(serde_json::Value::Array(
+            a.iter().filter_map(to_json_for_display).collect::<Vec<_>>(),
+        )),
+        ciborium::Value::Map(m) => Some(serde_json::Value::Object(
+            m.iter()
+                .filter_map(|(k, v)| {
+                    let key = key_to_string_for_display(k)?;
+                    let value = to_json_for_display(v)?;
+                    Some((key, value))
+                })
+                .collect(),
+        )),
+        ciborium::Value::Bytes(items) => Some(
+            format!(
+                "data:application/octet-stream;base64,{}",
+                BASE64_STANDARD.encode(items)
+            )
+            .into(),
+        ),
+        ciborium::Value::Float(f) => {
+            let Some(num) = serde_json::Number::from_f64(*f) else {
+                tracing::warn!("failed to convert float to number: {}", f);
+                return None;
+            };
+            Some(serde_json::Value::Number(num))
+        }
+        ciborium::Value::Bool(b) => Some(serde_json::Value::Bool(*b)),
+        ciborium::Value::Null => Some(serde_json::Value::Null),
+        ciborium::Value::Tag(_, value) => to_json_for_display(value),
+        _ => {
+            tracing::warn!("unsupported value type: {:?}", value);
+            None
+        }
+    }
 }

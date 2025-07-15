@@ -199,8 +199,7 @@ impl CredentialPresentation for VCDM2SdJwt {
 
                     if located_node.is_empty() {
                         Err(OID4VPError::JsonPathResolve(format!(
-                            "Unable to resolve JsonPath: {}",
-                            path
+                            "Unable to resolve JsonPath: {path}"
                         )))
                     } else {
                         // SAFETY: Empty check above

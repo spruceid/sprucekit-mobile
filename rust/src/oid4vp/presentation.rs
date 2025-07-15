@@ -281,8 +281,8 @@ impl PresentationOptions<'_> {
             .map_err(|e| PresentationError::VerificationMethod(format!("{e:?}")))
     }
 
-    pub fn audience(&self) -> &String {
-        &self.request.client_id().0
+    pub fn audience(&self) -> Option<&String> {
+        self.request.client_id().map(|id| &id.0)
     }
 
     pub fn nonce(&self) -> &String {
@@ -304,7 +304,7 @@ impl PresentationOptions<'_> {
     /// Return the crypto curve utils based on the signing algorithm, e.g. ES256.
     pub fn curve_utils(&self) -> Result<CryptoCurveUtils, PresentationError> {
         match self.signer.algorithm() {
-            ssi::crypto::Algorithm::Es256 => Ok(CryptoCurveUtils::secp256r1()),
+            ssi::crypto::Algorithm::ES256 => Ok(CryptoCurveUtils::secp256r1()),
             alg => Err(PresentationError::CryptographicSuite(format!(
                 "Unsupported curve utils for algorithm: {alg:?}"
             ))),
@@ -352,7 +352,12 @@ impl PresentationOptions<'_> {
         //
         // domain is the client_id of the request, in the example above.
         proof_options.challenge = Some(self.nonce().to_owned());
-        proof_options.domains = vec![self.request.client_id().0.clone()];
+        proof_options.domains = vec![self
+            .request
+            .client_id()
+            .ok_or_else(|| PresentationError::Context("request missing 'client_id'".to_string()))?
+            .0
+            .clone()];
 
         if let AnyJsonPresentation::V1(_) = presentation {
             let iri_buf = IriRefBuf::new("https://w3id.org/security/data-integrity/v2".into())
@@ -373,15 +378,17 @@ impl PresentationOptions<'_> {
 
         let suite = self.signer.cryptosuite();
 
+        let env = SignatureEnvironment {
+            json_ld_loader: context,
+            eip712_loader: (),
+        };
+
         // Use the cryptosuite-specific signing method to sign the presentation.
         match suite.as_ref() {
             "ecdsa-rdfc-2019" => {
                 AnySuite::EcdsaRdfc2019
                     .sign_with(
-                        SignatureEnvironment {
-                            json_ld_loader: context,
-                            eip712_loader: (),
-                        },
+                        &env,
                         presentation,
                         resolver,
                         self,
@@ -393,10 +400,7 @@ impl PresentationOptions<'_> {
             JsonWebSignature2020::NAME => {
                 AnySuite::JsonWebSignature2020
                     .sign_with(
-                        SignatureEnvironment {
-                            json_ld_loader: context,
-                            eip712_loader: (),
-                        },
+                        &env,
                         presentation,
                         resolver,
                         self,

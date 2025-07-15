@@ -15,6 +15,7 @@ import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 import kotlinx.coroutines.GlobalScope
@@ -27,9 +28,10 @@ enum class VerifyEASteps {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun VerifyEAView(
-    navController: NavController,
-    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
+    navController: NavController
 ) {
+    val verificationActivityLogsViewModel: VerificationActivityLogsViewModel =
+        activityHiltViewModel()
     var step by remember { mutableStateOf(VerifyEASteps.STEP_ONE) }
     var success by remember { mutableStateOf<Boolean?>(null) }
     var stepOne by remember { mutableStateOf<String?>(null) }

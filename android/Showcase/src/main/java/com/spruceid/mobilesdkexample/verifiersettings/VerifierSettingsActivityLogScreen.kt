@@ -55,16 +55,18 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 import com.spruceid.mobilesdkexample.utils.DropdownInput
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.formatSqlDateTime
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationActivityLogsViewModel
 
 @Composable
 fun VerifierSettingsActivityLogScreen(
-    navController: NavController,
-    verificationActivityLogsViewModel: VerificationActivityLogsViewModel,
-    helpersViewModel: HelpersViewModel
+    navController: NavController
 ) {
+    val verificationActivityLogsViewModel: VerificationActivityLogsViewModel =
+        activityHiltViewModel()
+    val helpersViewModel: HelpersViewModel = activityHiltViewModel()
     // TODO: WIP: we will finish these filters in the future
     // val distinctCredentialTitles = verificationActivityLogsViewModel.getDistinctCredentialTitles()
     val verificationActivityLogs by verificationActivityLogsViewModel.verificationActivityLogs.collectAsState()

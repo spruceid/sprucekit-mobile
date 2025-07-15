@@ -5,11 +5,12 @@ plugins {
     id 'maven-publish'
     id 'signing'
     id 'com.gradleup.nmcp'
+    id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
 }
 
 android {
     namespace 'com.spruceid.mobile.sdk.rs'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         minSdk 24
@@ -45,13 +46,14 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    implementation("androidx.compose.runtime:runtime:1.6.6")
 
     implementation "net.java.dev.jna:jna:5.13.0@aar"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
     implementation "androidx.annotation:annotation:1.5.0"
     implementation "androidx.core:core-ktx:1.9.0"
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0-RC.2'
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.6.0'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:1.9.2'
 }
 
 apply plugin: 'com.github.willir.rust.cargo-ndk-android'
@@ -60,6 +62,37 @@ cargoNdk {
     module =  "../rust"
     targetDirectory = "target"
     targets = ["arm", "arm64", "x86", "x86_64"]
+}
+
+def markerFile(taskName) {
+    return file("${getLayout().buildDirectory.get()}/.${taskName}LastRun")
+}
+
+def rustUpdated(taskName) {
+    def srcTree = fileTree("../../rust/src")
+    def manifest = files("../../rust/Cargo.toml", "../../rust/Cargo.lock")
+    def markerFile = markerFile(taskName)
+
+    if (!markerFile.exists()) {
+        return true
+    }
+
+    def lastRun = Long.parseLong(markerFile.text)
+
+    def changed = (srcTree.files + manifest.files).any {
+        getLogger().info("File: ${it.name}, last modified: ${it.lastModified()}, last run: $lastRun")
+        it.lastModified() > lastRun
+    }
+
+    return changed
+}
+
+def onSuccess(taskName) {
+    def markerFile = markerFile(taskName)
+    if (!markerFile.exists()) {
+        markerFile.parentFile.mkdirs()
+    }
+    markerFile.text = "${System.currentTimeMillis()}"
 }
 
 afterEvaluate {
@@ -75,12 +108,29 @@ afterEvaluate {
             it.dependsOn(tasks.named("bindGen"))
         }
 
+        tasks.named("compileDebugKotlin") {
+            it.mustRunAfter(tasks.named("bindGen"))
+        }
+
         tasks.named("generate${productFlavor}${buildType}Assets") {
             it.dependsOn(tasks.named("buildCargoNdk${variant.name.capitalize()}"))
         }
     }
+
+    (tasks.withType(CargoNdkBuildTask)).configureEach {
+        def name = it.name
+        it.dependsOn(tasks.named("bindGen"))
+        it.onlyIf { rustUpdated(name) }
+        it.doLast { onSuccess(name) }
+    }
+    tasks.named("bindGen").configure {
+        def name = it.name
+        it.onlyIf { rustUpdated(name) }
+        it.doLast { onSuccess(name) }
+    }
 }
 
+import com.github.willir.rust.CargoNdkBuildTask
 import org.apache.tools.ant.taskdefs.condition.Os
 tasks.register('bindGen', Exec) {
     def outDir = "${projectDir}/src/main/java"
@@ -101,7 +151,8 @@ tasks.register('bindGen', Exec) {
                 cargo run --bin uniffi-bindgen generate \
                 --library target/debug/libmobile_sdk_rs.$extension \
                 --language kotlin \
-                --out-dir $outDir
+                --out-dir $outDir \
+                --no-format
                 """)
     }
 }

@@ -5,17 +5,22 @@ import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.toMutableStateList
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobile.sdk.dcapi.Registry
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class CredentialPacksViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class CredentialPacksViewModel @Inject constructor(
+    application: Application,
+    private val dcApiRegistry: Registry
+) : AndroidViewModel(application) {
     private val storageManager = StorageManager(context = (application as Context))
     private val _credentialPacks = MutableStateFlow(listOf<CredentialPack>())
     val credentialPacks = _credentialPacks.asStateFlow()
@@ -27,8 +32,12 @@ class CredentialPacksViewModel(application: Application) : AndroidViewModel(appl
             _loading.value = true
             this.async(Dispatchers.Default) {
                 _credentialPacks.value = CredentialPack.loadPacks(storageManager)
+                dcApiRegistry.register(credentialPacks.value)
             }.await()
             _loading.value = false
+
+            // Listen for credential pack updates and update the registry.
+            _credentialPacks.collect { packs -> dcApiRegistry.register(packs) }
         }
     }
 
@@ -59,11 +68,4 @@ class CredentialPacksViewModel(application: Application) : AndroidViewModel(appl
             credentialPack.id().toString() == credentialPackId
         }
     }
-}
-
-class CredentialPacksViewModelFactory(private val application: Application) :
-    ViewModelProvider.NewInstanceFactory() {
-    @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel> create(modelClass: Class<T>): T =
-        CredentialPacksViewModel(application) as T
 }

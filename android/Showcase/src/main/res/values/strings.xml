@@ -16,6 +16,10 @@
     <string name="revoked_check">Revoked credential</string>
     <string name="pending_check">Credential pending approval</string>
     <string name="ready_check">Credential ready to be claimed</string>
+    <string name="application_proofing_required">Proofing required</string>
+    <string name="application_awaiting_manual_review">Awaiting manual review</string>
+    <string name="application_ready_to_provision">Ready to provision</string>
+    <string name="application_denied">Application denied</string>
     <string name="verification_activity_log">Verification Activity Log</string>
     <string name="chevron">Start action</string>
     <string name="empty_wallet">No credentials added yet</string>
@@ -38,4 +42,5 @@
     <string name="trusted_certificates">Manage trusted certificates</string>
     <string name="delete">Delete</string>
     <string name="apply_spruceid_mdl">Apply for a SpruceID mDL</string>
+    <string name="dev_mode">Enable/disable dev mode</string>
 </resources>

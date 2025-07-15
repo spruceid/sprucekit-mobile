@@ -5,8 +5,10 @@ import android.content.Intent
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.io.File
 import java.io.PrintWriter
+import javax.inject.Inject
 
 fun File.clearText() {
     PrintWriter(this).also {
@@ -20,7 +22,10 @@ fun File.updateText(content: String) {
     appendText(content)
 }
 
-class HelpersViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class HelpersViewModel @Inject constructor(
+    application: Application
+) : AndroidViewModel(application) {
     fun exportText(content: String, filename: String, fileType: String) {
         val app = getApplication<Application>()
         val file = File(app.cacheDir, filename)

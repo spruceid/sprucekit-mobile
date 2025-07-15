@@ -42,6 +42,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.SimpleAlertDialog
+import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.FileData
 import com.spruceid.mobilesdkexample.viewmodels.TrustedCertificatesViewModel
 import kotlinx.coroutines.launch
@@ -50,8 +51,7 @@ import java.io.InputStreamReader
 
 @Composable
 fun VerifierSettingsTrustedCertificatesView(
-    navController: NavController,
-    trustedCertificatesViewModel: TrustedCertificatesViewModel
+    navController: NavController
 ) {
     Column(
         Modifier
@@ -63,9 +63,7 @@ fun VerifierSettingsTrustedCertificatesView(
                 navController.popBackStack()
             }
         )
-        VerifierSettingsTrustedCertificatesBody(
-            trustedCertificatesViewModel = trustedCertificatesViewModel
-        )
+        VerifierSettingsTrustedCertificatesBody()
     }
 }
 
@@ -98,9 +96,8 @@ fun VerifierSettingsTrustedCertificatesHeader(onBack: () -> Unit) {
 }
 
 @Composable
-fun VerifierSettingsTrustedCertificatesBody(
-    trustedCertificatesViewModel: TrustedCertificatesViewModel
-) {
+fun VerifierSettingsTrustedCertificatesBody() {
+    val trustedCertificatesViewModel: TrustedCertificatesViewModel = activityHiltViewModel()
     val trustedCertificates by trustedCertificatesViewModel.trustedCertificates.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
