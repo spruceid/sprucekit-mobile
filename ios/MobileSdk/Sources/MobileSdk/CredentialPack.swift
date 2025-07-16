@@ -137,7 +137,7 @@ public class CredentialPack {
         credentials.append(ParsedCredential.newSdJwt(sdJwtVc: sdJwt))
         return credentials
     }
-    
+
     #if canImport(IdentityDocumentServices)
     @available(iOS 26.0, *)
     private func addMDocToIDProvider(mdoc: Mdoc) async throws {
@@ -168,11 +168,12 @@ public class CredentialPack {
         }
     }
     #endif
-    
+
     public func registerUnregisteredIDProviderDocuments() async throws {
         #if canImport(IdentityDocumentServices)
         if #available(iOS 26.0, *) {
-            // checking first that there are any potential mdocs to add to the id provider to avoid the authorization popup if not necessary
+            // checking first that there are any potential mdocs to add to the id provider
+            // to avoid the authorization popup if not necessary
             var mdocs: [Mdoc] = []
             for credential in self.credentials {
                 guard let mdoc = credential.asMsoMdoc() else { continue }

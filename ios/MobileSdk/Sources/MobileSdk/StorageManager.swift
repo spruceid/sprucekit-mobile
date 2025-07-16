@@ -14,11 +14,11 @@ import SpruceIDMobileSdkRs
 /// Store and retrieve sensitive data.
 public class StorageManager: NSObject, StorageManagerInterface {
     let appGroupId: String?
-    
+
     public init(appGroupId: String?) {
         self.appGroupId = appGroupId
     }
-    
+
     public func migrationToAppGroupFileManager() throws {
         if appGroupId == nil {
             throw StorageManagerError.InternalError
@@ -41,18 +41,21 @@ public class StorageManager: NSObject, StorageManagerInterface {
         let appGroupDatadir: URL
         let appDatadir: URL
         if #available(iOS 16.0, *) {
-            appGroupDatadir = appGroupAsdir.appending(path: "\(appname)/sprucekit/datastore/", directoryHint: .isDirectory)
+            appGroupDatadir = appGroupAsdir.appending(path: "\(appname)/sprucekit/datastore/",
+                                                      directoryHint: .isDirectory)
             appDatadir = appAsdir.appending(path: "\(appname)/sprucekit/datastore/", directoryHint: .isDirectory)
         } else {
             appGroupDatadir = appGroupAsdir.appendingPathComponent("\(appname)/sprucekit/datastore/")
             appDatadir = appAsdir.appendingPathComponent("\(appname)/sprucekit/datastore/")
         }
         if fileman.fileExists(atPath: appDatadir.path) {
-            try fileman.createDirectory(at: appGroupDatadir.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
+            try fileman.createDirectory(at: appGroupDatadir.deletingLastPathComponent(),
+                                        withIntermediateDirectories: true,
+                                        attributes: nil)
             try fileman.moveItem(at: appDatadir, to: appGroupDatadir)
         }
     }
-    
+
     /// Get the path to the application support dir, appending the given file name to it.
     ///
     /// We use the application support directory because its contents are not shared.
@@ -85,8 +88,7 @@ public class StorageManager: NSObject, StorageManagerInterface {
                                 in: .userDomainMask,
                                 appropriateFor: nil, // Ignored
                                 create: true) // May not exist, make if necessary.
-            }
-            else {
+            } else {
                 return nil
             }
 

@@ -7,17 +7,18 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     public func migrateToAccessGroup(oldAccessGroup: String, newAccessGroup: String) throws {
         let searchAttrs: [String: Any] = [
             kSecClass as String: kSecClassKey,
-            kSecAttrAccessGroup as String: oldAccessGroup,
+            kSecAttrAccessGroup as String: oldAccessGroup
         ]
         let targetAttrs: [String: Any] = [
-            kSecAttrAccessGroup as String: newAccessGroup,
+            kSecAttrAccessGroup as String: newAccessGroup
         ]
         let result = SecItemUpdate(searchAttrs as CFDictionary, targetAttrs as CFDictionary)
         if result != errSecSuccess {
-            throw KeyManError.internalError("Could not migrate keychain: \(SecCopyErrorMessageString(result, nil) as String? ?? result.description)")
+            let errorMessage = SecCopyErrorMessageString(result, nil) as String? ?? result.description
+            throw KeyManError.internalError("Could not migrate keychain: \(errorMessage)")
         }
     }
-    
+
     public func getSigningKey(alias: SpruceIDMobileSdkRs.KeyAlias) throws -> any SpruceIDMobileSdkRs.SigningKey {
         guard let jwkString = Self.getJwk(id: alias) else {
             throw KeyManError.missing
