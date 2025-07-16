@@ -80,32 +80,7 @@ struct WalletSettingsHomeBody: View {
         Button {
             Task {
                 do {
-                    let credentialPacks = credentialPackObservable
-                        .credentialPacks
-                    try await credentialPacks.asyncForEach { credentialPack in
-                        try await credentialPackObservable.delete(
-                            credentialPack: credentialPack
-                        )
-                        credentialPack.list().forEach { credential in
-                            let credentialInfo = getCredentialIdTitleAndIssuer(
-                                credentialPack: credentialPack,
-                                credential: credential
-                            )
-                            _ = WalletActivityLogDataStore.shared.insert(
-                                credentialPackId: credentialPack.id.uuidString,
-                                credentialId: credentialInfo.0,
-                                credentialTitle: credentialInfo.1,
-                                issuer: credentialInfo.2,
-                                action: "Deleted",
-                                dateTime: Date(),
-                                additionalInformation: ""
-                            )
-                        }
-                    }
                     showDeleteDialog = true
-                } catch {
-                    // TODO: display error message
-                    print(error)
                 }
             }
         } label: {
@@ -121,6 +96,35 @@ struct WalletSettingsHomeBody: View {
         .alert("Delete credentials", isPresented: $showDeleteDialog) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
+                let credentialPacks = credentialPackObservable
+                        .credentialPacks
+                Task {
+                    do {
+                        try await credentialPacks.asyncForEach { credentialPack in
+                            try await credentialPackObservable.delete(
+                                credentialPack: credentialPack
+                            )
+                            credentialPack.list().forEach { credential in
+                                let credentialInfo = getCredentialIdTitleAndIssuer(
+                                    credentialPack: credentialPack,
+                                    credential: credential
+                                )
+                                _ = WalletActivityLogDataStore.shared.insert(
+                                    credentialPackId: credentialPack.id.uuidString,
+                                    credentialId: credentialInfo.0,
+                                    credentialTitle: credentialInfo.1,
+                                    issuer: credentialInfo.2,
+                                    action: "Deleted",
+                                    dateTime: Date(),
+                                    additionalInformation: ""
+                                )
+                            }
+                        }
+                    } catch {
+                        // TODO: display error message
+                        print(error)
+                    }
+                }
                 let _ = HacApplicationDataStore.shared.deleteAll()
             }
         }

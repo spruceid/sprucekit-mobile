@@ -229,29 +229,7 @@ fun WalletSettingsHomeBody(
         Spacer(Modifier.weight(1f))
         Button(
             onClick = {
-                GlobalScope.launch {
-                    credentialPacksViewModel.deleteAllCredentialPacks(onDeleteCredentialPack = { credentialPack ->
-                        credentialPack.list().forEach { credential ->
-                            val credentialInfo =
-                                getCredentialIdTitleAndIssuer(
-                                    credentialPack,
-                                    credential
-                                )
-                            walletActivityLogsViewModel.saveWalletActivityLog(
-                                walletActivityLogs = WalletActivityLogs(
-                                    credentialPackId = credentialPack.id().toString(),
-                                    credentialId = credentialInfo.first,
-                                    credentialTitle = credentialInfo.second,
-                                    issuer = credentialInfo.third,
-                                    action = "Deleted",
-                                    dateTime = getCurrentSqlDate(),
-                                    additionalInformation = ""
-                                )
-                            )
-                        }
-                    })
-                    showDeleteDialog = true
-                }
+                showDeleteDialog = true
             },
             shape = RoundedCornerShape(5.dp),
             colors = ButtonDefaults.buttonColors(
@@ -273,7 +251,27 @@ fun WalletSettingsHomeBody(
             showDialog = showDeleteDialog,
             message = "Are you sure you want to delete all the credentials? This action cannot be undone.",
             onConfirm = {
-                scope.launch {
+                GlobalScope.launch {
+                    credentialPacksViewModel.deleteAllCredentialPacks(onDeleteCredentialPack = { credentialPack ->
+                        credentialPack.list().forEach { credential ->
+                            val credentialInfo =
+                                getCredentialIdTitleAndIssuer(
+                                    credentialPack,
+                                    credential
+                                )
+                            walletActivityLogsViewModel.saveWalletActivityLog(
+                                walletActivityLogs = WalletActivityLogs(
+                                    credentialPackId = credentialPack.id().toString(),
+                                    credentialId = credentialInfo.first,
+                                    credentialTitle = credentialInfo.second,
+                                    issuer = credentialInfo.third,
+                                    action = "Deleted",
+                                    dateTime = getCurrentSqlDate(),
+                                    additionalInformation = ""
+                                )
+                            )
+                        }
+                    })
                     hacApplicationsViewModel.deleteAllApplications()
                     showDeleteDialog = false
                 }
