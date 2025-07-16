@@ -267,7 +267,7 @@ fun WalletHomeBody(
                     WalletHomeViewNoCredentials(onGenerateMockMdl = {
                         isRefreshing = true
                         scope.launch {
-                            generateMockMdl(credentialPacksViewModel)
+                            generateMockMdl(credentialPacksViewModel, walletActivityLogsViewModel)
                         }
                         isRefreshing = false
                     })
