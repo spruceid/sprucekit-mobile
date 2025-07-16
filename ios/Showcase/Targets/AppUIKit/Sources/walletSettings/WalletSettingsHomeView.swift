@@ -60,6 +60,7 @@ struct WalletSettingsHomeBody: View {
     @Binding var path: NavigationPath
     var onBack: () -> Void
     @State private var isApplyingForMdl = false
+    @State var showDeleteDialog: Bool = false
 
     @ViewBuilder
     var activityLogButton: some View {
@@ -101,7 +102,7 @@ struct WalletSettingsHomeBody: View {
                             )
                         }
                     }
-                    let _ = HacApplicationDataStore.shared.deleteAll()
+                    showDeleteDialog = true
                 } catch {
                     // TODO: display error message
                     print(error)
@@ -117,6 +118,17 @@ struct WalletSettingsHomeBody: View {
         .padding(.vertical, 13)
         .background(Color("ColorRose700"))
         .cornerRadius(8)
+        .alert("Delete credentials", isPresented: $showDeleteDialog) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                let _ = HacApplicationDataStore.shared.deleteAll()
+            }
+        }
+        message: {
+            Text(
+                "Are you sure you want to delete all the credentials? This action cannot be undone."
+            )
+        }
     }
 
     @ViewBuilder
