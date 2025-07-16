@@ -19,6 +19,40 @@ public class StorageManager: NSObject, StorageManagerInterface {
         self.appGroupId = appGroupId
     }
     
+    public func migrationToAppGroupFileManager() throws {
+        if appGroupId == nil {
+            throw StorageManagerError.InternalError
+        }
+        let fileman = FileManager.default
+        var bundle = Bundle.main
+        guard let appGroupAsdir = fileman.containerURL(forSecurityApplicationGroupIdentifier: appGroupId!)
+        else {
+            throw StorageManagerError.InternalError
+        }
+        let appAsdir = try fileman.url(for: .applicationSupportDirectory,
+                                       in: .userDomainMask,
+                                       appropriateFor: nil, // Ignored
+                                       create: false)
+        guard let appname = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ??
+            bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+        else {
+            throw StorageManagerError.InternalError
+        }
+        let appGroupDatadir: URL
+        let appDatadir: URL
+        if #available(iOS 16.0, *) {
+            appGroupDatadir = appGroupAsdir.appending(path: "\(appname)/sprucekit/datastore/", directoryHint: .isDirectory)
+            appDatadir = appAsdir.appending(path: "\(appname)/sprucekit/datastore/", directoryHint: .isDirectory)
+        } else {
+            appGroupDatadir = appGroupAsdir.appendingPathComponent("\(appname)/sprucekit/datastore/")
+            appDatadir = appAsdir.appendingPathComponent("\(appname)/sprucekit/datastore/")
+        }
+        if fileman.fileExists(atPath: appDatadir.path) {
+            try fileman.createDirectory(at: appGroupDatadir.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: nil)
+            try fileman.moveItem(at: appDatadir, to: appGroupDatadir)
+        }
+    }
+    
     /// Get the path to the application support dir, appending the given file name to it.
     ///
     /// We use the application support directory because its contents are not shared.

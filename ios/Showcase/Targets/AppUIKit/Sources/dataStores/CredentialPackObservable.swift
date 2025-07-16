@@ -5,11 +5,17 @@ class CredentialPackObservable: ObservableObject {
     @Published var credentialPacks: [CredentialPack]
     let storageManager: StorageManager
 
-    init(credentialPacks: [CredentialPack] = []) {
+    init(appGroupId: String?, credentialPacks: [CredentialPack] = []) {
         let bundle = Bundle.main
         self.storageManager = StorageManager(
-            appGroupId: bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String)
+            appGroupId: appGroupId)
         self.credentialPacks = credentialPacks
+    }
+    
+    public func registerUnregisteredIDProviderDocuments() async throws {
+        for credentialPack in credentialPacks {
+            try await credentialPack.registerUnregisteredIDProviderDocuments()
+        }
     }
 
     @MainActor func loadAndUpdateAll() async throws -> [CredentialPack] {

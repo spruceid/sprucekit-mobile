@@ -137,11 +137,11 @@ public class CredentialPack {
         credentials.append(ParsedCredential.newSdJwt(sdJwtVc: sdJwt))
         return credentials
     }
-
-    /// Add an Mdoc to the CredentialPack.
-    public func addMDoc(mdoc: Mdoc) async throws -> [ParsedCredential] {
-        #if canImport(IdentityDocumentServices)
-        if #available(iOS 26.0, *), mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+    
+    #if canImport(IdentityDocumentServices)
+    @available(iOS 26.0, *)
+    private func addMDocToIDProvider(mdoc: Mdoc) async throws {
+        if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
             let store = IdentityDocumentProviderRegistrationStore()
             do {
                 let dateFormatter = ISO8601DateFormatter()
@@ -165,6 +165,54 @@ public class CredentialPack {
                     reason: error
                 )
             }
+        }
+    }
+    #endif
+    
+    public func registerUnregisteredIDProviderDocuments() async throws {
+        #if canImport(IdentityDocumentServices)
+        if #available(iOS 26.0, *) {
+            // checking first that there are any potential mdocs to add to the id provider to avoid the authorization popup if not necessary
+            var mdocs: [Mdoc] = []
+            for credential in self.credentials {
+                guard let mdoc = credential.asMsoMdoc() else { continue }
+                if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+                    mdocs.append(mdoc)
+                }
+            }
+            if mdocs.isEmpty {
+                return
+            }
+            let store = IdentityDocumentProviderRegistrationStore()
+            var storedRegistrations: [any IdentityDocumentRegistration]
+            do {
+                storedRegistrations = try await store.registrations
+            } catch IdentityDocumentProviderRegistrationStore.RegistrationError.notAuthorized {
+                // fetching registrations before the app has been authorized by user to use the id provider
+                // (which happens at the time of registration of a credential) results in this error
+                storedRegistrations = []
+            } catch {
+                throw CredentialPackError.idService(
+                    reason: error
+                )
+            }
+            for mdoc in mdocs {
+                let matchingRegistration = storedRegistrations.first { storedRegistration in
+                    storedRegistration.documentIdentifier == mdoc.id()
+                }
+                if matchingRegistration == nil {
+                    try await self.addMDocToIDProvider(mdoc: mdoc)
+                }
+            }
+        }
+        #endif
+    }
+
+    /// Add an Mdoc to the CredentialPack.
+    public func addMDoc(mdoc: Mdoc) async throws -> [ParsedCredential] {
+        #if canImport(IdentityDocumentServices)
+        if #available(iOS 26.0, *) {
+            try await self.addMDocToIDProvider(mdoc: mdoc)
         }
         #endif
         credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc))

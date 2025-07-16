@@ -102,6 +102,8 @@ targets:
           - Inter-Thin.ttf
           - Inter-ThinItalic.ttf
         storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is
+        keychainAccessGroupAppOnly: "$(AppIdentifierPrefix)com.spruceid.mobile" # custom property to know what the access group is
+        keychainAccessGroup: "$(AppIdentifierPrefix)keychain.com.spruceid.mobile" # custom property to know what the access group is
     entitlements:
       path: App.entitlements
       properties:

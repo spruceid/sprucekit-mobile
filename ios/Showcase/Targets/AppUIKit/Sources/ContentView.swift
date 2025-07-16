@@ -1,4 +1,5 @@
 import SwiftUI
+import SpruceIDMobileSdk
 
 let DEFAULT_SIGNING_KEY_ID = "reference-app/default-signing"
 
@@ -6,8 +7,30 @@ public struct ContentView: View {
     @State var path: NavigationPath = .init()
     @State var sheetOpen: Bool = false
     @State var spruceMdlId: String?
+    let keyManager = KeyManager()
+    let credentialPackObservable: CredentialPackObservable
 
-    public init() {}
+    public init() {
+        let bundle = Bundle.main
+        let appGroupId = bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String
+        let keychainAccessGroup = bundle.object(forInfoDictionaryKey: "keychainAccessGroup") as? String
+        let keychainAccessGroupApp = bundle.object(forInfoDictionaryKey: "keychainAccessGroupAppOnly") as? String
+        credentialPackObservable = CredentialPackObservable(appGroupId: appGroupId, credentialPacks: [])
+        if keychainAccessGroup != nil && keychainAccessGroupApp != nil {
+            do {
+                try keyManager.migrateToAccessGroup(oldAccessGroup: keychainAccessGroupApp!, newAccessGroup: keychainAccessGroup!)
+            } catch {
+                print("Failed to run key manager migration: \(error)")
+            }
+        }
+        if appGroupId != nil {
+            do {
+                try credentialPackObservable.storageManager.migrationToAppGroupFileManager()
+            } catch {
+                print("Failed to run storage manager migration: \(error)")
+            }
+        }
+    }
 
     func handleSpruceIDUrl(url: URL) {
         // test if it is an sd-jwt query
@@ -166,7 +189,8 @@ public struct ContentView: View {
                 .presentationBackgroundInteraction(.automatic)
             }
             .environmentObject(StatusListObservable())
-            .environmentObject(CredentialPackObservable())
+            .environmentObject(credentialPackObservable)
+            .environmentObject(keyManager)
             .environmentObject(HacApplicationObservable())
             Toast()
         }

@@ -36,6 +36,9 @@ public struct DocumentProviderExtensionView: View {
                 Text("Loading...")
                     .task {
                         do {
+                            var bundle = Bundle.main
+                            let appGroupId = bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String
+                            
                             let presentmentRequests = context.request.presentmentRequests.map({presentmentRequest in
                                 let requestSets = presentmentRequest.documentRequestSets.map({documentRequestSet in
                                     let requests = documentRequestSet.requests.map({request in
@@ -53,7 +56,7 @@ public struct DocumentProviderExtensionView: View {
                                 return Iosiso18013MobileDocumentRequestPresentmentRequest(documentRequestSets: requestSets, isMandatory: presentmentRequest.isMandatory)
                             })
                             let document_request = Iosiso18013MobileDocumentRequest(presentmentRequests: presentmentRequests);
-                            let credentials = try await CredentialPackObservable().loadAndUpdateAll().flatMap({pack in
+                            let credentials = try await CredentialPackObservable(appGroupId: appGroupId).loadAndUpdateAll().flatMap({pack in
                                 pack.list()
                             })
                             let matches = document_request.toMatches(parsedCredentials: credentials)
