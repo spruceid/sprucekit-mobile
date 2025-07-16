@@ -143,21 +143,21 @@ func getCredentialIdTitleAndIssuer(
                 || credential?.asJsonVc() != nil
                 || credential?.asSdJwt() != nil
         })
-        // Mdoc
-        if cred == nil {
-            cred =
-                claims
-                .first(where: {
-                    return credentialPack.get(credentialId: $0.key)?.asMsoMdoc()
-                        != nil
-                }).map { claim in
-                    var tmpClaim = claim
-                    tmpClaim.value["issuer"] = claim.value["issuing_authority"]
-                    tmpClaim.value["name"] = GenericJSON.string(
-                        "Mobile Drivers License")
-                    return tmpClaim
-                }
-        }
+    }
+    // Mdoc
+    if credential?.asMsoMdoc() != nil || cred == nil{
+        cred =
+            claims
+            .first(where: {
+                return credentialPack.get(credentialId: $0.key)?.asMsoMdoc()
+                    != nil
+            }).map { claim in
+                var tmpClaim = claim
+                tmpClaim.value["issuer"] = claim.value["issuing_authority"]
+                tmpClaim.value["name"] = GenericJSON.string(
+                    "Mobile Drivers License")
+                return tmpClaim
+            }
     }
 
     let credentialKey = cred.map { $0.key } ?? ""
