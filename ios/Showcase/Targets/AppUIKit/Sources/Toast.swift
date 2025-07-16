@@ -10,35 +10,50 @@ class ToastManager: ObservableObject {
     @Published var message: String?
     @Published var type: ToastType = .success
     @Published var isShowing: Bool = false
+    
+    private var hideToastWorkItem: DispatchWorkItem?
 
     func showSuccess(message: String, duration: TimeInterval = 3.0) {
         self.message = message
         self.type = .success
         self.isShowing = true
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-            self.isShowing = false
-        }
+        
+        scheduleHideToast(duration: duration)
     }
 
     func showWarning(message: String, duration: TimeInterval = 3.0) {
         self.message = message
         self.type = .warning
         self.isShowing = true
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-            self.isShowing = false
-        }
+        
+        scheduleHideToast(duration: duration)
     }
 
     func showError(message: String, duration: TimeInterval = 3.0) {
         self.message = message
         self.type = .error
         self.isShowing = true
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-            self.isShowing = false
+        
+        scheduleHideToast(duration: duration)
+    }
+    
+    private func scheduleHideToast(duration: TimeInterval) {
+        hideToastWorkItem?.cancel()
+        
+        hideToastWorkItem = DispatchWorkItem { [weak self] in
+            DispatchQueue.main.async {
+                self?.isShowing = false
+            }
         }
+        
+        if let workItem = hideToastWorkItem {
+            DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: workItem)
+        }
+    }
+    
+    func hideToast() {
+        hideToastWorkItem?.cancel()
+        isShowing = false
     }
 }
 
@@ -67,6 +82,13 @@ struct Toast: View {
                 .padding(.horizontal, 12)
                 Spacer()
             }
+            .onTapGesture {
+                toastManager.isShowing = false
+            }
+            .onLongPressGesture {
+                UIPasteboard.general.string = toastManager.message
+                toastManager.showSuccess(message: "Copied to Clipboard!")
+            }
         }
     }
 }
@@ -83,7 +105,7 @@ struct ToastSuccess: View {
                 .font(.customFont(font: .inter, style: .regular, size: .h4))
                 .foregroundColor(Color("ColorEmerald900"))
         }
-        .padding(.vertical, 8)
+        .padding(.all, 8)
         .frame(maxWidth: .infinity)
         .background(Color("ColorEmerald50"))
         .cornerRadius(6)
@@ -106,7 +128,7 @@ struct ToastWarning: View {
                 .font(.customFont(font: .inter, style: .regular, size: .h4))
                 .foregroundColor(Color("ColorAmber900"))
         }
-        .padding(.vertical, 8)
+        .padding(.all, 8)
         .frame(maxWidth: .infinity)
         .background(Color("ColorAmber50"))
         .cornerRadius(6)
@@ -129,7 +151,7 @@ struct ToastError: View {
                 .font(.customFont(font: .inter, style: .regular, size: .h4))
                 .foregroundColor(Color("ColorRose900"))
         }
-        .padding(.vertical, 8)
+        .padding(.all, 8)
         .frame(maxWidth: .infinity)
         .background(Color("ColorRose50"))
         .cornerRadius(6)
