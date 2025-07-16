@@ -12,6 +12,7 @@ public struct ContentView: View {
 
     public init() {
         let bundle = Bundle.main
+        // Getting some entitlements values from the plist
         let appGroupId = bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String
         let keychainAccessGroup = bundle.object(forInfoDictionaryKey: "keychainAccessGroup") as? String
         let keychainAccessGroupApp = bundle.object(forInfoDictionaryKey: "keychainAccessGroupAppOnly") as? String

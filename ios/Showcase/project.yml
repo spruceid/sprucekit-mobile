@@ -101,9 +101,9 @@ targets:
           - Inter-SemiboldItalic.ttf
           - Inter-Thin.ttf
           - Inter-ThinItalic.ttf
-        storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is
-        keychainAccessGroupAppOnly: "$(AppIdentifierPrefix)com.spruceid.mobile" # custom property to know what the access group is
-        keychainAccessGroup: "$(AppIdentifierPrefix)keychain.com.spruceid.mobile" # custom property to know what the access group is
+        storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is, because the app cannot access entitlements
+        keychainAccessGroupAppOnly: "$(AppIdentifierPrefix)com.spruceid.mobile" # custom property to know what the access group is, because the app cannot access entitlements
+        keychainAccessGroup: "$(AppIdentifierPrefix)keychain.com.spruceid.mobile" # custom property to know what the access group is, because the app cannot access entitlements
     entitlements:
       path: App.entitlements
       properties:
@@ -212,7 +212,7 @@ targets:
       properties:
         EXAppExtensionAttributes:
           EXExtensionPointIdentifier: com.apple.identity-document-services.document-provider-ui
-        storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is
+        storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is, because the app cannot access entitlements
     entitlements:
       path: Targets/AppDcApi/App.entitlements
       properties:

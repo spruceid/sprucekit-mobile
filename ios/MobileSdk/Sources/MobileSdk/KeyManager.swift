@@ -4,6 +4,8 @@ import Security
 import SpruceIDMobileSdkRs
 
 public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject {
+    /// Migrate keys between access groups. For more information see
+    /// https://developer.apple.com/documentation/Security/kSecAttrAccessGroup
     public func migrateToAccessGroup(oldAccessGroup: String, newAccessGroup: String) throws {
         let searchAttrs: [String: Any] = [
             kSecClass as String: kSecClassKey,

@@ -15,10 +15,14 @@ import SpruceIDMobileSdkRs
 public class StorageManager: NSObject, StorageManagerInterface {
     let appGroupId: String?
 
+    /// - Parameters:
+    ///   - appGroupId: The app group under whose directory the StorageManager will place its data store.
+    ///                 Defaults to the app's directory. See the com.apple.security.application-groups entitlement.
     public init(appGroupId: String?) {
         self.appGroupId = appGroupId
     }
 
+    /// Migrate the data store from the app's directory to the provided app group.
     public func migrationToAppGroupFileManager() throws {
         if appGroupId == nil {
             throw StorageManagerError.InternalError
