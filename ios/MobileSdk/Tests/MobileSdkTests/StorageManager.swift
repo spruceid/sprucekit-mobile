@@ -4,7 +4,7 @@ import XCTest
 
 final class StorageManagerTest: XCTestCase {
   func testStorage() async throws {
-    let storeman = StorageManager()
+    let storeman = StorageManager(appGroupId: nil)
     let key = "test_key"
     let value = Data("Some random string of text. 😎".utf8)
 

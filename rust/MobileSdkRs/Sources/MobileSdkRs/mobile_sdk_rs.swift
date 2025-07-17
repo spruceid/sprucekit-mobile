@@ -2712,6 +2712,623 @@ public func FfiConverterTypeIHttpClient_lower(_ value: IHttpClient) -> UnsafeMut
 
 
 
+public protocol Iosiso18013MobileDocumentRequestProtocol: AnyObject, Sendable {
+    
+    func toMatches(parsedCredentials: [ParsedCredential])  -> [RequestMatch180137]
+    
+}
+open class Iosiso18013MobileDocumentRequest: Iosiso18013MobileDocumentRequestProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequest(self.pointer, $0) }
+    }
+public convenience init(presentmentRequests: [Iosiso18013MobileDocumentRequestPresentmentRequest]) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequest_new(
+        FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestPresentmentRequest.lower(presentmentRequests),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequest(pointer, $0) }
+    }
+
+    
+
+    
+open func toMatches(parsedCredentials: [ParsedCredential]) -> [RequestMatch180137]  {
+    return try!  FfiConverterSequenceTypeRequestMatch180137.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_iosiso18013mobiledocumentrequest_to_matches(self.uniffiClonePointer(),
+        FfiConverterSequenceTypeParsedCredential.lower(parsedCredentials),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequest: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequest
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequest {
+        return Iosiso18013MobileDocumentRequest(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequest) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequest {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequest, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequest_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequest {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequest.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequest_lower(_ value: Iosiso18013MobileDocumentRequest) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequest.lower(value)
+}
+
+
+
+
+
+
+public protocol Iosiso18013MobileDocumentRequestDocumentRequestProtocol: AnyObject, Sendable {
+    
+}
+open class Iosiso18013MobileDocumentRequestDocumentRequest: Iosiso18013MobileDocumentRequestDocumentRequestProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequestdocumentrequest(self.pointer, $0) }
+    }
+public convenience init(documentType: String, namespaces: [String: [String: Iosiso18013MobileDocumentRequestElementInfo]]) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequestdocumentrequest_new(
+        FfiConverterString.lower(documentType),
+        FfiConverterDictionaryStringDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo.lower(namespaces),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequestdocumentrequest(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequestDocumentRequest
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestDocumentRequest {
+        return Iosiso18013MobileDocumentRequestDocumentRequest(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequestDocumentRequest) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequestDocumentRequest {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequestDocumentRequest, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestDocumentRequest {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest_lower(_ value: Iosiso18013MobileDocumentRequestDocumentRequest) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest.lower(value)
+}
+
+
+
+
+
+
+public protocol Iosiso18013MobileDocumentRequestDocumentRequestSetProtocol: AnyObject, Sendable {
+    
+}
+open class Iosiso18013MobileDocumentRequestDocumentRequestSet: Iosiso18013MobileDocumentRequestDocumentRequestSetProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequestdocumentrequestset(self.pointer, $0) }
+    }
+public convenience init(requests: [Iosiso18013MobileDocumentRequestDocumentRequest]) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequestdocumentrequestset_new(
+        FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestDocumentRequest.lower(requests),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequestdocumentrequestset(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequestDocumentRequestSet
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestDocumentRequestSet {
+        return Iosiso18013MobileDocumentRequestDocumentRequestSet(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequestDocumentRequestSet) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequestDocumentRequestSet {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequestDocumentRequestSet, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestDocumentRequestSet {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet_lower(_ value: Iosiso18013MobileDocumentRequestDocumentRequestSet) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.lower(value)
+}
+
+
+
+
+
+
+public protocol Iosiso18013MobileDocumentRequestElementInfoProtocol: AnyObject, Sendable {
+    
+}
+open class Iosiso18013MobileDocumentRequestElementInfo: Iosiso18013MobileDocumentRequestElementInfoProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequestelementinfo(self.pointer, $0) }
+    }
+public convenience init(isRetaining: Bool) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequestelementinfo_new(
+        FfiConverterBool.lower(isRetaining),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequestelementinfo(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequestElementInfo
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestElementInfo {
+        return Iosiso18013MobileDocumentRequestElementInfo(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequestElementInfo) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequestElementInfo {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequestElementInfo, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestElementInfo {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo_lower(_ value: Iosiso18013MobileDocumentRequestElementInfo) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo.lower(value)
+}
+
+
+
+
+
+
+public protocol Iosiso18013MobileDocumentRequestPresentmentRequestProtocol: AnyObject, Sendable {
+    
+}
+open class Iosiso18013MobileDocumentRequestPresentmentRequest: Iosiso18013MobileDocumentRequestPresentmentRequestProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_iosiso18013mobiledocumentrequestpresentmentrequest(self.pointer, $0) }
+    }
+public convenience init(documentRequestSets: [Iosiso18013MobileDocumentRequestDocumentRequestSet], isMandatory: Bool) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_iosiso18013mobiledocumentrequestpresentmentrequest_new(
+        FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.lower(documentRequestSets),
+        FfiConverterBool.lower(isMandatory),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_iosiso18013mobiledocumentrequestpresentmentrequest(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Iosiso18013MobileDocumentRequestPresentmentRequest
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestPresentmentRequest {
+        return Iosiso18013MobileDocumentRequestPresentmentRequest(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Iosiso18013MobileDocumentRequestPresentmentRequest) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Iosiso18013MobileDocumentRequestPresentmentRequest {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Iosiso18013MobileDocumentRequestPresentmentRequest, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest_lift(_ pointer: UnsafeMutableRawPointer) throws -> Iosiso18013MobileDocumentRequestPresentmentRequest {
+    return try FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest_lower(_ value: Iosiso18013MobileDocumentRequestPresentmentRequest) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest.lower(value)
+}
+
+
+
+
+
+
 public protocol InProcessRecordProtocol: AnyObject, Sendable {
     
 }
@@ -4908,6 +5525,8 @@ public protocol MdocProtocol: AnyObject, Sendable {
      */
     func id()  -> Uuid
     
+    func invalidationDate() throws  -> String
+    
     func keyAlias()  -> KeyAlias
     
 }
@@ -5027,6 +5646,13 @@ open func doctype() -> String  {
 open func id() -> Uuid  {
     return try!  FfiConverterTypeUuid_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_mdoc_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func invalidationDate()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMdocDateError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_mdoc_invalidation_date(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -13714,6 +14340,82 @@ extension MdlUtilError: Foundation.LocalizedError {
 
 
 
+public enum MdocDateError: Swift.Error {
+
+    
+    
+    case Formatting(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMdocDateError: FfiConverterRustBuffer {
+    typealias SwiftType = MdocDateError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdocDateError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Formatting(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MdocDateError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Formatting(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocDateError_lift(_ buf: RustBuffer) throws -> MdocDateError {
+    return try FfiConverterTypeMdocDateError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocDateError_lower(_ value: MdocDateError) -> RustBuffer {
+    return FfiConverterTypeMdocDateError.lower(value)
+}
+
+
+extension MdocDateError: Equatable, Hashable {}
+
+
+
+
+extension MdocDateError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+
+
 public enum MdocEncodingError: Swift.Error {
 
     
@@ -17467,6 +18169,81 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestDocumentRequest: FfiConverterRustBuffer {
+    typealias SwiftType = [Iosiso18013MobileDocumentRequestDocumentRequest]
+
+    public static func write(_ value: [Iosiso18013MobileDocumentRequestDocumentRequest], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Iosiso18013MobileDocumentRequestDocumentRequest] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Iosiso18013MobileDocumentRequestDocumentRequest]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequest.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestDocumentRequestSet: FfiConverterRustBuffer {
+    typealias SwiftType = [Iosiso18013MobileDocumentRequestDocumentRequestSet]
+
+    public static func write(_ value: [Iosiso18013MobileDocumentRequestDocumentRequestSet], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Iosiso18013MobileDocumentRequestDocumentRequestSet] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Iosiso18013MobileDocumentRequestDocumentRequestSet]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeIOSISO18013MobileDocumentRequestDocumentRequestSet.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestPresentmentRequest: FfiConverterRustBuffer {
+    typealias SwiftType = [Iosiso18013MobileDocumentRequestPresentmentRequest]
+
+    public static func write(_ value: [Iosiso18013MobileDocumentRequestPresentmentRequest], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Iosiso18013MobileDocumentRequestPresentmentRequest] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Iosiso18013MobileDocumentRequestPresentmentRequest]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMdoc: FfiConverterRustBuffer {
     typealias SwiftType = [Mdoc]
 
@@ -17944,6 +18721,32 @@ fileprivate struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo: FfiConverterRustBuffer {
+    public static func write(_ value: [String: Iosiso18013MobileDocumentRequestElementInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: Iosiso18013MobileDocumentRequestElementInfo] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: Iosiso18013MobileDocumentRequestElementInfo]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterDictionaryStringTypeCborValue: FfiConverterRustBuffer {
     public static func write(_ value: [String: CborValue], into buf: inout [UInt8]) {
         let len = Int32(value.count)
@@ -18065,6 +18868,32 @@ fileprivate struct FfiConverterDictionaryStringDictionaryStringBool: FfiConverte
         for _ in 0..<len {
             let key = try FfiConverterString.read(from: &buf)
             let value = try FfiConverterDictionaryStringBool.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryStringDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo: FfiConverterRustBuffer {
+    public static func write(_ value: [String: [String: Iosiso18013MobileDocumentRequestElementInfo]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: [String: Iosiso18013MobileDocumentRequestElementInfo]] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: [String: Iosiso18013MobileDocumentRequestElementInfo]]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterDictionaryStringTypeIOSISO18013MobileDocumentRequestElementInfo.read(from: &buf)
             dict[key] = value
         }
         return dict
@@ -18832,6 +19661,20 @@ private func uniffiForeignFutureFree(handle: UInt64) {
 public func uniffiForeignFutureHandleCountMobileSdkRs() -> Int {
     UNIFFI_FOREIGN_FUTURE_HANDLE_MAP.count
 }
+public func buildAnnexCResponse(request: Data, origin: String, selectedMatch: RequestMatch180137, parsedCredentials: [ParsedCredential], approvedResponse: ApprovedResponse180137, keyStore: KeyStore)async throws  -> Data  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_build_annex_c_response(FfiConverterData.lower(request),FfiConverterString.lower(origin),FfiConverterTypeRequestMatch180137_lower(selectedMatch),FfiConverterSequenceTypeParsedCredential.lower(parsedCredentials),FfiConverterTypeApprovedResponse180137_lower(approvedResponse),FfiConverterTypeKeyStore_lower(keyStore)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterData.lift,
+            errorHandler: FfiConverterTypeDcApiError_lift
+        )
+}
 public func cborLdEncodeToBytes(credentialStr: String, loader: [String: String]?)async throws  -> Data  {
     return
         try  await uniffiRustCallAsync(
@@ -19164,6 +20007,9 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_build_annex_c_response() != 28694) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_cbor_ld_encode_to_bytes() != 12635) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19293,6 +20139,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_holder_submit_permission_response() != 37701) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_iosiso18013mobiledocumentrequest_to_matches() != 17136) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequest180137_matches() != 21157) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19402,6 +20251,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_id() != 18877) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_invalidation_date() != 39511) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 39341) {
@@ -19678,6 +20530,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_ihttpclient_new_sync() != 47576) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequest_new() != 7957) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestdocumentrequest_new() != 47367) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestdocumentrequestset_new() != 24023) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestelementinfo_new() != 44967) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestpresentmentrequest_new() != 37016) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_issuanceserviceclient_new() != 39224) {

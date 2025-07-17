@@ -7,11 +7,11 @@ func credentialDisplayerSelector(
     rawCredential: String,
     goTo: (() -> Void)? = nil,
     onDelete: (() -> Void)? = nil
-) throws
+) async throws
     -> any ICredentialView
 {
     return GenericCredentialItem(
-        credentialPack: try addCredential(
+        credentialPack: try await addCredential(
             credentialPack: CredentialPack(),
             rawCredential: rawCredential
         ),
@@ -32,7 +32,7 @@ func credentialDisplayerSelector(
     )
 }
 
-func addCredential(credentialPack: CredentialPack, rawCredential: String) throws
+func addCredential(credentialPack: CredentialPack, rawCredential: String) async throws
     -> CredentialPack
 {
     if (try? credentialPack.addJwtVc(
@@ -47,12 +47,12 @@ func addCredential(credentialPack: CredentialPack, rawCredential: String) throws
     } else if (try? credentialPack.addCwt(
         cwt: Cwt.newFromBase10(payload: rawCredential))) != nil
     {
-    } else if (try? credentialPack.addMDoc(
+    } else if (try? await credentialPack.addMDoc(
         mdoc: Mdoc.fromStringifiedDocument(
             stringifiedDocument: rawCredential, keyAlias: UUID().uuidString)))
         != nil
     {
-    } else if (try? credentialPack.addMDoc(
+    } else if (try? await credentialPack.addMDoc(
         mdoc: Mdoc.newFromBase64urlEncodedIssuerSigned(
             base64urlEncodedIssuerSigned: rawCredential,
             keyAlias: UUID().uuidString)))

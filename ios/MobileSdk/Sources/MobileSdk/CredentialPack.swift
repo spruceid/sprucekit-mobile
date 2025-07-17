@@ -2,6 +2,10 @@ import CryptoKit
 import Foundation
 import SpruceIDMobileSdkRs
 
+#if canImport(IdentityDocumentServices)
+import IdentityDocumentServices
+#endif
+
 /// A collection of ParsedCredentials with methods to interact with all instances.
 ///
 /// A CredentialPack is a semantic grouping of Credentials for display in the wallet. For example,
@@ -62,16 +66,16 @@ public class CredentialPack {
     /**
      * Try to add a raw mDoc with specified keyAlias
      */
-    public func tryAddRawMdoc(rawCredential: String, keyAlias: String) throws
+    public func tryAddRawMdoc(rawCredential: String, keyAlias: String) async throws
         -> [ParsedCredential] {
-        if let credentials = try? addMDoc(
+        if let credentials = try? await addMDoc(
             mdoc: Mdoc.fromStringifiedDocument(
                 stringifiedDocument: rawCredential,
                 keyAlias: keyAlias
             )
         ) {
             return credentials
-        } else if let credentials = try? addMDoc(
+        } else if let credentials = try? await addMDoc(
             mdoc: Mdoc.newFromBase64urlEncodedIssuerSigned(
                 base64urlEncodedIssuerSigned: rawCredential,
                 keyAlias: keyAlias
@@ -96,14 +100,14 @@ public class CredentialPack {
      * @throws CredentialPackError if the credential cannot be parsed in any supported format
      */
     public func tryAddAnyFormat(rawCredential: String, mdocKeyAlias: String)
-        throws -> [ParsedCredential] {
+        async throws -> [ParsedCredential] {
         // First try our standard formats (which already include mdoc but with random keyAlias)
         do {
             return try tryAddRawCredential(rawCredential: rawCredential)
         } catch {
             // If that fails, try specifically with the provided keyAlias
             do {
-                return try tryAddRawMdoc(
+                return try await tryAddRawMdoc(
                     rawCredential: rawCredential,
                     keyAlias: mdocKeyAlias
                 )
@@ -134,8 +138,84 @@ public class CredentialPack {
         return credentials
     }
 
+    #if canImport(IdentityDocumentServices)
+    @available(iOS 26.0, *)
+    private func addMDocToIDProvider(mdoc: Mdoc) async throws {
+        if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+            let store = IdentityDocumentProviderRegistrationStore()
+            do {
+                let dateFormatter = ISO8601DateFormatter()
+                let isoDateString = try mdoc.invalidationDate()
+                // remove unsupported milliseconds
+                let trimmedIsoString = isoDateString.replacingOccurrences(of: "\\.\\d+",
+                                                                          with: "",
+                                                                          options: .regularExpression)
+                let dateUntil = dateFormatter.date(from: trimmedIsoString)!
+                let registration = MobileDocumentRegistration(
+                    mobileDocumentType: "org.iso.18013.5.1.mDL",
+                    supportedAuthorityKeyIdentifiers: [],  // TODO
+                    documentIdentifier: mdoc.id(),
+                    invalidationDate: dateUntil
+                )
+                try await store.addRegistration(registration)
+            } catch IdentityDocumentProviderRegistrationStore.RegistrationError.notAuthorized {
+                print("Device not authorized to use id document store, did the user disable document registration?")
+            } catch {
+                throw CredentialPackError.idService(
+                    reason: error
+                )
+            }
+        }
+    }
+    #endif
+
+    public func registerUnregisteredIDProviderDocuments() async throws {
+        #if canImport(IdentityDocumentServices)
+        if #available(iOS 26.0, *) {
+            // checking first that there are any potential mdocs to add to the id provider
+            // to avoid the authorization popup if not necessary
+            var mdocs: [Mdoc] = []
+            for credential in self.credentials {
+                guard let mdoc = credential.asMsoMdoc() else { continue }
+                if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+                    mdocs.append(mdoc)
+                }
+            }
+            if mdocs.isEmpty {
+                return
+            }
+            let store = IdentityDocumentProviderRegistrationStore()
+            var storedRegistrations: [any IdentityDocumentRegistration]
+            do {
+                storedRegistrations = try await store.registrations
+            } catch IdentityDocumentProviderRegistrationStore.RegistrationError.notAuthorized {
+                // fetching registrations before the app has been authorized by user to use the id provider
+                // (which happens at the time of registration of a credential) results in this error
+                storedRegistrations = []
+            } catch {
+                throw CredentialPackError.idService(
+                    reason: error
+                )
+            }
+            for mdoc in mdocs {
+                let matchingRegistration = storedRegistrations.first { storedRegistration in
+                    storedRegistration.documentIdentifier == mdoc.id()
+                }
+                if matchingRegistration == nil {
+                    try await self.addMDocToIDProvider(mdoc: mdoc)
+                }
+            }
+        }
+        #endif
+    }
+
     /// Add an Mdoc to the CredentialPack.
-    public func addMDoc(mdoc: Mdoc) -> [ParsedCredential] {
+    public func addMDoc(mdoc: Mdoc) async throws -> [ParsedCredential] {
+        #if canImport(IdentityDocumentServices)
+        if #available(iOS 26.0, *) {
+            try await self.addMDocToIDProvider(mdoc: mdoc)
+        }
+        #endif
         credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc))
         return credentials
     }
@@ -302,6 +382,28 @@ public class CredentialPack {
     ///
     /// Credentials that are in this pack __are__ removed from the VdcCollection.
     public func remove(storageManager: StorageManagerInterface) async throws {
+        #if canImport(IdentityDocumentServices)
+        if #available(iOS 26.0, *) {
+            let store = IdentityDocumentProviderRegistrationStore()
+            do {
+                let storedRegistrations = try await store.registrations
+                for credential in self.credentials {
+                    guard let mdoc = credential.asMsoMdoc() else { continue }
+                    if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+                        let matchingRegistration = storedRegistrations.first { storedRegistration in
+                            storedRegistration.documentIdentifier == mdoc.id()
+                        }
+                        guard let documentIdentifier = matchingRegistration?.documentIdentifier else {
+                            continue
+                        }
+                        try await store.removeRegistration(forDocumentIdentifier: documentIdentifier)
+                    }
+                }
+            } catch {
+                print("Failed to remove document from document store: \(error)")
+            }
+        }
+        #endif
         try await self.intoContents().remove(storageManager: storageManager)
     }
 
@@ -533,6 +635,8 @@ enum CredentialPackError: Error, Sendable {
     case credentialLoading(reason: Error)
     /// The raw credential could not be parsed.
     case credentialParsing(reason: String)
+    /// Failed to add identity document to store
+    case idService(reason: Error)
 }
 
 public enum CredentialStatusList: String {

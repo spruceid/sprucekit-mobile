@@ -23,6 +23,7 @@ public class MdocOID4VPError {
 struct HandleMdocOID4VPView: View {
     @EnvironmentObject private var credentialPackObservable:
         CredentialPackObservable
+    @EnvironmentObject private var keyManager: KeyManager
     @Binding var path: NavigationPath
     var url: String
 
@@ -50,7 +51,7 @@ struct HandleMdocOID4VPView: View {
             if !credentials.isEmpty {
                 let handlerRef = try Oid4vp180137(
                     credentials: credentials,
-                    keystore: KeyManager()
+                    keystore: keyManager
                 )
                 handler = handlerRef
                 request = try await handlerRef.processRequest(url: url)

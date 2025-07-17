@@ -3,7 +3,24 @@ import Foundation
 import Security
 import SpruceIDMobileSdkRs
 
-public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore {
+public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject {
+    /// Migrate keys between access groups. For more information see
+    /// https://developer.apple.com/documentation/Security/kSecAttrAccessGroup
+    public func migrateToAccessGroup(oldAccessGroup: String, newAccessGroup: String) throws {
+        let searchAttrs: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrAccessGroup as String: oldAccessGroup
+        ]
+        let targetAttrs: [String: Any] = [
+            kSecAttrAccessGroup as String: newAccessGroup
+        ]
+        let result = SecItemUpdate(searchAttrs as CFDictionary, targetAttrs as CFDictionary)
+        if result != errSecSuccess {
+            let errorMessage = SecCopyErrorMessageString(result, nil) as String? ?? result.description
+            throw KeyManError.internalError("Could not migrate keychain: \(errorMessage)")
+        }
+    }
+
     public func getSigningKey(alias: SpruceIDMobileSdkRs.KeyAlias) throws -> any SpruceIDMobileSdkRs.SigningKey {
         guard let jwkString = Self.getJwk(id: alias) else {
             throw KeyManError.missing
@@ -271,4 +288,6 @@ public enum KeyManError: Error {
     case signing
     /// the signature format was not recognized
     case signatureFormat
+    /// unexpected error
+    case internalError(String)
 }
