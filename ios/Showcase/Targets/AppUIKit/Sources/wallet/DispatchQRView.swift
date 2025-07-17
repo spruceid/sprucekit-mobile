@@ -1,4 +1,5 @@
 import SwiftUI
+import SpruceIDMobileSdk
 
 // The scheme for the OID4VP QR code.
 let OID4VP_SCHEME = "openid4vp://"
@@ -18,14 +19,15 @@ struct DispatchQRView: View {
     @State var success: Bool?
 
     @Binding var path: NavigationPath
+    var credentialPackId: String?
 
     func handleRequest(payload: String) {
         loading = true
         Task {
             if payload.hasPrefix(OID4VP_SCHEME) {
-                path.append(HandleOID4VP(url: payload))
+                path.append(HandleOID4VP(url: payload, credentialPackId: credentialPackId))
             } else if payload.hasPrefix(MDOC_OID4VP_SCHEME) {
-                path.append(HandleMdocOID4VP(url: payload))
+                path.append(HandleMdocOID4VP(url: payload, credentialPackId: credentialPackId))
             } else if payload.hasPrefix(OID4VCI_SCHEME) {
                 path.append(HandleOID4VCI(url: payload))
             } else if payload.hasPrefix(HTTPS_SCHEME)

@@ -81,9 +81,9 @@ public struct AVMetadataObjectScanner: View {
 
     public var body: some View {
         ZStack(alignment: .top) {
-            GeometryReader {_ in
+            GeometryReader {geometry in
                 let size = UIScreen.screenSize
-
+                let clearCutOutYPosition = geometry.size.height / 2
                 ZStack {
                     CameraView(frameSize: CGSize(width: size.width, height: size.height), session: $session)
                     /// Blur layer with clear cut out
@@ -94,6 +94,7 @@ public struct AVMetadataObjectScanner: View {
                         Rectangle()
                             .frame(width: regionOfInterest.width, height: regionOfInterest.height)
                                 .blendMode(.destinationOut)
+                                .position(x: size.width / 2, y: clearCutOutYPosition)
                             }
                             .compositingGroup()
 
@@ -110,6 +111,7 @@ public struct AVMetadataObjectScanner: View {
                             .offset(y: isScanning ? (regionOfInterest.height)/2 : -(regionOfInterest.height)/2)
                     }
                     .frame(width: regionOfInterest.width, height: regionOfInterest.height)
+                    .position(x: size.width / 2, y: clearCutOutYPosition)
 
                 }
                 /// Square Shape

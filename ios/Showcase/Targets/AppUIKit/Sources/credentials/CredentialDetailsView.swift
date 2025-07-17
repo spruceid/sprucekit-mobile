@@ -1,5 +1,7 @@
 import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
 import SwiftUI
+
 
 struct CredentialDetails: Hashable {
     var credentialPackId: String
@@ -19,9 +21,10 @@ struct CredentialDetailsView: View {
     @State var credentialPack: CredentialPack?
     @State var credentialItem: (any ICredentialView)?
     @State var credentialDetailsViewTabs = [
+        CredentialDetailsViewTab(image: "QRCodeReader"),
         CredentialDetailsViewTab(image: "Info")
     ]
-    @State private var selectedTab = 0
+    @State private var selectedTab = 1
 
     func onBack() {
         path.removeLast()
@@ -57,7 +60,9 @@ struct CredentialDetailsView: View {
                         Array(credentialDetailsViewTabs.enumerated()),
                         id: \.offset
                     ) { index, _ in
-                        if index == 0 {  // Details
+                        if index == 0 { // Scan to share
+                            DispatchQRView(path: $path, credentialPackId: credentialPackId)
+                        } else if index == 1 {  // Details
                             VStack {
                                 if credentialItem != nil {
                                     if CredentialStatusList.revoked
@@ -78,7 +83,7 @@ struct CredentialDetailsView: View {
                             }
                             .tag(index)
 
-                        } else if index == 1, let credPack = credentialPack {  // Share
+                        } else if index == 2, let credPack = credentialPack {  // Share
                             ShareMdocView(credentialPack: credPack)
                             .tag(index)
                         }
@@ -110,7 +115,7 @@ struct CredentialDetailsView: View {
                                                     ? Color("ColorBlue600")
                                                     : Color("ColorBase50")
                                             )
-                                            .offset(y: -4),
+                                            .offset(y: -6),
                                         alignment: .top
                                     )
                             }
