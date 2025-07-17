@@ -22,17 +22,26 @@ import java.nio.charset.StandardCharsets
 // The scheme for the OID4VP QR code.
 const val OID4VP_SCHEME = "openid4vp://"
 const val MDOC_OID4VP_SCHEME = "mdoc-openid4vp://"
+
 // The scheme for the OID4VCI QR code.
 const val OID4VCI_SCHEME = "openid-credential-offer://"
+
 // The schemes for HTTP/HTTPS QR code.
 const val HTTP_SCHEME = "http://"
 const val HTTPS_SCHEME = "https://"
+
+enum class SupportedQRTypes {
+    OID4VP,
+    OID4VCI_AND_HTTP,
+    ALL
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun DispatchQRView(
     navController: NavController,
-    credentialPackId: String?
+    credentialPackId: String?,
+    supportedTypes: SupportedQRTypes = SupportedQRTypes.ALL
 ) {
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -52,44 +61,92 @@ fun DispatchQRView(
         loading = true
         scope.launch {
             try {
-                if (payload.startsWith(OID4VP_SCHEME)) {
-                    val encodedUrl = URLEncoder.encode(payload, StandardCharsets.UTF_8.toString())
+                val encodedUrl = URLEncoder.encode(payload, StandardCharsets.UTF_8.toString())
 
-                    val baseUrl = "oid4vp/$encodedUrl"
-                    val route = if (!credentialPackId.isNullOrEmpty()) {
-                        "$baseUrl?credential_pack_id=$credentialPackId"
-                    } else {
-                        baseUrl
+                when (supportedTypes) {
+                    SupportedQRTypes.OID4VP -> {
+                        if (payload.startsWith(OID4VP_SCHEME)) {
+                            val baseUrl = "oid4vp/$encodedUrl"
+                            val route = if (!credentialPackId.isNullOrEmpty()) {
+                                "$baseUrl?credential_pack_id=$credentialPackId"
+                            } else baseUrl
+                            navController.navigate(route) {
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        } else if (payload.startsWith(MDOC_OID4VP_SCHEME)) {
+                            val baseUrl = "mdoc_oid4vp/$encodedUrl"
+                            val route = if (!credentialPackId.isNullOrEmpty()) {
+                                "$baseUrl?credential_pack_id=$credentialPackId"
+                            } else baseUrl
+                            navController.navigate(route) {
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        } else {
+                            err = "Unsupported QR code for OID4VP. Payload: $payload"
+                        }
                     }
-                    navController.navigate(route) {
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                } else if (payload.startsWith(OID4VCI_SCHEME)) {
-                    val encodedUrl = URLEncoder.encode(payload, StandardCharsets.UTF_8.toString())
 
-                    navController.navigate("oid4vci/$encodedUrl") {
-                        launchSingleTop = true
-                        restoreState = true
+                    SupportedQRTypes.OID4VCI_AND_HTTP -> {
+                        if (payload.startsWith(OID4VCI_SCHEME)) {
+                            navController.navigate("oid4vci/$encodedUrl") {
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        } else if (payload.startsWith(HTTP_SCHEME) || payload.startsWith(
+                                HTTPS_SCHEME
+                            )
+                        ) {
+                            uriHandler.openUri(payload)
+                            back()
+                        } else {
+                            err = "Unsupported QR code for OID4VCI/HTTP. Payload: $payload"
+                        }
                     }
-                } else if (payload.startsWith(HTTP_SCHEME) || payload.startsWith(HTTPS_SCHEME)) {
-                    uriHandler.openUri(payload)
-                    back()
-                } else if (payload.startsWith(MDOC_OID4VP_SCHEME)) {
-                    val encodedUrl = URLEncoder.encode(payload, StandardCharsets.UTF_8.toString())
 
-                    val baseUrl = "mdoc_oid4vp/$encodedUrl"
-                    val route = if (!credentialPackId.isNullOrEmpty()) {
-                        "$baseUrl?credential_pack_id=$credentialPackId"
-                    } else {
-                        baseUrl
+                    SupportedQRTypes.ALL -> {
+                        when {
+                            payload.startsWith(OID4VP_SCHEME) -> {
+                                val baseUrl = "oid4vp/$encodedUrl"
+                                val route = if (!credentialPackId.isNullOrEmpty()) {
+                                    "$baseUrl?credential_pack_id=$credentialPackId"
+                                } else baseUrl
+                                navController.navigate(route) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+
+                            payload.startsWith(MDOC_OID4VP_SCHEME) -> {
+                                val baseUrl = "mdoc_oid4vp/$encodedUrl"
+                                val route = if (!credentialPackId.isNullOrEmpty()) {
+                                    "$baseUrl?credential_pack_id=$credentialPackId"
+                                } else baseUrl
+                                navController.navigate(route) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+
+                            payload.startsWith(OID4VCI_SCHEME) -> {
+                                navController.navigate("oid4vci/$encodedUrl") {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+
+                            payload.startsWith(HTTP_SCHEME) || payload.startsWith(HTTPS_SCHEME) -> {
+                                uriHandler.openUri(payload)
+                                back()
+                            }
+
+                            else -> {
+                                err =
+                                    "The QR code you have scanned is not supported. Payload: $payload"
+                            }
+                        }
                     }
-                    navController.navigate(route) {
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                } else {
-                    err = "The QR code you have scanned is not supported. QR code payload: $payload"
                 }
             } catch (e: Exception) {
                 err = e.localizedMessage

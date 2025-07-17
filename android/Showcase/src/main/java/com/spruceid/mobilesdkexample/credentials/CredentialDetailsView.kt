@@ -72,6 +72,7 @@ import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
+import com.spruceid.mobilesdkexample.wallet.SupportedQRTypes
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -218,7 +219,7 @@ fun CredentialDetailsView(
                     contentAlignment = Alignment.Center
                 ) {
                     if (page == 0) { // Scan to verify
-                        DispatchQRView(navController, credentialPackId)
+                        DispatchQRView(navController, credentialPackId, SupportedQRTypes.OID4VP)
                     } else if (page == 1) { // Details
                         Column(
                             Modifier

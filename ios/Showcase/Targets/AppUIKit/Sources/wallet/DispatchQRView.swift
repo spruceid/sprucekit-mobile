@@ -11,6 +11,12 @@ let MDOC_OID4VP_SCHEME = "mdoc-openid4vp://"
 let HTTP_SCHEME = "http://"
 let HTTPS_SCHEME = "https://"
 
+enum SupportedQRTypes {
+    case oid4vp
+    case oid4vciAndHttp
+    case all
+}
+
 struct DispatchQR: Hashable {}
 
 struct DispatchQRView: View {
@@ -20,27 +26,16 @@ struct DispatchQRView: View {
 
     @Binding var path: NavigationPath
     var credentialPackId: String?
+    var supportedTypes: SupportedQRTypes = .all
 
     func handleRequest(payload: String) {
         loading = true
         Task {
-            if payload.hasPrefix(OID4VP_SCHEME) {
-                path.append(HandleOID4VP(url: payload, credentialPackId: credentialPackId))
-            } else if payload.hasPrefix(MDOC_OID4VP_SCHEME) {
-                path.append(HandleMdocOID4VP(url: payload, credentialPackId: credentialPackId))
-            } else if payload.hasPrefix(OID4VCI_SCHEME) {
-                path.append(HandleOID4VCI(url: payload))
-            } else if payload.hasPrefix(HTTPS_SCHEME)
-                || payload.hasPrefix(HTTP_SCHEME) {
-                if let url = URL(string: payload),
-                    await UIApplication.shared.canOpenURL(url) {
-                    await UIApplication.shared.open(url)
-                    onBack()
-                }
-            } else {
-                err =
-                    "The QR code you have scanned is not supported. QR code payload: \(payload)"
+            let success = await handleScannedPayload(payload)
+            if !success {
+                err = "This QRCode is not supported by the selection: \(supportedTypes). Payload: \(payload)"
             }
+            loading = false
         }
     }
 
@@ -75,4 +70,51 @@ struct DispatchQRView: View {
             }
         }
     }
+    
+    func handleScannedPayload(_ payload: String) async -> Bool {
+        switch supportedTypes {
+        case .oid4vp:
+            if payload.hasPrefix(OID4VP_SCHEME) {
+                path.append(HandleOID4VP(url: payload, credentialPackId: credentialPackId))
+                return true
+            } else if payload.hasPrefix(MDOC_OID4VP_SCHEME) {
+                path.append(HandleMdocOID4VP(url: payload, credentialPackId: credentialPackId))
+                return true
+            }
+            
+        case .oid4vciAndHttp:
+            if payload.hasPrefix(OID4VCI_SCHEME) {
+                path.append(HandleOID4VCI(url: payload))
+                return true
+            } else if payload.hasPrefix(HTTPS_SCHEME) || payload.hasPrefix(HTTP_SCHEME),
+                      let url = URL(string: payload),
+                      await UIApplication.shared.canOpenURL(url) {
+                await UIApplication.shared.open(url)
+                onBack()
+                return true
+            }
+            
+        case .all:
+            if payload.hasPrefix(OID4VP_SCHEME) {
+                path.append(HandleOID4VP(url: payload, credentialPackId: credentialPackId))
+                return true
+            } else if payload.hasPrefix(MDOC_OID4VP_SCHEME) {
+                path.append(HandleMdocOID4VP(url: payload, credentialPackId: credentialPackId))
+                return true
+            } else if payload.hasPrefix(OID4VCI_SCHEME) {
+                path.append(HandleOID4VCI(url: payload))
+                return true
+            } else if payload.hasPrefix(HTTPS_SCHEME) || payload.hasPrefix(HTTP_SCHEME),
+                      let url = URL(string: payload),
+                      await UIApplication.shared.canOpenURL(url) {
+                await UIApplication.shared.open(url)
+                onBack()
+                return true
+            }
+        }
+        
+        return false
+    }
 }
+
+

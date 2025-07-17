@@ -63,7 +63,14 @@ struct HandleMdocOID4VPView: View {
                 )
                 handler = handlerRef
                 request = try await handlerRef.processRequest(url: url)
-                state = .selectCredential
+                
+                if credentials.count > 1 {
+                    state = .selectCredential
+                } else {
+                    let matches = request!.matches()
+                    selectedMatch = matches[0]
+                    state = .selectiveDisclosure
+                }
             } else {
                 err = MdocOID4VPError(
                     title: "No matching credential(s)",

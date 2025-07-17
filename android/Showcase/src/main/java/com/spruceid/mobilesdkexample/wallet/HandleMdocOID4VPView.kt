@@ -142,7 +142,14 @@ fun HandleMdocOID4VPView(
                         val handlerRef = Oid4vp180137(credentials, KeyManager())
                         handler = handlerRef
                         request = handlerRef.processRequest(url)
-                        state = MdocOID4VPState.SelectCredential
+
+                        if (credentials.count() > 1) {
+                            state = MdocOID4VPState.SelectCredential
+                        } else {
+                            val matches = request?.matches()
+                            selectedMatch = matches?.get(0)
+                            state = MdocOID4VPState.SelectiveDisclosure
+                        }
                     } else {
                         error =
                             MdocOID4VPError(

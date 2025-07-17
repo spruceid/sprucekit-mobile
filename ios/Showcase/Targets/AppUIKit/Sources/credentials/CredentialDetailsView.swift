@@ -61,7 +61,7 @@ struct CredentialDetailsView: View {
                         id: \.offset
                     ) { index, _ in
                         if index == 0 { // Scan to share
-                            DispatchQRView(path: $path, credentialPackId: credentialPackId)
+                            DispatchQRView(path: $path, credentialPackId: credentialPackId, supportedTypes: SupportedQRTypes.oid4vp)
                         } else if index == 1 {  // Details
                             VStack {
                                 if credentialItem != nil {
