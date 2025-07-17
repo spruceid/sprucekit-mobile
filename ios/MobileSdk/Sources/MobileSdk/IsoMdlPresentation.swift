@@ -1,32 +1,39 @@
 import CoreBluetooth
 import Foundation
 import SpruceIDMobileSdkRs
+import CoreNFC
 
 /// To be implemented by the consumer to update the UI
 public protocol BLESessionStateDelegate: AnyObject {
     func update(state: BLESessionState)
 }
 
-public class IsoMdlPresentation {
+public class IsoMdlPresentation: NSObject {
     var callback: BLESessionStateDelegate
     var uuid: UUID
     var session: MdlPresentationSession
     var mdoc: MDoc
     var bleManager: MDocHolderBLECentral!
     var useL2CAP: Bool
+    var engagementType: DeviceEngagementType
+    var nfcReaderSession: NFCReaderSession?
 
     public init?(
         mdoc: MDoc, engagement: DeviceEngagementType,
-        callback: BLESessionStateDelegate, useL2CAP: Bool
+        callback: BLESessionStateDelegate, useL2CAP: Bool,
     ) {
+        
         self.callback = callback
         self.uuid = UUID()
         self.mdoc = mdoc
         self.useL2CAP = useL2CAP
+        self.engagementType = engagement
+        
         do {
             self.session =
                 try SpruceIDMobileSdkRs.initializeMdlPresentationFromBytes(
                     mdoc: mdoc.inner, uuid: self.uuid.uuidString)
+            super.init()
             bleManager = MDocHolderBLECentral(
                 callback: self,
                 serviceUuid: CBUUID(nsuuid: self.uuid),
@@ -38,9 +45,15 @@ public class IsoMdlPresentation {
                     state: .engagingQRCode(
                         try session.getQrHandover().data(using: .ascii)!))
             case .nfc:
-                self.callback.update(
-                    state: .nfcHandover(
-                        try session.getNfcHandover(requestMessage: nil)))
+                debugPrint("Starting NFC Reader Session")
+                nfcReaderSession = NFCNDEFReaderSession(delegate: self, queue: nil, invalidateAfterFirstRead: true);
+                nfcReaderSession?.alertMessage = "Hold your device near the NFC reader"
+                nfcReaderSession?.begin()
+                
+                
+//                self.callback.update(
+//                    state: .nfcHandover(
+//                        try session.getNfcHandover(requestMessage: nil)))
             }
 
         } catch {
@@ -127,6 +140,24 @@ extension IsoMdlPresentation: MDocBLEDelegate {
     }
 }
 
+extension IsoMdlPresentation: NFCNDEFReaderSessionDelegate {
+    public func readerSession(_ session: NFCNDEFReaderSession, didInvalidateWithError error: any Error) {
+        debugPrint("Received Error", error)
+    }
+    
+    public func readerSession(_ session: NFCNDEFReaderSession, didDetectNDEFs messages: [NFCNDEFMessage]) {
+        debugPrint("Received NDEF Message")
+//        // Handle get Nfc handover request message to rust code
+//        self.callback.update(
+//            state: .nfcHandover(
+//                try session.getNfcHandover(requestMessage: nil)))
+    }
+    
+    public func readerSessionDidBecomeActive(_ session: NFCNDEFReaderSession) {
+        debugPrint("We have an active NFC session y'all!")
+    }
+}
+
 public enum BleSessionError {
     /// When discovery or communication with the peripheral fails
     case peripheral(String)
@@ -146,6 +177,8 @@ public enum BleSessionError {
 }
 
 public enum BLESessionState {
+    /// Default state is that the BLE session is inactive (disconnected).
+    case disconnected
     /// App should display the error message
     case error(BleSessionError)
     /// App should display the QR code
