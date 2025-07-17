@@ -7,13 +7,13 @@ struct WalletSettingsHome: Hashable {}
 
 struct WalletSettingsHomeView: View {
     @Binding var path: NavigationPath
-    
+
     func onBack() {
         while !path.isEmpty {
             path.removeLast()
         }
     }
-    
+
     var body: some View {
         VStack {
             WalletSettingsHomeHeader(onBack: onBack)
@@ -28,7 +28,7 @@ struct WalletSettingsHomeView: View {
 
 struct WalletSettingsHomeHeader: View {
     var onBack: () -> Void
-    
+
     var body: some View {
         HStack {
             Text("Preferences")
@@ -74,7 +74,7 @@ struct WalletSettingsHomeBody: View {
             )
         }
     }
-    
+
     @ViewBuilder
     var deleteAllCredentials: some View {
         Button {
@@ -134,7 +134,7 @@ struct WalletSettingsHomeBody: View {
             )
         }
     }
-    
+
     @ViewBuilder
     var generateMockMdlButton: some View {
         Button {
@@ -150,7 +150,7 @@ struct WalletSettingsHomeBody: View {
             )
         }
     }
-    
+
     @ViewBuilder
     var applyForSpruceMdlButton: some View {
         Button {
@@ -161,20 +161,20 @@ struct WalletSettingsHomeBody: View {
                     try await hacApplicationObservable
                         .getWalletAttestation()
                         .unwrap()
-                    
+
                     let issuance =
                     try await hacApplicationObservable.issuanceClient
                         .newIssuance(walletAttestation: walletAttestation)
-                    
+
                     let hacApplication = HacApplicationDataStore.shared.insert(
                         issuanceId: issuance
                     )
-                    
+
                     let status = try await hacApplicationObservable.issuanceClient.checkStatus(
                         issuanceId: issuance,
                         walletAttestation: walletAttestation
                     )
-                    
+
                     switch status {
                     case .proofingRequired(let proofingUrl):
                         if let hacApplication = hacApplication {
@@ -233,7 +233,7 @@ struct WalletSettingsHomeBody: View {
         .disabled(isApplyingForMdl)
         .opacity(isApplyingForMdl ? 0.5 : 1.0)
     }
-    
+
     @ViewBuilder
     var devModeButton: some View {
         Button {
@@ -248,7 +248,7 @@ struct WalletSettingsHomeBody: View {
             )
         }
     }
-    
+
     var body: some View {
         VStack {
             VStack {
