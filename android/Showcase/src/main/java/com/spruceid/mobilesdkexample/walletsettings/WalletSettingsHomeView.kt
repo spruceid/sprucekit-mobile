@@ -149,7 +149,7 @@ fun WalletSettingsHomeBody(
             }
         )
 
-        GenerateMockMdlButton(credentialPacksViewModel = credentialPacksViewModel)
+        GenerateMockMdlButton(credentialPacksViewModel = credentialPacksViewModel, walletActivityLogsViewModel = walletActivityLogsViewModel)
 
         SettingsHomeItem(
             icon = {

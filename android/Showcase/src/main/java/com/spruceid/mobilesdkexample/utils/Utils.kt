@@ -252,7 +252,7 @@ fun getCredentialIdTitleAndIssuer(
     val claims =
         credentialPack.findCredentialClaims(listOf("name", "type", "issuer", "issuing_authority"))
 
-    val cred = if (credential != null) {
+    var cred = if (credential != null) {
         claims.entries.firstNotNullOf { claim ->
             if (claim.key == credential.id()) {
                 claim
@@ -280,6 +280,16 @@ fun getCredentialIdTitleAndIssuer(
             } else {
                 null
             }
+        }
+    }
+    // Assume mDL.
+    if (credential?.asMsoMdoc() != null || cred.equals(null)) {
+        cred = claims.entries.firstNotNullOf { claim ->
+            val issuer = claim.value.get("issuing_authority")
+            claim.value.put("issuer", issuer)
+            val title = "Mobile Drivers License"
+            claim.value.put("name", title)
+            claim
         }
     }
 
