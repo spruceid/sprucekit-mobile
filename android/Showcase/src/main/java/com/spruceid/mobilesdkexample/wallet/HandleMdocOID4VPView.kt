@@ -43,6 +43,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.navDeepLink
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.ApprovedResponse180137
 import com.spruceid.mobile.sdk.rs.FieldId180137
@@ -87,7 +88,8 @@ class MdocOID4VPError(var title: String, var details: String)
 @Composable
 fun HandleMdocOID4VPView(
     navController: NavController,
-    url: String
+    url: String,
+    credentialPackId: String?
 ) {
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
     val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
@@ -121,8 +123,14 @@ fun HandleMdocOID4VPView(
         if (!isLoadingCredentials && credentialPacks.isNotEmpty()) {
             try {
                 withContext(Dispatchers.IO) {
+                    val usableCredentialPacks = credentialPackId
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { id -> credentialPacksViewModel.getById(id)}
+                        ?.let {listOf(it)}
+                        ?: credentialPacks
+
                     val credentials = mutableListOf<Mdoc>()
-                    credentialPacks.forEach { credentialPack ->
+                    usableCredentialPacks.forEach { credentialPack ->
                         credentialPack.list().forEach { credential ->
                             val mdoc = credential.asMsoMdoc()
                             if (mdoc != null) {

@@ -71,6 +71,7 @@ import com.spruceid.mobilesdkexample.utils.credentialPackHasMdoc
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -96,6 +97,10 @@ fun CredentialDetailsView(
         mutableStateOf(
             listOf(
                 CredentialDetailsViewTabs(
+                    { painterResource(id = R.drawable.qrcode_scanner) },
+                    { stringResource(id = R.string.qrcode_scanner) }
+                ),
+                CredentialDetailsViewTabs(
                     { painterResource(id = R.drawable.info_icon) },
                     { stringResource(id = R.string.details_info) }
                 )
@@ -104,7 +109,7 @@ fun CredentialDetailsView(
     }
 
     val pagerState = rememberPagerState(
-        initialPage = 0,
+        initialPage = 1,
         pageCount = { tabs.size }
     )
     val coroutineScope = rememberCoroutineScope()
@@ -212,7 +217,9 @@ fun CredentialDetailsView(
                         .background(ColorBase50),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (page == 0) { // Details
+                    if (page == 0) { // Scan to verify
+                        DispatchQRView(navController, credentialPackId)
+                    } else if (page == 1) { // Details
                         Column(
                             Modifier
                                 .padding(horizontal = 20.dp)
@@ -228,7 +235,7 @@ fun CredentialDetailsView(
                                 }
                             }
                         }
-                    } else if (page == 1) { // Share
+                    } else if (page == 2) { // Share
                         GenericCredentialDetailsShareQRCode(credentialPack!!)
                     }
                 }

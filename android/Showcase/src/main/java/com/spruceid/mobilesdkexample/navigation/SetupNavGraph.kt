@@ -141,7 +141,7 @@ fun SetupNavGraph(
         }
         composable(
             route = Screen.ScanQRScreen.route,
-        ) { DispatchQRView(navController) }
+        ) { DispatchQRView(navController, null) }
         composable(
             route = Screen.HandleOID4VCI.route,
         ) { backStackEntry ->
@@ -153,28 +153,58 @@ fun SetupNavGraph(
         }
         composable(
             route = Screen.HandleOID4VP.route,
-            deepLinks = listOf(navDeepLink { uriPattern = "openid4vp://{url}" })
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "openid4vp://{url}" },
+                navDeepLink { uriPattern = "openid4vp://{url}?credential_pack_id={credential_pack_id}" },
+            ),
+            arguments = listOf(
+                navArgument("url") {
+                    type = NavType.StringType
+                },
+                navArgument("credential_pack_id") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
         ) { backStackEntry ->
             var url = backStackEntry.arguments?.getString("url")!!
             if (!url.startsWith("openid4vp")) {
                 url = "openid4vp://$url"
             }
+            val credentialPackId = backStackEntry.arguments?.getString("credential_pack_id")
             HandleOID4VPView(
                 navController,
-                url
+                url,
+                credentialPackId,
             )
         }
         composable(
             route = Screen.HandleMdocOID4VP.route,
-            deepLinks = listOf(navDeepLink { uriPattern = "mdoc-openid4vp://{url}" })
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "mdoc-openid4vp://{url}?credential_pack_id={credential_pack_id}" },
+                navDeepLink { uriPattern = "mdoc-openid4vp://{url}" }
+            ),
+            arguments = listOf(
+                navArgument("url") {
+                    type = NavType.StringType
+                },
+                navArgument("credential_pack_id") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
         ) { backStackEntry ->
             var url = backStackEntry.arguments?.getString("url")!!
             if (!url.startsWith("mdoc-openid4vp")) {
                 url = "mdoc-openid4vp://$url"
             }
+            val credentialPackId = backStackEntry.arguments?.getString("credential_pack_id")
             HandleMdocOID4VPView(
                 navController,
-                url
+                url,
+                credentialPackId
             )
         }
         composable(

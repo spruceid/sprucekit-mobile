@@ -32,6 +32,7 @@ const val HTTPS_SCHEME = "https://"
 @Composable
 fun DispatchQRView(
     navController: NavController,
+    credentialPackId: String?
 ) {
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -54,7 +55,13 @@ fun DispatchQRView(
                 if (payload.startsWith(OID4VP_SCHEME)) {
                     val encodedUrl = URLEncoder.encode(payload, StandardCharsets.UTF_8.toString())
 
-                    navController.navigate("oid4vp/$encodedUrl") {
+                    val baseUrl = "oid4vp/$encodedUrl"
+                    val route = if (!credentialPackId.isNullOrEmpty()) {
+                        "$baseUrl?credential_pack_id=$credentialPackId"
+                    } else {
+                        baseUrl
+                    }
+                    navController.navigate(route) {
                         launchSingleTop = true
                         restoreState = true
                     }
@@ -71,7 +78,13 @@ fun DispatchQRView(
                 } else if (payload.startsWith(MDOC_OID4VP_SCHEME)) {
                     val encodedUrl = URLEncoder.encode(payload, StandardCharsets.UTF_8.toString())
 
-                    navController.navigate("mdoc_oid4vp/$encodedUrl") {
+                    val baseUrl = "mdoc_oid4vp/$encodedUrl"
+                    val route = if (!credentialPackId.isNullOrEmpty()) {
+                        "$baseUrl?credential_pack_id=$credentialPackId"
+                    } else {
+                        baseUrl
+                    }
+                    navController.navigate(route) {
                         launchSingleTop = true
                         restoreState = true
                     }

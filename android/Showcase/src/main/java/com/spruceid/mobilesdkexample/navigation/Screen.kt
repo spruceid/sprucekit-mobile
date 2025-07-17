@@ -17,8 +17,8 @@ const val WALLET_SETTINGS_ACTIVITY_LOG = "wallet_settings_activity_log"
 const val ADD_TO_WALLET_PATH = "add_to_wallet/{rawCredential}"
 const val SCAN_QR_PATH = "scan_qr"
 const val HANDLE_OID4VCI_PATH = "oid4vci/{url}"
-const val HANDLE_OID4VP_PATH = "oid4vp/{url}"
-const val HANDLE_MDOC_OID4VP_PATH = "mdoc_oid4vp/{url}"
+const val HANDLE_OID4VP_PATH = "oid4vp/{url}?credential_pack_id={credential_pack_id}"
+const val HANDLE_MDOC_OID4VP_PATH = "mdoc_oid4vp/{url}?credential_pack_id={credential_pack_id}"
 const val CREDENTIAL_DETAILS_PATH = "credential_details/{credential_pack_id}"
 
 sealed class Screen(val route: String) {
