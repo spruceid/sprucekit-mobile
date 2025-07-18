@@ -98,19 +98,19 @@ fun CredentialDetailsView(
         mutableStateOf(
             listOf(
                 CredentialDetailsViewTabs(
-                    { painterResource(id = R.drawable.qrcode_scanner) },
-                    { stringResource(id = R.string.qrcode_scanner) }
-                ),
-                CredentialDetailsViewTabs(
                     { painterResource(id = R.drawable.info_icon) },
                     { stringResource(id = R.string.details_info) }
+                ),
+                CredentialDetailsViewTabs(
+                    { painterResource(id = R.drawable.qrcode_scanner) },
+                    { stringResource(id = R.string.qrcode_scanner) }
                 )
             )
         )
     }
 
     val pagerState = rememberPagerState(
-        initialPage = 1,
+        initialPage = 0,
         pageCount = { tabs.size }
     )
     val coroutineScope = rememberCoroutineScope()
@@ -218,9 +218,7 @@ fun CredentialDetailsView(
                         .background(ColorBase50),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (page == 0) { // Scan to verify
-                        DispatchQRView(navController, credentialPackId, SupportedQRTypes.OID4VP)
-                    } else if (page == 1) { // Details
+                    if (page == 0) {  // Details
                         Column(
                             Modifier
                                 .padding(horizontal = 20.dp)
@@ -236,6 +234,12 @@ fun CredentialDetailsView(
                                 }
                             }
                         }
+                    } else if (page == 1) { // Scan to verify
+                        DispatchQRView(
+                            navController,
+                            credentialPackId,
+                            listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP)
+                        )
                     } else if (page == 2) { // Share
                         GenericCredentialDetailsShareQRCode(credentialPack!!)
                     }
