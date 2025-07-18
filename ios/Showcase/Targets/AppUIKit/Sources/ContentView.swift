@@ -170,7 +170,7 @@ public struct ContentView: View {
                         HandleMdocOID4VPView(
                             path: $path,
                             credentialPackId: handleMdocOID4VPParams.credentialPackId,
-                            url: handleMdocOID4VPParams.url,
+                            url: handleMdocOID4VPParams.url
                         )
                     }
                     .navigationDestination(for: CredentialDetails.self) {
