@@ -135,7 +135,13 @@ fun CredentialDetailsView(
             tmpTabs.add(
                 CredentialDetailsViewTabs(
                     { painterResource(id = R.drawable.qrcode) },
-                    { stringResource(id = R.string.details_share) }
+                    { stringResource(id = R.string.details_share_qr) }
+                )
+            )
+            tmpTabs.add(
+                CredentialDetailsViewTabs(
+                    { painterResource(id = R.drawable.error_toast_icon) },
+                    { stringResource(id = R.string.details_share_nfc) }
                 )
             )
             tabs = tmpTabs
@@ -228,8 +234,10 @@ fun CredentialDetailsView(
                                 }
                             }
                         }
-                    } else if (page == 1) { // Share
+                    } else if (page == 1) {
                         GenericCredentialDetailsShareQRCode(credentialPack!!)
+                    } else if (page == 2) {
+                        GenericCredentialDetailsShareNFC(credentialPack!!)
                     }
                 }
             }
@@ -350,6 +358,74 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
         }
         Text(
             text = "Present this QR code to a verifier in order to share data. You will see a consent dialogue.",
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(top = 12.dp),
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 14.sp,
+            color = ColorStone500,
+        )
+    }
+}
+
+@Composable
+fun GenericCredentialDetailsShareNFC(credentialPack: CredentialPack) {
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+
+    fun newCredentialViewModel(): CredentialsViewModel {
+        val credentialViewModel = ViewModelProvider.AndroidViewModelFactory(application)
+            .create(CredentialsViewModel::class.java)
+        val parsedCredential: ParsedCredential? =
+            credentialPack.list().firstNotNullOfOrNull { credential ->
+                try {
+                    if (credential.asMsoMdoc() != null) {
+                        return@firstNotNullOfOrNull credential
+                    }
+                } catch (_: Exception) {
+                }
+                null
+            }
+        parsedCredential?.let {
+            credentialViewModel.storeCredential(parsedCredential)
+        }
+        return credentialViewModel
+    }
+
+    val credentialViewModel by remember {
+        mutableStateOf(newCredentialViewModel())
+    }
+
+    fun cancel() {
+        credentialViewModel.cancel()
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
+            Modifier
+                .clip(shape = RoundedCornerShape(12.dp))
+                .background(ColorBase1)
+                .border(
+                    width = 1.dp,
+                    color = ColorStone300,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(8.dp)
+        ) {
+//            ShareMdocView(
+//                credentialViewModel = credentialViewModel,
+//                onCancel = {
+//                    cancel()
+//                }
+//            )
+        }
+        Text(
+            text = "Tap this phone against a reader to share data. You will see a consent dialogue.",
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .padding(horizontal = 24.dp)

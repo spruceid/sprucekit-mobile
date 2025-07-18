@@ -201,17 +201,6 @@ fun ShareMdocSelectiveDisclosureView(
     }
 
     ModalBottomSheet(
-<<<<<<< HEAD
-            onDismissRequest = { onCancel() },
-            modifier = Modifier.fillMaxHeight(0.8f),
-            sheetState = selectNamespacesSheetState,
-            dragHandle = null,
-            containerColor = ColorBase1,
-            shape = RoundedCornerShape(8.dp)
-    ) {
-        Column(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 48.dp)
-=======
         onDismissRequest = {
             onCancel()
         },
@@ -226,7 +215,6 @@ fun ShareMdocSelectiveDisclosureView(
                 .height((LocalConfiguration.current.screenHeightDp * .8f).dp)
                 .padding(horizontal = 24.dp)
                 .padding(top = 48.dp)
->>>>>>> main
         ) {
             Text(
                     buildAnnotatedString {

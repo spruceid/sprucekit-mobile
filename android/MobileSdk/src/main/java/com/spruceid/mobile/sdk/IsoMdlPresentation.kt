@@ -21,7 +21,7 @@ abstract class BLESessionStateDelegate {
 
 class IsoMdlPresentation(
         val mdoc: Mdoc,
-        val engagement: DeviceEngagementType,
+        val engagementType: DeviceEngagementType,
         val keyAlias: String,
         val bluetoothManager: BluetoothManager,
         val callback: BLESessionStateDelegate,
@@ -37,34 +37,26 @@ class IsoMdlPresentation(
             session = initializeMdlPresentationFromBytes(this.mdoc, uuid.toString())
             this.bleManager = Transport(this.bluetoothManager)
             this.bleManager!!.initialize(
-                    "Holder",
-                    this.uuid,
-                    "BLE",
-                    "Central",
-                    session!!.getBleIdent(),
-                    ::updateRequestData,
-                    context,
-                    callback
+                "Holder",
+                this.uuid,
+                "BLE",
+                "Central",
+                session!!.getBleIdent(),
+                ::updateRequestData,
+                context,
+                callback
             )
             var requestMessage = null
             val handoverData =
-                    when (engagement) {
-                        DeviceEngagementType.QR ->
-                                mapOf(Pair("engagingQRCode", session!!.getQrHandover()))
-                        DeviceEngagementType.NFC ->
-                                mapOf(Pair("nfcHandover", session!!.getNfcHandover(requestMessage)))
-                        else ->
-                                mapOf(
-                                        Pair("engagingQRCode", session!!.getQrHandover()),
-                                        Pair(
-                                                "nfcHandover",
-                                                session!!.getNfcHandover(requestMessage)
-                                        )
-                                )
-                    }
+                when (engagementType) {
+                    DeviceEngagementType.QR ->
+                            mapOf(Pair("engagingQRCode", session!!.getQrHandover()))
+                    DeviceEngagementType.NFC ->
+                            mapOf(Pair("nfcHandover", session!!.getNfcHandover(requestMessage)))
+                }
             this.callback.update(handoverData)
         } catch (e: Error) {
-            Log.e("BleSessionManager.constructor", e.toString())
+            Log.e("IsoMdlPresentation.constructor", e.toString())
         }
     }
 
