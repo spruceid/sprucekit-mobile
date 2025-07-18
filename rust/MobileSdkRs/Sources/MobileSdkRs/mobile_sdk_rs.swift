@@ -11577,6 +11577,304 @@ public func FfiConverterTypeStatusMessage_lower(_ value: StatusMessage) -> RustB
     return FfiConverterTypeStatusMessage.lower(value)
 }
 
+
+/**
+ * Test mDL data struct to provide dummy data
+ * to pass to generating a test mDL.
+ */
+public struct TestMdlData {
+    public var familyName: String
+    public var givenName: String
+    public var birthDate: String
+    public var issueDate: String
+    public var expiryDate: String
+    public var issuingCountry: String
+    public var issuingAuthority: String
+    public var documentNumber: String
+    public var portrait: String
+    public var drivingPrivileges: [String]
+    public var unDistinguishingSign: String
+    public var administrativeNumber: String
+    public var sex: UInt16
+    public var height: UInt16
+    public var weight: UInt16
+    public var eyeColour: String
+    public var hairColour: String
+    public var birthPlace: String
+    public var residentAddress: String
+    public var portraitCaptureDate: String
+    public var ageInYears: UInt16
+    public var ageBirthYear: UInt16
+    public var ageOver18: Bool
+    public var ageOver21: Bool
+    public var ageOver60: Bool
+    public var nationality: String
+    public var residentCity: String
+    public var residentState: String
+    public var residentPostalCode: String
+    public var residentCountry: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(familyName: String, givenName: String, birthDate: String, issueDate: String, expiryDate: String, issuingCountry: String, issuingAuthority: String, documentNumber: String, portrait: String, drivingPrivileges: [String], unDistinguishingSign: String, administrativeNumber: String, sex: UInt16, height: UInt16, weight: UInt16, eyeColour: String, hairColour: String, birthPlace: String, residentAddress: String, portraitCaptureDate: String, ageInYears: UInt16, ageBirthYear: UInt16, ageOver18: Bool, ageOver21: Bool, ageOver60: Bool, nationality: String, residentCity: String, residentState: String, residentPostalCode: String, residentCountry: String) {
+        self.familyName = familyName
+        self.givenName = givenName
+        self.birthDate = birthDate
+        self.issueDate = issueDate
+        self.expiryDate = expiryDate
+        self.issuingCountry = issuingCountry
+        self.issuingAuthority = issuingAuthority
+        self.documentNumber = documentNumber
+        self.portrait = portrait
+        self.drivingPrivileges = drivingPrivileges
+        self.unDistinguishingSign = unDistinguishingSign
+        self.administrativeNumber = administrativeNumber
+        self.sex = sex
+        self.height = height
+        self.weight = weight
+        self.eyeColour = eyeColour
+        self.hairColour = hairColour
+        self.birthPlace = birthPlace
+        self.residentAddress = residentAddress
+        self.portraitCaptureDate = portraitCaptureDate
+        self.ageInYears = ageInYears
+        self.ageBirthYear = ageBirthYear
+        self.ageOver18 = ageOver18
+        self.ageOver21 = ageOver21
+        self.ageOver60 = ageOver60
+        self.nationality = nationality
+        self.residentCity = residentCity
+        self.residentState = residentState
+        self.residentPostalCode = residentPostalCode
+        self.residentCountry = residentCountry
+    }
+}
+
+#if compiler(>=6)
+extension TestMdlData: Sendable {}
+#endif
+
+
+extension TestMdlData: Equatable, Hashable {
+    public static func ==(lhs: TestMdlData, rhs: TestMdlData) -> Bool {
+        if lhs.familyName != rhs.familyName {
+            return false
+        }
+        if lhs.givenName != rhs.givenName {
+            return false
+        }
+        if lhs.birthDate != rhs.birthDate {
+            return false
+        }
+        if lhs.issueDate != rhs.issueDate {
+            return false
+        }
+        if lhs.expiryDate != rhs.expiryDate {
+            return false
+        }
+        if lhs.issuingCountry != rhs.issuingCountry {
+            return false
+        }
+        if lhs.issuingAuthority != rhs.issuingAuthority {
+            return false
+        }
+        if lhs.documentNumber != rhs.documentNumber {
+            return false
+        }
+        if lhs.portrait != rhs.portrait {
+            return false
+        }
+        if lhs.drivingPrivileges != rhs.drivingPrivileges {
+            return false
+        }
+        if lhs.unDistinguishingSign != rhs.unDistinguishingSign {
+            return false
+        }
+        if lhs.administrativeNumber != rhs.administrativeNumber {
+            return false
+        }
+        if lhs.sex != rhs.sex {
+            return false
+        }
+        if lhs.height != rhs.height {
+            return false
+        }
+        if lhs.weight != rhs.weight {
+            return false
+        }
+        if lhs.eyeColour != rhs.eyeColour {
+            return false
+        }
+        if lhs.hairColour != rhs.hairColour {
+            return false
+        }
+        if lhs.birthPlace != rhs.birthPlace {
+            return false
+        }
+        if lhs.residentAddress != rhs.residentAddress {
+            return false
+        }
+        if lhs.portraitCaptureDate != rhs.portraitCaptureDate {
+            return false
+        }
+        if lhs.ageInYears != rhs.ageInYears {
+            return false
+        }
+        if lhs.ageBirthYear != rhs.ageBirthYear {
+            return false
+        }
+        if lhs.ageOver18 != rhs.ageOver18 {
+            return false
+        }
+        if lhs.ageOver21 != rhs.ageOver21 {
+            return false
+        }
+        if lhs.ageOver60 != rhs.ageOver60 {
+            return false
+        }
+        if lhs.nationality != rhs.nationality {
+            return false
+        }
+        if lhs.residentCity != rhs.residentCity {
+            return false
+        }
+        if lhs.residentState != rhs.residentState {
+            return false
+        }
+        if lhs.residentPostalCode != rhs.residentPostalCode {
+            return false
+        }
+        if lhs.residentCountry != rhs.residentCountry {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(familyName)
+        hasher.combine(givenName)
+        hasher.combine(birthDate)
+        hasher.combine(issueDate)
+        hasher.combine(expiryDate)
+        hasher.combine(issuingCountry)
+        hasher.combine(issuingAuthority)
+        hasher.combine(documentNumber)
+        hasher.combine(portrait)
+        hasher.combine(drivingPrivileges)
+        hasher.combine(unDistinguishingSign)
+        hasher.combine(administrativeNumber)
+        hasher.combine(sex)
+        hasher.combine(height)
+        hasher.combine(weight)
+        hasher.combine(eyeColour)
+        hasher.combine(hairColour)
+        hasher.combine(birthPlace)
+        hasher.combine(residentAddress)
+        hasher.combine(portraitCaptureDate)
+        hasher.combine(ageInYears)
+        hasher.combine(ageBirthYear)
+        hasher.combine(ageOver18)
+        hasher.combine(ageOver21)
+        hasher.combine(ageOver60)
+        hasher.combine(nationality)
+        hasher.combine(residentCity)
+        hasher.combine(residentState)
+        hasher.combine(residentPostalCode)
+        hasher.combine(residentCountry)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTestMdlData: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TestMdlData {
+        return
+            try TestMdlData(
+                familyName: FfiConverterString.read(from: &buf), 
+                givenName: FfiConverterString.read(from: &buf), 
+                birthDate: FfiConverterString.read(from: &buf), 
+                issueDate: FfiConverterString.read(from: &buf), 
+                expiryDate: FfiConverterString.read(from: &buf), 
+                issuingCountry: FfiConverterString.read(from: &buf), 
+                issuingAuthority: FfiConverterString.read(from: &buf), 
+                documentNumber: FfiConverterString.read(from: &buf), 
+                portrait: FfiConverterString.read(from: &buf), 
+                drivingPrivileges: FfiConverterSequenceString.read(from: &buf), 
+                unDistinguishingSign: FfiConverterString.read(from: &buf), 
+                administrativeNumber: FfiConverterString.read(from: &buf), 
+                sex: FfiConverterUInt16.read(from: &buf), 
+                height: FfiConverterUInt16.read(from: &buf), 
+                weight: FfiConverterUInt16.read(from: &buf), 
+                eyeColour: FfiConverterString.read(from: &buf), 
+                hairColour: FfiConverterString.read(from: &buf), 
+                birthPlace: FfiConverterString.read(from: &buf), 
+                residentAddress: FfiConverterString.read(from: &buf), 
+                portraitCaptureDate: FfiConverterString.read(from: &buf), 
+                ageInYears: FfiConverterUInt16.read(from: &buf), 
+                ageBirthYear: FfiConverterUInt16.read(from: &buf), 
+                ageOver18: FfiConverterBool.read(from: &buf), 
+                ageOver21: FfiConverterBool.read(from: &buf), 
+                ageOver60: FfiConverterBool.read(from: &buf), 
+                nationality: FfiConverterString.read(from: &buf), 
+                residentCity: FfiConverterString.read(from: &buf), 
+                residentState: FfiConverterString.read(from: &buf), 
+                residentPostalCode: FfiConverterString.read(from: &buf), 
+                residentCountry: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TestMdlData, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.familyName, into: &buf)
+        FfiConverterString.write(value.givenName, into: &buf)
+        FfiConverterString.write(value.birthDate, into: &buf)
+        FfiConverterString.write(value.issueDate, into: &buf)
+        FfiConverterString.write(value.expiryDate, into: &buf)
+        FfiConverterString.write(value.issuingCountry, into: &buf)
+        FfiConverterString.write(value.issuingAuthority, into: &buf)
+        FfiConverterString.write(value.documentNumber, into: &buf)
+        FfiConverterString.write(value.portrait, into: &buf)
+        FfiConverterSequenceString.write(value.drivingPrivileges, into: &buf)
+        FfiConverterString.write(value.unDistinguishingSign, into: &buf)
+        FfiConverterString.write(value.administrativeNumber, into: &buf)
+        FfiConverterUInt16.write(value.sex, into: &buf)
+        FfiConverterUInt16.write(value.height, into: &buf)
+        FfiConverterUInt16.write(value.weight, into: &buf)
+        FfiConverterString.write(value.eyeColour, into: &buf)
+        FfiConverterString.write(value.hairColour, into: &buf)
+        FfiConverterString.write(value.birthPlace, into: &buf)
+        FfiConverterString.write(value.residentAddress, into: &buf)
+        FfiConverterString.write(value.portraitCaptureDate, into: &buf)
+        FfiConverterUInt16.write(value.ageInYears, into: &buf)
+        FfiConverterUInt16.write(value.ageBirthYear, into: &buf)
+        FfiConverterBool.write(value.ageOver18, into: &buf)
+        FfiConverterBool.write(value.ageOver21, into: &buf)
+        FfiConverterBool.write(value.ageOver60, into: &buf)
+        FfiConverterString.write(value.nationality, into: &buf)
+        FfiConverterString.write(value.residentCity, into: &buf)
+        FfiConverterString.write(value.residentState, into: &buf)
+        FfiConverterString.write(value.residentPostalCode, into: &buf)
+        FfiConverterString.write(value.residentCountry, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTestMdlData_lift(_ buf: RustBuffer) throws -> TestMdlData {
+    return try FfiConverterTypeTestMdlData.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTestMdlData_lower(_ value: TestMdlData) -> RustBuffer {
+    return FfiConverterTypeTestMdlData.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -19761,6 +20059,18 @@ public func generateTestMdl(keyManager: KeyStore, keyAlias: KeyAlias)throws  -> 
 })
 }
 /**
+ * Generate a new test mDL with hardcoded values, using the supplied key as the DeviceKey.
+ */
+public func generateTestMdlWithData(keyManager: KeyStore, keyAlias: KeyAlias, data: TestMdlData)throws  -> Mdoc  {
+    return try  FfiConverterTypeMdoc_lift(try rustCallWithError(FfiConverterTypeMdlUtilError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_generate_test_mdl_with_data(
+        FfiConverterTypeKeyStore_lower(keyManager),
+        FfiConverterTypeKeyAlias_lower(keyAlias),
+        FfiConverterTypeTestMdlData_lower(data),$0
+    )
+})
+}
+/**
  * Handle a DC API request.
  *
  * Supports OpenID4VP Draft 24 using DCQL for mDL only.
@@ -20032,6 +20342,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 22635) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl_with_data() != 41103) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_handle_dc_api_request() != 11589) {
