@@ -47,7 +47,7 @@ impl Key {
 
     /// Strip the prefix from the key, returning the key without the prefix
     pub fn strip_prefix(&self, prefix: &str) -> Option<String> {
-        self.0.strip_prefix(prefix).map(ToOwned::to_owned)
+        self.0.split_once(prefix).map(|(_, after)| after.to_owned())
     }
 }
 
