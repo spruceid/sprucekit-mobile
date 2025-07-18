@@ -161,6 +161,7 @@ public struct ContentView: View {
                         handleOID4VPParams in
                         HandleOID4VPView(
                             path: $path,
+                            credentialPackId: handleOID4VPParams.credentialPackId,
                             url: handleOID4VPParams.url
                         )
                     }
@@ -168,6 +169,7 @@ public struct ContentView: View {
                         handleMdocOID4VPParams in
                         HandleMdocOID4VPView(
                             path: $path,
+                            credentialPackId: handleMdocOID4VPParams.credentialPackId,
                             url: handleMdocOID4VPParams.url
                         )
                     }

@@ -43,6 +43,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.DidMethodUtils
@@ -150,7 +151,8 @@ class OID4VPError {
 @Composable
 fun HandleOID4VPView(
     navController: NavController,
-    url: String
+    url: String,
+    credentialPackId: String?
 ) {
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
     val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
@@ -174,8 +176,14 @@ fun HandleOID4VPView(
     when (state) {
         OID4VPState.None -> LaunchedEffect(Unit) {
             try {
+                val usableCredentialPacks: List<CredentialPack>  = credentialPackId
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { id -> credentialPacksViewModel.getById(id)}
+                    ?.let {listOf(it)}
+                    ?: credentialPacks.value
+
                 val credentials = mutableListOf<ParsedCredential>()
-                credentialPacks.value.forEach { credentialPack ->
+                usableCredentialPacks.forEach { credentialPack ->
                     credentials.addAll(credentialPack.list())
                     credentialClaims += credentialPack.findCredentialClaims(listOf("name", "type"))
                 }

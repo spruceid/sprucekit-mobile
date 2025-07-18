@@ -1,4 +1,5 @@
 import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
 import SwiftUI
 
 struct CredentialDetails: Hashable {
@@ -19,7 +20,8 @@ struct CredentialDetailsView: View {
     @State var credentialPack: CredentialPack?
     @State var credentialItem: (any ICredentialView)?
     @State var credentialDetailsViewTabs = [
-        CredentialDetailsViewTab(image: "Info")
+        CredentialDetailsViewTab(image: "Info"),
+        CredentialDetailsViewTab(image: "QRCodeReader"),
     ]
     @State private var selectedTab = 0
 
@@ -39,8 +41,10 @@ struct CredentialDetailsView: View {
                 Text(credentialTitle)
                     .font(
                         .customFont(
-                            font: .inter, style: .semiBold,
-                            size: .h1)
+                            font: .inter,
+                            style: .semiBold,
+                            size: .h1
+                        )
                     )
                     .foregroundStyle(Color("ColorStone950"))
                 Spacer()
@@ -62,25 +66,38 @@ struct CredentialDetailsView: View {
                                 if credentialItem != nil {
                                     if CredentialStatusList.revoked
                                         != statusListObservable.statusLists[
-                                            credentialPackId] {
+                                            credentialPackId
+                                        ]
+                                    {
                                         AnyView(
                                             self.credentialItem!
-                                                .credentialDetails())
+                                                .credentialDetails()
+                                        )
                                     } else {
                                         AnyView(
                                             self.credentialItem!
                                                 .credentialRevokedInfo(
                                                     onClose: {
                                                         onBack()
-                                                    }))
+                                                    })
+                                        )
                                     }
                                 }
                             }
                             .tag(index)
+                        } else if index == 1 {  // Scan to share
+                            DispatchQRView(
+                                path: $path,
+                                credentialPackId: credentialPackId,
+                                supportedTypes: [
+                                    SupportedQRTypes.oid4vp,
+                                    SupportedQRTypes.http,
+                                ]
+                            )
 
-                        } else if index == 1, let credPack = credentialPack {  // Share
+                        } else if index == 2, let credPack = credentialPack {  // Share
                             ShareMdocView(credentialPack: credPack)
-                            .tag(index)
+                                .tag(index)
                         }
                     }
                 }
@@ -110,7 +127,7 @@ struct CredentialDetailsView: View {
                                                     ? Color("ColorBlue600")
                                                     : Color("ColorBase50")
                                             )
-                                            .offset(y: -4),
+                                            .offset(y: -6),
                                         alignment: .top
                                     )
                             }
@@ -127,7 +144,8 @@ struct CredentialDetailsView: View {
         .onAppear {
             self.credentialPack =
                 credentialPackObservable.getById(
-                    credentialPackId: credentialPackId) ?? CredentialPack()
+                    credentialPackId: credentialPackId
+                ) ?? CredentialPack()
             if credentialPackHasMdoc(credentialPack: credentialPack!) {
                 credentialDetailsViewTabs.append(
                     CredentialDetailsViewTab(image: "QRCode")
@@ -137,10 +155,12 @@ struct CredentialDetailsView: View {
                 getCredentialIdTitleAndIssuer(credentialPack: credentialPack!).1
             Task {
                 await statusListObservable.fetchAndUpdateStatus(
-                    credentialPack: credentialPack!)
+                    credentialPack: credentialPack!
+                )
             }
             self.credentialItem = credentialDisplayerSelector(
-                credentialPack: credentialPack!)
+                credentialPack: credentialPack!
+            )
         }
         .edgesIgnoringSafeArea(.bottom)
         .navigationBarBackButtonHidden(true)

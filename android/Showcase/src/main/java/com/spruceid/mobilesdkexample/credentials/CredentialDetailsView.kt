@@ -71,6 +71,8 @@ import com.spruceid.mobilesdkexample.utils.credentialPackHasMdoc
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.wallet.DispatchQRView
+import com.spruceid.mobilesdkexample.wallet.SupportedQRTypes
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -98,6 +100,10 @@ fun CredentialDetailsView(
                 CredentialDetailsViewTabs(
                     { painterResource(id = R.drawable.info_icon) },
                     { stringResource(id = R.string.details_info) }
+                ),
+                CredentialDetailsViewTabs(
+                    { painterResource(id = R.drawable.qrcode_scanner) },
+                    { stringResource(id = R.string.qrcode_scanner) }
                 )
             )
         )
@@ -212,7 +218,7 @@ fun CredentialDetailsView(
                         .background(ColorBase50),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (page == 0) { // Details
+                    if (page == 0) {  // Details
                         Column(
                             Modifier
                                 .padding(horizontal = 20.dp)
@@ -228,7 +234,13 @@ fun CredentialDetailsView(
                                 }
                             }
                         }
-                    } else if (page == 1) { // Share
+                    } else if (page == 1) { // Scan to verify
+                        DispatchQRView(
+                            navController,
+                            credentialPackId,
+                            listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP)
+                        )
+                    } else if (page == 2) { // Share
                         GenericCredentialDetailsShareQRCode(credentialPack!!)
                     }
                 }
