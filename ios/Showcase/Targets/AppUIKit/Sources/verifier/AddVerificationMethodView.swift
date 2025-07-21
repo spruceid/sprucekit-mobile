@@ -48,7 +48,8 @@ struct AddVerificationMethodView: View {
                 ScanningComponent(
                     path: $path,
                     scanningParams: Scanning(
-                        subtitle: "Scan Verification QR Code",
+                        title: "Add New Verification",
+                        subtitle: "Scan a provided QR code from the desired issuer to add more preset data requests",
                         scanningType: .qrcode,
                         onCancel: onBack,
                         onRead: onRead

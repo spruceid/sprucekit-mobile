@@ -13,7 +13,9 @@ public struct PDF417Scanner: View {
     var subtitleFont: Font?
     var cancelButtonFont: Font?
     var readerColor: Color
-    var textColor: Color
+    var titleColor: Color
+    var subtitleColor: Color
+    var buttonColor: Color
     var backgroundOpacity: Double
 
     public init(
@@ -26,7 +28,9 @@ public struct PDF417Scanner: View {
         subtitleFont: Font? = nil,
         cancelButtonFont: Font? = nil,
         readerColor: Color = .white,
-        textColor: Color = .white,
+        titleColor: Color = .white,
+        subtitleColor: Color = .white,
+        buttonColor: Color = .white,
         backgroundOpacity: Double = 0.75
     ) {
         self.title = title
@@ -38,7 +42,9 @@ public struct PDF417Scanner: View {
         self.subtitleFont = subtitleFont
         self.cancelButtonFont = cancelButtonFont
         self.readerColor = readerColor
-        self.textColor = textColor
+        self.titleColor = titleColor
+        self.subtitleColor = subtitleColor
+        self.buttonColor = buttonColor
         self.backgroundOpacity = backgroundOpacity
     }
 
@@ -60,7 +66,9 @@ public struct PDF417Scanner: View {
             subtitleFont: subtitleFont,
             cancelButtonFont: cancelButtonFont,
             readerColor: readerColor,
-            textColor: textColor,
+            titleColor: titleColor,
+            subtitleColor: subtitleColor,
+            buttonColor: buttonColor,
             backgroundOpacity: backgroundOpacity,
             regionOfInterest: calculateRegionOfInterest()
         )

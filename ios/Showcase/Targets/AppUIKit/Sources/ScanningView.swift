@@ -11,22 +11,28 @@ struct Scanning: Hashable, Equatable {
     var scanningType: ScanningType
     var title: String
     var subtitle: String
+    var instructions: String
     var onCancel: (() -> Void)?
     var onRead: (String) -> Void
+    var backgroundColor: Color
 
     init(
         title: String = "Scan QR Code",
         subtitle: String = "Please align within the guides",
+        instructions: String = "",
         scanningType: ScanningType,
         onCancel: @escaping () -> Void,
-        onRead: @escaping (String) -> Void
+        onRead: @escaping (String) -> Void,
+        backgroundColor: Color = .white
     ) {
         self.id = UUID()
         self.scanningType = scanningType
         self.title = title
         self.subtitle = subtitle
+        self.instructions = instructions
         self.onCancel = onCancel
         self.onRead = onRead
+        self.backgroundColor = backgroundColor
     }
 
     func hash(into hasher: inout Hasher) {
@@ -126,12 +132,33 @@ struct ScanningComponent: View {
                         onRead: scanningParams.onRead,
                         onCancel: onCancel,
                         titleFont: .customFont(
-                            font: .inter, style: .bold, size: .h0),
+                            font: .inter,
+                            style: .medium,
+                            size: .h3
+                        ),
                         subtitleFont: .customFont(
-                            font: .inter, style: .bold, size: .h4),
+                            font: .inter,
+                            style: .regular,
+                            size: .p
+                        ),
                         cancelButtonFont: .customFont(
-                            font: .inter, style: .medium, size: .h3),
-                        readerColor: .white
+                            font: .inter,
+                            style: .medium,
+                            size: .h4
+                        ),
+                        readerColor: .white,
+                        titleColor: Color("ColorStone950"),
+                        subtitleColor: Color("ColorStone600"),
+                        buttonColor: Color("ColorStone950"),
+                        buttonBorderColor: Color("ColorStone300"),
+                        backgroundColor: scanningParams.backgroundColor,
+                        instructions: scanningParams.instructions,
+                        instructionsFont: .customFont(
+                            font: .inter,
+                            style: .regular,
+                            size: .p
+                        ),
+                        instructionsDefaultColor: Color("ColorStone500")
                     )
                 case .pdf417:
                     PDF417Scanner(
@@ -140,11 +167,20 @@ struct ScanningComponent: View {
                         onRead: scanningParams.onRead,
                         onCancel: onCancel,
                         titleFont: .customFont(
-                            font: .inter, style: .bold, size: .h0),
+                            font: .inter,
+                            style: .bold,
+                            size: .h0
+                        ),
                         subtitleFont: .customFont(
-                            font: .inter, style: .bold, size: .h4),
+                            font: .inter,
+                            style: .bold,
+                            size: .h4
+                        ),
                         cancelButtonFont: .customFont(
-                            font: .inter, style: .medium, size: .h3),
+                            font: .inter,
+                            style: .medium,
+                            size: .h3
+                        ),
                         readerColor: .white
                     )
                 case .mrz:
@@ -154,11 +190,20 @@ struct ScanningComponent: View {
                         onRead: scanningParams.onRead,
                         onCancel: onCancel,
                         titleFont: .customFont(
-                            font: .inter, style: .bold, size: .h0),
+                            font: .inter,
+                            style: .bold,
+                            size: .h0
+                        ),
                         subtitleFont: .customFont(
-                            font: .inter, style: .bold, size: .h4),
+                            font: .inter,
+                            style: .bold,
+                            size: .h4
+                        ),
                         cancelButtonFont: .customFont(
-                            font: .inter, style: .medium, size: .h3),
+                            font: .inter,
+                            style: .medium,
+                            size: .h3
+                        ),
                         readerColor: .white
                     )
                 }

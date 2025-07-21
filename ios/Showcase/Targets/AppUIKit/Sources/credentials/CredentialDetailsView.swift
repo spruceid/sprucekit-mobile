@@ -54,7 +54,7 @@ struct CredentialDetailsView: View {
             }
             .padding([.horizontal, .bottom], 20)
             .padding(.top, 40)
-            VStack {
+            VStack(spacing: 0) {
                 Divider()
                 TabView(selection: $selectedTab) {
                     ForEach(
@@ -92,9 +92,10 @@ struct CredentialDetailsView: View {
                                 supportedTypes: [
                                     SupportedQRTypes.oid4vp,
                                     SupportedQRTypes.http,
-                                ]
+                                ],
+                                backgroundColor: Color("ColorBase50")
                             )
-
+                            .tag(index)
                         } else if index == 2, let credPack = credentialPack {  // Share
                             ShareMdocView(credentialPack: credPack)
                                 .tag(index)
