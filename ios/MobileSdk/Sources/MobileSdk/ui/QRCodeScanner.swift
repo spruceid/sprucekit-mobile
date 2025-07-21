@@ -28,7 +28,8 @@ public struct QRCodeScanner: View {
     var titleFont: Font?
     var subtitleFont: Font?
     var cancelButtonFont: Font?
-    var detectingColor: Color
+    var guidesColor: Color
+    var guidesText: String
     var readerColor: Color
     var titleColor: Color
     var subtitleColor: Color
@@ -49,7 +50,8 @@ public struct QRCodeScanner: View {
         titleFont: Font? = nil,
         subtitleFont: Font? = nil,
         cancelButtonFont: Font? = nil,
-        detectingColor: Color = .blue,
+        guidesColor: Color = .blue,
+        guidesText: String = "Detecting...",
         readerColor: Color = .white,
         titleColor: Color = .black,
         subtitleColor: Color = .black,
@@ -69,7 +71,8 @@ public struct QRCodeScanner: View {
         self.titleFont = titleFont
         self.subtitleFont = subtitleFont
         self.cancelButtonFont = cancelButtonFont
-        self.detectingColor = detectingColor
+        self.guidesColor = guidesColor
+        self.guidesText = guidesText
         self.readerColor = readerColor
         self.titleColor = titleColor
         self.subtitleColor = subtitleColor
@@ -110,7 +113,7 @@ public struct QRCodeScanner: View {
             scannerGuides: ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: 6, style: .circular)
                     .stroke(
-                        detectingColor,
+                        guidesColor,
                         style: StrokeStyle(
                             lineWidth: 4,
                             lineCap: .round,
@@ -120,13 +123,13 @@ public struct QRCodeScanner: View {
                 VStack {
                     HStack {
                         ProgressRing()
-                        Text("Detecting...")
+                        Text(guidesText)
                             .foregroundColor(.white)
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
                     .background(
-                        detectingColor.clipShape(
+                        guidesColor.clipShape(
                             RoundedRectangle(cornerRadius: 100)
                         )
                     )
@@ -143,13 +146,13 @@ public struct QRCodeScanner: View {
                         hstackHeight = height
                     }
 
-                        VStack(spacing: 4) {
-                            Text(instructions)
-                        }
-                        .font(instructionsFont)
-                        .foregroundColor(instructionsDefaultColor)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 8)
+                    VStack(spacing: 4) {
+                        Text(instructions)
+                    }
+                    .font(instructionsFont)
+                    .foregroundColor(instructionsDefaultColor)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 8)
                 }
                 .background(
                     GeometryReader { geometry in
