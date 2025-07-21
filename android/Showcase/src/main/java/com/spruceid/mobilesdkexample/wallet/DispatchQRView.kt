@@ -7,11 +7,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobilesdkexample.ErrorView
-import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.navigation.Screen
@@ -44,13 +44,14 @@ val ALL_SUPPORTED_QR_TYPES =
 fun DispatchQRView(
     navController: NavController,
     credentialPackId: String? = null,
-    supportedTypes: List<SupportedQRTypes> = ALL_SUPPORTED_QR_TYPES
+    supportedTypes: List<SupportedQRTypes> = ALL_SUPPORTED_QR_TYPES,
+    backgroundColor: Color = Color.White,
+    hideCancelButton: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
 
     var err by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(false) }
 
     fun back() {
         navController.navigate(
@@ -61,7 +62,6 @@ fun DispatchQRView(
     }
 
     fun onRead(payload: String) {
-        loading = true
         scope.launch {
             try {
                 val encodedUrl = URLEncoder.encode(payload, StandardCharsets.UTF_8.toString())
@@ -136,14 +136,13 @@ fun DispatchQRView(
             errorDetails = err!!,
             onClose = ::back
         )
-    } else if (loading) {
-        LoadingView(loadingText = "Loading...")
     } else {
         ScanningComponent(
             scanningType = ScanningType.QRCODE,
+            backgroundColor = backgroundColor,
+            hideCancelButton = hideCancelButton,
             onRead = ::onRead,
             onCancel = ::back
         )
     }
-
 }

@@ -146,6 +146,7 @@ struct ScanningComponent: View {
                             style: .medium,
                             size: .h4
                         ),
+                        guidesColor: Color("ColorBlue600"),
                         readerColor: .white,
                         titleColor: Color("ColorStone950"),
                         subtitleColor: Color("ColorStone600"),
