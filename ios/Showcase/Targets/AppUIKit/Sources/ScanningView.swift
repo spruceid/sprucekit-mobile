@@ -13,6 +13,7 @@ struct Scanning: Hashable, Equatable {
     var subtitle: String
     var instructions: String
     var onCancel: (() -> Void)?
+    var hideCancelButton: Bool
     var onRead: (String) -> Void
     var backgroundColor: Color
 
@@ -22,6 +23,7 @@ struct Scanning: Hashable, Equatable {
         instructions: String = "",
         scanningType: ScanningType,
         onCancel: @escaping () -> Void,
+        hideCancelButton: Bool = false,
         onRead: @escaping (String) -> Void,
         backgroundColor: Color = .white
     ) {
@@ -31,6 +33,7 @@ struct Scanning: Hashable, Equatable {
         self.subtitle = subtitle
         self.instructions = instructions
         self.onCancel = onCancel
+        self.hideCancelButton = hideCancelButton
         self.onRead = onRead
         self.backgroundColor = backgroundColor
     }
@@ -131,6 +134,7 @@ struct ScanningComponent: View {
                         subtitle: scanningParams.subtitle,
                         onRead: scanningParams.onRead,
                         onCancel: onCancel,
+                        hideCancelButton: scanningParams.hideCancelButton,
                         titleFont: .customFont(
                             font: .inter,
                             style: .medium,
@@ -167,6 +171,7 @@ struct ScanningComponent: View {
                         subtitle: scanningParams.subtitle,
                         onRead: scanningParams.onRead,
                         onCancel: onCancel,
+                        hideCancelButton: scanningParams.hideCancelButton,
                         titleFont: .customFont(
                             font: .inter,
                             style: .bold,

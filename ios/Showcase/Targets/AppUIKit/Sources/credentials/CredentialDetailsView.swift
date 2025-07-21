@@ -93,7 +93,8 @@ struct CredentialDetailsView: View {
                                     SupportedQRTypes.oid4vp,
                                     SupportedQRTypes.http,
                                 ],
-                                backgroundColor: Color("ColorBase50")
+                                backgroundColor: Color("ColorBase50"),
+                                hideCancelButton: true
                             )
                             .tag(index)
                         } else if index == 2, let credPack = credentialPack {  // Share

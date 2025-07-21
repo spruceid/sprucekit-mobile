@@ -8,6 +8,7 @@ public struct PDF417Scanner: View {
     var subtitle: String
     var cancelButtonLabel: String
     var onCancel: () -> Void
+    var hideCancelButton: Bool
     var onRead: (String) -> Void
     var titleFont: Font?
     var subtitleFont: Font?
@@ -24,6 +25,7 @@ public struct PDF417Scanner: View {
         cancelButtonLabel: String = "Cancel",
         onRead: @escaping (String) -> Void,
         onCancel: @escaping () -> Void,
+        hideCancelButton: Bool = false,
         titleFont: Font? = nil,
         subtitleFont: Font? = nil,
         cancelButtonFont: Font? = nil,
@@ -37,6 +39,7 @@ public struct PDF417Scanner: View {
         self.subtitle = subtitle
         self.cancelButtonLabel = cancelButtonLabel
         self.onCancel = onCancel
+        self.hideCancelButton = hideCancelButton
         self.onRead = onRead
         self.titleFont = titleFont
         self.subtitleFont = subtitleFont
@@ -62,6 +65,7 @@ public struct PDF417Scanner: View {
             cancelButtonLabel: cancelButtonLabel,
             onRead: onRead,
             onCancel: onCancel,
+            hideCancelButton: hideCancelButton,
             titleFont: titleFont,
             subtitleFont: subtitleFont,
             cancelButtonFont: cancelButtonFont,

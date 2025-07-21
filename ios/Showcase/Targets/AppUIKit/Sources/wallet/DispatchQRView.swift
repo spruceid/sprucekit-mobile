@@ -29,6 +29,7 @@ struct DispatchQRView: View {
     var credentialPackId: String?
     var supportedTypes: [SupportedQRTypes] = allSupportedQRTypes
     var backgroundColor: Color = .white
+    var hideCancelButton: Bool = false
 
     func handleRequest(payload: String) {
         Task {
@@ -60,6 +61,7 @@ struct DispatchQRView: View {
                             title: "Scan QR Code",
                             scanningType: .qrcode,
                             onCancel: onBack,
+                            hideCancelButton: hideCancelButton,
                             onRead: { code in
                                 handleRequest(payload: code)
                             },

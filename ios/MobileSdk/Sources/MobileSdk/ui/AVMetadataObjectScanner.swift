@@ -42,6 +42,7 @@ public struct AVMetadataObjectScanner: View {
     var subtitle: String
     var cancelButtonLabel: String
     var onCancel: () -> Void
+    var hideCancelButton: Bool
     var onRead: (String) -> Void
     var titleFont: Font?
     var subtitleFont: Font?
@@ -63,6 +64,7 @@ public struct AVMetadataObjectScanner: View {
         cancelButtonLabel: String = "Cancel",
         onRead: @escaping (String) -> Void,
         onCancel: @escaping () -> Void,
+        hideCancelButton: Bool = false,
         titleFont: Font? = nil,
         subtitleFont: Font? = nil,
         cancelButtonFont: Font? = nil,
@@ -81,6 +83,7 @@ public struct AVMetadataObjectScanner: View {
         self.subtitle = subtitle
         self.cancelButtonLabel = cancelButtonLabel
         self.onCancel = onCancel
+        self.hideCancelButton = hideCancelButton
         self.onRead = onRead
         self.titleFont = titleFont
         self.subtitleFont = subtitleFont
@@ -175,21 +178,22 @@ public struct AVMetadataObjectScanner: View {
                 }
                 Spacer()
 
-                Button {
-                    onCancel()
-                } label: {
-                    Text(cancelButtonLabel)
-                        .frame(maxWidth: .infinity)
-                        .padding(10)
-                        .font(cancelButtonFont)
-                        .foregroundColor(buttonColor)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 100)
-                                .stroke(buttonBorderColor, lineWidth: 1)
-                                .allowsHitTesting(false)
-                        )
+                if !hideCancelButton {
+                    Button {
+                        onCancel()
+                    } label: {
+                        Text(cancelButtonLabel)
+                            .frame(maxWidth: .infinity)
+                            .padding(10)
+                            .font(cancelButtonFont)
+                            .foregroundColor(buttonColor)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 100)
+                                    .stroke(buttonBorderColor, lineWidth: 1)
+                                    .allowsHitTesting(false)
+                            )
+                    }
                 }
-
             }
             .padding(.top, 60)
             .padding([.horizontal, .bottom], 35)
