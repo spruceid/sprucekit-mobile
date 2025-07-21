@@ -63,7 +63,7 @@ public struct QRCodeScanner: View {
         backgroundOpacity: Double = 1,
         instructions: String = "",
         instructionsFont: Font? = nil,
-        instructionsDefaultColor: Color = .gray,
+        instructionsDefaultColor: Color = .gray
     ) {
         self.title = title
         self.subtitle = subtitle
