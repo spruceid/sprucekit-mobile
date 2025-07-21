@@ -27,7 +27,7 @@ public struct ProgressRing: View {
                         rotationAngle = 360.0
                     }
                 }
-                .onDisappear{
+                .onDisappear {
                     rotationAngle = 0.0
                 }
         }

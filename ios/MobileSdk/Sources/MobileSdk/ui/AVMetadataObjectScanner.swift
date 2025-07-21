@@ -3,8 +3,7 @@ import SwiftUI
 import os.log
 
 public class AVMetadataObjectScannerDelegate: NSObject, ObservableObject,
-    AVCaptureMetadataOutputObjectsDelegate
-{
+    AVCaptureMetadataOutputObjectsDelegate {
 
     @Published public var scannedCode: String?
     public func metadataOutput(
@@ -76,7 +75,7 @@ public struct AVMetadataObjectScanner: View {
         backgroundColor: Color = .black,
         backgroundOpacity: Double = 0.75,
         regionOfInterest: CGSize = CGSize(width: 0, height: 0),
-        scannerGuides: (any View)? = nil,
+        scannerGuides: (any View)? = nil
     ) {
         self.metadataObjectTypes = metadataObjectTypes
         self.title = title
