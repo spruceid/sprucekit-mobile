@@ -44,7 +44,7 @@ use uuid::Uuid;
 /// the state of the presentation, a String containing the QR code URI, and a
 /// String containing the BLE ident.
 ///
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn initialize_mdl_presentation(
     mdoc_id: Uuid,
     uuid: Uuid,

@@ -26,7 +26,7 @@ publishing {
         //    artifactId = "mobilesdk"
         //    version = System.getenv("VERSION")
         //  afterEvaluate { from(components["release"]) }
-        //}
+        // }
 
         // Creates a Maven publication called "release".
         create<MavenPublication>("release") {
