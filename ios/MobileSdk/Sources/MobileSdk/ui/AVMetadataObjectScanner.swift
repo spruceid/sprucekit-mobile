@@ -1,8 +1,9 @@
-import SwiftUI
 import AVKit
+import SwiftUI
 import os.log
 
-public class AVMetadataObjectScannerDelegate: NSObject, ObservableObject, AVCaptureMetadataOutputObjectsDelegate {
+public class AVMetadataObjectScannerDelegate: NSObject, ObservableObject,
+    AVCaptureMetadataOutputObjectsDelegate {
 
     @Published public var scannedCode: String?
     public func metadataOutput(
@@ -11,8 +12,11 @@ public class AVMetadataObjectScannerDelegate: NSObject, ObservableObject, AVCapt
         from connection: AVCaptureConnection
     ) {
         if let metaObject = metadataObjects.first {
-            guard let readableObject = metaObject as? AVMetadataMachineReadableCodeObject else {return}
-            guard let scannedCode = readableObject.stringValue else {return}
+            guard
+                let readableObject = metaObject
+                    as? AVMetadataMachineReadableCodeObject
+            else { return }
+            guard let scannedCode = readableObject.stringValue else { return }
             self.scannedCode = scannedCode
         }
     }
@@ -37,12 +41,17 @@ public struct AVMetadataObjectScanner: View {
     var subtitle: String
     var cancelButtonLabel: String
     var onCancel: () -> Void
+    var hideCancelButton: Bool
     var onRead: (String) -> Void
     var titleFont: Font?
     var subtitleFont: Font?
     var cancelButtonFont: Font?
     var readerColor: Color
-    var textColor: Color
+    var titleColor: Color
+    var subtitleColor: Color
+    var buttonColor: Color
+    var buttonBorderColor: Color
+    var backgroundColor: Color
     var backgroundOpacity: Double
     var regionOfInterest: CGSize
     var scannerGuides: (any View)?
@@ -54,11 +63,16 @@ public struct AVMetadataObjectScanner: View {
         cancelButtonLabel: String = "Cancel",
         onRead: @escaping (String) -> Void,
         onCancel: @escaping () -> Void,
+        hideCancelButton: Bool = false,
         titleFont: Font? = nil,
         subtitleFont: Font? = nil,
         cancelButtonFont: Font? = nil,
         readerColor: Color = .white,
-        textColor: Color = .white,
+        titleColor: Color = .white,
+        subtitleColor: Color = .white,
+        buttonColor: Color = .white,
+        buttonBorderColor: Color = .white,
+        backgroundColor: Color = .black,
         backgroundOpacity: Double = 0.75,
         regionOfInterest: CGSize = CGSize(width: 0, height: 0),
         scannerGuides: (any View)? = nil
@@ -68,12 +82,17 @@ public struct AVMetadataObjectScanner: View {
         self.subtitle = subtitle
         self.cancelButtonLabel = cancelButtonLabel
         self.onCancel = onCancel
+        self.hideCancelButton = hideCancelButton
         self.onRead = onRead
         self.titleFont = titleFont
         self.subtitleFont = subtitleFont
         self.cancelButtonFont = cancelButtonFont
         self.readerColor = readerColor
-        self.textColor = textColor
+        self.titleColor = titleColor
+        self.subtitleColor = subtitleColor
+        self.buttonColor = buttonColor
+        self.buttonBorderColor = buttonBorderColor
+        self.backgroundColor = backgroundColor
         self.backgroundOpacity = backgroundOpacity
         self.regionOfInterest = regionOfInterest
         self.scannerGuides = scannerGuides
@@ -81,36 +100,57 @@ public struct AVMetadataObjectScanner: View {
 
     public var body: some View {
         ZStack(alignment: .top) {
-            GeometryReader {geometry in
+            GeometryReader { geometry in
                 let size = UIScreen.screenSize
-                let clearCutOutYPosition = geometry.size.height / 2
-                ZStack {
-                    CameraView(frameSize: CGSize(width: size.width, height: size.height), session: $session)
+                let clearCutOutYPosition = geometry.size.height / 2.5
+                return ZStack {
+                    CameraView(
+                        frameSize: CGSize(
+                            width: size.width,
+                            height: size.height
+                        ),
+                        session: $session
+                    )
                     /// Blur layer with clear cut out
                     ZStack {
                         Rectangle()
-                            .foregroundColor(Color.black.opacity(backgroundOpacity))
+                            .foregroundColor(
+                                backgroundColor.opacity(backgroundOpacity)
+                            )
                             .frame(width: size.width, height: size.height)
                         Rectangle()
-                            .frame(width: regionOfInterest.width, height: regionOfInterest.height)
-                                .blendMode(.destinationOut)
-                                .position(x: size.width / 2, y: clearCutOutYPosition)
-                            }
-                            .compositingGroup()
+                            .frame(
+                                width: regionOfInterest.width,
+                                height: regionOfInterest.height
+                            )
+                            .blendMode(.destinationOut)
+                            .position(
+                                x: size.width / 2,
+                                y: clearCutOutYPosition
+                            )
+                    }
+                    .compositingGroup()
 
                     /// Scan area edges
                     ZStack {
-                        if scannerGuides != nil {
-                            AnyView(scannerGuides!)
-                        }
-
                         /// Scanner Animation
                         Rectangle()
                             .fill(readerColor)
                             .frame(height: 2.5)
-                            .offset(y: isScanning ? (regionOfInterest.height)/2 : -(regionOfInterest.height)/2)
+                            .offset(
+                                y: isScanning
+                                    ? (regionOfInterest.height) / 2
+                                    : -(regionOfInterest.height) / 2
+                            )
+
+                        if scannerGuides != nil {
+                            AnyView(scannerGuides!)
+                        }
                     }
-                    .frame(width: regionOfInterest.width, height: regionOfInterest.height)
+                    .frame(
+                        width: regionOfInterest.width,
+                        height: regionOfInterest.height
+                    )
                     .position(x: size.width / 2, y: clearCutOutYPosition)
 
                 }
@@ -120,22 +160,42 @@ public struct AVMetadataObjectScanner: View {
 
             VStack(alignment: .leading) {
                 Text(title)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.leading)
                     .font(titleFont)
-                    .foregroundColor(textColor)
+                    .foregroundColor(titleColor)
+                    .padding(.bottom, 4)
 
                 Text(subtitle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .multilineTextAlignment(.leading)
                     .font(subtitleFont)
-                    .foregroundColor(textColor)
+                    .foregroundColor(subtitleColor)
 
+                HStack {
+                    Spacer()
+                }
                 Spacer()
 
-                Button(cancelButtonLabel) {
-                    onCancel()
+                if !hideCancelButton {
+                    Button {
+                        onCancel()
+                    } label: {
+                        Text(cancelButtonLabel)
+                            .frame(maxWidth: .infinity)
+                            .padding(10)
+                            .font(cancelButtonFont)
+                            .foregroundColor(buttonColor)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 100)
+                                    .stroke(buttonBorderColor, lineWidth: 1)
+                                    .allowsHitTesting(false)
+                            )
+                    }
                 }
-                .font(cancelButtonFont)
-                .foregroundColor(textColor)
             }
-            .padding(.vertical, 80)
+            .padding(.top, 60)
+            .padding([.horizontal, .bottom], 35)
         }
         /// Checking camera permission, when the view is visible
         .onAppear(perform: {
@@ -180,7 +240,7 @@ public struct AVMetadataObjectScanner: View {
     }
 
     func reactivateCamera() {
-        DispatchQueue.global(qos: .background).async { [session] in // probably not the right way of doing it
+        DispatchQueue.global(qos: .background).async { [session] in  // probably not the right way of doing it
             session.startRunning()
         }
     }
@@ -188,7 +248,11 @@ public struct AVMetadataObjectScanner: View {
     /// Activating Scanner Animation Method
     func activateScannerAnimation() {
         /// Adding Delay for each reversal
-        withAnimation(.easeInOut(duration: 0.85).delay(0.1).repeatForever(autoreverses: true)) {
+        withAnimation(
+            .easeInOut(duration: 0.85).delay(0.1).repeatForever(
+                autoreverses: true
+            )
+        ) {
             isScanning = true
         }
     }
@@ -205,12 +269,20 @@ public struct AVMetadataObjectScanner: View {
     func setupCamera() {
         do {
             /// Finding back camera
-            guard let device = AVCaptureDevice.DiscoverySession(
+            guard
+                let device = AVCaptureDevice.DiscoverySession(
                     deviceTypes: [.builtInWideAngleCamera],
-                    mediaType: .video, position: .back)
+                    mediaType: .video,
+                    position: .back
+                )
                 .devices.first
             else {
-                os_log("Error: %@", log: .default, type: .error, String("UNKNOWN DEVICE ERROR"))
+                os_log(
+                    "Error: %@",
+                    log: .default,
+                    type: .error,
+                    String("UNKNOWN DEVICE ERROR")
+                )
                 return
             }
 
@@ -218,8 +290,14 @@ public struct AVMetadataObjectScanner: View {
             let input = try AVCaptureDeviceInput(device: device)
             /// For Extra Safety
             /// Checking whether input & output can be added to the session
-            guard session.canAddInput(input), session.canAddOutput(qrOutput) else {
-                os_log("Error: %@", log: .default, type: .error, String("UNKNOWN INPUT/OUTPUT ERROR"))
+            guard session.canAddInput(input), session.canAddOutput(qrOutput)
+            else {
+                os_log(
+                    "Error: %@",
+                    log: .default,
+                    type: .error,
+                    String("UNKNOWN INPUT/OUTPUT ERROR")
+                )
                 return
             }
 
@@ -234,12 +312,17 @@ public struct AVMetadataObjectScanner: View {
             session.commitConfiguration()
             /// Note session must be started on background thread
 
-            DispatchQueue.global(qos: .background).async { [session] in // probably not the right way of doing it
+            DispatchQueue.global(qos: .background).async { [session] in  // probably not the right way of doing it
                 session.startRunning()
             }
             activateScannerAnimation()
         } catch {
-            os_log("Error: %@", log: .default, type: .error, error.localizedDescription)
+            os_log(
+                "Error: %@",
+                log: .default,
+                type: .error,
+                error.localizedDescription
+            )
         }
     }
 }

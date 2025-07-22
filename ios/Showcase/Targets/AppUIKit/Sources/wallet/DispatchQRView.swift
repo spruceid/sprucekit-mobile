@@ -22,23 +22,22 @@ let allSupportedQRTypes: [SupportedQRTypes] = [.oid4vp, .oid4vci, .http]
 struct DispatchQR: Hashable {}
 
 struct DispatchQRView: View {
-    @State var loading: Bool = false
     @State var err: String?
     @State var success: Bool?
 
     @Binding var path: NavigationPath
     var credentialPackId: String?
     var supportedTypes: [SupportedQRTypes] = allSupportedQRTypes
+    var backgroundColor: Color = .white
+    var hideCancelButton: Bool = false
 
     func handleRequest(payload: String) {
-        loading = true
         Task {
             let success = await handleScannedPayload(payload)
             if !success {
                 err =
                     "This QRCode is not supported by the selection: \(supportedTypes). Payload: \(payload)"
             }
-            loading = false
         }
     }
 
@@ -54,8 +53,6 @@ struct DispatchQRView: View {
                     errorDetails: err!,
                     onClose: onBack
                 )
-            } else if loading {
-                LoadingView(loadingText: "Loading...")
             } else {
                 VStack {
                     ScanningComponent(
@@ -64,9 +61,11 @@ struct DispatchQRView: View {
                             title: "Scan QR Code",
                             scanningType: .qrcode,
                             onCancel: onBack,
+                            hideCancelButton: hideCancelButton,
                             onRead: { code in
                                 handleRequest(payload: code)
-                            }
+                            },
+                            backgroundColor: backgroundColor
                         )
                     )
                 }
@@ -124,7 +123,7 @@ struct DispatchQRView: View {
 
         case .http:
             if let url = URL(string: payload),
-                await UIApplication.shared.canOpenURL(url)
+                UIApplication.shared.canOpenURL(url)
             {
                 await UIApplication.shared.open(url)
                 onBack()

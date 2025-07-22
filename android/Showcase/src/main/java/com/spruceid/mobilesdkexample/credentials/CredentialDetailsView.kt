@@ -238,7 +238,9 @@ fun CredentialDetailsView(
                         DispatchQRView(
                             navController,
                             credentialPackId,
-                            listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP)
+                            listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
+                            backgroundColor = ColorBase50,
+                            hideCancelButton = true
                         )
                     } else if (page == 2) { // Share
                         GenericCredentialDetailsShareQRCode(credentialPack!!)

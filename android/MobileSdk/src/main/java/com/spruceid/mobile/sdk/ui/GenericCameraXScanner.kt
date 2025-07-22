@@ -10,12 +10,14 @@ import androidx.camera.core.ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -36,11 +38,15 @@ import androidx.core.content.ContextCompat
 @Composable
 fun GenericCameraXScanner(
     title: String = "Scan QR Code",
+    titleColor: Color = Color.White,
     subtitle: String = "Please align within the guides",
+    subtitleColor: Color = Color.White,
     cancelButtonLabel: String = "Cancel",
+    cancelButtonColor: Color = Color.White,
+    cancelButtonBorderColor: Color = Color.Gray,
     onCancel: () -> Unit,
+    hideCancelButton: Boolean = false,
     fontFamily: FontFamily = FontFamily.Default,
-    textColor: Color = Color.White,
     imageAnalyzer: ImageAnalysis.Analyzer,
     background: @Composable () -> Unit
 ) {
@@ -124,41 +130,44 @@ fun GenericCameraXScanner(
                     Text(
                         text = title,
                         fontFamily = fontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 24.sp,
-                        color = textColor,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 18.sp,
+                        color = titleColor,
                     )
                     Text(
                         text = subtitle,
                         fontFamily = fontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = textColor,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 15.sp,
+                        color = subtitleColor,
                     )
                 }
 
-                Column(
-                    Modifier.fillMaxWidth(),
-                ) {
-                    Button(
-                        onClick = onCancel,
-                        modifier =
-                        Modifier
-                            .padding(bottom = 50.dp)
-                            .padding(horizontal = 30.dp),
-                        colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = Color.Transparent,
-                        ),
+                if (!hideCancelButton) {
+                    Column(
+                        Modifier.fillMaxWidth(),
                     ) {
-                        Text(
-                            text = cancelButtonLabel,
-                            fontFamily = fontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 18.sp,
-                            color = textColor,
-                        )
+                        Button(
+                            onClick = onCancel,
+                            shape = RoundedCornerShape(100.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = cancelButtonColor,
+                            ),
+                            border = BorderStroke(1.dp, cancelButtonBorderColor),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 50.dp)
+                                .padding(horizontal = 30.dp),
+                        ) {
+                            Text(
+                                text = cancelButtonLabel,
+                                fontFamily = fontFamily,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 16.sp,
+                                color = cancelButtonColor,
+                            )
+                        }
                     }
                 }
             }
