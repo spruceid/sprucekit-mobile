@@ -10,7 +10,7 @@ use tracing::info;
 use uuid::Uuid;
 
 /// Internal prefix for credential keys.
-const KEY_PREFIX: &str = "Credential.";
+const KEY_PREFIX: &str = "CredentialPack:";
 
 #[derive(uniffi::Object)]
 /// Verifiable Digital Credential Collection

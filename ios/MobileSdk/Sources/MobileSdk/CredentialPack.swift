@@ -515,7 +515,7 @@ public struct CredentialPackContents {
         do {
             try await storageManager.list()
                 .filter { file in
-                    file.hasPrefix(Self.storagePrefix)
+                    file.contains(Self.storagePrefix)
                 }
                 .asyncForEach { file in
                     try await storageManager.remove(key: file)
@@ -533,7 +533,7 @@ public struct CredentialPackContents {
         do {
             return try await storageManager.list()
                 .filter { file in
-                    file.hasPrefix(Self.storagePrefix)
+                    file.contains(Self.storagePrefix)
                 }
                 .asyncMap { file in
                     guard let contents = try await storageManager.get(key: file)
