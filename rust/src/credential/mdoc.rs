@@ -8,7 +8,7 @@ use isomdl::{
     definitions::{helpers::Tag24, IssuerSigned, Mso},
     presentation::{device::Document, Stringify},
 };
-use time::format_description::well_known::Iso8601;
+use time::{format_description::well_known::Iso8601, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::{crypto::KeyAlias, CredentialType};
@@ -130,6 +130,26 @@ impl Mdoc {
             .valid_until
             .format(&Iso8601::DEFAULT)
             .map_err(|e| MdocDateError::Formatting(format!("{e:?}")))
+    }
+
+    /// Accessor method to return whether the MSO has expired, based on
+    /// the `valid_until` data in the validity info
+    ///
+    /// NOTE: This is different than the mDL (driver license) itself
+    /// that has its own expiration date.
+    pub fn is_mdoc_expired(&self) -> bool {
+        self.inner
+            .mso
+            .validity_info
+            .valid_until
+            .gt(&OffsetDateTime::now_utc())
+    }
+
+    /// Accessor method to return whether an MSO is expiring within
+    /// a parameterized given number of days.
+    pub fn will_expire_in_num_days(&self, num_days: i64) -> bool {
+        let target_date = OffsetDateTime::now_utc() + time::Duration::days(num_days);
+        self.inner.mso.validity_info.valid_until.le(&target_date)
     }
 }
 
