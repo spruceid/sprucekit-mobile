@@ -29,7 +29,7 @@ Then, in your resources directory (probably `src/main/res`), create an `xml` dir
            android:requireDeviceUnlock="true">
     <aid-group android:description="[NFC HCE GROUP NAME]"
                android:category="other">
-        <aid-filter android:name="A0000002480400"> <!-- mdoc, per ISO 18013-5 -->
+        <aid-filter android:name="A0000002480400" /> <!-- mdoc, per ISO 18013-5 -->
     </aid-group>
 </host-apdu-service>
 ```
@@ -75,7 +75,7 @@ class MainActivity : ComponentActivity() {
         NfcAdapter.getDefaultAdapter(this)?.let {
             val cardEmulation = CardEmulation.getInstance(it)
             if (!cardEmulation.unsetPreferredService(this)) {
-                Logger.i(TAG, "cardEmulation.unsetPreferredService() failed")
+               Log.i("MainActivity", "cardEmulation.unsetPreferredService() failed")
             }
         }
     }
