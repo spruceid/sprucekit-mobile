@@ -178,7 +178,17 @@ private fun genericCredentialListItemLeadingIconFormatter(
         }
 
     } catch (_: Exception) {
+    }
+
+    try {
         image = credential?.getString("issuer.image") ?: ""
+    } catch (_: Exception) {
+    }
+
+    try {
+        image = credential?.getString("credentialSubject.achievement.image.id") ?: ""
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 
     var alt = ""
@@ -308,7 +318,12 @@ fun genericCredentialListItem(
             }
 
         },
-        leadingIconKeys = listOf("issuer.image", "issuer.name", "type"),
+        leadingIconKeys = listOf(
+            "issuer.image",
+            "issuer.name",
+            "type",
+            "credentialSubject.achievement.image.id"
+        ),
         leadingIconFormatter = { values ->
             if (leadingIconFormatter != null) {
                 leadingIconFormatter.invoke(

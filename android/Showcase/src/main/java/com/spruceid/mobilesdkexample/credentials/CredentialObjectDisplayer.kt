@@ -30,7 +30,8 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
         .forEach { key ->
             if (obj.optJSONObject(key) != null) {
                 val jsonObject = obj.getJSONObject(key)
-                res.add(0,
+                res.add(
+                    0,
                     Accordion(
                         title = key.splitCamelCase().removeUnderscores(),
                         startExpanded = level < 3,
@@ -87,32 +88,35 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                 }
             } else {
                 val value = obj.get(key).toString()
-                res.add(0,
-                    Column(
-                        Modifier.padding(bottom = 12.dp)
-                    ) {
-                        Text(
-                            key.splitCamelCase().removeUnderscores(),
-                            fontFamily = Inter,
-                            fontWeight = FontWeight.Normal,
-                            fontSize = 16.sp,
-                            color = ColorStone500,
-                        )
-                        if (key.isImage() || value.isImage()) {
-                            CredentialImage(value, key)
-                        } else if (key.isDate()) {
-                            CredentialDate(value)
-                        } else {
+                if (value != "null") {
+                    res.add(
+                        0,
+                        Column(
+                            Modifier.padding(bottom = 12.dp)
+                        ) {
                             Text(
-                                value,
+                                key.splitCamelCase().removeUnderscores(),
                                 fontFamily = Inter,
                                 fontWeight = FontWeight.Normal,
-                                fontSize = 17.sp,
-                                color = ColorStone950,
+                                fontSize = 16.sp,
+                                color = ColorStone500,
                             )
+                            if (key.isImage() || value.isImage()) {
+                                CredentialImage(value, key)
+                            } else if (key.isDate()) {
+                                CredentialDate(value)
+                            } else {
+                                Text(
+                                    value,
+                                    fontFamily = Inter,
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 17.sp,
+                                    color = ColorStone950,
+                                )
+                            }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
 
