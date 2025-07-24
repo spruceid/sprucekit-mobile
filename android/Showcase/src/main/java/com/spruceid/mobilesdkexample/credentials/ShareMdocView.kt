@@ -55,6 +55,7 @@ import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.PresentmentState
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
@@ -66,7 +67,7 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 
 @Composable
-fun ShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> Unit) {
+fun ShareMdocView(credentialViewModel: CredentialsViewModel, engagementType: DeviceEngagementType, onCancel: () -> Unit) {
     val context = LocalContext.current
 
     val session by credentialViewModel.session.collectAsState()
@@ -118,7 +119,7 @@ fun ShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> Uni
                 launcherMultiplePermissions
         )
         if (isBluetoothEnabled) {
-            credentialViewModel.present(getBluetoothManager(context)!!)
+            credentialViewModel.present(getBluetoothManager(context)!!, engagementType)
         }
     }
 
@@ -135,6 +136,9 @@ fun ShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> Uni
                         )
                     }
                 }
+        PresentmentState.ENGAGING_NFC_SEARCHING -> {
+            // @TODO: Display some sort of graphic prompting NFC tapping?
+        }
         PresentmentState.ENGAGING_QR_CODE -> {
             if (session!!.getQrHandover().isNotEmpty()) {
                 Image(

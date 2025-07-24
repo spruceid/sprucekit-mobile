@@ -53,6 +53,7 @@ import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
+import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -351,6 +352,7 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
         ) {
             ShareMdocView(
                 credentialViewModel = credentialViewModel,
+                engagementType = DeviceEngagementType.QR,
                 onCancel = {
                     cancel()
                 }
@@ -417,12 +419,13 @@ fun GenericCredentialDetailsShareNFC(credentialPack: CredentialPack) {
                 )
                 .padding(8.dp)
         ) {
-//            ShareMdocView(
-//                credentialViewModel = credentialViewModel,
-//                onCancel = {
-//                    cancel()
-//                }
-//            )
+            ShareMdocView(
+                credentialViewModel = credentialViewModel,
+                engagementType = DeviceEngagementType.NFC,
+                onCancel = {
+                    cancel()
+                }
+            )
         }
         Text(
             text = "Tap this phone against a reader to share data. You will see a consent dialogue.",

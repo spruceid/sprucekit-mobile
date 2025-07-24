@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothManager
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
+import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -113,12 +114,19 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         _currState.value = PresentmentState.SELECT_NAMESPACES
     }
 
-    suspend fun present(bluetoothManager: BluetoothManager) {
+    suspend fun present(bluetoothManager: BluetoothManager, engagementType: DeviceEngagementType) {
         Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
         _uuid.value = UUID.randomUUID()
         val mdoc = this.firstMdoc()
         _session.value = initializeMdlPresentationFromBytes(mdoc, _uuid.value.toString())
-        _currState.value = PresentmentState.ENGAGING_QR_CODE
+        _currState.value = when (engagementType) {
+            DeviceEngagementType.QR -> PresentmentState.ENGAGING_QR_CODE
+            DeviceEngagementType.NFC -> PresentmentState.ENGAGING_NFC_SEARCHING
+        }
+        // TODO: Is this where this belongs?
+        if(engagementType == DeviceEngagementType.NFC) {
+
+        }
         _transport.value = Transport(bluetoothManager)
         _transport.value!!
             .initialize(

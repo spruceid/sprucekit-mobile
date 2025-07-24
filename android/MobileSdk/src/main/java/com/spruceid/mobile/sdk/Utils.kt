@@ -52,6 +52,9 @@ enum class PresentmentState {
     /// App should display the error message
     ERROR,
 
+    /// App is listening for NFC readers
+    ENGAGING_NFC_SEARCHING,
+
     /// App should display the QR code
     ENGAGING_QR_CODE,
 

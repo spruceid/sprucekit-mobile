@@ -44,4 +44,6 @@
     <string name="delete">Delete</string>
     <string name="apply_spruceid_mdl">Apply for a SpruceID mDL</string>
     <string name="dev_mode">Enable/disable dev mode</string>
+    <string name="nfc_hce_service_desc">SpruceKit Showcase NFC Service</string>
+    <string name="nfc_hce_group_name">mDL readers</string>
 </resources>
