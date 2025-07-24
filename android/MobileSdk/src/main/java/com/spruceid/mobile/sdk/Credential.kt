@@ -68,9 +68,7 @@ fun JwtVc.credentialClaimsFiltered(claimNames: List<String>): JSONObject {
     val old = this.credentialClaims()
     val new = JSONObject()
     for (name in claimNames) {
-        if (old.has(name)) {
-            new.put(name, keyPathFinder(old, name.split(".").toMutableList()))
-        }
+        new.put(name, keyPathFinder(old, name.split(".").toMutableList()))
     }
     return new
 }

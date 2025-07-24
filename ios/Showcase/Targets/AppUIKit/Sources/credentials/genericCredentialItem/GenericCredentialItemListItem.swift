@@ -23,7 +23,8 @@ struct GenericCredentialItemListItem: View {
                         let credential: [String: GenericJSON] =
                             values.first(where: {
                                 let credential = credentialPack.get(
-                                    credentialId: $0.key)
+                                    credentialId: $0.key
+                                )
                                 return credential?.asJwtVc() != nil
                                     || credential?.asJsonVc() != nil
                                     || credential?.asSdJwt() != nil
@@ -33,10 +34,12 @@ struct GenericCredentialItemListItem: View {
                             }).map {
                                 // Assume mDL.
                                 if credentialPack.get(
-                                    credentialId: $0.key)?.asMsoMdoc() != nil {
+                                    credentialId: $0.key
+                                )?.asMsoMdoc() != nil {
                                     var newValue = $0.value
                                     newValue["name"] = GenericJSON.string(
-                                        "Mobile Drivers License")
+                                        "Mobile Drivers License"
+                                    )
                                     return newValue
                                 }
                                 return $0.value
@@ -56,8 +59,10 @@ struct GenericCredentialItemListItem: View {
                             Text(title ?? "")
                                 .font(
                                     .customFont(
-                                        font: .inter, style: .semiBold,
-                                        size: .h1)
+                                        font: .inter,
+                                        style: .semiBold,
+                                        size: .h1
+                                    )
                                 )
                                 .foregroundStyle(Color("ColorStone950"))
                         }
@@ -71,14 +76,15 @@ struct GenericCredentialItemListItem: View {
                             values: values
                         )
                     },
-                    leadingIconKeys: ["issuer"],
+                    leadingIconKeys: ["issuer", "credentialSubject"],
                     leadingIconFormatter: leadingIconFormatter ?? { values in
                         genericCredentialListItemLeadingIconFormatter(
                             credentialPack: credentialPack,
                             values: values
                         )
                     }
-                ))
+                )
+            )
         )
     }
 
@@ -93,7 +99,8 @@ struct GenericCredentialItemListItem: View {
                         let credential: [String: GenericJSON] =
                             values.first(where: {
                                 let credential = credentialPack.get(
-                                    credentialId: $0.key)
+                                    credentialId: $0.key
+                                )
                                 return credential?.asJwtVc() != nil
                                     || credential?.asJsonVc() != nil
                                     || credential?.asSdJwt() != nil
@@ -101,10 +108,12 @@ struct GenericCredentialItemListItem: View {
                             }).map {
                                 // Assume mDL.
                                 if credentialPack.get(
-                                    credentialId: $0.key)?.asMsoMdoc() != nil {
+                                    credentialId: $0.key
+                                )?.asMsoMdoc() != nil {
                                     var newValue = $0.value
                                     newValue["name"] = GenericJSON.string(
-                                        "Mobile Drivers License")
+                                        "Mobile Drivers License"
+                                    )
                                     return newValue
                                 }
                                 return $0.value
@@ -140,8 +149,10 @@ struct GenericCredentialItemListItem: View {
                                     .padding(.trailing, 12)
                                     .font(
                                         .customFont(
-                                            font: .inter, style: .semiBold,
-                                            size: .h1)
+                                            font: .inter,
+                                            style: .semiBold,
+                                            size: .h1
+                                        )
                                     )
                                     .foregroundStyle(Color("ColorStone950"))
                             }
@@ -169,14 +180,15 @@ struct GenericCredentialItemListItem: View {
                             values: values
                         )
                     },
-                    leadingIconKeys: ["issuer"],
+                    leadingIconKeys: ["issuer", "credentialSubject"],
                     leadingIconFormatter: leadingIconFormatter ?? { values in
                         genericCredentialListItemLeadingIconFormatter(
                             credentialPack: credentialPack,
                             values: values
                         )
                     }
-                ))
+                )
+            )
         )
     }
 
@@ -209,7 +221,8 @@ func genericCredentialListItemDescriptionFormatter(
     statusListObservable: StatusListObservable,
     values: [String: [String: GenericJSON]]
 )
-    -> some View {
+    -> some View
+{
     let credential: [String: GenericJSON] =
         values.first(where: {
             let credential = credentialPack.get(credentialId: $0.key)
@@ -221,7 +234,8 @@ func genericCredentialListItemDescriptionFormatter(
         }).map {
             // Assume mDL.
             let mdoc = credentialPack.get(
-                credentialId: $0.key)?.asMsoMdoc()
+                credentialId: $0.key
+            )?.asMsoMdoc()
             if mdoc != nil {
                 let details = mdoc?.jsonEncodedDetails()
                 var newValue = $0.value
@@ -248,7 +262,8 @@ func genericCredentialListItemDescriptionFormatter(
         CredentialStatusSmall(
             status:
                 statusListObservable.statusLists[
-                    credentialPack.id.uuidString]
+                    credentialPack.id.uuidString
+                ]
         )
     }
     .padding(.leading, 12)
@@ -259,7 +274,8 @@ func genericCredentialListItemLeadingIconFormatter(
     credentialPack: CredentialPack,
     values: [String: [String: GenericJSON]]
 )
-    -> some View {
+    -> some View
+{
     let credential =
         values.first(where: {
             let credential = credentialPack.get(credentialId: $0.key)
@@ -281,6 +297,14 @@ func genericCredentialListItemLeadingIconFormatter(
         }
     } else {
         stringValue = issuerImg?.toString() ?? ""
+    }
+
+    // Try parse OB3
+    if stringValue.isEmpty {
+        stringValue =
+            credential["credentialSubject"]?.dictValue?[
+                "achievement"
+            ]?.dictValue?["image"]?.dictValue?["id"]?.toString() ?? ""
     }
 
     return CredentialImage(image: stringValue)
