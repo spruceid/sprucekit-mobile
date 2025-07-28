@@ -4,6 +4,7 @@ package com.spruceid.mobilesdkexample.credentials;
 import com.spruceid.mobile.sdk.nfc.BaseNfcPresentationService
 import com.spruceid.mobile.sdk.nfc.NfcPresentationError
 import com.spruceid.mobilesdkexample.utils.Toast
+import android.content.ComponentName
 
 class NfcPresentationService : BaseNfcPresentationService() {
 
@@ -18,6 +19,10 @@ class NfcPresentationService : BaseNfcPresentationService() {
     }
 
     override fun negotiatedTransport() {
+    }
+
+    override fun componentName(): ComponentName {
+        return ComponentName(applicationContext, NfcPresentationService::class.java)
     }
 
 }
