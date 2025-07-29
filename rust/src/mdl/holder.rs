@@ -22,7 +22,9 @@ use isomdl::definitions::session::Handover;
 use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
     definitions::{
-        device_engagement::{CentralClientMode, DeviceRetrievalMethods},
+        device_engagement::{
+            CentralClientMode, DeviceEngagement as IsoMdlDeviceEngagement, DeviceRetrievalMethods,
+        },
         helpers::NonEmptyMap,
         session, BleOptions, DeviceRetrievalMethod, SessionEstablishment,
     },
@@ -57,7 +59,7 @@ pub async fn initialize_mdl_presentation(
     // mDL Reader over NFC for device engagement will include the HandoverSelectMessage,
     // that contains a single alternative carrier record, selecting the device retrieval
     // transmission protocol.
-    uuid: Uuid,
+    // uuid: Uuid,
     storage_manager: Arc<dyn StorageManagerInterface>,
 ) -> Result<MdlPresentationSession, SessionError> {
     let vdc_collection = VdcCollection::new(storage_manager);
@@ -186,6 +188,11 @@ impl From<DeviceEngagementType> for device_engagement::DeviceEngagementType {
             DeviceEngagementType::NFC => device_engagement::DeviceEngagementType::NFC,
         }
     }
+}
+
+#[derive(uniffi::Object)]
+pub struct DeviceEngagement {
+    inner: IsoMdlDeviceEngagement,
 }
 
 #[derive(uniffi::Object)]
@@ -470,7 +477,7 @@ mod tests {
         let presentation_session = initialize_mdl_presentation(
             mdl.id,
             DeviceEngagementType::QR,
-            Uuid::new_v4(),
+            // Uuid::new_v4(),
             smi.clone(),
         )
         .await
@@ -558,7 +565,7 @@ mod tests {
         let presentation_session = initialize_mdl_presentation(
             mdl.id,
             DeviceEngagementType::QR,
-            Uuid::new_v4(),
+            // Uuid::new_v4(),
             smi.clone(),
         )
         .await

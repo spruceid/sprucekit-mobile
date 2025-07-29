@@ -11,7 +11,42 @@ import java.util.*
  */
 class Transport(private var bluetoothManager: BluetoothManager) {
 
-    private lateinit var transportBLE: TransportBle
+    public lateinit var transportBLE: TransportBle
+
+//    this.bleManager!!.initialize(
+//                "Holder",
+//                this.uuid,
+//                "BLE",
+//                "Central",
+//                session!!.getBleIdent(),
+//                ::updateRequestData,
+//                context,
+//                callback
+//            )
+
+    /*
+    * Initialize BLE Transport for the mDL Holder
+    *
+    *
+    * */
+    fun initializeHolder(
+        context: Context,
+        uuid: UUID,
+        bleIdent: ByteArray,
+        updateRequestData: ((data: ByteArray) -> Unit)? = null,
+        callback: BLESessionStateDelegate?,
+    ) {
+        initialize(
+            "Holder",
+            uuid,
+            "BLE",
+            "Central",
+            bleIdent,
+            updateRequestData,
+            context,
+            callback
+        )
+    }
 
     /**
      * Selects and initializes the transport method.
