@@ -29,7 +29,7 @@ class IsoMdlPresentation(
         val context: Context
 ) {
     // The callback is set in the `initialize` method
-    lateinit var callback: BLESessionStateDelegate;
+    var callback: BLESessionStateDelegate? = null
 
     val uuid: UUID = UUID.randomUUID()
     var session: MdlPresentationSession? = null
@@ -39,7 +39,7 @@ class IsoMdlPresentation(
 
     fun initialize() {
         try {
-            session = initializeMdlPresentationFromBytes(this.mdoc, uuid.toString())
+            session = initializeMdlPresentationFromBytes(this.mdoc, DeviceEngagementType.Qr(uuid.toString()))
 //            this.bleManager = Transport(this.bluetoothManager)
 //            this.bleManager!!.initialize(
 //                "Holder",
@@ -54,10 +54,11 @@ class IsoMdlPresentation(
 //            var requestMessage = null
             val handoverData =
                 when (engagementType) {
-                    DeviceEngagementType.QR ->
+                    is DeviceEngagementType.Qr ->
                             mapOf(Pair("engagingQRCode", session!!.getQrHandover()))
-                    DeviceEngagementType.NFC ->
-                            mapOf(Pair("nfcHandover", session!!.getNfcHandover(null)))
+                    is DeviceEngagementType.Nfc ->
+                        TODO()
+                            // mapOf(Pair("nfcHandover", session!!.getNfcHandover(null)))
                 }
 
             // Set the callback to the transport BLE client holder callback.
@@ -93,7 +94,7 @@ class IsoMdlPresentation(
             this.bleTransport!!.send(response)
         } catch (e: Error) {
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
-            this.callback.update(mapOf(Pair("error", e.toString())))
+            this.callback?.update(mapOf(Pair("error", e.toString())))
             throw e
         }
     }
@@ -105,9 +106,9 @@ class IsoMdlPresentation(
     fun updateRequestData(data: ByteArray) {
         try {
             this.itemsRequests = session!!.handleRequest(data)
-            this.callback.update(mapOf(Pair("selectNamespaces", this.itemsRequests)))
+            this.callback?.update(mapOf(Pair("selectNamespaces", this.itemsRequests)))
         } catch (e: RequestException) {
-            this.callback.error(e)
+            this.callback?.error(e)
         }
     }
 }

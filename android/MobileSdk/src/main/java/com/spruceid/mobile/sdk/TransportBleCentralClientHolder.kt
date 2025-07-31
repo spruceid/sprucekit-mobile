@@ -18,7 +18,7 @@ class TransportBleCentralClientHolder(
     private var serviceUUID: UUID,
     private var updateRequestData: (data: ByteArray) -> Unit,
     private var context: Context,
-    public var callback: BLESessionStateDelegate,
+    public var callback: BLESessionStateDelegate?,
 ) {
     private var bluetoothAdapter: BluetoothAdapter? = null
 
@@ -78,7 +78,7 @@ class TransportBleCentralClientHolder(
                     "TransportBleCentralClientHolder.gattClientCallback.onPeerConnected",
                     "Peer Connected"
                 )
-                callback.update(mapOf(Pair("connected", "")))
+                callback?.update(mapOf(Pair("connected", "")))
             }
 
             override fun onPeerDisconnected() {
@@ -86,7 +86,7 @@ class TransportBleCentralClientHolder(
                     "TransportBleCentralClientHolder.gattClientCallback.onPeerDisconnected",
                     "Peer Disconnected"
                 )
-                callback.update(mapOf(Pair("disconnected", "")))
+                callback?.update(mapOf(Pair("disconnected", "")))
                 gattClient.disconnect()
             }
 
@@ -97,9 +97,9 @@ class TransportBleCentralClientHolder(
                 )
 
                 if (progress == max) {
-                    callback.update(mapOf(Pair("success", "")))
+                    callback?.update(mapOf(Pair("success", "")))
                 } else {
-                    callback.update(
+                    callback?.update(
                         mapOf(
                             Pair(
                                 "uploadProgress",
@@ -121,7 +121,7 @@ class TransportBleCentralClientHolder(
                     updateRequestData(data)
                 } catch (e: Error) {
                     Log.e("MDoc", e.toString())
-                    callback.update(mapOf(Pair("error", e)))
+                    callback?.update(mapOf(Pair("error", e)))
                 }
             }
 

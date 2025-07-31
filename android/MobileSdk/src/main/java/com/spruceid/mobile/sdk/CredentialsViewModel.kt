@@ -118,13 +118,13 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
         _uuid.value = UUID.randomUUID()
         val mdoc = this.firstMdoc()
-        _session.value = initializeMdlPresentationFromBytes(mdoc, _uuid.value.toString())
+        _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementType.Qr(_uuid.value.toString()))
         _currState.value = when (engagementType) {
-            DeviceEngagementType.QR -> PresentmentState.ENGAGING_QR_CODE
-            DeviceEngagementType.NFC -> PresentmentState.ENGAGING_NFC_SEARCHING
+            is DeviceEngagementType.Qr -> PresentmentState.ENGAGING_QR_CODE
+            is DeviceEngagementType.Nfc -> PresentmentState.ENGAGING_NFC_SEARCHING
         }
         // TODO: Is this where this belongs?
-        if(engagementType == DeviceEngagementType.NFC) {
+        if(engagementType is DeviceEngagementType.Nfc) {
 
         }
         _transport.value = Transport(bluetoothManager)
