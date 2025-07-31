@@ -69,7 +69,7 @@ impl PrenegotiatedBle {
 #[uniffi::export]
 pub async fn initialize_mdl_presentation(
     mdoc_id: Uuid,
-    engagement: DeviceEngagementType,
+    engagement: DeviceEngagementData,
     storage_manager: Arc<dyn StorageManagerInterface>,
 ) -> Result<MdlPresentationSession, SessionError> {
     let vdc_collection = VdcCollection::new(storage_manager);
@@ -90,7 +90,7 @@ pub async fn initialize_mdl_presentation(
     let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
     let engagement_type = engagement.isomdl_type();
     let session = match engagement {
-        DeviceEngagementType::QR(uuid) => {
+        DeviceEngagementData::QR(uuid) => {
             let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
                 peripheral_server_mode: None,
                 central_client_mode: Some(CentralClientMode { uuid }),
@@ -101,7 +101,7 @@ pub async fn initialize_mdl_presentation(
                 None,
             )
         },
-        DeviceEngagementType::NFC(ble) => {
+        DeviceEngagementData::NFC(ble) => {
             // TODO: don't love that we have to clone this
             SessionManagerInit::initialise_with_prenegotiated_ble(documents, ble.0.clone())
         },
@@ -146,12 +146,12 @@ pub async fn initialize_mdl_presentation(
 #[uniffi::export]
 pub fn initialize_mdl_presentation_from_bytes(
     mdoc: Arc<Mdoc>,
-    engagement: DeviceEngagementType,
+    engagement: DeviceEngagementData,
 ) -> Result<MdlPresentationSession, SessionError> {
     let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
     let engagement_type = engagement.isomdl_type();
     let session = match engagement {
-        DeviceEngagementType::QR(uuid) => {
+        DeviceEngagementData::QR(uuid) => {
             let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
                 // NOTE: peripheral server mode is NOT current implemented.
                 // In the peripheral server mode, the mdoc holder generates the UUID
@@ -172,7 +172,7 @@ pub fn initialize_mdl_presentation_from_bytes(
                 None,
             )
         },
-        DeviceEngagementType::NFC(ble) => {
+        DeviceEngagementData::NFC(ble) => {
             // TODO: don't love that we have to clone this
             SessionManagerInit::initialise_with_prenegotiated_ble(documents, ble.0.clone())
         },
@@ -225,17 +225,38 @@ pub fn negotiate_ble_connection(
 #[derive(uniffi::Enum, Debug, Clone)]
 pub enum DeviceEngagementType {
     /// Indicates the device engagement will be via QR code
-    QR(uuid::Uuid),
+    QR,
     /// Indicates the device engagement will be via Near Field Communication (NFC)
-    NFC(Arc<PrenegotiatedBle>),
+    NFC,
 }
 
 impl DeviceEngagementType {
     /// Converts the DeviceEngagementType to its isomdl counterpart
     fn isomdl_type(&self) -> device_engagement::DeviceEngagementType {
         match self {
-            DeviceEngagementType::QR(_) => device_engagement::DeviceEngagementType::QR,
-            DeviceEngagementType::NFC(_) => device_engagement::DeviceEngagementType::NFC,
+            DeviceEngagementType::QR => device_engagement::DeviceEngagementType::QR,
+            DeviceEngagementType::NFC => device_engagement::DeviceEngagementType::NFC,
+        }
+    }
+}
+
+/// Device Engagement Data Represents data required to initialize a specific type of device engagement.
+///
+/// See: [`DeviceEngagementType`]
+#[derive(uniffi::Enum, Debug, Clone)]
+pub enum DeviceEngagementData {
+    /// Indicates the device engagement will be via QR code
+    QR(uuid::Uuid),
+    /// Indicates the device engagement will be via Near Field Communication (NFC)
+    NFC(Arc<PrenegotiatedBle>),
+}
+
+impl DeviceEngagementData {
+    /// Converts the DeviceEngagementData to its isomdl counterpart
+    fn isomdl_type(&self) -> device_engagement::DeviceEngagementType {
+        match self {
+            DeviceEngagementData::QR(_) => device_engagement::DeviceEngagementType::QR,
+            DeviceEngagementData::NFC(_) => device_engagement::DeviceEngagementType::NFC,
         }
     }
 }
@@ -502,7 +523,7 @@ mod tests {
 
         let presentation_session = initialize_mdl_presentation(
             mdl.id,
-            DeviceEngagementType::QR(Uuid::new_v4()),
+            DeviceEngagementData::QR(Uuid::new_v4()),
             smi.clone(),
         )
         .await
@@ -589,7 +610,7 @@ mod tests {
 
         let presentation_session = initialize_mdl_presentation(
             mdl.id,
-            DeviceEngagementType::QR(Uuid::new_v4()),
+            DeviceEngagementData::QR(Uuid::new_v4()),
             smi.clone(),
         )
         .await

@@ -3,7 +3,10 @@ package com.spruceid.mobile.sdk
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
+import androidx.compose.runtime.Composable
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
+import com.spruceid.mobile.sdk.rs.DeviceEngagement
+import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
@@ -19,49 +22,59 @@ abstract class BLESessionStateDelegate {
     abstract fun error(error: Exception)
 }
 
+
+
 class IsoMdlPresentation(
         val mdoc: Mdoc,
-        val engagementType: DeviceEngagementType,
         val keyAlias: String,
-//        val bluetoothManager: BluetoothManager,
-        val bleTransport: Transport,
-//        var callback: BLESessionStateDelegate,
-        val context: Context
+        var bluetoothManager: BluetoothManager,
+        var callback: BLESessionStateDelegate?,
+        val context: Context,
 ) {
     // The callback is set in the `initialize` method
-    lateinit var callback: BLESessionStateDelegate;
 
-    val uuid: UUID = UUID.randomUUID()
+    var uuid: UUID = UUID.randomUUID()
     var session: MdlPresentationSession? = null
     var itemsRequests: List<ItemsRequest> = listOf()
+    var bleManager: Transport? = null
+    lateinit var deviceEngagementData: DeviceEngagementData;
 
-//    var bleTransport: Transport? = null
+    fun initialize(presentationData: CredentialPresentData = CredentialPresentData.Qr()) {
 
-    fun initialize() {
+        when(presentationData) {
+            is CredentialPresentData.Qr -> {
+                deviceEngagementData = DeviceEngagementData.Qr(uuid.toString())
+            }
+            is CredentialPresentData.Nfc -> {
+                bleManager = presentationData.transport
+                deviceEngagementData = DeviceEngagementData.Nfc(presentationData.prenegotiatedBle)
+            }
+        }
+
         try {
-            session = initializeMdlPresentationFromBytes(this.mdoc, uuid.toString())
-//            this.bleManager = Transport(this.bluetoothManager)
-//            this.bleManager!!.initialize(
-//                "Holder",
-//                this.uuid,
-//                "BLE",
-//                "Central",
-//                session!!.getBleIdent(),
-//                ::updateRequestData,
-//                context,
-//                callback
-//            )
-//            var requestMessage = null
-            val handoverData =
-                when (engagementType) {
-                    DeviceEngagementType.QR ->
-                            mapOf(Pair("engagingQRCode", session!!.getQrHandover()))
-                    DeviceEngagementType.NFC ->
-                            mapOf(Pair("nfcHandover", session!!.getNfcHandover(null)))
+            session = initializeMdlPresentationFromBytes(this.mdoc, deviceEngagementData)
+            if(bleManager == null) {
+                this.bleManager = Transport(this.bluetoothManager)
+                this.bleManager!!.initialize(
+                    "Holder",
+                    this.uuid,
+                    "BLE",
+                    "Central",
+                    session!!.getBleIdent(),
+                    ::updateRequestData,
+                    context,
+                    callback
+                )
+                if(deviceEngagementData is DeviceEngagementData.Qr) {
+                    // TODO: We probably want to call this?
+                    // this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
                 }
+            } else {
+                this.bleManager!!.setUpdateRequestDataCallback(::updateRequestData)
+            }
 
             // Set the callback to the transport BLE client holder callback.
-            callback = this.bleTransport.transportBLE.transportBleCentralClientHolder.callback;
+            callback = this.bleManager!!.transportBLE.transportBleCentralClientHolder.callback;
         } catch (e: Error) {
             Log.e("IsoMdlPresentation.constructor", e.toString())
         }
@@ -90,24 +103,24 @@ class IsoMdlPresentation(
                     CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(signature)
                             ?: throw Error("unrecognized signature encoding")
             val response = session!!.submitResponse(normalizedSignature)
-            this.bleTransport!!.send(response)
+            this.bleManager!!.send(response)
         } catch (e: Error) {
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
-            this.callback.update(mapOf(Pair("error", e.toString())))
+            this.callback?.update(mapOf(Pair("error", e.toString())))
             throw e
         }
     }
 
     fun terminate() {
-        this.bleTransport!!.terminate()
+        this.bleManager!!.terminate()
     }
 
     fun updateRequestData(data: ByteArray) {
         try {
             this.itemsRequests = session!!.handleRequest(data)
-            this.callback.update(mapOf(Pair("selectNamespaces", this.itemsRequests)))
+            this.callback?.update(mapOf(Pair("selectNamespaces", this.itemsRequests)))
         } catch (e: RequestException) {
-            this.callback.error(e)
+            this.callback?.error(e)
         }
     }
 }

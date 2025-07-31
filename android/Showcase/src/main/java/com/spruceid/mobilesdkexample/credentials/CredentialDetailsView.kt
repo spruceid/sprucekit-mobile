@@ -51,8 +51,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
+import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobilesdkexample.LoadingView
@@ -74,6 +76,7 @@ import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlin.uuid.Uuid
 
 class CredentialDetailsViewTabs(
     val image: @Composable () -> Painter,
@@ -350,9 +353,8 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
                 )
                 .padding(8.dp)
         ) {
-            ShareMdocView(
+            QrShareMdocView(
                 credentialViewModel = credentialViewModel,
-                engagementType = DeviceEngagementType.QR,
                 onCancel = {
                     cancel()
                 }
@@ -419,9 +421,11 @@ fun GenericCredentialDetailsShareNFC(credentialPack: CredentialPack) {
                 )
                 .padding(8.dp)
         ) {
-            ShareMdocView(
+            // TODO: ShareMdocView contains a Bluetooth support check, and displays
+            //       an error message if it's disabled. Maybe we should copy that here?
+            NfcShareMdocView(
                 credentialViewModel = credentialViewModel,
-                engagementType = DeviceEngagementType.NFC,
+                nfcData = null,
                 onCancel = {
                     cancel()
                 }

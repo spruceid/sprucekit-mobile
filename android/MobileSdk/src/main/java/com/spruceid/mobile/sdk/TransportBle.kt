@@ -89,7 +89,12 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
         }
     }
 
-    /**
+    fun setUpdateRequestDataCallback(callback: ((data: ByteArray) -> Unit)) {
+        transportBleCentralClientHolder.updateRequestData = callback
+    }
+
+
+        /**
      * For sending the mDL based on initialized transport option.
      */
     fun send(payload: ByteArray) {

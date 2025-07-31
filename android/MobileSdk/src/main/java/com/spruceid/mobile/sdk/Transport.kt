@@ -94,6 +94,11 @@ class Transport(private var bluetoothManager: BluetoothManager) {
          */
     }
 
+    fun setUpdateRequestDataCallback(callback: ((data: ByteArray) -> Unit)) {
+
+        transportBLE.setUpdateRequestDataCallback(callback)
+    }
+
     /**
      * For sending the mDL based on initialized transport.
      */

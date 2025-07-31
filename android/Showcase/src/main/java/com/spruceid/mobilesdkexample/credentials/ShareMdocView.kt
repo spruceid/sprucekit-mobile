@@ -51,11 +51,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.PresentmentState
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
-import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
@@ -67,7 +67,13 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 
 @Composable
-fun ShareMdocView(credentialViewModel: CredentialsViewModel, engagementType: DeviceEngagementType, onCancel: () -> Unit) {
+@Deprecated("Specify QrShareMdocView or NfcShareMdocView", ReplaceWith("QrShareMdocView(credentialViewModel, onCancel)"))
+fun ShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> Unit) {
+    QrShareMdocView(credentialViewModel, onCancel)
+}
+
+@Composable
+fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> Unit) {
     val context = LocalContext.current
 
     val session by credentialViewModel.session.collectAsState()
@@ -119,7 +125,7 @@ fun ShareMdocView(credentialViewModel: CredentialsViewModel, engagementType: Dev
                 launcherMultiplePermissions
         )
         if (isBluetoothEnabled) {
-            credentialViewModel.present(getBluetoothManager(context)!!, engagementType)
+            credentialViewModel.present(getBluetoothManager(context)!!, CredentialPresentData.Qr())
         }
     }
 
@@ -137,7 +143,7 @@ fun ShareMdocView(credentialViewModel: CredentialsViewModel, engagementType: Dev
                     }
                 }
         PresentmentState.ENGAGING_NFC_SEARCHING -> {
-            // @TODO: Display some sort of graphic prompting NFC tapping?
+            // Unreachable
         }
         PresentmentState.ENGAGING_QR_CODE -> {
             if (session!!.getQrHandover().isNotEmpty()) {
@@ -183,6 +189,119 @@ fun ShareMdocView(credentialViewModel: CredentialsViewModel, engagementType: Dev
                 )
     }
 }
+
+@Composable
+fun NfcShareMdocView(
+    credentialViewModel: CredentialsViewModel,
+    nfcData: CredentialPresentData.Nfc?,
+    onCancel: () -> Unit,
+) {
+    val context = LocalContext.current
+
+    val session by credentialViewModel.session.collectAsState()
+    val currentState by credentialViewModel.currState.collectAsState()
+    val credentials by credentialViewModel.credentials.collectAsState()
+    val error by credentialViewModel.error.collectAsState()
+
+    var isBluetoothEnabled by remember {
+        mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
+    }
+
+    val launcherMultiplePermissions =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissionsMap ->
+            val areGranted = permissionsMap.values.reduce { acc, next -> acc && next }
+            if (!areGranted) {
+                // @TODO: Show dialog
+            }
+        }
+
+    DisposableEffect(Unit) {
+        val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                        val state =
+                            intent.getIntExtra(
+                                BluetoothAdapter.EXTRA_STATE,
+                                BluetoothAdapter.ERROR
+                            )
+                        when (state) {
+                            BluetoothAdapter.STATE_OFF -> isBluetoothEnabled = false
+                            BluetoothAdapter.STATE_ON -> isBluetoothEnabled = true
+                            else -> {}
+                        }
+                    }
+                }
+            }
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        context.registerReceiver(receiver, filter)
+        onDispose { context.unregisterReceiver(receiver) }
+    }
+
+    LaunchedEffect(key1 = isBluetoothEnabled) {
+        checkAndRequestBluetoothPermissions(
+            context,
+            getPermissions().toTypedArray(),
+            launcherMultiplePermissions
+        )
+        // TODO: How do I trigger this when nfcData gets set, if it starts off null
+        if (isBluetoothEnabled && nfcData != null) {
+            credentialViewModel.present(getBluetoothManager(context)!!, nfcData)
+        }
+    }
+
+    when (currentState) {
+        PresentmentState.UNINITIALIZED ->
+            if (credentials.isNotEmpty()) {
+                if (!isBluetoothEnabled) {
+                    Text(
+                        text = "Enable Bluetooth to initialize",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(vertical = 20.dp)
+                    )
+                }
+            }
+        PresentmentState.ENGAGING_NFC_SEARCHING -> {
+        }
+        PresentmentState.ENGAGING_QR_CODE -> {
+            // Unreachable
+        }
+        PresentmentState.SELECT_NAMESPACES -> {
+            Text(
+                text = "Selecting namespaces...",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
+            ShareMdocSelectiveDisclosureView(
+                credentialViewModel = credentialViewModel,
+                onCancel = onCancel
+            )
+        }
+        PresentmentState.SUCCESS ->
+            Text(
+                text = "Successfully presented credential.",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
+        PresentmentState.ERROR ->
+            Text(
+                text = "Error: $error",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

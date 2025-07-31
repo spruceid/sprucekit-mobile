@@ -5,11 +5,13 @@ import android.bluetooth.BluetoothManager
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
+import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
+import com.spruceid.mobile.sdk.rs.PrenegotiatedBle
 import com.spruceid.mobile.sdk.rs.initializeMdlPresentationFromBytes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -114,20 +116,26 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         _currState.value = PresentmentState.SELECT_NAMESPACES
     }
 
-    suspend fun present(bluetoothManager: BluetoothManager, engagementType: DeviceEngagementType) {
+    // We specify a default value for presentData, defaulting to QR presentation
+    // This is a really bad place for a default, but having it makes adding NFC backwards-compatible
+    suspend fun present(bluetoothManager: BluetoothManager, presentData: CredentialPresentData = CredentialPresentData.Qr()) {
         Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
         _uuid.value = UUID.randomUUID()
         val mdoc = this.firstMdoc()
-        _session.value = initializeMdlPresentationFromBytes(mdoc, _uuid.value.toString())
-        _currState.value = when (engagementType) {
-            DeviceEngagementType.QR -> PresentmentState.ENGAGING_QR_CODE
-            DeviceEngagementType.NFC -> PresentmentState.ENGAGING_NFC_SEARCHING
+        when (presentData) {
+            is CredentialPresentData.Nfc -> {
+                _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Nfc(presentData.prenegotiatedBle))
+                _currState.value = PresentmentState.ENGAGING_NFC_SEARCHING
+                _transport.value = presentData.transport
+                // TODO: _uuid does not get set in the NFC path. bug?
+            }
+            is CredentialPresentData.Qr -> {
+                _uuid.value = UUID.randomUUID()
+                _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Qr(_uuid.value.toString()))
+                _currState.value = PresentmentState.ENGAGING_QR_CODE
+                _transport.value = Transport(bluetoothManager)
+            }
         }
-        // TODO: Is this where this belongs?
-        if(engagementType == DeviceEngagementType.NFC) {
-
-        }
-        _transport.value = Transport(bluetoothManager)
         _transport.value!!
             .initialize(
                 "Holder",
