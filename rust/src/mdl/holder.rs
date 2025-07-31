@@ -32,6 +32,24 @@ use isomdl::{
 };
 use uuid::Uuid;
 
+#[derive(uniffi::Object, Debug, Clone)]
+pub struct PrenegotiatedBle(device::PrenegotiatedBle);
+
+#[uniffi::export]
+impl PrenegotiatedBle {
+    /// Returns NFC handover information, formatted as an NDEF record.
+    pub fn get_nfc_handover(
+        &self,
+        request_message: Option<Vec<u8>>,
+    ) -> Result<Vec<u8>, SessionError> {
+        let bytes = self.0.nfc_handover(request_message.map(|msg| msg.into()))
+            .map_err(|e| SessionError::Generic {
+                value: format!("Could not get NFC handover: {e:?}"),
+            })?;
+        Ok(bytes.0.into()) // TODO: Does NfcHandover::create_handover_select need to return the request back to us?
+    }
+}
+
 /// Begin the mDL presentation process for the holder when the desired
 /// Mdoc is already stored in a [VdcCollection].
 ///
@@ -52,14 +70,6 @@ use uuid::Uuid;
 pub async fn initialize_mdl_presentation(
     mdoc_id: Uuid,
     engagement: DeviceEngagementType,
-    // TODO: We need to pass in the NfcHandoverRequestMessage
-    // into the presentation handler for negotiated handover.
-    // The Request Message will contain a list of Alternative Carrier Records
-    // that the mDL holder (mdoc) will select from. The responds to the
-    // mDL Reader over NFC for device engagement will include the HandoverSelectMessage,
-    // that contains a single alternative carrier record, selecting the device retrieval
-    // transmission protocol.
-    // uuid: Uuid,
     storage_manager: Arc<dyn StorageManagerInterface>,
 ) -> Result<MdlPresentationSession, SessionError> {
     let vdc_collection = VdcCollection::new(storage_manager);
@@ -77,16 +87,25 @@ pub async fn initialize_mdl_presentation(
     let mdoc: Arc<Mdoc> = document.try_into().map_err(|e| SessionError::Generic {
         value: format!("Error retrieving MDoc from storage: {e:}"),
     })?;
-    let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
-        peripheral_server_mode: None,
-        central_client_mode: Some(CentralClientMode { uuid }),
-    }));
-    let session = SessionManagerInit::initialise(
-        NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone()),
-        Some(drms),
-        None,
-    )
-    .map_err(|e| SessionError::Generic {
+    let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
+    let engagement_type = engagement.isomdl_type();
+    let session = match engagement {
+        DeviceEngagementType::QR(uuid) => {
+            let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
+                peripheral_server_mode: None,
+                central_client_mode: Some(CentralClientMode { uuid }),
+            }));
+            SessionManagerInit::initialise(
+                documents,
+                Some(drms),
+                None,
+            )
+        },
+        DeviceEngagementType::NFC(ble) => {
+            // TODO: don't love that we have to clone this
+            SessionManagerInit::initialise_with_prenegotiated_ble(documents, ble.0.clone())
+        },
+    }.map_err(|e| SessionError::Generic {
         value: format!("Could not initialize session: {e:?}"),
     })?;
     let ble_ident = session
@@ -95,8 +114,10 @@ pub async fn initialize_mdl_presentation(
             value: format!("Couldn't get BLE identification: {e:?}").to_string(),
         })?
         .to_vec();
+    // TODO: .engage() generates a malformed NDEF response here, but it's unused, so technically
+    //       it's not hurting anything? still pretty gross
     let engaged_state = session
-        .engage(engagement.into())
+        .engage(engagement_type)
         .map_err(|e| SessionError::Generic {
             value: format!("Could not generate qr engagement: {e:?}"),
         })?;
@@ -125,30 +146,40 @@ pub async fn initialize_mdl_presentation(
 #[uniffi::export]
 pub fn initialize_mdl_presentation_from_bytes(
     mdoc: Arc<Mdoc>,
-    uuid: Uuid,
+    engagement: DeviceEngagementType,
 ) -> Result<MdlPresentationSession, SessionError> {
-    let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
-        // NOTE: peripheral server mode is NOT current implemented.
-        // In the peripheral server mode, the mdoc holder generates the UUID
-        // to send over in the Negotiated Handover Select message
-        // TODO: Greg: if we are going to use our mdl reader / holder cross-device
-        // implementations, we will need to implement peripheral server mode.
-        // Marcelo: Sometimes the presentation gets stuck, other times it works.
-        peripheral_server_mode: None,
-        // NOTE: mdoc reader will provide a UUID for central client mode
-        // This UUID comes from the Request Message sent over NFC
-        central_client_mode: Some(CentralClientMode { uuid }),
-        // NOTE: Currently only supporting negotiative handover,
-        // and the mdoc reader is providing a central client mode.
-    }));
-    let session = SessionManagerInit::initialise(
-        NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone()),
-        Some(drms),
-        None,
-    )
-    .map_err(|e| SessionError::Generic {
+    let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
+    let engagement_type = engagement.isomdl_type();
+    let session = match engagement {
+        DeviceEngagementType::QR(uuid) => {
+            let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
+                // NOTE: peripheral server mode is NOT current implemented.
+                // In the peripheral server mode, the mdoc holder generates the UUID
+                // to send over in the Negotiated Handover Select message
+                // TODO: Greg: if we are going to use our mdl reader / holder cross-device
+                // implementations, we will need to implement peripheral server mode.
+                // Marcelo: Sometimes the presentation gets stuck, other times it works.
+                peripheral_server_mode: None,
+                // NOTE: mdoc reader will provide a UUID for central client mode
+                // This UUID comes from the Request Message sent over NFC
+                central_client_mode: Some(CentralClientMode { uuid }),
+                // NOTE: Currently only supporting negotiative handover,
+                // and the mdoc reader is providing a central client mode.
+            }));
+            SessionManagerInit::initialise(
+                documents,
+                Some(drms),
+                None,
+            )
+        },
+        DeviceEngagementType::NFC(ble) => {
+            // TODO: don't love that we have to clone this
+            SessionManagerInit::initialise_with_prenegotiated_ble(documents, ble.0.clone())
+        },
+    }.map_err(|e| SessionError::Generic {
         value: format!("Could not initialize session: {e:?}"),
     })?;
+
     let ble_ident = session
         .ble_ident()
         .map_err(|e| SessionError::Generic {
@@ -156,7 +187,7 @@ pub fn initialize_mdl_presentation_from_bytes(
         })?
         .to_vec();
     let engaged_state = session
-        .engage(DeviceEngagementType::QR.into())
+        .engage(engagement_type)
         .map_err(|e| SessionError::Generic {
             value: format!("Could not generate qr engagement: {e:?}"),
         })?;
@@ -165,6 +196,24 @@ pub fn initialize_mdl_presentation_from_bytes(
         in_process: Mutex::new(None),
         ble_ident,
     })
+}
+
+/// Negotiate a BLE connection with the mDL reader.
+/// This is used during NFC handover to establish a BLE connection,
+/// since we don't *necessarily* have an MDOC ready to present yet.
+#[uniffi::export]
+pub fn negotiate_ble_connection(
+    uuid: Uuid,
+) -> Result<PrenegotiatedBle, SessionError> {
+    let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
+        peripheral_server_mode: None,
+        central_client_mode: Some(CentralClientMode { uuid }),
+    }));
+    let prenegotiated_ble = device::PrenegotiatedBle::initialise(Some(drms), None)
+        .map_err(|e| SessionError::Generic {
+            value: format!("Could not initialize BLE: {e:?}"),
+        })?;
+    Ok(PrenegotiatedBle(prenegotiated_ble))
 }
 
 /// Device Engagement Type Represents the different ways a device can engage with the mDL reader.
@@ -176,16 +225,17 @@ pub fn initialize_mdl_presentation_from_bytes(
 #[derive(uniffi::Enum, Debug, Clone)]
 pub enum DeviceEngagementType {
     /// Indicates the device engagement will be via QR code
-    QR,
+    QR(uuid::Uuid),
     /// Indicates the device engagement will be via Near Field Communication (NFC)
-    NFC,
+    NFC(Arc<PrenegotiatedBle>),
 }
 
-impl From<DeviceEngagementType> for device_engagement::DeviceEngagementType {
-    fn from(value: DeviceEngagementType) -> Self {
-        match value {
-            DeviceEngagementType::QR => device_engagement::DeviceEngagementType::QR,
-            DeviceEngagementType::NFC => device_engagement::DeviceEngagementType::NFC,
+impl DeviceEngagementType {
+    /// Converts the DeviceEngagementType to its isomdl counterpart
+    fn isomdl_type(&self) -> device_engagement::DeviceEngagementType {
+        match self {
+            DeviceEngagementType::QR(_) => device_engagement::DeviceEngagementType::QR,
+            DeviceEngagementType::NFC(_) => device_engagement::DeviceEngagementType::NFC,
         }
     }
 }
@@ -352,30 +402,6 @@ impl MdlPresentationSession {
         }
     }
 
-    /// Returns NFC handover information, formatted as an NDEF record.
-    pub fn get_nfc_handover(
-        &self,
-        request_message: Option<Vec<u8>>,
-    ) -> Result<Vec<u8>, SessionError> {
-        let session = self.engaged.lock().map_err(|e| SessionError::Generic {
-            value: format!("Could not get lock on session: {e:?}"),
-        })?;
-
-        let handover_bytes = match &session.handover {
-            Handover::NFC(handover) => handover.0.clone(),
-            _ => {
-                session
-                    .nfc_handover(request_message.map(|msg| msg.into()))
-                    .map_err(|e| SessionError::Generic {
-                        value: format!("Could not generate NFC handover: {e:?}"),
-                    })?
-                    .0
-            }
-        };
-
-        Ok(handover_bytes.into())
-    }
-
     /// Returns the BLE identification
     pub fn get_ble_ident(&self) -> Vec<u8> {
         self.ble_ident.clone()
@@ -476,8 +502,7 @@ mod tests {
 
         let presentation_session = initialize_mdl_presentation(
             mdl.id,
-            DeviceEngagementType::QR,
-            // Uuid::new_v4(),
+            DeviceEngagementType::QR(Uuid::new_v4()),
             smi.clone(),
         )
         .await
@@ -564,8 +589,7 @@ mod tests {
 
         let presentation_session = initialize_mdl_presentation(
             mdl.id,
-            DeviceEngagementType::QR,
-            // Uuid::new_v4(),
+            DeviceEngagementType::QR(Uuid::new_v4()),
             smi.clone(),
         )
         .await
