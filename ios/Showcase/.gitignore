@@ -74,3 +74,4 @@ Tuist/Dependencies
 archive.xcarchive
 Info.plist
 App.entitlements
+buildServer.json

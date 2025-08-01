@@ -11,6 +11,10 @@ use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use base64::prelude::*;
 use build_response::build_response;
+use isomdl::definitions::x509::{
+    self,
+    trust_anchor::{PemTrustAnchor, TrustAnchorRegistry, TrustPurpose},
+};
 use openid4vp::{
     core::{
         authorization_request::{
@@ -30,6 +34,7 @@ use serde_json::json;
 use ssi::crypto::rand::{thread_rng, Rng};
 use url::Url;
 use uuid::Uuid;
+use x509_cert::Certificate;
 
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 
@@ -42,6 +47,8 @@ pub struct OID4VP180137 {
     http_client: ReqwestClient,
     keystore: Arc<dyn KeyStore>,
     metadata: WalletMetadata,
+    // TODO use callbacks to let the user decide whether or not to go through the verification flow
+    trust_anchor_registry: Option<Vec<Certificate>>,
 }
 
 #[derive(uniffi::Object)]
@@ -99,13 +106,45 @@ impl OID4VP180137 {
     pub fn new(
         credentials: Vec<Arc<Mdoc>>,
         keystore: Arc<dyn KeyStore>,
+        trust_anchor_registry: Option<Vec<String>>,
     ) -> Result<Self, OID4VP180137Error> {
+        let certificates = if let Some(r) = trust_anchor_registry {
+            let registry = TrustAnchorRegistry::from_pem_certificates(
+                r.into_iter()
+                    .map(|certificate_pem| PemTrustAnchor {
+                        certificate_pem,
+                        purpose: x509::trust_anchor::TrustPurpose::Iaca,
+                    })
+                    .collect(),
+            )
+            .map_err(|e| {
+                OID4VP180137Error::Initialization(format!(
+                    "unable to construct TrustAnchorRegistry: {e:?}"
+                ))
+            })?;
+            Some(
+                registry
+                    .anchors
+                    .into_iter()
+                    .filter_map(|anchor| {
+                        if anchor.purpose == TrustPurpose::ReaderCa {
+                            Some(anchor.certificate)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+            )
+        } else {
+            None
+        };
         Ok(Self {
             credentials,
             keystore,
             http_client: openid4vp::core::util::ReqwestClient::new()
                 .map_err(OID4VP180137Error::initialization)?,
             metadata: default_metadata(),
+            trust_anchor_registry: certificates,
         })
     }
 
@@ -244,7 +283,7 @@ impl RequestVerifier for OID4VP180137 {
             &self.metadata,
             decoded_request,
             request_jwt,
-            None,
+            self.trust_anchor_registry.as_deref(),
         )
     }
 }

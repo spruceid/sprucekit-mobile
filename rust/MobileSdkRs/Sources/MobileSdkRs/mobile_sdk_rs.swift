@@ -5776,12 +5776,13 @@ open class Oid4vp180137: Oid4vp180137Protocol, @unchecked Sendable {
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
         return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vp180137(self.pointer, $0) }
     }
-public convenience init(credentials: [Mdoc], keystore: KeyStore)throws  {
+public convenience init(credentials: [Mdoc], keystore: KeyStore, trustAnchorRegistry: [String]?)throws  {
     let pointer =
         try rustCallWithError(FfiConverterTypeOID4VP180137Error_lift) {
     uniffi_mobile_sdk_rs_fn_constructor_oid4vp180137_new(
         FfiConverterSequenceTypeMdoc.lower(credentials),
-        FfiConverterTypeKeyStore_lower(keystore),$0
+        FfiConverterTypeKeyStore_lower(keystore),
+        FfiConverterOptionSequenceString.lower(trustAnchorRegistry),$0
     )
 }
     self.init(unsafeFromRawPointer: pointer)
@@ -20887,7 +20888,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_base64url_encoded_issuer_signed() != 17520) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137_new() != 4916) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137_new() != 20817) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vci_new() != 27200) {

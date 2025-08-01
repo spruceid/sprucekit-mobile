@@ -233,6 +233,21 @@ struct WalletSettingsHomeBody: View {
         .disabled(isApplyingForMdl)
         .opacity(isApplyingForMdl ? 0.5 : 1.0)
     }
+    
+    // TODO use separate TrustedCertificatesDataStore
+    @ViewBuilder
+    var trustedCertificatesButton: some View {
+        Button {
+            path.append(VerifierSettingsTrustedCertificates())
+        } label: {
+            SettingsHomeItem(
+                image: "Unknown",
+                title: "Trusted Verifier Certificates",
+                description:
+                    "Manage trusted certificates used during mDoc verification."
+            )
+        }
+    }
 
     @ViewBuilder
     var devModeButton: some View {
@@ -255,6 +270,7 @@ struct WalletSettingsHomeBody: View {
                 activityLogButton
                 generateMockMdlButton
                 applyForSpruceMdlButton
+                trustedCertificatesButton
                 devModeButton
                 Spacer()
                 deleteAllCredentials

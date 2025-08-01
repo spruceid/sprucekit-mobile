@@ -55,11 +55,14 @@ struct HandleMdocOID4VPView: View {
                     }
                 }
             }
-
+            // TODO use specific data store
+            let trustedCertificates = TrustedCertificatesDataStore.shared
+                .getAllCertificates()
             if !credentials.isEmpty {
                 let handlerRef = try Oid4vp180137(
                     credentials: credentials,
-                    keystore: keyManager
+                    keystore: keyManager,
+                    trustAnchorRegistry: trustedCertificates.map { $0.content }
                 )
                 handler = handlerRef
                 request = try await handlerRef.processRequest(url: url)

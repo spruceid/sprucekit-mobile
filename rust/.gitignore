@@ -3,6 +3,7 @@
 .build
 .swiftpm
 jna-*.jar
+kotlinx-coroutines-core-*.jar
 *~
 MobileSdkRs/Package.swift
 MobileSdkRs/RustFramework*

@@ -138,6 +138,7 @@ public class CredentialPack {
         return credentials
     }
 
+    // TODO only try to add to store if the app is configured for it
     #if canImport(IdentityDocumentServices)
     @available(iOS 26.0, *)
     private func addMDocToIDProvider(mdoc: Mdoc) async throws {
@@ -153,7 +154,7 @@ public class CredentialPack {
                 let dateUntil = dateFormatter.date(from: trimmedIsoString)!
                 let registration = MobileDocumentRegistration(
                     mobileDocumentType: "org.iso.18013.5.1.mDL",
-                    supportedAuthorityKeyIdentifiers: [],  // TODO
+                    supportedAuthorityKeyIdentifiers: [],  // trusted reader verification is done separately by the SDK
                     documentIdentifier: mdoc.id(),
                     invalidationDate: dateUntil
                 )
