@@ -120,14 +120,14 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     // This is a really bad place for a default, but having it makes adding NFC backwards-compatible
     suspend fun present(bluetoothManager: BluetoothManager, presentData: CredentialPresentData = CredentialPresentData.Qr()) {
         Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
-        _uuid.value = UUID.randomUUID()
+
         val mdoc = this.firstMdoc()
         when (presentData) {
             is CredentialPresentData.Nfc -> {
+                _uuid.value = presentData.uuid;
                 _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Nfc(presentData.prenegotiatedBle))
                 _currState.value = PresentmentState.ENGAGING_NFC_SEARCHING
                 _transport.value = presentData.transport
-                // TODO: _uuid does not get set in the NFC path. bug?
             }
             is CredentialPresentData.Qr -> {
                 _uuid.value = UUID.randomUUID()

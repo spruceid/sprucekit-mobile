@@ -3,11 +3,8 @@ package com.spruceid.mobile.sdk
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
-import androidx.compose.runtime.Composable
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
-import com.spruceid.mobile.sdk.rs.DeviceEngagement
 import com.spruceid.mobile.sdk.rs.DeviceEngagementData
-import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -22,8 +19,6 @@ abstract class BLESessionStateDelegate {
     abstract fun error(error: Exception)
 }
 
-
-
 class IsoMdlPresentation(
         val mdoc: Mdoc,
         val keyAlias: String,
@@ -37,11 +32,11 @@ class IsoMdlPresentation(
     var session: MdlPresentationSession? = null
     var itemsRequests: List<ItemsRequest> = listOf()
     var bleManager: Transport? = null
-    lateinit var deviceEngagementData: DeviceEngagementData;
+    lateinit var deviceEngagementData: DeviceEngagementData
 
     fun initialize(presentationData: CredentialPresentData = CredentialPresentData.Qr()) {
 
-        when(presentationData) {
+        when (presentationData) {
             is CredentialPresentData.Qr -> {
                 deviceEngagementData = DeviceEngagementData.Qr(uuid.toString())
             }
@@ -53,28 +48,32 @@ class IsoMdlPresentation(
 
         try {
             session = initializeMdlPresentationFromBytes(this.mdoc, deviceEngagementData)
-            if(bleManager == null) {
+
+            if (bleManager == null) {
                 this.bleManager = Transport(this.bluetoothManager)
                 this.bleManager!!.initialize(
-                    "Holder",
-                    this.uuid,
-                    "BLE",
-                    "Central",
-                    session!!.getBleIdent(),
-                    ::updateRequestData,
-                    context,
-                    callback
+                        "Holder",
+                        this.uuid,
+                        "BLE",
+                        "Central",
+                        session!!.getBleIdent(),
+                        ::updateRequestData,
+                        context,
+                        callback
                 )
-                if(deviceEngagementData is DeviceEngagementData.Qr) {
-                    // TODO: We probably want to call this?
-                    // this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
-                }
             } else {
                 this.bleManager!!.setUpdateRequestDataCallback(::updateRequestData)
             }
 
             // Set the callback to the transport BLE client holder callback.
-            callback = this.bleManager!!.transportBLE.transportBleCentralClientHolder.callback;
+            callback = this.bleManager!!.transportBLE.transportBleCentralClientHolder.callback
+
+            // Only when the Device engagement type is QR do we
+            // require the `engagingQRCode`
+            if (deviceEngagementData is DeviceEngagementData.Qr && callback != null) {
+                callback!!.update(mapOf(Pair("engagingQRCode", session!!.getQrHandover())))
+            }
+
         } catch (e: Error) {
             Log.e("IsoMdlPresentation.constructor", e.toString())
         }
