@@ -1,3 +1,4 @@
+pub mod activity_log;
 pub mod cwt;
 pub mod json_vc;
 pub mod jwt_vc;
