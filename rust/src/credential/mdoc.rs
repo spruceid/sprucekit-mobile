@@ -141,7 +141,7 @@ impl Mdoc {
         &self,
         storage: Arc<dyn StorageManagerInterface>,
     ) -> Result<ActivityLog, activity_log::Error> {
-        let credential_id = self.document().id.to_string();
+        let credential_id = self.document().id;
         ActivityLog::load(credential_id, storage).await
     }
 }
