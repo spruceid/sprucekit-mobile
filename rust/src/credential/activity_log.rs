@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::{sync::Arc, time::SystemTime};
 
 use crate::{storage_manager::StorageManagerInterface, Key, Value};
@@ -36,7 +37,7 @@ pub enum Error {
     Storage(String),
 }
 
-#[derive(uniffi::Enum, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(uniffi::Enum, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ActivityLogEntryType {
     Provisioned,
     Shared,
@@ -100,7 +101,7 @@ impl ActivityLogFilterOptions {
     }
 }
 
-#[derive(uniffi::Record, Serialize, Deserialize)]
+#[derive(uniffi::Object, Serialize, Deserialize)]
 pub struct ActivityLogEntry {
     /// Unique identifier for the entry
     id: Uuid,
@@ -171,6 +172,46 @@ impl ActivityLogEntry {
         serde_json::from_str(&json_str)
             .map_err(|e| Error::ActivityLogEntryDeserialization(e.to_string()))
     }
+
+    // Getter Methods
+
+    fn get_id(&self) -> Uuid {
+        self.id
+    }
+
+    fn get_credential_id(&self) -> Uuid {
+        self.credential_id
+    }
+
+    fn get_type(&self) -> ActivityLogEntryType {
+        self.r#type.clone()
+    }
+
+    fn get_date(&self) -> u64 {
+        self.date
+    }
+
+    fn get_description(&self) -> String {
+        self.description.clone()
+    }
+
+    fn get_interaction_with(&self) -> String {
+        self.interaction_with.clone()
+    }
+
+    fn get_url(&self) -> Option<String> {
+        self.url.clone()
+    }
+
+    // Serialize an activity log entry as JSON string encoded bytes
+    fn as_json_bytes(&self) -> Result<Vec<u8>, Error> {
+        self.to_json_bytes()
+    }
+
+    // Serialize an activity log entry as a JSON string
+    fn as_json_string(&self) -> Result<String, Error> {
+        self.to_json_string()
+    }
 }
 
 impl ActivityLogEntry {
@@ -223,6 +264,25 @@ impl ActivityLog {
         })
     }
 
+    /// Adds and saved an activity log entry using the storage manager
+    /// interface provided.
+    pub async fn add(&self, entry: Arc<ActivityLogEntry>) -> Result<(), Error> {
+        if entry.credential_id != self.credential_id {
+            return Err(Error::InvalidCredentialId(
+                entry.credential_id,
+                self.credential_id,
+            ));
+        }
+
+        let key: Key = entry.as_ref().into();
+        let value: Value = entry.as_ref().try_into()?;
+
+        self.storage
+            .add(key, value)
+            .await
+            .map_err(|e| Error::Storage(e.to_string()))
+    }
+
     /// Returns a list of activity log entries matching the
     /// `credential_id` corresponding to the activity log.
     ///
@@ -232,7 +292,7 @@ impl ActivityLog {
     pub async fn entries(
         &self,
         filter: Option<ActivityLogFilterOptions>,
-    ) -> Result<Vec<ActivityLogEntry>, Error> {
+    ) -> Result<Vec<Arc<ActivityLogEntry>>, Error> {
         let keys = self
             .storage
             .list()
@@ -257,39 +317,25 @@ impl ActivityLog {
                 // Pass through all entries if no filter options are provided
                 None => true,
             })
-            .map(|(_, entry)| entry)
-            .collect::<Vec<ActivityLogEntry>>();
+            .map(|(_, entry)| Arc::new(entry))
+            .collect::<Vec<Arc<ActivityLogEntry>>>();
 
         Ok(entries)
     }
 
-    /// Adds and saved an activity log entry using the storage manager
-    /// interface provided.
-    pub async fn add(&self, entry: ActivityLogEntry) -> Result<(), Error> {
-        if entry.credential_id != self.credential_id {
-            return Err(Error::InvalidCredentialId(
-                entry.credential_id,
-                self.credential_id,
-            ));
-        }
-
-        let key: Key = (&entry).into();
-        let value: Value = (&entry).try_into()?;
-
-        self.storage
-            .add(key, value)
-            .await
-            .map_err(|e| Error::Storage(e.to_string()))
-    }
-
-    // Serialize an activity log entry as JSON string encoded bytes
-    pub fn entry_as_json_bytes(&self, entry: ActivityLogEntry) -> Result<Vec<u8>, Error> {
-        entry.to_json_bytes()
-    }
-
-    // Serialize an activity log entry as a JSON string
-    pub fn entry_as_json_string(&self, entry: ActivityLogEntry) -> Result<String, Error> {
-        entry.to_json_string()
+    /// Returns the optionally filtered activity log entries list as a JSON encoded string for export use.
+    pub async fn export_entries(
+        &self,
+        filter: Option<ActivityLogFilterOptions>,
+    ) -> Result<String, Error> {
+        let entries = self
+            .entries(filter)
+            .await?
+            .into_iter()
+            .map(|entry| entry.deref().to_owned())
+            .collect::<Vec<ActivityLogEntry>>();
+        serde_json::to_string(&entries)
+            .map_err(|e| Error::ActivityLogEntrySerialization(e.to_string()))
     }
 }
 
