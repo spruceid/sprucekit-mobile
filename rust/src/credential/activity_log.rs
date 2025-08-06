@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::{sync::Arc, time::SystemTime};
 
 use crate::{storage_manager::StorageManagerInterface, Key, Value};
@@ -285,14 +284,42 @@ impl ActivityLog {
 
     /// Returns a list of activity log entries matching the
     /// `credential_id` corresponding to the activity log.
-    ///
-    ///
-    ///
-    ///
     pub async fn entries(
         &self,
         filter: Option<ActivityLogFilterOptions>,
     ) -> Result<Vec<Arc<ActivityLogEntry>>, Error> {
+        let entries = self
+            .filter_entries(filter)
+            .await?
+            .into_iter()
+            .map(Arc::new)
+            .collect();
+
+        Ok(entries)
+    }
+
+    /// Returns the optionally filtered activity log entries list as a JSON encoded string for export use.
+    pub async fn export_entries(
+        &self,
+        filter: Option<ActivityLogFilterOptions>,
+    ) -> Result<String, Error> {
+        let entries = self
+            .filter_entries(filter)
+            .await?
+            .into_iter()
+            .collect::<Vec<ActivityLogEntry>>();
+        serde_json::to_string(&entries)
+            .map_err(|e| Error::ActivityLogEntrySerialization(e.to_string()))
+    }
+}
+
+impl ActivityLog {
+    /// Returns a list of activity log entries matching the
+    /// `credential_id` corresponding to the activity log.
+    pub async fn filter_entries(
+        &self,
+        filter: Option<ActivityLogFilterOptions>,
+    ) -> Result<Vec<ActivityLogEntry>, Error> {
         let keys = self
             .storage
             .list()
@@ -317,25 +344,10 @@ impl ActivityLog {
                 // Pass through all entries if no filter options are provided
                 None => true,
             })
-            .map(|(_, entry)| Arc::new(entry))
-            .collect::<Vec<Arc<ActivityLogEntry>>>();
+            .map(|(_, entry)| entry)
+            .collect::<Vec<ActivityLogEntry>>();
 
         Ok(entries)
-    }
-
-    /// Returns the optionally filtered activity log entries list as a JSON encoded string for export use.
-    pub async fn export_entries(
-        &self,
-        filter: Option<ActivityLogFilterOptions>,
-    ) -> Result<String, Error> {
-        let entries = self
-            .entries(filter)
-            .await?
-            .into_iter()
-            .map(|entry| entry.deref().to_owned())
-            .collect::<Vec<ActivityLogEntry>>();
-        serde_json::to_string(&entries)
-            .map_err(|e| Error::ActivityLogEntrySerialization(e.to_string()))
     }
 }
 
