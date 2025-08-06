@@ -1,9 +1,11 @@
 use std::{sync::Arc, time::SystemTime};
 
+use crate::{storage_manager::StorageManagerInterface, Key, Value};
+
+use futures::StreamExt;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
-use crate::{storage_manager::StorageManagerInterface, Key};
 
 /// Entries are stored at the individual entry-level to
 /// ensure that storage of a complete activity log does not
@@ -30,9 +32,11 @@ pub enum Error {
     ActivityLogEntrySerialization(String),
     #[error("Deserialization failed for activity log entry: {0}")]
     ActivityLogEntryDeserialization(String),
+    #[error("Storage error occured for activity log entry: {0}")]
+    Storage(String),
 }
 
-#[derive(uniffi::Enum, Serialize, Deserialize)]
+#[derive(uniffi::Enum, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ActivityLogEntryType {
     Provisioned,
     Shared,
@@ -45,13 +49,55 @@ pub enum ActivityLogEntryType {
 #[derive(uniffi::Record)]
 pub struct ActivityLogFilterOptions {
     /// Timestamp of when the logs should be filtered from
-    from_date: Option<i64>,
+    from_date: Option<u64>,
     /// Timestamp of when the logs should be filtered to
-    to_date: Option<i64>,
+    to_date: Option<u64>,
     /// Entry type to filter
-    r#type: ActivityLogEntryType,
+    r#type: Option<ActivityLogEntryType>,
     /// Filter on an interaction actor (e.g., Issuer, Verifier)
     interacted_with: Option<String>,
+    /// Max items to be returned
+    max_items: Option<u32>,
+}
+
+impl ActivityLogFilterOptions {
+    fn should_filter_entry(&self, entry: &ActivityLogEntry, index: usize) -> bool {
+        // Check date range filters
+        if let Some(from_date) = self.from_date {
+            if from_date > entry.date {
+                return false;
+            }
+        }
+
+        if let Some(to_date) = self.to_date {
+            if to_date < entry.date {
+                return false;
+            }
+        }
+
+        // Check type filter
+        if let Some(ref filter_type) = self.r#type {
+            if *filter_type != entry.r#type {
+                return false;
+            }
+        }
+
+        // Check interaction actor filter
+        if let Some(ref actor) = self.interacted_with {
+            if *actor != entry.interaction_with {
+                return false;
+            }
+        }
+
+        // Check max items limit
+        if let Some(max_items) = self.max_items {
+            if index >= max_items as usize {
+                return false;
+            }
+        }
+
+        true
+    }
 }
 
 #[derive(uniffi::Record, Serialize, Deserialize)]
@@ -79,7 +125,7 @@ pub struct ActivityLogEntry {
     /// a credential, then that activity is self referential.
     ///
     // TODO: determine if there is a better name for this field.
-    interaction_with: Option<String>,
+    interaction_with: String,
     /// Optional Call-to-action URL (either external or internal)
     /// to route the user to the appropriate page to proceed with any
     /// follow up details.
@@ -95,7 +141,7 @@ impl ActivityLogEntry {
         credential_id: Uuid,
         r#type: ActivityLogEntryType,
         description: String,
-        interaction_with: Option<String>,
+        interaction_with: String,
         url: Option<String>,
     ) -> Result<Self, Error> {
         let date = SystemTime::now()
@@ -148,7 +194,6 @@ impl ActivityLogEntry {
 pub struct ActivityLog {
     pub(crate) credential_id: Uuid,
     pub(crate) storage: Arc<dyn StorageManagerInterface>,
-    pub(crate) entries: Vec<ActivityLogEntry>,
 }
 
 #[uniffi::export]
@@ -172,25 +217,55 @@ impl ActivityLog {
         credential_id: Uuid,
         storage: Arc<dyn StorageManagerInterface>,
     ) -> Result<Self, Error> {
-        // TODO: load activity from storage, if none is found,
-        // return a new activity log.
-        let entries = Vec::new();
-
         Ok(Self {
             credential_id,
             storage,
-            entries,
         })
     }
 
-    pub fn entries(
+    /// Returns a list of activity log entries matching the
+    /// `credential_id` corresponding to the activity log.
+    ///
+    ///
+    ///
+    ///
+    pub async fn entries(
         &self,
         filter: Option<ActivityLogFilterOptions>,
     ) -> Result<Vec<ActivityLogEntry>, Error> {
-        unimplemented!()
+        let keys = self
+            .storage
+            .list()
+            .await
+            .map_err(|e| Error::Storage(e.to_string()))?
+            .into_iter()
+            .filter(|key| key.strip_prefix(KEY_PREFIX).is_some())
+            .collect::<Vec<Key>>();
+
+        let entries = futures::stream::iter(keys.into_iter())
+            .filter_map(|key| async move { self.storage.get(key).await.ok().flatten() })
+            .filter_map(|value| async move { ActivityLogEntry::try_from(value).ok() })
+            .collect::<Vec<ActivityLogEntry>>()
+            .await
+            .into_iter()
+            .filter(|entry| entry.credential_id == self.credential_id)
+            // Sort by the date so the most recent activity is always first
+            .sorted_by(|a, b| Ord::cmp(&b.date, &a.date))
+            .enumerate()
+            .filter(|(index, entry)| match filter.as_ref() {
+                Some(opts) => opts.should_filter_entry(entry, *index),
+                // Pass through all entries if no filter options are provided
+                None => true,
+            })
+            .map(|(_, entry)| entry)
+            .collect::<Vec<ActivityLogEntry>>();
+
+        Ok(entries)
     }
 
-    pub fn add(&self, entry: ActivityLogEntry) -> Result<(), Error> {
+    /// Adds and saved an activity log entry using the storage manager
+    /// interface provided.
+    pub async fn add(&self, entry: ActivityLogEntry) -> Result<(), Error> {
         if entry.credential_id != self.credential_id {
             return Err(Error::InvalidCredentialId(
                 entry.credential_id,
@@ -198,44 +273,44 @@ impl ActivityLog {
             ));
         }
 
-        unimplemented!("Implement the add activity function")
+        let key: Key = (&entry).into();
+        let value: Value = (&entry).try_into()?;
+
+        self.storage
+            .add(key, value)
+            .await
+            .map_err(|e| Error::Storage(e.to_string()))
     }
 
-    /// Save the activity log using the storage manager reference.
-    pub fn save(&self) -> Result<(), Error> {
-        unimplemented!("Implement the save activity function")
+    // Serialize an activity log entry as JSON string encoded bytes
+    pub fn entry_as_json_bytes(&self, entry: ActivityLogEntry) -> Result<Vec<u8>, Error> {
+        entry.to_json_bytes()
+    }
+
+    // Serialize an activity log entry as a JSON string
+    pub fn entry_as_json_string(&self, entry: ActivityLogEntry) -> Result<String, Error> {
+        entry.to_json_string()
     }
 }
 
-impl ActivityLog {
-    /// Convert a UUID to a storage key.
-    fn id_to_key(credential_id: Uuid, entry_id: Uuid) -> Key {
-        Key(format!("{KEY_PREFIX}{credential_id}.{entry_id}"))
+impl From<&ActivityLogEntry> for Key {
+    fn from(entry: &ActivityLogEntry) -> Self {
+        Key(format!("{KEY_PREFIX}{}.{}", entry.credential_id, entry.id))
     }
+}
 
-    /// Key to credential ID
-    fn key_to_credential_id(key: &Key) -> Option<Uuid> {
-        match key.strip_prefix(KEY_PREFIX) {
-            None => None,
-            Some(id) => id
-                .split_once(".")
-                .map(|(id, _)| Uuid::parse_str(&id))
-                .transpose()
-                .ok()
-                .flatten(),
-        }
+impl TryFrom<&ActivityLogEntry> for Value {
+    type Error = Error;
+
+    fn try_from(entry: &ActivityLogEntry) -> Result<Self, Self::Error> {
+        entry.to_json_bytes().map(Value)
     }
+}
 
-    /// Key to entry ID
-    fn key_to_entry_id(key: &Key) -> Option<Uuid> {
-        match key.strip_prefix(KEY_PREFIX) {
-            None => None,
-            Some(id) => id
-                .split_once(".")
-                .map(|(_, id)| Uuid::parse_str(&id))
-                .transpose()
-                .ok()
-                .flatten(),
-        }
+impl TryFrom<Value> for ActivityLogEntry {
+    type Error = Error;
+
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        Self::from_json_bytes(value.0)
     }
 }
