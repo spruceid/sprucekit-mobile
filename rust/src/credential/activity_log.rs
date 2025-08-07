@@ -1,4 +1,8 @@
-use std::{sync::Arc, time::SystemTime};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+    time::SystemTime,
+};
 
 use crate::{storage_manager::StorageManagerInterface, Key, Value};
 
@@ -101,7 +105,7 @@ impl ActivityLogFilterOptions {
     }
 }
 
-#[derive(uniffi::Object, Serialize, Deserialize)]
+#[derive(uniffi::Object, Clone, Serialize, Deserialize)]
 pub struct ActivityLogEntry {
     /// Unique identifier for the entry
     id: Uuid,
@@ -227,6 +231,11 @@ impl ActivityLogEntry {
 }
 
 impl ActivityLogEntry {
+    // Setter methods
+    pub(crate) fn set_hidden(&mut self, should_hide: bool) {
+        self.hidden = should_hide;
+    }
+
     pub(crate) fn credential_and_entry_id_to_key(credential_id: Uuid, entry_id: Uuid) -> Key {
         Key(format!("{KEY_PREFIX}{}.{}", credential_id, entry_id))
     }
@@ -307,20 +316,41 @@ impl ActivityLog {
         Ok(value)
     }
 
-    pub async fn hide(&self, entry_id: Uuid, should_hide: bool) -> Result<(), Error> {
-        unimplemented!()
-        // match self.storage.get_mut(entry_id) {
-        //     None => Ok(()),
-        //     Some(mut entry) => {
-        //         *entry.hidden = should_hide;
+    pub async fn set_hidden(
+        &self,
+        entry_id: Uuid,
+        should_hide: bool,
+    ) -> Result<Arc<ActivityLogEntry>, Error> {
+        let entry = self.get(entry_id).await?;
 
-        //         Ok(())
-        //     }
-        // }
+        match entry {
+            Some(arc_entry) => {
+                // Extract the data from the Arc and create a new modified entry
+                let mut new_entry = (*arc_entry).clone();
+                new_entry.set_hidden(should_hide);
+
+                // Create a new Arc with the modified entry and add it back
+                let new_arc_entry = Arc::new(new_entry);
+                self.add(new_arc_entry.clone()).await?;
+
+                Ok(new_arc_entry)
+            }
+            None => Err(Error::NotFound(format!(
+                "Activity log entry for {} not found",
+                entry_id
+            ))),
+        }
     }
 
     pub async fn remove(&self, entry_id: Uuid) -> Result<(), Error> {
-        unimplemented!()
+        let key = ActivityLogEntry::credential_and_entry_id_to_key(self.credential_id, entry_id);
+
+        self.storage
+            .remove(key)
+            .await
+            .map_err(|e| Error::Storage(e.to_string()))?;
+
+        Ok(())
     }
 
     /// Returns a list of activity log entries matching the
