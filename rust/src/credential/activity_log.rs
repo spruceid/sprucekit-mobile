@@ -1,8 +1,4 @@
-use std::{
-    ops::{Deref, DerefMut},
-    sync::Arc,
-    time::SystemTime,
-};
+use std::{sync::Arc, time::SystemTime};
 
 use crate::{storage_manager::StorageManagerInterface, Key, Value};
 
@@ -480,7 +476,19 @@ mod test {
             "Storage Activity log should contain an entry"
         );
 
-        // activity_log.
+        assert_eq!(entry.hidden, false, "Expect entry to NOT be hidden");
+
+        let entry = activity_log.set_hidden(entry.get_id(), true).await?;
+
+        assert_eq!(entry.hidden, true, "Expect entry to be hidden");
+
+        activity_log.remove(entry.get_id()).await?;
+
+        assert_eq!(
+            activity_log.entries(None).await?.len(),
+            0,
+            "Storage Activity log should be empty"
+        );
 
         Ok(())
     }

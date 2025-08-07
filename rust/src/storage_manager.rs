@@ -78,9 +78,11 @@ pub trait StorageManagerInterface: Send + Sync + Debug {
 }
 
 /// Dummy Storage Implementation for testing
+#[cfg(test)]
 #[derive(Default, Debug)]
 pub(crate) struct DummyStorage(pub(crate) RwLock<HashMap<Key, Value>>);
 
+#[cfg(test)]
 #[async_trait]
 impl StorageManagerInterface for DummyStorage {
     async fn add(&self, key: Key, value: Value) -> Result<(), StorageManagerError> {
