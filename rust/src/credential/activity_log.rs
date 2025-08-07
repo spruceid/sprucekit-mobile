@@ -38,7 +38,8 @@ pub enum Error {
 
 #[derive(uniffi::Enum, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ActivityLogEntryType {
-    Provisioned,
+    Request,
+    Issued,
     Shared,
     Refresh,
     Review,
@@ -132,6 +133,13 @@ pub struct ActivityLogEntry {
     ///
     // TODO: determine if there is a better name for this field
     url: Option<String>,
+    /// Boolean option on whether this entry has been hidden
+    ///
+    /// This means that the UI should not show this entry,
+    /// but still shown a line item, allowing the user to
+    /// un-hide the entry, possibly using biometrics or
+    /// PIN for user control.
+    hidden: bool,
 }
 
 #[uniffi::export]
@@ -157,6 +165,7 @@ impl ActivityLogEntry {
             description,
             interaction_with,
             url,
+            hidden: false,
         })
     }
 
@@ -202,18 +211,10 @@ impl ActivityLogEntry {
         self.url.clone()
     }
 
-    // Serialize an activity log entry as JSON string encoded bytes
-    fn as_json_bytes(&self) -> Result<Vec<u8>, Error> {
-        self.to_json_bytes()
+    fn get_hidden(&self) -> bool {
+        self.hidden
     }
 
-    // Serialize an activity log entry as a JSON string
-    fn as_json_string(&self) -> Result<String, Error> {
-        self.to_json_string()
-    }
-}
-
-impl ActivityLogEntry {
     /// Serializes the activity log as a byte-encoded JSON string
     fn to_json_bytes(&self) -> Result<Vec<u8>, Error> {
         serde_json::to_vec(self).map_err(|e| Error::ActivityLogEntrySerialization(e.to_string()))
@@ -222,6 +223,16 @@ impl ActivityLogEntry {
     /// Serializes the activity log as a JSON string
     fn to_json_string(&self) -> Result<String, Error> {
         serde_json::to_string(self).map_err(|e| Error::ActivityLogEntrySerialization(e.to_string()))
+    }
+}
+
+impl ActivityLogEntry {
+    pub(crate) fn credential_and_entry_id_to_key(credential_id: Uuid, entry_id: Uuid) -> Key {
+        Key(format!("{KEY_PREFIX}{}.{}", credential_id, entry_id))
+    }
+
+    pub(crate) fn as_storage_key(&self) -> Key {
+        ActivityLogEntry::credential_and_entry_id_to_key(self.credential_id, self.id)
     }
 }
 
@@ -280,6 +291,36 @@ impl ActivityLog {
             .add(key, value)
             .await
             .map_err(|e| Error::Storage(e.to_string()))
+    }
+
+    pub async fn get(&self, entry_id: Uuid) -> Result<Option<Arc<ActivityLogEntry>>, Error> {
+        let key = ActivityLogEntry::credential_and_entry_id_to_key(self.credential_id, entry_id);
+
+        let value = self
+            .storage
+            .get(key)
+            .await
+            .map_err(|e| Error::Storage(e.to_string()))?
+            .and_then(|value| value.try_into().ok())
+            .map(|entry: ActivityLogEntry| Arc::new(entry));
+
+        Ok(value)
+    }
+
+    pub async fn hide(&self, entry_id: Uuid, should_hide: bool) -> Result<(), Error> {
+        unimplemented!()
+        // match self.storage.get_mut(entry_id) {
+        //     None => Ok(()),
+        //     Some(mut entry) => {
+        //         *entry.hidden = should_hide;
+
+        //         Ok(())
+        //     }
+        // }
+    }
+
+    pub async fn remove(&self, entry_id: Uuid) -> Result<(), Error> {
+        unimplemented!()
     }
 
     /// Returns a list of activity log entries matching the
@@ -353,7 +394,7 @@ impl ActivityLog {
 
 impl From<&ActivityLogEntry> for Key {
     fn from(entry: &ActivityLogEntry) -> Self {
-        Key(format!("{KEY_PREFIX}{}.{}", entry.credential_id, entry.id))
+        entry.as_storage_key()
     }
 }
 
@@ -370,5 +411,47 @@ impl TryFrom<Value> for ActivityLogEntry {
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         Self::from_json_bytes(value.0)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::storage_manager::DummyStorage;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_activity_log() -> Result<(), Error> {
+        let storage = Arc::new(DummyStorage::default());
+        let credential_id = Uuid::new_v4();
+
+        // Load activity Log
+        let activity_log = ActivityLog::load(credential_id, storage).await?;
+
+        assert_eq!(
+            activity_log.entries(None).await?.len(),
+            0,
+            "Storage Activity log should be empty"
+        );
+
+        let entry = Arc::new(ActivityLogEntry::new(
+            credential_id,
+            ActivityLogEntryType::Request,
+            "requesting new credential issuance".into(),
+            "ISSUING AUTHORITY".into(),
+            Some("www.example.com".into()),
+        )?);
+
+        activity_log.add(entry.clone()).await?;
+
+        assert_eq!(
+            activity_log.entries(None).await?.len(),
+            1,
+            "Storage Activity log should contain an entry"
+        );
+
+        // activity_log.
+
+        Ok(())
     }
 }
