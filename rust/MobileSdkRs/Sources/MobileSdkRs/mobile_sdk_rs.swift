@@ -611,6 +611,12 @@ public protocol ActivityLogProtocol: AnyObject, Sendable {
      */
     func exportEntries(filter: ActivityLogFilterOptions?) async throws  -> String
     
+    func get(entryId: Uuid) async throws  -> ActivityLogEntry?
+    
+    func remove(entryId: Uuid) async throws 
+    
+    func setHidden(entryId: Uuid, shouldHide: Bool) async throws  -> ActivityLogEntry
+    
 }
 /**
  * Activity Log has a 1:1 relationship with a credential
@@ -762,6 +768,57 @@ open func exportEntries(filter: ActivityLogFilterOptions?)async throws  -> Strin
         )
 }
     
+open func get(entryId: Uuid)async throws  -> ActivityLogEntry?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_get(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUuid_lower(entryId)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeActivityLogEntry.lift,
+            errorHandler: FfiConverterTypeError_lift
+        )
+}
+    
+open func remove(entryId: Uuid)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_remove(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUuid_lower(entryId)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeError_lift
+        )
+}
+    
+open func setHidden(entryId: Uuid, shouldHide: Bool)async throws  -> ActivityLogEntry  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_set_hidden(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUuid_lower(entryId),FfiConverterBool.lower(shouldHide)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeActivityLogEntry_lift,
+            errorHandler: FfiConverterTypeError_lift
+        )
+}
+    
 
 }
 
@@ -822,15 +879,13 @@ public func FfiConverterTypeActivityLog_lower(_ value: ActivityLog) -> UnsafeMut
 
 public protocol ActivityLogEntryProtocol: AnyObject, Sendable {
     
-    func asJsonBytes() throws  -> Data
-    
-    func asJsonString() throws  -> String
-    
     func getCredentialId()  -> Uuid
     
     func getDate()  -> UInt64
     
     func getDescription()  -> String
+    
+    func getHidden()  -> Bool
     
     func getId()  -> Uuid
     
@@ -839,6 +894,16 @@ public protocol ActivityLogEntryProtocol: AnyObject, Sendable {
     func getType()  -> ActivityLogEntryType
     
     func getUrl()  -> String?
+    
+    /**
+     * Serializes the activity log as a byte-encoded JSON string
+     */
+    func toJsonBytes() throws  -> Data
+    
+    /**
+     * Serializes the activity log as a JSON string
+     */
+    func toJsonString() throws  -> String
     
 }
 open class ActivityLogEntry: ActivityLogEntryProtocol, @unchecked Sendable {
@@ -921,20 +986,6 @@ public static func fromJsonStr(jsonStr: String)throws  -> ActivityLogEntry  {
     
 
     
-open func asJsonBytes()throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_activitylogentry_as_json_bytes(self.uniffiClonePointer(),$0
-    )
-})
-}
-    
-open func asJsonString()throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_activitylogentry_as_json_string(self.uniffiClonePointer(),$0
-    )
-})
-}
-    
 open func getCredentialId() -> Uuid  {
     return try!  FfiConverterTypeUuid_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_credential_id(self.uniffiClonePointer(),$0
@@ -952,6 +1003,13 @@ open func getDate() -> UInt64  {
 open func getDescription() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_description(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getHidden() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_hidden(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -980,6 +1038,26 @@ open func getType() -> ActivityLogEntryType  {
 open func getUrl() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_url(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Serializes the activity log as a byte-encoded JSON string
+     */
+open func toJsonBytes()throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_to_json_bytes(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Serializes the activity log as a JSON string
+     */
+open func toJsonString()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_to_json_string(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -12496,7 +12574,8 @@ public func FfiConverterTypeTestMdlData_lower(_ value: TestMdlData) -> RustBuffe
 
 public enum ActivityLogEntryType {
     
-    case provisioned
+    case request
+    case issued
     case shared
     case refresh
     case review
@@ -12518,15 +12597,17 @@ public struct FfiConverterTypeActivityLogEntryType: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .provisioned
+        case 1: return .request
         
-        case 2: return .shared
+        case 2: return .issued
         
-        case 3: return .refresh
+        case 3: return .shared
         
-        case 4: return .review
+        case 4: return .refresh
         
-        case 5: return .deleted
+        case 5: return .review
+        
+        case 6: return .deleted
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -12536,24 +12617,28 @@ public struct FfiConverterTypeActivityLogEntryType: FfiConverterRustBuffer {
         switch value {
         
         
-        case .provisioned:
+        case .request:
             writeInt(&buf, Int32(1))
         
         
-        case .shared:
+        case .issued:
             writeInt(&buf, Int32(2))
         
         
-        case .refresh:
+        case .shared:
             writeInt(&buf, Int32(3))
         
         
-        case .review:
+        case .refresh:
             writeInt(&buf, Int32(4))
         
         
-        case .deleted:
+        case .review:
             writeInt(&buf, Int32(5))
+        
+        
+        case .deleted:
+            writeInt(&buf, Int32(6))
         
         }
     }
@@ -19013,6 +19098,30 @@ fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeActivityLogEntry: FfiConverterRustBuffer {
+    typealias SwiftType = ActivityLogEntry?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeActivityLogEntry.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeActivityLogEntry.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeCwt: FfiConverterRustBuffer {
     typealias SwiftType = Cwt?
 
@@ -21360,10 +21469,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_export_entries() != 31153) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_as_json_bytes() != 442) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_get() != 7930) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_as_json_string() != 23843) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove() != 41292) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_set_hidden() != 62120) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_credential_id() != 4490) {
@@ -21373,6 +21485,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_description() != 26368) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_hidden() != 22447) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_id() != 45429) {
@@ -21385,6 +21500,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_url() != 27288) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_to_json_bytes() != 61015) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_to_json_string() != 34675) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_asynchttpclient_http_client() != 44924) {
