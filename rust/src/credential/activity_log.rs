@@ -233,7 +233,7 @@ impl ActivityLogEntry {
     }
 
     pub(crate) fn credential_and_entry_id_to_key(credential_id: Uuid, entry_id: Uuid) -> Key {
-        Key(format!("{KEY_PREFIX}{}.{}", credential_id, entry_id))
+        Key(format!("{KEY_PREFIX}{credential_id}.{entry_id}"))
     }
 
     pub(crate) fn as_storage_key(&self) -> Key {
@@ -332,8 +332,7 @@ impl ActivityLog {
                 Ok(new_arc_entry)
             }
             None => Err(Error::NotFound(format!(
-                "Activity log entry for {} not found",
-                entry_id
+                "Activity log entry for {entry_id} not found"
             ))),
         }
     }
@@ -442,7 +441,7 @@ impl TryFrom<Value> for ActivityLogEntry {
 
 #[cfg(test)]
 mod test {
-    use crate::storage_manager::DummyStorage;
+    use crate::storage_manager::test::DummyStorage;
 
     use super::*;
 

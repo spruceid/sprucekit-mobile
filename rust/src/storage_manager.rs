@@ -1,10 +1,9 @@
 use crate::common::*;
-use std::collections::HashMap;
+
 use std::fmt::Debug;
 
 use async_trait::async_trait;
 use thiserror::Error;
-use tokio::sync::RwLock;
 
 /// Enum: StorageManagerError
 ///
@@ -77,53 +76,58 @@ pub trait StorageManagerInterface: Send + Sync + Debug {
     async fn remove(&self, key: Key) -> Result<(), StorageManagerError>;
 }
 
-/// Dummy Storage Implementation for testing
 #[cfg(test)]
-#[derive(Default, Debug)]
-pub(crate) struct DummyStorage(pub(crate) RwLock<HashMap<Key, Value>>);
+pub mod test {
+    use super::*;
+    use std::collections::HashMap;
+    use tokio::sync::RwLock;
 
-#[cfg(test)]
-#[async_trait]
-impl StorageManagerInterface for DummyStorage {
-    async fn add(&self, key: Key, value: Value) -> Result<(), StorageManagerError> {
-        let mut inner = self
-            .0
-            .try_write()
-            .map_err(|_| StorageManagerError::InternalError)?;
+    /// Dummy Storage Implementation for testing
+    #[derive(Default, Debug)]
+    pub struct DummyStorage(pub(crate) RwLock<HashMap<Key, Value>>);
 
-        inner.insert(key, value);
+    #[async_trait]
+    impl StorageManagerInterface for DummyStorage {
+        async fn add(&self, key: Key, value: Value) -> Result<(), StorageManagerError> {
+            let mut inner = self
+                .0
+                .try_write()
+                .map_err(|_| StorageManagerError::InternalError)?;
 
-        Ok(())
-    }
+            inner.insert(key, value);
 
-    async fn get(&self, key: Key) -> Result<Option<Value>, StorageManagerError> {
-        let inner = self
-            .0
-            .try_read()
-            .map_err(|_| StorageManagerError::InternalError)?;
+            Ok(())
+        }
 
-        Ok(inner.get(&key).map(ToOwned::to_owned))
-    }
+        async fn get(&self, key: Key) -> Result<Option<Value>, StorageManagerError> {
+            let inner = self
+                .0
+                .try_read()
+                .map_err(|_| StorageManagerError::InternalError)?;
 
-    async fn list(&self) -> Result<Vec<Key>, StorageManagerError> {
-        let inner = self
-            .0
-            .try_read()
-            .map_err(|_| StorageManagerError::InternalError)?;
+            Ok(inner.get(&key).map(ToOwned::to_owned))
+        }
 
-        let keys = inner.keys().map(ToOwned::to_owned).collect();
+        async fn list(&self) -> Result<Vec<Key>, StorageManagerError> {
+            let inner = self
+                .0
+                .try_read()
+                .map_err(|_| StorageManagerError::InternalError)?;
 
-        Ok(keys)
-    }
+            let keys = inner.keys().map(ToOwned::to_owned).collect();
 
-    async fn remove(&self, key: Key) -> Result<(), StorageManagerError> {
-        let mut inner = self
-            .0
-            .try_write()
-            .map_err(|_| StorageManagerError::InternalError)?;
+            Ok(keys)
+        }
 
-        inner.remove(&key);
+        async fn remove(&self, key: Key) -> Result<(), StorageManagerError> {
+            let mut inner = self
+                .0
+                .try_write()
+                .map_err(|_| StorageManagerError::InternalError)?;
 
-        Ok(())
+            inner.remove(&key);
+
+            Ok(())
+        }
     }
 }
