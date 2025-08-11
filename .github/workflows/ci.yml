@@ -58,10 +58,12 @@ jobs:
       # - uses: taiki-e/install-action@v2
       #   with:
       #     tool: cargo-swift
-      - name: Install cargo-binstall to install pre-built cargo swift
-        uses: cargo-bins/cargo-binstall@main
+      # - name: Install cargo-binstall to install pre-built cargo swift
+      #   uses: cargo-bins/cargo-binstall@main
+      # - name: Install released version of cargo-swift
+      #   run: cargo binstall cargo-swift@0.9.0
       - name: Install unreleased version of cargo-swift
-        run: cargo binstall cargo-swift@0.9.0
+        run: cargo install cargo-swift@^0.9
       - run: brew install swiftlint
 
       - name: Generate Swift package
