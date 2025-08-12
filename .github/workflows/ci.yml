@@ -80,13 +80,13 @@ jobs:
           xcodegen generate
 
       - name: Test MobileSdk
-        uses: mxcl/xcodebuild@v2
+        uses: mxcl/xcodebuild@v3
         with:
           platform: iOS
           scheme: MobileSdk
           working-directory: ios/MobileSdk
       - name: Test Showcase
-        uses: mxcl/xcodebuild@v2
+        uses: mxcl/xcodebuild@v3
         with:
           platform: iOS
           scheme: debug
