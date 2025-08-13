@@ -694,7 +694,7 @@ public static func load(credentialId: Uuid, storage: StorageManagerInterface)asy
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeActivityLog_lift,
-            errorHandler: FfiConverterTypeError_lift
+            errorHandler: FfiConverterTypeActivityLogError_lift
         )
 }
     
@@ -717,7 +717,7 @@ open func add(entry: ActivityLogEntry)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeError_lift
+            errorHandler: FfiConverterTypeActivityLogError_lift
         )
 }
     
@@ -738,7 +738,7 @@ open func entries(filter: ActivityLogFilterOptions?)async throws  -> [ActivityLo
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterSequenceTypeActivityLogEntry.lift,
-            errorHandler: FfiConverterTypeError_lift
+            errorHandler: FfiConverterTypeActivityLogError_lift
         )
 }
     
@@ -758,7 +758,7 @@ open func exportEntries(filter: ActivityLogFilterOptions?)async throws  -> Strin
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterString.lift,
-            errorHandler: FfiConverterTypeError_lift
+            errorHandler: FfiConverterTypeActivityLogError_lift
         )
 }
     
@@ -775,7 +775,7 @@ open func get(entryId: Uuid)async throws  -> ActivityLogEntry?  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionTypeActivityLogEntry.lift,
-            errorHandler: FfiConverterTypeError_lift
+            errorHandler: FfiConverterTypeActivityLogError_lift
         )
 }
     
@@ -792,7 +792,7 @@ open func remove(entryId: Uuid)async throws   {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
             liftFunc: { $0 },
-            errorHandler: FfiConverterTypeError_lift
+            errorHandler: FfiConverterTypeActivityLogError_lift
         )
 }
     
@@ -809,7 +809,7 @@ open func setHidden(entryId: Uuid, shouldHide: Bool)async throws  -> ActivityLog
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeActivityLogEntry_lift,
-            errorHandler: FfiConverterTypeError_lift
+            errorHandler: FfiConverterTypeActivityLogError_lift
         )
 }
     
@@ -941,7 +941,7 @@ open class ActivityLogEntry: ActivityLogEntryProtocol, @unchecked Sendable {
     }
 public convenience init(credentialId: Uuid, type: ActivityLogEntryType, description: String, interactionWith: String, url: String?)throws  {
     let pointer =
-        try rustCallWithError(FfiConverterTypeError_lift) {
+        try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
     uniffi_mobile_sdk_rs_fn_constructor_activitylogentry_new(
         FfiConverterTypeUuid_lower(credentialId),
         FfiConverterTypeActivityLogEntryType_lower(type),
@@ -963,7 +963,7 @@ public convenience init(credentialId: Uuid, type: ActivityLogEntryType, descript
 
     
 public static func fromJsonBytes(bytes: Data)throws  -> ActivityLogEntry  {
-    return try  FfiConverterTypeActivityLogEntry_lift(try rustCallWithError(FfiConverterTypeError_lift) {
+    return try  FfiConverterTypeActivityLogEntry_lift(try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
     uniffi_mobile_sdk_rs_fn_constructor_activitylogentry_from_json_bytes(
         FfiConverterData.lower(bytes),$0
     )
@@ -971,7 +971,7 @@ public static func fromJsonBytes(bytes: Data)throws  -> ActivityLogEntry  {
 }
     
 public static func fromJsonStr(jsonStr: String)throws  -> ActivityLogEntry  {
-    return try  FfiConverterTypeActivityLogEntry_lift(try rustCallWithError(FfiConverterTypeError_lift) {
+    return try  FfiConverterTypeActivityLogEntry_lift(try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
     uniffi_mobile_sdk_rs_fn_constructor_activitylogentry_from_json_str(
         FfiConverterString.lower(jsonStr),$0
     )
@@ -1040,7 +1040,7 @@ open func getUrl() -> String?  {
      * Serializes the activity log as a byte-encoded JSON string
      */
 open func toJsonBytes()throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeError_lift) {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
     uniffi_mobile_sdk_rs_fn_method_activitylogentry_to_json_bytes(self.uniffiClonePointer(),$0
     )
 })
@@ -1050,7 +1050,7 @@ open func toJsonBytes()throws  -> Data  {
      * Serializes the activity log as a JSON string
      */
 open func toJsonString()throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeError_lift) {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
     uniffi_mobile_sdk_rs_fn_method_activitylogentry_to_json_string(self.uniffiClonePointer(),$0
     )
 })
@@ -6186,7 +6186,7 @@ open func activityLog(storage: StorageManagerInterface)async throws  -> Activity
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
             liftFunc: FfiConverterTypeActivityLog_lift,
-            errorHandler: FfiConverterTypeError_lift
+            errorHandler: FfiConverterTypeActivityLogError_lift
         )
 }
     
@@ -12664,6 +12664,131 @@ extension ActivityLogEntryType: Equatable, Hashable {}
 
 
 
+
+public enum ActivityLogError: Swift.Error {
+
+    
+    
+    case NotFound(String
+    )
+    case CreateActivityLogEntry(String
+    )
+    case InvalidCredentialId(Uuid,Uuid
+    )
+    case ActivityLogEntrySerialization(String
+    )
+    case ActivityLogEntryDeserialization(String
+    )
+    case Storage(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeActivityLogError: FfiConverterRustBuffer {
+    typealias SwiftType = ActivityLogError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ActivityLogError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .NotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .CreateActivityLogEntry(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .InvalidCredentialId(
+            try FfiConverterTypeUuid.read(from: &buf), 
+            try FfiConverterTypeUuid.read(from: &buf)
+            )
+        case 4: return .ActivityLogEntrySerialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .ActivityLogEntryDeserialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .Storage(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ActivityLogError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .NotFound(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .CreateActivityLogEntry(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidCredentialId(v1,v2):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeUuid.write(v1, into: &buf)
+            FfiConverterTypeUuid.write(v2, into: &buf)
+            
+        
+        case let .ActivityLogEntrySerialization(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ActivityLogEntryDeserialization(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Storage(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogError_lift(_ buf: RustBuffer) throws -> ActivityLogError {
+    return try FfiConverterTypeActivityLogError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogError_lower(_ value: ActivityLogError) -> RustBuffer {
+    return FfiConverterTypeActivityLogError.lower(value)
+}
+
+
+extension ActivityLogError: Equatable, Hashable {}
+
+
+
+extension ActivityLogError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -14171,131 +14296,6 @@ public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
 
 extension DidMethod: Equatable, Hashable {}
 
-
-
-
-public enum Error: Swift.Error {
-
-    
-    
-    case NotFound(String
-    )
-    case CreateActivityLogEntry(String
-    )
-    case InvalidCredentialId(Uuid,Uuid
-    )
-    case ActivityLogEntrySerialization(String
-    )
-    case ActivityLogEntryDeserialization(String
-    )
-    case Storage(String
-    )
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeError: FfiConverterRustBuffer {
-    typealias SwiftType = Error
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Error {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-
-        
-
-        
-        case 1: return .NotFound(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 2: return .CreateActivityLogEntry(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 3: return .InvalidCredentialId(
-            try FfiConverterTypeUuid.read(from: &buf), 
-            try FfiConverterTypeUuid.read(from: &buf)
-            )
-        case 4: return .ActivityLogEntrySerialization(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 5: return .ActivityLogEntryDeserialization(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 6: return .Storage(
-            try FfiConverterString.read(from: &buf)
-            )
-
-         default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: Error, into buf: inout [UInt8]) {
-        switch value {
-
-        
-
-        
-        
-        case let .NotFound(v1):
-            writeInt(&buf, Int32(1))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
-        case let .CreateActivityLogEntry(v1):
-            writeInt(&buf, Int32(2))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
-        case let .InvalidCredentialId(v1,v2):
-            writeInt(&buf, Int32(3))
-            FfiConverterTypeUuid.write(v1, into: &buf)
-            FfiConverterTypeUuid.write(v2, into: &buf)
-            
-        
-        case let .ActivityLogEntrySerialization(v1):
-            writeInt(&buf, Int32(4))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
-        case let .ActivityLogEntryDeserialization(v1):
-            writeInt(&buf, Int32(5))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
-        case let .Storage(v1):
-            writeInt(&buf, Int32(6))
-            FfiConverterString.write(v1, into: &buf)
-            
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeError_lift(_ buf: RustBuffer) throws -> Error {
-    return try FfiConverterTypeError.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeError_lower(_ value: Error) -> RustBuffer {
-    return FfiConverterTypeError.lower(value)
-}
-
-
-extension Error: Equatable, Hashable {}
-
-
-
-extension Error: Foundation.LocalizedError {
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
-}
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -21296,22 +21296,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verify_vcb_qrcode_against_mrz() != 36527) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_add() != 61402) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_add() != 13013) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_entries() != 62270) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_entries() != 20975) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_export_entries() != 31153) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_export_entries() != 39487) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_get() != 7930) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_get() != 49762) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove() != 41292) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove() != 2228) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_set_hidden() != 62120) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_set_hidden() != 41883) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_credential_id() != 4490) {
@@ -21338,10 +21338,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_url() != 27288) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_to_json_bytes() != 61015) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_to_json_bytes() != 53847) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_to_json_string() != 34675) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_to_json_string() != 34215) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_asynchttpclient_http_client() != 44924) {
@@ -21506,7 +21506,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_terminate_session() != 8677) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_activity_log() != 6450) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_activity_log() != 37631) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_details() != 29355) {
@@ -21773,16 +21773,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_nonce() != 12116) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylog_load() != 44407) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylog_load() != 44892) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_from_json_bytes() != 10500) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_from_json_bytes() != 49434) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_from_json_str() != 14842) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_from_json_str() != 13043) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_new() != 40374) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_new() != 64574) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {

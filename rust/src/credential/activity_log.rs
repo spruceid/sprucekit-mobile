@@ -21,7 +21,7 @@ use uuid::Uuid;
 pub const KEY_PREFIX: &str = "ActivityLogEntry.";
 
 #[derive(Debug, thiserror::Error, uniffi::Error)]
-pub enum Error {
+pub enum ActivityLogError {
     #[error("Failed to find activity log for credential: {0}")]
     NotFound(String),
     #[error("Failed to create an activity log entry: {0}")]
@@ -151,10 +151,10 @@ impl ActivityLogEntry {
         description: String,
         interaction_with: String,
         url: Option<String>,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, ActivityLogError> {
         let date = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|e| Error::CreateActivityLogEntry(e.to_string()))?
+            .map_err(|e| ActivityLogError::CreateActivityLogEntry(e.to_string()))?
             .as_secs();
 
         Ok(Self {
@@ -170,15 +170,15 @@ impl ActivityLogEntry {
     }
 
     #[uniffi::constructor]
-    fn from_json_bytes(bytes: Vec<u8>) -> Result<Self, Error> {
+    fn from_json_bytes(bytes: Vec<u8>) -> Result<Self, ActivityLogError> {
         serde_json::from_slice(&bytes)
-            .map_err(|e| Error::ActivityLogEntryDeserialization(e.to_string()))
+            .map_err(|e| ActivityLogError::ActivityLogEntryDeserialization(e.to_string()))
     }
 
     #[uniffi::constructor]
-    fn from_json_str(json_str: String) -> Result<Self, Error> {
+    fn from_json_str(json_str: String) -> Result<Self, ActivityLogError> {
         serde_json::from_str(&json_str)
-            .map_err(|e| Error::ActivityLogEntryDeserialization(e.to_string()))
+            .map_err(|e| ActivityLogError::ActivityLogEntryDeserialization(e.to_string()))
     }
 
     // Getter Methods
@@ -216,13 +216,15 @@ impl ActivityLogEntry {
     }
 
     /// Serializes the activity log as a byte-encoded JSON string
-    fn to_json_bytes(&self) -> Result<Vec<u8>, Error> {
-        serde_json::to_vec(self).map_err(|e| Error::ActivityLogEntrySerialization(e.to_string()))
+    fn to_json_bytes(&self) -> Result<Vec<u8>, ActivityLogError> {
+        serde_json::to_vec(self)
+            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))
     }
 
     /// Serializes the activity log as a JSON string
-    fn to_json_string(&self) -> Result<String, Error> {
-        serde_json::to_string(self).map_err(|e| Error::ActivityLogEntrySerialization(e.to_string()))
+    fn to_json_string(&self) -> Result<String, ActivityLogError> {
+        serde_json::to_string(self)
+            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))
     }
 }
 
@@ -272,7 +274,7 @@ impl ActivityLog {
     pub async fn load(
         credential_id: Uuid,
         storage: Arc<dyn StorageManagerInterface>,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, ActivityLogError> {
         Ok(Self {
             credential_id,
             storage,
@@ -281,9 +283,9 @@ impl ActivityLog {
 
     /// Adds and saved an activity log entry using the storage manager
     /// interface provided.
-    pub async fn add(&self, entry: Arc<ActivityLogEntry>) -> Result<(), Error> {
+    pub async fn add(&self, entry: Arc<ActivityLogEntry>) -> Result<(), ActivityLogError> {
         if entry.credential_id != self.credential_id {
-            return Err(Error::InvalidCredentialId(
+            return Err(ActivityLogError::InvalidCredentialId(
                 entry.credential_id,
                 self.credential_id,
             ));
@@ -295,17 +297,22 @@ impl ActivityLog {
         self.storage
             .add(key, value)
             .await
-            .map_err(|e| Error::Storage(e.to_string()))
+            .map_err(|e| ActivityLogError::Storage(e.to_string()))?;
+
+        Ok(())
     }
 
-    pub async fn get(&self, entry_id: Uuid) -> Result<Option<Arc<ActivityLogEntry>>, Error> {
+    pub async fn get(
+        &self,
+        entry_id: Uuid,
+    ) -> Result<Option<Arc<ActivityLogEntry>>, ActivityLogError> {
         let key = ActivityLogEntry::credential_and_entry_id_to_key(self.credential_id, entry_id);
 
         let value = self
             .storage
             .get(key)
             .await
-            .map_err(|e| Error::Storage(e.to_string()))?
+            .map_err(|e| ActivityLogError::Storage(e.to_string()))?
             .and_then(|value| value.try_into().ok())
             .map(|entry: ActivityLogEntry| Arc::new(entry));
 
@@ -316,7 +323,7 @@ impl ActivityLog {
         &self,
         entry_id: Uuid,
         should_hide: bool,
-    ) -> Result<Arc<ActivityLogEntry>, Error> {
+    ) -> Result<Arc<ActivityLogEntry>, ActivityLogError> {
         let entry = self.get(entry_id).await?;
 
         match entry {
@@ -331,19 +338,19 @@ impl ActivityLog {
 
                 Ok(new_arc_entry)
             }
-            None => Err(Error::NotFound(format!(
+            None => Err(ActivityLogError::NotFound(format!(
                 "Activity log entry for {entry_id} not found"
             ))),
         }
     }
 
-    pub async fn remove(&self, entry_id: Uuid) -> Result<(), Error> {
+    pub async fn remove(&self, entry_id: Uuid) -> Result<(), ActivityLogError> {
         let key = ActivityLogEntry::credential_and_entry_id_to_key(self.credential_id, entry_id);
 
         self.storage
             .remove(key)
             .await
-            .map_err(|e| Error::Storage(e.to_string()))?;
+            .map_err(|e| ActivityLogError::Storage(e.to_string()))?;
 
         Ok(())
     }
@@ -353,7 +360,7 @@ impl ActivityLog {
     pub async fn entries(
         &self,
         filter: Option<ActivityLogFilterOptions>,
-    ) -> Result<Vec<Arc<ActivityLogEntry>>, Error> {
+    ) -> Result<Vec<Arc<ActivityLogEntry>>, ActivityLogError> {
         let entries = self
             .filter_entries(filter)
             .await?
@@ -368,14 +375,14 @@ impl ActivityLog {
     pub async fn export_entries(
         &self,
         filter: Option<ActivityLogFilterOptions>,
-    ) -> Result<String, Error> {
+    ) -> Result<String, ActivityLogError> {
         let entries = self
             .filter_entries(filter)
             .await?
             .into_iter()
             .collect::<Vec<ActivityLogEntry>>();
         serde_json::to_string(&entries)
-            .map_err(|e| Error::ActivityLogEntrySerialization(e.to_string()))
+            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))
     }
 }
 
@@ -385,12 +392,12 @@ impl ActivityLog {
     pub async fn filter_entries(
         &self,
         filter: Option<ActivityLogFilterOptions>,
-    ) -> Result<Vec<ActivityLogEntry>, Error> {
+    ) -> Result<Vec<ActivityLogEntry>, ActivityLogError> {
         let keys = self
             .storage
             .list()
             .await
-            .map_err(|e| Error::Storage(e.to_string()))?
+            .map_err(|e| ActivityLogError::Storage(e.to_string()))?
             .into_iter()
             .filter(|key| key.strip_prefix(KEY_PREFIX).is_some())
             .collect::<Vec<Key>>();
@@ -424,7 +431,7 @@ impl From<&ActivityLogEntry> for Key {
 }
 
 impl TryFrom<&ActivityLogEntry> for Value {
-    type Error = Error;
+    type Error = ActivityLogError;
 
     fn try_from(entry: &ActivityLogEntry) -> Result<Self, Self::Error> {
         entry.to_json_bytes().map(Value)
@@ -432,7 +439,7 @@ impl TryFrom<&ActivityLogEntry> for Value {
 }
 
 impl TryFrom<Value> for ActivityLogEntry {
-    type Error = Error;
+    type Error = ActivityLogError;
 
     fn try_from(value: Value) -> Result<Self, Self::Error> {
         Self::from_json_bytes(value.0)
@@ -446,7 +453,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    async fn test_activity_log() -> Result<(), Error> {
+    async fn test_activity_log() -> Result<(), ActivityLogError> {
         let storage = Arc::new(DummyStorage::default());
         let credential_id = Uuid::new_v4();
 
