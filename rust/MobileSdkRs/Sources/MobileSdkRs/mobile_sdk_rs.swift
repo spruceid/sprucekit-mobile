@@ -395,13 +395,7 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 
 
 // Public interface members begin here.
-// Magic number for the Rust proxy to call using the same mechanism as every other method,
-// to free the callback once it's dropped by Rust.
-private let IDX_CALLBACK_FREE: Int32 = 0
-// Callback return codes
-private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
-private let UNIFFI_CALLBACK_ERROR: Int32 = 1
-private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
+
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -427,6 +421,22 @@ fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
     typealias SwiftType = UInt16
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt16 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
+    typealias FfiType = UInt32
+    typealias SwiftType = UInt32
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UInt32 {
         return try lift(readInt(&buf))
     }
 
@@ -569,6 +579,541 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 
 
+/**
+ * Activity Log has a 1:1 relationship with a credential
+ * and a credential ID is provided to the constructor, along
+ * with a reference to the storage manager interface to lookup
+ * the activity log details per the credential, returning this
+ * class with its accessor methods.
+ */
+public protocol ActivityLogProtocol: AnyObject, Sendable {
+    
+    /**
+     * Adds and saved an activity log entry using the storage manager
+     * interface provided.
+     */
+    func add(entry: ActivityLogEntry) async throws 
+    
+    /**
+     * Returns a list of activity log entries matching the
+     * `credential_id` corresponding to the activity log.
+     */
+    func entries(filter: ActivityLogFilterOptions?) async throws  -> [ActivityLogEntry]
+    
+    /**
+     * Returns the optionally filtered activity log entries list as a JSON encoded string for export use.
+     */
+    func exportEntries(filter: ActivityLogFilterOptions?) async throws  -> String
+    
+    func get(entryId: Uuid) async throws  -> ActivityLogEntry?
+    
+    func remove(entryId: Uuid) async throws 
+    
+    func setHidden(entryId: Uuid, shouldHide: Bool) async throws  -> ActivityLogEntry
+    
+}
+/**
+ * Activity Log has a 1:1 relationship with a credential
+ * and a credential ID is provided to the constructor, along
+ * with a reference to the storage manager interface to lookup
+ * the activity log details per the credential, returning this
+ * class with its accessor methods.
+ */
+open class ActivityLog: ActivityLogProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_activitylog(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_activitylog(pointer, $0) }
+    }
+
+    
+    /**
+     * Load activity log for the credential id.
+     *
+     * Requires a storage manager interface for looking up
+     * the activity log details.
+     *
+     * Credential ID corresponds to the unique identifier of
+     * the credential in the storage, which can be accessed via
+     * the VDC collection or other storage mechanism.
+     *
+     * It is assumed the storage manager interface that is
+     * passed in, is the same as the VDC collection storage manager.
+
+     */
+public static func load(credentialId: Uuid, storage: StorageManagerInterface)async throws  -> ActivityLog  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_activitylog_load(FfiConverterTypeUuid_lower(credentialId),FfiConverterTypeStorageManagerInterface_lower(storage)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeActivityLog_lift,
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+
+    
+    /**
+     * Adds and saved an activity log entry using the storage manager
+     * interface provided.
+     */
+open func add(entry: ActivityLogEntry)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_add(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeActivityLogEntry_lower(entry)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+    /**
+     * Returns a list of activity log entries matching the
+     * `credential_id` corresponding to the activity log.
+     */
+open func entries(filter: ActivityLogFilterOptions?)async throws  -> [ActivityLogEntry]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_entries(
+                    self.uniffiClonePointer(),
+                    FfiConverterOptionTypeActivityLogFilterOptions.lower(filter)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeActivityLogEntry.lift,
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+    /**
+     * Returns the optionally filtered activity log entries list as a JSON encoded string for export use.
+     */
+open func exportEntries(filter: ActivityLogFilterOptions?)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_export_entries(
+                    self.uniffiClonePointer(),
+                    FfiConverterOptionTypeActivityLogFilterOptions.lower(filter)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+open func get(entryId: Uuid)async throws  -> ActivityLogEntry?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_get(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUuid_lower(entryId)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeActivityLogEntry.lift,
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+open func remove(entryId: Uuid)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_remove(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUuid_lower(entryId)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+open func setHidden(entryId: Uuid, shouldHide: Bool)async throws  -> ActivityLogEntry  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_set_hidden(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeUuid_lower(entryId),FfiConverterBool.lower(shouldHide)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeActivityLogEntry_lift,
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeActivityLog: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = ActivityLog
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> ActivityLog {
+        return ActivityLog(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: ActivityLog) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ActivityLog {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: ActivityLog, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLog_lift(_ pointer: UnsafeMutableRawPointer) throws -> ActivityLog {
+    return try FfiConverterTypeActivityLog.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLog_lower(_ value: ActivityLog) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeActivityLog.lower(value)
+}
+
+
+
+
+
+
+public protocol ActivityLogEntryProtocol: AnyObject, Sendable {
+    
+    func getCredentialId()  -> Uuid
+    
+    func getDate()  -> UInt64
+    
+    func getDescription()  -> String
+    
+    func getHidden()  -> Bool
+    
+    func getId()  -> Uuid
+    
+    func getInteractionWith()  -> String
+    
+    func getType()  -> ActivityLogEntryType
+    
+    func getUrl()  -> String?
+    
+    /**
+     * Serializes the activity log as a byte-encoded JSON string
+     */
+    func toJsonBytes() throws  -> Data
+    
+    /**
+     * Serializes the activity log as a JSON string
+     */
+    func toJsonString() throws  -> String
+    
+}
+open class ActivityLogEntry: ActivityLogEntryProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_activitylogentry(self.pointer, $0) }
+    }
+public convenience init(credentialId: Uuid, type: ActivityLogEntryType, description: String, interactionWith: String, url: String?)throws  {
+    let pointer =
+        try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_activitylogentry_new(
+        FfiConverterTypeUuid_lower(credentialId),
+        FfiConverterTypeActivityLogEntryType_lower(type),
+        FfiConverterString.lower(description),
+        FfiConverterString.lower(interactionWith),
+        FfiConverterOptionString.lower(url),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_activitylogentry(pointer, $0) }
+    }
+
+    
+public static func fromJsonBytes(bytes: Data)throws  -> ActivityLogEntry  {
+    return try  FfiConverterTypeActivityLogEntry_lift(try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_activitylogentry_from_json_bytes(
+        FfiConverterData.lower(bytes),$0
+    )
+})
+}
+    
+public static func fromJsonStr(jsonStr: String)throws  -> ActivityLogEntry  {
+    return try  FfiConverterTypeActivityLogEntry_lift(try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_activitylogentry_from_json_str(
+        FfiConverterString.lower(jsonStr),$0
+    )
+})
+}
+    
+
+    
+open func getCredentialId() -> Uuid  {
+    return try!  FfiConverterTypeUuid_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_credential_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getDate() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_date(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getDescription() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_description(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getHidden() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_hidden(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getId() -> Uuid  {
+    return try!  FfiConverterTypeUuid_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getInteractionWith() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_interaction_with(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getType() -> ActivityLogEntryType  {
+    return try!  FfiConverterTypeActivityLogEntryType_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_type(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getUrl() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_url(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Serializes the activity log as a byte-encoded JSON string
+     */
+open func toJsonBytes()throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_to_json_bytes(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Serializes the activity log as a JSON string
+     */
+open func toJsonString()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_to_json_string(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeActivityLogEntry: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = ActivityLogEntry
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> ActivityLogEntry {
+        return ActivityLogEntry(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: ActivityLogEntry) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ActivityLogEntry {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: ActivityLogEntry, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogEntry_lift(_ pointer: UnsafeMutableRawPointer) throws -> ActivityLogEntry {
+    return try FfiConverterTypeActivityLogEntry.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogEntry_lower(_ value: ActivityLogEntry) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeActivityLogEntry.lower(value)
+}
+
+
+
+
+
+
 public protocol AsyncHttpClient: AnyObject, Sendable {
     
     func httpClient(request: HttpRequest) async throws  -> HttpResponse
@@ -645,7 +1190,13 @@ open func httpClient(request: HttpRequest)async throws  -> HttpResponse  {
     
 
 }
-
+// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+private let IDX_CALLBACK_FREE: Int32 = 0
+// Callback return codes
+private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
+private let UNIFFI_CALLBACK_ERROR: Int32 = 1
+private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
 // Put the implementation in a struct so we don't pollute the top-level namespace
 fileprivate struct UniffiCallbackInterfaceAsyncHttpClient {
@@ -5510,6 +6061,8 @@ public func FfiConverterTypeMdlPresentationSession_lower(_ value: MdlPresentatio
 
 public protocol MdocProtocol: AnyObject, Sendable {
     
+    func activityLog(storage: StorageManagerInterface) async throws  -> ActivityLog
+    
     /**
      * Simple representation of mdoc namespace and data elements for display in the UI.
      */
@@ -5619,6 +6172,23 @@ public static func newFromBase64urlEncodedIssuerSigned(base64urlEncodedIssuerSig
 }
     
 
+    
+open func activityLog(storage: StorageManagerInterface)async throws  -> ActivityLog  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_mdoc_activity_log(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeStorageManagerInterface_lower(storage)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeActivityLog_lift,
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
     
     /**
      * Simple representation of mdoc namespace and data elements for display in the UI.
@@ -10035,6 +10605,130 @@ public func FfiConverterTypeWalletServiceClient_lower(_ value: WalletServiceClie
 
 
 
+public struct ActivityLogFilterOptions {
+    /**
+     * Timestamp of when the logs should be filtered from
+     */
+    public var fromDate: UInt64?
+    /**
+     * Timestamp of when the logs should be filtered to
+     */
+    public var toDate: UInt64?
+    /**
+     * Entry type to filter
+     */
+    public var type: ActivityLogEntryType?
+    /**
+     * Filter on an interaction actor (e.g., Issuer, Verifier)
+     */
+    public var interactedWith: String?
+    /**
+     * Max items to be returned
+     */
+    public var maxItems: UInt32?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Timestamp of when the logs should be filtered from
+         */fromDate: UInt64?, 
+        /**
+         * Timestamp of when the logs should be filtered to
+         */toDate: UInt64?, 
+        /**
+         * Entry type to filter
+         */type: ActivityLogEntryType?, 
+        /**
+         * Filter on an interaction actor (e.g., Issuer, Verifier)
+         */interactedWith: String?, 
+        /**
+         * Max items to be returned
+         */maxItems: UInt32?) {
+        self.fromDate = fromDate
+        self.toDate = toDate
+        self.type = type
+        self.interactedWith = interactedWith
+        self.maxItems = maxItems
+    }
+}
+
+#if compiler(>=6)
+extension ActivityLogFilterOptions: Sendable {}
+#endif
+
+
+extension ActivityLogFilterOptions: Equatable, Hashable {
+    public static func ==(lhs: ActivityLogFilterOptions, rhs: ActivityLogFilterOptions) -> Bool {
+        if lhs.fromDate != rhs.fromDate {
+            return false
+        }
+        if lhs.toDate != rhs.toDate {
+            return false
+        }
+        if lhs.type != rhs.type {
+            return false
+        }
+        if lhs.interactedWith != rhs.interactedWith {
+            return false
+        }
+        if lhs.maxItems != rhs.maxItems {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(fromDate)
+        hasher.combine(toDate)
+        hasher.combine(type)
+        hasher.combine(interactedWith)
+        hasher.combine(maxItems)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeActivityLogFilterOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ActivityLogFilterOptions {
+        return
+            try ActivityLogFilterOptions(
+                fromDate: FfiConverterOptionUInt64.read(from: &buf), 
+                toDate: FfiConverterOptionUInt64.read(from: &buf), 
+                type: FfiConverterOptionTypeActivityLogEntryType.read(from: &buf), 
+                interactedWith: FfiConverterOptionString.read(from: &buf), 
+                maxItems: FfiConverterOptionUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ActivityLogFilterOptions, into buf: inout [UInt8]) {
+        FfiConverterOptionUInt64.write(value.fromDate, into: &buf)
+        FfiConverterOptionUInt64.write(value.toDate, into: &buf)
+        FfiConverterOptionTypeActivityLogEntryType.write(value.type, into: &buf)
+        FfiConverterOptionString.write(value.interactedWith, into: &buf)
+        FfiConverterOptionUInt32.write(value.maxItems, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogFilterOptions_lift(_ buf: RustBuffer) throws -> ActivityLogFilterOptions {
+    return try FfiConverterTypeActivityLogFilterOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogFilterOptions_lower(_ value: ActivityLogFilterOptions) -> RustBuffer {
+    return FfiConverterTypeActivityLogFilterOptions.lower(value)
+}
+
+
 public struct ApprovedResponse180137 {
     public var credentialId: Uuid
     public var approvedFields: [FieldId180137]
@@ -11878,6 +12572,226 @@ public func FfiConverterTypeTestMdlData_lower(_ value: TestMdlData) -> RustBuffe
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
+public enum ActivityLogEntryType {
+    
+    case request
+    case issued
+    case shared
+    case refresh
+    case review
+    case deleted
+}
+
+
+#if compiler(>=6)
+extension ActivityLogEntryType: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeActivityLogEntryType: FfiConverterRustBuffer {
+    typealias SwiftType = ActivityLogEntryType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ActivityLogEntryType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .request
+        
+        case 2: return .issued
+        
+        case 3: return .shared
+        
+        case 4: return .refresh
+        
+        case 5: return .review
+        
+        case 6: return .deleted
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ActivityLogEntryType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .request:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .issued:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .shared:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .refresh:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .review:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .deleted:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogEntryType_lift(_ buf: RustBuffer) throws -> ActivityLogEntryType {
+    return try FfiConverterTypeActivityLogEntryType.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogEntryType_lower(_ value: ActivityLogEntryType) -> RustBuffer {
+    return FfiConverterTypeActivityLogEntryType.lower(value)
+}
+
+
+extension ActivityLogEntryType: Equatable, Hashable {}
+
+
+
+
+public enum ActivityLogError: Swift.Error {
+
+    
+    
+    case NotFound(String
+    )
+    case CreateActivityLogEntry(String
+    )
+    case InvalidCredentialId(Uuid,Uuid
+    )
+    case ActivityLogEntrySerialization(String
+    )
+    case ActivityLogEntryDeserialization(String
+    )
+    case Storage(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeActivityLogError: FfiConverterRustBuffer {
+    typealias SwiftType = ActivityLogError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ActivityLogError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .NotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .CreateActivityLogEntry(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .InvalidCredentialId(
+            try FfiConverterTypeUuid.read(from: &buf), 
+            try FfiConverterTypeUuid.read(from: &buf)
+            )
+        case 4: return .ActivityLogEntrySerialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .ActivityLogEntryDeserialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .Storage(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ActivityLogError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .NotFound(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .CreateActivityLogEntry(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidCredentialId(v1,v2):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeUuid.write(v1, into: &buf)
+            FfiConverterTypeUuid.write(v2, into: &buf)
+            
+        
+        case let .ActivityLogEntrySerialization(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ActivityLogEntryDeserialization(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Storage(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogError_lift(_ buf: RustBuffer) throws -> ActivityLogError {
+    return try FfiConverterTypeActivityLogError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeActivityLogError_lower(_ value: ActivityLogError) -> RustBuffer {
+    return FfiConverterTypeActivityLogError.lower(value)
+}
+
+
+extension ActivityLogError: Equatable, Hashable {}
+
+
+
+extension ActivityLogError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
 public enum AuthenticationStatus {
     
     case valid
@@ -11946,9 +12860,6 @@ public func FfiConverterTypeAuthenticationStatus_lower(_ value: AuthenticationSt
 
 
 extension AuthenticationStatus: Equatable, Hashable {}
-
-
-
 
 
 
@@ -12028,14 +12939,11 @@ extension CborLdEncodingError: Equatable, Hashable {}
 
 
 
-
 extension CborLdEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -12176,8 +13084,6 @@ public func FfiConverterTypeCborValue_lower(_ value: CborValue) -> RustBuffer {
 
 
 
-
-
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -12270,9 +13176,6 @@ public func FfiConverterTypeClaimValue_lower(_ value: ClaimValue) -> RustBuffer 
 
 
 extension ClaimValue: Equatable, Hashable {}
-
-
-
 
 
 
@@ -12412,14 +13315,11 @@ extension CredentialDecodingError: Equatable, Hashable {}
 
 
 
-
 extension CredentialDecodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -12528,14 +13428,11 @@ extension CredentialEncodingError: Equatable, Hashable {}
 
 
 
-
 extension CredentialEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -12647,9 +13544,6 @@ extension CredentialFormat: Equatable, Hashable {}
 
 
 
-
-
-
 public enum CredentialPresentationError: Swift.Error {
 
     
@@ -12725,14 +13619,11 @@ extension CredentialPresentationError: Equatable, Hashable {}
 
 
 
-
 extension CredentialPresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -12801,14 +13692,11 @@ extension CryptoError: Equatable, Hashable {}
 
 
 
-
 extension CryptoError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13075,14 +13963,11 @@ extension CwtError: Equatable, Hashable {}
 
 
 
-
 extension CwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13161,14 +14046,11 @@ extension DcApiError: Equatable, Hashable {}
 
 
 
-
 extension DcApiError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -13249,9 +14131,6 @@ public func FfiConverterTypeDelegatedVerifierStatus_lower(_ value: DelegatedVeri
 
 
 extension DelegatedVerifierStatus: Equatable, Hashable {}
-
-
-
 
 
 
@@ -13345,14 +14224,11 @@ extension DidError: Equatable, Hashable {}
 
 
 
-
 extension DidError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -13419,9 +14295,6 @@ public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
 
 
 extension DidMethod: Equatable, Hashable {}
-
-
-
 
 
 
@@ -13526,9 +14399,6 @@ public func FfiConverterTypeFlowState_lower(_ value: FlowState) -> RustBuffer {
 
 
 extension FlowState: Equatable, Hashable {}
-
-
-
 
 
 
@@ -13660,14 +14530,11 @@ extension HttpClientError: Equatable, Hashable {}
 
 
 
-
 extension HttpClientError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13811,14 +14678,11 @@ extension IssuanceServiceError: Equatable, Hashable {}
 
 
 
-
 extension IssuanceServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13883,14 +14747,11 @@ extension JsonVcEncodingError: Equatable, Hashable {}
 
 
 
-
 extension JsonVcEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13973,14 +14834,11 @@ extension JsonVcInitError: Equatable, Hashable {}
 
 
 
-
 extension JsonVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14087,14 +14945,11 @@ extension JwtVcInitError: Equatable, Hashable {}
 
 
 
-
 extension JwtVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14193,14 +15048,11 @@ extension KeyTransformationError: Equatable, Hashable {}
 
 
 
-
 extension KeyTransformationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14293,14 +15145,11 @@ extension MdlReaderResponseError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14369,14 +15218,11 @@ extension MdlReaderResponseSerializeError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderResponseSerializeError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14445,14 +15291,11 @@ extension MdlReaderSessionError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderSessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -14559,9 +15402,6 @@ extension MDocItem: Equatable, Hashable {}
 
 
 
-
-
-
 public enum MdlUtilError: Swift.Error {
 
     
@@ -14627,14 +15467,11 @@ extension MdlUtilError: Equatable, Hashable {}
 
 
 
-
 extension MdlUtilError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14703,14 +15540,11 @@ extension MdocDateError: Equatable, Hashable {}
 
 
 
-
 extension MdocDateError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14775,14 +15609,11 @@ extension MdocEncodingError: Equatable, Hashable {}
 
 
 
-
 extension MdocEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14893,14 +15724,11 @@ extension MdocInitError: Equatable, Hashable {}
 
 
 
-
 extension MdocInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14989,14 +15817,11 @@ extension Oid4vp180137Error: Equatable, Hashable {}
 
 
 
-
 extension Oid4vp180137Error: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15375,14 +16200,11 @@ extension Oid4vpError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15539,14 +16361,11 @@ extension Oid4vciError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vciError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15625,14 +16444,11 @@ extension Oid4vpVerifierError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vpVerifierError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -15715,9 +16531,6 @@ public func FfiConverterTypeOutcome_lower(_ value: Outcome) -> RustBuffer {
 
 
 extension Outcome: Equatable, Hashable {}
-
-
-
 
 
 
@@ -15908,14 +16721,11 @@ extension PermissionRequestError: Equatable, Hashable {}
 
 
 
-
 extension PermissionRequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16016,14 +16826,11 @@ extension PopError: Equatable, Hashable {}
 
 
 
-
 extension PopError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16172,14 +16979,11 @@ extension PresentationBuilderError: Equatable, Hashable {}
 
 
 
-
 extension PresentationBuilderError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16288,14 +17092,11 @@ extension PresentationError: Equatable, Hashable {}
 
 
 
-
 extension PresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16364,14 +17165,11 @@ extension RequestError: Equatable, Hashable {}
 
 
 
-
 extension RequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16446,14 +17244,11 @@ extension ResponseError: Equatable, Hashable {}
 
 
 
-
 extension ResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16568,14 +17363,11 @@ extension SdJwtError: Equatable, Hashable {}
 
 
 
-
 extension SdJwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16644,14 +17436,11 @@ extension SessionError: Equatable, Hashable {}
 
 
 
-
 extension SessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16736,14 +17525,11 @@ extension SignatureError: Equatable, Hashable {}
 
 
 
-
 extension SignatureError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16818,14 +17604,11 @@ extension StatusListError: Equatable, Hashable {}
 
 
 
-
 extension StatusListError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16936,14 +17719,11 @@ extension StorageManagerError: Equatable, Hashable {}
 
 
 
-
 extension StorageManagerError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17012,14 +17792,11 @@ extension TerminationError: Equatable, Hashable {}
 
 
 
-
 extension TerminationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17094,14 +17871,11 @@ extension VcbVerificationError: Equatable, Hashable {}
 
 
 
-
 extension VcbVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17170,14 +17944,11 @@ extension VcVerificationError: Equatable, Hashable {}
 
 
 
-
 extension VcVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17268,14 +18039,11 @@ extension VpError: Equatable, Hashable {}
 
 
 
-
 extension VpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -17342,9 +18110,6 @@ public func FfiConverterTypeVcdmVersion_lower(_ value: VcdmVersion) -> RustBuffe
 
 
 extension VcdmVersion: Equatable, Hashable {}
-
-
-
 
 
 
@@ -17461,14 +18226,11 @@ extension VdcCollectionError: Equatable, Hashable {}
 
 
 
-
 extension VdcCollectionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -17538,9 +18300,6 @@ public func FfiConverterTypeVerificationResult_lower(_ value: VerificationResult
 
 
 extension VerificationResult: Equatable, Hashable {}
-
-
-
 
 
 
@@ -17704,14 +18463,11 @@ extension WalletServiceError: Equatable, Hashable {}
 
 
 
-
 extension WalletServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -18034,6 +18790,54 @@ public func FfiConverterCallbackInterfacePresentationSigner_lower(_ v: Presentat
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
+    typealias SwiftType = UInt32?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt32.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt32.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
+    typealias SwiftType = UInt64?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt64.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionInt64: FfiConverterRustBuffer {
     typealias SwiftType = Int64?
 
@@ -18122,6 +18926,30 @@ fileprivate struct FfiConverterOptionData: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterData.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeActivityLogEntry: FfiConverterRustBuffer {
+    typealias SwiftType = ActivityLogEntry?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeActivityLogEntry.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeActivityLogEntry.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -18250,6 +19078,30 @@ fileprivate struct FfiConverterOptionTypeVCDM2SdJwt: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeActivityLogFilterOptions: FfiConverterRustBuffer {
+    typealias SwiftType = ActivityLogFilterOptions?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeActivityLogFilterOptions.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeActivityLogFilterOptions.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeCredential: FfiConverterRustBuffer {
     typealias SwiftType = Credential?
 
@@ -18314,6 +19166,30 @@ fileprivate struct FfiConverterOptionTypeDelegatedVerifierOid4vpResponse: FfiCon
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeDelegatedVerifierOid4vpResponse.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeActivityLogEntryType: FfiConverterRustBuffer {
+    typealias SwiftType = ActivityLogEntryType?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeActivityLogEntryType.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeActivityLogEntryType.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -18459,6 +19335,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeActivityLogEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [ActivityLogEntry]
+
+    public static func write(_ value: [ActivityLogEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeActivityLogEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ActivityLogEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ActivityLogEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeActivityLogEntry.read(from: &buf))
         }
         return seq
     }
@@ -20395,6 +21296,54 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verify_vcb_qrcode_against_mrz() != 36527) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_add() != 13013) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_entries() != 20975) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_export_entries() != 39487) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_get() != 49762) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove() != 2228) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_set_hidden() != 41883) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_credential_id() != 4490) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_date() != 5229) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_description() != 26368) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_hidden() != 22447) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_id() != 45429) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_interaction_with() != 19643) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_type() != 42347) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_url() != 27288) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_to_json_bytes() != 53847) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_to_json_string() != 34215) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_asynchttpclient_http_client() != 44924) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -20555,6 +21504,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_terminate_session() != 8677) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_activity_log() != 37631) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_details() != 29355) {
@@ -20819,6 +21771,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_nonce() != 12116) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylog_load() != 44892) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_from_json_bytes() != 49434) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_from_json_str() != 13043) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_new() != 64574) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {

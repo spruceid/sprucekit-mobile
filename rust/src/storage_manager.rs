@@ -1,4 +1,5 @@
 use crate::common::*;
+
 use std::fmt::Debug;
 
 use async_trait::async_trait;
@@ -73,4 +74,60 @@ pub trait StorageManagerInterface: Send + Sync + Debug {
     /// particular, it must treat removing a non-existent key as a normal and
     /// expected circumstance, simply returning () and not an error.
     async fn remove(&self, key: Key) -> Result<(), StorageManagerError>;
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use std::collections::HashMap;
+    use tokio::sync::RwLock;
+
+    /// Dummy Storage Implementation for testing
+    #[derive(Default, Debug)]
+    pub struct DummyStorage(pub(crate) RwLock<HashMap<Key, Value>>);
+
+    #[async_trait]
+    impl StorageManagerInterface for DummyStorage {
+        async fn add(&self, key: Key, value: Value) -> Result<(), StorageManagerError> {
+            let mut inner = self
+                .0
+                .try_write()
+                .map_err(|_| StorageManagerError::InternalError)?;
+
+            inner.insert(key, value);
+
+            Ok(())
+        }
+
+        async fn get(&self, key: Key) -> Result<Option<Value>, StorageManagerError> {
+            let inner = self
+                .0
+                .try_read()
+                .map_err(|_| StorageManagerError::InternalError)?;
+
+            Ok(inner.get(&key).map(ToOwned::to_owned))
+        }
+
+        async fn list(&self) -> Result<Vec<Key>, StorageManagerError> {
+            let inner = self
+                .0
+                .try_read()
+                .map_err(|_| StorageManagerError::InternalError)?;
+
+            let keys = inner.keys().map(ToOwned::to_owned).collect();
+
+            Ok(keys)
+        }
+
+        async fn remove(&self, key: Key) -> Result<(), StorageManagerError> {
+            let mut inner = self
+                .0
+                .try_write()
+                .map_err(|_| StorageManagerError::InternalError)?;
+
+            inner.remove(&key);
+
+            Ok(())
+        }
+    }
 }

@@ -11,7 +11,12 @@ use isomdl::{
 use time::format_description::well_known::Iso8601;
 use uuid::Uuid;
 
-use crate::{crypto::KeyAlias, CredentialType};
+use crate::{
+    credential::activity_log::{self, ActivityLog},
+    crypto::KeyAlias,
+    storage_manager::StorageManagerInterface,
+    CredentialType,
+};
 
 use super::{Credential, CredentialFormat};
 
@@ -130,6 +135,14 @@ impl Mdoc {
             .valid_until
             .format(&Iso8601::DEFAULT)
             .map_err(|e| MdocDateError::Formatting(format!("{e:?}")))
+    }
+
+    pub async fn activity_log(
+        &self,
+        storage: Arc<dyn StorageManagerInterface>,
+    ) -> Result<ActivityLog, activity_log::ActivityLogError> {
+        let credential_id = self.document().id;
+        ActivityLog::load(credential_id, storage).await
     }
 }
 
