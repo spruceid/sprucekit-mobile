@@ -58,10 +58,9 @@ jobs:
       # - uses: taiki-e/install-action@v2
       #   with:
       #     tool: cargo-swift
-      - name: Install unreleased version of cargo-swift
+      - name: Install static version of cargo-swift
         run: cargo install cargo-swift@^0.9
       - run: brew install swiftlint
-
       - name: Generate Swift package
         run: cargo swift package -p ios -n MobileSdkRs --target aarch64-apple-ios-sim
         working-directory: rust
@@ -78,7 +77,6 @@ jobs:
           xcodegen generate
           cd ../Showcase
           xcodegen generate
-
       - name: Test MobileSdk
         uses: mxcl/xcodebuild@v3
         with:
