@@ -124,7 +124,8 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         val mdoc = this.firstMdoc()
         when (presentData) {
             is CredentialPresentData.Nfc -> {
-                _uuid.value = presentData.uuid;
+                val uuidStr = presentData.prenegotiatedBle.getBleUuid()
+                _uuid.value = UUID.fromString(uuidStr)
                 _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Nfc(presentData.prenegotiatedBle))
                 _currState.value = PresentmentState.ENGAGING_NFC_SEARCHING
                 _transport.value = presentData.transport

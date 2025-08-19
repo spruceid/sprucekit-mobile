@@ -93,6 +93,19 @@ impl PrenegotiatedBle {
             })?;
         Ok(bytes.0.into()) // TODO: Does NfcHandover::create_handover_select need to return the request back to us?
     }
+
+    /// Returns NFC direct handover information, formatted as an NDEF record.
+    /// This method uses TNEP to establish a direct handover via BLE.
+    /// Not all devices may support this method. See the documentation for [`isomdl::presentation::device::PrenegotiatedBle::nfc_handover_direct`].
+    pub fn get_nfc_handover_direct(&self) -> Result<Vec<u8>, SessionError> {
+        let bytes = self
+            .0
+            .nfc_handover_direct()
+            .map_err(|e| SessionError::Generic {
+                value: format!("Could not get NFC direct handover: {e:?}"),
+            })?;
+        Ok(bytes.0.into())
+    }
 }
 
 /// Begin the mDL presentation process for the holder when the desired

@@ -37,6 +37,7 @@ enum class ApduResponse(val bytes: ByteArray) {
     NOT_FOUND("6A82".fromHex()),
     INCORRECT_P1_OR_P2("6A86".fromHex()),
     CONDITIONS_NOT_SATISFIED("6985".fromHex()),
+    FILE_OR_APPLICATION_NOT_FOUND("6A82".fromHex()),
 }
 
 enum class FileId(val id: Int) {
