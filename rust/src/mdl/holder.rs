@@ -18,8 +18,9 @@ use std::{
 };
 
 use isomdl::definitions::device_engagement;
-use isomdl::definitions::device_engagement::nfc_handover::NfcHandoverType;
+use isomdl::definitions::device_engagement::nfc_handover::{NfcHandover, NfcHandoverType};
 use isomdl::definitions::session::Handover;
+use isomdl::definitions::traits::ToCbor;
 use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
     definitions::{
@@ -109,6 +110,12 @@ impl PrenegotiatedBle {
                 value: format!("Could not get NFC direct handover: {e:?}"),
             })?;
         Ok(bytes.into())
+    }
+
+    /// Construct an NFC TNEP `Te` Status record
+    pub fn create_tnep_status_record(&self, status: u8) -> Result<Vec<u8>, SessionError> {
+        NfcHandover::create_tnep_status_record(status)
+            .map_err(|e| SessionError::NfcRecord(e.to_string()))
     }
 }
 
@@ -491,6 +498,8 @@ pub enum SessionError {
     Generic { value: String },
     #[error("BLE Device Retrieval Error: {0}")]
     BLEDeviceRetrieval(String),
+    #[error("NFC NDEF Message Record Error: {0}")]
+    NfcRecord(String),
 }
 
 #[derive(thiserror::Error, uniffi::Error, Debug)]

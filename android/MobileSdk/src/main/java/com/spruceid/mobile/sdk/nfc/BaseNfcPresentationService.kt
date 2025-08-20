@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.ComponentName;
 import android.nfc.NdefMessage
+import android.nfc.NdefRecord
 import android.nfc.cardemulation.HostApduService
 import android.nfc.cardemulation.CardEmulation
 import android.nfc.NfcAdapter
@@ -25,6 +26,13 @@ enum class NfcPresentationError(val humanReadable: String) {
     CONNECTION_CLOSED("The device was removed from the reader too quickly."),
 }
 
+enum class NfcSessionState {
+    INIT,
+    SERVICE_SELECT, // Respond with Te message when the reader responds with a Service Select message
+    HANDOVER_REQUEST, // Awaiting the reader to set a handover request message to select an alternative carrier record from and response with a handover select message.
+    FINISHED, // Completed state of session
+}
+
 fun listenForApdus(applicationContext: Context, componentName: ComponentName, aids: List<ByteArray>) {
     val cardEmulation = CardEmulation.getInstance(NfcAdapter.getDefaultAdapter(applicationContext))
     val success = cardEmulation.registerAidsForService(componentName, CardEmulation.CATEGORY_OTHER, aids.map { it.toHex() })
@@ -36,6 +44,7 @@ var currentFileReadBytes: ByteArray? = null
 var currentFileWriteBytes: ByteArray? = null
 var fullWrittenFile: ByteArray? = null
 var currentFileId: FileId? = null
+var nfcSessionState: NfcSessionState = NfcSessionState.INIT
 //var sentInitialHandoverMsg = false
 
 abstract class BaseNfcPresentationService : HostApduService() {
@@ -150,7 +159,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
                             0x04, // NDEF file control TLV
                             0x06, // Length of TLV
                             0xe1, 0x04, // File ID: NDEF file (0xe104)
-                            0x00, 0x32, // Max size of NDEF file // TODO: validate this value
+                            0x00, 0x64, // Max size of NDEF file // TODO: validate this value
                             0x00, // Read access condition
                             0x00, // Write access condition. 00 for negotiated, ff for static
                         ).map { it.toByte() }.toByteArray()
@@ -159,21 +168,52 @@ abstract class BaseNfcPresentationService : HostApduService() {
                     FileId.NDEF_FILE -> {
                         Log.d(TAG, "Received SELECT FILE command for NDEF_FILE")
                         // val resp = getNDEFResponse() ?: return null
-                        val resp: ByteArray
-//                        if(!sentInitialHandoverMsg) {
-//                            Log.w(TAG, "Sending initial handover response")
-//                            sentInitialHandoverMsg = true
-//                            resp = prenegotiatedBle.getNfcHandoverDirect()
-//                        } else {
-                            @OptIn(kotlin.ExperimentalStdlibApi::class)
-                            Log.w(TAG, "Sending subsequent handover response - req from device: ${fullWrittenFile?.joinToString("") { it.toHexString() }}")
-                            resp = prenegotiatedBle.getNfcHandover(fullWrittenFile)
-//                        }
+
+                        var resp = ByteArray(0)
+
+                        when (nfcSessionState) {
+                            NfcSessionState.INIT -> {
+                                @OptIn(kotlin.ExperimentalStdlibApi::class)
+                                Log.w(TAG, "Sending handover initiation record Tp - req from device: ${fullWrittenFile?.joinToString("") { it.toHexString() }}")
+                                val isRequestRecord = true;
+                                resp = prenegotiatedBle.getNfcHandoverDirect()
+                                nfcSessionState = NfcSessionState.SERVICE_SELECT
+                            }
+                            NfcSessionState.SERVICE_SELECT -> {
+                                // We should receive an echo of the `urn:nfc:sn:hanover` message sent in the init state
+                                // We respond by acknowledging the exchange with a Te success status record
+
+                                @OptIn(kotlin.ExperimentalStdlibApi::class)
+                                Log.w(TAG, "Receiving handover service select record - ${fullWrittenFile?.joinToString("") { it.toHexString() }}")
+
+                                resp = prenegotiatedBle.createTnepStatusRecord(UByte.MIN_VALUE);
+                                nfcSessionState = NfcSessionState.HANDOVER_REQUEST
+                            }
+                            NfcSessionState.HANDOVER_REQUEST -> {
+                                // We should receive the alternative carrier records from the fullWrittenFile and parse the
+                                // values available.
+                                @OptIn(kotlin.ExperimentalStdlibApi::class)
+                                Log.w(TAG, "Receiving handover request record - ${fullWrittenFile?.joinToString("") { it.toHexString() }}")
+
+                                // Respond to the resp with the handover select message
+                                nfcSessionState = NfcSessionState.FINISHED
+                            }
+                            NfcSessionState.FINISHED -> {
+                                @OptIn(kotlin.ExperimentalStdlibApi::class)
+                                Log.w(TAG, "NFC handover session completed - File ${fullWrittenFile?.joinToString("") { it.toHexString() }}")
+                                nfcSessionState = NfcSessionState.INIT
+                            }
+                        }
+
+                        // After each message NDEF_FILE is received, need to reset the fullWrittenFile
+                        // for the next incoming message
                         fullWrittenFile = null
-                        // if (resp == null) {
-                        //     negotiationFailed(NfcPresentationError.NEGOTIATION_FAILED)
-                        //     return null // TODO: Error reporting
-                        // }
+
+                         if (resp == null) {
+                             Log.d(TAG, "NDEF error, negotiation failed")
+                             negotiationFailed(NfcPresentationError.NEGOTIATION_FAILED)
+                             return null // TODO: Error reporting
+                         }
 
                         val lenBytes = byteArrayOf(
                             (resp.size and 0xFF00 shr 8).toByte(),
