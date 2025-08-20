@@ -34,7 +34,9 @@ fun listenForApdus(applicationContext: Context, componentName: ComponentName, ai
 var currentInteractionId: Long = 0
 var currentFileReadBytes: ByteArray? = null
 var currentFileWriteBytes: ByteArray? = null
+var fullWrittenFile: ByteArray? = null
 var currentFileId: FileId? = null
+//var sentInitialHandoverMsg = false
 
 abstract class BaseNfcPresentationService : HostApduService() {
 
@@ -157,11 +159,22 @@ abstract class BaseNfcPresentationService : HostApduService() {
                     FileId.NDEF_FILE -> {
                         Log.d(TAG, "Received SELECT FILE command for NDEF_FILE")
                         // val resp = getNDEFResponse() ?: return null
-                        val resp = prenegotiatedBle.getNfcHandoverDirect()
+                        val resp: ByteArray
+//                        if(!sentInitialHandoverMsg) {
+//                            Log.w(TAG, "Sending initial handover response")
+//                            sentInitialHandoverMsg = true
+//                            resp = prenegotiatedBle.getNfcHandoverDirect()
+//                        } else {
+                            @OptIn(kotlin.ExperimentalStdlibApi::class)
+                            Log.w(TAG, "Sending subsequent handover response - req from device: ${fullWrittenFile?.joinToString("") { it.toHexString() }}")
+                            resp = prenegotiatedBle.getNfcHandover(fullWrittenFile)
+//                        }
+                        fullWrittenFile = null
                         // if (resp == null) {
                         //     negotiationFailed(NfcPresentationError.NEGOTIATION_FAILED)
                         //     return null // TODO: Error reporting
                         // }
+
                         val lenBytes = byteArrayOf(
                             (resp.size and 0xFF00 shr 8).toByte(),
                             (resp.size and 0x00FF).toByte()
@@ -228,9 +241,9 @@ abstract class BaseNfcPresentationService : HostApduService() {
                                 return ApduResponse.FILE_OR_APPLICATION_NOT_FOUND.bytes
                             }
 
-                            val finalFile = currentFileWriteBytes!!
+                            fullWrittenFile = currentFileWriteBytes!!
                             currentFileWriteBytes = null
-                            receivedNdefMessage(finalFile)
+                            ApduResponse.OK
                         }
                     } else {
                         // Got entire file in a single command.
@@ -272,7 +285,9 @@ abstract class BaseNfcPresentationService : HostApduService() {
 
         currentFileReadBytes = null
         currentFileWriteBytes = null
+        fullWrittenFile = null
         currentFileId = null
+        // sentInitialHandoverMsg = false
         // lastNDEFMessage = null
 
         fun defer(delay: Duration, action: Runnable) {
