@@ -879,6 +879,8 @@ public protocol ActivityLogEntryProtocol: AnyObject, Sendable {
     
     func getDescription()  -> String
     
+    func getFields()  -> [String]
+    
     func getHidden()  -> Bool
     
     func getId()  -> Uuid
@@ -939,7 +941,7 @@ open class ActivityLogEntry: ActivityLogEntryProtocol, @unchecked Sendable {
     public func uniffiClonePointer() -> UnsafeMutableRawPointer {
         return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_activitylogentry(self.pointer, $0) }
     }
-public convenience init(credentialId: Uuid, type: ActivityLogEntryType, description: String, interactionWith: String, url: String?)throws  {
+public convenience init(credentialId: Uuid, type: ActivityLogEntryType, description: String, interactionWith: String, fields: [String]?, url: String?)throws  {
     let pointer =
         try rustCallWithError(FfiConverterTypeActivityLogError_lift) {
     uniffi_mobile_sdk_rs_fn_constructor_activitylogentry_new(
@@ -947,6 +949,7 @@ public convenience init(credentialId: Uuid, type: ActivityLogEntryType, descript
         FfiConverterTypeActivityLogEntryType_lower(type),
         FfiConverterString.lower(description),
         FfiConverterString.lower(interactionWith),
+        FfiConverterOptionSequenceString.lower(fields),
         FfiConverterOptionString.lower(url),$0
     )
 }
@@ -997,6 +1000,13 @@ open func getDate() -> UInt64  {
 open func getDescription() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_description(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getFields() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_fields(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -21323,6 +21333,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_description() != 26368) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_fields() != 21671) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_hidden() != 22447) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -21782,7 +21795,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_from_json_str() != 13043) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_new() != 64574) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_new() != 48598) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {
