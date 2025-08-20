@@ -18,6 +18,7 @@ use std::{
 };
 
 use isomdl::definitions::device_engagement;
+use isomdl::definitions::device_engagement::nfc_handover::NfcHandoverType;
 use isomdl::definitions::session::Handover;
 use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
@@ -81,17 +82,20 @@ impl PrenegotiatedBle {
     }
 
     /// Returns NFC handover information, formatted as an NDEF record.
-    pub fn get_nfc_handover(
-        &self,
-        request_message: Option<Vec<u8>>,
-    ) -> Result<Vec<u8>, SessionError> {
+    pub fn get_nfc_handover(&self, is_request_record: bool) -> Result<Vec<u8>, SessionError> {
+        let record_type = if is_request_record {
+            NfcHandoverType::Request
+        } else {
+            NfcHandoverType::Select
+        };
+
         let bytes = self
             .0
-            .nfc_handover(request_message.map(|msg| msg.into()))
+            .nfc_handover(record_type)
             .map_err(|e| SessionError::Generic {
                 value: format!("Could not get NFC handover: {e:?}"),
             })?;
-        Ok(bytes.0.into()) // TODO: Does NfcHandover::create_handover_select need to return the request back to us?
+        Ok(bytes.into()) // TODO: Does NfcHandover::create_handover_select need to return the request back to us?
     }
 
     /// Returns NFC direct handover information, formatted as an NDEF record.
@@ -104,7 +108,7 @@ impl PrenegotiatedBle {
             .map_err(|e| SessionError::Generic {
                 value: format!("Could not get NFC direct handover: {e:?}"),
             })?;
-        Ok(bytes.0.into())
+        Ok(bytes.into())
     }
 }
 
