@@ -4910,6 +4910,19 @@ open class JsonVc: JsonVcProtocol, @unchecked Sendable {
     /**
      * Construct a new credential from UTF-8 encoded JSON.
      */
+public static func fromJsonWithIdAndKey(id: Uuid, utf8JsonString: String, keyAlias: KeyAlias)throws  -> JsonVc  {
+    return try  FfiConverterTypeJsonVc_lift(try rustCallWithError(FfiConverterTypeJsonVcInitError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_jsonvc_from_json_with_id_and_key(
+        FfiConverterTypeUuid_lower(id),
+        FfiConverterString.lower(utf8JsonString),
+        FfiConverterTypeKeyAlias_lower(keyAlias),$0
+    )
+})
+}
+    
+    /**
+     * Construct a new credential from UTF-8 encoded JSON.
+     */
 public static func newFromJson(utf8JsonString: String)throws  -> JsonVc  {
     return try  FfiConverterTypeJsonVc_lift(try rustCallWithError(FfiConverterTypeJsonVcInitError_lift) {
     uniffi_mobile_sdk_rs_fn_constructor_jsonvc_new_from_json(
@@ -7102,6 +7115,22 @@ open class ParsedCredential: ParsedCredentialProtocol, @unchecked Sendable {
         try! rustCall { uniffi_mobile_sdk_rs_fn_free_parsedcredential(pointer, $0) }
     }
 
+    
+    /**
+     * This method attempts to parse the credential depending on the credential format type provided, and provides
+     * an external UUID that can be used instead of creating a new UUID for the credential. This allows external reference
+     * IDs to parsed credentials.
+     */
+public static func fromStringWithIdAndFormat(id: Uuid, format: String, credential: String, keyAlias: KeyAlias)throws  -> ParsedCredential  {
+    return try  FfiConverterTypeParsedCredential_lift(try rustCallWithError(FfiConverterTypeCredentialDecodingError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_from_string_with_id_and_format(
+        FfiConverterTypeUuid_lower(id),
+        FfiConverterString.lower(format),
+        FfiConverterString.lower(credential),
+        FfiConverterTypeKeyAlias_lower(keyAlias),$0
+    )
+})
+}
     
     /**
      * Construct a new `cwt` credential.
@@ -9807,6 +9836,16 @@ open class Vcdm2SdJwt: Vcdm2SdJwtProtocol, @unchecked Sendable {
         try! rustCall { uniffi_mobile_sdk_rs_fn_free_vcdm2sdjwt(pointer, $0) }
     }
 
+    
+public static func fromCompactSdJwtWithIdAndKey(id: Uuid, input: String, keyAlias: KeyAlias)throws  -> Vcdm2SdJwt  {
+    return try  FfiConverterTypeVCDM2SdJwt_lift(try rustCallWithError(FfiConverterTypeSdJwtError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_vcdm2sdjwt_from_compact_sd_jwt_with_id_and_key(
+        FfiConverterTypeUuid_lower(id),
+        FfiConverterString.lower(input),
+        FfiConverterTypeKeyAlias_lower(keyAlias),$0
+    )
+})
+}
     
     /**
      * Create a new SdJwt instance from a compact SD-JWS string.
@@ -21843,6 +21882,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_jsonldpresentationbuilder_new() != 15501) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_jsonvc_from_json_with_id_and_key() != 16299) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_jsonvc_new_from_json() != 40674) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -21882,6 +21924,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vci_new_with_sync_client() != 31928) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_from_string_with_id_and_format() != 23185) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_cwt() != 43883) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -21907,6 +21952,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_parse_from_credential() != 15018) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_from_compact_sd_jwt_with_id_and_key() != 12914) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_new_from_compact_sd_jwt() != 56155) {
