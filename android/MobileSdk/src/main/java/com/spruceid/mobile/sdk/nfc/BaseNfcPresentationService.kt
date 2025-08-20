@@ -181,7 +181,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
                         )
                         currentFileReadBytes = lenBytes + resp
                         @OptIn(kotlin.ExperimentalStdlibApi::class)
-                        Log.d(TAG, "NDEF response bytes: ${currentFileReadBytes!!.joinToString("") { it.toHexString() }}")
+                        Log.d(TAG, "NDEF transmission bytes: ${currentFileReadBytes!!.joinToString("") { it.toHexString() }}")
                         ApduResponse.OK
                     }
                     null -> {
