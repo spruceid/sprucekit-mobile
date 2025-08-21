@@ -28,6 +28,12 @@ const OID4VP_URI: &str = "openid4vp://authorize?client_id=https%3A%2F%2Fqa.veres
 #[error("HTTP error: {0}")]
 pub struct TestError(pub StatusCode);
 
+impl TestError {
+    pub fn new(status_code: StatusCode) -> Self {
+        Self(status_code)
+    }
+}
+
 // NOTE: This could be the basis for the default async client for oid4vci,
 // but it's currently only used for testing purposes.
 //
