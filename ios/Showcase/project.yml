@@ -45,8 +45,8 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleVersion: "1.14.0"
-        CFBundleShortVersionString: "1.14.0"
+        CFBundleVersion: "1.15.0"
+        CFBundleShortVersionString: "1.15.0"
         CFBundleDisplayName: "SpruceKit"
         CFBundleIconName: "AppIcon"
         CFBundlePackageType: "APPL"
@@ -203,9 +203,9 @@ targets:
     dependencies:
       # `embed` defaults to true only for application type
       - target: AppAppKit
-        embed: true
+        embed: false
       - target: AppUIKit
-        embed: true
+        embed: false
       - package: RiveRuntime # for AppUIKit
     info:
       path: Targets/AppDcApi/Info.plist
