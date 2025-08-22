@@ -210,6 +210,7 @@ targets:
     info:
       path: Targets/AppDcApi/Info.plist
       properties:
+        CFBundleDisplayName: "Showcase DC API Extension"
         EXAppExtensionAttributes:
           EXExtensionPointIdentifier: com.apple.identity-document-services.document-provider-ui
         storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is, because the app cannot access entitlements
