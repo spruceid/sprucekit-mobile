@@ -77,12 +77,10 @@ jobs:
           xcodegen generate
           cd ../Showcase
           xcodegen generate
-      - name: Select Xcode 16.2
-        run: sudo xcode-select -switch /Applications/Xcode_16.2.app/Contents/Developer
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s '/Applications/Xcode_16.4.app/Contents/Developer'
       - name: Print Xcode version
         run: xcodebuild -version
-      - name: Download iOS Platform
-        run: xcodebuild -downloadPlatform iOS
       - name: Test MobileSdk
         uses: mxcl/xcodebuild@v3
         with:
