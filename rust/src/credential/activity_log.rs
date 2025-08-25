@@ -416,6 +416,10 @@ impl ActivityLog {
 
         log::info!("Found Keys for Activity Log in storage: {keys:?}");
 
+        if keys.is_empty() {
+            return Ok(Vec::with_capacity(0));
+        }
+
         let entries = futures::stream::iter(keys.into_iter())
             .filter_map(|key| async move { self.storage.get(key).await.ok().flatten() })
             .filter_map(|value| async move { ActivityLogEntry::try_from(value).ok() })
