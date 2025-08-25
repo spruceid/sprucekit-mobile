@@ -110,6 +110,21 @@ impl VCDM2SdJwt {
         Ok(Arc::new(sd_jwt))
     }
 
+    #[uniffi::constructor]
+    pub fn from_compact_sd_jwt_with_id_and_key(
+        id: Uuid,
+        input: String,
+        key_alias: KeyAlias,
+    ) -> Result<Arc<Self>, SdJwtError> {
+        let inner: SdJwtBuf =
+            SdJwtBuf::new(input).map_err(|e| SdJwtError::InvalidSdJwt(format!("{e:?}")))?;
+
+        let mut sd_jwt = VCDM2SdJwt::try_from((id, inner))?;
+        sd_jwt.key_alias = Some(key_alias);
+
+        Ok(Arc::new(sd_jwt))
+    }
+
     /// Return the ID for the SdJwt instance.
     pub fn id(&self) -> Uuid {
         self.id
@@ -392,6 +407,24 @@ impl TryFrom<SdJwtBuf> for VCDM2SdJwt {
             id: Uuid::new_v4(),
             key_alias: None,
             inner: value,
+            credential,
+        })
+    }
+}
+
+impl TryFrom<(Uuid, SdJwtBuf)> for VCDM2SdJwt {
+    type Error = SdJwtError;
+
+    fn try_from(value: (Uuid, SdJwtBuf)) -> Result<Self, Self::Error> {
+        let SdJwtVc(credential) = SdJwtVc::decode_reveal_any(&value.1)
+            .map_err(|e| SdJwtError::SdJwtDecoding(format!("{e:?}")))?
+            .into_claims()
+            .private;
+
+        Ok(VCDM2SdJwt {
+            id: value.0,
+            key_alias: None,
+            inner: value.1,
             credential,
         })
     }

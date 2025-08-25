@@ -85,6 +85,16 @@ impl JsonVc {
         key_alias: KeyAlias,
     ) -> Result<Arc<Self>, JsonVcInitError> {
         let id = Uuid::new_v4();
+        Self::from_json_with_id_and_key(id, utf8_json_string, key_alias)
+    }
+
+    #[uniffi::constructor]
+    /// Construct a new credential from UTF-8 encoded JSON.
+    pub fn from_json_with_id_and_key(
+        id: Uuid,
+        utf8_json_string: String,
+        key_alias: KeyAlias,
+    ) -> Result<Arc<Self>, JsonVcInitError> {
         let json = serde_json::from_str(&utf8_json_string)
             .map_err(|_| JsonVcInitError::JsonStringDecoding)?;
         Self::from_json(id, json, Some(key_alias))

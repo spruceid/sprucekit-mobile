@@ -140,6 +140,10 @@ pub struct ActivityLogEntry {
     /// un-hide the entry, possibly using biometrics or
     /// PIN for user control.
     hidden: bool,
+    /// Fields that have been shared. This will be an empty
+    /// vector if there are no fields shared (i.e., when the
+    /// activity type is not `Shared`)
+    fields: Vec<String>,
 }
 
 #[uniffi::export]
@@ -150,12 +154,15 @@ impl ActivityLogEntry {
         r#type: ActivityLogEntryType,
         description: String,
         interaction_with: String,
+        fields: Option<Vec<String>>,
         url: Option<String>,
     ) -> Result<Self, ActivityLogError> {
         let date = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .map_err(|e| ActivityLogError::CreateActivityLogEntry(e.to_string()))?
             .as_secs();
+
+        let fields = fields.unwrap_or_default();
 
         Ok(Self {
             id: Uuid::new_v4(),
@@ -164,6 +171,7 @@ impl ActivityLogEntry {
             date,
             description,
             interaction_with,
+            fields,
             url,
             hidden: false,
         })
@@ -205,6 +213,10 @@ impl ActivityLogEntry {
 
     fn get_interaction_with(&self) -> String {
         self.interaction_with.clone()
+    }
+
+    fn get_fields(&self) -> Vec<String> {
+        self.fields.clone()
     }
 
     fn get_url(&self) -> Option<String> {
@@ -402,6 +414,12 @@ impl ActivityLog {
             .filter(|key| key.strip_prefix(KEY_PREFIX).is_some())
             .collect::<Vec<Key>>();
 
+        log::info!("Found Keys for Activity Log in storage: {keys:?}");
+
+        if keys.is_empty() {
+            return Ok(Vec::with_capacity(0));
+        }
+
         let entries = futures::stream::iter(keys.into_iter())
             .filter_map(|key| async move { self.storage.get(key).await.ok().flatten() })
             .filter_map(|value| async move { ActivityLogEntry::try_from(value).ok() })
@@ -471,6 +489,7 @@ mod test {
             ActivityLogEntryType::Request,
             "requesting new credential issuance".into(),
             "ISSUING AUTHORITY".into(),
+            None,
             Some("www.example.com".into()),
         )?);
 

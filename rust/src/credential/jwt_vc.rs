@@ -119,7 +119,7 @@ impl JwtVc {
         Self::from_compact_jws(id, jws, key_alias)
     }
 
-    fn from_compact_jws(
+    pub(crate) fn from_compact_jws(
         id: Uuid,
         jws: String,
         key_alias: Option<KeyAlias>,
