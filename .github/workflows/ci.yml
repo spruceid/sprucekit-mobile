@@ -43,7 +43,7 @@ jobs:
         run: cargo clippy
 
   ios:
-    runs-on: macos-15 # macos-latest is currently macos-14 and we need iOS 18.2
+    runs-on: macos-latest # macos-latest is currently macos-14 and we need iOS 18.2
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -71,15 +71,6 @@ jobs:
         uses: Homebrew/actions/setup-homebrew@master
       - name: Install XCodeGen
         run: brew install xcodegen
-      - name: Install iOS 18.0 simulator
-        run: |
-          sudo xcode-select -s /Applications/Xcode.app
-          xcrun simctl list
-          # Install the required iOS runtime if not present
-          if ! xcrun simctl list runtimes | grep "iOS 18.0"; then
-            echo "iOS 18.0 runtime not found; please install it in Xcode."
-            exit 1
-          fi
       - name: Generate XCode projects
         run: |
           cd ios/MobileSdk
