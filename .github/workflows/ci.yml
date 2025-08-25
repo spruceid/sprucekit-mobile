@@ -43,7 +43,7 @@ jobs:
         run: cargo clippy
 
   ios:
-    runs-on: macos-latest # macos-latest is currently macos-14 and we need iOS 18.2
+    runs-on: macos-15 # macos-latest is currently macos-14 and we need iOS 18.2
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
