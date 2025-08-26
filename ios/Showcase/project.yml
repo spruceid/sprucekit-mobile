@@ -45,8 +45,8 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleVersion: "1.15.0"
-        CFBundleShortVersionString: "1.15.0"
+        CFBundleVersion: "1.15.1"
+        CFBundleShortVersionString: "1.15.1"
         CFBundleDisplayName: "SpruceKit"
         CFBundleIconName: "AppIcon"
         CFBundlePackageType: "APPL"
@@ -104,17 +104,17 @@ targets:
         storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is, because the app cannot access entitlements
         keychainAccessGroupAppOnly: "$(AppIdentifierPrefix)com.spruceid.mobile" # custom property to know what the access group is, because the app cannot access entitlements
         keychainAccessGroup: "$(AppIdentifierPrefix)keychain.com.spruceid.mobile" # custom property to know what the access group is, because the app cannot access entitlements
-    # entitlements:
-    #   path: App.entitlements
-    #   properties:
-    #     # to be able to share the filesystem with the dc api extension
-    #     com.apple.security.application-groups:
-    #       - group.com.spruceid.mobile
-    #     com.apple.developer.identity-document-services.document-provider.mobile-document-types:
-    #       - "org.iso.18013.5.1.mDL"
-    #     # to be able to share the keychain with the dc api extension
-    #     keychain-access-groups:
-    #       - "$(AppIdentifierPrefix)keychain.com.spruceid.mobile"
+    entitlements:
+      path: App.entitlements
+      properties:
+        # to be able to share the filesystem with the dc api extension
+        com.apple.security.application-groups:
+          - group.com.spruceid.mobile
+        # com.apple.developer.identity-document-services.document-provider.mobile-document-types:
+        #   - "org.iso.18013.5.1.mDL"
+        # to be able to share the keychain with the dc api extension
+        keychain-access-groups:
+          - "$(AppIdentifierPrefix)keychain.com.spruceid.mobile"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.spruceid.mobile
@@ -190,50 +190,50 @@ targets:
         TARGETED_DEVICE_FAMILY: 1
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: NO
         SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
-  # AppDcApi:
-  #   type: extensionkit-extension
-  #   supportedDestinations: [iOS]
-  #   platform: iOS
-  #   deploymentTarget: "26.0"
-  #   sources:
-  #     - path: "Targets/AppDcApi/Sources"
-  #       createIntermediateGroups: true
-  #     - path: "Resources"
-  #       createIntermediateGroups: true
-  #   dependencies:
-  #     # `embed` defaults to true only for application type
-  #     - target: AppAppKit
-  #       embed: true
-  #     - target: AppUIKit
-  #       embed: true
-  #     - package: RiveRuntime # for AppUIKit
-  #   info:
-  #     path: Targets/AppDcApi/Info.plist
-  #     properties:
-  #       CFBundleDisplayName: "Showcase DC API Extension"
-  #       EXAppExtensionAttributes:
-  #         EXExtensionPointIdentifier: com.apple.identity-document-services.document-provider-ui
-  #       storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is, because the app cannot access entitlements
-  #   entitlements:
-  #     path: Targets/AppDcApi/App.entitlements
-  #     properties:
-  #       # to be able to share the filesystem with the host app
-  #       com.apple.security.application-groups:
-  #         - group.com.spruceid.mobile
-  #       # to be able to share the keychain with the host app
-  #       keychain-access-groups:
-  #         - "$(AppIdentifierPrefix)keychain.com.spruceid.mobile"
-  #   settings:
-  #     base:
-  #       INFOPLIST_FILE: Targets/AppDcApi/Info.plist
-  #       PRODUCT_BUNDLE_IDENTIFIER: com.spruceid.mobile.dcapi
-  #       INFOPLIST_KEY_CFBundleDisplayName: Showcase DC API Extension
-  #       TARGETED_DEVICE_FAMILY: 1
-  #       # don't know why the riveruntime frameworks isn't being placed under this extension's directory, so we have to look in the host app's
-  #       LD_RUNPATH_SEARCH_PATHS:
-  #         - "$(inherited)"
-  #         - "@executable_path/Frameworks"
-  #         - "@executable_path/../../Frameworks"
+  AppDcApi:
+    type: extensionkit-extension
+    supportedDestinations: [iOS]
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: "Targets/AppDcApi/Sources"
+        createIntermediateGroups: true
+      - path: "Resources"
+        createIntermediateGroups: true
+    dependencies:
+      # `embed` defaults to true only for application type
+      - target: AppAppKit
+        embed: true
+      - target: AppUIKit
+        embed: true
+      - package: RiveRuntime # for AppUIKit
+    info:
+      path: Targets/AppDcApi/Info.plist
+      properties:
+        CFBundleDisplayName: "Showcase DC API Extension"
+        EXAppExtensionAttributes:
+          EXExtensionPointIdentifier: com.apple.identity-document-services.document-provider-ui
+        storageAppGroup: group.com.spruceid.mobile # custom property to know what the app group is, because the app cannot access entitlements
+    entitlements:
+      path: Targets/AppDcApi/App.entitlements
+      properties:
+        # to be able to share the filesystem with the host app
+        com.apple.security.application-groups:
+          - group.com.spruceid.mobile
+        # to be able to share the keychain with the host app
+        keychain-access-groups:
+          - "$(AppIdentifierPrefix)keychain.com.spruceid.mobile"
+    settings:
+      base:
+        INFOPLIST_FILE: Targets/AppDcApi/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.spruceid.mobile.dcapi
+        INFOPLIST_KEY_CFBundleDisplayName: Showcase DC API Extension
+        TARGETED_DEVICE_FAMILY: 1
+        # don't know why the riveruntime frameworks isn't being placed under this extension's directory, so we have to look in the host app's
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/Frameworks"
+          - "@executable_path/../../Frameworks"
 configs:
   debug: debug
   release: release
