@@ -1,6 +1,9 @@
 package com.spruceid.mobilesdkexample.credentials
 
+import android.Manifest
 import android.app.Application
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -50,9 +53,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
+import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -87,6 +92,7 @@ fun CredentialDetailsView(
     credentialPackId: String
 ) {
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val credentialViewModel: CredentialsViewModel = activityHiltViewModel()
     val statusListViewModel: StatusListViewModel = activityHiltViewModel()
     var credentialTitle by remember { mutableStateOf<String?>(null) }
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
@@ -117,6 +123,29 @@ fun CredentialDetailsView(
 
     val isLoading by credentialPacksViewModel.loading.collectAsState()
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
+
+    val permissionsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        // Check if this was a Bluetooth permission request
+        val isBluetoothRequest = result.keys.containsAll(getPermissions())
+
+        if (isBluetoothRequest) {
+            val bluetoothGranted = getPermissions().all { result[it] == true }
+            credentialViewModel.setBluetoothPermissionsGranted(bluetoothGranted)
+            if (!bluetoothGranted) {
+                // TODO: Show Bluetooth error or fallback
+            }
+        }
+
+        // Check if this was a Camera permission request
+        if (result.containsKey(Manifest.permission.CAMERA)) {
+            val cameraGranted = result[Manifest.permission.CAMERA] == true
+            if (!cameraGranted) {
+                // TODO: Show camera error or fallback
+            }
+        }
+    }
 
     fun back() {
         navController.navigate(Screen.HomeScreen.route) {
@@ -218,32 +247,43 @@ fun CredentialDetailsView(
                         .background(ColorBase50),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (page == 0) {  // Details
-                        Column(
-                            Modifier
-                                .padding(horizontal = 20.dp)
-                                .padding(vertical = 16.dp)
-                        ) {
-                            credentialItem?.let {
-                                if (statusList != CredentialStatusList.REVOKED) {
-                                    credentialItem!!.credentialDetails()
-                                } else {
-                                    credentialItem!!.credentialRevokedInfo {
-                                        back()
+                    when (page) {
+                        0 -> {
+                            // Ask for bluetooth and camera permissions
+                            val allPermissions = getPermissions().toMutableList().apply {
+                                add(Manifest.permission.CAMERA)
+                            }.toTypedArray()
+                            permissionsLauncher.launch(allPermissions)
+                            Column(
+                                Modifier
+                                    .padding(horizontal = 20.dp)
+                                    .padding(vertical = 16.dp)
+                            ) {
+                                credentialItem?.let {
+                                    if (statusList != CredentialStatusList.REVOKED) {
+                                        credentialItem!!.credentialDetails()
+                                    } else {
+                                        credentialItem!!.credentialRevokedInfo {
+                                            back()
+                                        }
                                     }
                                 }
                             }
                         }
-                    } else if (page == 1) { // Scan to verify
-                        DispatchQRView(
-                            navController,
-                            credentialPackId,
-                            listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
-                            backgroundColor = ColorBase50,
-                            hideCancelButton = true
-                        )
-                    } else if (page == 2) { // Share
-                        GenericCredentialDetailsShareQRCode(credentialPack!!)
+
+                       1 ->  {  // Scan to verify
+                            DispatchQRView(
+                                navController,
+                                credentialPackId,
+                                listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
+                                backgroundColor = ColorBase50,
+                                hideCancelButton = true
+                            )
+                        }
+
+                        2 -> { // Share
+                            GenericCredentialDetailsShareQRCode(credentialPack!!)
+                        }
                     }
                 }
             }

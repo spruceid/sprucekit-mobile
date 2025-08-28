@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.ContextCompat
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.Cwt
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
@@ -89,7 +90,8 @@ fun BitmapImage(
 fun checkAndRequestBluetoothPermissions(
     context: Context,
     permissions: Array<String>,
-    launcher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>
+    launcher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>,
+    credentialViewModel: CredentialsViewModel? = null,
 ) {
     if (
         permissions.all {
@@ -100,6 +102,7 @@ fun checkAndRequestBluetoothPermissions(
         }
     ) {
         // Use bluetooth because permissions are already granted
+        credentialViewModel?.setBluetoothPermissionsGranted(true)
     } else {
         // Request permissions
         launcher.launch(permissions)
