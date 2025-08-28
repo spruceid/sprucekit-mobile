@@ -33,6 +33,12 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     private val _itemsRequests = MutableStateFlow<List<ItemsRequest>>(listOf())
     val itemsRequest = _itemsRequests.asStateFlow()
 
+    private val _bluetoothPermissionsGranted = MutableStateFlow<Boolean>(false)
+    val bluetoothPermissionsGranted = _bluetoothPermissionsGranted.asStateFlow()
+    fun setBluetoothPermissionsGranted(granted: Boolean) {
+        _bluetoothPermissionsGranted.value = granted
+    }
+
     private val _allowedNamespaces =
         MutableStateFlow<Map<String, Map<String, List<String>>>>(
             mapOf(
