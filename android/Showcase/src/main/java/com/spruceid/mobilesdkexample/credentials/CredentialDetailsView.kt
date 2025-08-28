@@ -239,8 +239,7 @@ fun CredentialDetailsView(
         HorizontalDivider()
         Box(modifier = Modifier.weight(1f)) {
             HorizontalPager(
-                state = pagerState,
-                beyondViewportPageCount = 0
+                state = pagerState
             ) { page ->
                 Box(
                     modifier = Modifier
