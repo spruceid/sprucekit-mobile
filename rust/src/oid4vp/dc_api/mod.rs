@@ -319,13 +319,39 @@ fn default_metadata() -> WalletMetadata {
 
 #[cfg(test)]
 mod test {
+    use anyhow::Result;
 
-    #[test]
-    fn default_metadata() {
+    #[tokio::test]
+    async fn default_metadata() -> Result<()> {
         let metadata = super::default_metadata();
         assert_eq!(
             metadata.authorization_endpoint().0.as_str(),
             "mdoc-openid4vp://"
         );
+
+        Ok(())
+    }
+
+    // #[ignore] // NOTE: This test requires a local instance of OpenCred to be running.
+    #[tokio::test]
+    async fn test_dc_api_request() -> Result<()> {
+        const OPEN_CRED_LOCAL: &str = "http://localhost:22080";
+
+        let client = reqwest::Client::new();
+        let response = client
+            .get(format!("{OPEN_CRED_LOCAL}/context/verification"))
+            .query(&[
+                ("client_id", "fdd2721e-ee42-4b06-8b40-e70f7128efbd"),
+                ("redirect_uri", "http://localhost:3000/callback"),
+                ("scope", "openid"),
+                ("response_type", "code"),
+                ("state", "test_state"),
+            ])
+            .send()
+            .await?;
+
+        println!("Received Response from OpenCred: {response:?}");
+
+        Ok(())
     }
 }
