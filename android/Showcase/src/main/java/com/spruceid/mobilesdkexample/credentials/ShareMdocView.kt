@@ -56,6 +56,7 @@ import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.PresentmentState
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobile.sdk.nfc.NfcListenManager
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
@@ -218,6 +219,8 @@ fun NfcShareMdocView(
         }
 
     DisposableEffect(Unit) {
+
+        NfcListenManager.userRequested = true
         val receiver =
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
@@ -237,7 +240,10 @@ fun NfcShareMdocView(
             }
         val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         context.registerReceiver(receiver, filter)
-        onDispose { context.unregisterReceiver(receiver) }
+        onDispose {
+            context.unregisterReceiver(receiver)
+            NfcListenManager.userRequested = false
+        }
     }
 
     LaunchedEffect(key1 = isBluetoothEnabled) {

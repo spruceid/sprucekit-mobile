@@ -82,3 +82,12 @@ class MainActivity : ComponentActivity() {
     // ...
 }
 ```
+
+You may also use `NfcListenManager.userRequested` to flag that the device should be listening for the NDEF AID.
+Some readers don't prompt with the mdoc AID first, so you might want to set this to true when the user chooses NFC presentation in the UI.
+
+If you use `NfcListenManager`, make sure to initialize it with
+`init(appContext, ComponentName(appContext, NfcPresentationService::class.java))` when your app starts.
+
+Alternatively, if you want to configure the app to *always* listen for any NDEF messages,
+you can add that to the manifest, and add `NfcListenManager.disabled = true` to your app's startup.

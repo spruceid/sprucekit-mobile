@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.ConnectionLiveData
+import com.spruceid.mobile.sdk.RustLogger
+import com.spruceid.mobile.sdk.nfc.NfcListenManager
 import com.spruceid.mobilesdkexample.credentials.NfcPresentationService
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.navigation.SetupNavGraph
@@ -124,6 +126,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
+        RustLogger.enable()
+        // Enables the NFC presentation UI to control what NFC messages the app is listening for
+        NfcListenManager.init(
+                applicationContext,
+                ComponentName(applicationContext, NfcPresentationService::class.java)
+        )
 
         enableEdgeToEdge()
         setContent {

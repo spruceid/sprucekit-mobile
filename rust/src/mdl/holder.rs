@@ -18,9 +18,7 @@ use std::{
 };
 
 use isomdl::definitions::device_engagement;
-use isomdl::definitions::device_engagement::nfc_handover::{NfcHandover, NfcHandoverType};
 use isomdl::definitions::session::Handover;
-use isomdl::definitions::traits::ToCbor;
 use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
     definitions::{
@@ -35,87 +33,49 @@ use isomdl::{
 use uuid::Uuid;
 
 #[derive(uniffi::Object, Debug, Clone)]
-pub struct PrenegotiatedBle(device::PrenegotiatedBle);
+pub struct NegotiatedCarrierInfo(
+    isomdl::definitions::device_engagement::nfc::NegotiatedCarrierInfo,
+);
 
 #[uniffi::export]
-impl PrenegotiatedBle {
-    #[uniffi::constructor]
-    pub fn initialize(uuid: Uuid) -> Result<Self, SessionError> {
-        let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
-            peripheral_server_mode: None,
-            central_client_mode: Some(CentralClientMode { uuid }),
-        }));
-
-        let inner = device::PrenegotiatedBle::initialise(Some(drms), None)
-            .map_err(|e| SessionError::BLEDeviceRetrieval(e.to_string()))?;
-
-        Ok(Self(inner))
+impl NegotiatedCarrierInfo {
+    pub fn get_uuid(&self) -> Uuid {
+        self.0.uuid()
     }
+}
 
-    /// Return the BLE UUID from the device retrieval methods.
-    ///
-    /// TODO: peripheral client mode is not implemented
-    pub fn get_ble_uuid(&self) -> Result<Uuid, SessionError> {
-        if let Some(DeviceRetrievalMethod::BLE(opts)) = self
-            .0
-            .device_engagement
-            .as_ref()
-            .device_retrieval_methods
-            .as_ref()
-            .and_then(|drms| drms.first())
-        {
-            if let Some(central_client_mode) = opts.central_client_mode.as_ref() {
-                Ok(central_client_mode.uuid.to_owned())
-            } else if let Some(_) = opts.peripheral_server_mode.as_ref() {
-                Err(SessionError::BLEDeviceRetrieval(
-                    "Peripheral client mode not implemented".into(),
-                ))
-            } else {
-                Err(SessionError::BLEDeviceRetrieval(
-                    "Central client mode and peripheral client mode not found!".into(),
-                ))
-            }
-        } else {
-            Err(SessionError::BLEDeviceRetrieval(
-                "BLE device retrive method not found!".into(),
-            ))
+#[derive(uniffi::Object, Debug)]
+pub struct ApduHandoverDriver(
+    std::sync::Mutex<isomdl::definitions::device_engagement::nfc::ApduHandoverDriver>,
+);
+
+#[uniffi::export]
+impl ApduHandoverDriver {
+    #[uniffi::constructor]
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        Self(isomdl::definitions::device_engagement::nfc::ApduHandoverDriver::new().into())
+    }
+    pub fn reset(&self) {
+        if let Ok(mut handover) = self.0.lock() {
+            handover.reset();
         }
     }
-
-    /// Returns NFC handover information, formatted as an NDEF record.
-    pub fn get_nfc_handover(&self, is_request_record: bool) -> Result<Vec<u8>, SessionError> {
-        let record_type = if is_request_record {
-            NfcHandoverType::Request
+    pub fn get_carrier_info(&self) -> Option<Arc<NegotiatedCarrierInfo>> {
+        if let Ok(mut handover) = self.0.lock() {
+            handover
+                .get_carrier_info()
+                .map(|ci| NegotiatedCarrierInfo(ci).into())
         } else {
-            NfcHandoverType::Select
-        };
-
-        let bytes = self
-            .0
-            .nfc_handover(record_type)
-            .map_err(|e| SessionError::Generic {
-                value: format!("Could not get NFC handover: {e:?}"),
-            })?;
-        Ok(bytes.into()) // TODO: Does NfcHandover::create_handover_select need to return the request back to us?
+            None
+        }
     }
-
-    /// Returns NFC direct handover information, formatted as an NDEF record.
-    /// This method uses TNEP to establish a direct handover via BLE.
-    /// Not all devices may support this method. See the documentation for [`isomdl::presentation::device::PrenegotiatedBle::nfc_handover_direct`].
-    pub fn get_nfc_handover_direct(&self) -> Result<Vec<u8>, SessionError> {
-        let bytes = self
-            .0
-            .nfc_handover_direct()
-            .map_err(|e| SessionError::Generic {
-                value: format!("Could not get NFC direct handover: {e:?}"),
-            })?;
-        Ok(bytes.into())
-    }
-
-    /// Construct an NFC TNEP `Te` Status record
-    pub fn create_tnep_status_record(&self, status: u8) -> Result<Vec<u8>, SessionError> {
-        NfcHandover::create_tnep_status_record(status)
-            .map_err(|e| SessionError::NfcRecord(e.to_string()))
+    pub fn process_apdu(&self, command: &[u8]) -> Vec<u8> {
+        if let Ok(mut handover) = self.0.lock() {
+            handover.process_apdu(command)
+        } else {
+            vec![]
+        }
     }
 }
 
@@ -166,9 +126,12 @@ pub async fn initialize_mdl_presentation(
             }));
             SessionManagerInit::initialise(documents, Some(drms), None)
         }
-        DeviceEngagementData::NFC(ble) => {
+        DeviceEngagementData::NFC(negotiated_carrier_info) => {
             // TODO: don't love that we have to clone this
-            SessionManagerInit::initialise_with_prenegotiated_ble(documents, ble.0.clone())
+            SessionManagerInit::initialise_with_prenegotiated_carrier(
+                documents,
+                &negotiated_carrier_info.0,
+            )
         }
     }
     .map_err(|e| SessionError::Generic {
@@ -234,9 +197,9 @@ pub fn initialize_mdl_presentation_from_bytes(
             }));
             SessionManagerInit::initialise(documents, Some(drms), None)
         }
-        DeviceEngagementData::NFC(ble) => {
+        DeviceEngagementData::NFC(carrier) => {
             // TODO: don't love that we have to clone this
-            SessionManagerInit::initialise_with_prenegotiated_ble(documents, ble.0.clone())
+            SessionManagerInit::initialise_with_prenegotiated_carrier(documents, &carrier.0)
         }
     }
     .map_err(|e| SessionError::Generic {
@@ -259,24 +222,6 @@ pub fn initialize_mdl_presentation_from_bytes(
         in_process: Mutex::new(None),
         ble_ident,
     })
-}
-
-/// Negotiate a BLE connection with the mDL reader.
-/// This is used during NFC handover to establish a BLE connection,
-/// since we don't *necessarily* have an MDOC ready to present yet.
-#[uniffi::export]
-pub fn negotiate_ble_connection(uuid: Uuid) -> Result<PrenegotiatedBle, SessionError> {
-    let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
-        peripheral_server_mode: None,
-        central_client_mode: Some(CentralClientMode { uuid }),
-    }));
-    let prenegotiated_ble =
-        device::PrenegotiatedBle::initialise(Some(drms), None).map_err(|e| {
-            SessionError::Generic {
-                value: format!("Could not initialize BLE: {e:?}"),
-            }
-        })?;
-    Ok(PrenegotiatedBle(prenegotiated_ble))
 }
 
 /// Device Engagement Type Represents the different ways a device can engage with the mDL reader.
@@ -311,7 +256,7 @@ pub enum DeviceEngagementData {
     /// Indicates the device engagement will be via QR code
     QR(uuid::Uuid),
     /// Indicates the device engagement will be via Near Field Communication (NFC)
-    NFC(Arc<PrenegotiatedBle>),
+    NFC(Arc<NegotiatedCarrierInfo>),
 }
 
 impl DeviceEngagementData {

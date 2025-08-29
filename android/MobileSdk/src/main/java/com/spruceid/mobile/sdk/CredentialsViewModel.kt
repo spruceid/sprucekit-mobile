@@ -11,7 +11,6 @@ import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
-import com.spruceid.mobile.sdk.rs.PrenegotiatedBle
 import com.spruceid.mobile.sdk.rs.initializeMdlPresentationFromBytes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -124,19 +123,18 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         val mdoc = this.firstMdoc()
         when (presentData) {
             is CredentialPresentData.Nfc -> {
-                val uuidStr = presentData.prenegotiatedBle.getBleUuid()
+                val uuidStr = presentData.negotiatedCarrierInfo.getUuid()
                 _uuid.value = UUID.fromString(uuidStr)
-                _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Nfc(presentData.prenegotiatedBle))
+                _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Nfc(presentData.negotiatedCarrierInfo))
                 _currState.value = PresentmentState.ENGAGING_NFC_SEARCHING
-                _transport.value = presentData.transport
             }
             is CredentialPresentData.Qr -> {
                 _uuid.value = UUID.randomUUID()
                 _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Qr(_uuid.value.toString()))
                 _currState.value = PresentmentState.ENGAGING_QR_CODE
-                _transport.value = Transport(bluetoothManager)
             }
         }
+        _transport.value = Transport(bluetoothManager)
         _transport.value!!
             .initialize(
                 "Holder",

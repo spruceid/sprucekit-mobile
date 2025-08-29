@@ -41,8 +41,8 @@ class IsoMdlPresentation(
                 deviceEngagementData = DeviceEngagementData.Qr(uuid.toString())
             }
             is CredentialPresentData.Nfc -> {
-                bleManager = presentationData.transport
-                deviceEngagementData = DeviceEngagementData.Nfc(presentationData.prenegotiatedBle)
+                this.uuid = UUID.fromString(presentationData.negotiatedCarrierInfo.getUuid())
+                deviceEngagementData = DeviceEngagementData.Nfc(presentationData.negotiatedCarrierInfo)
             }
         }
 

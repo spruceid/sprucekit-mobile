@@ -1,6 +1,6 @@
 package com.spruceid.mobile.sdk
 
-import com.spruceid.mobile.sdk.rs.PrenegotiatedBle
+import com.spruceid.mobile.sdk.rs.NegotiatedCarrierInfo
 
 sealed class CredentialPresentData {
     /** Indicates the device engagement will be via QR code */
@@ -10,8 +10,7 @@ sealed class CredentialPresentData {
 
     /** Device engagement via Near Field Communication (NFC) The BLE */
     data class Nfc(
-            val prenegotiatedBle: PrenegotiatedBle,
-            val transport: Transport,
+            val negotiatedCarrierInfo: NegotiatedCarrierInfo,
     ) : CredentialPresentData() {
         companion object
     }
