@@ -191,6 +191,7 @@ impl MdlPresentationSession {
         let mut in_process = self.in_process.lock().map_err(|_| RequestError::Generic {
             value: "Could not lock mutex".to_string(),
         })?;
+
         *in_process = Some(InProcessRecord {
             session: session_manager,
             items_request: items_requests.items_request.clone(),
@@ -304,16 +305,15 @@ impl MdlPresentationSession {
     ///
     /// Will return an error if the session mutex lock cannot be acquired.
     pub fn reader_name(&self) -> Result<String, SessionError> {
-        self.in_process
+        Ok(self
+            .in_process
             .lock()
             .map_err(|e| SessionError::Mutex {
                 value: e.to_string(),
             })?
             .as_ref()
             .and_then(|r| r.reader_common_name.clone())
-            .ok_or(SessionError::Generic {
-                value: "Reader common name unknown".into(),
-            })
+            .unwrap_or("Unknown Reader".into()))
     }
 }
 
