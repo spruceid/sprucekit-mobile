@@ -5890,6 +5890,13 @@ public protocol MdlPresentationSessionProtocol: AnyObject, Sendable {
      */
     func handleRequest(request: Data) throws  -> [ItemsRequest]
     
+    /**
+     * Return the Reader common name, if available from the session
+     *
+     * Will return an error if the session mutex lock cannot be acquired.
+     */
+    func readerName() throws  -> String
+    
     func submitResponse(signature: Data) throws  -> Data
     
     /**
@@ -6000,6 +6007,18 @@ open func handleRequest(request: Data)throws  -> [ItemsRequest]  {
     return try  FfiConverterSequenceTypeItemsRequest.lift(try rustCallWithError(FfiConverterTypeRequestError_lift) {
     uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_handle_request(self.uniffiClonePointer(),
         FfiConverterData.lower(request),$0
+    )
+})
+}
+    
+    /**
+     * Return the Reader common name, if available from the session
+     *
+     * Will return an error if the session mutex lock cannot be acquired.
+     */
+open func readerName()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeSessionError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_reader_name(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -17424,6 +17443,8 @@ public enum SessionError: Swift.Error {
 
     
     
+    case Mutex(value: String
+    )
     case Generic(value: String
     )
 }
@@ -17442,7 +17463,10 @@ public struct FfiConverterTypeSessionError: FfiConverterRustBuffer {
         
 
         
-        case 1: return .Generic(
+        case 1: return .Mutex(
+            value: try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .Generic(
             value: try FfiConverterString.read(from: &buf)
             )
 
@@ -17457,8 +17481,13 @@ public struct FfiConverterTypeSessionError: FfiConverterRustBuffer {
 
         
         
-        case let .Generic(value):
+        case let .Mutex(value):
             writeInt(&buf, Int32(1))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .Generic(value):
+            writeInt(&buf, Int32(2))
             FfiConverterString.write(value, into: &buf)
             
         }
@@ -21550,6 +21579,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_handle_request() != 21650) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_reader_name() != 65172) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_submit_response() != 53424) {
