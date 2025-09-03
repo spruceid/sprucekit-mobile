@@ -412,7 +412,8 @@ impl ActivityLog {
             .map_err(|e| ActivityLogError::Storage(e.to_string()))?
             .into_iter()
             .filter(|key: &Key| {
-                key.0.split_once(KEY_PREFIX)
+                key.0
+                    .split_once(KEY_PREFIX)
                     .map(|(_, rest)| !rest.is_empty())
                     .unwrap_or(false)
             })
@@ -474,7 +475,9 @@ mod test {
 
     use super::*;
 
-    async fn run_activity_log_test(storage: Arc<dyn StorageManagerInterface>) -> Result<(), ActivityLogError> {
+    async fn run_activity_log_test(
+        storage: Arc<dyn StorageManagerInterface>,
+    ) -> Result<(), ActivityLogError> {
         let credential_id = Uuid::new_v4();
 
         // Load activity Log
