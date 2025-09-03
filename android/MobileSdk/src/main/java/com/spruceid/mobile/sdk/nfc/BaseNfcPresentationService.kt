@@ -11,6 +11,7 @@ import android.util.Log
 import com.spruceid.mobile.sdk.rs.ApduHandoverDriver
 import com.spruceid.mobile.sdk.rs.NegotiatedCarrierInfo
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 enum class NfcPresentationError(val humanReadable: String) {
@@ -22,12 +23,14 @@ abstract class BaseNfcPresentationService : HostApduService() {
 
     private val TAG = "BaseNfcPresentationService"
 
+    private var doNotNotifyOnDisconnect = false
+    private var negotiationFailed = false
     private var _apduHandoverDriver: ApduHandoverDriver? = null
 
     private val apduHandoverDriver: ApduHandoverDriver
         get() {
             if (_apduHandoverDriver == null) {
-                _apduHandoverDriver = ApduHandoverDriver()
+                _apduHandoverDriver = ApduHandoverDriver(false) // Use static handover, temporarily
             }
             return _apduHandoverDriver!!
         }
@@ -43,6 +46,8 @@ abstract class BaseNfcPresentationService : HostApduService() {
             negotiationStarted()
             inNegotiation = true
         }
+        doNotNotifyOnDisconnect = false
+        negotiationFailed = false
 
         NfcListenManager.setRequestedFromNfcCommands(true, applicationContext, componentName())
 
@@ -54,7 +59,23 @@ abstract class BaseNfcPresentationService : HostApduService() {
         if (carrierInfo != null) {
             Log.d(TAG, "Carrier info available: $carrierInfo")
             Handler(Looper.getMainLooper()).post { negotiatedTransport(carrierInfo) }
+            doNotNotifyOnDisconnect = true
         }
+        val success =
+                ret.size > 2 &&
+                        ret[ret.size - 2] == (0x90.toByte()) &&
+                        ret[ret.size - 1] == (0x00.toByte())
+
+        // If negotiation failed, send the negotiation failed message to the user
+        // and flag that an error message has already been sent.
+        // The error flag prevents a double error notification upon NFC disconnect.
+        // We defer the actual "Negotiation Failed" message because some readers try multiple
+        // handover techniques before giving up.
+        if (!success) {
+            doNotNotifyOnDisconnect = true
+            negotiationFailed = true
+        }
+
         return ret
     }
 
@@ -64,12 +85,21 @@ abstract class BaseNfcPresentationService : HostApduService() {
             Handler(Looper.getMainLooper()).postDelayed(action, delay.inWholeMilliseconds)
         }
 
-        apduHandoverDriver.reset()
-
         // Wait a moment before turning off NDEF listening.
         // This is because the shift from MDOC -> NDEF triggers a disconnect, but
         // this disconnect is expected and not an error.
         val prevInteractionId = currentInteractionId
+
+        defer(50.milliseconds) {
+            if (prevInteractionId == currentInteractionId) {
+                apduHandoverDriver.reset()
+            }
+            if (negotiationFailed) {
+                negotiationFailed(NfcPresentationError.NEGOTIATION_FAILED)
+                negotiationFailed = false
+            }
+        }
+
         defer(1.seconds) {
             if (prevInteractionId == currentInteractionId) {
                 NfcListenManager.setRequestedFromNfcCommands(
@@ -78,10 +108,19 @@ abstract class BaseNfcPresentationService : HostApduService() {
                         componentName()
                 )
                 inNegotiation = false
+
+                // If we've already sent an error message about what caused the disconnect, don't
+                // send another error notif.
+                // If we've successfully negotiated transport, we also shouldn't display an error.
+                if (doNotNotifyOnDisconnect) {
+                    doNotNotifyOnDisconnect = false
+                } else {
+                    negotiationFailed(NfcPresentationError.CONNECTION_CLOSED)
+                }
             }
         }
 
-        Log.d(TAG, "deactivated: $reason")
+        Log.i(TAG, "deactivated: $reason")
     }
 
     fun appInForeground(): Boolean {

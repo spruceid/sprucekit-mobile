@@ -40,7 +40,7 @@ pub struct NegotiatedCarrierInfo(
 #[uniffi::export]
 impl NegotiatedCarrierInfo {
     pub fn get_uuid(&self) -> Uuid {
-        self.0.uuid()
+        self.0.uuid
     }
 }
 
@@ -53,8 +53,10 @@ pub struct ApduHandoverDriver(
 impl ApduHandoverDriver {
     #[uniffi::constructor]
     #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Self(isomdl::definitions::device_engagement::nfc::ApduHandoverDriver::new().into())
+    pub fn new(negotiated: bool) -> Self {
+        Self(
+            isomdl::definitions::device_engagement::nfc::ApduHandoverDriver::new(negotiated).into(),
+        )
     }
     pub fn reset(&self) {
         if let Ok(mut handover) = self.0.lock() {
@@ -143,8 +145,6 @@ pub async fn initialize_mdl_presentation(
             value: format!("Couldn't get BLE identification: {e:?}").to_string(),
         })?
         .to_vec();
-    // TODO: .engage() generates a malformed NDEF response here, but it's unused, so technically
-    //       it's not hurting anything? still pretty gross
     let engaged_state = session
         .engage(engagement_type)
         .map_err(|e| SessionError::Generic {
