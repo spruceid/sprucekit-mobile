@@ -411,7 +411,11 @@ impl ActivityLog {
             .await
             .map_err(|e| ActivityLogError::Storage(e.to_string()))?
             .into_iter()
-            .filter(|key| key.strip_prefix(KEY_PREFIX).is_some())
+            .filter(|key: &Key| {
+                key.0.split_once(KEY_PREFIX)
+                    .map(|(_, rest)| !rest.is_empty())
+                    .unwrap_or(false)
+            })
             .collect::<Vec<Key>>();
 
         log::info!("Found Keys for Activity Log in storage: {keys:?}");
@@ -466,13 +470,11 @@ impl TryFrom<Value> for ActivityLogEntry {
 
 #[cfg(test)]
 mod test {
-    use crate::storage_manager::test::DummyStorage;
+    use crate::storage_manager::test::{DummyStorage, NamespacedDummyStorage};
 
     use super::*;
 
-    #[tokio::test]
-    async fn test_activity_log() -> Result<(), ActivityLogError> {
-        let storage = Arc::new(DummyStorage::default());
+    async fn run_activity_log_test(storage: Arc<dyn StorageManagerInterface>) -> Result<(), ActivityLogError> {
         let credential_id = Uuid::new_v4();
 
         // Load activity Log
@@ -516,5 +518,17 @@ mod test {
         );
 
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_activity_log() -> Result<(), ActivityLogError> {
+        let storage = Arc::new(DummyStorage::default());
+        run_activity_log_test(storage).await
+    }
+
+    #[tokio::test]
+    async fn test_namespaced_activity_log() -> Result<(), ActivityLogError> {
+        let storage: Arc<NamespacedDummyStorage> = Arc::new(NamespacedDummyStorage::default());
+        run_activity_log_test(storage).await
     }
 }
