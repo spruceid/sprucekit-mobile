@@ -87,7 +87,7 @@ public class IsoMdlPresentation {
             self.cancel()
         }
     }
-    
+
     public func readerName() throws -> String {
         try session.readerName()
     }
