@@ -2,6 +2,7 @@ package com.spruceid.mobilesdkexample.credentials
 
 // import android.widget.Toast
 import android.content.ComponentName
+import androidx.lifecycle.MutableLiveData
 import com.spruceid.mobile.sdk.nfc.BaseNfcPresentationService
 import com.spruceid.mobile.sdk.nfc.NfcPresentationError
 import com.spruceid.mobile.sdk.rs.NegotiatedCarrierInfo
@@ -18,9 +19,19 @@ class NfcPresentationService : BaseNfcPresentationService() {
         Toast.showError(error.humanReadable)
     }
 
-    override fun negotiatedTransport(carrierInfo: NegotiatedCarrierInfo) {}
+    override fun negotiatedTransport(carrierInfo: NegotiatedCarrierInfo) {
+        shareScreenCallback?.let {
+            it(carrierInfo)
+        } ?: run {
+            // TODO: Display a credential picker.
+        }
+    }
 
     override fun componentName(): ComponentName {
         return ComponentName(applicationContext, NfcPresentationService::class.java)
+    }
+
+    companion object {
+        var shareScreenCallback: ((carrierInfo: NegotiatedCarrierInfo) -> Unit)? = null
     }
 }

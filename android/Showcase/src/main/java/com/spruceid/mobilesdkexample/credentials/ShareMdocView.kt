@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -51,12 +53,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewModelScope
 import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.PresentmentState
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.nfc.NfcListenManager
+import com.spruceid.mobile.sdk.rs.NegotiatedCarrierInfo
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
@@ -66,6 +72,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
+import kotlinx.coroutines.*
 
 @Composable
 @Deprecated("Specify QrShareMdocView or NfcShareMdocView", ReplaceWith("QrShareMdocView(credentialViewModel, onCancel)"))
@@ -194,7 +201,6 @@ fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> U
 @Composable
 fun NfcShareMdocView(
     credentialViewModel: CredentialsViewModel,
-    nfcData: CredentialPresentData.Nfc?,
     onCancel: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -221,6 +227,16 @@ fun NfcShareMdocView(
     DisposableEffect(Unit) {
 
         NfcListenManager.userRequested = true
+        NfcPresentationService.shareScreenCallback = { carrierInfo: NegotiatedCarrierInfo ->
+            if(isBluetoothEnabled) {
+                credentialViewModel.viewModelScope.launch {
+                    credentialViewModel.present(
+                        getBluetoothManager(context)!!,
+                        CredentialPresentData.Nfc(carrierInfo)
+                    )
+                }
+            }
+        }
         val receiver =
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
@@ -241,6 +257,7 @@ fun NfcShareMdocView(
         val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         context.registerReceiver(receiver, filter)
         onDispose {
+            NfcPresentationService.shareScreenCallback = null
             context.unregisterReceiver(receiver)
             NfcListenManager.userRequested = false
         }
@@ -252,10 +269,6 @@ fun NfcShareMdocView(
             getPermissions().toTypedArray(),
             launcherMultiplePermissions
         )
-        // TODO: How do I trigger this when nfcData gets set, if it starts off null
-        if (isBluetoothEnabled && nfcData != null) {
-            credentialViewModel.present(getBluetoothManager(context)!!, nfcData)
-        }
     }
 
     when (currentState) {

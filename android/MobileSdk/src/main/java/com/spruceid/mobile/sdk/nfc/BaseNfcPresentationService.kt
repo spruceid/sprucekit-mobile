@@ -21,10 +21,15 @@ enum class NfcPresentationError(val humanReadable: String) {
 
 abstract class BaseNfcPresentationService : HostApduService() {
 
+    private fun defer(delay: Duration, action: Runnable) {
+        Handler(Looper.getMainLooper()).postDelayed(action, delay.inWholeMilliseconds)
+    }
+
     private val TAG = "BaseNfcPresentationService"
 
     private var doNotNotifyOnDisconnect = false
     private var negotiationFailed = false
+    private var disabledForSuccessCooldown = false
     private var _apduHandoverDriver: ApduHandoverDriver? = null
 
     private val apduHandoverDriver: ApduHandoverDriver
@@ -39,6 +44,10 @@ abstract class BaseNfcPresentationService : HostApduService() {
     private var inNegotiation = false
 
     override fun processCommandApdu(commandApdu: ByteArray, extras: Bundle?): ByteArray? {
+
+        if (disabledForSuccessCooldown) {
+            return null
+        }
 
         currentInteractionId++
 
@@ -60,6 +69,11 @@ abstract class BaseNfcPresentationService : HostApduService() {
             Log.d(TAG, "Carrier info available: $carrierInfo")
             Handler(Looper.getMainLooper()).post { negotiatedTransport(carrierInfo) }
             doNotNotifyOnDisconnect = true
+            // Disable NFC interaction for a few seconds because sometimes readers spam us with
+            // NFC commands even after a successful pair. This prevents internal state confusion and
+            // misleading error messages.
+            disabledForSuccessCooldown = true
+            defer(3.seconds) { disabledForSuccessCooldown = false }
         }
         val success =
                 ret.size > 2 &&
@@ -80,10 +94,6 @@ abstract class BaseNfcPresentationService : HostApduService() {
     }
 
     override fun onDeactivated(reason: Int) {
-
-        fun defer(delay: Duration, action: Runnable) {
-            Handler(Looper.getMainLooper()).postDelayed(action, delay.inWholeMilliseconds)
-        }
 
         // Wait a moment before turning off NDEF listening.
         // This is because the shift from MDOC -> NDEF triggers a disconnect, but
