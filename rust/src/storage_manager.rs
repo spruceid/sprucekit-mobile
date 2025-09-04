@@ -130,4 +130,50 @@ pub mod test {
             Ok(())
         }
     }
+
+    /// Dummy Storage Implementation for testing with support for user namespaces
+    #[derive(Debug)]
+    pub struct NamespacedDummyStorage {
+        pub namespace: String,
+        pub inner: DummyStorage,
+    }
+
+    impl Default for NamespacedDummyStorage {
+        fn default() -> Self {
+            Self {
+                namespace: "test_user_name".to_string(),
+                inner: DummyStorage::default(),
+            }
+        }
+    }
+
+    impl NamespacedDummyStorage {
+        fn namespaced_key(&self, key: &Key) -> Key {
+            if key.0.starts_with(&self.namespace) {
+                key.clone()
+            } else {
+                Key(format!("{}:{}", self.namespace, key.0))
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl StorageManagerInterface for NamespacedDummyStorage {
+        async fn add(&self, key: Key, value: Value) -> Result<(), StorageManagerError> {
+            self.inner.add(self.namespaced_key(&key), value).await
+        }
+
+        async fn get(&self, key: Key) -> Result<Option<Value>, StorageManagerError> {
+            self.inner.get(self.namespaced_key(&key)).await
+        }
+
+        async fn list(&self) -> Result<Vec<Key>, StorageManagerError> {
+            let keys = self.inner.list().await?;
+            Ok(keys.into_iter().map(|k| self.namespaced_key(&k)).collect())
+        }
+
+        async fn remove(&self, key: Key) -> Result<(), StorageManagerError> {
+            self.inner.remove(self.namespaced_key(&key)).await
+        }
+    }
 }
