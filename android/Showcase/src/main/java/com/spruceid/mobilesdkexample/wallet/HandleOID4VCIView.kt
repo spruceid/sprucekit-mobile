@@ -200,6 +200,13 @@ fun getVCPlaygroundOID4VCIContext(ctx: Context): Map<String, String> {
             .readLines()
             .joinToString("")
 
+    context["https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json"] =
+        ctx.resources
+            .openRawResource(R.raw.purl_imsglobal_org_spec_ob_v3p0_context_3_0_3)
+            .bufferedReader()
+            .readLines()
+            .joinToString("")
+
     context["https://w3id.org/citizenship/v4rc1"] =
         ctx.resources
             .openRawResource(R.raw.w3id_org_citizenship_v4rc1)
@@ -297,6 +304,5 @@ fun getVCPlaygroundOID4VCIContext(ctx: Context): Map<String, String> {
             .bufferedReader()
             .readLines()
             .joinToString("")
-
     return context
 }
