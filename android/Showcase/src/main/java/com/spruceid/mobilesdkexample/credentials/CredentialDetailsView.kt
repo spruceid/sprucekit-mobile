@@ -425,7 +425,6 @@ fun GenericCredentialDetailsShareNFC(credentialPack: CredentialPack) {
             //       an error message if it's disabled. Maybe we should copy that here?
             NfcShareMdocView(
                 credentialViewModel = credentialViewModel,
-                nfcData = null,
                 onCancel = {
                     cancel()
                 }

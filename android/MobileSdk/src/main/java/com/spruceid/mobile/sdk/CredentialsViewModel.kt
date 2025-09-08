@@ -134,7 +134,7 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
                 _currState.value = PresentmentState.ENGAGING_QR_CODE
             }
         }
-        Log.d("CredentialsViewModel", "Presenting with UUID: $_uuid")
+        Log.d("CredentialsViewModel", "Presenting with UUID: ${_uuid.value}")
         _transport.value = Transport(bluetoothManager)
         _transport.value!!
             .initialize(

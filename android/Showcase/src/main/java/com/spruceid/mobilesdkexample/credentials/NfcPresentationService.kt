@@ -23,6 +23,7 @@ class NfcPresentationService : BaseNfcPresentationService() {
         shareScreenCallback?.let {
             it(carrierInfo)
         } ?: run {
+            Toast.showWarning("Please select a credential.")
             // TODO: Display a credential picker.
         }
     }

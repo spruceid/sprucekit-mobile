@@ -21,42 +21,56 @@ enum class NfcPresentationError(val humanReadable: String) {
 
 abstract class BaseNfcPresentationService : HostApduService() {
 
+    // The usage of postDelayed was causing instances of the service to seemingly get copied?
+    // Because of this, we store all of the NFC state in static variables, so that we don't end up
+    // with subtly stale data.
+    // There should logically only ever be one instance of an NfcPresentationService anyway, so this
+    // shouldn't cause any issues.
+    companion object {
+        private var currentInteractionId: Long = 0
+        private var resetQueued = false
+        private var doNotNotifyOnDisconnect = false
+        private var negotiationFailedFlag = false
+        private var inNegotiation = false
+        private var _apduHandoverDriver: ApduHandoverDriver? = null
+        private val apduHandoverDriver: ApduHandoverDriver
+            get() {
+                if (_apduHandoverDriver == null) {
+                    _apduHandoverDriver = ApduHandoverDriver(false) // Use static handover, temporarily
+                }
+                return _apduHandoverDriver!!
+            }
+    }
+
     private fun defer(delay: Duration, action: Runnable) {
         Handler(Looper.getMainLooper()).postDelayed(action, delay.inWholeMilliseconds)
     }
 
     private val TAG = "BaseNfcPresentationService"
 
-    private var doNotNotifyOnDisconnect = false
-    private var negotiationFailed = false
-    private var disabledForSuccessCooldown = false
-    private var _apduHandoverDriver: ApduHandoverDriver? = null
-
-    private val apduHandoverDriver: ApduHandoverDriver
-        get() {
-            if (_apduHandoverDriver == null) {
-                _apduHandoverDriver = ApduHandoverDriver(false) // Use static handover, temporarily
-            }
-            return _apduHandoverDriver!!
-        }
-
-    private var currentInteractionId: Long = 0
-    private var inNegotiation = false
-
     override fun processCommandApdu(commandApdu: ByteArray, extras: Bundle?): ByteArray? {
 
-        if (disabledForSuccessCooldown) {
-            return null
+        if(resetQueued) {
+            Log.w(TAG, "Resetting APDU driver")
+            resetQueued = false
+            apduHandoverDriver.reset()
         }
+
+        val isReadBinaryCommand = commandApdu.size > 4 && commandApdu[1] == 0xB0.toByte()
 
         currentInteractionId++
 
-        if (!inNegotiation) {
-            negotiationStarted()
-            inNegotiation = true
+        // Read binary commands shouldn't affect state flags,
+        // since they may come after the success state is reached.
+        if(!isReadBinaryCommand) {
+            if (!inNegotiation) {
+                negotiationStarted()
+                inNegotiation = true
+            }
+            Log.d(TAG, "Got !read cmd, resetting flags")
+            doNotNotifyOnDisconnect = false
+            negotiationFailedFlag = false
         }
-        doNotNotifyOnDisconnect = false
-        negotiationFailed = false
 
         NfcListenManager.setRequestedFromNfcCommands(true, applicationContext, componentName())
 
@@ -69,16 +83,12 @@ abstract class BaseNfcPresentationService : HostApduService() {
             Log.d(TAG, "Carrier info available: $carrierInfo")
             Handler(Looper.getMainLooper()).post { negotiatedTransport(carrierInfo) }
             doNotNotifyOnDisconnect = true
-            // Disable NFC interaction for a few seconds because sometimes readers spam us with
-            // NFC commands even after a successful pair. This prevents internal state confusion and
-            // misleading error messages.
-            disabledForSuccessCooldown = true
-            defer(3.seconds) { disabledForSuccessCooldown = false }
+            Log.d(TAG, "Negotiated! Setting flags.")
         }
         val success =
-                ret.size > 2 &&
-                        ret[ret.size - 2] == (0x90.toByte()) &&
-                        ret[ret.size - 1] == (0x00.toByte())
+            ret.size >= 2 &&
+                    ret[ret.size - 2] == (0x90.toByte()) &&
+                    ret[ret.size - 1] == (0x00.toByte())
 
         // If negotiation failed, send the negotiation failed message to the user
         // and flag that an error message has already been sent.
@@ -87,46 +97,53 @@ abstract class BaseNfcPresentationService : HostApduService() {
         // handover techniques before giving up.
         if (!success) {
             doNotNotifyOnDisconnect = true
-            negotiationFailed = true
+            negotiationFailedFlag = true
+            Log.e(TAG, "ERR response, setting flags")
         }
 
         return ret
     }
 
     override fun onDeactivated(reason: Int) {
+        currentInteractionId++;
 
         // Wait a moment before turning off NDEF listening.
         // This is because the shift from MDOC -> NDEF triggers a disconnect, but
         // this disconnect is expected and not an error.
         val prevInteractionId = currentInteractionId
 
-        defer(50.milliseconds) {
+        // NOTE: See the comment above the companion object definition for safety considerations
+        //       when working within these deferred blocks.
+
+        defer(250.milliseconds) {
             if (prevInteractionId == currentInteractionId) {
-                apduHandoverDriver.reset()
-            }
-            if (negotiationFailed) {
-                negotiationFailed(NfcPresentationError.NEGOTIATION_FAILED)
-                negotiationFailed = false
+                resetQueued = true
+                if (negotiationFailedFlag) {
+                    negotiationFailed(NfcPresentationError.NEGOTIATION_FAILED)
+                    negotiationFailedFlag = false
+                }
             }
         }
 
+        Log.w(TAG, "Disconnected. cached value for iid $currentInteractionId: $doNotNotifyOnDisconnect")
         defer(1.seconds) {
             if (prevInteractionId == currentInteractionId) {
                 NfcListenManager.setRequestedFromNfcCommands(
-                        false,
-                        applicationContext,
-                        componentName()
+                    false,
+                    applicationContext,
+                    componentName()
                 )
                 inNegotiation = false
 
                 // If we've already sent an error message about what caused the disconnect, don't
                 // send another error notif.
                 // If we've successfully negotiated transport, we also shouldn't display an error.
-                if (doNotNotifyOnDisconnect) {
-                    doNotNotifyOnDisconnect = false
-                } else {
+                if (!doNotNotifyOnDisconnect) {
                     negotiationFailed(NfcPresentationError.CONNECTION_CLOSED)
+                    doNotNotifyOnDisconnect = false
                 }
+
+                apduHandoverDriver.regenerateStaticBleKeys()
             }
         }
 
@@ -135,7 +152,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
 
     fun appInForeground(): Boolean {
         val activityManager =
-                this.baseContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            this.baseContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val runningProcesses = activityManager.runningAppProcesses ?: return false
         return runningProcesses.any {
             it.processName == baseContext.packageName &&

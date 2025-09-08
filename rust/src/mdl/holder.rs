@@ -49,19 +49,34 @@ pub struct ApduHandoverDriver(
     std::sync::Mutex<isomdl::definitions::device_engagement::nfc::ApduHandoverDriver>,
 );
 
+#[derive(thiserror::Error, uniffi::Error, Debug, Clone, Copy)]
+pub enum ApduHandoverInitError {
+    #[error("Failed to generate static BLE keys")]
+    KeyGenFailed,
+}
+
 #[uniffi::export]
 impl ApduHandoverDriver {
     #[uniffi::constructor]
     #[allow(clippy::new_without_default)]
-    pub fn new(negotiated: bool) -> Self {
-        Self(
-            isomdl::definitions::device_engagement::nfc::ApduHandoverDriver::new(negotiated).into(),
-        )
+    pub fn new(negotiated: bool) -> Result<Self, ApduHandoverInitError> {
+        Ok(Self(
+            isomdl::definitions::device_engagement::nfc::ApduHandoverDriver::new(negotiated)
+                .map_err(|_| ApduHandoverInitError::KeyGenFailed)?
+                .into(),
+        ))
     }
     pub fn reset(&self) {
         if let Ok(mut handover) = self.0.lock() {
             handover.reset();
         }
+    }
+    pub fn regenerate_static_ble_keys(&self) -> Result<(), ApduHandoverInitError> {
+        self.0
+            .lock()
+            .map_err(|_| ApduHandoverInitError::KeyGenFailed)?
+            .regenerate_static_ble_keys()
+            .map_err(|_| ApduHandoverInitError::KeyGenFailed)
     }
     pub fn get_carrier_info(&self) -> Option<Arc<NegotiatedCarrierInfo>> {
         if let Ok(mut handover) = self.0.lock() {
@@ -422,13 +437,9 @@ impl MdlPresentationSession {
         let session = self.engaged.lock().map_err(|e| SessionError::Generic {
             value: format!("Could not get lock on session: {e:?}"),
         })?;
-
-        match &session.handover {
-            Handover::QR(uri) => Ok(uri.clone()),
-            _ => session.qr_handover().map_err(|e| SessionError::Generic {
-                value: format!("Could not generate QR code: {e:?}"),
-            }),
-        }
+        session.qr_handover().map_err(|e| SessionError::Generic {
+            value: format!("Could not generate QR code: {e:?}"),
+        })
     }
 
     /// Returns the BLE identification
