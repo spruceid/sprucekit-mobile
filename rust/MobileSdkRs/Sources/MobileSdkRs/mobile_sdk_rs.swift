@@ -612,7 +612,15 @@ public protocol ActivityLogProtocol: AnyObject, Sendable {
     
     func get(entryId: Uuid) async throws  -> ActivityLogEntry?
     
+    /**
+     * Remove an activity log entry given a specific entry ID.
+     */
     func remove(entryId: Uuid) async throws 
+    
+    /**
+     * Remove all activity log entries belonging to the instantiated credential ID.
+     */
+    func removeAll() async throws 
     
     func setHidden(entryId: Uuid, shouldHide: Bool) async throws  -> ActivityLogEntry
     
@@ -804,6 +812,9 @@ open func get(entryId: Uuid)async throws  -> ActivityLogEntry?  {
         )
 }
     
+    /**
+     * Remove an activity log entry given a specific entry ID.
+     */
 open func remove(entryId: Uuid)async throws   {
     return
         try  await uniffiRustCallAsync(
@@ -811,6 +822,26 @@ open func remove(entryId: Uuid)async throws   {
                 uniffi_mobile_sdk_rs_fn_method_activitylog_remove(
                     self.uniffiClonePointer(),
                     FfiConverterTypeUuid_lower(entryId)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+    /**
+     * Remove all activity log entries belonging to the instantiated credential ID.
+     */
+open func removeAll()async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_remove_all(
+                    self.uniffiClonePointer()
+                    
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
@@ -21423,7 +21454,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_get() != 49762) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove() != 2228) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove() != 25888) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove_all() != 43950) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_set_hidden() != 41883) {

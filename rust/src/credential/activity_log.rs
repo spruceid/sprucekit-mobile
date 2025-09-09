@@ -362,6 +362,7 @@ impl ActivityLog {
         }
     }
 
+    /// Remove an activity log entry given a specific entry ID.
     pub async fn remove(&self, entry_id: Uuid) -> Result<(), ActivityLogError> {
         let key = ActivityLogEntry::credential_and_entry_id_to_key(self.credential_id, entry_id);
 
@@ -369,6 +370,32 @@ impl ActivityLog {
             .remove(key)
             .await
             .map_err(|e| ActivityLogError::Storage(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Remove all activity log entries belonging to the instantiated credential ID.
+    pub async fn remove_all(&self) -> Result<(), ActivityLogError> {
+        let keys = self
+            .storage
+            .list()
+            .await
+            .map_err(|e| ActivityLogError::Storage(e.to_string()))?
+            .into_iter()
+            .filter(|key: &Key| {
+                key.0
+                    .split_once(&format!("{KEY_PREFIX}{}", self.credential_id))
+                    .map(|(_, rest)| !rest.is_empty())
+                    .unwrap_or(false)
+            })
+            .collect::<Vec<Key>>();
+
+        for key in keys {
+            self.storage
+                .remove(key)
+                .await
+                .map_err(|e| ActivityLogError::Storage(e.to_string()))?;
+        }
 
         Ok(())
     }
