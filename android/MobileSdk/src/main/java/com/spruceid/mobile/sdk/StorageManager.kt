@@ -1,3 +1,5 @@
+package com.spruceid.mobile.sdk
+
 import android.content.Context
 import android.util.Base64
 import com.spruceid.mobile.sdk.KeyManager
