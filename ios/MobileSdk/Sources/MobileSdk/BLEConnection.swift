@@ -97,7 +97,7 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
         }
 
         channel = nil
-        
+
         outputDelivered = false
         totalBytesWritten = 0
         originalOutputDataSize = 0
