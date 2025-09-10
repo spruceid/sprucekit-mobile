@@ -11,7 +11,6 @@ import java.io.IOException
 import java.util.*
 import java.util.concurrent.BlockingQueue
 import java.util.concurrent.LinkedTransferQueue
-import java.util.concurrent.TimeUnit
 import kotlin.math.min
 
 
@@ -42,7 +41,7 @@ class GattServer(private var callback: GattServerCallback,
     private var characteristicL2CAP: BluetoothGattCharacteristic? = null
 
     private var mtu = 0
-    private var usingL2CAP = true
+    private var usingL2CAP = true // L2Cap Enabled by default
     private var writeIsOutstanding = false
     private var writingQueue: Queue<ByteArray> = ArrayDeque()
     private var writingQueueTotalChunks = 0
