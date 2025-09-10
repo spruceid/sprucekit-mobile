@@ -42,7 +42,7 @@ class GattServer(private var callback: GattServerCallback,
     private var characteristicL2CAP: BluetoothGattCharacteristic? = null
 
     private var mtu = 0
-    private var usingL2CAP = false
+    private var usingL2CAP = true
     private var writeIsOutstanding = false
     private var writingQueue: Queue<ByteArray> = ArrayDeque()
     private var writingQueueTotalChunks = 0
@@ -61,7 +61,7 @@ class GattServer(private var callback: GattServerCallback,
     private var l2capAcceptThread: Thread? = null
     private var l2capReadThread: Thread? = null
     private val l2capResponseQueue: BlockingQueue<ByteArray> = LinkedTransferQueue()
-    private val L2CAP_BUFFER_SIZE = (1 shl 16) // 64K
+    private val L2CAP_BUFFER_SIZE = (1 shl 16) // 64K or 65536 bytes
 
     private val bluetoothGattServerCallback: BluetoothGattServerCallback = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int , newState: Int) {
@@ -534,14 +534,13 @@ class GattServer(private var callback: GattServerCallback,
          * L2CAP characteristic for PSM exchange
          */
         if (usingL2CAP && characteristicL2CAPUuid != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val l2capCharacteristic = BluetoothGattCharacteristic(
+            characteristicL2CAP = BluetoothGattCharacteristic(
                 characteristicL2CAPUuid,
                 BluetoothGattCharacteristic.PROPERTY_READ,
                 BluetoothGattCharacteristic.PERMISSION_READ
             )
             
-            service.addCharacteristic(l2capCharacteristic)
-            characteristicL2CAP = l2capCharacteristic
+            service.addCharacteristic(characteristicL2CAP)
             
             // Initialize L2CAP server socket
             setupL2CAPServer()
@@ -620,13 +619,14 @@ class GattServer(private var callback: GattServerCallback,
             callback.onLog("L2CAP server started with PSM: $l2capPSM")
             
             // Set PSM value in characteristic
+            // Encode the 16-bit L2CAP PSM as a 2-byte little-endian array, per Bluetooth Core Spec
+            // Byte 0: Least significant byte (LSB) = PSM & 0xFF
+            // Byte 1: Most significant byte (MSB) = (PSM >> 8) & 0xFF
+            // Ex: 0x1234 -> [0x34, 0x12]
             characteristicL2CAP?.value = byteArrayOf(
                 (l2capPSM and 0xFF).toByte(),
                 ((l2capPSM shr 8) and 0xFF).toByte()
             )
-            
-            // Mark that L2CAP is available (even before connection)
-            usingL2CAP = true
             
             // Start accepting connections in background thread
             l2capAcceptThread = Thread {
@@ -650,13 +650,12 @@ class GattServer(private var callback: GattServerCallback,
         try {
             callback.onLog("Waiting for L2CAP connection on PSM $l2capPSM")
             
-            // Accept connection (blocking call)
+            // Accept connection (blocking call, waits until a connection is established)
             l2capSocket = l2capServerSocket?.accept()
             
             if (l2capSocket != null) {
                 callback.onLog("L2CAP connection established")
-                // usingL2CAP already set to true in setupL2CAPServer
-                
+
                 // Start read thread for incoming data
                 l2capReadThread = Thread {
                     readL2CAPData()
@@ -704,7 +703,8 @@ class GattServer(private var callback: GattServerCallback,
                 // Use available() to check if data is ready without blocking indefinitely
                 if (inputStream.available() > 0) {
                     val bytesRead = inputStream.read(buffer, 0, minOf(buffer.size, inputStream.available()))
-                    
+
+                    // returns -1 if there is no more data because the end of the stream has been reached.
                     if (bytesRead == -1) {
                         callback.onLog("L2CAP connection closed by peer")
                         break
@@ -728,7 +728,7 @@ class GattServer(private var callback: GattServerCallback,
                     // Check if we have data and enough time has passed since last data
                     if (messageBuffer.size() > 0) {
                         val timeSinceLastData = System.currentTimeMillis() - lastDataTime
-                        if (timeSinceLastData > 500) { // 500ms timeout, same as iOS/client
+                        if (timeSinceLastData > 500) { // 500ms timeout
                             // Complete message received
                             val message = messageBuffer.toByteArray()
                             
