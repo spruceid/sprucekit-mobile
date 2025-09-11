@@ -116,6 +116,10 @@ class GattServer(private var callback: GattServerCallback,
                     return
                 }
 
+                // Encode the 16-bit L2CAP PSM as a 2-byte little-endian array, per Bluetooth Core Spec
+                // Byte 0: Least significant byte (LSB) = PSM & 0xFF
+                // Byte 1: Most significant byte (MSB) = (PSM >> 8) & 0xFF
+                // Ex: 0x1234 -> [0x34, 0x12]
                 // Send L2CAP PSM value to client
                 val psmBytes = byteArrayOf(
                     (l2capPSM and 0xFF).toByte(),
@@ -616,16 +620,6 @@ class GattServer(private var callback: GattServerCallback,
             l2capPSM = l2capServerSocket!!.psm
             
             callback.onLog("L2CAP server started with PSM: $l2capPSM")
-            
-            // Set PSM value in characteristic
-            // Encode the 16-bit L2CAP PSM as a 2-byte little-endian array, per Bluetooth Core Spec
-            // Byte 0: Least significant byte (LSB) = PSM & 0xFF
-            // Byte 1: Most significant byte (MSB) = (PSM >> 8) & 0xFF
-            // Ex: 0x1234 -> [0x34, 0x12]
-            characteristicL2CAP?.value = byteArrayOf(
-                (l2capPSM and 0xFF).toByte(),
-                ((l2capPSM shr 8) and 0xFF).toByte()
-            )
             
             // Start accepting connections in background thread
             l2capAcceptThread = Thread {
