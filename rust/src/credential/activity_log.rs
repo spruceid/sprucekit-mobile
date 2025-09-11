@@ -4,7 +4,7 @@ use crate::{storage_manager::StorageManagerInterface, Key, Value};
 
 use futures::StreamExt;
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use uuid::Uuid;
 
 /// Entries are stored at the individual entry-level to
@@ -145,7 +145,33 @@ pub struct ActivityLogEntry {
     /// Fields that have been shared. This will be an empty
     /// vector if there are no fields shared (i.e., when the
     /// activity type is not `Shared`)
+    #[serde(
+        serialize_with = "ActivityLogEntry::serialize_fields",
+        deserialize_with = "ActivityLogEntry::deserialize_fields"
+    )]
     fields: Vec<String>,
+}
+
+impl ActivityLogEntry {
+    pub fn serialize_fields<S: Serializer>(
+        fields: &[String],
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let fields_string = fields.join(";");
+        serializer.serialize_str(&fields_string)
+    }
+
+    pub fn deserialize_fields<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let fields_string = String::deserialize(deserializer)?;
+        if fields_string.is_empty() {
+            Ok(Vec::new())
+        } else {
+            Ok(fields_string.split(';').map(|s| s.to_string()).collect())
+        }
+    }
 }
 
 #[uniffi::export]
@@ -222,7 +248,7 @@ impl ActivityLogEntry {
     }
 
     fn get_fields(&self) -> Vec<String> {
-      self.fields.clone()
+        self.fields.clone()
     }
 
     fn get_url(&self) -> Option<String> {
@@ -449,19 +475,35 @@ impl ActivityLog {
             "Hidden",
             "Fields",
         ])
-        .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(format!("Writing headers: {}", e.to_string())))?;
+        .map_err(|e| {
+            ActivityLogError::ActivityLogEntrySerialization(format!(
+                "Writing headers: {}",
+                e.to_string()
+            ))
+        })?;
 
         for entry in self.filter_entries(filter).await?.into_iter() {
-            wtr.serialize(&entry)
-                .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(format!("Writing entry: {}", e.to_string())))?;
+            wtr.serialize(&entry).map_err(|e| {
+                ActivityLogError::ActivityLogEntrySerialization(format!(
+                    "Writing entry: {}",
+                    e.to_string()
+                ))
+            })?;
         }
 
-        let bytes = wtr
-            .into_inner()
-            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(format!("Getting as bytes: {}", e.to_string())))?;
+        let bytes = wtr.into_inner().map_err(|e| {
+            ActivityLogError::ActivityLogEntrySerialization(format!(
+                "Getting as bytes: {}",
+                e.to_string()
+            ))
+        })?;
 
-        let data = String::from_utf8(bytes.to_owned())
-            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(format!("Getting as String from bytes: {}", e.to_string())))?;
+        let data = String::from_utf8(bytes.to_owned()).map_err(|e| {
+            ActivityLogError::ActivityLogEntrySerialization(format!(
+                "Getting as String from bytes: {}",
+                e.to_string()
+            ))
+        })?;
 
         Ok(data)
     }
@@ -563,7 +605,7 @@ mod test {
             ActivityLogEntryType::Request,
             "requesting new credential issuance".into(),
             "ISSUING AUTHORITY".into(),
-            None,
+            Some(Vec::from(&["Name".into(), "Age".into()])),
             Some("www.example.com".into()),
         )?);
 
@@ -580,6 +622,10 @@ mod test {
         let entry = activity_log.set_hidden(entry.get_id(), true).await?;
 
         assert_eq!(entry.hidden, true, "Expect entry to be hidden");
+
+        let csv = activity_log.export_entries_csv(None).await?;
+
+        println!("csv: {csv:?}");
 
         activity_log.remove(entry.get_id()).await?;
 
