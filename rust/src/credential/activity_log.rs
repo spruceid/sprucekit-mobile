@@ -437,6 +437,19 @@ impl ActivityLog {
     ) -> Result<String, ActivityLogError> {
         let mut wtr = csv::Writer::from_writer(Vec::new());
 
+        wtr.write_record(&[
+            "Entry ID",
+            "Credential ID",
+            "Activity Type",
+            "Timestamp",
+            "Date",
+            "Description",
+            "URL",
+            "Hidden",
+            "Fields",
+        ])
+        .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
+
         for entry in self.filter_entries(filter).await?.into_iter() {
             wtr.serialize(&entry)
                 .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
