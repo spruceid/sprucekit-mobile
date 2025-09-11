@@ -145,6 +145,7 @@ pub struct ActivityLogEntry {
     /// Fields that have been shared. This will be an empty
     /// vector if there are no fields shared (i.e., when the
     /// activity type is not `Shared`)
+    #[serde(skip)]
     fields: Vec<String>,
 }
 
@@ -446,7 +447,7 @@ impl ActivityLog {
             "Description",
             "URL",
             "Hidden",
-            "Fields",
+            // "Fields",
         ])
         .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
 
