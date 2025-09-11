@@ -605,9 +605,22 @@ public protocol ActivityLogProtocol: AnyObject, Sendable {
      */
     func exportEntries(filter: ActivityLogFilterOptions?) async throws  -> String
     
+    /**
+     * Returns the optionally filtered activity log entries list as CSV encoded string for export use.
+     */
+    func exportEntriesCsv(filter: ActivityLogFilterOptions?) async throws  -> String
+    
     func get(entryId: Uuid) async throws  -> ActivityLogEntry?
     
+    /**
+     * Remove an activity log entry given a specific entry ID.
+     */
     func remove(entryId: Uuid) async throws 
+    
+    /**
+     * Remove all activity log entries belonging to the instantiated credential ID.
+     */
+    func removeAll() async throws 
     
     func setHidden(entryId: Uuid, shouldHide: Bool) async throws  -> ActivityLogEntry
     
@@ -762,6 +775,26 @@ open func exportEntries(filter: ActivityLogFilterOptions?)async throws  -> Strin
         )
 }
     
+    /**
+     * Returns the optionally filtered activity log entries list as CSV encoded string for export use.
+     */
+open func exportEntriesCsv(filter: ActivityLogFilterOptions?)async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_export_entries_csv(
+                    self.uniffiClonePointer(),
+                    FfiConverterOptionTypeActivityLogFilterOptions.lower(filter)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
 open func get(entryId: Uuid)async throws  -> ActivityLogEntry?  {
     return
         try  await uniffiRustCallAsync(
@@ -779,6 +812,9 @@ open func get(entryId: Uuid)async throws  -> ActivityLogEntry?  {
         )
 }
     
+    /**
+     * Remove an activity log entry given a specific entry ID.
+     */
 open func remove(entryId: Uuid)async throws   {
     return
         try  await uniffiRustCallAsync(
@@ -786,6 +822,26 @@ open func remove(entryId: Uuid)async throws   {
                 uniffi_mobile_sdk_rs_fn_method_activitylog_remove(
                     self.uniffiClonePointer(),
                     FfiConverterTypeUuid_lower(entryId)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+    /**
+     * Remove all activity log entries belonging to the instantiated credential ID.
+     */
+open func removeAll()async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_remove_all(
+                    self.uniffiClonePointer()
+                    
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
@@ -875,7 +931,7 @@ public protocol ActivityLogEntryProtocol: AnyObject, Sendable {
     
     func getCredentialId()  -> Uuid
     
-    func getDate()  -> UInt64
+    func getDate()  -> String
     
     func getDescription()  -> String
     
@@ -886,6 +942,8 @@ public protocol ActivityLogEntryProtocol: AnyObject, Sendable {
     func getId()  -> Uuid
     
     func getInteractionWith()  -> String
+    
+    func getTimestamp()  -> UInt64
     
     func getType()  -> ActivityLogEntryType
     
@@ -990,8 +1048,8 @@ open func getCredentialId() -> Uuid  {
 })
 }
     
-open func getDate() -> UInt64  {
-    return try!  FfiConverterUInt64.lift(try! rustCall() {
+open func getDate() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_date(self.uniffiClonePointer(),$0
     )
 })
@@ -1028,6 +1086,13 @@ open func getId() -> Uuid  {
 open func getInteractionWith() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_interaction_with(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getTimestamp() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_activitylogentry_get_timestamp(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -21383,10 +21448,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_export_entries() != 39487) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_export_entries_csv() != 7492) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_get() != 49762) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove() != 2228) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove() != 25888) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove_all() != 43950) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_set_hidden() != 41883) {
@@ -21395,7 +21466,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_credential_id() != 4490) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_date() != 5229) {
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_date() != 6365) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_description() != 26368) {
@@ -21411,6 +21482,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_interaction_with() != 19643) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_timestamp() != 63696) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylogentry_get_type() != 42347) {

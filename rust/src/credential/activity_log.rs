@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
 use crate::{storage_manager::StorageManagerInterface, Key, Value};
 
@@ -65,13 +65,13 @@ impl ActivityLogFilterOptions {
     fn should_filter_entry(&self, entry: &ActivityLogEntry, index: usize) -> bool {
         // Check date range filters
         if let Some(from_date) = self.from_date {
-            if from_date > entry.date {
+            if from_date > entry.timestamp {
                 return false;
             }
         }
 
         if let Some(to_date) = self.to_date {
-            if to_date < entry.date {
+            if to_date < entry.timestamp {
                 return false;
             }
         }
@@ -110,8 +110,10 @@ pub struct ActivityLogEntry {
     credential_id: Uuid,
     /// Type of activity log entry
     r#type: ActivityLogEntryType,
-    /// date encoded as a unix timestamp
-    date: u64,
+    /// Date encoded as a UNIX timestamp
+    timestamp: u64,
+    /// Date encoded as an RFC 3339 and ISO 8601 date and time string such as `1996-12-19T16:39:57-08:00`.
+    date: String,
     /// Description shown the user of the interaction
     description: String,
     /// Interaction with denotes the name of the
@@ -157,10 +159,9 @@ impl ActivityLogEntry {
         fields: Option<Vec<String>>,
         url: Option<String>,
     ) -> Result<Self, ActivityLogError> {
-        let date = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|e| ActivityLogError::CreateActivityLogEntry(e.to_string()))?
-            .as_secs();
+        let now = chrono::Utc::now();
+        let timestamp = now.timestamp() as u64;
+        let date = now.to_rfc3339();
 
         let fields = fields.unwrap_or_default();
 
@@ -168,6 +169,7 @@ impl ActivityLogEntry {
             id: Uuid::new_v4(),
             credential_id,
             r#type,
+            timestamp,
             date,
             description,
             interaction_with,
@@ -203,8 +205,12 @@ impl ActivityLogEntry {
         self.r#type.clone()
     }
 
-    fn get_date(&self) -> u64 {
-        self.date
+    fn get_date(&self) -> String {
+        self.date.clone()
+    }
+
+    fn get_timestamp(&self) -> u64 {
+        self.timestamp
     }
 
     fn get_description(&self) -> String {
@@ -356,6 +362,7 @@ impl ActivityLog {
         }
     }
 
+    /// Remove an activity log entry given a specific entry ID.
     pub async fn remove(&self, entry_id: Uuid) -> Result<(), ActivityLogError> {
         let key = ActivityLogEntry::credential_and_entry_id_to_key(self.credential_id, entry_id);
 
@@ -363,6 +370,32 @@ impl ActivityLog {
             .remove(key)
             .await
             .map_err(|e| ActivityLogError::Storage(e.to_string()))?;
+
+        Ok(())
+    }
+
+    /// Remove all activity log entries belonging to the instantiated credential ID.
+    pub async fn remove_all(&self) -> Result<(), ActivityLogError> {
+        let keys = self
+            .storage
+            .list()
+            .await
+            .map_err(|e| ActivityLogError::Storage(e.to_string()))?
+            .into_iter()
+            .filter(|key: &Key| {
+                key.0
+                    .split_once(&format!("{KEY_PREFIX}{}", self.credential_id))
+                    .map(|(_, rest)| !rest.is_empty())
+                    .unwrap_or(false)
+            })
+            .collect::<Vec<Key>>();
+
+        for key in keys {
+            self.storage
+                .remove(key)
+                .await
+                .map_err(|e| ActivityLogError::Storage(e.to_string()))?;
+        }
 
         Ok(())
     }
@@ -395,6 +428,28 @@ impl ActivityLog {
             .collect::<Vec<ActivityLogEntry>>();
         serde_json::to_string(&entries)
             .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))
+    }
+
+    /// Returns the optionally filtered activity log entries list as CSV encoded string for export use.
+    pub async fn export_entries_csv(
+        &self,
+        filter: Option<ActivityLogFilterOptions>,
+    ) -> Result<String, ActivityLogError> {
+        let mut wtr = csv::Writer::from_writer(Vec::new());
+
+        for entry in self.filter_entries(filter).await?.into_iter() {
+            wtr.serialize(&entry)
+                .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
+        }
+
+        let bytes = wtr
+            .into_inner()
+            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
+
+        let data = String::from_utf8(bytes.to_owned())
+            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
+
+        Ok(data)
     }
 }
 
