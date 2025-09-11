@@ -60,7 +60,7 @@ class GattServer(private var callback: GattServerCallback,
     private var l2capAcceptThread: Thread? = null
     private var l2capReadThread: Thread? = null
     private val l2capResponseQueue: BlockingQueue<ByteArray> = LinkedTransferQueue()
-    private val L2CAP_BUFFER_SIZE = (1 shl 16) // 64K or 65536 bytes
+    private val L2CAP_BUFFER_SIZE = 8192 // 8KB
 
     private val bluetoothGattServerCallback: BluetoothGattServerCallback = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(device: BluetoothDevice, status: Int , newState: Int) {
@@ -712,7 +712,7 @@ class GattServer(private var callback: GattServerCallback,
                             transferMode = "L2CAP"
                             callback.onLog("Starting L2CAP data transfer at $l2capTransferStartTime")
                         }
-                        
+
                         messageBuffer.write(buffer, 0, bytesRead)
                         lastDataTime = System.currentTimeMillis()
                         callback.onLog("L2CAP received chunk: $bytesRead bytes, total: ${messageBuffer.size()} bytes")
@@ -725,9 +725,9 @@ class GattServer(private var callback: GattServerCallback,
                             // Complete message received
                             val message = messageBuffer.toByteArray()
                             
-                            // Calculate and log transfer time (excluding the 500ms timeout)
+                            // Calculate and log transfer time (excluding the timeout)
                             if (l2capDataStarted) {
-                                // Transfer time is from start to last data received (not including the 500ms wait)
+                                // Transfer time is from start to last data received (not including the wait)
                                 val transferTime = lastDataTime - l2capTransferStartTime
                                 val transferRate = if (transferTime > 0) {
                                     (message.size * 1000.0 / transferTime) // bytes per second
