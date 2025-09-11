@@ -75,7 +75,7 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
         // The isEmpty guard above should prevent div0 errors here.
         let fracDone = Double(totalBytesWritten) / Double(originalOutputDataSize)
 
-        streamSentData(bytes: bytesWritten, total: totalBytesWritten, fraction: fracDone)
+        streamSentData(bytes: totalBytesWritten, total: originalOutputDataSize, fraction: fracDone)
 
         if bytesWritten < outputData.count {
             outputData = outputData.advanced(by: bytesWritten)

@@ -203,6 +203,10 @@ class MDocHolderBLECentral: NSObject {
     }
 
     private func disconnect() {
+        if useL2CAP {
+            activeStream?.close()
+            activeStream = nil
+        }
         if let peripheral = peripheral {
             centralManager.cancelPeripheralConnection(peripheral)
         }
