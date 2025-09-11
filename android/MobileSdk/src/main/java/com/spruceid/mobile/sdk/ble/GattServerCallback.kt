@@ -1,6 +1,6 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
-abstract class GattClientCallback {
+abstract class GattServerCallback {
     open fun onPeerConnected() {}
     open fun onPeerDisconnected() {}
     open fun onMessageReceived(data: ByteArray) {}

@@ -11,14 +11,14 @@
  * express permission of Spruce Systems, Inc.
  */
 
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
-import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
 import android.util.Log
+import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import java.util.*
 
 /**
@@ -38,17 +38,6 @@ class TransportBlePeripheralServerReader(
     private lateinit var blePeripheral: BlePeripheral
     private lateinit var gattServer: GattServer
     private lateinit var identValue: ByteArray
-
-    private var characteristicStateUuid: UUID =
-        UUID.fromString("00000005-a123-48ce-896b-4c76973373e6")
-    private var characteristicClient2ServerUuid: UUID =
-        UUID.fromString("00000006-a123-48ce-896b-4c76973373e6")
-    private var characteristicServer2ClientUuid: UUID =
-        UUID.fromString("00000007-a123-48ce-896b-4c76973373e6")
-    private var characteristicIdentUuid: UUID =
-        UUID.fromString("00000008-a123-48ce-896b-4c76973373e6")
-    private var characteristicL2CAPUuid: UUID =
-        UUID.fromString("0000000b-a123-48ce-896b-4c76973373e6")
 
     private var logIndex: Int = 0
 
@@ -134,8 +123,10 @@ class TransportBlePeripheralServerReader(
          * advertisement data.
          */
         try {
-            previousAdapterName = bluetoothAdapter!!.name
-            bluetoothAdapter!!.name = "mDL $application Device"
+            if (bluetoothAdapter?.name != null) {
+                previousAdapterName = bluetoothAdapter!!.name
+                bluetoothAdapter!!.name = "mDL $application Device"
+            }
         } catch (error: SecurityException) {
             println(error)
         }
@@ -150,11 +141,7 @@ class TransportBlePeripheralServerReader(
             context,
             bluetoothManager,
             serviceUUID,
-            characteristicStateUuid,
-            characteristicClient2ServerUuid,
-            characteristicServer2ClientUuid,
-            characteristicIdentUuid,
-            characteristicL2CAPUuid
+            true
         )
 
         blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID, bluetoothAdapter!!)
@@ -163,7 +150,7 @@ class TransportBlePeripheralServerReader(
     }
 
     fun stop() {
-        if (this::previousAdapterName.isInitialized) {
+        if (this::previousAdapterName.isInitialized && bluetoothAdapter != null) {
             try {
                 bluetoothAdapter!!.name = previousAdapterName
             } catch (error: SecurityException) {

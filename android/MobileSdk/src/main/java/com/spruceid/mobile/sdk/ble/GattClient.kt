@@ -1,4 +1,4 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -13,6 +13,7 @@ import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.spruceid.mobile.sdk.byteArrayToHex
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.lang.reflect.InvocationTargetException
@@ -36,16 +37,8 @@ class GattClient(
     private var callback: GattClientCallback,
     private var context: Context,
     private var btAdapter: BluetoothAdapter?,
-    private var serviceUuid: UUID,
-    private var characteristicStateUuid: UUID,
-    private var characteristicClient2ServerUuid: UUID,
-    private var characteristicServer2ClientUuid: UUID,
-    private var characteristicIdentUuid: UUID?,
-    private var characteristicL2CAPUuid: UUID?
+    private var serviceUuid: UUID
 ) {
-
-    private val clientCharacteristicConfigUuid =
-        UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     private val L2CAP_BUFFER_SIZE = (1 shl 16) // 64K
 
     enum class UseL2CAP { IfAvailable, Yes, No }
@@ -121,40 +114,35 @@ class GattClient(
                         )
                     }
 
-                    if (characteristicL2CAPUuid != null) {
-                        characteristicL2CAP = service.getCharacteristic(characteristicL2CAPUuid)
+                    characteristicL2CAP = service.getCharacteristic(BleConstants.Reader.L2CAP_UUID)
+                    // We don't check if the characteristic is null here because using it is optional;
+                    // we'll decide later if we want to use it based on OS version and whether the
+                    // characteristic actually resolved to something.
 
-                        // We don't check if the characteristic is null here because using it is optional;
-                        // we'll decide later if we want to use it based on OS version and whether the
-                        // characteristic actually resolved to something.
-                    }
-
-                    characteristicState = service.getCharacteristic(characteristicStateUuid)
+                    characteristicState = service.getCharacteristic(BleConstants.Reader.STATE_UUID)
                     if (characteristicState == null) {
                         reportError("State characteristic not found.")
                         return
                     }
 
                     characteristicClient2Server =
-                        service.getCharacteristic(characteristicClient2ServerUuid)
+                        service.getCharacteristic(BleConstants.Reader.CLIENT_TO_SERVER_UUID)
                     if (characteristicClient2Server == null) {
                         reportError("Client2Server characteristic not found.")
                         return
                     }
 
                     characteristicServer2Client =
-                        service.getCharacteristic(characteristicServer2ClientUuid)
+                        service.getCharacteristic(BleConstants.Reader.SERVER_TO_CLIENT_UUID)
                     if (characteristicServer2Client == null) {
                         reportError("Server2Client characteristic not found.")
                         return
                     }
 
-                    if (characteristicIdentUuid != null) {
-                        characteristicIdent = service.getCharacteristic(characteristicIdentUuid)
-                        if (characteristicIdent == null) {
-                            reportError("Ident characteristic not found.")
-                            return
-                        }
+                    characteristicIdent = service.getCharacteristic(BleConstants.Reader.IDENT_UUID)
+                    if (characteristicIdent == null) {
+                        reportError("Ident characteristic not found.")
+                        return
                     }
 
                     callback.onState(BleStates.ServicesDiscovered.string)
@@ -183,7 +171,7 @@ class GattClient(
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
             reportLog("onMtuChanged")
 
-            this@GattClient.set_mtu(mtu)
+            this@GattClient.mtu = min(515, mtu)
 
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 reportError("Error changing MTU, status: $status.")
@@ -234,15 +222,21 @@ class GattClient(
             /**
              * 18013-5 section 8.3.3.1.1.3.
              */
-            if (characteristic.uuid.equals(characteristicIdentUuid)) {
+            if (characteristic.uuid.equals(BleConstants.Reader.IDENT_UUID)) {
                 reportLog("Received identValue: ${byteArrayToHex(value)}.")
 
                 if (!Arrays.equals(value, identValue)) {
-                    reportLog("Warning: Received ident does not match expected ident.")
+                    reportError("Ident mismatch - rejecting connection per ISO 18013-5 section 8.3.3.1.1.3.")
+                    try {
+                        gatt.disconnect()
+                    } catch (error: SecurityException) {
+                        callback.onError(error)
+                    }
+                    return
                 }
 
                 afterIdentObtained(gatt)
-            } else if (characteristic.uuid.equals(characteristicL2CAPUuid)) {
+            } else if (characteristic.uuid.equals(BleConstants.Reader.L2CAP_UUID)) {
                 Log.d(
                     "[GattClient]",
                     "L2CAP read! '${value.size}' ${status == BluetoothGatt.GATT_SUCCESS}"
@@ -256,7 +250,7 @@ class GattClient(
             } else {
                 reportError(
                     "Unexpected onCharacteristicRead for characteristic " +
-                            "${characteristic.uuid} expected $characteristicIdentUuid."
+                            "${characteristic.uuid} expected ${BleConstants.Reader.IDENT_UUID}."
                 )
             }
         }
@@ -278,12 +272,12 @@ class GattClient(
             try {
                 val charUuid = descriptor.characteristic.uuid
 
-                if (charUuid.equals(characteristicServer2ClientUuid)
-                    && descriptor.uuid.equals(clientCharacteristicConfigUuid)
+                if (charUuid.equals(BleConstants.Reader.SERVER_TO_CLIENT_UUID)
+                    && descriptor.uuid.equals(BleConstants.CLIENT_CHARACTERISTIC_CONFIG_UUID)
                 ) {
                     enableNotification(gatt, characteristicState, "State")
-                } else if (charUuid.equals(characteristicStateUuid)
-                    && descriptor.uuid.equals(clientCharacteristicConfigUuid)
+                } else if (charUuid.equals(BleConstants.Reader.STATE_UUID)
+                    && descriptor.uuid.equals(BleConstants.CLIENT_CHARACTERISTIC_CONFIG_UUID)
                 ) {
 
                     // Finally we've set everything up, we can write 0x01 to state to signal
@@ -307,8 +301,8 @@ class GattClient(
                             reportError("Error writing to state characteristic.")
                         }
                     }
-                } else if (charUuid.equals(characteristicL2CAPUuid)) {
-                    if (descriptor.uuid.equals(clientCharacteristicConfigUuid)) {
+                } else if (charUuid.equals(BleConstants.Reader.L2CAP_UUID)) {
+                    if (descriptor.uuid.equals(BleConstants.CLIENT_CHARACTERISTIC_CONFIG_UUID)) {
 
                         if (setL2CAPNotify) {
                             reportLog("Notify already set for l2cap characteristic, doing nothing.")
@@ -339,7 +333,7 @@ class GattClient(
 
             reportLog("onCharacteristicWrite, status=$status uuid=$charUuid")
 
-            if (charUuid.equals(characteristicStateUuid)) {
+            if (charUuid.equals(BleConstants.Reader.STATE_UUID)) {
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     reportError("Unexpected status for writing to State, status=$status.")
                     return
@@ -347,7 +341,7 @@ class GattClient(
 
                 callback.onPeerConnected()
 
-            } else if (charUuid.equals(characteristicClient2ServerUuid)) {
+            } else if (charUuid.equals(BleConstants.Reader.CLIENT_TO_SERVER_UUID)) {
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     reportError("Unexpected status for writing to Client2Server, status=$status.")
                     return
@@ -388,7 +382,7 @@ class GattClient(
 
             when (characteristic.uuid) {
 
-                characteristicServer2ClientUuid -> {
+                BleConstants.Reader.SERVER_TO_CLIENT_UUID -> {
                     if (value.isEmpty()) {
                         reportError("Invalid data length ${value.size} for Server2Client characteristic.")
                         return
@@ -424,7 +418,7 @@ class GattClient(
                     }
                 }
 
-                characteristicStateUuid -> {
+                BleConstants.Reader.STATE_UUID -> {
                     if (value.size != 1) {
                         reportError("Invalid data length ${value.size} for state characteristic.")
                         return
@@ -437,7 +431,7 @@ class GattClient(
                     }
                 }
 
-                characteristicL2CAPUuid -> {
+                BleConstants.Reader.L2CAP_UUID -> {
                     if (value.size == 2) {
                         if (channelPSM == 0) {
                             channelPSM =
@@ -530,7 +524,7 @@ class GattClient(
                     reportError("Failure reading request, peer disconnected.")
                     return
                 }
-                payload.write(buf, 0, buf.count())
+                payload.write(buf, 0, numBytesRead)
 
                 dprint("Currently have ${buf.count()} bytes.")
 
@@ -590,7 +584,6 @@ class GattClient(
                     continue
                 }
                 outStream.write(message)
-                break
             }
         } catch (e: IOException) {
             reportError("Error writing response via L2CAP socket: ${e}")
@@ -634,7 +627,7 @@ class GattClient(
             }
 
             val descriptor: BluetoothGattDescriptor =
-                characteristic.getDescriptor(clientCharacteristicConfigUuid)
+                characteristic.getDescriptor(BleConstants.CLIENT_CHARACTERISTIC_CONFIG_UUID)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val res = gatt.writeDescriptor(
@@ -769,12 +762,17 @@ class GattClient(
      */
     private fun clearCache() {
         try {
+            gattClient?.let { gatt ->
+                val refreshMethod = gatt.javaClass.getMethod("refresh")
+                refreshMethod.invoke(gatt)
+                reportLog("GATT cache cleared successfully")
+            }
         } catch (error: NoSuchMethodException) {
-            callback.onError(error)
+            reportLog("GATT refresh method not available")
         } catch (error: IllegalAccessException) {
-            callback.onError(error)
+            reportLog("Unable to access GATT refresh method")
         } catch (error: InvocationTargetException) {
-            callback.onError(error)
+            reportLog("Error invoking GATT refresh method")
         }
     }
 

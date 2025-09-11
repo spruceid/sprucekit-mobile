@@ -1,11 +1,12 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
-import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.util.Log
+import com.spruceid.mobile.sdk.BLESessionStateDelegate
+import com.spruceid.mobile.sdk.byteArrayToHex
 import java.util.*
 
 /**
@@ -26,18 +27,6 @@ class TransportBleCentralClientHolder(
     private lateinit var bleCentral: BleCentral
     private lateinit var gattClient: GattClient
     private lateinit var identValue: ByteArray
-
-    private var characteristicStateUuid: UUID =
-        UUID.fromString("00000005-a123-48ce-896b-4c76973373e6")
-    private var characteristicClient2ServerUuid: UUID =
-        UUID.fromString("00000006-a123-48ce-896b-4c76973373e6")
-    private var characteristicServer2ClientUuid: UUID =
-        UUID.fromString("00000007-a123-48ce-896b-4c76973373e6")
-    private var characteristicIdentUuid: UUID =
-        UUID.fromString("00000008-a123-48ce-896b-4c76973373e6")
-    private var characteristicL2CAPUuid: UUID =
-        UUID.fromString("0000000b-a123-48ce-896b-4c76973373e6")
-
 
     /**
      * Sets up central with GATT client mode.
@@ -128,7 +117,7 @@ class TransportBleCentralClientHolder(
             override fun onTransportSpecificSessionTermination() {
                 Log.d(
                     "TransportBleCentralClientHolder.gattClientCallback.onTransportSpecificSessionTermination",
-                    "Transort Specific Session Terminated"
+                    "Transport Specific Session Terminated"
                 )
 
                 gattClient.disconnect()
@@ -150,8 +139,10 @@ class TransportBleCentralClientHolder(
          * advertisement data.
          */
         try {
-            previousAdapterName = bluetoothAdapter!!.name
-            bluetoothAdapter!!.name = "mDL $application Device"
+            if (bluetoothAdapter?.name != null) {
+                previousAdapterName = bluetoothAdapter!!.name
+                bluetoothAdapter!!.name = "mDL $application Device"
+            }
         } catch (error: SecurityException) {
             Log.e("TransportBleCentralClientHolder.connect", error.toString())
         }
@@ -165,12 +156,7 @@ class TransportBleCentralClientHolder(
             gattClientCallback,
             context,
             bluetoothAdapter,
-            serviceUUID,
-            characteristicStateUuid,
-            characteristicClient2ServerUuid,
-            characteristicServer2ClientUuid,
-            characteristicIdentUuid,
-            characteristicL2CAPUuid
+            serviceUUID
         )
 
         bleCentral = BleCentral(bleCentralCallback, serviceUUID, bluetoothAdapter!!)
@@ -185,7 +171,7 @@ class TransportBleCentralClientHolder(
     }
 
     fun disconnect() {
-        if (this::previousAdapterName.isInitialized) {
+        if (this::previousAdapterName.isInitialized && bluetoothAdapter != null) {
             try {
                 bluetoothAdapter!!.name = previousAdapterName
             } catch (error: SecurityException) {

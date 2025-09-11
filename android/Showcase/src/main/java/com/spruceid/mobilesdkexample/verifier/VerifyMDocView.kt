@@ -39,8 +39,8 @@ import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.IsoMdlReader
-import com.spruceid.mobile.sdk.getBluetoothManager
-import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobile.sdk.ble.getBluetoothManager
+import com.spruceid.mobile.sdk.ble.getPermissions
 import com.spruceid.mobile.sdk.rs.AuthenticationStatus
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobilesdkexample.LoadingView

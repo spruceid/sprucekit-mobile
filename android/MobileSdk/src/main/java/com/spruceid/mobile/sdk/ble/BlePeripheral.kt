@@ -1,4 +1,4 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.AdvertiseCallback
@@ -47,7 +47,7 @@ class BlePeripheral(private var callback: BlePeripheralCallback,
                 callback.onError(Error("Advertise Failed Internal Error."))
             }
 
-            if (errorCode ==ADVERTISE_FAILED_TOO_MANY_ADVERTISERS) {
+            if (errorCode == ADVERTISE_FAILED_TOO_MANY_ADVERTISERS) {
                 callback.onError(Error("Advertise Failed Too Many Advertisers."))
             }
 

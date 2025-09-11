@@ -3,6 +3,7 @@ package com.spruceid.mobile.sdk
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
+import com.spruceid.mobile.sdk.ble.Transport
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseData
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseException

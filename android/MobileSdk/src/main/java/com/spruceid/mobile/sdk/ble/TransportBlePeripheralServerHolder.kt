@@ -1,12 +1,10 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
-import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
 import android.util.Log
-import androidx.annotation.NonNull
 import java.util.*
 
 /**
@@ -25,15 +23,6 @@ class TransportBlePeripheralServerHolder(
     private lateinit var previousAdapterName: String
     private lateinit var blePeripheral: BlePeripheral
     private lateinit var gattServer: GattServer
-
-    private var characteristicStateUuid: UUID =
-        UUID.fromString("00000001-a123-48ce-896b-4c76973373e6")
-    private var characteristicClient2ServerUuid: UUID =
-        UUID.fromString("00000002-a123-48ce-896b-4c76973373e6")
-    private var characteristicServer2ClientUuid: UUID =
-        UUID.fromString("00000003-a123-48ce-896b-4c76973373e6")
-    private var characteristicL2CAPUuid: UUID =
-        UUID.fromString("0000000a-a123-48ce-896b-4c76973373e6")
 
     /**
      * Sets up peripheral with GATT server mode.
@@ -101,8 +90,10 @@ class TransportBlePeripheralServerHolder(
          * advertisement data.
          */
         try {
-            previousAdapterName = bluetoothAdapter!!.name
-            bluetoothAdapter!!.name = "mDL $application Device"
+            if (bluetoothAdapter?.name != null) {
+                previousAdapterName = bluetoothAdapter!!.name
+                bluetoothAdapter!!.name = "mDL $application Device"
+            }
         } catch (error: SecurityException) {
             Log.e("TransportBlePeripheralServerHolder.start", error.toString())
         }
@@ -117,11 +108,7 @@ class TransportBlePeripheralServerHolder(
             context,
             bluetoothManager,
             serviceUUID,
-            characteristicStateUuid,
-            characteristicClient2ServerUuid,
-            characteristicServer2ClientUuid,
-            null,
-            characteristicL2CAPUuid
+            false
         )
 
         blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID, bluetoothAdapter!!)
@@ -137,7 +124,7 @@ class TransportBlePeripheralServerHolder(
     }
 
     fun stop() {
-        if (this::previousAdapterName.isInitialized) {
+        if (this::previousAdapterName.isInitialized && bluetoothAdapter != null) {
             try {
                 bluetoothAdapter!!.name = previousAdapterName
             } catch (error: SecurityException) {

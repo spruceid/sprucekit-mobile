@@ -1,4 +1,4 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
 import android.bluetooth.le.ScanResult
 

@@ -1,8 +1,9 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
+import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import java.util.*
 
 /**
@@ -82,7 +83,7 @@ class Transport(private var bluetoothManager: BluetoothManager) {
      */
     fun hardReset() {
         if (this::transportBLE.isInitialized) {
-            transportBLE.terminate()
+            transportBLE.hardReset()
         }
     }
 }

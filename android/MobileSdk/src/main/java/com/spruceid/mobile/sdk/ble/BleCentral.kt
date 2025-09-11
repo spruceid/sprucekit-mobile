@@ -1,4 +1,4 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
 import android.bluetooth.le.*
 import android.os.Handler
@@ -13,7 +13,6 @@ import android.content.Context.*
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Looper
-import android.util.Log
 
 class BleCentral(
     private var callback: BleCentralCallback,
@@ -24,9 +23,10 @@ class BleCentral(
     private val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
     private var scanning = false
     private val handler = Handler(Looper.myLooper()!!)
+    private var scanTimeoutRunnable: Runnable? = null
 
-    // Limits scanning to 3 min - preserves battery life - ideally should be lower.
-    private val scanPeriod: Long = 180000
+    // Limits scanning to 30 seconds per ISO 18013-5 recommendations for power efficiency
+    private val scanPeriod: Long = 30000
 
     /**
      * Scan callback.
@@ -43,7 +43,7 @@ class BleCentral(
         override fun onBatchScanResults(results: MutableList<ScanResult>?) {
             super.onBatchScanResults(results)
 
-            callback.onError(Error("Should not be using batch, $results."))
+            callback.onError(Error("Should not be using batch, results: $results"))
         }
 
         override fun onScanFailed(errorCode: Int) {
@@ -73,13 +73,15 @@ class BleCentral(
 
         try {
             if (!scanning) {
-                handler.postDelayed({
+                scanTimeoutRunnable = Runnable {
                     scanning = false
                     bluetoothLeScanner.stopScan(leScanCallback)
+                    scanTimeoutRunnable = null // Clear reference after execution
 
                     callback.onState(BleStates.StopScan.string)
                     callback.onLog("Stopping Central scan.")
-                }, scanPeriod)
+                }
+                handler.postDelayed(scanTimeoutRunnable!!, scanPeriod)
                 scanning = true
                 bluetoothLeScanner.startScan(filterList, settings, leScanCallback)
 
@@ -107,6 +109,10 @@ class BleCentral(
      */
     fun stopScan() {
         try {
+            // Remove pending timeout callback to prevent memory leak
+            scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
+            scanTimeoutRunnable = null
+            
             bluetoothLeScanner.stopScan(leScanCallback)
             scanning = false
 

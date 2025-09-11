@@ -1,9 +1,10 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
 
 import android.bluetooth.*
 import android.content.Context
 import android.util.Log
+import com.spruceid.mobile.sdk.byteArrayToHex
 import java.io.ByteArrayOutputStream
 import java.util.*
 import kotlin.math.min
@@ -17,14 +18,14 @@ class GattServer(private var callback: GattServerCallback,
                  private var context: Context,
                  private var bluetoothManager: BluetoothManager,
                  private var serviceUuid: UUID,
-                 private var characteristicStateUuid: UUID,
-                 private var characteristicClient2ServerUuid: UUID,
-                 private var characteristicServer2ClientUuid: UUID,
-                 private var characteristicIdentUuid: UUID?,
-                 private var characteristicL2CAPUuid: UUID?) {
+                 private var isReaderServer: Boolean = false) {
 
-    private var clientCharacteristicConfigUuid =
-        UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+    // Get the appropriate UUIDs based on server type
+    private val characteristicStateUuid = if (isReaderServer) BleConstants.Reader.STATE_UUID else BleConstants.Holder.STATE_UUID
+    private val characteristicClient2ServerUuid = if (isReaderServer) BleConstants.Reader.CLIENT_TO_SERVER_UUID else BleConstants.Holder.CLIENT_TO_SERVER_UUID
+    private val characteristicServer2ClientUuid = if (isReaderServer) BleConstants.Reader.SERVER_TO_CLIENT_UUID else BleConstants.Holder.SERVER_TO_CLIENT_UUID
+    private val characteristicIdentUuid = if (isReaderServer) BleConstants.Reader.IDENT_UUID else null
+    private val characteristicL2CAPUuid = if (isReaderServer) BleConstants.Reader.L2CAP_UUID else BleConstants.Holder.L2CAP_UUID
 
     private var gattServer: BluetoothGattServer? = null
     private var currentConnection: BluetoothDevice? = null
@@ -73,7 +74,11 @@ class GattServer(private var callback: GattServerCallback,
             if ((characteristicIdentUuid != null &&
                         characteristic.uuid.equals(characteristicIdentUuid))) {
 
-                Log.d("GattServer.onCharacteristicReadRequest", "Sending value: ${byteArrayToHex(identValue!!)}")
+                Log.d("GattServer.onCharacteristicReadRequest", "Sending value: ${
+                    byteArrayToHex(
+                        identValue!!
+                    )
+                }")
                 try {
                     gattServer!!.sendResponse(
                         device,
@@ -200,7 +205,7 @@ class GattServer(private var callback: GattServerCallback,
                 }
             } else {
                 callback.onError(Error("Write on unexpected characteristic with UUID " +
-                        "$characteristic.uuid}"))
+                        "${characteristic.uuid}"))
             }
         }
 
@@ -384,7 +389,7 @@ class GattServer(private var callback: GattServerCallback,
         )
 
         val stateDescriptor = BluetoothGattDescriptor(
-            clientCharacteristicConfigUuid,
+            BleConstants.CLIENT_CHARACTERISTIC_CONFIG_UUID,
             BluetoothGattDescriptor.PERMISSION_WRITE
         )
 
@@ -415,7 +420,7 @@ class GattServer(private var callback: GattServerCallback,
         )
 
         val serverClientDescriptor = BluetoothGattDescriptor(
-            clientCharacteristicConfigUuid,
+            BleConstants.CLIENT_CHARACTERISTIC_CONFIG_UUID,
             BluetoothGattDescriptor.PERMISSION_WRITE
         )
 

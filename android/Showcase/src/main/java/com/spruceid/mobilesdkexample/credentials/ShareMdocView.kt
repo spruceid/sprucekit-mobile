@@ -53,8 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.PresentmentState
-import com.spruceid.mobile.sdk.getBluetoothManager
-import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobile.sdk.ble.getBluetoothManager
+import com.spruceid.mobile.sdk.ble.getPermissions
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
