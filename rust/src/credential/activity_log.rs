@@ -145,7 +145,6 @@ pub struct ActivityLogEntry {
     /// Fields that have been shared. This will be an empty
     /// vector if there are no fields shared (i.e., when the
     /// activity type is not `Shared`)
-    #[serde(skip)]
     fields: Vec<String>,
 }
 
@@ -223,7 +222,7 @@ impl ActivityLogEntry {
     }
 
     fn get_fields(&self) -> Vec<String> {
-        self.fields.clone()
+      self.fields.clone()
     }
 
     fn get_url(&self) -> Option<String> {
@@ -445,23 +444,24 @@ impl ActivityLog {
             "Timestamp",
             "Date",
             "Description",
+            "Interaction With",
             "URL",
             "Hidden",
-            // "Fields",
+            "Fields",
         ])
-        .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
+        .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(format!("Writing headers: {}", e.to_string())))?;
 
         for entry in self.filter_entries(filter).await?.into_iter() {
             wtr.serialize(&entry)
-                .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
+                .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(format!("Writing entry: {}", e.to_string())))?;
         }
 
         let bytes = wtr
             .into_inner()
-            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
+            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(format!("Getting as bytes: {}", e.to_string())))?;
 
         let data = String::from_utf8(bytes.to_owned())
-            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(e.to_string()))?;
+            .map_err(|e| ActivityLogError::ActivityLogEntrySerialization(format!("Getting as String from bytes: {}", e.to_string())))?;
 
         Ok(data)
     }
