@@ -143,7 +143,8 @@ abstract class BaseNfcPresentationService : HostApduService() {
                     doNotNotifyOnDisconnect = false
                 }
 
-                apduHandoverDriver.regenerateStaticBleKeys()
+                // TODO: Reenable key regeneration once we've solved BLE failures
+                // apduHandoverDriver.regenerateStaticBleKeys()
             }
         }
 
