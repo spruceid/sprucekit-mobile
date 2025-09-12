@@ -395,13 +395,7 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 
 
 // Public interface members begin here.
-// Magic number for the Rust proxy to call using the same mechanism as every other method,
-// to free the callback once it's dropped by Rust.
-private let IDX_CALLBACK_FREE: Int32 = 0
-// Callback return codes
-private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
-private let UNIFFI_CALLBACK_ERROR: Int32 = 1
-private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
+
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -1271,7 +1265,13 @@ open func httpClient(request: HttpRequest)async throws  -> HttpResponse  {
     
 
 }
-
+// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+private let IDX_CALLBACK_FREE: Int32 = 0
+// Callback return codes
+private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
+private let UNIFFI_CALLBACK_ERROR: Int32 = 1
+private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
 // Put the implementation in a struct so we don't pollute the top-level namespace
 fileprivate struct UniffiCallbackInterfaceAsyncHttpClient {
@@ -12798,9 +12798,6 @@ extension ActivityLogEntryType: Equatable, Hashable {}
 
 
 
-
-
-
 public enum ActivityLogError: Swift.Error {
 
     
@@ -12918,14 +12915,11 @@ extension ActivityLogError: Equatable, Hashable {}
 
 
 
-
 extension ActivityLogError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -12999,9 +12993,6 @@ public func FfiConverterTypeAuthenticationStatus_lower(_ value: AuthenticationSt
 
 
 extension AuthenticationStatus: Equatable, Hashable {}
-
-
-
 
 
 
@@ -13081,14 +13072,11 @@ extension CborLdEncodingError: Equatable, Hashable {}
 
 
 
-
 extension CborLdEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -13229,8 +13217,6 @@ public func FfiConverterTypeCborValue_lower(_ value: CborValue) -> RustBuffer {
 
 
 
-
-
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -13323,9 +13309,6 @@ public func FfiConverterTypeClaimValue_lower(_ value: ClaimValue) -> RustBuffer 
 
 
 extension ClaimValue: Equatable, Hashable {}
-
-
-
 
 
 
@@ -13465,14 +13448,11 @@ extension CredentialDecodingError: Equatable, Hashable {}
 
 
 
-
 extension CredentialDecodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13581,14 +13561,11 @@ extension CredentialEncodingError: Equatable, Hashable {}
 
 
 
-
 extension CredentialEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -13700,9 +13677,6 @@ extension CredentialFormat: Equatable, Hashable {}
 
 
 
-
-
-
 public enum CredentialPresentationError: Swift.Error {
 
     
@@ -13778,14 +13752,11 @@ extension CredentialPresentationError: Equatable, Hashable {}
 
 
 
-
 extension CredentialPresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -13854,14 +13825,11 @@ extension CryptoError: Equatable, Hashable {}
 
 
 
-
 extension CryptoError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14128,14 +14096,11 @@ extension CwtError: Equatable, Hashable {}
 
 
 
-
 extension CwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14214,14 +14179,11 @@ extension DcApiError: Equatable, Hashable {}
 
 
 
-
 extension DcApiError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -14302,9 +14264,6 @@ public func FfiConverterTypeDelegatedVerifierStatus_lower(_ value: DelegatedVeri
 
 
 extension DelegatedVerifierStatus: Equatable, Hashable {}
-
-
-
 
 
 
@@ -14398,14 +14357,11 @@ extension DidError: Equatable, Hashable {}
 
 
 
-
 extension DidError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -14472,9 +14428,6 @@ public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
 
 
 extension DidMethod: Equatable, Hashable {}
-
-
-
 
 
 
@@ -14579,9 +14532,6 @@ public func FfiConverterTypeFlowState_lower(_ value: FlowState) -> RustBuffer {
 
 
 extension FlowState: Equatable, Hashable {}
-
-
-
 
 
 
@@ -14713,14 +14663,11 @@ extension HttpClientError: Equatable, Hashable {}
 
 
 
-
 extension HttpClientError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14864,14 +14811,11 @@ extension IssuanceServiceError: Equatable, Hashable {}
 
 
 
-
 extension IssuanceServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -14936,14 +14880,11 @@ extension JsonVcEncodingError: Equatable, Hashable {}
 
 
 
-
 extension JsonVcEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15026,14 +14967,11 @@ extension JsonVcInitError: Equatable, Hashable {}
 
 
 
-
 extension JsonVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15140,14 +15078,11 @@ extension JwtVcInitError: Equatable, Hashable {}
 
 
 
-
 extension JwtVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15246,14 +15181,11 @@ extension KeyTransformationError: Equatable, Hashable {}
 
 
 
-
 extension KeyTransformationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15346,14 +15278,11 @@ extension MdlReaderResponseError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15422,14 +15351,11 @@ extension MdlReaderResponseSerializeError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderResponseSerializeError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15498,14 +15424,11 @@ extension MdlReaderSessionError: Equatable, Hashable {}
 
 
 
-
 extension MdlReaderSessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -15612,9 +15535,6 @@ extension MDocItem: Equatable, Hashable {}
 
 
 
-
-
-
 public enum MdlUtilError: Swift.Error {
 
     
@@ -15680,14 +15600,11 @@ extension MdlUtilError: Equatable, Hashable {}
 
 
 
-
 extension MdlUtilError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15756,14 +15673,11 @@ extension MdocDateError: Equatable, Hashable {}
 
 
 
-
 extension MdocDateError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15828,14 +15742,11 @@ extension MdocEncodingError: Equatable, Hashable {}
 
 
 
-
 extension MdocEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -15946,14 +15857,11 @@ extension MdocInitError: Equatable, Hashable {}
 
 
 
-
 extension MdocInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16042,14 +15950,11 @@ extension Oid4vp180137Error: Equatable, Hashable {}
 
 
 
-
 extension Oid4vp180137Error: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16428,14 +16333,11 @@ extension Oid4vpError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16592,14 +16494,11 @@ extension Oid4vciError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vciError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -16678,14 +16577,11 @@ extension Oid4vpVerifierError: Equatable, Hashable {}
 
 
 
-
 extension Oid4vpVerifierError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -16768,9 +16664,6 @@ public func FfiConverterTypeOutcome_lower(_ value: Outcome) -> RustBuffer {
 
 
 extension Outcome: Equatable, Hashable {}
-
-
-
 
 
 
@@ -16961,14 +16854,11 @@ extension PermissionRequestError: Equatable, Hashable {}
 
 
 
-
 extension PermissionRequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17069,14 +16959,11 @@ extension PopError: Equatable, Hashable {}
 
 
 
-
 extension PopError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17225,14 +17112,11 @@ extension PresentationBuilderError: Equatable, Hashable {}
 
 
 
-
 extension PresentationBuilderError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17341,14 +17225,11 @@ extension PresentationError: Equatable, Hashable {}
 
 
 
-
 extension PresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17417,14 +17298,11 @@ extension RequestError: Equatable, Hashable {}
 
 
 
-
 extension RequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17499,14 +17377,11 @@ extension ResponseError: Equatable, Hashable {}
 
 
 
-
 extension ResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17621,14 +17496,11 @@ extension SdJwtError: Equatable, Hashable {}
 
 
 
-
 extension SdJwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17707,14 +17579,11 @@ extension SessionError: Equatable, Hashable {}
 
 
 
-
 extension SessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17799,14 +17668,11 @@ extension SignatureError: Equatable, Hashable {}
 
 
 
-
 extension SignatureError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17881,14 +17747,11 @@ extension StatusListError: Equatable, Hashable {}
 
 
 
-
 extension StatusListError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -17999,14 +17862,11 @@ extension StorageManagerError: Equatable, Hashable {}
 
 
 
-
 extension StorageManagerError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -18075,14 +17935,11 @@ extension TerminationError: Equatable, Hashable {}
 
 
 
-
 extension TerminationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -18157,14 +18014,11 @@ extension VcbVerificationError: Equatable, Hashable {}
 
 
 
-
 extension VcbVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -18233,14 +18087,11 @@ extension VcVerificationError: Equatable, Hashable {}
 
 
 
-
 extension VcVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
@@ -18331,14 +18182,11 @@ extension VpError: Equatable, Hashable {}
 
 
 
-
 extension VpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -18405,9 +18253,6 @@ public func FfiConverterTypeVcdmVersion_lower(_ value: VcdmVersion) -> RustBuffe
 
 
 extension VcdmVersion: Equatable, Hashable {}
-
-
-
 
 
 
@@ -18524,14 +18369,11 @@ extension VdcCollectionError: Equatable, Hashable {}
 
 
 
-
 extension VdcCollectionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -18601,9 +18443,6 @@ public func FfiConverterTypeVerificationResult_lower(_ value: VerificationResult
 
 
 extension VerificationResult: Equatable, Hashable {}
-
-
-
 
 
 
@@ -18767,14 +18606,11 @@ extension WalletServiceError: Equatable, Hashable {}
 
 
 
-
 extension WalletServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
-
-
 
 
 
