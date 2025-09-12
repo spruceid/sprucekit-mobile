@@ -461,7 +461,9 @@ impl ActivityLog {
         &self,
         filter: Option<ActivityLogFilterOptions>,
     ) -> Result<String, ActivityLogError> {
-        let mut wtr = csv::Writer::from_writer(Vec::new());
+        let mut wtr = csv::WriterBuilder::new()
+            .has_headers(false)
+            .from_writer(Vec::new());
 
         wtr.write_record(&[
             "Entry ID",
