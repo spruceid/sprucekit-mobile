@@ -465,7 +465,7 @@ impl ActivityLog {
             .has_headers(false)
             .from_writer(Vec::new());
 
-        wtr.write_record(&[
+        wtr.write_record([
             "Entry ID",
             "Credential ID",
             "Activity Type",
@@ -478,32 +478,22 @@ impl ActivityLog {
             "Fields",
         ])
         .map_err(|e| {
-            ActivityLogError::ActivityLogEntrySerialization(format!(
-                "Writing headers: {}",
-                e.to_string()
-            ))
+            ActivityLogError::ActivityLogEntrySerialization(format!("Writing headers: {e}"))
         })?;
 
         for entry in self.filter_entries(filter).await?.into_iter() {
             wtr.serialize(&entry).map_err(|e| {
-                ActivityLogError::ActivityLogEntrySerialization(format!(
-                    "Writing entry: {}",
-                    e.to_string()
-                ))
+                ActivityLogError::ActivityLogEntrySerialization(format!("Writing entry: {e}",))
             })?;
         }
 
         let bytes = wtr.into_inner().map_err(|e| {
-            ActivityLogError::ActivityLogEntrySerialization(format!(
-                "Getting as bytes: {}",
-                e.to_string()
-            ))
+            ActivityLogError::ActivityLogEntrySerialization(format!("Getting as bytes: {e}",))
         })?;
 
         let data = String::from_utf8(bytes.to_owned()).map_err(|e| {
             ActivityLogError::ActivityLogEntrySerialization(format!(
-                "Getting as String from bytes: {}",
-                e.to_string()
+                "Getting as String from bytes: {e}",
             ))
         })?;
 
