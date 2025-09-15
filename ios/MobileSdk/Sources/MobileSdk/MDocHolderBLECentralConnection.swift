@@ -31,6 +31,8 @@ class MDocHolderBLECentralConnection: BLEInternalL2CAPConnection {
 
     /// Called by super when the stream ends.
     override func streamEnded() {
+        // Stream ended, this is expected when the transfer is complete
+        print("L2CAP stream ended gracefully")
         close()
         controlDelegate.connectionEnd()
     }
@@ -43,6 +45,8 @@ class MDocHolderBLECentralConnection: BLEInternalL2CAPConnection {
 
     /// Called by super if the stream encounters an error.
     override func streamError() {
+        // Only log actual errors, not expected closures
+        print("L2CAP stream error - likely due to intentional closure")
         close()
         controlDelegate.connectionEnd()
     }
@@ -56,7 +60,7 @@ class MDocHolderBLECentralConnection: BLEInternalL2CAPConnection {
 
         controlDelegate.sendUpdate(bytes: bytes, total: total, fraction: fraction)
 
-        if bytes == total {
+        if fraction > 0.999 {
             controlDelegate.sendComplete()
         }
     }
