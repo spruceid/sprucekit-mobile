@@ -21042,6 +21042,20 @@ public func configureLogger(writer: LogWriter)  {try! rustCall() {
     )
 }
 }
+/**
+ * This method encodes raw bytes as CBOR, tagging the payload as
+ * a Tag24 data item and constructing a COSE_Sign1 object that is
+ * signed by the signing key, with the signature included in the
+ * CBOR bytes encoded COSE_Sign1 object returned.
+ */
+public func coseSign1(signer: SigningKey, payload: Data)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_cose_sign1(
+        FfiConverterTypeSigningKey_lower(signer),
+        FfiConverterData.lower(payload),$0
+    )
+})
+}
 public func decodeRevealSdJwt(input: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeSdJwtError_lift) {
     uniffi_mobile_sdk_rs_fn_func_decode_reveal_sd_jwt(
@@ -21368,6 +21382,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_configure_logger() != 58645) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 17227) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 34951) {
