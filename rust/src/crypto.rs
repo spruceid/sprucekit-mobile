@@ -37,41 +37,6 @@ pub trait SigningKey: Send + Sync {
     fn jwk(&self) -> Result<String>;
     /// Produces a signature of unknown encoding.
     fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>>;
-    /// This method encodes raw bytes as CBOR, tagging the payload as
-    /// a Tag24 data item and constructing a COSE_Sign1 object that is
-    /// signed by the signing key, with the signature included in the
-    /// CBOR bytes encoded COSE_Sign1 object returned.
-    fn cose_sign1(&self, payload: Vec<u8>) -> Result<Vec<u8>> {
-        let payload = Tag24::new(payload).map_err(|e| {
-            CryptoError::General(format!("Failed to construct CBOR Tag24 data item: {e:?}"))
-        })?;
-        let cbor_payload = isomdl::cbor::to_vec(&payload).map_err(|e| {
-            CryptoError::General(format!("Failed to encode payload as CBOR: {e:?}"))
-        })?;
-
-        let header = coset::HeaderBuilder::new()
-            .algorithm(coset::iana::Algorithm::ES256)
-            .build();
-
-        let cose_sign1_builder = coset::CoseSign1Builder::new().protected(header);
-        let prepared_cose_sign1 =
-            PreparedCoseSign1::new(cose_sign1_builder, Some(&cbor_payload), None, false)
-                .map_err(|e| CryptoError::General(format!("failed to prepare CoseSign1: {e:?}")))?;
-
-        let signature = self
-            .sign(prepared_cose_sign1.signature_payload().to_vec())
-            .map_err(|e| {
-                CryptoError::General(format!("failed to sign cose_sign1 object: {e:?}"))
-            })?;
-
-        let value = prepared_cose_sign1.finalize(signature);
-
-        let data = isomdl::cbor::to_vec(&value).map_err(|e| {
-            CryptoError::General(format!("failed to serialized cose_sign1 object: {e:?}"))
-        })?;
-
-        Ok(data)
-    }
 }
 
 #[derive(uniffi::Object)]
@@ -104,7 +69,40 @@ impl CryptoCurveUtils {
     }
 }
 
-use ssi::claims::cose::coset::HeaderBuilder;
+/// This method encodes raw bytes as CBOR, tagging the payload as
+/// a Tag24 data item and constructing a COSE_Sign1 object that is
+/// signed by the signing key, with the signature included in the
+/// CBOR bytes encoded COSE_Sign1 object returned.
+#[uniffi::export]
+pub fn cose_sign1(signer: Arc<dyn SigningKey>, payload: Vec<u8>) -> Result<Vec<u8>> {
+    let payload = Tag24::new(payload).map_err(|e| {
+        CryptoError::General(format!("Failed to construct CBOR Tag24 data item: {e:?}"))
+    })?;
+    let cbor_payload = isomdl::cbor::to_vec(&payload)
+        .map_err(|e| CryptoError::General(format!("Failed to encode payload as CBOR: {e:?}")))?;
+
+    let header = coset::HeaderBuilder::new()
+        .algorithm(coset::iana::Algorithm::ES256)
+        .build();
+
+    let cose_sign1_builder = coset::CoseSign1Builder::new().protected(header);
+    let prepared_cose_sign1 =
+        PreparedCoseSign1::new(cose_sign1_builder, Some(&cbor_payload), None, false)
+            .map_err(|e| CryptoError::General(format!("failed to prepare CoseSign1: {e:?}")))?;
+
+    let signature = signer
+        .sign(prepared_cose_sign1.signature_payload().to_vec())
+        .map_err(|e| CryptoError::General(format!("failed to sign cose_sign1 object: {e:?}")))?;
+
+    let value = prepared_cose_sign1.finalize(signature);
+
+    let data = isomdl::cbor::to_vec(&value).map_err(|e| {
+        CryptoError::General(format!("failed to serialized cose_sign1 object: {e:?}"))
+    })?;
+
+    Ok(data)
+}
+
 #[cfg(test)]
 pub(crate) use test::*;
 
