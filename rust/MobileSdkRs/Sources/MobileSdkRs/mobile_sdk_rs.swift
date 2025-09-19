@@ -21043,6 +21043,19 @@ public func configureLogger(writer: LogWriter)  {try! rustCall() {
 }
 }
 /**
+ * Returns a cose key based on the p-256 curve.
+ * Return cose key value is returned as a CBOR-encoded byte array.
+ */
+public func coseKeyEc2P256PublicKey(x: Data, y: Data, kid: Data)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_cose_key_ec2_p256_public_key(
+        FfiConverterData.lower(x),
+        FfiConverterData.lower(y),
+        FfiConverterData.lower(kid),$0
+    )
+})
+}
+/**
  * This method encodes raw bytes as CBOR, tagging the payload as
  * a Tag24 data item and constructing a COSE_Sign1 object that is
  * signed by the signing key, with the signature included in the
@@ -21382,6 +21395,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_configure_logger() != 58645) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_cose_key_ec2_p256_public_key() != 18858) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 17227) {

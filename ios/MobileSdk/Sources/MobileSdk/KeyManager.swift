@@ -146,6 +146,29 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
       return jsonString
     }
+    
+    /**
+     * Returns the public key as a CBOR-encoded COSE key byte array
+     */
+    public static func coseKeyEc2P256PubKey(id: String) -> [UInt8]? {
+        guard let key = getSecretKey(id: id) else { return nil }
+
+        guard let publicKey = SecKeyCopyPublicKey(key) else {
+            return nil
+        }
+
+        var error: Unmanaged<CFError>?
+        guard let data = SecKeyCopyExternalRepresentation(publicKey, &error) as? Data else {
+           return nil
+        }
+
+        let fullData: Data = data.subdata(in: 1..<data.count)
+        let xDataRaw: Data = fullData.subdata(in: 0..<32)
+        let yDataRaw: Data = fullData.subdata(in: 32..<64)
+
+        
+        return coseKeyEc2P256PublicKey(x: xDataRaw, y: yDataRaw, kid: Array(id.utf8))
+    }
 
     /**
      * Signs the provided payload with a ecdsaSignatureMessageX962SHA256 private key.

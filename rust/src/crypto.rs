@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use anyhow::anyhow;
 use isomdl::{cose::sign1::PreparedCoseSign1, definitions::helpers::Tag24};
 use serde::{Deserialize, Serialize};
-use ssi::claims::cose::coset;
+use ssi::claims::cose::coset::{self, iana::Algorithm, AsCborValue, CoseKeyBuilder};
 
 uniffi::custom_newtype!(KeyAlias, String);
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -101,6 +102,25 @@ pub fn cose_sign1(signer: Arc<dyn SigningKey>, payload: Vec<u8>) -> Result<Vec<u
     })?;
 
     Ok(data)
+}
+
+/// Returns a cose key based on the p-256 curve.
+/// Return cose key value is returned as a CBOR-encoded byte array.
+#[uniffi::export]
+pub fn cose_key_ec2_p256_public_key(x: Vec<u8>, y: Vec<u8>, kid: Vec<u8>) -> Result<Vec<u8>> {
+    let value = CoseKeyBuilder::new_ec2_pub_key(coset::iana::EllipticCurve::P_256, x, y)
+        .algorithm(Algorithm::ES256)
+        .key_id(kid)
+        .add_key_op(coset::iana::KeyOperation::Sign)
+        .build()
+        .to_cbor_value()
+        .map_err(|e| anyhow!("failed encode cose key to cbor value: {e:?}"))?;
+
+    let mut buf = Vec::new();
+    ciborium::into_writer(&value, &mut buf)
+        .map_err(|e| anyhow!("failed serialize cose key to cbor bytes: {e:?}"))?;
+
+    Ok(buf)
 }
 
 #[cfg(test)]
