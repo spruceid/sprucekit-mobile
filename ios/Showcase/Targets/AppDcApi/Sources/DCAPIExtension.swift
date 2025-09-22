@@ -18,6 +18,7 @@ struct DocumentProviderExtension: IdentityDocumentProvider {
     var body: some IdentityDocumentRequestScene {
         ISO18013MobileDocumentRequestScene { context in
             DocumentProviderExtensionView(context: context)
+                .background(Color.white)
         }
     }
 }
