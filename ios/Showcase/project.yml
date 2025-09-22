@@ -36,7 +36,7 @@ targets:
     dependencies:
       - target: AppAppKit
       - target: AppUIKit
-      # - target: AppDcApi
+      - target: AppDcApi
       - package: RiveRuntime
     scheme:
       testTargets:
@@ -110,8 +110,8 @@ targets:
         # to be able to share the filesystem with the dc api extension
         com.apple.security.application-groups:
           - group.com.spruceid.mobile
-        # com.apple.developer.identity-document-services.document-provider.mobile-document-types:
-        #   - "org.iso.18013.5.1.mDL"
+        com.apple.developer.identity-document-services.document-provider.mobile-document-types:
+          - "org.iso.18013.5.1.mDL"
         # to be able to share the keychain with the dc api extension
         keychain-access-groups:
           - "$(AppIdentifierPrefix)keychain.com.spruceid.mobile"
@@ -243,17 +243,17 @@ schemes:
     build:
       targets:
         App: [build, archive]
-        # AppDcApi: [build, archive]
+        AppDcApi: [build, archive]
     run:
       targets:
         App: [run]
-        # AppDcApi: [run]
+        AppDcApi: [run]
     test:
       targets:
         - App
         - AppAppKitTests
         - AppUIKitTests
-        # - AppDcApi
+        - AppDcApi
     archive:
       config: release
   debug:
@@ -261,16 +261,16 @@ schemes:
     build:
       targets:
         App: [build, archive]
-        # AppDcApi: [build, archive]
+        AppDcApi: [build, archive]
     run:
       targets:
         App: [run]
-        # AppDcApi: [run]
+        AppDcApi: [run]
     test:
       targets:
         - App
         - AppAppKitTests
         - AppUIKitTests
-        # - AppDcApi
+        - AppDcApi
     archive:
       config: debug
