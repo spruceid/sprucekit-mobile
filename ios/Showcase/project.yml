@@ -201,11 +201,8 @@ targets:
       - path: "Resources"
         createIntermediateGroups: true
     dependencies:
-      # `embed` defaults to true only for application type
       - target: AppAppKit
-        embed: true
       - target: AppUIKit
-        embed: true
       - package: RiveRuntime # for AppUIKit
     info:
       path: Targets/AppDcApi/Info.plist
