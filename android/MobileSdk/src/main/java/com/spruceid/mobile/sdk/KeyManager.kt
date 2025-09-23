@@ -87,20 +87,20 @@ class KeyManager : SpruceKitKeyStore {
     @RequiresApi(Build.VERSION_CODES.P)
     private fun generateSigningKeyWithStrongbox(id: String) {
         val generator =
-                KeyPairGenerator.getInstance(
-                        KeyProperties.KEY_ALGORITHM_EC,
-                        "AndroidKeyStore",
-                )
+            KeyPairGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_EC,
+                "AndroidKeyStore",
+            )
 
         val spec =
-                KeyGenParameterSpec.Builder(
-                                id,
-                                KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
-                        )
-                        .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
-                        .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
-                        .setIsStrongBoxBacked(true)
-                        .build()
+            KeyGenParameterSpec.Builder(
+                id,
+                KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
+            )
+                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
+                .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                .setIsStrongBoxBacked(true)
+                .build()
 
         generator.initialize(spec)
         generator.generateKeyPair()
@@ -112,19 +112,19 @@ class KeyManager : SpruceKitKeyStore {
      */
     private fun generateSigningKeyTEE(id: String) {
         val generator =
-                KeyPairGenerator.getInstance(
-                        KeyProperties.KEY_ALGORITHM_EC,
-                        "AndroidKeyStore",
-                )
+            KeyPairGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_EC,
+                "AndroidKeyStore",
+            )
 
         val spec =
-                KeyGenParameterSpec.Builder(
-                                id,
-                                KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
-                        )
-                        .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
-                        .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
-                        .build()
+            KeyGenParameterSpec.Builder(
+                id,
+                KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
+            )
+                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
+                .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                .build()
 
         generator.initialize(spec)
         generator.generateKeyPair()
@@ -159,15 +159,15 @@ class KeyManager : SpruceKitKeyStore {
             if (key.certificate.publicKey is ECPublicKey) {
                 val ecPublicKey = key.certificate.publicKey as ECPublicKey
                 val x =
-                        Base64.encodeToString(
-                                clampOrFill(ecPublicKey.w.affineX.toByteArray()),
-                                Base64.URL_SAFE xor Base64.NO_PADDING xor Base64.NO_WRAP
-                        )
+                    Base64.encodeToString(
+                        clampOrFill(ecPublicKey.w.affineX.toByteArray()),
+                        Base64.URL_SAFE xor Base64.NO_PADDING xor Base64.NO_WRAP
+                    )
                 val y =
-                        Base64.encodeToString(
-                                clampOrFill(ecPublicKey.w.affineY.toByteArray()),
-                                Base64.URL_SAFE xor Base64.NO_PADDING xor Base64.NO_WRAP
-                        )
+                    Base64.encodeToString(
+                        clampOrFill(ecPublicKey.w.affineY.toByteArray()),
+                        Base64.URL_SAFE xor Base64.NO_PADDING xor Base64.NO_WRAP
+                    )
 
                 return """{"kty":"EC","crv":"P-256","alg":"ES256","x":"$x","y":"$y"}"""
             }
@@ -258,20 +258,20 @@ class KeyManager : SpruceKitKeyStore {
     @RequiresApi(Build.VERSION_CODES.P)
     private fun generateEncryptionKeyWithStrongbox(id: String) {
         val generator =
-                KeyGenerator.getInstance(
-                        KeyProperties.KEY_ALGORITHM_AES,
-                        "AndroidKeyStore",
-                )
+            KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES,
+                "AndroidKeyStore",
+            )
 
         val spec =
-                KeyGenParameterSpec.Builder(
-                                id,
-                                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                        )
-                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                        .setIsStrongBoxBacked(true)
-                        .build()
+            KeyGenParameterSpec.Builder(
+                id,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setIsStrongBoxBacked(true)
+                .build()
 
         generator.init(spec)
         generator.generateKey()
@@ -283,19 +283,19 @@ class KeyManager : SpruceKitKeyStore {
      */
     private fun generateEncryptionKeyWithTEE(id: String) {
         val generator =
-                KeyGenerator.getInstance(
-                        KeyProperties.KEY_ALGORITHM_AES,
-                        "AndroidKeyStore",
-                )
+            KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES,
+                "AndroidKeyStore",
+            )
 
         val spec =
-                KeyGenParameterSpec.Builder(
-                                id,
-                                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                        )
-                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                        .build()
+            KeyGenParameterSpec.Builder(
+                id,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .build()
 
         generator.init(spec)
         generator.generateKey()
@@ -386,6 +386,6 @@ class P256SigningKey(private val alias: String, private val jwk: String) : Signi
     override fun sign(payload: ByteArray): ByteArray {
         val derSignature = KeyManager().signPayload(alias, payload) ?: throw Error("key not found")
         return CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(derSignature)
-                ?: throw Error("signature encoding not recognized")
+            ?: throw Error("signature encoding not recognized")
     }
 }
