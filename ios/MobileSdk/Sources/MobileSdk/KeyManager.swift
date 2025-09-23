@@ -151,9 +151,8 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
      * Returns the public key as a CBOR-encoded COSE key byte array
      */
     public static func coseKeyEc2P256PubKey(id: String) -> [UInt8]? {
-        guard let key = getSecretKey(id: id) else { return nil }
-
-        guard let publicKey = SecKeyCopyPublicKey(key) else {
+        guard let key = getSecretKey(id: id),
+              let publicKey = SecKeyCopyPublicKey(key) else {
             return nil
         }
 
