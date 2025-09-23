@@ -1,6 +1,5 @@
 package com.spruceid.mobile.sdk.ble
 
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
@@ -25,20 +24,47 @@ import java.util.concurrent.BlockingQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedTransferQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 import kotlin.math.min
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * GATT client responsible for consuming data sent from a GATT server.
- * 18013-5 section 8.3.3.1.1.4 Table 11.
+ * mDL BLE GATT Client - Connects to Reader's GATT Server (ISO 18013-5)
+ *
+ * Implements the mDL Holder device as BLE Central/GATT Client connecting to
+ * an mDL Reader's GATT Server. Uses characteristics defined in Table 12:
+ * - State (UUID 00000005): Connection state signaling (Start 0x01, End 0x02)
+ * - Client2Server (UUID 00000006): mDL Holder → Reader data transmission
+ * - Server2Client (UUID 00000007): Reader → mDL Holder data reception
+ * - Ident (UUID 00000008): Reader authentication via HKDF-derived value
+ * - L2CAP: Optional PSM exchange for high-throughput transfer (Annex A)
+ *
+ * Protocol Flow:
+ * 1. Connect to advertised Reader service UUID from device engagement
+ * 2. Discover and validate required GATT characteristics (Table 12)
+ * 3. Negotiate MTU (request 515 bytes maximum)
+ * 4. Verify Reader identity via Ident characteristic
+ * 5. Subscribe to notifications and signal Start (0x01) to State characteristic
+ * 6. Exchange mDL data via Client2Server/Server2Client or L2CAP
  */
 class GattClient(
     private var callback: GattClientCallback,
-    private var context: Context,
-    private var btAdapter: BluetoothAdapter?,
-    private var serviceUuid: UUID
+    private var serviceUuid: UUID,
+    private val config: BleConfiguration = BleConfiguration()
 ) {
+
+    private val logger = BleLogger.getInstance("GattClient", config)
+    private val stateMachine = BleConnectionStateMachine.getInstance()
+    private val btAdapter = stateMachine.getBluetoothManager().adapter
+    private val context: Context = stateMachine.getContext()
+    private val errorHandler = BleErrorHandler(logger)
+    private val terminationProvider = BleTerminationProvider(stateMachine, logger)
+    private val callbackManager = BleCallbackManager.getInstance()
+    private val messageFramer = BleMessageFramer(config, logger)
+    private val threadPool = BleThreadPool.getInstance(config)
     private val L2CAP_BUFFER_SIZE = (1 shl 16) // 64K
 
     enum class UseL2CAP { IfAvailable, Yes, No }
@@ -55,21 +81,39 @@ class GattClient(
 
     private var mtu = 0
     private var identValue: ByteArray? = byteArrayOf()
-    private var writeIsOutstanding = false
-    private var writingQueue: Queue<ByteArray> = ArrayDeque()
+    private val writeIsOutstanding = AtomicBoolean(false)
+    private val writingQueue: Queue<ByteArray> = ArrayDeque()
+    private val queueLock = ReentrantLock()
     private var writingQueueTotalChunks = 0
     private var setL2CAPNotify = false
     private var channelPSM = 0
     private var l2capSocket: BluetoothSocket? = null
-    private var l2capWriteThread: Thread? = null
-    private var incomingMessage: ByteArrayOutputStream = ByteArrayOutputStream()
+    // L2CAP write operations now handled by thread pool
+    private val incomingMessage: ByteArrayOutputStream = ByteArrayOutputStream()
+    private val messageLock = Any()
     private val responseData: BlockingQueue<ByteArray> = LinkedTransferQueue()
     private var requestTimestamp = TimeSource.Monotonic.markNow()
 
+    private val connectionId = "gatt_client_${System.currentTimeMillis()}"
+
+    init {
+        // Initialize termination provider and register GATT Client sender
+        terminationProvider.initialize()
+        terminationProvider.registerGattClientSender { payload ->
+            sendTransportSpecificTermination()
+        }
+
+        // Register callback with callback manager to prevent memory leaks
+        callbackManager.registerCallback("${connectionId}_callback", callback)
+    }
+
     /**
      * Bluetooth GATT callback containing all of the events.
+     * Wrapped with BleCallbackManager to prevent memory leaks.
      */
-    private val bluetoothGattCallback: BluetoothGattCallback = object : BluetoothGattCallback() {
+    private val bluetoothGattCallback: BluetoothGattCallback = callbackManager.wrapGattCallback(
+        "${connectionId}_gatt",
+        object : BluetoothGattCallback() {
         /**
          * Discover services to connect to.
          */
@@ -77,10 +121,11 @@ class GattClient(
             reportLog("onConnectionStateChange")
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
-                clearCache()
+                if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
+                    clearCache()
 
-                callback.onState(BleStates.GattClientConnected.string)
-                reportLog("Gatt Client is connected.")
+                    callback.onState(BleStates.GattClientConnected.string)
+                    reportLog("Gatt Client is connected.")
 
                 try {
                     gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
@@ -88,16 +133,27 @@ class GattClient(
                 } catch (error: SecurityException) {
                     callback.onError(error)
                 }
+                } else {
+                    reportError("Invalid state transition to connected")
+                }
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 callback.onPeerDisconnected()
                 reportLog("GATT Server disconnected.")
             }
         }
 
         /**
-         * Validating services characteristics and setting MTU limit. Assuming maximum payload of 515
-         * bytes, adjusting for the Bluetooth Core specification Part F section 3.2.9 and
-         * 18013-5 section 8.3.3.1.1.6.
+         * Service Discovery - Validate mDL Reader GATT Server (Table 12)
+         *
+         * Discovers and validates required characteristics on Reader's GATT server:
+         * - State (00000005): Write 0x01 to start, receive 0x02 for termination
+         * - Client2Server (00000006): Send mDL responses to Reader
+         * - Server2Client (00000007): Receive mDL requests from Reader
+         * - Ident (00000008): Verify Reader identity with HKDF(EdeviceKeyBytes, "BLEIdent")
+         * - L2CAP (optional): Get PSM for high-bandwidth data channel
+         *
+         * Requests 515-byte MTU for efficient data transfer within BLE limits.
          */
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             reportLog("onServicesDiscovered")
@@ -166,19 +222,36 @@ class GattClient(
         }
 
         /**
-         * Detecting the MTU limit adjustment.
+         * MTU Negotiation - Optimize Data Transfer Capacity
+         *
+         * Completed MTU negotiation determines maximum data chunk size.
+         * Capped at 515 bytes (spec maximum). Initiates Reader authentication
+         * by reading Ident characteristic (UUID 00000008) containing
+         * HKDF-derived value from Reader's EdeviceKeyBytes.
          */
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
             reportLog("onMtuChanged")
-
-            this@GattClient.mtu = min(515, mtu)
 
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 reportError("Error changing MTU, status: $status.")
                 return
             }
 
-            reportLog("Negotiated MTU changed to $mtu.")
+            // Validate MTU against acceptable range
+            val validatedMtu = when {
+                mtu < config.minAcceptableMtu -> {
+                    logger.w("MTU $mtu below minimum ${config.minAcceptableMtu}, using minimum")
+                    config.minAcceptableMtu
+                }
+                mtu > config.preferredMtu -> {
+                    logger.d("MTU $mtu capped to preferred ${config.preferredMtu}")
+                    config.preferredMtu
+                }
+                else -> mtu
+            }
+
+            this@GattClient.mtu = validatedMtu
+            reportLog("MTU validated and set to ${this@GattClient.mtu} (requested: $mtu)")
 
             /**
              * Optional ident characteristic is used for additional reader validation. 18013-5 section
@@ -220,12 +293,16 @@ class GattClient(
             reportLog("onCharacteristicRead, uuid=${characteristic.uuid} status=$status")
             //@Suppress("deprecation")
             /**
-             * 18013-5 section 8.3.3.1.1.3.
+             * Reader Authentication - Verify Ident Characteristic
+             *
+             * Compares received Ident value with expected HKDF(EdeviceKeyBytes, "BLEIdent").
+             * Ensures connection to correct Reader from device engagement.
+             * Terminates connection on mismatch to prevent man-in-middle attacks.
              */
             if (characteristic.uuid.equals(BleConstants.Reader.IDENT_UUID)) {
                 reportLog("Received identValue: ${byteArrayToHex(value)}.")
 
-                if (!Arrays.equals(value, identValue)) {
+                if (!BleSecurityUtils.secureEquals(value, identValue, config)) {
                     reportError("Ident mismatch - rejecting connection per ISO 18013-5 section 8.3.3.1.1.3.")
                     try {
                         gatt.disconnect()
@@ -322,7 +399,12 @@ class GattClient(
         }
 
         /**
-         * Observe state fully connected or messages writing progress.
+         * Write Completion Handler - Connection State & Data Progress
+         *
+         * Handles successful writes to Reader characteristics:
+         * - State: Writing 0x01 signals "GATT client ready for transmission to start"
+         * - Client2Server: Advances chunked data transmission queue
+         * Updates progress callbacks and drains next data chunk.
          */
         override fun onCharacteristicWrite(
             gatt: BluetoothGatt,
@@ -362,13 +444,21 @@ class GattClient(
                     }
                 }
 
-                writeIsOutstanding = false
+                queueLock.withLock {
+                    writeIsOutstanding.set(false)
+                }
                 drainWritingQueue()
             }
         }
 
         /**
-         * Detect characteristic change and inspect incoming message.
+         * Notification Handler - Process Reader Data & State Changes
+         *
+         * Handles notifications from Reader characteristics:
+         * - Server2Client: Receives chunked mDL requests with continuation flags
+         *   (0x01=more chunks, 0x00=final chunk), reassembles complete messages
+         * - State: Receives termination signal (0x02) for session end
+         * - L2CAP: Receives PSM value for establishing direct socket connection
          */
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicChanged(
@@ -388,22 +478,33 @@ class GattClient(
                         return
                     }
 
-                    incomingMessage.write(value, 1, value.size - 1)
+                    synchronized(messageLock) {
+                        incomingMessage.write(value, 1, value.size - 1)
 
-                    reportLog(
-                        "Received chunk with ${value.size} bytes (last=${value[0].toInt() == 0x00}), " +
-                                "incomingMessage.length=${incomingMessage.toByteArray().size}"
-                    )
+                        reportLog(
+                            "Received chunk with ${value.size} bytes (last=${value[0].toInt() == 0x00}), " +
+                                    "incomingMessage.length=${incomingMessage.toByteArray().size}"
+                        )
 
-                    if (value[0].toInt() == 0x00) {
-                        /**
-                         * Last message.
-                         */
-                        val entireMessage: ByteArray = incomingMessage.toByteArray()
+                        if (value[0].toInt() == 0x00) {
+                            /**
+                             * Last message.
+                             */
+                            val entireMessage: ByteArray = incomingMessage.toByteArray()
 
-                        incomingMessage.reset()
-                        callback.onMessageReceived(entireMessage)
-                    } else if (value[0].toInt() == 0x01) {
+                            // Validate message size for security
+                            BleSecurityUtils.validateInputSize(
+                                entireMessage,
+                                config.maxMessageSize,
+                                "GATT message assembly"
+                            )
+
+                            incomingMessage.reset()
+                            callback.onMessageReceived(entireMessage)
+                        }
+                    }
+                    
+                    if (value[0].toInt() == 0x01) {
                         // Message size is three less than MTU, as opcode and attribute handle take up 3 bytes.
                         if (value.size > mtu - 3) {
                             reportError(
@@ -441,7 +542,7 @@ class GattClient(
                             val device = gatt.getDevice()
 
                             // The android docs recommend cancelling discovery before connecting a socket for
-                            // perfomance reasons.
+                            // performance reasons.
 
                             try {
                                 btAdapter?.cancelDiscovery()
@@ -449,48 +550,55 @@ class GattClient(
                                 reportLog("Unable to cancel discovery.")
                             }
 
-                            val connectThread: Thread = object : Thread() {
-                                override fun run() {
-                                    try {
-                                        // createL2capChannel() requires/initiates pairing, so we have to use
-                                        // the "insecure" version.  This requires at least API 29, which we did
-                                        // check elsewhere (we'd never have got this far on a lower API), but
-                                        // the linter isn't smart enough to know that, and we have PR merging
-                                        // gated on a clean bill of health from the linter...
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                            l2capSocket =
+                            // Use thread pool instead of creating new threads
+                            threadPool.launchIO {
+                                try {
+                                    // createL2capChannel() requires/initiates pairing, so we have to use
+                                    // the "insecure" version.  This requires at least API 29, which we did
+                                    // check elsewhere (we'd never have got this far on a lower API), but
+                                    // the linter isn't smart enough to know that, and we have PR merging
+                                    // gated on a clean bill of health from the linter...
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                        // Validate PSM range (must be odd and in valid range)
+                                        if (channelPSM <= 0 || channelPSM > 0xFFFF || channelPSM % 2 == 0) {
+                                            reportError("Invalid L2CAP PSM: $channelPSM")
+                                            fallbackToGATTConnection(gatt)
+                                        } else {
+                                            // Try secure L2CAP first, fall back to insecure if needed
+                                            l2capSocket = try {
+                                                device.createL2capChannel(channelPSM)
+                                            } catch (e: Exception) {
+                                                logger.w("Secure L2CAP failed, falling back to insecure", e)
                                                 device.createInsecureL2capChannel(channelPSM)
+                                            }
+
                                             l2capSocket?.connect()
+                                            logger.i("L2CAP connection established")
+
+                                            // Use thread pool for L2CAP write operations
+                                            threadPool.launchIO { writeResponse() }
+
+                                            // Use thread pool for L2CAP read operations
+                                            threadPool.launchIO { readRequest() }
                                         }
-                                    } catch (e: IOException) {
-                                        reportError("Error connecting to L2CAP socket: ${e.message}")
-
-                                        // Something went wrong.  Fall back to the old flow, don't try L2CAP
-                                        // again for this run.
-                                        useL2CAP = UseL2CAP.No
-                                        enableNotification(
-                                            gatt,
-                                            characteristicServer2Client,
-                                            "Server2Client"
-                                        )
-
-                                        return
-                                    } catch (e: SecurityException) {
-                                        reportError("Not authorized to connect to L2CAP socket.")
-                                        return
                                     }
+                                } catch (e: IOException) {
+                                    reportError("Error connecting to L2CAP socket: ${e.message}")
 
-                                    l2capWriteThread = Thread { writeResponse() }
-                                    l2capWriteThread!!.start()
-
-                                    // Let the app know we're connected.
-                                    //reportPeerConnected()
-
-                                    // Reuse this thread for reading
-                                    readRequest()
+                                    // Something went wrong.  Fall back to the old flow, don't try L2CAP
+                                    // again for this run.
+                                    useL2CAP = UseL2CAP.No
+                                    enableNotification(
+                                        gatt,
+                                        characteristicServer2Client,
+                                        "Server2Client"
+                                    )
+                                } catch (e: SecurityException) {
+                                    reportError("Not authorized to connect to L2CAP socket.")
+                                } catch (e: Exception) {
+                                    logger.e("L2CAP connection setup failed", e)
                                 }
                             }
-                            connectThread.start()
                         }
                     }
                 }
@@ -500,10 +608,17 @@ class GattClient(
                 }
             }
         }
-    }
+    })
 
     /**
-     * Thread for reading the request via L2CAP.
+     * L2CAP Request Reader Thread - High-Throughput Data Reception
+     *
+     * Manages L2CAP socket-based data reception for large mDL transfers.
+     * L2CAP provides better performance than GATT characteristics for
+     * substantial data payloads (Android 10+).
+     *
+     * Implements message boundary detection using timing-based approach
+     * since L2CAP streams don't provide framing information.
      */
     private fun readRequest() {
         val payload = ByteArrayOutputStream()
@@ -517,7 +632,11 @@ class GattClient(
         }
 
         while (true) {
-            val buf = ByteArray(L2CAP_BUFFER_SIZE)
+            val buf = BleSecurityUtils.secureAllocateBuffer(
+                L2CAP_BUFFER_SIZE,
+                config.maxMessageSize,
+                "L2CAP read buffer"
+            )
             try {
                 val numBytesRead = inStream.read(buf)
                 if (numBytesRead == -1) {
@@ -545,8 +664,7 @@ class GattClient(
 
                 requestTimestamp = TimeSource.Monotonic.markNow()
 
-                Executors.newSingleThreadScheduledExecutor()
-                    .schedule({
+                threadPool.scheduleDelayed(500L) {
                         val curtime = TimeSource.Monotonic.markNow()
                         if ((curtime - requestTimestamp) > 500.milliseconds) {
                             val message = payload.toByteArray()
@@ -554,7 +672,7 @@ class GattClient(
                             reportLog("Request complete: ${message.count()} bytes.")
                             callback.onMessageReceived(message)
                         }
-                    }, 500, TimeUnit.MILLISECONDS)
+                }
 
             } catch (e: IOException) {
                 reportError("Error on listening input stream from socket L2CAP: ${e}")
@@ -564,7 +682,11 @@ class GattClient(
     }
 
     /**
-     * Thread for writing the response via L2CAP.
+     * L2CAP Response Writer Thread - High-Throughput Data Transmission
+     *
+     * Manages L2CAP socket-based data transmission for mDL responses.
+     * Provides superior performance compared to GATT characteristics
+     * for large mDL credential data transfers.
      */
     fun writeResponse() {
         val outStream = l2capSocket!!.outputStream
@@ -573,16 +695,17 @@ class GattClient(
                 var message: ByteArray?
                 try {
                     message = responseData.poll(500, TimeUnit.MILLISECONDS)
-                    reportLog("????? ${message}")
+                    reportLog("L2CAP write response: ${message?.size ?: 0} bytes")
                     if (message == null) {
                         continue
                     }
-                    if (message.size == 0) {
+                    if (message.isEmpty()) {
                         break
                     }
                 } catch (e: InterruptedException) {
                     continue
                 }
+                
                 outStream.write(message)
             }
         } catch (e: IOException) {
@@ -612,22 +735,27 @@ class GattClient(
         gatt: BluetoothGatt,
         characteristic: BluetoothGattCharacteristic?,
         name: String
-    ) {
+    ): Boolean {
         reportLog("Enabling notifications on ${name}")
 
         if (characteristic == null) {
             reportError("Error setting notification on ${name}; is null.")
-            return
+            return false
         }
 
         try {
             if (!gatt.setCharacteristicNotification(characteristic, true)) {
                 reportError("Error setting notification on ${name}; call failed.")
-                return
+                return false
             }
 
-            val descriptor: BluetoothGattDescriptor =
+            val descriptor: BluetoothGattDescriptor? =
                 characteristic.getDescriptor(BleConstants.CLIENT_CHARACTERISTIC_CONFIG_UUID)
+
+            if (descriptor == null) {
+                reportError("Error setting notification on ${name}; descriptor not found.")
+                return false
+            }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val res = gatt.writeDescriptor(
@@ -636,7 +764,7 @@ class GattClient(
                 )
                 if (res != BluetoothStatusCodes.SUCCESS) {
                     reportError("Error writing to ${name}. Code: $res")
-                    return
+                    return false
                 }
             } else {
                 // Above code addresses the deprecation but requires API 33+
@@ -646,39 +774,79 @@ class GattClient(
                 @Suppress("deprecation")
                 if (!gatt.writeDescriptor(descriptor)) {
                     reportError("Error writing to ${name} clientCharacteristicConfig: desc.")
-                    return
+                    return false
                 }
             }
         } catch (e: SecurityException) {
             reportError("Not authorized to enable notification on ${name}")
+            return false
         }
 
         // An onDescriptorWrite() call will come in for the pair of this characteristic and the client
         // characteristic config UUID when notification setting is complete.
+        return true
     }
 
     /**
-     * Log stuff to the console without hitting the callback.
+     * Log debug messages
      */
     private fun dprint(text: String) {
-        Log.d("[GattClient]", text)
+        logger.d(text)
     }
 
     /**
-     * Log stuff both to the callback and to the console.
+     * Log info messages
      */
     private fun reportLog(text: String) {
-        Log.d("[GattClient]", "${text}")
-
-        //callback.onLog(text) // Appears to mess with transfer timing, disabled for now.
+        logger.i(text)
     }
 
     /**
-     * Log an error both to the callback and the console.
+     * Log and handle errors with smart session termination per ISO 18013-5
+     *
+     * Enhanced error handling that:
+     * 1. Classifies error as recoverable vs terminal
+     * 2. Sends session termination (0x02) for terminal errors
+     * 3. Updates state machine with proper error type
+     * 4. Maintains backward compatibility with existing error flow
      */
     private fun reportError(text: String) {
-        Log.e("[GattClient]", "ERROR: ${text}")
-        callback.onError(Error(text))
+        val error = BleException.GattException("GattClient operation", -1)
+
+        // Use termination provider to handle error with smart classification
+        val wasTerminated = terminationProvider.handleError(error, "GattClient: $text")
+
+        if (wasTerminated) {
+            logger.w("Terminal error handled with session termination: $text")
+            // Transition to error state - won't trigger callback since termination already sent
+            stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, text)
+        } else {
+            logger.d("Recoverable error handled without termination: $text")
+            // For recoverable errors, still call original error handler
+            errorHandler.handleError(error, text) {
+                callback.onError(it)
+            }
+        }
+    }
+
+    /**
+     * Report error from exception for better error classification
+     */
+    private fun reportError(exception: Throwable, context: String = "") {
+        // Use termination provider for precise error classification
+        val wasTerminated = terminationProvider.handleError(exception, "GattClient: $context")
+
+        if (wasTerminated) {
+            logger.w("Terminal error handled with session termination: ${exception.message}")
+            // Use enhanced state machine method for classified errors
+            stateMachine.transitionToError(exception, context)
+        } else {
+            logger.d("Recoverable error handled without termination: ${exception.message}")
+            // For recoverable errors, still call original error handler
+            errorHandler.handleError(exception, context) {
+                callback.onError(it)
+            }
+        }
     }
 
     /**
@@ -697,7 +865,18 @@ class GattClient(
             }
 
             if (useL2CAP == UseL2CAP.Yes) {
-                enableNotification(gatt, characteristicL2CAP, "L2CAP")
+                val l2capEnabled = enableNotification(gatt, characteristicL2CAP, "L2CAP")
+
+                if (!l2capEnabled) {
+                    // L2CAP notification setup failed, fall back to GATT
+                    reportLog("L2CAP notification setup failed, falling back to GATT")
+                    useL2CAP = UseL2CAP.No
+                    val server2ClientEnabled = enableNotification(gatt, characteristicServer2Client, "Server2Client")
+                    if (!server2ClientEnabled) {
+                        reportError("Failed to enable notifications on Server2Client characteristic")
+                    }
+                    return
+                }
 
                 reportLog("Using L2CAP: $useL2CAP")
 
@@ -717,44 +896,45 @@ class GattClient(
      * Draining writing queue when the write is not outstanding.
      */
     private fun drainWritingQueue() {
-        reportLog("drainWritingQueue: write is outstanding $writeIsOutstanding")
+        queueLock.withLock {
+            reportLog("drainWritingQueue: write is outstanding ${writeIsOutstanding.get()}")
 
-        if (writeIsOutstanding) {
-            return
-        }
-
-        val chunk: ByteArray = writingQueue.poll() ?: return
-
-        reportLog("Sending chunk with ${chunk.size} bytes (last=${chunk[0].toInt() == 0x00})")
-
-
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val res = gattClient!!.writeCharacteristic(
-                    characteristicClient2Server!!,
-                    chunk,
-                    BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-                )
-                if (res != BluetoothStatusCodes.SUCCESS) {
-                    reportError("Error writing to Client2Server. Code: $res")
-                    return
-                }
-            } else {
-                // Above code addresses the deprecation but requires API 33+
-                @Suppress("deprecation")
-                characteristicClient2Server!!.value = chunk
-                @Suppress("deprecation")
-                if (!gattClient!!.writeCharacteristic(characteristicClient2Server)) {
-                    reportError("Error writing to Client2Server characteristic")
-                    return
-                }
+            if (writeIsOutstanding.get()) {
+                return
             }
-        } catch (error: SecurityException) {
-            callback.onError(error)
-            return
-        }
 
-        writeIsOutstanding = true
+            val chunk: ByteArray = writingQueue.poll() ?: return
+
+            reportLog("Sending chunk with ${chunk.size} bytes (last=${chunk[0].toInt() == 0x00})")
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val res = gattClient!!.writeCharacteristic(
+                        characteristicClient2Server!!,
+                        chunk,
+                        BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                    )
+                    if (res != BluetoothStatusCodes.SUCCESS) {
+                        reportError("Error writing to Client2Server. Code: $res")
+                        return
+                    }
+                } else {
+                    // Above code addresses the deprecation but requires API 33+
+                    @Suppress("deprecation")
+                    characteristicClient2Server!!.value = chunk
+                    @Suppress("deprecation")
+                    if (!gattClient!!.writeCharacteristic(characteristicClient2Server)) {
+                        reportError("Error writing to Client2Server characteristic")
+                        return
+                    }
+                }
+            } catch (error: SecurityException) {
+                callback.onError(error)
+                return
+            }
+
+            writeIsOutstanding.set(true)
+        }
     }
 
     /**
@@ -777,43 +957,67 @@ class GattClient(
     }
 
     /**
-     * Sends a message to the other device - can be any payload that is converted into
-     * a byte array.
+     * Send mDL Response Data - Chunked Transmission to Reader
+     *
+     * Transmits SessionEstablishment or SessionData messages via optimal transport:
+     * - L2CAP: Direct socket write for large payloads
+     * - GATT: Chunked via Client2Server characteristic with continuation flags
+     *
+     * For GATT: Splits data into (MTU-4) byte chunks, each prefixed with:
+     * - 0x01: More chunks follow (continuation flag + 3-byte BLE overhead)
+     * - 0x00: Final chunk
+     *
+     * @param data SessionEstablishment or SessionData message per 9.1.1.4
      */
     fun sendMessage(data: ByteArray) {
-        reportLog("Sending message: $data; using L2CAP = $useL2CAP")
+        // Validate state
+        if (!stateMachine.isInState(BleConnectionStateMachine.State.CONNECTED)) {
+            reportError("Cannot send message - not connected (state: ${stateMachine.getState()})")
+            return
+        }
+        
+        logger.logDataTransfer("Sending", data.size)
+        
         if (useL2CAP == UseL2CAP.Yes) {
             responseData.add(data)
         } else {
-
-            if (mtu == 0) {
-                reportLog("MTU not negotiated, defaulting to 23. Performance will suffer.")
-                mtu = 23
-            }
-
-            /**
-             * Three less the MTU but we also need room for the leading 0x00 or 0x01.
-             */
-            val maxChunkSize: Int = mtu - 4
-            var offset = 0
-
-            do {
-                val moreChunksComing = offset + maxChunkSize < data.size
-                var size = data.size - offset
-
-                if (size > maxChunkSize) {
-                    size = maxChunkSize
+            queueLock.withLock {
+                if (mtu == 0) {
+                    logger.w("MTU not negotiated, using minimum acceptable MTU ${config.minAcceptableMtu}")
+                    mtu = config.minAcceptableMtu
+                } else if (mtu < config.minAcceptableMtu) {
+                    logger.w("Current MTU $mtu below minimum, adjusting to ${config.minAcceptableMtu}")
+                    mtu = config.minAcceptableMtu
                 }
 
-                val chunk = ByteArray(size + 1)
+                /**
+                 * Three less the MTU but we also need room for the leading 0x00 or 0x01.
+                 */
+                val maxChunkSize: Int = mtu - 4
+                var offset = 0
 
-                chunk[0] = if (moreChunksComing) 0x01.toByte() else 0x00.toByte()
-                System.arraycopy(data, offset, chunk, 1, size)
-                writingQueue.add(chunk)
-                offset += size
-            } while (offset < data.size)
+                do {
+                    val moreChunksComing = offset + maxChunkSize < data.size
+                    var size = data.size - offset
 
-            writingQueueTotalChunks = writingQueue.size
+                    if (size > maxChunkSize) {
+                        size = maxChunkSize
+                    }
+
+                    val chunk = BleSecurityUtils.secureAllocateBuffer(
+                        size + 1,
+                        mtu, // Chunk can't exceed MTU
+                        "GATT chunk allocation"
+                    )
+
+                    chunk[0] = if (moreChunksComing) 0x01.toByte() else 0x00.toByte()
+                    System.arraycopy(data, offset, chunk, 1, size)
+                    writingQueue.add(chunk)
+                    offset += size
+                } while (offset < data.size)
+
+                writingQueueTotalChunks = writingQueue.size
+            }
             drainWritingQueue()
         }
     }
@@ -826,8 +1030,11 @@ class GattClient(
     }
 
     /**
-     * Sends termination message to the other device to terminate session
-     * and disconnect.
+     * Send Session Termination Signal - Write 0x02 to State
+     *
+     * Writes termination code (0x02) to Reader's State characteristic
+     * to signal end of mDL transaction. Reader should respond by
+     * closing the connection. Not used with L2CAP transport.
      */
     fun sendTransportSpecificTermination() {
         val terminationCode = byteArrayOf(0x02.toByte())
@@ -860,11 +1067,21 @@ class GattClient(
     }
 
     /**
-     * Primary GATT connection setup.
+     * Connect to mDL Reader GATT Server
+     *
+     * Establishes BLE GATT connection to Reader device discovered during scan.
+     * Stores ident value for later Reader authentication via Ident characteristic.
+     *
+     * @param device Reader's BluetoothDevice from advertising scan
+     * @param ident Expected Ident value from device engagement for Reader verification
      */
     fun connect(device: BluetoothDevice, ident: ByteArray?) {
+        if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
+            reportError("Invalid state for connection: ${stateMachine.getState()}")
+            return
+        }
+        
         identValue = ident
-
         this.reset()
 
         try {
@@ -876,36 +1093,99 @@ class GattClient(
             callback.onState(BleStates.ConnectingGattClient.string)
             reportLog("Connecting to GATT server.")
         } catch (error: SecurityException) {
-            callback.onError(error)
+            stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
+            errorHandler.handleError(error, "connect") {
+                callback.onError(it)
+            }
         }
     }
 
     /**
-     * Primary GATT disconnect setup.
+     * Disconnect from Reader - Clean Resource Shutdown
+     *
+     * Performs orderly disconnection sequence:
+     * 1. Close L2CAP socket and interrupt worker threads
+     * 2. Close GATT connection
+     * 3. Update connection state machine
+     * 4. Clear all references to prevent memory leaks
      */
     fun disconnect() {
-        try {
-            if (gattClient != null) {
-                gattClient?.close()
-                gattClient?.disconnect()
-                gattClient = null
+        if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
+            try {
+                // Close L2CAP socket first if it exists
+                // Thread pool operations will be cancelled automatically
+                try {
+                    l2capSocket?.close()
+                } catch (e: IOException) {
+                    reportLog("Error closing L2CAP socket: ${e.message}")
+                }
+                
+                if (gattClient != null) {
+                    gattClient?.close()
+                    gattClient?.disconnect()
+                    gattClient = null
 
-                callback.onState(BleStates.DisconnectGattClient.string)
-                reportLog("Gatt Client disconnected.")
+                    callback.onState(BleStates.DisconnectGattClient.string)
+                    reportLog("Gatt Client disconnected.")
+                }
+                
+                stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
+            } catch (error: SecurityException) {
+                stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
+                errorHandler.handleError(error, "disconnect") {
+                    callback.onError(it)
+                }
+            } finally {
+                // Ensure resources are cleaned up
+                l2capSocket = null
+                gattClient = null
             }
-        } catch (error: SecurityException) {
-            callback.onError(error)
         }
     }
 
     fun reset() {
-        mtu = 0
-        writingQueueTotalChunks = 0
-        writingQueue.clear()
-        incomingMessage.reset()
+        synchronized(queueLock) {
+            mtu = 0
+            writingQueueTotalChunks = 0
+            writingQueue.clear()
+        }
+        synchronized(messageLock) {
+            incomingMessage.reset()
+        }
+        responseData.clear()
     }
 
-    fun set_mtu(mtu: Int) {
-        this.mtu = min(515, mtu)
+    fun setMtu(mtu: Int) {
+        synchronized(queueLock) {
+            this.mtu = min(config.preferredMtu, mtu)
+            logger.d("MTU set to ${this.mtu} (requested: $mtu, max: ${config.preferredMtu})")
+        }
+    }
+    
+    /**
+     * Get current connection state
+     */
+    fun getConnectionState(): BleConnectionStateMachine.State {
+        return stateMachine.getState()
+    }
+    
+    /**
+     * Check if client is connected
+     */
+    fun isConnected(): Boolean {
+        return stateMachine.isInState(BleConnectionStateMachine.State.CONNECTED)
+    }
+    
+    /**
+     * Fallback to GATT when L2CAP fails
+     */
+    private fun fallbackToGATTConnection(gatt: BluetoothGatt) {
+        useL2CAP = UseL2CAP.No
+        reportLog("Falling back to GATT transport")
+        enableNotification(
+            gatt,
+            characteristicServer2Client,
+            "Server2Client"
+        )
     }
 }

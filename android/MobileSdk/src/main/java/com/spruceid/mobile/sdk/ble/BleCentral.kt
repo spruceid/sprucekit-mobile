@@ -22,8 +22,9 @@ class BleCentral(
 
     private val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
     private var scanning = false
-    private val handler = Handler(Looper.myLooper()!!)
+    private val handler = Handler(Looper.getMainLooper())
     private var scanTimeoutRunnable: Runnable? = null
+    private val scanLock = Any()
 
     // Limits scanning to 30 seconds per ISO 18013-5 recommendations for power efficiency
     private val scanPeriod: Long = 30000
@@ -71,36 +72,48 @@ class BleCentral(
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
             .build()
 
-        try {
-            if (!scanning) {
-                scanTimeoutRunnable = Runnable {
-                    scanning = false
-                    bluetoothLeScanner.stopScan(leScanCallback)
-                    scanTimeoutRunnable = null // Clear reference after execution
+        synchronized(scanLock) {
+            try {
+                if (!scanning) {
+                    // Clear any existing timeout before setting new one
+                    scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
+                    
+                    scanTimeoutRunnable = Runnable {
+                        synchronized(scanLock) {
+                            if (scanning) {
+                                scanning = false
+                                try {
+                                    bluetoothLeScanner.stopScan(leScanCallback)
+                                } catch (e: Exception) {
+                                    callback.onLog("Error stopping scan in timeout: ${e.message}")
+                                }
+                                scanTimeoutRunnable = null
 
-                    callback.onState(BleStates.StopScan.string)
-                    callback.onLog("Stopping Central scan.")
+                                callback.onState(BleStates.StopScan.string)
+                                callback.onLog("Stopping Central scan (timeout).")
+                            }
+                        }
+                    }
+                    handler.postDelayed(scanTimeoutRunnable!!, scanPeriod)
+                    scanning = true
+                    bluetoothLeScanner.startScan(filterList, settings, leScanCallback)
+
+                    callback.onState(BleStates.Scanning.string)
+                    callback.onLog("Starting Central scan.")
+                } else {
+                    stopScanInternal()
                 }
-                handler.postDelayed(scanTimeoutRunnable!!, scanPeriod)
-                scanning = true
-                bluetoothLeScanner.startScan(filterList, settings, leScanCallback)
-
-                callback.onState(BleStates.Scanning.string)
-                callback.onLog("Starting Central scan.")
-            } else {
+            } catch (error: SecurityException) {
                 scanning = false
-                bluetoothLeScanner.stopScan(leScanCallback)
-
-                callback.onState(BleStates.StopScan.string)
-                callback.onLog("Stopping Central scan.")
+                scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
+                scanTimeoutRunnable = null
+                callback.onError(error)
+            } catch (error: IllegalStateException) {
+                scanning = false
+                scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
+                scanTimeoutRunnable = null
+                callback.onLog("Ending Central scan (coroutine cancelled).")
             }
-        } catch (error: SecurityException) {
-            callback.onError(error)
-        } catch (error: IllegalStateException) {
-            // Quoth the docs:
-            //    Thrown by cancellable suspending functions if the coroutine is cancelled while it is
-            // suspended.  It indicates normal cancellation of a coroutine.
-            callback.onLog("Ending Central scan (coroutine cancelled).")
         }
     }
 
@@ -108,18 +121,32 @@ class BleCentral(
      * Stops scanning for devices/peripherals.
      */
     fun stopScan() {
+        synchronized(scanLock) {
+            stopScanInternal()
+        }
+    }
+    
+    private fun stopScanInternal() {
         try {
             // Remove pending timeout callback to prevent memory leak
             scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
             scanTimeoutRunnable = null
             
-            bluetoothLeScanner.stopScan(leScanCallback)
-            scanning = false
+            if (scanning) {
+                bluetoothLeScanner.stopScan(leScanCallback)
+                scanning = false
 
-            callback.onState(BleStates.StopScan.string)
-            callback.onLog("Stopping Central scan.")
+                callback.onState(BleStates.StopScan.string)
+                callback.onLog("Stopping Central scan.")
+            }
         } catch (error: SecurityException) {
             callback.onError(error)
+        } catch (error: IllegalStateException) {
+            // Scanner might already be stopped
+            callback.onLog("Scanner already stopped")
+        } finally {
+            scanning = false
+            scanTimeoutRunnable = null
         }
     }
 }

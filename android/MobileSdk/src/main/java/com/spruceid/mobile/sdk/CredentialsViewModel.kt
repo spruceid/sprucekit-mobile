@@ -126,7 +126,7 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         val mdoc = this.firstMdoc()
         _session.value = initializeMdlPresentationFromBytes(mdoc, _uuid.value.toString())
         _currState.value = PresentmentState.ENGAGING_QR_CODE
-        _transport.value = Transport(bluetoothManager)
+        _transport.value = Transport(bluetoothManager, getApplication<Application>().applicationContext)
         _transport.value!!
             .initialize(
                 "Holder",
@@ -135,7 +135,6 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
                 "Central",
                 _session.value!!.getBleIdent(),
                 ::updateRequestData,
-                getApplication<Application>().applicationContext,
                 null
             )
     }

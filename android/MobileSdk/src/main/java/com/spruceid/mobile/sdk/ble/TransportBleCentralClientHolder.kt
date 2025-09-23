@@ -1,7 +1,6 @@
 package com.spruceid.mobile.sdk.ble
 
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.util.Log
@@ -10,18 +9,34 @@ import com.spruceid.mobile.sdk.byteArrayToHex
 import java.util.*
 
 /**
- * The role of central is to scan for a peripheral and connect. AKA holder.
- * 18013-5 section 8.3.3.1.1.4 Table 11.
+ * BLE Central Client (Holder Role) - ISO 18013-5 Section 8.3.3.1.1.4 Table 11
+ *
+ * Implements the mDL Holder device operating as BLE Central/GATT Client:
+ * - Table 11: "mDL Holder Device" configuration for BLE Central role
+ * - Section 8.3.3.1.1.3: Device engagement using ident parameter
+ * - Section 8.3.3.1.1.5: BLE GATT characteristics management
+ * - Section 8.3.3.1.1.6: Data transmission protocol implementation
+ *
+ * Protocol Flow:
+ * 1. Scan for BLE Peripheral (mDL Reader) advertising the service
+ * 2. Connect as GATT Client to Reader's GATT Server
+ * 3. Discover and validate required GATT characteristics
+ * 4. Authenticate using ident value (Section 8.3.3.1.1.3)
+ * 5. Exchange mDL data according to characteristic protocol
+ * 6. Handle session termination per Section 8.3.3.1.1.7
+ *
+ * @see ISO 18013-5 Table 11 for BLE Central configuration requirements
+ * @see ISO 18013-5 Section 8.3.3.1.1.4 for role-specific implementation details
  */
 class TransportBleCentralClientHolder(
     private var application: String,
-    private var bluetoothManager: BluetoothManager,
     private var serviceUUID: UUID,
     private var updateRequestData: (data: ByteArray) -> Unit,
-    private var context: Context,
     private var callback: BLESessionStateDelegate?,
 ) {
-    private var bluetoothAdapter: BluetoothAdapter? = null
+    private val stateMachine = BleConnectionStateMachine.getInstance()
+    private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
+    private var context: Context = stateMachine.getContext()
 
     private lateinit var previousAdapterName: String
     private lateinit var bleCentral: BleCentral
@@ -29,9 +44,22 @@ class TransportBleCentralClientHolder(
     private lateinit var identValue: ByteArray
 
     /**
-     * Sets up central with GATT client mode.
+     * Initialize BLE Central Connection - ISO 18013-5 Section 8.3.3.1.1.4
+     *
+     * Establishes connection as BLE Central (GATT Client) to mDL Reader device:
+     * 1. Validates ident parameter per Section 8.3.3.1.1.3 device engagement
+     * 2. Initiates BLE scanning for Reader's advertised service UUID
+     * 3. Connects to discovered Reader device as GATT Client
+     * 4. Manages connection state transitions and error handling
+     *
+     * @param ident Device engagement identifier for Reader authentication (Section 8.3.3.1.1.3)
      */
     fun connect(ident: ByteArray) {
+        // Transition to connecting state
+        if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
+            Log.w("TransportBleCentralClientHolder.connect", "Failed to transition to CONNECTING state")
+        }
+
         /**
          * Should be generated based on the 18013-5 section 8.3.3.1.1.3.
          */
@@ -67,7 +95,12 @@ class TransportBleCentralClientHolder(
                     "TransportBleCentralClientHolder.gattClientCallback.onPeerConnected",
                     "Peer Connected"
                 )
-                callback?.update(mapOf(Pair("connected", "")))
+                // Transition to connected state
+                if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
+                    callback?.update(mapOf(Pair("connected", "")))
+                } else {
+                    Log.w("TransportBleCentralClientHolder.gattClientCallback.onPeerConnected", "Failed to transition to CONNECTED state")
+                }
             }
 
             override fun onPeerDisconnected() {
@@ -75,6 +108,8 @@ class TransportBleCentralClientHolder(
                     "TransportBleCentralClientHolder.gattClientCallback.onPeerDisconnected",
                     "Peer Disconnected"
                 )
+                // Transition to disconnected state
+                stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 callback?.update(mapOf(Pair("disconnected", "")))
                 gattClient.disconnect()
             }
@@ -110,6 +145,8 @@ class TransportBleCentralClientHolder(
                     updateRequestData(data)
                 } catch (e: Error) {
                     Log.e("MDoc", e.toString())
+                    // Transition to error state on exception
+                    stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, e.message)
                     callback?.update(mapOf(Pair("error", e)))
                 }
             }
@@ -132,34 +169,25 @@ class TransportBleCentralClientHolder(
             }
         }
 
-        bluetoothAdapter = bluetoothManager.adapter
-
         /**
          * Setting up device name for easier identification after connection - too large to be in
          * advertisement data.
          */
         try {
-            if (bluetoothAdapter?.name != null) {
-                previousAdapterName = bluetoothAdapter!!.name
-                bluetoothAdapter!!.name = "mDL $application Device"
+            if (bluetoothAdapter.name != null) {
+                previousAdapterName = bluetoothAdapter.name
+                bluetoothAdapter.name = "mDL $application Device"
             }
         } catch (error: SecurityException) {
             Log.e("TransportBleCentralClientHolder.connect", error.toString())
         }
 
-        if (bluetoothAdapter == null) {
-            Log.e("TransportBleCentralClientHolder.connect", "No Bluetooth Adapter")
-            return
-        }
-
         gattClient = GattClient(
             gattClientCallback,
-            context,
-            bluetoothAdapter,
             serviceUUID
         )
 
-        bleCentral = BleCentral(bleCentralCallback, serviceUUID, bluetoothAdapter!!)
+        bleCentral = BleCentral(bleCentralCallback, serviceUUID, bluetoothAdapter)
         bleCentral.scan()
     }
 
@@ -171,17 +199,25 @@ class TransportBleCentralClientHolder(
     }
 
     fun disconnect() {
-        if (this::previousAdapterName.isInitialized && bluetoothAdapter != null) {
-            try {
-                bluetoothAdapter!!.name = previousAdapterName
-            } catch (error: SecurityException) {
-                Log.e("TransportBleCentralClientHolder.disconnect", error.toString())
+        // Transition to disconnecting state
+        if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
+            if (this::previousAdapterName.isInitialized) {
+                try {
+                    bluetoothAdapter.name = previousAdapterName
+                } catch (error: SecurityException) {
+                    Log.e("TransportBleCentralClientHolder.disconnect", error.toString())
+                }
             }
-        }
 
-        gattClient.sendTransportSpecificTermination()
-        bleCentral.stopScan()
-        gattClient.disconnect()
+            gattClient.sendTransportSpecificTermination()
+            bleCentral.stopScan()
+            gattClient.disconnect()
+
+            // Transition to disconnected state
+            stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
+        } else {
+            Log.w("TransportBleCentralClientHolder.disconnect", "Failed to transition to DISCONNECTING state")
+        }
     }
 
     /**
@@ -191,5 +227,8 @@ class TransportBleCentralClientHolder(
         bleCentral.stopScan()
         gattClient.disconnect()
         gattClient.reset()
+
+        // Force reset to idle state
+        stateMachine.reset()
     }
 }

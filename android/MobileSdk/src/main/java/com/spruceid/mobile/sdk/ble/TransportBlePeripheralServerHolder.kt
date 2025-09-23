@@ -1,10 +1,11 @@
 package com.spruceid.mobile.sdk.ble
 
+import android.Manifest
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothManager
 import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
 import android.util.Log
+import androidx.annotation.RequiresPermission
 import java.util.*
 
 /**
@@ -13,12 +14,12 @@ import java.util.*
  */
 class TransportBlePeripheralServerHolder(
     private var application: String,
-    private var bluetoothManager: BluetoothManager,
-    private var serviceUUID: UUID,
-    private var context: Context
+    private var serviceUUID: UUID
 ) {
 
-    private var bluetoothAdapter: BluetoothAdapter? = null
+    private val stateMachine = BleConnectionStateMachine.getInstance()
+    private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
+    private var context: Context = stateMachine.getContext()
 
     private lateinit var previousAdapterName: String
     private lateinit var blePeripheral: BlePeripheral
@@ -27,7 +28,12 @@ class TransportBlePeripheralServerHolder(
     /**
      * Sets up peripheral with GATT server mode.
      */
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun start() {
+        // Transition to connecting state
+        if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
+            Log.w("TransportBlePeripheralServerHolder.start", "Failed to transition to CONNECTING state")
+        }
 
         /**
          * BLE Peripheral callback.
@@ -51,6 +57,10 @@ class TransportBlePeripheralServerHolder(
                     "TransportBlePeripheralServerHolder.gattServerCallback.onPeerConnected",
                     "Peer Connected"
                 )
+                // Transition to connected state
+                if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
+                    Log.w("TransportBlePeripheralServerHolder.gattServerCallback.onPeerConnected", "Failed to transition to CONNECTED state")
+                }
             }
 
             override fun onPeerDisconnected() {
@@ -58,6 +68,8 @@ class TransportBlePeripheralServerHolder(
                     "TransportBlePeripheralServerHolder.gattServerCallback.onPeerDisconnected",
                     "Peer Disconnected"
                 )
+                // Transition to disconnected state
+                stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 gattServer.stop()
             }
 
@@ -71,6 +83,8 @@ class TransportBlePeripheralServerHolder(
             }
 
             override fun onTransportSpecificSessionTermination() {
+                // Transition to disconnected state on termination
+                stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 gattServer.stop()
             }
 
@@ -83,37 +97,34 @@ class TransportBlePeripheralServerHolder(
             }
         }
 
-        bluetoothAdapter = bluetoothManager.adapter
-
         /**
          * Setting up device name for easier identification after connection - too large to be in
          * advertisement data.
          */
         try {
-            if (bluetoothAdapter?.name != null) {
-                previousAdapterName = bluetoothAdapter!!.name
-                bluetoothAdapter!!.name = "mDL $application Device"
+            if (bluetoothAdapter.name != null) {
+                previousAdapterName = bluetoothAdapter.name
+                bluetoothAdapter.name = "mDL $application Device"
             }
         } catch (error: SecurityException) {
             Log.e("TransportBlePeripheralServerHolder.start", error.toString())
         }
 
-        if (bluetoothAdapter == null) {
-            Log.e("TransportBlePeripheralServerHolder.start", "No Bluetooth Adapter")
-            return
-        }
-
         gattServer = GattServer(
             gattServerCallback,
-            context,
-            bluetoothManager,
             serviceUUID,
             false
         )
 
-        blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID, bluetoothAdapter!!)
-        blePeripheral.advertise()
-        gattServer.start(null)
+        blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID, bluetoothAdapter)
+        try {
+            blePeripheral.advertise()
+            gattServer.start(null)
+        } catch (error: Exception) {
+            Log.e("TransportBlePeripheralServerHolder.start", error.toString())
+            stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
+            throw error
+        }
     }
 
     /**
@@ -124,17 +135,25 @@ class TransportBlePeripheralServerHolder(
     }
 
     fun stop() {
-        if (this::previousAdapterName.isInitialized && bluetoothAdapter != null) {
-            try {
-                bluetoothAdapter!!.name = previousAdapterName
-            } catch (error: SecurityException) {
-                Log.e("TransportBlePeripheralServerHolder.stop", error.toString())
+        // Transition to disconnecting state
+        if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
+            if (this::previousAdapterName.isInitialized) {
+                try {
+                    bluetoothAdapter.name = previousAdapterName
+                } catch (error: SecurityException) {
+                    Log.e("TransportBlePeripheralServerHolder.stop", error.toString())
+                }
             }
-        }
 
-        gattServer.sendTransportSpecificTermination()
-        blePeripheral.stopAdvertise()
-        gattServer.stop()
+            gattServer.sendTransportSpecificTermination()
+            blePeripheral.stopAdvertise()
+            gattServer.stop()
+
+            // Transition to disconnected state
+            stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
+        } else {
+            Log.w("TransportBlePeripheralServerHolder.stop", "Failed to transition to DISCONNECTING state")
+        }
     }
 
     /**
@@ -144,5 +163,8 @@ class TransportBlePeripheralServerHolder(
         blePeripheral.stopAdvertise()
         gattServer.stop()
         gattServer.reset()
+
+        // Force reset to idle state
+        stateMachine.reset()
     }
 }

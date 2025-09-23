@@ -27,7 +27,7 @@ class IsoMdlReader(
             val sessionData = establishSession(uri, requestedItems, trustAnchorRegistry)
 
             session = sessionData.state
-            bleManager = Transport(platformBluetooth)
+            bleManager = Transport(platformBluetooth, context)
             bleManager.initialize(
                 "Reader",
                 UUID.fromString(sessionData.uuid),
@@ -35,7 +35,6 @@ class IsoMdlReader(
                 "Peripheral",
                 sessionData.bleIdent,
                 null,
-                context,
                 callback,
                 sessionData.request
             )
