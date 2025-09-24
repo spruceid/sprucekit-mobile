@@ -55,7 +55,6 @@ import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.DeviceEngagementData
-import com.spruceid.mobile.sdk.rs.DeviceEngagementType
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R

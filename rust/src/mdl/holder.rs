@@ -82,7 +82,7 @@ impl ApduHandoverDriver {
         if let Ok(mut handover) = self.0.lock() {
             handover
                 .get_carrier_info()
-                .map(|ci| NegotiatedCarrierInfo(ci).into())
+                .map(|ci| NegotiatedCarrierInfo(*ci).into())
         } else {
             None
         }
@@ -134,7 +134,7 @@ pub async fn initialize_mdl_presentation(
         value: format!("Error retrieving MDoc from storage: {e:}"),
     })?;
     let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
-    let engagement_type = engagement.isomdl_type();
+    let engagement_type = engagement.handover_info();
     let session = match engagement {
         DeviceEngagementData::QR(uuid) => {
             let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
@@ -193,7 +193,7 @@ pub fn initialize_mdl_presentation_from_bytes(
     engagement: DeviceEngagementData,
 ) -> Result<MdlPresentationSession, SessionError> {
     let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
-    let engagement_type = engagement.isomdl_type();
+    let handover = engagement.handover_info();
     let session = match engagement {
         DeviceEngagementData::QR(uuid) => {
             let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
@@ -228,7 +228,7 @@ pub fn initialize_mdl_presentation_from_bytes(
         })?
         .to_vec();
     let engaged_state = session
-        .engage(engagement_type)
+        .engage(handover)
         .map_err(|e| SessionError::Generic {
             value: format!("Could not generate qr engagement: {e:?}"),
         })?;
@@ -237,30 +237,6 @@ pub fn initialize_mdl_presentation_from_bytes(
         in_process: Mutex::new(None),
         ble_ident,
     })
-}
-
-/// Device Engagement Type Represents the different ways a device can engage with the mDL reader.
-///
-/// Device engagement does not perform the transport of the mDL data, it is used
-/// to initiate the communication session between the device and the reader.
-///
-/// The device retrieval process performs the transport of the mDL data.
-#[derive(uniffi::Enum, Debug, Clone)]
-pub enum DeviceEngagementType {
-    /// Indicates the device engagement will be via QR code
-    QR,
-    /// Indicates the device engagement will be via Near Field Communication (NFC)
-    NFC,
-}
-
-impl DeviceEngagementType {
-    /// Converts the DeviceEngagementType to its isomdl counterpart
-    fn isomdl_type(&self) -> device_engagement::DeviceEngagementType {
-        match self {
-            DeviceEngagementType::QR => device_engagement::DeviceEngagementType::QR,
-            DeviceEngagementType::NFC => device_engagement::DeviceEngagementType::NFC,
-        }
-    }
 }
 
 /// Device Engagement Data Represents data required to initialize a specific type of device engagement.
@@ -276,10 +252,13 @@ pub enum DeviceEngagementData {
 
 impl DeviceEngagementData {
     /// Converts the DeviceEngagementData to its isomdl counterpart
-    fn isomdl_type(&self) -> device_engagement::DeviceEngagementType {
+    fn handover_info(&self) -> Handover {
+        // 18013-5 §9.1.5.1
         match self {
-            DeviceEngagementData::QR(_) => device_engagement::DeviceEngagementType::QR,
-            DeviceEngagementData::NFC(_) => device_engagement::DeviceEngagementType::NFC,
+            DeviceEngagementData::QR(_) => Handover::QR,
+            DeviceEngagementData::NFC(nci) => {
+                Handover::NFC(nci.0.hs_message.clone(), nci.0.hr_message.clone())
+            }
         }
     }
 }
