@@ -1,8 +1,14 @@
 package com.spruceid.mobile.sdk.ble
 
+import android.Manifest
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.content.Context.BLUETOOTH_SERVICE
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresPermission
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,22 +32,17 @@ import java.util.*
  * @see ISO 18013-5 Section 8.3.3.1.1.4 for detailed BLE protocol specification
  */
 class Transport(
-    bluetoothManager: BluetoothManager,
-    context: Context,
+    val bluetoothManager: BluetoothManager,
+    val context: Context,
     private val config: BleConfiguration = BleConfiguration()
 ) {
 
-    private val logger = BleLogger.getInstance("Transport", config)
+    private val logger = BleLogger.getInstance("Transport")
     private val retryManager = BleRetryManager(config, logger)
     private val threadPool = BleThreadPool.getInstance(config)
     val stateMachine = BleConnectionStateMachine.getInstance()
 
     private lateinit var transportBLE: TransportBle
-
-    init {
-        // Store the bluetoothManager and context in the singleton state machine
-        stateMachine.setBluetoothManager(bluetoothManager, context)
-    }
 
     /**
      * Initialize BLE Transport according to ISO 18013-5 Section 8.3.3.1.1
@@ -60,7 +61,7 @@ class Transport(
      * @param callback Delegate for BLE session state updates
      * @param encodedEDeviceKeyBytes Encoded device key for reader authentication
      */
-    @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun initialize(
         application: String,
         serviceUUID: UUID,
@@ -72,15 +73,6 @@ class Transport(
         encodedEDeviceKeyBytes: ByteArray = ByteArray(0)
     ) {
         logger.i("Initializing transport: $deviceRetrieval/$deviceRetrievalOption")
-        
-        // Validate state transition
-        if (!stateMachine.canTransitionTo(BleConnectionStateMachine.State.CONNECTING)) {
-            logger.e("Invalid state for initialization: ${stateMachine.getState()}")
-            callback?.update(mapOf("error" to "Invalid state for connection"))
-            return
-        }
-        
-        stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)
 
         /**
          * ISO 18013-5 Section 6.3.2.5 Table 2: Transport Protocol Selection
@@ -96,7 +88,8 @@ class Transport(
         if (deviceRetrieval == "BLE") {
             logger.d("Selecting BLE Retrieval per ISO 18013-5 Section 8.3.3")
 
-            transportBLE = TransportBle(stateMachine.getBluetoothManager(), config)
+            stateMachine.setBluetoothManager(bluetoothManager, context)
+            transportBLE = TransportBle()
             // Use thread pool for initialization with retry manager
             threadPool.launchIO {
                 val result = retryManager.executeWithRetryAndTimeout(
@@ -116,12 +109,10 @@ class Transport(
                 
                 result.fold(
                     onSuccess = {
-                        stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)
                         logger.i("BLE transport initialized successfully")
                     },
                     onFailure = { e ->
                         logger.e("Failed to initialize BLE transport after retries", e)
-                        stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, e.message)
                         callback?.update(mapOf("error" to (e.message ?: "Unknown error")))
                     }
                 )
@@ -182,44 +173,5 @@ class Transport(
                 stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, e.message)
             }
         }
-    }
-
-    /**
-     * Emergency Hard Reset - Clean State Recovery
-     *
-     * Performs forceful termination and cleanup of all BLE resources:
-     * - Bypasses normal termination protocol if necessary
-     * - Resets internal state machine to IDLE
-     * - Clears all pending operations and connections
-     *
-     * Use this method for error recovery or when normal termination fails.
-     * Not part of ISO 18013-5 spec but necessary for robust implementation.
-     */
-    fun hardReset() {
-        logger.w("Performing hard reset")
-        
-        try {
-            if (this::transportBLE.isInitialized) {
-                transportBLE.hardReset()
-            }
-        } catch (e: Exception) {
-            logger.e("Error during hard reset", e)
-        } finally {
-            stateMachine.reset()
-        }
-    }
-    
-    /**
-     * Get current connection state - useful for debugging and monitoring
-     */
-    fun getConnectionState(): BleConnectionStateMachine.State {
-        return stateMachine.getState()
-    }
-    
-    /**
-     * Check if transport is ready to send data
-     */
-    fun isConnected(): Boolean {
-        return stateMachine.isInState(BleConnectionStateMachine.State.CONNECTED)
     }
 }

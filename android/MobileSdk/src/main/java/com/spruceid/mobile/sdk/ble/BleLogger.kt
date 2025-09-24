@@ -71,18 +71,7 @@ class BleLogger(
             Log.d(tag, "$direction $size bytes via $mode")
         }
     }
-    
-    /**
-     * Log hex data (only if explicitly allowed)
-     */
-    fun logHexData(label: String, data: ByteArray) {
-        if (config.logSensitiveData && config.logLevel.ordinal >= BleConfiguration.LogLevel.VERBOSE.ordinal) {
-            Log.v(tag, "$label: ${byteArrayToHex(data)}")
-        } else if (config.logLevel.ordinal >= BleConfiguration.LogLevel.DEBUG.ordinal) {
-            Log.d(tag, "$label: [${data.size} bytes]")
-        }
-    }
-    
+
     /**
      * Sanitize message to remove potentially sensitive data
      */
@@ -105,22 +94,15 @@ class BleLogger(
         
         return sanitized
     }
-    
-    /**
-     * Convert byte array to hex string
-     */
-    private fun byteArrayToHex(bytes: ByteArray): String {
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
-    
+
     companion object {
         private val loggers = mutableMapOf<String, BleLogger>()
-        
+
         /**
          * Get or create a logger instance
          */
-        fun getInstance(tag: String, config: BleConfiguration = BleConfiguration()): BleLogger {
-            return loggers.getOrPut(tag) { BleLogger(tag, config) }
+        fun getInstance(tag: String): BleLogger {
+            return loggers.getOrPut(tag) { BleLogger(tag) }
         }
     }
 }

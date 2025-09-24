@@ -2,6 +2,7 @@ package com.spruceid.mobile.sdk.ble
 
 import android.bluetooth.BluetoothManager
 import android.content.Context
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.flow.StateFlow
@@ -58,6 +59,7 @@ class BleConnectionStateMachine private constructor() {
     // Store BluetoothManager and Context instances
     private var _bluetoothManager: BluetoothManager? = null
     private var _contextRef: WeakReference<Context>? = null
+    private var _originalAdapterName: String = ""
 
     // Termination callback for sending 0x02 signal per ISO 18013-5
     private var terminationCallback: (() -> Unit)? = null
@@ -66,10 +68,13 @@ class BleConnectionStateMachine private constructor() {
      * Initialize or update the BluetoothManager and Context
      * Uses WeakReference for ApplicationContext to prevent memory leaks
      */
+    @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     fun setBluetoothManager(manager: BluetoothManager, context: Context) {
-        synchronized(stateLock) {
+        synchronized(stateLock)  {
             _bluetoothManager = manager
             _contextRef = WeakReference(context.applicationContext)
+            _originalAdapterName = manager.adapter.name
+
         }
     }
 
@@ -94,6 +99,15 @@ class BleConnectionStateMachine private constructor() {
                 ?: throw IllegalStateException("Context has not been initialized or has been garbage collected. Call setBluetoothManager() first.")
         }
     }
+
+    /**
+     * Get the stored Context
+     */
+    fun getAdapterName(): String {
+        synchronized(stateLock) {
+            return _originalAdapterName
+        }
+    }
     
     /**
      * Valid state transitions map
@@ -116,6 +130,7 @@ class BleConnectionStateMachine private constructor() {
         synchronized(stateLock) {
             val current = _connectionState.value.state
             val allowedTransitions = validTransitions[current] ?: emptySet()
+            Log.d("", "$current $newState")
 
             if (newState in allowedTransitions) {
                 _connectionState.value = ConnectionState(

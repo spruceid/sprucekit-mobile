@@ -112,6 +112,15 @@ class BleTerminationProvider(
                 logger.w("No termination sender available - session termination not sent")
             } else {
                 logger.i("Session termination (0x02) sent successfully")
+
+                // Reset to IDLE state after successful termination to allow new connections
+                if (stateMachine.isInState(BleConnectionStateMachine.State.ERROR)) {
+                    if (stateMachine.transitionTo(BleConnectionStateMachine.State.IDLE)) {
+                        logger.d("State reset to IDLE after successful termination")
+                    } else {
+                        logger.w("Failed to reset to IDLE state after termination")
+                    }
+                }
             }
 
         } catch (e: Exception) {
@@ -149,25 +158,6 @@ class BleTerminationProvider(
     }
 
     /**
-     * Force session termination regardless of state
-     * Use this for cleanup or when normal termination flow fails
-     */
-    fun forceTermination(reason: String = "Forced termination") {
-        logger.w("Force termination requested: $reason")
-        sendSessionTermination(reason, force = true)
-    }
-
-    /**
-     * Clean up termination provider resources
-     */
-    fun cleanup() {
-        logger.d("Cleaning up BleTerminationProvider")
-        gattClientSender = null
-        gattServerSender = null
-        stateMachine.clearTerminationCallback()
-    }
-
-    /**
      * Check if session termination should be sent based on current state
      */
     private fun shouldSendTermination(): Boolean {
@@ -195,12 +185,5 @@ class BleTerminationProvider(
         // ISO 18013-5 Section 8.3.3.1.1.7: Transport-specific session termination
         // Simple message with 0x02 message type
         return byteArrayOf(SESSION_TERMINATION_MESSAGE_TYPE)
-    }
-
-    /**
-     * Check if termination provider is properly configured
-     */
-    fun isConfigured(): Boolean {
-        return gattClientSender != null || gattServerSender != null
     }
 }

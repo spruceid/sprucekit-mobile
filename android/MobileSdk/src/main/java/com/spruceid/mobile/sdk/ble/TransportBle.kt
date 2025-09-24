@@ -9,11 +9,9 @@ import java.util.*
 /**
  * Selects the type of BLE transport option to use. 18013-5 section 8.3.3.1.1.
  */
-class TransportBle(
-    private var bluetoothManager: BluetoothManager, config: BleConfiguration = BleConfiguration()
-) {
+class TransportBle {
 
-    private val logger = BleLogger.getInstance("TransportBle", config)
+    private val logger = BleLogger.getInstance("TransportBle")
 
     private lateinit var transportBleCentralClientHolder: TransportBleCentralClientHolder
     private lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder

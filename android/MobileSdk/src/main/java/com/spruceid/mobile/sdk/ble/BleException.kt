@@ -70,14 +70,6 @@ sealed class BleException(
         resource: String,
         message: String
     ) : BleException("Resource '$resource': $message")
-    
-    /**
-     * Retry exhausted exception
-     */
-    class RetryExhaustedException(
-        operation: String,
-        attempts: Int
-    ) : BleException("$operation failed after $attempts attempts")
 }
 
 /**
@@ -116,41 +108,5 @@ class BleErrorHandler(
         
         // Invoke callback if provided
         callback?.invoke(bleException)
-    }
-    
-    /**
-     * Convert GATT status code to exception
-     */
-    fun gattStatusToException(status: Int, operation: String): BleException? {
-        return when (status) {
-            0 -> null // GATT_SUCCESS
-            1 -> BleException.ValidationException("Invalid handle for $operation")
-            2 -> BleException.GattException(operation, status) // Read not permitted
-            3 -> BleException.GattException(operation, status) // Write not permitted
-            5 -> BleException.SecurityException("Insufficient authentication for $operation")
-            6 -> BleException.GattException(operation, status) // Request not supported
-            7 -> BleException.ValidationException("Invalid offset for $operation")
-            8 -> BleException.SecurityException("Insufficient authorization for $operation")
-            13 -> BleException.ValidationException("Invalid attribute length for $operation")
-            15 -> BleException.SecurityException("Insufficient encryption for $operation")
-            133 -> BleException.ConnectionException("Device disconnected during $operation")
-            257 -> BleException.ConnectionException("Connection failed for $operation")
-            else -> BleException.GattException(operation, status)
-        }
-    }
-    
-    /**
-     * Check if error is recoverable
-     */
-    fun isRecoverable(error: Throwable): Boolean {
-        return when (error) {
-            is BleException.TimeoutException -> true
-            is BleException.ConnectionException -> true
-            is BleException.GattException -> error.message?.contains("133") == true // Connection issue
-            is BleException.RetryExhaustedException -> false
-            is BleException.SecurityException -> false
-            is BleException.ValidationException -> false
-            else -> false
-        }
     }
 }

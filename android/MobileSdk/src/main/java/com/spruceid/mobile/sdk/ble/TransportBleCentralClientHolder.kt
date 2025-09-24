@@ -1,8 +1,14 @@
 package com.spruceid.mobile.sdk.ble
 
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.os.ParcelUuid
 import android.util.Log
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.byteArrayToHex
@@ -36,12 +42,19 @@ class TransportBleCentralClientHolder(
 ) {
     private val stateMachine = BleConnectionStateMachine.getInstance()
     private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
-    private var context: Context = stateMachine.getContext()
 
     private lateinit var previousAdapterName: String
-    private lateinit var bleCentral: BleCentral
     private lateinit var gattClient: GattClient
     private lateinit var identValue: ByteArray
+
+    private val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
+    private var scanning = false
+    private val handler = Handler(Looper.getMainLooper())
+    private var scanTimeoutRunnable: Runnable? = null
+    private val scanLock = Any()
+
+    // Limits scanning to 30 seconds per ISO 18013-5 recommendations for power efficiency
+    private val scanPeriod: Long = 30000
 
     /**
      * Initialize BLE Central Connection - ISO 18013-5 Section 8.3.3.1.1.4
@@ -64,27 +77,6 @@ class TransportBleCentralClientHolder(
          * Should be generated based on the 18013-5 section 8.3.3.1.1.3.
          */
         identValue = ident
-
-        /**
-         * BLE Central callback.
-         */
-        val bleCentralCallback: BleCentralCallback = object : BleCentralCallback() {
-            override fun onScanResult(callbackType: Int, result: ScanResult) {
-                /**
-                 * Once we found a device we don't have to scan anymore.
-                 */
-                bleCentral.stopScan()
-                gattClient.connect(result.device, identValue)
-            }
-
-            override fun onLog(message: String) {
-                Log.d("TransportBleCentralClientHolder.bleCentralCallback.onLog", message)
-            }
-
-            override fun onState(state: String) {
-                Log.d("TransportBleCentralClientHolder.bleCentralCallback.onState", state)
-            }
-        }
 
         /**
          * GATT client callback.
@@ -175,20 +167,18 @@ class TransportBleCentralClientHolder(
          */
         try {
             if (bluetoothAdapter.name != null) {
-                previousAdapterName = bluetoothAdapter.name
                 bluetoothAdapter.name = "mDL $application Device"
             }
         } catch (error: SecurityException) {
-            Log.e("TransportBleCentralClientHolder.connect", error.toString())
+            //TODO: move to error state and log error
+            bluetoothAdapter.name = stateMachine.getAdapterName()
         }
 
         gattClient = GattClient(
             gattClientCallback,
             serviceUUID
         )
-
-        bleCentral = BleCentral(bleCentralCallback, serviceUUID, bluetoothAdapter)
-        bleCentral.scan()
+        scan()
     }
 
     /**
@@ -210,7 +200,7 @@ class TransportBleCentralClientHolder(
             }
 
             gattClient.sendTransportSpecificTermination()
-            bleCentral.stopScan()
+            stopScan()
             gattClient.disconnect()
 
             // Transition to disconnected state
@@ -220,11 +210,107 @@ class TransportBleCentralClientHolder(
         }
     }
 
+
+    private val leScanCallback: ScanCallback = object : ScanCallback() {
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            super.onScanResult(callbackType, result)
+            stopScan()
+            gattClient.connect(result.device, identValue)
+        }
+    }
+
+    /**
+     * Starts to scan for devices/peripherals to connect to - looks for a specific service UUID.
+     *
+     * Scanning is limited with a timeout to preserve battery life of a device.
+     */
+    fun scan() {
+        val filter: ScanFilter = ScanFilter.Builder()
+            .setServiceUuid(ParcelUuid(serviceUUID))
+            .build()
+
+        val filterList: MutableList<ScanFilter> = ArrayList()
+        filterList.add(filter)
+
+        val settings: ScanSettings = ScanSettings.Builder()
+            .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build()
+
+        synchronized(scanLock) {
+            try {
+                if (!scanning) {
+                    // Clear any existing timeout before setting new one
+                    scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
+
+                    scanTimeoutRunnable = Runnable {
+                        synchronized(scanLock) {
+                            if (scanning) {
+                                scanning = false
+                                try {
+                                    bluetoothLeScanner.stopScan(leScanCallback)
+                                } catch (e: Exception) {
+                                    //TODO: failed to stop scan transition state machine to error, logger with e
+                                }
+                                scanTimeoutRunnable = null
+
+                                //TODO: transition state machine to idle and use logger to talk about timeout
+                            }
+                        }
+                    }
+                    handler.postDelayed(scanTimeoutRunnable!!, scanPeriod)
+                    scanning = true
+                    bluetoothLeScanner.startScan(filterList, settings, leScanCallback)
+                } else {
+                    stopScanInternal()
+                }
+            } catch (error: SecurityException) {
+                scanning = false
+                scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
+                scanTimeoutRunnable = null
+                //TODO: add logger
+            } catch (error: IllegalStateException) {
+                scanning = false
+                scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
+                scanTimeoutRunnable = null
+                //TODO: add logger
+            }
+        }
+    }
+
+    /**
+     * Stops scanning for devices/peripherals.
+     */
+    fun stopScan() {
+        synchronized(scanLock) {
+            stopScanInternal()
+        }
+    }
+
+    private fun stopScanInternal() {
+        try {
+            // Remove pending timeout callback to prevent memory leak
+            scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
+            scanTimeoutRunnable = null
+
+            if (scanning) {
+                bluetoothLeScanner.stopScan(leScanCallback)
+                scanning = false
+            }
+        } catch (error: SecurityException) {
+            //TODO: logger error
+        } catch (error: IllegalStateException) {
+        } finally {
+            scanning = false
+            scanTimeoutRunnable = null
+        }
+    }
+
     /**
      * Terminates and resets all connections to ensure a clean state.
      */
     fun hardReset() {
-        bleCentral.stopScan()
+        stopScan()
         gattClient.disconnect()
         gattClient.reset()
 

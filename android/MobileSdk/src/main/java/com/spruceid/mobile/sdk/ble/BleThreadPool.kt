@@ -44,7 +44,7 @@ class BleThreadPool private constructor(
         }
     }
 
-    private val logger = BleLogger.getInstance("BleThreadPool", config)
+    private val logger = BleLogger.getInstance("BleThreadPool")
 
     // Core thread pools for different operation types
     private val ioExecutor: ThreadPoolExecutor = ThreadPoolExecutor(
@@ -103,34 +103,6 @@ class BleThreadPool private constructor(
     }
 
     /**
-     * Execute I/O operation (socket, file operations, GATT operations)
-     */
-    fun executeIOTask(operation: () -> Unit): Future<*> {
-        return ioExecutor.submit(operation)
-    }
-
-    /**
-     * Execute I/O operation with result
-     */
-    fun <T> executeIOWithResult(operation: () -> T): Future<T> {
-        return ioExecutor.submit(Callable(operation))
-    }
-
-    /**
-     * Execute CPU-intensive operation (crypto, parsing, compression)
-     */
-    fun executeCPUTask(operation: () -> Unit): Future<*> {
-        return cpuExecutor.submit(operation)
-    }
-
-    /**
-     * Execute CPU operation with result
-     */
-    fun <T> executeCPUWithResult(operation: () -> T): Future<T> {
-        return cpuExecutor.submit(Callable(operation))
-    }
-
-    /**
      * Schedule a delayed operation
      */
     fun scheduleDelayed(
@@ -138,22 +110,6 @@ class BleThreadPool private constructor(
         operation: () -> Unit
     ): ScheduledFuture<*> {
         return timerExecutor.schedule(operation, delayMs, TimeUnit.MILLISECONDS)
-    }
-
-    /**
-     * Schedule a repeating operation
-     */
-    fun scheduleRepeating(
-        initialDelayMs: Long,
-        periodMs: Long,
-        operation: () -> Unit
-    ): ScheduledFuture<*> {
-        return timerExecutor.scheduleWithFixedDelay(
-            operation,
-            initialDelayMs,
-            periodMs,
-            TimeUnit.MILLISECONDS
-        )
     }
 
     /**
@@ -165,90 +121,6 @@ class BleThreadPool private constructor(
         block: suspend CoroutineScope.() -> Unit
     ): Job {
         return ioScope.launch(context, start, block)
-    }
-
-    /**
-     * Execute coroutine in CPU scope
-     */
-    fun launchCPU(
-        context: CoroutineContext = EmptyCoroutineContext,
-        start: CoroutineStart = CoroutineStart.DEFAULT,
-        block: suspend CoroutineScope.() -> Unit
-    ): Job {
-        return cpuScope.launch(context, start, block)
-    }
-
-    /**
-     * Execute coroutine in Timer scope
-     */
-    fun launchTimer(
-        context: CoroutineContext = EmptyCoroutineContext,
-        start: CoroutineStart = CoroutineStart.DEFAULT,
-        block: suspend CoroutineScope.() -> Unit
-    ): Job {
-        return timerScope.launch(context, start, block)
-    }
-
-    /**
-     * Execute coroutine with timeout in IO scope
-     */
-    suspend fun <T> withIOTimeout(
-        timeoutMs: Long,
-        block: suspend CoroutineScope.() -> T
-    ): T = withContext(ioDispatcher) {
-        withTimeout(timeoutMs, block)
-    }
-
-    /**
-     * Execute coroutine with timeout in CPU scope
-     */
-    suspend fun <T> withCPUTimeout(
-        timeoutMs: Long,
-        block: suspend CoroutineScope.() -> T
-    ): T = withContext(cpuDispatcher) {
-        withTimeout(timeoutMs, block)
-    }
-
-    /**
-     * Get thread pool statistics
-     */
-    fun getStatistics(): ThreadPoolStatistics {
-        return ThreadPoolStatistics(
-            ioPoolSize = ioExecutor.poolSize,
-            ioActiveThreads = ioExecutor.activeCount,
-            ioQueueSize = ioExecutor.queue.size,
-            ioCompletedTasks = ioExecutor.completedTaskCount,
-
-            cpuPoolSize = cpuExecutor.poolSize,
-            cpuActiveThreads = cpuExecutor.activeCount,
-            cpuQueueSize = cpuExecutor.queue.size,
-            cpuCompletedTasks = cpuExecutor.completedTaskCount,
-
-            timerPoolSize = timerExecutor.poolSize,
-            timerActiveThreads = timerExecutor.activeCount,
-            timerQueueSize = timerExecutor.queue.size,
-            timerCompletedTasks = timerExecutor.completedTaskCount
-        )
-    }
-
-    /**
-     * Check if thread pools are healthy (not overwhelmed)
-     */
-    fun isHealthy(): Boolean {
-        val stats = getStatistics()
-
-        // Check if queues are not overwhelmed (> 80% capacity)
-        val ioQueueHealthy = stats.ioQueueSize < 80
-        val cpuQueueHealthy = stats.cpuQueueSize < 40
-        val timerQueueHealthy = stats.timerQueueSize < 40
-
-        // Check if we're not using too many threads
-        val ioThreadsHealthy = stats.ioActiveThreads <= config.maxThreadPoolSize
-        val cpuThreadsHealthy = stats.cpuActiveThreads <= 2
-        val timerThreadsHealthy = stats.timerActiveThreads <= 2
-
-        return ioQueueHealthy && cpuQueueHealthy && timerQueueHealthy &&
-               ioThreadsHealthy && cpuThreadsHealthy && timerThreadsHealthy
     }
 
     /**
@@ -297,27 +169,5 @@ class BleThreadPool private constructor(
             cpuExecutor.shutdownNow()
             timerExecutor.shutdownNow()
         }
-    }
-
-    data class ThreadPoolStatistics(
-        val ioPoolSize: Int,
-        val ioActiveThreads: Int,
-        val ioQueueSize: Int,
-        val ioCompletedTasks: Long,
-
-        val cpuPoolSize: Int,
-        val cpuActiveThreads: Int,
-        val cpuQueueSize: Int,
-        val cpuCompletedTasks: Long,
-
-        val timerPoolSize: Int,
-        val timerActiveThreads: Int,
-        val timerQueueSize: Int,
-        val timerCompletedTasks: Long
-    ) {
-        val totalPoolSize: Int = ioPoolSize + cpuPoolSize + timerPoolSize
-        val totalActiveThreads: Int = ioActiveThreads + cpuActiveThreads + timerActiveThreads
-        val totalQueueSize: Int = ioQueueSize + cpuQueueSize + timerQueueSize
-        val totalCompletedTasks: Long = ioCompletedTasks + cpuCompletedTasks + timerCompletedTasks
     }
 }

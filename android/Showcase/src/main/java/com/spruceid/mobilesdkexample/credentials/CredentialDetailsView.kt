@@ -56,7 +56,7 @@ import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
-import com.spruceid.mobile.sdk.ble.getPermissions
+import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R

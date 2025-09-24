@@ -8,7 +8,7 @@ import kotlin.math.min
  */
 class BleRetryManager(
     private val config: BleConfiguration = BleConfiguration(),
-    private val logger: BleLogger = BleLogger.getInstance("BleRetryManager", config)
+    private val logger: BleLogger = BleLogger.getInstance("BleRetryManager")
 ) {
     
     /**
@@ -88,25 +88,4 @@ class BleRetryManager(
             executeWithTimeout(operation, timeoutMs, block).getOrThrow()
         }
     }
-    
-    /**
-     * Schedule a delayed operation
-     */
-    fun scheduleDelayed(
-        delayMs: Long,
-        operation: String,
-        block: () -> Unit
-    ): Job {
-        logger.d("Scheduling $operation with delay ${delayMs}ms")
-        return CoroutineScope(Dispatchers.IO).launch {
-            delay(delayMs)
-            try {
-                block()
-                logger.d("$operation executed successfully")
-            } catch (e: Exception) {
-                logger.e("$operation failed: ${e.message}", e)
-            }
-        }
-    }
-    
 }

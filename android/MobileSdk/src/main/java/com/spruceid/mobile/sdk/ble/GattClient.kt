@@ -17,17 +17,14 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.lang.reflect.InvocationTargetException
 import java.util.ArrayDeque
-import java.util.Arrays
 import java.util.Queue
 import java.util.UUID
 import java.util.concurrent.BlockingQueue
-import java.util.concurrent.Executors
 import java.util.concurrent.LinkedTransferQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
-import kotlin.math.min
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
@@ -55,15 +52,12 @@ class GattClient(
     private var serviceUuid: UUID,
     private val config: BleConfiguration = BleConfiguration()
 ) {
-
-    private val logger = BleLogger.getInstance("GattClient", config)
+    private val logger = BleLogger.getInstance("GattClient")
     private val stateMachine = BleConnectionStateMachine.getInstance()
     private val btAdapter = stateMachine.getBluetoothManager().adapter
     private val context: Context = stateMachine.getContext()
     private val errorHandler = BleErrorHandler(logger)
     private val terminationProvider = BleTerminationProvider(stateMachine, logger)
-    private val callbackManager = BleCallbackManager.getInstance()
-    private val messageFramer = BleMessageFramer(config, logger)
     private val threadPool = BleThreadPool.getInstance(config)
     private val L2CAP_BUFFER_SIZE = (1 shl 16) // 64K
 
@@ -103,22 +97,17 @@ class GattClient(
             sendTransportSpecificTermination()
         }
 
-        // Register callback with callback manager to prevent memory leaks
-        callbackManager.registerCallback("${connectionId}_callback", callback)
     }
 
     /**
      * Bluetooth GATT callback containing all of the events.
-     * Wrapped with BleCallbackManager to prevent memory leaks.
      */
-    private val bluetoothGattCallback: BluetoothGattCallback = callbackManager.wrapGattCallback(
-        "${connectionId}_gatt",
-        object : BluetoothGattCallback() {
+    private val bluetoothGattCallback: BluetoothGattCallback = object : BluetoothGattCallback() {
         /**
          * Discover services to connect to.
          */
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            reportLog("onConnectionStateChange")
+            reportLog("onConnectionStateChange $newState")
 
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
@@ -291,7 +280,7 @@ class GattClient(
         ) {
 
             reportLog("onCharacteristicRead, uuid=${characteristic.uuid} status=$status")
-            //@Suppress("deprecation")
+
             /**
              * Reader Authentication - Verify Ident Characteristic
              *
@@ -430,7 +419,7 @@ class GattClient(
                 }
 
                 if (writingQueueTotalChunks > 0) {
-                    if (writingQueue.size == 0) {
+                    if (writingQueue.isEmpty()) {
                         callback.onMessageSendProgress(
                             writingQueueTotalChunks,
                             writingQueueTotalChunks
@@ -514,7 +503,7 @@ class GattClient(
                             return
                         }
                     } else {
-                        reportError("Invalid first byte ${value[0]} in Server2Client data chunk, expected 0 or 1.")
+//                        reportError("Invalid first byte ${value[0]} in Server2Client data chunk, expected 0 or 1.")
                         return
                     }
                 }
@@ -608,7 +597,7 @@ class GattClient(
                 }
             }
         }
-    })
+    }
 
     /**
      * L2CAP Request Reader Thread - High-Throughput Data Reception
@@ -818,32 +807,15 @@ class GattClient(
 
         if (wasTerminated) {
             logger.w("Terminal error handled with session termination: $text")
-            // Transition to error state - won't trigger callback since termination already sent
-            stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, text)
+            // Force transition to error state to ensure proper cleanup
+            if (!stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, text)) {
+                logger.w("Failed to transition to ERROR state, forcing transition")
+                stateMachine.forceTransitionTo(BleConnectionStateMachine.State.ERROR)
+            }
         } else {
             logger.d("Recoverable error handled without termination: $text")
             // For recoverable errors, still call original error handler
             errorHandler.handleError(error, text) {
-                callback.onError(it)
-            }
-        }
-    }
-
-    /**
-     * Report error from exception for better error classification
-     */
-    private fun reportError(exception: Throwable, context: String = "") {
-        // Use termination provider for precise error classification
-        val wasTerminated = terminationProvider.handleError(exception, "GattClient: $context")
-
-        if (wasTerminated) {
-            logger.w("Terminal error handled with session termination: ${exception.message}")
-            // Use enhanced state machine method for classified errors
-            stateMachine.transitionToError(exception, context)
-        } else {
-            logger.d("Recoverable error handled without termination: ${exception.message}")
-            // For recoverable errors, still call original error handler
-            errorHandler.handleError(exception, context) {
                 callback.onError(it)
             }
         }
@@ -982,10 +954,7 @@ class GattClient(
             responseData.add(data)
         } else {
             queueLock.withLock {
-                if (mtu == 0) {
-                    logger.w("MTU not negotiated, using minimum acceptable MTU ${config.minAcceptableMtu}")
-                    mtu = config.minAcceptableMtu
-                } else if (mtu < config.minAcceptableMtu) {
+                if (mtu < config.minAcceptableMtu) {
                     logger.w("Current MTU $mtu below minimum, adjusting to ${config.minAcceptableMtu}")
                     mtu = config.minAcceptableMtu
                 }
@@ -1023,13 +992,6 @@ class GattClient(
     }
 
     /**
-     * When using L2CAP it doesn't support characteristics notification.
-     */
-    fun supportsTransportSpecificTerminationMessage(): Boolean {
-        return useL2CAP != UseL2CAP.Yes
-    }
-
-    /**
      * Send Session Termination Signal - Write 0x02 to State
      *
      * Writes termination code (0x02) to Reader's State characteristic
@@ -1038,10 +1000,20 @@ class GattClient(
      */
     fun sendTransportSpecificTermination() {
         val terminationCode = byteArrayOf(0x02.toByte())
+
+        // Check if GATT client and characteristic are available
+        val gatt = gattClient
+        val stateChar = characteristicState
+
+        if (gatt == null || stateChar == null) {
+            logger.d("Cannot send termination - GATT client or state characteristic unavailable")
+            return
+        }
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val res = gattClient!!.writeCharacteristic(
-                    characteristicState!!,
+                val res = gatt.writeCharacteristic(
+                    stateChar,
                     terminationCode,
                     BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                 )
@@ -1051,13 +1023,11 @@ class GattClient(
                 }
             } else {
                 // Above code addresses the deprecation but requires API 33+
-                if (characteristicState != null) {
-                    @Suppress("deprecation")
-                    characteristicState!!.value = terminationCode
-                }
+                @Suppress("deprecation")
+                stateChar.value = terminationCode
 
                 @Suppress("deprecation")
-                if (gattClient != null && !gattClient!!.writeCharacteristic(characteristicState)) {
+                if (!gatt.writeCharacteristic(stateChar)) {
                     reportError("Error writing to state characteristic.")
                 }
             }
@@ -1076,11 +1046,6 @@ class GattClient(
      * @param ident Expected Ident value from device engagement for Reader verification
      */
     fun connect(device: BluetoothDevice, ident: ByteArray?) {
-        if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
-            reportError("Invalid state for connection: ${stateMachine.getState()}")
-            return
-        }
-        
         identValue = ident
         this.reset()
 
@@ -1153,27 +1118,6 @@ class GattClient(
             incomingMessage.reset()
         }
         responseData.clear()
-    }
-
-    fun setMtu(mtu: Int) {
-        synchronized(queueLock) {
-            this.mtu = min(config.preferredMtu, mtu)
-            logger.d("MTU set to ${this.mtu} (requested: $mtu, max: ${config.preferredMtu})")
-        }
-    }
-    
-    /**
-     * Get current connection state
-     */
-    fun getConnectionState(): BleConnectionStateMachine.State {
-        return stateMachine.getState()
-    }
-    
-    /**
-     * Check if client is connected
-     */
-    fun isConnected(): Boolean {
-        return stateMachine.isInState(BleConnectionStateMachine.State.CONNECTED)
     }
     
     /**

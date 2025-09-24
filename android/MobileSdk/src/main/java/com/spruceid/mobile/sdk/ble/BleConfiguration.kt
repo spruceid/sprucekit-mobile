@@ -30,7 +30,7 @@ data class BleConfiguration(
     val chunkTimeoutMs: Long = 5000L,  // 5 seconds per chunk
     
     // Logging configuration
-    val logLevel: LogLevel = LogLevel.INFO,
+    val logLevel: LogLevel = LogLevel.DEBUG,
     val logSensitiveData: Boolean = false,
 
     // Timing attack protection
@@ -62,26 +62,5 @@ data class BleConfiguration(
         INFO,
         DEBUG,
         VERBOSE
-    }
-    
-    companion object {
-        /**
-         * Production-ready configuration with security hardening
-         */
-        fun production() = BleConfiguration(
-            logLevel = LogLevel.ERROR,
-            logSensitiveData = false,
-            maxConnectionRetries = 5,
-            randomizeResponseTiming = true
-        )
-        
-        /**
-         * Development configuration with verbose logging
-         */
-        fun development() = BleConfiguration(
-            logLevel = LogLevel.VERBOSE,
-            logSensitiveData = true,
-            randomizeResponseTiming = false
-        )
     }
 }
