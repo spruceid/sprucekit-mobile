@@ -41,7 +41,8 @@ object BleErrorClassifier {
             // Authentication/authorization failures are terminal
             is IllegalStateException -> {
                 if (error.message?.contains("authentication", ignoreCase = true) == true ||
-                    error.message?.contains("authorization", ignoreCase = true) == true) {
+                    error.message?.contains("authorization", ignoreCase = true) == true
+                ) {
                     ErrorType.TERMINAL
                 } else {
                     ErrorType.RECOVERABLE
@@ -56,12 +57,13 @@ object BleErrorClassifier {
 
                 when {
                     className.contains("BluetoothGatt", ignoreCase = true) ||
-                    className.contains("Gatt", ignoreCase = true) -> {
+                            className.contains("Gatt", ignoreCase = true) -> {
                         // GATT-specific error handling
                         classifyGattError(error)
                     }
+
                     className.contains("Bluetooth", ignoreCase = true) ||
-                    message.contains("bluetooth") -> {
+                            message.contains("bluetooth") -> {
                         // General Bluetooth errors - adapter issues are terminal
                         if (message.contains("adapter") || message.contains("device not found")) {
                             ErrorType.TERMINAL
@@ -69,11 +71,13 @@ object BleErrorClassifier {
                             ErrorType.RECOVERABLE
                         }
                     }
+
                     message.contains("corrupt") || message.contains("parse") ||
-                    message.contains("malformed") -> {
+                            message.contains("malformed") -> {
                         // Data corruption/parsing errors are terminal
                         ErrorType.TERMINAL
                     }
+
                     else -> ErrorType.RECOVERABLE
                 }
             }
@@ -87,7 +91,8 @@ object BleErrorClassifier {
             // Protocol violations are terminal
             is IllegalArgumentException -> {
                 if (error.message?.contains("protocol", ignoreCase = true) == true ||
-                    error.message?.contains("invalid", ignoreCase = true) == true) {
+                    error.message?.contains("invalid", ignoreCase = true) == true
+                ) {
                     ErrorType.TERMINAL
                 } else {
                     ErrorType.RECOVERABLE
@@ -119,21 +124,21 @@ object BleErrorClassifier {
         return when {
             // Connection issues that might be temporary
             message.contains("connection timeout") ||
-            message.contains("connection lost") ||
-            message.contains("device disconnected") -> ErrorType.RECOVERABLE
+                    message.contains("connection lost") ||
+                    message.contains("device disconnected") -> ErrorType.RECOVERABLE
 
             // Authentication/security failures are terminal
             message.contains("authentication failed") ||
-            message.contains("insufficient authentication") ||
-            message.contains("insufficient encryption") -> ErrorType.TERMINAL
+                    message.contains("insufficient authentication") ||
+                    message.contains("insufficient encryption") -> ErrorType.TERMINAL
 
             // Service/characteristic not found could be recoverable (discovery issue)
             message.contains("service not found") ||
-            message.contains("characteristic not found") -> ErrorType.RECOVERABLE
+                    message.contains("characteristic not found") -> ErrorType.RECOVERABLE
 
             // Write/read failures might be temporary
             message.contains("write failed") ||
-            message.contains("read failed") -> ErrorType.RECOVERABLE
+                    message.contains("read failed") -> ErrorType.RECOVERABLE
 
             // Default GATT errors to terminal for safety
             else -> ErrorType.TERMINAL

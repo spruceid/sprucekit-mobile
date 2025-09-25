@@ -73,7 +73,7 @@ fun GenericCredentialItemListItem(
 }
 
 @Composable
-fun genericCredentialListItemDescriptionFormatter(
+fun GenericCredentialListItemDescriptionFormatter(
     statusListViewModel: StatusListViewModel,
     credentialPack: CredentialPack,
     values: Map<String, JSONObject>
@@ -139,7 +139,7 @@ fun genericCredentialListItemDescriptionFormatter(
 }
 
 @Composable
-private fun genericCredentialListItemLeadingIconFormatter(
+private fun GenericCredentialListItemLeadingIconFormatter(
     credentialPack: CredentialPack,
     values: Map<String, JSONObject>
 ) {
@@ -210,7 +210,7 @@ private fun genericCredentialListItemLeadingIconFormatter(
 
 
 @Composable
-fun genericCredentialListItem(
+fun GenericCredentialListItem(
     statusListViewModel: StatusListViewModel,
     credentialPack: CredentialPack,
     withOptions: Boolean,

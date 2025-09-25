@@ -9,7 +9,7 @@ class BleLogger(
     private val tag: String,
     private val config: BleConfiguration = BleConfiguration()
 ) {
-    
+
     /**
      * Log verbose message
      */
@@ -18,7 +18,7 @@ class BleLogger(
             Log.v(tag, sanitize(message))
         }
     }
-    
+
     /**
      * Log debug message
      */
@@ -27,7 +27,7 @@ class BleLogger(
             Log.d(tag, sanitize(message))
         }
     }
-    
+
     /**
      * Log info message
      */
@@ -36,7 +36,7 @@ class BleLogger(
             Log.i(tag, sanitize(message))
         }
     }
-    
+
     /**
      * Log warning message
      */
@@ -49,7 +49,7 @@ class BleLogger(
             }
         }
     }
-    
+
     /**
      * Log error message
      */
@@ -62,7 +62,7 @@ class BleLogger(
             }
         }
     }
-    
+
     /**
      * Log data transfer (sanitizes payload data)
      */
@@ -79,19 +79,19 @@ class BleLogger(
         if (config.logSensitiveData) {
             return message
         }
-        
+
         // Remove hex strings (potential keys/credentials)
         var sanitized = message.replace(Regex("\\b[0-9a-fA-F]{8,}\\b"), "[REDACTED]")
-        
+
         // Remove byte array contents
         sanitized = sanitized.replace(Regex("\\[[-0-9, ]+\\]"), "[REDACTED]")
-        
+
         // Remove potential identifiers (UUIDs)
         sanitized = sanitized.replace(
             Regex("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"),
             "[UUID]"
         )
-        
+
         return sanitized
     }
 

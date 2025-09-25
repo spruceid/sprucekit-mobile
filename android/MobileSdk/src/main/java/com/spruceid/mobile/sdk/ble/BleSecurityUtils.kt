@@ -97,9 +97,11 @@ object BleSecurityUtils {
             data == null -> {
                 throw SecurityException("$context: null data not allowed")
             }
+
             data.isEmpty() -> {
                 throw SecurityException("$context: empty data not allowed")
             }
+
             data.size > maxSize -> {
                 logger.w("$context: oversized input rejected (${data.size} > $maxSize bytes)")
                 throw SecurityException("$context: input size ${data.size} exceeds maximum $maxSize")
@@ -126,6 +128,7 @@ object BleSecurityUtils {
             requestedSize <= 0 -> {
                 throw SecurityException("$context: invalid buffer size $requestedSize")
             }
+
             requestedSize > maxAllowedSize -> {
                 logger.w("$context: buffer allocation rejected (${requestedSize} > $maxAllowedSize bytes)")
                 throw SecurityException("$context: requested buffer size $requestedSize exceeds limit $maxAllowedSize")

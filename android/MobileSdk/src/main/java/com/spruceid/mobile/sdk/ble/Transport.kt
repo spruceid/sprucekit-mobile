@@ -87,7 +87,7 @@ class Transport(
                 val result = retryManager.executeWithRetryAndTimeout(
                     "BLE transport initialization",
                     config.connectionTimeoutMs
-                )  {
+                ) {
                     transportBLE.initialize(
                         application,
                         serviceUUID,
@@ -98,7 +98,7 @@ class Transport(
                         encodedEDeviceKeyBytes
                     )
                 }
-                
+
                 result.fold(
                     onSuccess = {
                         logger.i("BLE transport initialized successfully")
@@ -153,7 +153,7 @@ class Transport(
      */
     fun terminate() {
         logger.i("Terminating transport")
-        
+
         if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
             try {
                 if (this::transportBLE.isInitialized) {

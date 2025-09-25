@@ -13,13 +13,16 @@ abstract class BlePeripheralCallback {
     open fun onStartFailure(errorCode: Int) {}
     open fun onError(error: Throwable) {}
     open fun onLog(message: String) {}
-    open fun onState (state: String) {}
+    open fun onState(state: String) {}
 }
 
-class BlePeripheral(private var callback: BlePeripheralCallback,
-                    private var serviceUUID: UUID) {
+class BlePeripheral(
+    private var callback: BlePeripheralCallback,
+    private var serviceUUID: UUID
+) {
 
-    private var bluetoothAdapter: BluetoothAdapter = BleConnectionStateMachine.getInstance().getBluetoothManager().adapter
+    private var bluetoothAdapter: BluetoothAdapter =
+        BleConnectionStateMachine.getInstance().getBluetoothManager().adapter
     private var bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
 
     /**
@@ -30,6 +33,7 @@ class BlePeripheral(private var callback: BlePeripheralCallback,
             callback.onState(BleStates.AdvertisementStarted.string)
             callback.onLog("Advertisement has started with $serviceUUID service id.")
         }
+
         override fun onStartFailure(errorCode: Int) {
             if (errorCode == ADVERTISE_FAILED_ALREADY_STARTED) {
                 callback.onError(Error("Advertise Failed Already Started."))
@@ -85,7 +89,7 @@ class BlePeripheral(private var callback: BlePeripheralCallback,
      */
     fun stopAdvertise() {
         try {
-
+            bluetoothLeAdvertiser.stopAdvertising(leAdvertiseCallback)
             callback.onState(BleStates.StopAdvertise.string)
             callback.onLog("Stopping Peripheral advertise.")
         } catch (error: SecurityException) {

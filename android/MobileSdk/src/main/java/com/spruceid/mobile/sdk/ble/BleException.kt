@@ -7,7 +7,7 @@ sealed class BleException(
     message: String,
     cause: Throwable? = null
 ) : Exception(message, cause) {
-    
+
     /**
      * Connection-related exceptions
      */
@@ -15,7 +15,7 @@ sealed class BleException(
         message: String,
         cause: Throwable? = null
     ) : BleException(message, cause)
-    
+
     /**
      * Timeout exceptions
      */
@@ -23,7 +23,7 @@ sealed class BleException(
         operation: String,
         timeoutMs: Long
     ) : BleException("$operation timed out after ${timeoutMs}ms")
-    
+
     /**
      * Invalid state exceptions
      */
@@ -31,7 +31,7 @@ sealed class BleException(
         currentState: BleConnectionStateMachine.State,
         attemptedTransition: BleConnectionStateMachine.State
     ) : BleException("Invalid state transition from $currentState to $attemptedTransition")
-    
+
     /**
      * Security exceptions
      */
@@ -39,14 +39,14 @@ sealed class BleException(
         message: String,
         cause: Throwable? = null
     ) : BleException(message, cause)
-    
+
     /**
      * Data validation exceptions
      */
     class ValidationException(
         message: String
     ) : BleException(message)
-    
+
     /**
      * GATT operation exceptions
      */
@@ -54,7 +54,7 @@ sealed class BleException(
         operation: String,
         status: Int
     ) : BleException("GATT operation '$operation' failed with status $status")
-    
+
     /**
      * L2CAP exceptions
      */
@@ -62,7 +62,7 @@ sealed class BleException(
         message: String,
         cause: Throwable? = null
     ) : BleException(message, cause)
-    
+
     /**
      * Resource exceptions
      */
@@ -78,7 +78,7 @@ sealed class BleException(
 class BleErrorHandler(
     private val logger: BleLogger
 ) {
-    
+
     /**
      * Handle error with appropriate logging and recovery
      */
@@ -89,23 +89,38 @@ class BleErrorHandler(
     ) {
         val bleException = when (error) {
             is BleException -> error
-            is SecurityException -> BleException.SecurityException(error.message ?: "Security error", error)
+            is SecurityException -> BleException.SecurityException(
+                error.message ?: "Security error", error
+            )
+
             is IllegalStateException -> BleException.InvalidStateException(
                 BleConnectionStateMachine.State.ERROR,
                 BleConnectionStateMachine.State.IDLE
             )
-            is IllegalArgumentException -> BleException.ValidationException(error.message ?: "Validation error")
+
+            is IllegalArgumentException -> BleException.ValidationException(
+                error.message ?: "Validation error"
+            )
+
             else -> BleException.ConnectionException("$operation failed: ${error.message}", error)
         }
-        
+
         // Log based on exception type
         when (bleException) {
-            is BleException.SecurityException -> logger.e("Security error in $operation", bleException)
+            is BleException.SecurityException -> logger.e(
+                "Security error in $operation",
+                bleException
+            )
+
             is BleException.TimeoutException -> logger.w("Timeout in $operation", bleException)
-            is BleException.ValidationException -> logger.w("Validation error in $operation", bleException)
+            is BleException.ValidationException -> logger.w(
+                "Validation error in $operation",
+                bleException
+            )
+
             else -> logger.e("Error in $operation", bleException)
         }
-        
+
         // Invoke callback if provided
         callback?.invoke(bleException)
     }

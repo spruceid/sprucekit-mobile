@@ -8,27 +8,27 @@ data class BleConfiguration(
     val scanTimeoutMs: Long = 30000L,  // 30 seconds per ISO 18013-5
     val connectionTimeoutMs: Long = 10000L,  // 10 seconds
     val disconnectTimeoutMs: Long = 5000L,  // 5 seconds
-    
+
     // Retry configuration
     val maxConnectionRetries: Int = 3,
     val initialRetryDelayMs: Long = 1000L,
     val maxRetryDelayMs: Long = 8000L,
     val retryBackoffMultiplier: Double = 2.0,
-    
+
     // MTU configuration
     val preferredMtu: Int = 515,  // Maximum per ISO 18013-5
     val defaultMtu: Int = 23,  // BLE minimum
-    
+
     // L2CAP configuration
     val useL2CAP: L2CAPMode = L2CAPMode.IF_AVAILABLE,
     val l2capBufferSize: Int = 65536,  // 64KB
     val l2capReadTimeoutMs: Long = 500L,
     val l2capConnectionTimeoutMs: Long = 5000L,
-    
+
     // Transfer configuration  
     val messageTimeoutMs: Long = 30000L,  // 30 seconds for complete message
     val chunkTimeoutMs: Long = 5000L,  // 5 seconds per chunk
-    
+
     // Logging configuration
     val logLevel: LogLevel = LogLevel.DEBUG,
     val logSensitiveData: Boolean = false,
@@ -54,7 +54,7 @@ data class BleConfiguration(
         IF_AVAILABLE, // Use if available, fall back to GATT
         NEVER        // Never use L2CAP
     }
-    
+
     enum class LogLevel {
         NONE,
         ERROR,

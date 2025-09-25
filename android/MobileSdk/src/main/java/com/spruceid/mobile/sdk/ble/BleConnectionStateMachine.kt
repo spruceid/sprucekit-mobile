@@ -70,7 +70,7 @@ class BleConnectionStateMachine private constructor() {
      */
     @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
     fun start(manager: BluetoothManager, context: Context) {
-        synchronized(stateLock)  {
+        synchronized(stateLock) {
             _bluetoothManager = manager
             _contextRef = WeakReference(context.applicationContext)
             _originalAdapterName = manager.adapter.name
@@ -108,7 +108,7 @@ class BleConnectionStateMachine private constructor() {
             return _originalAdapterName
         }
     }
-    
+
     /**
      * Valid state transitions map
      */
@@ -121,7 +121,7 @@ class BleConnectionStateMachine private constructor() {
         State.DISCONNECTED to setOf(State.IDLE, State.SCANNING, State.CONNECTING),
         State.ERROR to setOf(State.IDLE, State.DISCONNECTED)
     )
-    
+
     /**
      * Attempt to transition to a new state
      * @return true if transition was successful, false otherwise
@@ -130,11 +130,14 @@ class BleConnectionStateMachine private constructor() {
         synchronized(stateLock) {
             val current = _connectionState.value.state
             val allowedTransitions = validTransitions[current] ?: emptySet()
-            if(newState == State.ERROR || newState == State.DISCONNECTING) {
+            if (newState == State.ERROR || newState == State.DISCONNECTING) {
                 try {
                     _bluetoothManager!!.adapter.name = _originalAdapterName
                 } catch (error: SecurityException) {
-                    Log.e("StateManager", "Unable to return adapter's name to previous name. $error")
+                    Log.e(
+                        "StateManager",
+                        "Unable to return adapter's name to previous name. $error"
+                    )
                 }
             }
 
@@ -150,7 +153,7 @@ class BleConnectionStateMachine private constructor() {
             return false
         }
     }
-    
+
     /**
      * Force transition to a state (use carefully, mainly for recovery)
      */

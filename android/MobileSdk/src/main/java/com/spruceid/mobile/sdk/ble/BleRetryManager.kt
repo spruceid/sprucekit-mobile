@@ -10,7 +10,7 @@ class BleRetryManager(
     private val config: BleConfiguration = BleConfiguration(),
     private val logger: BleLogger = BleLogger.getInstance("BleRetryManager")
 ) {
-    
+
     /**
      * Execute an operation with automatic retry on failure
      */
@@ -20,7 +20,7 @@ class BleRetryManager(
     ): Result<T> = withContext(Dispatchers.IO) {
         var currentDelay = config.initialRetryDelayMs
         var lastException: Exception? = null
-        
+
         for (attempt in 1..config.maxConnectionRetries) {
             try {
                 logger.d("Executing $operation (attempt $attempt/${config.maxConnectionRetries})")
@@ -34,7 +34,7 @@ class BleRetryManager(
             } catch (e: Exception) {
                 lastException = e
                 logger.w("$operation failed on attempt $attempt: ${e.message}")
-                
+
                 if (attempt < config.maxConnectionRetries) {
                     logger.d("Retrying $operation in ${currentDelay}ms")
                     delay(currentDelay)
@@ -45,13 +45,14 @@ class BleRetryManager(
                 }
             }
         }
-        
+
         logger.e("$operation failed after ${config.maxConnectionRetries} attempts", lastException)
         return@withContext Result.failure(
-            lastException ?: Exception("Operation failed after ${config.maxConnectionRetries} attempts")
+            lastException
+                ?: Exception("Operation failed after ${config.maxConnectionRetries} attempts")
         )
     }
-    
+
     /**
      * Execute an operation with timeout
      */
@@ -69,13 +70,13 @@ class BleRetryManager(
             }
         } catch (e: TimeoutCancellationException) {
             logger.e("$operation timed out after ${timeoutMs}ms")
-            Result.failure(Exception("$operation timed out after ${timeoutMs}ms"))
+            Result.failure(Exception("$operation timed out after ${timeoutMs}ms. ${e.message}"))
         } catch (e: Exception) {
             logger.e("$operation failed: ${e.message}", e)
             Result.failure(e)
         }
     }
-    
+
     /**
      * Execute an operation with both retry and timeout
      */

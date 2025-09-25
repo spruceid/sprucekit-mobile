@@ -186,7 +186,7 @@ fun WalletSettingsHomeBody(
                                 is FlowState.ProofingRequired -> {
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
-                                        Uri.parse(status.proofingUrl)
+                                        status.proofingUrl.toUri()
                                     )
                                     context.startActivity(intent)
                                 }

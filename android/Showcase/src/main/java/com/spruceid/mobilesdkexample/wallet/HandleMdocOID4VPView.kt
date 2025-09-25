@@ -243,7 +243,7 @@ fun MdocFieldSelector(
     match: RequestMatch180137,
     onContinue: (ApprovedResponse180137) -> Unit,
     onCancel: () -> Unit,
-    innerColumnModifier: Modifier = Modifier.fillMaxSize(),
+    modifier: Modifier = Modifier,
     origin: String = "Verifier"
 ) {
     var selectedFields by remember {

@@ -76,6 +76,7 @@ class GattServer(
 
     private var mtu = 0
     private var usingL2CAP = true // L2Cap Enabled by default
+
     @Volatile
     private var writeIsOutstanding = false
     private val writingQueue: Queue<ByteArray> = ArrayDeque()

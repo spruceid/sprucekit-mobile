@@ -69,7 +69,10 @@ class TransportBleCentralClientHolder(
     fun connect(ident: ByteArray) {
         // Transition to connecting state
         if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
-            Log.w("TransportBleCentralClientHolder.connect", "Failed to transition to CONNECTING state")
+            Log.w(
+                "TransportBleCentralClientHolder.connect",
+                "Failed to transition to CONNECTING state"
+            )
         }
 
         /**
@@ -90,7 +93,10 @@ class TransportBleCentralClientHolder(
                 if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
                     callback?.update(mapOf(Pair("connected", "")))
                 } else {
-                    Log.w("TransportBleCentralClientHolder.gattClientCallback.onPeerConnected", "Failed to transition to CONNECTED state")
+                    Log.w(
+                        "TransportBleCentralClientHolder.gattClientCallback.onPeerConnected",
+                        "Failed to transition to CONNECTED state"
+                    )
                 }
             }
 
