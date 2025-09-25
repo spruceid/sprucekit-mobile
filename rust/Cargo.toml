@@ -19,7 +19,7 @@ path = "uniffi-bindgen.rs"
 cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", features = [
     "time",
 ] }
-isomdl = { git = "https://github.com/spruceid/isomdl", rev = "6084a83" }
+isomdl = { git = "https://github.com/spruceid/isomdl", rev = "0e53d21" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "081eb4" }
 openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "2b0c8ba" }
 ssi = { version = "0.12", features = ["secp256r1", "secp384r1"] }
@@ -48,6 +48,7 @@ miniz_oxide = "0.7.2"
 num-bigint = "0.4.4"
 num-traits = "0.2.19"
 p256 = { version = "0.13.2", features = ["pkcs8"] }
+pkcs8 = "0.10.2"
 pem-rfc7468 = "0.7.0"
 rand = "0.9.1"
 reqwest = { version = "0.12.5", features = ["blocking", "rustls-tls"] }
