@@ -9,19 +9,22 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     public func migrateToAccessGroup(oldAccessGroup: String, newAccessGroup: String) throws {
         let searchAttrs: [String: Any] = [
             kSecClass as String: kSecClassKey,
-            kSecAttrAccessGroup as String: oldAccessGroup
+            kSecAttrAccessGroup as String: oldAccessGroup,
         ]
         let targetAttrs: [String: Any] = [
             kSecAttrAccessGroup as String: newAccessGroup
         ]
         let result = SecItemUpdate(searchAttrs as CFDictionary, targetAttrs as CFDictionary)
         if result != errSecSuccess {
-            let errorMessage = SecCopyErrorMessageString(result, nil) as String? ?? result.description
+            let errorMessage =
+                SecCopyErrorMessageString(result, nil) as String? ?? result.description
             throw KeyManError.internalError("Could not migrate keychain: \(errorMessage)")
         }
     }
 
-    public func getSigningKey(alias: SpruceIDMobileSdkRs.KeyAlias) throws -> any SpruceIDMobileSdkRs.SigningKey {
+    public func getSigningKey(alias: SpruceIDMobileSdkRs.KeyAlias) throws -> any SpruceIDMobileSdkRs
+        .SigningKey
+    {
         guard let jwkString = Self.getJwk(id: alias) else {
             throw KeyManError.missing
         }
@@ -49,7 +52,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true
+            kSecReturnRef as String: true,
         ]
 
         var item: CFTypeRef?
@@ -61,24 +64,24 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
      * Returns a secret key - based on the id of the key.
      */
     public static func getSecretKey(id: String) -> SecKey? {
-      let tag = id.data(using: .utf8)!
-      let query: [String: Any] = [
-          kSecClass as String: kSecClassKey,
-          kSecAttrApplicationTag as String: tag,
-          kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-          kSecReturnRef as String: true
-      ]
+        let tag = id.data(using: .utf8)!
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrApplicationTag as String: tag,
+            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+            kSecReturnRef as String: true,
+        ]
 
-      var item: CFTypeRef?
-      let status = SecItemCopyMatching(query as CFDictionary, &item)
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
 
-      guard status == errSecSuccess else { return nil }
+        guard status == errSecSuccess else { return nil }
 
-      // swiftlint:disable force_cast
-      let key = item as! SecKey
-      // swiftlint:enable force_cast
+        // swiftlint:disable force_cast
+        let key = item as! SecKey
+        // swiftlint:enable force_cast
 
-      return key
+        return key
     }
 
     /**
@@ -101,13 +104,13 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             kSecPrivateKeyAttrs as String: [
                 kSecAttrIsPermanent as String: true,
                 kSecAttrApplicationTag as String: tag,
-                kSecAttrAccessControl as String: access
-            ]
+                kSecAttrAccessControl as String: access,
+            ],
         ]
 
         var error: Unmanaged<CFError>?
         SecKeyCreateRandomKey(attributes as CFDictionary, &error)
-      if error != nil { print(error!) }
+        if error != nil { print(error!) }
         return error == nil
     }
 
@@ -115,58 +118,59 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
      * Returns a JWK for a particular secret key by key id.
      */
     public static func getJwk(id: String) -> String? {
-      guard let key = getSecretKey(id: id) else { return nil }
+        guard let key = getSecretKey(id: id) else { return nil }
 
-      guard let publicKey = SecKeyCopyPublicKey(key) else {
-          return nil
-      }
-
-      var error: Unmanaged<CFError>?
-      guard let data = SecKeyCopyExternalRepresentation(publicKey, &error) as? Data else {
-         return nil
-      }
-
-      let fullData: Data = data.subdata(in: 1..<data.count)
-      let xDataRaw: Data = fullData.subdata(in: 0..<32)
-      let yDataRaw: Data = fullData.subdata(in: 32..<64)
-
-      let xCoordinate = xDataRaw.base64EncodedUrlSafe
-      let yCoordinate = yDataRaw.base64EncodedUrlSafe
-
-      let jsonObject: [String: Any]  = [
-         "kty": "EC",
-         "crv": "P-256",
-         "alg": "ES256",
-         "x": xCoordinate,
-         "y": yCoordinate
-      ]
-
-      guard let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []) else { return nil }
-      let jsonString = String(data: jsonData, encoding: String.Encoding.ascii)!
-
-      return jsonString
-    }
-    
-    /**
-     * Returns the public key as a CBOR-encoded COSE key byte array
-     */
-    public static func coseKeyEc2P256PubKey(id: String) -> [UInt8]? {
-        guard let key = getSecretKey(id: id),
-              let publicKey = SecKeyCopyPublicKey(key) else {
+        guard let publicKey = SecKeyCopyPublicKey(key) else {
             return nil
         }
 
         var error: Unmanaged<CFError>?
         guard let data = SecKeyCopyExternalRepresentation(publicKey, &error) as? Data else {
-           return nil
+            return nil
         }
 
         let fullData: Data = data.subdata(in: 1..<data.count)
         let xDataRaw: Data = fullData.subdata(in: 0..<32)
         let yDataRaw: Data = fullData.subdata(in: 32..<64)
 
-        
-        return coseKeyEc2P256PublicKey(x: xDataRaw, y: yDataRaw, kid: Array(id.utf8))
+        let xCoordinate = xDataRaw.base64EncodedUrlSafe
+        let yCoordinate = yDataRaw.base64EncodedUrlSafe
+
+        let jsonObject: [String: Any] = [
+            "kty": "EC",
+            "crv": "P-256",
+            "alg": "ES256",
+            "x": xCoordinate,
+            "y": yCoordinate,
+        ]
+
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [])
+        else { return nil }
+        let jsonString = String(data: jsonData, encoding: String.Encoding.ascii)!
+
+        return jsonString
+    }
+
+    /**
+     * Returns the public key as a CBOR-encoded COSE key byte array
+     */
+    public static func coseKeyEc2P256PubKey(id: String) -> [UInt8]? {
+        guard let key = getSecretKey(id: id),
+            let publicKey = SecKeyCopyPublicKey(key)
+        else {
+            return nil
+        }
+
+        var error: Unmanaged<CFError>?
+        guard let data = SecKeyCopyExternalRepresentation(publicKey, &error) as? Data else {
+            return nil
+        }
+
+        let fullData: Data = data.subdata(in: 1..<data.count)
+        let xDataRaw: Data = fullData.subdata(in: 0..<32)
+        let yDataRaw: Data = fullData.subdata(in: 32..<64)
+
+        return coseKeyEc2P256PublicKey(x: xDataRaw, y: yDataRaw, kid: Data(id.utf8))
     }
 
     /**
@@ -181,13 +185,15 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
         let algorithm: SecKeyAlgorithm = .ecdsaSignatureMessageX962SHA256
         var error: Unmanaged<CFError>?
-        guard let signature = SecKeyCreateSignature(
-            key,
-            algorithm,
-            data,
-            &error
-        ) as Data? else {
-          print(error ?? "no error")
+        guard
+            let signature = SecKeyCreateSignature(
+                key,
+                algorithm,
+                data,
+                &error
+            ) as Data?
+        else {
+            print(error ?? "no error")
             return nil
         }
 
@@ -214,8 +220,8 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             kSecPrivateKeyAttrs as String: [
                 kSecAttrIsPermanent as String: true,
                 kSecAttrApplicationTag as String: tag,
-                kSecAttrAccessControl as String: access
-            ]
+                kSecAttrAccessControl as String: access,
+            ],
         ]
 
         var error: Unmanaged<CFError>?
@@ -241,12 +247,14 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
         let algorithm: SecKeyAlgorithm = .eciesEncryptionCofactorX963SHA512AESGCM
         var error: Unmanaged<CFError>?
 
-        guard let encrypted = SecKeyCreateEncryptedData(
-            publicKey,
-            algorithm,
-            data,
-            &error
-        ) as Data? else {
+        guard
+            let encrypted = SecKeyCreateEncryptedData(
+                publicKey,
+                algorithm,
+                data,
+                &error
+            ) as Data?
+        else {
             return nil
         }
 
@@ -265,12 +273,14 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
         let algorithm: SecKeyAlgorithm = .eciesEncryptionCofactorX963SHA512AESGCM
         var error: Unmanaged<CFError>?
-        guard let decrypted = SecKeyCreateDecryptedData(
-            key,
-            algorithm,
-            data,
-            &error
-        ) as Data? else {
+        guard
+            let decrypted = SecKeyCreateDecryptedData(
+                key,
+                algorithm,
+                data,
+                &error
+            ) as Data?
+        else {
             return nil
         }
 
@@ -292,11 +302,15 @@ public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey {
     }
 
     public func sign(payload: Data) throws -> Data {
-        guard let signature: [UInt8] = KeyManager.signPayload(id: alias, payload: [UInt8](payload)) else {
+        guard let signature: [UInt8] = KeyManager.signPayload(id: alias, payload: [UInt8](payload))
+        else {
             throw KeyManError.signing
         }
-        guard let normalizedSignature: Data =
-               CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(bytes: Data(signature)) else {
+        guard
+            let normalizedSignature: Data =
+                CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(
+                    bytes: Data(signature))
+        else {
             throw KeyManError.signatureFormat
         }
         return normalizedSignature
