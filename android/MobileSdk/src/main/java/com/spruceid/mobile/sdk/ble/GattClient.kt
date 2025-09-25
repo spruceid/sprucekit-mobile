@@ -54,7 +54,7 @@ class GattClient(
 
     enum class UseL2CAP { IfAvailable, Yes, No }
 
-    private var useL2CAP = UseL2CAP.No
+    private var useL2CAP = UseL2CAP.IfAvailable
 
     var gattClient: BluetoothGatt? = null
 
@@ -73,6 +73,7 @@ class GattClient(
     private var setL2CAPNotify = false
     private var channelPSM = 0
     private var l2capSocket: BluetoothSocket? = null
+
     // L2CAP write operations now handled by thread pool
     private val incomingMessage: ByteArrayOutputStream = ByteArrayOutputStream()
     private val messageLock = Any()
@@ -137,7 +138,7 @@ class GattClient(
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 try {
-                    reportLog( "uuid: $serviceUuid, gatt: $gatt")
+                    reportLog("uuid: $serviceUuid, gatt: $gatt")
                     val service: BluetoothGattService = gatt.getService(serviceUuid)
 
                     for (gattService in service.characteristics) {
@@ -222,10 +223,12 @@ class GattClient(
                     logger.w("MTU $mtu below minimum ${config.minAcceptableMtu}, using minimum")
                     config.minAcceptableMtu
                 }
+
                 mtu > config.preferredMtu -> {
                     logger.d("MTU $mtu capped to preferred ${config.preferredMtu}")
                     config.preferredMtu
                 }
+
                 else -> mtu
             }
 
@@ -299,7 +302,7 @@ class GattClient(
                 if (value.size == 2) {
                     // This doesn't appear to happen in practice; we get the data back in
                     // onCharacteristicChanged() instead.
-                    dprint("L2CAP channel PSM read via onCharacteristicRead()")
+                    reportLog("L2CAP channel PSM read via onCharacteristicRead()")
                     //gatt.readCharacteristic(characteristicL2CAP)
                 }
             } else {
@@ -481,7 +484,7 @@ class GattClient(
                             callback.onMessageReceived(entireMessage)
                         }
                     }
-                    
+
                     if (value[0].toInt() == 0x01) {
                         // Message size is three less than MTU, as opcode and attribute handle take up 3 bytes.
                         if (value.size > mtu - 3) {
@@ -515,9 +518,9 @@ class GattClient(
                         if (channelPSM == 0) {
                             channelPSM =
                                 (((value[1].toULong() and 0xFFu) shl 8) or (value[0].toULong() and 0xFFu)).toInt()
-                            reportLog("L2CAP Channel: ${channelPSM}")
+                            reportLog("L2CAP Channel: $channelPSM")
 
-                            val device = gatt.getDevice()
+                            val device = gatt.device
 
                             // The android docs recommend cancelling discovery before connecting a socket for
                             // performance reasons.
@@ -525,7 +528,7 @@ class GattClient(
                             try {
                                 btAdapter?.cancelDiscovery()
                             } catch (e: SecurityException) {
-                                reportLog("Unable to cancel discovery.")
+                                reportLog("Unable to cancel discovery. ${e.message}")
                             }
 
                             // Use thread pool instead of creating new threads
@@ -546,7 +549,10 @@ class GattClient(
                                             l2capSocket = try {
                                                 device.createL2capChannel(channelPSM)
                                             } catch (e: Exception) {
-                                                logger.w("Secure L2CAP failed, falling back to insecure", e)
+                                                logger.w(
+                                                    "Secure L2CAP failed, falling back to insecure",
+                                                    e
+                                                )
                                                 device.createInsecureL2capChannel(channelPSM)
                                             }
 
@@ -605,7 +611,7 @@ class GattClient(
         val inStream = try {
             l2capSocket!!.inputStream
         } catch (e: IOException) {
-            reportError("Error on listening input stream from socket L2CAP: ${e}")
+            reportError("Error on listening input stream from socket L2CAP: ${e.message}")
             return
         }
 
@@ -623,7 +629,7 @@ class GattClient(
                 }
                 payload.write(buf, 0, numBytesRead)
 
-                dprint("Currently have ${buf.count()} bytes.")
+                reportLog("Currently have ${buf.count()} bytes.")
 
                 // We are receiving this data over a stream socket and do not know how large the
                 // message is; there is no framing information provided, the only way we have to
@@ -643,13 +649,13 @@ class GattClient(
                 requestTimestamp = TimeSource.Monotonic.markNow()
 
                 threadPool.scheduleDelayed(500L) {
-                        val curtime = TimeSource.Monotonic.markNow()
-                        if ((curtime - requestTimestamp) > 500.milliseconds) {
-                            val message = payload.toByteArray()
+                    val now = TimeSource.Monotonic.markNow()
+                    if ((now - requestTimestamp) > 500.milliseconds) {
+                        val message = payload.toByteArray()
 
-                            reportLog("Request complete: ${message.count()} bytes.")
-                            callback.onMessageReceived(message)
-                        }
+                        reportLog("Request complete: ${message.count()} bytes.")
+                        callback.onMessageReceived(message)
+                    }
                 }
 
             } catch (e: IOException) {
@@ -683,7 +689,7 @@ class GattClient(
                 } catch (e: InterruptedException) {
                     continue
                 }
-                
+
                 outStream.write(message)
             }
         } catch (e: IOException) {
@@ -726,33 +732,34 @@ class GattClient(
                 reportError("Error setting notification on ${name}; call failed.")
                 return false
             }
+            if (characteristic.uuid != BleConstants.Holder.L2CAP_UUID && characteristic.uuid != BleConstants.Reader.L2CAP_UUID) {
+                val descriptor: BluetoothGattDescriptor? =
+                    characteristic.getDescriptor(BleConstants.CLIENT_CHARACTERISTIC_CONFIG_UUID)
 
-            val descriptor: BluetoothGattDescriptor? =
-                characteristic.getDescriptor(BleConstants.CLIENT_CHARACTERISTIC_CONFIG_UUID)
-
-            if (descriptor == null) {
-                reportError("Error setting notification on ${name}; descriptor not found.")
-                return false
-            }
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val res = gatt.writeDescriptor(
-                    descriptor,
-                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                )
-                if (res != BluetoothStatusCodes.SUCCESS) {
-                    reportError("Error writing to $name. Code: $res")
+                if (descriptor == null) {
+                    reportError("Error setting notification on ${name}; descriptor not found.")
                     return false
                 }
-            } else {
-                // Above code addresses the deprecation but requires API 33+
-                @Suppress("deprecation")
-                descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
 
-                @Suppress("deprecation")
-                if (!gatt.writeDescriptor(descriptor)) {
-                    reportError("Error writing to $name clientCharacteristicConfig: desc.")
-                    return false
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val res = gatt.writeDescriptor(
+                        descriptor,
+                        BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                    )
+                    if (res != BluetoothStatusCodes.SUCCESS) {
+                        reportError("Error writing to $name. Code: $res")
+                        return false
+                    }
+                } else {
+                    // Above code addresses the deprecation but requires API 33+
+                    @Suppress("deprecation")
+                    descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+
+                    @Suppress("deprecation")
+                    if (!gatt.writeDescriptor(descriptor)) {
+                        reportError("Error writing to $name clientCharacteristicConfig: desc.")
+                        return false
+                    }
                 }
             }
         } catch (e: SecurityException) {
@@ -763,13 +770,6 @@ class GattClient(
         // An onDescriptorWrite() call will come in for the pair of this characteristic and the client
         // characteristic config UUID when notification setting is complete.
         return true
-    }
-
-    /**
-     * Log debug messages
-     */
-    private fun dprint(text: String) {
-        logger.d(text)
     }
 
     /**
@@ -820,34 +820,13 @@ class GattClient(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && characteristicL2CAP != null) {
                 if (useL2CAP == UseL2CAP.IfAvailable) {
                     useL2CAP = UseL2CAP.Yes
+                    enableNotification(gatt, characteristicL2CAP, "L2CAP")
+                    return
                 }
             } else {
                 useL2CAP = UseL2CAP.No
             }
-
-            if (useL2CAP == UseL2CAP.Yes) {
-                val l2capEnabled = enableNotification(gatt, characteristicL2CAP, "L2CAP")
-
-                if (!l2capEnabled) {
-                    // L2CAP notification setup failed, fall back to GATT
-                    reportLog("L2CAP notification setup failed, falling back to GATT")
-                    useL2CAP = UseL2CAP.No
-                    val server2ClientEnabled = enableNotification(gatt, characteristicServer2Client, "Server2Client")
-                    if (!server2ClientEnabled) {
-                        reportError("Failed to enable notifications on Server2Client characteristic")
-                    }
-                    return
-                }
-
-                reportLog("Using L2CAP: $useL2CAP")
-
-                //// value is returned async above in onCharacteristicRead()
-
-                return
-            }
-
             enableNotification(gatt, characteristicServer2Client, "Server2Client")
-
         } catch (error: SecurityException) {
             callback.onError(error)
         }
@@ -936,9 +915,9 @@ class GattClient(
             reportError("Cannot send message - not connected (state: ${stateMachine.getState()})")
             return
         }
-        
+
         logger.logDataTransfer("Sending", data.size)
-        
+
         if (useL2CAP == UseL2CAP.Yes) {
             responseData.add(data)
         } else {
@@ -1073,7 +1052,7 @@ class GattClient(
                 } catch (e: IOException) {
                     reportLog("Error closing L2CAP socket: ${e.message}")
                 }
-                
+
                 if (gattClient != null) {
                     gattClient?.close()
                     gattClient?.disconnect()
@@ -1082,7 +1061,7 @@ class GattClient(
                     callback.onState(BleStates.DisconnectGattClient.string)
                     reportLog("Gatt Client disconnected.")
                 }
-                
+
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
             } catch (error: SecurityException) {
                 stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
@@ -1108,7 +1087,7 @@ class GattClient(
         }
         responseData.clear()
     }
-    
+
     /**
      * Fallback to GATT when L2CAP fails
      */
