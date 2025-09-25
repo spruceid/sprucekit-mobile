@@ -43,7 +43,6 @@ class TransportBleCentralClientHolder(
     private val stateMachine = BleConnectionStateMachine.getInstance()
     private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
 
-    private lateinit var previousAdapterName: String
     private lateinit var gattClient: GattClient
     private lateinit var identValue: ByteArray
 
@@ -189,25 +188,9 @@ class TransportBleCentralClientHolder(
     }
 
     fun disconnect() {
-        // Transition to disconnecting state
-        if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
-            if (this::previousAdapterName.isInitialized) {
-                try {
-                    bluetoothAdapter.name = previousAdapterName
-                } catch (error: SecurityException) {
-                    Log.e("TransportBleCentralClientHolder.disconnect", error.toString())
-                }
-            }
-
-            gattClient.sendTransportSpecificTermination()
-            stopScan()
-            gattClient.disconnect()
-
-            // Transition to disconnected state
-            stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
-        } else {
-            Log.w("TransportBleCentralClientHolder.disconnect", "Failed to transition to DISCONNECTING state")
-        }
+        gattClient.sendTransportSpecificTermination()
+        stopScan()
+        gattClient.disconnect()
     }
 
 

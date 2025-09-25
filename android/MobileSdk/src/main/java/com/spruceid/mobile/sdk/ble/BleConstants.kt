@@ -18,7 +18,7 @@ object BleConstants {
         UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     
     /**
-     * ISO 18013-5 Table 11 - mdoc service characteristics (Holder/Peripheral Server)
+     * ISO 18013-5 Table 5 - mdoc service characteristics (Holder/Peripheral Server)
      * Used when the mdoc acts as a GATT server (peripheral mode)
      */
     object Holder {
@@ -33,7 +33,7 @@ object BleConstants {
     }
     
     /**
-     * ISO 18013-5 Table 12 - mdoc reader service characteristics (Reader/Peripheral Server)  
+     * ISO 18013-5 Table 6 - mdoc reader service characteristics (Reader/Peripheral Server)
      * Used when the mdoc reader acts as a GATT server (peripheral mode)
      */
     object Reader {

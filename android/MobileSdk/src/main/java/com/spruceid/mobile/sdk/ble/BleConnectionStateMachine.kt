@@ -69,12 +69,12 @@ class BleConnectionStateMachine private constructor() {
      * Uses WeakReference for ApplicationContext to prevent memory leaks
      */
     @androidx.annotation.RequiresPermission(android.Manifest.permission.BLUETOOTH_CONNECT)
-    fun setBluetoothManager(manager: BluetoothManager, context: Context) {
+    fun start(manager: BluetoothManager, context: Context) {
         synchronized(stateLock)  {
             _bluetoothManager = manager
             _contextRef = WeakReference(context.applicationContext)
             _originalAdapterName = manager.adapter.name
-
+            forceTransitionTo(State.IDLE)
         }
     }
 
@@ -130,7 +130,13 @@ class BleConnectionStateMachine private constructor() {
         synchronized(stateLock) {
             val current = _connectionState.value.state
             val allowedTransitions = validTransitions[current] ?: emptySet()
-            Log.d("", "$current $newState")
+            if(newState == State.ERROR || newState == State.DISCONNECTING) {
+                try {
+                    _bluetoothManager!!.adapter.name = _originalAdapterName
+                } catch (error: SecurityException) {
+                    Log.e("StateManager", "Unable to return adapter's name to previous name. $error")
+                }
+            }
 
             if (newState in allowedTransitions) {
                 _connectionState.value = ConnectionState(

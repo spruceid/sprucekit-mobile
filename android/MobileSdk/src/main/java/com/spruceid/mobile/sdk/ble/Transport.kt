@@ -1,18 +1,10 @@
 package com.spruceid.mobile.sdk.ble
 
 import android.Manifest
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
-import android.content.Context.BLUETOOTH_SERVICE
-import android.content.pm.PackageManager
-import android.os.Build
-import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.util.*
 
 /**
@@ -88,7 +80,7 @@ class Transport(
         if (deviceRetrieval == "BLE") {
             logger.d("Selecting BLE Retrieval per ISO 18013-5 Section 8.3.3")
 
-            stateMachine.setBluetoothManager(bluetoothManager, context)
+            stateMachine.start(bluetoothManager, context)
             transportBLE = TransportBle()
             // Use thread pool for initialization with retry manager
             threadPool.launchIO {

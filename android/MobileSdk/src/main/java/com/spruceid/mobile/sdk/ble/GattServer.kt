@@ -469,13 +469,6 @@ class GattServer(
     }
 
     /**
-     * When using L2CAP it doesn't support characteristics notification.
-     */
-    fun supportsTransportSpecificTerminationMessage(): Boolean {
-        return !usingL2CAP
-    }
-
-    /**
      * Send Session End Signal - Notify Client via State Characteristic
      *
      * For GATT: Sends 0x02 via State characteristic notification
@@ -528,11 +521,6 @@ class GattServer(
      */
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun start(ident: ByteArray?) {
-        if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
-            logger.e("Invalid state for start: ${stateMachine.getState()}")
-            return
-        }
-        
         identValue = ident
         this.reset()
 
@@ -705,20 +693,6 @@ class GattServer(
             this.mtu = min(mtu, config.preferredMtu)
             logger.d("MTU set to ${this.mtu} (requested: $mtu, max: ${config.preferredMtu})")
         }
-    }
-    
-    /**
-     * Get current connection state
-     */
-    fun getConnectionState(): BleConnectionStateMachine.State {
-        return stateMachine.getState()
-    }
-    
-    /**
-     * Check if server is connected
-     */
-    fun isConnected(): Boolean {
-        return stateMachine.isInState(BleConnectionStateMachine.State.CONNECTED)
     }
     
     /**

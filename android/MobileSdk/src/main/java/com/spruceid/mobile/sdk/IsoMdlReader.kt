@@ -28,16 +28,19 @@ class IsoMdlReader(
 
             session = sessionData.state
             bleManager = Transport(platformBluetooth, context)
-            bleManager.initialize(
-                "Reader",
-                UUID.fromString(sessionData.uuid),
-                "BLE",
-                "Peripheral",
-                sessionData.bleIdent,
-                null,
-                callback,
-                sessionData.request
-            )
+            try {
+                bleManager.initialize(
+                    "Reader",
+                    UUID.fromString(sessionData.uuid),
+                    "BLE",
+                    "Peripheral",
+                    sessionData.bleIdent,
+                    null,
+                    callback,
+                    sessionData.request
+                )
+            } catch (e: SecurityException) {
+            }
 
         } catch (e: Error) {
             Log.e("BleSessionManager.constructor", e.toString())

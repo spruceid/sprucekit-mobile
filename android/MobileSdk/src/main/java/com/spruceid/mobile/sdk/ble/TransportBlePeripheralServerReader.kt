@@ -33,9 +33,6 @@ class TransportBlePeripheralServerReader(
 ) {
     private val stateMachine = BleConnectionStateMachine.getInstance()
     private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
-    private val context: Context = stateMachine.getContext()
-
-    private lateinit var previousAdapterName: String
     private lateinit var blePeripheral: BlePeripheral
     private lateinit var gattServer: GattServer
     private lateinit var identValue: ByteArray
@@ -47,8 +44,12 @@ class TransportBlePeripheralServerReader(
     fun start(ident: ByteArray, encodedEDeviceKeyBytes: ByteArray) {
         // Transition to connecting state
         if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
-            Log.w("TransportBlePeripheralServerReader.start", "Failed to transition to CONNECTING state")
+            Log.w(
+                "ASD",
+                "Failed to transition to CONNECTING state"
+            )
         }
+        Log.d("ASD", "start()")
 
         /**
          * Should be generated based on the 18013-5 section 8.3.3.1.1.3.
@@ -59,15 +60,18 @@ class TransportBlePeripheralServerReader(
          * BLE Peripheral callback.
          */
         val blePeripheralCallback: BlePeripheralCallback = object : BlePeripheralCallback() {
-            override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {}
+            override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+                Log.d("ASD", "onStartSuccess")
+            }
+
             override fun onStartFailure(errorCode: Int) {}
 
             override fun onLog(message: String) {
-                Log.d("TransportBlePeripheralServerReader.blePeripheralCallback.onLog", message)
+                Log.d("ASD", message)
             }
 
             override fun onState(state: String) {
-                Log.d("TransportBlePeripheralServerReader.blePeripheralCallback.onState", state)
+                Log.d("ASD", state)
             }
         }
 
@@ -76,21 +80,21 @@ class TransportBlePeripheralServerReader(
          */
         val gattServerCallback: GattServerCallback = object : GattServerCallback() {
             override fun onPeerConnected() {
+                Log.d("ASD", "onPeerConnected")
                 // Transition to connected state
                 if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
-                    blePeripheral.stopAdvertise()
                     gattServer.sendMessage(encodedEDeviceKeyBytes)
 
-                    Log.d(
-                        "TransportBlePeripheralServerReader.gattCallback.onPeerConnected",
-                        "Peer connected"
-                    )
                 } else {
-                    Log.w("TransportBlePeripheralServerReader.gattCallback.onPeerConnected", "Failed to transition to CONNECTED state")
+                    Log.w(
+                        "ASD",
+                        "Failed to transition to CONNECTED state"
+                    )
                 }
             }
 
             override fun onPeerDisconnected() {
+                Log.d("ASD", "onPeerDisconnected")
                 // Transition to disconnected state
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 gattServer.stop()
@@ -99,7 +103,7 @@ class TransportBlePeripheralServerReader(
             override fun onMessageSendProgress(progress: Int, max: Int) {}
             override fun onMessageReceived(data: ByteArray) {
                 Log.d(
-                    "TransportBlePeripheralServerReader.gattCallback.messageReceived",
+                    "ASD",
                     data.toString()
                 )
 
@@ -112,23 +116,26 @@ class TransportBlePeripheralServerReader(
                     // Transition to disconnected state after successful message handling
                     stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 } catch (error: Exception) {
-                    Log.e("TransportBlePeripheralServerReader.gattCallback.onMessageReceived", error.toString())
+                    Log.e(
+                        "ASD",
+                        error.toString()
+                    )
                     stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
                 }
             }
 
             override fun onTransportSpecificSessionTermination() {
-                Log.d("TransportBlePeripheralServerReader.gattCallback.termination", "Terminated")
+                Log.d("ASD", "Terminated")
             }
 
             override fun onError(error: Throwable) {
-                Log.d("TransportBlePeripheralServerReader.gattCallback.onError", error.toString())
+                Log.d("ASD", error.toString())
                 // Transition to error state
                 stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
             }
 
             override fun onLog(message: String) {
-                Log.d("TransportBlePeripheralServerReader.gattCallback.onLog", message)
+                Log.d("ASD", message)
             }
 
             override fun onState(state: String) {
@@ -141,22 +148,22 @@ class TransportBlePeripheralServerReader(
          * advertisement data.
          */
         try {
-            if (bluetoothAdapter.name != null) {
-                previousAdapterName = bluetoothAdapter.name
-                bluetoothAdapter.name = "mDL $application Device"
-            }
+            Log.d("ASD", "try new name")
+            bluetoothAdapter.name = "mDL $application Device"
         } catch (error: SecurityException) {
             Log.e("TransportBlePeripheralServerReader.start", error.toString())
         }
 
+        Log.d("ASD", "GattServer")
         gattServer = GattServer(
             gattServerCallback,
             serviceUUID,
             true
         )
 
-        blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID, bluetoothAdapter)
+        blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID)
         try {
+            Log.d("ASD", "advertise()")
             blePeripheral.advertise()
             gattServer.start(identValue)
         } catch (error: Exception) {
@@ -169,12 +176,10 @@ class TransportBlePeripheralServerReader(
     fun stop() {
         // Transition to disconnecting state
         if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
-            if (this::previousAdapterName.isInitialized) {
-                try {
-                    bluetoothAdapter.name = previousAdapterName
-                } catch (error: SecurityException) {
-                    Log.e("TransportBlePeripheralServerReader.stop", error.toString())
-                }
+            try {
+                bluetoothAdapter.name = stateMachine.getAdapterName()
+            } catch (error: SecurityException) {
+                Log.e("TransportBlePeripheralServerReader.stop", error.toString())
             }
 
             blePeripheral.stopAdvertise()
@@ -183,7 +188,10 @@ class TransportBlePeripheralServerReader(
             // Transition to disconnected state
             stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
         } else {
-            Log.w("TransportBlePeripheralServerReader.stop", "Failed to transition to DISCONNECTING state")
+            Log.w(
+                "TransportBlePeripheralServerReader.stop",
+                "Failed to transition to DISCONNECTING state"
+            )
         }
     }
 

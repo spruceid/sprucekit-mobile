@@ -29,16 +29,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
- * mDL BLE GATT Client - Connects to Reader's GATT Server (ISO 18013-5)
- *
- * Implements the mDL Holder device as BLE Central/GATT Client connecting to
- * an mDL Reader's GATT Server. Uses characteristics defined in Table 12:
- * - State (UUID 00000005): Connection state signaling (Start 0x01, End 0x02)
- * - Client2Server (UUID 00000006): mDL Holder → Reader data transmission
- * - Server2Client (UUID 00000007): Reader → mDL Holder data reception
- * - Ident (UUID 00000008): Reader authentication via HKDF-derived value
- * - L2CAP: Optional PSM exchange for high-throughput transfer (Annex A)
- *
+ * 11.1.3.2
  * Protocol Flow:
  * 1. Connect to advertised Reader service UUID from device engagement
  * 2. Discover and validate required GATT characteristics (Table 12)
@@ -88,8 +79,6 @@ class GattClient(
     private val responseData: BlockingQueue<ByteArray> = LinkedTransferQueue()
     private var requestTimestamp = TimeSource.Monotonic.markNow()
 
-    private val connectionId = "gatt_client_${System.currentTimeMillis()}"
-
     init {
         // Initialize termination provider and register GATT Client sender
         terminationProvider.initialize()
@@ -115,13 +104,12 @@ class GattClient(
 
                     callback.onState(BleStates.GattClientConnected.string)
                     reportLog("Gatt Client is connected.")
-
-                try {
-                    gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
-                    gatt.discoverServices()
-                } catch (error: SecurityException) {
-                    callback.onError(error)
-                }
+                    try {
+                        gatt.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_HIGH)
+                        gatt.discoverServices()
+                    } catch (error: SecurityException) {
+                        callback.onError(error)
+                    }
                 } else {
                     reportError("Invalid state transition to connected")
                 }
@@ -149,7 +137,7 @@ class GattClient(
 
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 try {
-                    Log.d("GattClient.onServicesDiscovered", "uuid: $serviceUuid, gatt: $gatt")
+                    reportLog( "uuid: $serviceUuid, gatt: $gatt")
                     val service: BluetoothGattService = gatt.getService(serviceUuid)
 
                     for (gattService in service.characteristics) {
@@ -179,6 +167,7 @@ class GattClient(
 
                     characteristicServer2Client =
                         service.getCharacteristic(BleConstants.Reader.SERVER_TO_CLIENT_UUID)
+                    logger.d("characteristicServer2Client: ${characteristicServer2Client!!.uuid}")
                     if (characteristicServer2Client == null) {
                         reportError("Server2Client characteristic not found.")
                         return
@@ -203,6 +192,7 @@ class GattClient(
                     }
                 } catch (error: SecurityException) {
                     callback.onError(error)
+                    reportError("Error requesting MTU.")
                     return
                 }
 
@@ -278,7 +268,6 @@ class GattClient(
             value: ByteArray,
             status: Int
         ) {
-
             reportLog("onCharacteristicRead, uuid=${characteristic.uuid} status=$status")
 
             /**
@@ -698,7 +687,7 @@ class GattClient(
                 outStream.write(message)
             }
         } catch (e: IOException) {
-            reportError("Error writing response via L2CAP socket: ${e}")
+            reportError("Error writing response via L2CAP socket: $e")
         }
 
         try {
@@ -710,9 +699,9 @@ class GattClient(
             reportLog("L2CAP socket Closed")
             disconnect()
         } catch (e: IOException) {
-            reportError("Error closing socket: ${e}")
+            reportError("Error closing socket: $e")
         } catch (e: InterruptedException) {
-            reportError("Error closing socket: ${e}")
+            reportError("Error closing socket: $e")
         }
     }
 
@@ -725,7 +714,7 @@ class GattClient(
         characteristic: BluetoothGattCharacteristic?,
         name: String
     ): Boolean {
-        reportLog("Enabling notifications on ${name}")
+        reportLog("Enabling notifications on $name")
 
         if (characteristic == null) {
             reportError("Error setting notification on ${name}; is null.")
@@ -752,7 +741,7 @@ class GattClient(
                     BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
                 )
                 if (res != BluetoothStatusCodes.SUCCESS) {
-                    reportError("Error writing to ${name}. Code: $res")
+                    reportError("Error writing to $name. Code: $res")
                     return false
                 }
             } else {
@@ -762,12 +751,12 @@ class GattClient(
 
                 @Suppress("deprecation")
                 if (!gatt.writeDescriptor(descriptor)) {
-                    reportError("Error writing to ${name} clientCharacteristicConfig: desc.")
+                    reportError("Error writing to $name clientCharacteristicConfig: desc.")
                     return false
                 }
             }
         } catch (e: SecurityException) {
-            reportError("Not authorized to enable notification on ${name}")
+            reportError("Not authorized to enable notification on $name. $e")
             return false
         }
 
@@ -986,8 +975,8 @@ class GattClient(
                 } while (offset < data.size)
 
                 writingQueueTotalChunks = writingQueue.size
+                drainWritingQueue()
             }
-            drainWritingQueue()
         }
     }
 

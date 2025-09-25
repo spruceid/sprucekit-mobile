@@ -138,7 +138,7 @@ class BleTerminationProvider(
     fun handleError(error: Throwable, context: String = ""): Boolean {
         val errorType = BleErrorClassifier.classifyError(error, context)
 
-        logger.d("Handling error: ${error.message} (type: $errorType)")
+        logger.d("Handling error: ${error.message} (type: $errorType) (context: $context)")
 
         return when (errorType) {
             BleErrorClassifier.ErrorType.TERMINAL -> {

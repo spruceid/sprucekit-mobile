@@ -17,9 +17,9 @@ abstract class BlePeripheralCallback {
 }
 
 class BlePeripheral(private var callback: BlePeripheralCallback,
-                    private var serviceUUID: UUID,
-                    bluetoothAdapter: BluetoothAdapter) {
+                    private var serviceUUID: UUID) {
 
+    private var bluetoothAdapter: BluetoothAdapter = BleConnectionStateMachine.getInstance().getBluetoothManager().adapter
     private var bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
 
     /**
@@ -85,7 +85,6 @@ class BlePeripheral(private var callback: BlePeripheralCallback,
      */
     fun stopAdvertise() {
         try {
-            bluetoothLeAdvertiser.stopAdvertising(leAdvertiseCallback)
 
             callback.onState(BleStates.StopAdvertise.string)
             callback.onLog("Stopping Peripheral advertise.")

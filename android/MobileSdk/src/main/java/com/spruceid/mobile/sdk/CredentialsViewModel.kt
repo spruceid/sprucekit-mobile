@@ -1,8 +1,10 @@
 package com.spruceid.mobile.sdk
 
+import android.Manifest
 import android.app.Application
 import android.bluetooth.BluetoothManager
 import android.util.Log
+import androidx.annotation.RequiresPermission
 import androidx.lifecycle.AndroidViewModel
 import com.spruceid.mobile.sdk.ble.Transport
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
@@ -120,6 +122,7 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         _currState.value = PresentmentState.SELECT_NAMESPACES
     }
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     suspend fun present(bluetoothManager: BluetoothManager) {
         Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
         _uuid.value = UUID.randomUUID()
