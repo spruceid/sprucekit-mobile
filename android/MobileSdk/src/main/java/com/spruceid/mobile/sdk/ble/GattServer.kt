@@ -70,7 +70,7 @@ class GattServer(
     private var characteristicL2CAP: BluetoothGattCharacteristic? = null
 
     private var mtu = 0
-    private var usingL2CAP = true // L2Cap Enabled by default
+    private var usingL2CAP = false // L2Cap Enabled by default
     @Volatile private var writeIsOutstanding = false
     private val writingQueue: Queue<ByteArray> = ArrayDeque()
     private val queueLock = Any()

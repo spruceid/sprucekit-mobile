@@ -54,7 +54,7 @@ class GattClient(
 
     enum class UseL2CAP { IfAvailable, Yes, No }
 
-    private var useL2CAP = UseL2CAP.IfAvailable
+    private var useL2CAP = UseL2CAP.No
 
     var gattClient: BluetoothGatt? = null
 

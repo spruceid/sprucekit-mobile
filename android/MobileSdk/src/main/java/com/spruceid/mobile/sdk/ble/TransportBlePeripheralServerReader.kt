@@ -81,16 +81,7 @@ class TransportBlePeripheralServerReader(
         val gattServerCallback: GattServerCallback = object : GattServerCallback() {
             override fun onPeerConnected() {
                 Log.d("ASD", "onPeerConnected")
-                // Transition to connected state
-                if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
-                    gattServer.sendMessage(encodedEDeviceKeyBytes)
-
-                } else {
-                    Log.w(
-                        "ASD",
-                        "Failed to transition to CONNECTED state"
-                    )
-                }
+                gattServer.sendMessage(encodedEDeviceKeyBytes)
             }
 
             override fun onPeerDisconnected() {
