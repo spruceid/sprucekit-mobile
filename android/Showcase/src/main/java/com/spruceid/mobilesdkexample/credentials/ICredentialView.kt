@@ -7,20 +7,20 @@ interface ICredentialView {
     var credentialPack: CredentialPack
 
     @Composable
-    fun credentialListItem(withOptions: Boolean): Unit
+    fun CredentialListItem(withOptions: Boolean): Unit
 
     @Composable
-    fun credentialListItem(): Unit
+    fun CredentialListItem(): Unit
 
     @Composable
-    fun credentialDetails(): Unit
+    fun CredentialDetails(): Unit
 
     @Composable
-    fun credentialReviewInfo(footerActions: @Composable () -> Unit): Unit
+    fun CredentialReviewInfo(footerActions: @Composable () -> Unit): Unit
 
     @Composable
-    fun credentialRevokedInfo(onClose: () -> Unit): Unit
+    fun CredentialRevokedInfo(onClose: () -> Unit): Unit
 
     @Composable
-    fun credentialPreviewAndDetails(): Unit
+    fun CredentialPreviewAndDetails(): Unit
 }

@@ -21,12 +21,12 @@ publishing {
     // }
     publications {
         // This command must be commented on when releasing a new version.
-        // create<MavenPublication>("debug") {
-        //    groupId = "com.spruceid.mobile.sdk"
-        //    artifactId = "mobilesdk"
-        //    version = System.getenv("VERSION")
-        //  afterEvaluate { from(components["release"]) }
-        // }
+         create<MavenPublication>("debug") {
+            groupId = "com.spruceid.mobile.sdk"
+            artifactId = "mobilesdk"
+            version = System.getenv("VERSION")
+          afterEvaluate { from(components["release"]) }
+         }
 
         // Creates a Maven publication called "release".
         create<MavenPublication>("release") {
@@ -131,6 +131,7 @@ dependencies {
     //noinspection GradleCompatible
     implementation("com.android.support:appcompat-v7:28.0.0")
     implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     /* Begin UI dependencies */
     implementation("androidx.compose.material3:material3:1.3.2")
     implementation("androidx.camera:camera-camera2:1.4.2")

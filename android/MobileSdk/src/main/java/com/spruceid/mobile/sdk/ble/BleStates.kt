@@ -1,4 +1,4 @@
-package com.spruceid.mobile.sdk
+package com.spruceid.mobile.sdk.ble
 
 enum class BleStates(val string: String) {
     Scanning("scanning"),

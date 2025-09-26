@@ -1,8 +1,11 @@
 package com.spruceid.mobile.sdk
 
+import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
+import androidx.annotation.RequiresPermission
+import com.spruceid.mobile.sdk.ble.Transport
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
@@ -30,10 +33,11 @@ class IsoMdlPresentation(
     var itemsRequests: List<ItemsRequest> = listOf()
     var bleManager: Transport? = null
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun initialize() {
         try {
             session = initializeMdlPresentationFromBytes(this.mdoc, uuid.toString())
-            this.bleManager = Transport(this.bluetoothManager)
+            this.bleManager = Transport(this.bluetoothManager, context)
             this.bleManager!!
                 .initialize(
                     "Holder",
@@ -42,7 +46,6 @@ class IsoMdlPresentation(
                     "Central",
                     session!!.getBleIdent(),
                     ::updateRequestData,
-                    context,
                     callback
                 )
             this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))

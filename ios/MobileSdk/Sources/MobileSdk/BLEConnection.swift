@@ -15,6 +15,7 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
     private var incomingDelivered = false
     private var openCount = 0
     private var totalBytesWritten = 0
+    private var originalOutputDataSize = 0
 
     /// Handle stream events.  Many of these we hand to local methods which the child classes are expected to
     /// override.
@@ -57,6 +58,7 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
             outputDelivered = true
             outputData = data
             totalBytesWritten = 0
+            originalOutputDataSize = data.count
             send()
         }
     }
@@ -71,9 +73,9 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
         totalBytesWritten += bytesWritten
 
         // The isEmpty guard above should prevent div0 errors here.
-        let fracDone = Double(totalBytesWritten) / Double(outputData.count)
+        let fracDone = Double(totalBytesWritten) / Double(originalOutputDataSize)
 
-        streamSentData(bytes: bytesWritten, total: totalBytesWritten, fraction: fracDone)
+        streamSentData(bytes: totalBytesWritten, total: originalOutputDataSize, fraction: fracDone)
 
         if bytesWritten < outputData.count {
             outputData = outputData.advanced(by: bytesWritten)
@@ -95,6 +97,10 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
         }
 
         channel = nil
+
+        outputDelivered = false
+        totalBytesWritten = 0
+        originalOutputDataSize = 0
     }
 
     /// Read from the stream.
