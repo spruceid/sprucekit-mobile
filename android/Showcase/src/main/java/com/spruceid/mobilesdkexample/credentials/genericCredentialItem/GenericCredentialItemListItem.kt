@@ -62,7 +62,7 @@ fun GenericCredentialItemListItem(
             )
             .padding(12.dp)
     ) {
-        genericCredentialListItem(
+        GenericCredentialListItem(
             statusListViewModel = statusListViewModel,
             credentialPack = credentialPack,
             withOptions = withOptions,
@@ -310,7 +310,7 @@ fun GenericCredentialListItem(
                     values
                 )
             } else {
-                genericCredentialListItemDescriptionFormatter(
+                GenericCredentialListItemDescriptionFormatter(
                     statusListViewModel,
                     credentialPack,
                     values
@@ -331,7 +331,7 @@ fun GenericCredentialListItem(
                     values
                 )
             } else {
-                genericCredentialListItemLeadingIconFormatter(credentialPack, values)
+                GenericCredentialListItemLeadingIconFormatter(credentialPack, values)
             }
 
         }

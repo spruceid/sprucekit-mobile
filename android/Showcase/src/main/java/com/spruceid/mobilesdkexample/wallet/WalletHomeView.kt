@@ -250,7 +250,7 @@ fun WalletHomeBody(
                                 onExport(credentialTitle, credentialPack)
                             }
                         )
-                        credentialItem.credentialPreviewAndDetails()
+                        credentialItem.CredentialPreviewAndDetails()
                     }
                     //        item {
                     //            ShareableCredentialListItems(mdocBase64 = mdocBase64)

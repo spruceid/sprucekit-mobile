@@ -1,7 +1,6 @@
 package com.spruceid.mobilesdkexample.walletsettings
 
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.rs.FlowState
 import com.spruceid.mobilesdkexample.R
@@ -151,7 +151,10 @@ fun WalletSettingsHomeBody(
             }
         )
 
-        GenerateMockMdlButton(credentialPacksViewModel = credentialPacksViewModel, walletActivityLogsViewModel = walletActivityLogsViewModel)
+        GenerateMockMdlButton(
+            credentialPacksViewModel = credentialPacksViewModel,
+            walletActivityLogsViewModel = walletActivityLogsViewModel
+        )
 
         SettingsHomeItem(
             icon = {

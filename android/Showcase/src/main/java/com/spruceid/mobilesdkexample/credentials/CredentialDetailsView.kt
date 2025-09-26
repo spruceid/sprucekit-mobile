@@ -260,9 +260,9 @@ fun CredentialDetailsView(
                             ) {
                                 credentialItem?.let {
                                     if (statusList != CredentialStatusList.REVOKED) {
-                                        credentialItem!!.credentialDetails()
+                                        credentialItem!!.CredentialDetails()
                                     } else {
-                                        credentialItem!!.credentialRevokedInfo {
+                                        credentialItem!!.CredentialRevokedInfo {
                                             back()
                                         }
                                     }
@@ -270,7 +270,7 @@ fun CredentialDetailsView(
                             }
                         }
 
-                       1 ->  {  // Scan to verify
+                        1 -> {  // Scan to verify
                             DispatchQRView(
                                 navController,
                                 credentialPackId,
