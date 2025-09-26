@@ -53,6 +53,7 @@ class BleConnectionStateMachine private constructor() {
 
     private val _connectionState = MutableStateFlow(ConnectionState())
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+    var logger = BleLogger.getInstance("BleConnectionStateMachine")
 
     private val stateLock = Any()
 
@@ -134,8 +135,7 @@ class BleConnectionStateMachine private constructor() {
                 try {
                     _bluetoothManager!!.adapter.name = _originalAdapterName
                 } catch (error: SecurityException) {
-                    Log.e(
-                        "StateManager",
+                    logger.e(
                         "Unable to return adapter's name to previous name. $error"
                     )
                 }

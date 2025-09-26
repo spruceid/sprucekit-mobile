@@ -32,6 +32,7 @@ class TransportBlePeripheralServerReader(
     private var serviceUUID: UUID
 ) {
     private val stateMachine = BleConnectionStateMachine.getInstance()
+    private val logger = BleLogger.getInstance("TransportBlePeripheralServerReader")
     private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
     private lateinit var blePeripheral: BlePeripheral
     private lateinit var gattServer: GattServer
@@ -44,12 +45,10 @@ class TransportBlePeripheralServerReader(
     fun start(ident: ByteArray, encodedEDeviceKeyBytes: ByteArray) {
         // Transition to connecting state
         if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
-            Log.w(
-                "ASD",
+            logger.e(
                 "Failed to transition to CONNECTING state"
             )
         }
-        Log.d("ASD", "start()")
 
         /**
          * Should be generated based on the 18013-5 section 8.3.3.1.1.3.
@@ -61,17 +60,17 @@ class TransportBlePeripheralServerReader(
          */
         val blePeripheralCallback: BlePeripheralCallback = object : BlePeripheralCallback() {
             override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-                Log.d("ASD", "onStartSuccess")
+                logger.d("onStartSuccess")
             }
 
             override fun onStartFailure(errorCode: Int) {}
 
             override fun onLog(message: String) {
-                Log.d("ASD", message)
+                logger.d(message)
             }
 
             override fun onState(state: String) {
-                Log.d("ASD", state)
+                logger.d(state)
             }
         }
 
@@ -80,12 +79,12 @@ class TransportBlePeripheralServerReader(
          */
         val gattServerCallback: GattServerCallback = object : GattServerCallback() {
             override fun onPeerConnected() {
-                Log.d("ASD", "onPeerConnected")
+                logger.d("onPeerConnected")
                 gattServer.sendMessage(encodedEDeviceKeyBytes)
             }
 
             override fun onPeerDisconnected() {
-                Log.d("ASD", "onPeerDisconnected")
+                logger.d("onPeerDisconnected")
                 // Transition to disconnected state
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 gattServer.stop()
@@ -93,10 +92,7 @@ class TransportBlePeripheralServerReader(
 
             override fun onMessageSendProgress(progress: Int, max: Int) {}
             override fun onMessageReceived(data: ByteArray) {
-                Log.d(
-                    "ASD",
-                    data.toString()
-                )
+                logger.d(data.toString())
 
                 try {
                     gattServer.sendTransportSpecificTermination()
@@ -107,26 +103,23 @@ class TransportBlePeripheralServerReader(
                     // Transition to disconnected state after successful message handling
                     stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 } catch (error: Exception) {
-                    Log.e(
-                        "ASD",
-                        error.toString()
-                    )
+                    logger.e(error.toString())
                     stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
                 }
             }
 
             override fun onTransportSpecificSessionTermination() {
-                Log.d("ASD", "Terminated")
+                logger.d("Terminated")
             }
 
             override fun onError(error: Throwable) {
-                Log.d("ASD", error.toString())
+                logger.d(error.toString())
                 // Transition to error state
                 stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
             }
 
             override fun onLog(message: String) {
-                Log.d("ASD", message)
+                logger.d(message)
             }
 
             override fun onState(state: String) {
@@ -139,26 +132,24 @@ class TransportBlePeripheralServerReader(
          * advertisement data.
          */
         try {
-            Log.d("ASD", "try new name")
+            logger.d("try new name")
             bluetoothAdapter.name = "mDL $application Device"
         } catch (error: SecurityException) {
-            Log.e("TransportBlePeripheralServerReader.start", error.toString())
+            logger.e(error.toString())
         }
 
-        Log.d("ASD", "GattServer")
+        logger.d("GattServer")
         gattServer = GattServer(
-            gattServerCallback,
-            serviceUUID,
-            true
+            gattServerCallback, serviceUUID, true
         )
 
         blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID)
         try {
-            Log.d("ASD", "advertise()")
+            logger.d("advertise()")
             blePeripheral.advertise()
             gattServer.start(identValue)
         } catch (error: Exception) {
-            Log.e("TransportBlePeripheralServerReader.start", error.toString())
+            logger.e(error.toString())
             stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
             throw error
         }
@@ -170,7 +161,7 @@ class TransportBlePeripheralServerReader(
             try {
                 bluetoothAdapter.name = stateMachine.getAdapterName()
             } catch (error: SecurityException) {
-                Log.e("TransportBlePeripheralServerReader.stop", error.toString())
+                logger.e(error.toString())
             }
 
             blePeripheral.stopAdvertise()
@@ -179,8 +170,7 @@ class TransportBlePeripheralServerReader(
             // Transition to disconnected state
             stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
         } else {
-            Log.w(
-                "TransportBlePeripheralServerReader.stop",
+            logger.w(
                 "Failed to transition to DISCONNECTING state"
             )
         }

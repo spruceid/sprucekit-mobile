@@ -13,12 +13,12 @@ import java.util.*
  * 18013-5 section 8.3.3.1.1.4 Table 12.
  */
 class TransportBlePeripheralServerHolder(
-    private var application: String,
-    private var serviceUUID: UUID
+    private var application: String, private var serviceUUID: UUID
 ) {
 
     private val stateMachine = BleConnectionStateMachine.getInstance()
     private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
+    private var logger = BleLogger.getInstance("TransportBlePeripheralServerHolder")
 
     private lateinit var blePeripheral: BlePeripheral
     private lateinit var gattServer: GattServer
@@ -30,8 +30,7 @@ class TransportBlePeripheralServerHolder(
     fun start() {
         // Transition to connecting state
         if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
-            Log.w(
-                "TransportBlePeripheralServerHolder.start",
+            logger.w(
                 "Failed to transition to CONNECTING state"
             )
         }
@@ -40,12 +39,16 @@ class TransportBlePeripheralServerHolder(
          * BLE Peripheral callback.
          */
         val blePeripheralCallback: BlePeripheralCallback = object : BlePeripheralCallback() {
-            override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {}
+            override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+                logger.d("blePeripheralCallback.onStartSuccess")
+            }
 
-            override fun onStartFailure(errorCode: Int) {}
+            override fun onStartFailure(errorCode: Int) {
+                logger.d("blePeripheralCallback.onStartFailure")
+            }
 
             override fun onState(state: String) {
-                Log.d("TransportBlePeripheralServerHolder.blePeripheralCallback.onState", state)
+                logger.d(state)
             }
         }
 
@@ -54,22 +57,19 @@ class TransportBlePeripheralServerHolder(
          */
         val gattServerCallback: GattServerCallback = object : GattServerCallback() {
             override fun onPeerConnected() {
-                Log.d(
-                    "TransportBlePeripheralServerHolder.gattServerCallback.onPeerConnected",
+                logger.d(
                     "Peer Connected"
                 )
                 // Transition to connected state
                 if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
-                    Log.w(
-                        "TransportBlePeripheralServerHolder.gattServerCallback.onPeerConnected",
+                    logger.w(
                         "Failed to transition to CONNECTED state"
                     )
                 }
             }
 
             override fun onPeerDisconnected() {
-                Log.d(
-                    "TransportBlePeripheralServerHolder.gattServerCallback.onPeerDisconnected",
+                logger.d(
                     "Peer Disconnected"
                 )
                 // Transition to disconnected state
@@ -78,8 +78,7 @@ class TransportBlePeripheralServerHolder(
             }
 
             override fun onMessageSendProgress(progress: Int, max: Int) {
-                Log.d(
-                    "TransportBlePeripheralServerHolder.gattServerCallback.onMessageSendProgress",
+                logger.d(
                     "progress:$progress max:$max"
                 )
 
@@ -93,11 +92,11 @@ class TransportBlePeripheralServerHolder(
             }
 
             override fun onLog(message: String) {
-                Log.d("TransportBlePeripheralServerHolder.gattServerCallback.onLog", message)
+                logger.d(message)
             }
 
             override fun onState(state: String) {
-                Log.d("TransportBlePeripheralServerHolder.gattServerCallback.onState", state)
+                logger.d(state)
             }
         }
 
@@ -110,13 +109,11 @@ class TransportBlePeripheralServerHolder(
                 bluetoothAdapter.name = "mDL $application Device"
             }
         } catch (error: SecurityException) {
-            Log.e("TransportBlePeripheralServerHolder.start", error.toString())
+            logger.e(error.toString())
         }
 
         gattServer = GattServer(
-            gattServerCallback,
-            serviceUUID,
-            false
+            gattServerCallback, serviceUUID, false
         )
 
         blePeripheral = BlePeripheral(blePeripheralCallback, serviceUUID)
@@ -124,7 +121,7 @@ class TransportBlePeripheralServerHolder(
             blePeripheral.advertise()
             gattServer.start(null)
         } catch (error: Exception) {
-            Log.e("TransportBlePeripheralServerHolder.start", error.toString())
+            logger.e(error.toString())
             stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
             throw error
         }
@@ -143,7 +140,7 @@ class TransportBlePeripheralServerHolder(
             try {
                 bluetoothAdapter.name = stateMachine.getAdapterName()
             } catch (error: SecurityException) {
-                Log.e("TransportBlePeripheralServerHolder.stop", error.toString())
+                logger.e(error.toString())
             }
 
             gattServer.sendTransportSpecificTermination()
@@ -153,8 +150,7 @@ class TransportBlePeripheralServerHolder(
             // Transition to disconnected state
             stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
         } else {
-            Log.w(
-                "TransportBlePeripheralServerHolder.stop",
+            logger.w(
                 "Failed to transition to DISCONNECTING state"
             )
         }

@@ -42,6 +42,7 @@ class TransportBleCentralClientHolder(
 ) {
     private val stateMachine = BleConnectionStateMachine.getInstance()
     private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
+    private var logger = BleLogger.getInstance("TransportBleCentralClientHolder")
 
     private lateinit var gattClient: GattClient
     private lateinit var identValue: ByteArray
@@ -69,8 +70,7 @@ class TransportBleCentralClientHolder(
     fun connect(ident: ByteArray) {
         // Transition to connecting state
         if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
-            Log.w(
-                "TransportBleCentralClientHolder.connect",
+            logger.w(
                 "Failed to transition to CONNECTING state"
             )
         }
@@ -85,26 +85,19 @@ class TransportBleCentralClientHolder(
          */
         val gattClientCallback: GattClientCallback = object : GattClientCallback() {
             override fun onPeerConnected() {
-                Log.d(
-                    "TransportBleCentralClientHolder.gattClientCallback.onPeerConnected",
-                    "Peer Connected"
-                )
+                logger.d("Peer Connected")
                 // Transition to connected state
                 if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
                     callback?.update(mapOf(Pair("connected", "")))
                 } else {
-                    Log.w(
-                        "TransportBleCentralClientHolder.gattClientCallback.onPeerConnected",
+                    logger.w(
                         "Failed to transition to CONNECTED state"
                     )
                 }
             }
 
             override fun onPeerDisconnected() {
-                Log.d(
-                    "TransportBleCentralClientHolder.gattClientCallback.onPeerDisconnected",
-                    "Peer Disconnected"
-                )
+                logger.d("Peer Disconnected")
                 // Transition to disconnected state
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 callback?.update(mapOf(Pair("disconnected", "")))
@@ -112,8 +105,7 @@ class TransportBleCentralClientHolder(
             }
 
             override fun onMessageSendProgress(progress: Int, max: Int) {
-                Log.d(
-                    "TransportBleCentralClientHolder.gattClientCallback.onMessageSendProgress",
+                logger.d(
                     "progress: $progress max: $max"
                 )
 
@@ -123,8 +115,7 @@ class TransportBleCentralClientHolder(
                     callback?.update(
                         mapOf(
                             Pair(
-                                "uploadProgress",
-                                mapOf(Pair("curr", progress), Pair("max", max))
+                                "uploadProgress", mapOf(Pair("curr", progress), Pair("max", max))
                             )
                         )
                     )
@@ -133,15 +124,14 @@ class TransportBleCentralClientHolder(
 
             override fun onMessageReceived(data: ByteArray) {
                 super.onMessageReceived(data)
-                Log.d(
-                    "TransportBleCentralClientHolder.gattClientCallback.onMessageReceived",
+                logger.d(
                     "Message received ${byteArrayToHex(data)}"
                 )
 
                 try {
                     updateRequestData(data)
                 } catch (e: Error) {
-                    Log.e("MDoc", e.toString())
+                    logger.e("${e.message}")
                     // Transition to error state on exception
                     stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, e.message)
                     callback?.update(mapOf(Pair("error", e)))
@@ -149,8 +139,7 @@ class TransportBleCentralClientHolder(
             }
 
             override fun onTransportSpecificSessionTermination() {
-                Log.d(
-                    "TransportBleCentralClientHolder.gattClientCallback.onTransportSpecificSessionTermination",
+                logger.d(
                     "Transport Specific Session Terminated"
                 )
 
@@ -158,11 +147,11 @@ class TransportBleCentralClientHolder(
             }
 
             override fun onLog(message: String) {
-                Log.d("TransportBleCentralClientHolder.gattClientCallback.onLog", message)
+                logger.d(message)
             }
 
             override fun onState(state: String) {
-                Log.d("TransportBleCentralClientHolder.gattClientCallback.onState", state)
+                logger.d(state)
             }
         }
 
@@ -180,8 +169,7 @@ class TransportBleCentralClientHolder(
         }
 
         gattClient = GattClient(
-            gattClientCallback,
-            serviceUUID
+            gattClientCallback, serviceUUID
         )
         scan()
     }
@@ -214,17 +202,15 @@ class TransportBleCentralClientHolder(
      * Scanning is limited with a timeout to preserve battery life of a device.
      */
     fun scan() {
-        val filter: ScanFilter = ScanFilter.Builder()
-            .setServiceUuid(ParcelUuid(serviceUUID))
-            .build()
+        val filter: ScanFilter =
+            ScanFilter.Builder().setServiceUuid(ParcelUuid(serviceUUID)).build()
 
         val filterList: MutableList<ScanFilter> = ArrayList()
         filterList.add(filter)
 
-        val settings: ScanSettings = ScanSettings.Builder()
-            .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-            .build()
+        val settings: ScanSettings =
+            ScanSettings.Builder().setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
+                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
 
         synchronized(scanLock) {
             try {

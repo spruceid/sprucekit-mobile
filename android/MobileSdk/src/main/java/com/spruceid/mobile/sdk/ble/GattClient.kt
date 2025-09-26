@@ -54,7 +54,7 @@ class GattClient(
 
     enum class UseL2CAP { IfAvailable, Yes, No }
 
-    private var useL2CAP = UseL2CAP.IfAvailable
+    private var useL2CAP = UseL2CAP.No
 
     var gattClient: BluetoothGatt? = null
 
@@ -142,8 +142,7 @@ class GattClient(
                     val service: BluetoothGattService = gatt.getService(serviceUuid)
 
                     for (gattService in service.characteristics) {
-                        Log.d(
-                            "GattClient.onServicesDiscovered",
+                        logger.d(
                             "gattServiceUUID: ${gattService.uuid}"
                         )
                     }
@@ -295,8 +294,7 @@ class GattClient(
 
                 afterIdentObtained(gatt)
             } else if (characteristic.uuid.equals(BleConstants.Reader.L2CAP_UUID)) {
-                Log.d(
-                    "[GattClient]",
+                logger.d(
                     "L2CAP read! '${value.size}' ${status == BluetoothGatt.GATT_SUCCESS}"
                 )
                 if (value.size == 2) {

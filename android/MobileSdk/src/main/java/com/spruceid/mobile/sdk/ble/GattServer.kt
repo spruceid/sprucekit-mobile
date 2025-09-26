@@ -2,6 +2,7 @@ package com.spruceid.mobile.sdk.ble
 
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.Context
 import android.os.Build
@@ -75,7 +76,7 @@ class GattServer(
     private var characteristicL2CAP: BluetoothGattCharacteristic? = null
 
     private var mtu = 0
-    private var usingL2CAP = true // L2Cap Enabled by default
+    private var usingL2CAP = false
 
     @Volatile
     private var writeIsOutstanding = false
@@ -142,8 +143,8 @@ class GattServer(
                             characteristic.uuid.equals(characteristicIdentUuid))
                 ) {
 
-                    Log.d(
-                        "GattServer.onCharacteristicReadRequest", "Sending value: ${
+                    logger.d(
+                        "Sending value: ${
                             byteArrayToHex(
                                 identValue!!
                             )
@@ -159,12 +160,14 @@ class GattServer(
                         )
                     } catch (error: SecurityException) {
                         callback.onError(error)
+                        logger.e("${error.message}")
                     }
                 } else if ((characteristicL2CAP != null &&
                             characteristic.uuid.equals(characteristicL2CAPUuid))
                 ) {
                     if (l2capPSM == 0) {
                         callback.onError(Error("L2CAP PSM not yet available"))
+                        logger.e("L2CAP PSM not yet available")
                         return
                     }
 
@@ -178,7 +181,7 @@ class GattServer(
                         ((l2capPSM shr 8) and 0xFF).toByte()
                     )
 
-                    callback.onLog("Sending L2CAP PSM: $l2capPSM")
+                    logger.i("Sending L2CAP PSM: $l2capPSM")
                     try {
                         gattServer!!.sendResponse(
                             device,
@@ -189,6 +192,7 @@ class GattServer(
                         )
                     } catch (error: SecurityException) {
                         callback.onError(error)
+                        logger.e("${error.message}")
                     }
 
                 } else {
@@ -198,6 +202,7 @@ class GattServer(
                                     "UUID ${characteristic.uuid}"
                         )
                     )
+                    logger.e("Read on unexpected characteristic with UUID ${characteristic.uuid}")
                 }
             }
 
@@ -210,7 +215,7 @@ class GattServer(
 
                 val charUuid = characteristic.uuid
 
-                callback.onLog(
+                logger.i(
                     "onCharacteristicWriteRequest, address=${device.address} " +
                             "uuid=${characteristic.uuid} offset=$offset value=$value"
                 )
@@ -219,7 +224,7 @@ class GattServer(
                  * If we are connected to a device, ignore write from any other device.
                  */
                 if (currentConnection != null && !device.address.equals(currentConnection!!.address)) {
-                    callback.onLog(
+                    logger.i(
                         "Ignoring characteristic write request from ${device.address} since we're " +
                                 "already connected to ${currentConnection!!.address}"
                     )
@@ -235,19 +240,19 @@ class GattServer(
                                 l2capSocket = null
                                 // Thread pool operations will be cancelled automatically
                             } catch (e: IOException) {
-                                callback.onLog("Error closing L2CAP socket: $e")
+                                logger.i("Error closing L2CAP socket: $e")
                             }
                         }
 
                         if (currentConnection != null) {
-                            callback.onLog(
+                            logger.i(
                                 "Ignoring connection attempt from ${device.address} since we're " +
                                         "already connected to ${currentConnection!!.address}"
                             )
                         } else {
                             currentConnection = device
 
-                            callback.onLog(
+                            logger.i(
                                 "Received connection (state 0x01 on State characteristic) from " +
                                         currentConnection!!.address
                             )
@@ -258,15 +263,18 @@ class GattServer(
                         callback.onTransportSpecificSessionTermination()
                     } else {
                         callback.onError(Error("Invalid byte ${value[0]} for state characteristic"))
+                        logger.e("Invalid byte ${value[0]} for state characteristic")
                     }
                 } else if (charUuid.equals(characteristicClient2ServerUuid)) {
                     if (value.isEmpty()) {
                         callback.onError(Error("Invalid empty value"))
+                        logger.e("Invalid empty value")
                         return
                     }
 
                     if (currentConnection == null) {
                         callback.onError(Error("Write on Client2Server but not connected yet"))
+                        logger.e("Write on Client2Server but not connected yet")
                         return
                     }
 
@@ -276,7 +284,7 @@ class GattServer(
                         isReceivingData = true
                         transferMode = "GATT"
                         if (!config.randomizeResponseTiming) {
-                            callback.onLog("Starting GATT data transfer")
+                            logger.i("Starting GATT data transfer")
                         }
                     }
 
@@ -284,7 +292,7 @@ class GattServer(
                         incomingMessage.write(value, 1, value.size - 1)
 
                         if (!config.randomizeResponseTiming) {
-                            callback.onLog(
+                            logger.i(
                                 "Received chunk with ${value.size} bytes " +
                                         "(last=${value[0].toInt() == 0x00}), incomingMessage.length=" +
                                         "${incomingMessage.toByteArray().size}"
@@ -296,7 +304,7 @@ class GattServer(
                             // Calculate and log transfer time (without sensitive timing info)
                             if (isReceivingData && !config.randomizeResponseTiming) {
                                 val transferTime = System.currentTimeMillis() - transferStartTime
-                                callback.onLog("GATT transfer completed: ${finalMessage.size} bytes in ${transferTime}ms")
+                                logger.i("GATT transfer completed: ${finalMessage.size} bytes in ${transferTime}ms")
                                 isReceivingData = false
                             }
 
@@ -313,6 +321,10 @@ class GattServer(
                                             "characteristic, expected maximum size ${mtu - 3}"
                                 )
                             )
+                            logger.e(
+                                "Invalid size ${value.size} of data written Client2Server " +
+                                        "characteristic, expected maximum size ${mtu - 3}"
+                            )
                             return
                         }
                     } else {
@@ -321,6 +333,10 @@ class GattServer(
                                 "Invalid first byte ${value[0].toInt()} in Client2Server " +
                                         "data chunk, expected 0 or 1"
                             )
+                        )
+                        logger.e(
+                            "Invalid first byte ${value[0].toInt()} in Client2Server " +
+                                    "data chunk, expected 0 or 1"
                         )
                         return
                     }
@@ -344,6 +360,11 @@ class GattServer(
                                     "${characteristic.uuid}"
                         )
                     )
+                    logger.e(
+
+                        "Write on unexpected characteristic with UUID " +
+                                "${characteristic.uuid}"
+                    )
                 }
             }
 
@@ -352,7 +373,7 @@ class GattServer(
                 descriptor: BluetoothGattDescriptor
             ) {
 
-                callback.onLog(
+                logger.i(
                     "onDescriptorReadRequest, address=${device.address} " +
                             "uuid=${descriptor.characteristic.uuid} offset=$offset"
                 )
@@ -365,7 +386,7 @@ class GattServer(
                 offset: Int, value: ByteArray
             ) {
 
-                callback.onLog(
+                logger.i(
                     "onDescriptorWriteRequest, address=${device.address} " +
                             "uuid=${descriptor.characteristic.uuid} offset=$offset value=$value " +
                             "responseNeeded=$responseNeeded"
@@ -379,6 +400,7 @@ class GattServer(
                         )
                     } catch (error: SecurityException) {
                         callback.onError(error)
+                        logger.e("${error.message}")
                     }
                 }
             }
@@ -389,15 +411,16 @@ class GattServer(
             }
 
             override fun onNotificationSent(device: BluetoothDevice, status: Int) {
-                callback.onLog("onNotificationSent, status=$status address=${device.address}")
+                logger.i("onNotificationSent, status=$status address=${device.address}")
 
                 if (status != BluetoothGatt.GATT_SUCCESS) {
                     callback.onError(Error("Error in onNotificationSent status=$status"))
+                    logger.e("Error in onNotificationSent status=$status")
                     return
                 }
 
                 if (writingQueueTotalChunks > 0) {
-                    if (writingQueue.size == 0) {
+                    if (writingQueue.isEmpty()) {
                         callback.onMessageSendProgress(
                             writingQueueTotalChunks,
                             writingQueueTotalChunks
@@ -427,7 +450,7 @@ class GattServer(
      */
     private fun drainWritingQueue() {
         synchronized(queueLock) {
-            callback.onLog("drainWritingQueue $writeIsOutstanding")
+            logger.i("drainWritingQueue $writeIsOutstanding")
 
             if (writeIsOutstanding) {
                 return
@@ -435,7 +458,7 @@ class GattServer(
 
             val chunk: ByteArray = writingQueue.poll() ?: return
 
-            callback.onLog("Sending chunk with ${chunk.size} bytes (last=${chunk[0].toInt() == 0x00})")
+            logger.i("Sending chunk with ${chunk.size} bytes (last=${chunk[0].toInt() == 0x00})")
             characteristicServer2Client!!.value = chunk
 
             try {
@@ -444,10 +467,12 @@ class GattServer(
                     )
                 ) {
                     callback.onError(Error("Error calling notifyCharacteristicsChanged on Server2Client"))
+                    logger.e("Error calling notifyCharacteristicsChanged on Server2Client")
                     return
                 }
             } catch (error: SecurityException) {
                 callback.onError(error)
+                logger.e("${error.message}")
                 return
             }
 
@@ -544,7 +569,7 @@ class GattServer(
     fun sendTransportSpecificTermination() {
         // L2CAP doesn't use transport-specific termination via GATT
         if (usingL2CAP) {
-            callback.onLog("L2CAP doesn't use transport-specific termination, will close after delay")
+            logger.i("L2CAP doesn't use transport-specific termination, will close after delay")
             // For L2CAP, schedule close after a delay using thread pool
             threadPool.scheduleDelayed(1000L) {
                 closeL2CAP()
@@ -554,7 +579,7 @@ class GattServer(
 
         // GATT-based termination
         if (currentConnection == null) {
-            callback.onLog("No current connection to send termination to")
+            logger.i("No current connection to send termination to")
             return
         }
 
@@ -568,9 +593,11 @@ class GattServer(
                 )
             ) {
                 callback.onError(Error("Error calling notifyCharacteristicsChanged on State"))
+                logger.e("Error calling notifyCharacteristicsChanged on State")
             }
         } catch (error: SecurityException) {
             callback.onError(error)
+            logger.e("${error.message}")
         }
     }
 
@@ -594,6 +621,7 @@ class GattServer(
         this.reset()
 
         try {
+            logger.i("Opening GattServer")
             gattServer = bluetoothManager.openGattServer(context, bluetoothGattServerCallback)
         } catch (error: SecurityException) {
             stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, error.message)
@@ -733,7 +761,7 @@ class GattServer(
             }
 
             callback.onState(BleStates.StopGattServer.string)
-            callback.onLog("Gatt Server stopped.")
+            logger.i("Gatt Server stopped.")
         } catch (error: SecurityException) {
             callback.onError(error)
         } finally {
@@ -784,12 +812,6 @@ class GattServer(
             return
         }
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            logger.w("L2CAP not supported on this Android version")
-            return
-        }
-
-
         try {
             val adapter = bluetoothManager.adapter
             if (adapter == null) {
@@ -812,7 +834,7 @@ class GattServer(
             l2capPSM = l2capServerSocket!!.psm
 
             // Validate PSM range (must be odd and in valid range)
-            if (l2capPSM <= 0 || l2capPSM > 0xFFFF || l2capPSM % 2 == 0) {
+            if (l2capPSM <= 0 || l2capPSM > 0xFFFF) {
                 throw BleException.ValidationException("Invalid L2CAP PSM: $l2capPSM")
             }
 
@@ -856,13 +878,13 @@ class GattServer(
      */
     private fun acceptL2CAPConnection() {
         try {
-            callback.onLog("Waiting for L2CAP connection on PSM $l2capPSM")
+            logger.i("Waiting for L2CAP connection on PSM $l2capPSM")
 
             // Accept connection (blocking call, waits until a connection is established)
             l2capSocket = l2capServerSocket?.accept()
 
             if (l2capSocket != null) {
-                callback.onLog("L2CAP connection established")
+                logger.i("L2CAP connection established")
 
                 // Start read thread for incoming data
                 // Use thread pool for L2CAP read operations
@@ -896,6 +918,7 @@ class GattServer(
      * - Graceful thread interruption handling
      * - Comprehensive error recovery
      */
+    @SuppressLint("DefaultLocale")
     private fun readL2CAPData() {
         val buffer = ByteArray(L2CAP_BUFFER_SIZE)
         val inputStream = try {
@@ -925,7 +948,7 @@ class GattServer(
 
                     // returns -1 if there is no more data because the end of the stream has been reached.
                     if (bytesRead == -1) {
-                        callback.onLog("L2CAP connection closed by peer")
+                        logger.i("L2CAP connection closed by peer")
                         break
                     }
 
@@ -936,12 +959,12 @@ class GattServer(
                             firstDataTime = l2capTransferStartTime
                             l2capDataStarted = true
                             transferMode = "L2CAP"
-                            callback.onLog("Starting L2CAP data transfer at $l2capTransferStartTime")
+                            logger.i("Starting L2CAP data transfer at $l2capTransferStartTime")
                         }
 
                         messageBuffer.write(buffer, 0, bytesRead)
                         lastDataTime = System.currentTimeMillis()
-                        callback.onLog("L2CAP received chunk: $bytesRead bytes, total: ${messageBuffer.size()} bytes")
+                        logger.i("L2CAP received chunk: $bytesRead bytes, total: ${messageBuffer.size()} bytes")
                     }
                 } else {
                     // Check if we have data and enough time has passed since last data
@@ -958,7 +981,7 @@ class GattServer(
                                 val transferRate = if (transferTime > 0) {
                                     (message.size * 1000.0 / transferTime) // bytes per second
                                 } else 0.0
-                                callback.onLog(
+                                logger.i(
                                     "L2CAP transfer completed: ${message.size} bytes in ${transferTime}ms (${
                                         String.format(
                                             "%.2f",
@@ -969,7 +992,7 @@ class GattServer(
                                 l2capDataStarted = false
                             }
 
-                            callback.onLog("L2CAP message complete: ${message.size} bytes")
+                            logger.i("L2CAP message complete: ${message.size} bytes")
                             callback.onMessageReceived(message)
                             messageBuffer.reset()
                         }
@@ -987,7 +1010,7 @@ class GattServer(
         } catch (e: InterruptedException) {
             // Thread was interrupted, this is expected during shutdown
             Thread.currentThread().interrupt()
-            callback.onLog("L2CAP read thread interrupted")
+            logger.i("L2CAP read thread interrupted")
         } catch (e: IOException) {
             if (!Thread.currentThread().isInterrupted) {
                 callback.onError(Error("L2CAP read error: ${e.message}"))
@@ -1004,7 +1027,7 @@ class GattServer(
                     val transferRate = if (transferTime > 0) {
                         (message.size * 1000.0 / transferTime) // bytes per second
                     } else 0.0
-                    callback.onLog(
+                    logger.i(
                         "L2CAP transfer completed (final): ${message.size} bytes in ${transferTime}ms (${
                             String.format(
                                 "%.2f",
@@ -1014,10 +1037,10 @@ class GattServer(
                     )
                 }
 
-                callback.onLog("L2CAP final message: ${message.size} bytes")
+                logger.i("L2CAP final message: ${message.size} bytes")
                 callback.onMessageReceived(message)
             }
-            callback.onLog("L2CAP read thread ending")
+            logger.i("L2CAP read thread ending")
         }
     }
 
@@ -1032,7 +1055,7 @@ class GattServer(
      */
     private fun closeL2CAP() {
         try {
-            callback.onLog("Closing L2CAP connections...")
+            logger.i("Closing L2CAP connections...")
 
             // Thread pool operations will be cancelled automatically when scope is cancelled
 
@@ -1040,18 +1063,18 @@ class GattServer(
             try {
                 l2capSocket?.close()
             } catch (e: IOException) {
-                callback.onLog("Error closing L2CAP socket: ${e.message}")
+                logger.i("Error closing L2CAP socket: ${e.message}")
             }
 
             try {
                 l2capServerSocket?.close()
             } catch (e: IOException) {
-                callback.onLog("Error closing L2CAP server socket: ${e.message}")
+                logger.i("Error closing L2CAP server socket: ${e.message}")
             }
 
-            callback.onLog("L2CAP connections closed")
+            logger.i("L2CAP connections closed")
         } catch (e: Exception) {
-            callback.onLog("Error during L2CAP cleanup: ${e.message}")
+            logger.i("Error during L2CAP cleanup: ${e.message}")
         } finally {
             // Always clear references
             l2capSocket = null
