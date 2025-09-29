@@ -107,7 +107,7 @@ class MainActivity : ComponentActivity() {
         NfcAdapter.getDefaultAdapter(this)?.let {
             val cardEmulation = CardEmulation.getInstance(it)
             if(!cardEmulation.setPreferredService(this, ComponentName(this, NfcPresentationService::class.java))) {
-                Log.w("MainActivity", "cardEmulation.setPreferredService() failed")
+                Log.e("MainActivity", "cardEmulation.setPreferredService() failed")
             }
         }
     }
@@ -116,7 +116,7 @@ class MainActivity : ComponentActivity() {
         NfcAdapter.getDefaultAdapter(this)?.let {
             val cardEmulation = CardEmulation.getInstance(it)
             if (!cardEmulation.unsetPreferredService(this)) {
-                Log.i("MainActivity", "cardEmulation.unsetPreferredService() failed")
+                Log.e("MainActivity", "cardEmulation.unsetPreferredService() failed")
             }
         }
     }
@@ -127,7 +127,6 @@ class MainActivity : ComponentActivity() {
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
 
-        RustLogger.enable()
         // Enables the NFC presentation UI to control what NFC messages the app is listening for
         NfcListenManager.init(
                 applicationContext,

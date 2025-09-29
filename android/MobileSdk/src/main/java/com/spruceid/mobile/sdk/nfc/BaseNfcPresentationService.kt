@@ -72,20 +72,16 @@ abstract class BaseNfcPresentationService : HostApduService() {
             negotiationFailedFlag = false
         }
 
-        NfcListenManager.setRequestedFromNfcCommands(true, applicationContext, componentName())
+        NfcListenManager.setExpectedNdefFromHandover(true, applicationContext, componentName())
 
-        @OptIn(ExperimentalStdlibApi::class)
-        run { Log.d(TAG, "recv: ${commandApdu.toHexString()}") }
         val ret = apduHandoverDriver.processApdu(commandApdu)
-        @OptIn(ExperimentalStdlibApi::class) run { Log.d(TAG, "send: ${ret.toHexString()}") }
         val carrierInfo = apduHandoverDriver.getCarrierInfo()
         if (carrierInfo != null) {
-            Log.d(TAG, "Carrier info available: $carrierInfo")
+            Log.d(TAG, "Negotiated! Setting flags.")
             Handler(Looper.getMainLooper()).post { negotiatedTransport(carrierInfo) }
             doNotNotifyOnDisconnect = true
-            Log.d(TAG, "Negotiated! Setting flags.")
         }
-        val success =
+        val returnedApduSuccessStatus =
             ret.size >= 2 &&
                     ret[ret.size - 2] == (0x90.toByte()) &&
                     ret[ret.size - 1] == (0x00.toByte())
@@ -95,7 +91,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
         // The error flag prevents a double error notification upon NFC disconnect.
         // We defer the actual "Negotiation Failed" message because some readers try multiple
         // handover techniques before giving up.
-        if (!success) {
+        if (!returnedApduSuccessStatus) {
             doNotNotifyOnDisconnect = true
             negotiationFailedFlag = true
             Log.e(TAG, "ERR response, setting flags")
@@ -108,27 +104,50 @@ abstract class BaseNfcPresentationService : HostApduService() {
         currentInteractionId++;
 
         // Wait a moment before turning off NDEF listening.
-        // This is because the shift from MDOC -> NDEF triggers a disconnect, but
+        // This is because the shift from mDoc -> NDEF triggers a disconnect, but
         // this disconnect is expected and not an error.
         val prevInteractionId = currentInteractionId
 
         // NOTE: See the comment above the companion object definition for safety considerations
         //       when working within these deferred blocks.
+        //       Essentially, in some situations, values get copied. Test changes
+        //       to ensure this is not happening.
 
+        // The pattern here is: run each block after N time of NFC inactivity.
+        // This does not correspond to the spec, necessarily, but has proven necessary due to
+        // the individual quirks of various readers.
+
+        // The only part of this function that *may* be required by the spec is
+        // the first block, but it only seems to be required (and therefore, well-defined) when
+        // using TNEP, which is not used in static handover - the method currently in use.
+        //  • Also, if we *did* use TNEP, this would not necessarily comply with its requirements.
+        //    See: TNEP 1.0 §4.1.2
+
+        // After 250ms of no NFC data transfer, if we have the negotiation failed flag,
+        // notify the user that negotiation failed.
+        // We wait before showing this because sometimes readers will blast the wallet
+        // with multiple handover requests in different formats to see which one the wallet
+        // responds to.
         defer(250.milliseconds) {
             if (prevInteractionId == currentInteractionId) {
                 resetQueued = true
                 if (negotiationFailedFlag) {
                     negotiationFailed(NfcPresentationError.NEGOTIATION_FAILED)
                     negotiationFailedFlag = false
+                    doNotNotifyOnDisconnect = true
                 }
             }
         }
 
-        Log.w(TAG, "Disconnected. cached value for iid $currentInteractionId: $doNotNotifyOnDisconnect")
+        // After one second of no NFC data transfer:
+        //  1. flag to the NfcListenManager that we're no longer in an NFC negotiation
+        //  2. notify the user that communication failed
         defer(1.seconds) {
             if (prevInteractionId == currentInteractionId) {
-                NfcListenManager.setRequestedFromNfcCommands(
+                // We bind systemwide to the APDU AID for mDoc, and when we recv an mDoc msg,
+                // we bind to the NDEF AID as well. If we haven't gotten an NFC message for a bit
+                // of time, we should reset the OS's NFC listen state back to just mDoc.
+                NfcListenManager.setExpectedNdefFromHandover(
                     false,
                     applicationContext,
                     componentName()
@@ -142,9 +161,16 @@ abstract class BaseNfcPresentationService : HostApduService() {
                     negotiationFailed(NfcPresentationError.CONNECTION_CLOSED)
                     doNotNotifyOnDisconnect = false
                 }
+            }
+        }
 
-                // TODO: Reenable key regeneration once we've solved BLE failures
-                // apduHandoverDriver.regenerateStaticBleKeys()
+        // After five seconds of no NFC data transfer, regenerate the BLE uuid and ephemeral keys.
+        // We wait to do this because some readers have been found to eagerly request NFC handover
+        // *even after successful handover*! We want subsequent requests from the same reader to
+        // return and use the same UUID/keys, so we keep them around for a bit.
+        defer(5.seconds) {
+            if (prevInteractionId == currentInteractionId) {
+                apduHandoverDriver.regenerateStaticBleKeys()
             }
         }
 

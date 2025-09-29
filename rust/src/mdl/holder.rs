@@ -17,14 +17,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use isomdl::definitions::device_engagement;
 use isomdl::definitions::session::Handover;
 use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
     definitions::{
-        device_engagement::{
-            CentralClientMode, DeviceEngagement as IsoMdlDeviceEngagement, DeviceRetrievalMethods,
-        },
+        device_engagement::{CentralClientMode, DeviceRetrievalMethods},
         helpers::NonEmptyMap,
         session, BleOptions, DeviceRetrievalMethod, SessionEstablishment,
     },
@@ -261,11 +258,6 @@ impl DeviceEngagementData {
             }
         }
     }
-}
-
-#[derive(uniffi::Object)]
-pub struct DeviceEngagement {
-    inner: IsoMdlDeviceEngagement,
 }
 
 #[derive(uniffi::Object)]

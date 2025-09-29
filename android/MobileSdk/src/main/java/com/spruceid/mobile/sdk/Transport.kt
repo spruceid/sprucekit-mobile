@@ -11,18 +11,7 @@ import java.util.*
  */
 class Transport(private var bluetoothManager: BluetoothManager) {
 
-    public lateinit var transportBLE: TransportBle
-
-//    this.bleManager!!.initialize(
-//                "Holder",
-//                this.uuid,
-//                "BLE",
-//                "Central",
-//                session!!.getBleIdent(),
-//                ::updateRequestData,
-//                context,
-//                callback
-//            )
+    internal lateinit var transportBLE: TransportBle
 
     /*
     * Initialize BLE Transport for the mDL Holder
@@ -92,11 +81,6 @@ class Transport(private var bluetoothManager: BluetoothManager) {
          * WebAPI
          * OIDC
          */
-    }
-
-    fun setUpdateRequestDataCallback(callback: ((data: ByteArray) -> Unit)) {
-
-        transportBLE.setUpdateRequestDataCallback(callback)
     }
 
     /**

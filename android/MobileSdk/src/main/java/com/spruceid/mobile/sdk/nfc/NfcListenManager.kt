@@ -10,6 +10,11 @@ val APDU_AID_MDOC = "A0000002480400"
 val APDU_AID_NDEF_APPLICATION = "D2760000850101"
 
 /// Controls when the device should be listening for different NFC AIDs.
+/// Balances making sure that we're listening to NDEF messages when *either*
+///  1. the app is requesting us to, e.g. the user is on an NFC share page
+///  2. the reader has requested an mDoc device, and the NFC handover driver has flagged
+///     that we're about to receive NDEF messages as part of handover.
+///  while also ensuring that we don't end up listening to *all* NDEF messages systemwide.
 object NfcListenManager {
     private const val TAG = "NfcListenManager"
     private var _presentationServiceRequested = false
@@ -18,7 +23,7 @@ object NfcListenManager {
     private var _componentName: ComponentName? = null
     var disabled = false
 
-    internal fun setRequestedFromNfcCommands(
+    internal fun setExpectedNdefFromHandover(
             requested: Boolean,
             applicationContext: Context,
             componentName: ComponentName
@@ -47,6 +52,14 @@ object NfcListenManager {
         }
 
     private fun listenForAPDUs(aids: List<String>) {
+        if(_applicationCtx == null) {
+            Log.e(TAG, "trying to set APDU listen state, but applicationCtx was null")
+            return
+        }
+        if(_componentName == null) {
+            Log.e(TAG, "trying to set APDU listen state, but componentName was null")
+            return
+        }
         val cardEmulation = CardEmulation.getInstance(NfcAdapter.getDefaultAdapter(_applicationCtx))
 
         val success =
@@ -67,6 +80,6 @@ object NfcListenManager {
                 } else {
                     listOf(APDU_AID_NDEF_APPLICATION)
                 }
-        listenForAPDUs(aids = listenFor)
+        listenForAPDUs(listenFor)
     }
 }

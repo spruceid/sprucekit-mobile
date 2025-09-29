@@ -10,9 +10,9 @@ import java.util.*
  */
 class TransportBle(private var bluetoothManager: BluetoothManager) {
 
-    public lateinit var transportBleCentralClientHolder: TransportBleCentralClientHolder
-    public lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder
-    public lateinit var transportBlePeripheralServerReader: TransportBlePeripheralServerReader
+    internal lateinit var transportBleCentralClientHolder: TransportBleCentralClientHolder
+    internal lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder
+    internal lateinit var transportBlePeripheralServerReader: TransportBlePeripheralServerReader
 
     /**
      * Reserved for later matching with available cbor options.
@@ -89,12 +89,7 @@ class TransportBle(private var bluetoothManager: BluetoothManager) {
         }
     }
 
-    fun setUpdateRequestDataCallback(callback: ((data: ByteArray) -> Unit)) {
-        transportBleCentralClientHolder.updateRequestData = callback
-    }
-
-
-        /**
+    /**
      * For sending the mDL based on initialized transport option.
      */
     fun send(payload: ByteArray) {
