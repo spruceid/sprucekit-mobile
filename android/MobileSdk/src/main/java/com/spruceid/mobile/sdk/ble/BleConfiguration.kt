@@ -20,7 +20,7 @@ data class BleConfiguration(
     val defaultMtu: Int = 23,  // BLE minimum
 
     // L2CAP configuration
-    val useL2CAP: L2CAPMode = L2CAPMode.IF_AVAILABLE,
+    val useL2CAP: L2CAPMode = L2CAPMode.NEVER,
     val l2capBufferSize: Int = 65536,  // 64KB
     val l2capReadTimeoutMs: Long = 500L,
     val l2capConnectionTimeoutMs: Long = 5000L,
