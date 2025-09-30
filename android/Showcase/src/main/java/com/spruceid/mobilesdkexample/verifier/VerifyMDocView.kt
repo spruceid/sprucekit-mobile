@@ -238,11 +238,11 @@ fun VerifyMDocView(
     fun onRead(content: String) {
         scanProcessState = State.TRANSMITTING
         checkAndRequestBluetoothPermissions(
-            context,
+            context.applicationContext,
             getPermissions().toTypedArray(),
             launcherMultiplePermissions
         )
-        val bluetooth = getBluetoothManager(context)
+        val bluetooth = getBluetoothManager(context.applicationContext)
         scope.launch {
             try {
                 reader = IsoMdlReader(
@@ -257,7 +257,7 @@ fun VerifyMDocView(
                         it.content
                     },
                     bluetooth!!,
-                    context
+                    context.applicationContext
                 )
             } catch (e: Exception) {
                 e.localizedMessage?.let { Toast.showError(it) }

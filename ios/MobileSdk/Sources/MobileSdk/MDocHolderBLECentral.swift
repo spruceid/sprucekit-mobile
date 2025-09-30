@@ -1,8 +1,8 @@
 import Algorithms
 import CoreBluetooth
 import Foundation
-import os
 import SpruceIDMobileSdkRs
+import os
 
 /// Characteristic errors.
 enum CharacteristicsError: Error {
@@ -203,6 +203,10 @@ class MDocHolderBLECentral: NSObject {
     }
 
     private func disconnect() {
+        if useL2CAP {
+            activeStream?.close()
+            activeStream = nil
+        }
         if let peripheral = peripheral {
             centralManager.cancelPeripheralConnection(peripheral)
         }
@@ -474,6 +478,21 @@ extension MDocHolderBLECentral: CBPeripheralDelegate {
             activeStream = MDocHolderBLECentralConnection(delegate: self, channel: channel)
         }
     }
+
+    /// Handle when services are modified (required by iOS)
+    func peripheral(
+        _ peripheral: CBPeripheral,
+        didModifyServices invalidatedServices: [CBService]
+    ) {
+        // Services were modified, this can happen when the connection is closing
+        // We can safely ignore this if we're already done with the transfer
+        if machineState == .complete || machineState == .halted {
+            print("Services modified after completion, ignoring")
+        } else {
+            print("Warning: Services modified during active connection")
+            // Could reconnect if needed, but for L2CAP we're likely done
+        }
+    }
 }
 
 extension MDocHolderBLECentral: CBPeripheralManagerDelegate {
@@ -509,8 +528,26 @@ extension MDocHolderBLECentral: MDocHolderBLECentralConnectionDelegate {
     }
 
     func sendComplete() {
+        if useL2CAP {
+            callback.callback(message: .done)
+        }
         machinePendingState = .complete
     }
 
-    func connectionEnd() {}
+    func connectionEnd() {
+        // Called when L2CAP connection is closed by the Reader
+        // This is the expected behavior per ISO 18013-5
+        print("L2CAP connection closed by Reader (expected behavior)")
+
+        // Clean up our reference
+        if activeStream != nil {
+            activeStream = nil
+        }
+
+        // If we haven't already reported completion, do it now
+        if machineState != .complete && machineState != .halted {
+            // Connection ended before we finished - this might be an error
+            print("Warning: L2CAP connection ended before transfer completed")
+        }
+    }
 }
