@@ -10,7 +10,7 @@ data class BleConfiguration(
     val disconnectTimeoutMs: Long = 5000L,  // 5 seconds
 
     // Retry configuration
-    val maxConnectionRetries: Int = 3,
+    val maxConnectionRetries: Int = 3, // Minimum 1 - Try once
     val initialRetryDelayMs: Long = 1000L,
     val maxRetryDelayMs: Long = 8000L,
     val retryBackoffMultiplier: Double = 2.0,
