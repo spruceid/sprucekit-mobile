@@ -62,7 +62,7 @@ apply plugin: 'com.github.willir.rust.cargo-ndk-android'
 cargoNdk {
     module =  "../rust"
     targetDirectory = "target"
-    targets = ["arm64"]
+    targets = ["arm", "arm64", "x86", "x86_64"]
 }
 
 def markerFile(taskName) {

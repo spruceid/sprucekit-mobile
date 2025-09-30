@@ -164,7 +164,7 @@ class TransportBleCentralClientHolder(
                 bluetoothAdapter.name = "mDL $application Device"
             }
         } catch (error: SecurityException) {
-            //TODO: move to error state and log error
+            logger.e("${error.message}")
             bluetoothAdapter.name = stateMachine.getAdapterName()
         }
 
@@ -225,11 +225,10 @@ class TransportBleCentralClientHolder(
                                 try {
                                     bluetoothLeScanner.stopScan(leScanCallback)
                                 } catch (e: Exception) {
-                                    //TODO: failed to stop scan transition state machine to error, logger with e
+                                    logger.e("${e.message}")
                                 }
                                 scanTimeoutRunnable = null
-
-                                //TODO: transition state machine to idle and use logger to talk about timeout
+                                logger.i("connection timeout")
                             }
                         }
                     }
@@ -243,12 +242,12 @@ class TransportBleCentralClientHolder(
                 scanning = false
                 scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
                 scanTimeoutRunnable = null
-                //TODO: add logger
+                logger.e("${error.message}")
             } catch (error: IllegalStateException) {
                 scanning = false
                 scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
                 scanTimeoutRunnable = null
-                //TODO: add logger
+                logger.e("${error.message}")
             }
         }
     }
@@ -273,7 +272,7 @@ class TransportBleCentralClientHolder(
                 scanning = false
             }
         } catch (error: SecurityException) {
-            //TODO: logger error
+            logger.e("${error.message}")
         } catch (error: IllegalStateException) {
         } finally {
             scanning = false

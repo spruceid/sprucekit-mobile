@@ -158,12 +158,6 @@ class TransportBlePeripheralServerReader(
     fun stop() {
         // Transition to disconnecting state
         if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
-            try {
-                bluetoothAdapter.name = stateMachine.getAdapterName()
-            } catch (error: SecurityException) {
-                logger.e(error.toString())
-            }
-
             blePeripheral.stopAdvertise()
             gattServer.stop()
 

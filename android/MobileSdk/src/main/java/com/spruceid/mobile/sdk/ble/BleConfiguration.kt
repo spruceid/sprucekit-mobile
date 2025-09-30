@@ -10,7 +10,7 @@ data class BleConfiguration(
     val disconnectTimeoutMs: Long = 5000L,  // 5 seconds
 
     // Retry configuration
-    val maxConnectionRetries: Int = 3,
+    val maxConnectionRetries: Int = 3, // Minimum 1 - Try once
     val initialRetryDelayMs: Long = 1000L,
     val maxRetryDelayMs: Long = 8000L,
     val retryBackoffMultiplier: Double = 2.0,
@@ -20,7 +20,7 @@ data class BleConfiguration(
     val defaultMtu: Int = 23,  // BLE minimum
 
     // L2CAP configuration
-    val useL2CAP: L2CAPMode = L2CAPMode.IF_AVAILABLE,
+    val useL2CAP: L2CAPMode = L2CAPMode.NEVER,
     val l2capBufferSize: Int = 65536,  // 64KB
     val l2capReadTimeoutMs: Long = 500L,
     val l2capConnectionTimeoutMs: Long = 5000L,
