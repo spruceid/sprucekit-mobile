@@ -77,7 +77,7 @@ class GattServer(
     private var characteristicL2CAP: BluetoothGattCharacteristic? = null
 
     private var mtu = 0
-    private var usingL2CAP = false
+    private var usingL2CAP = true
 
     @Volatile
     private var writeIsOutstanding = false
@@ -234,32 +234,25 @@ class GattServer(
 
                 if (charUuid.equals(characteristicStateUuid) && value.size == 1) {
                     if (value[0].toInt() == 0x01) {
-                        // Close L2CAP socket if switching back to GATT
-                        if (usingL2CAP && l2capSocket != null) {
-                            try {
-                                l2capSocket?.close()
-                                l2capSocket = null
-                                // Thread pool operations will be cancelled automatically
-                            } catch (e: IOException) {
-                                logger.i("Error closing L2CAP socket: $e")
-                            }
-                        }
+                        // State 0x01 = START signal - establish GATT connection
+                        // L2CAP negotiation happens AFTER this, not before
 
                         if (currentConnection != null) {
                             logger.i(
-                                "Ignoring connection attempt from ${device.address} since we're " +
+                                "Ignoring duplicate START (0x01) from ${device.address} since we're " +
                                         "already connected to ${currentConnection!!.address}"
                             )
+                            // Don't call onPeerConnected() again if already connected
+                            return
                         } else {
                             currentConnection = device
 
                             logger.i(
-                                "Received connection (state 0x01 on State characteristic) from " +
-                                        currentConnection!!.address
+                                "Received START signal (state 0x01) from ${device.address}"
                             )
-                        }
 
-                        callback.onPeerConnected()
+                            callback.onPeerConnected()
+                        }
                     } else if (value[0].toInt() == 0x02) {
                         callback.onTransportSpecificSessionTermination()
                     } else {
@@ -276,6 +269,26 @@ class GattServer(
                     if (currentConnection == null) {
                         callback.onError(Error("Write on Client2Server but not connected yet"))
                         logger.e("Write on Client2Server but not connected yet")
+                        return
+                    }
+
+                    // If L2CAP is active, GATT characteristics should not receive data
+                    if (usingL2CAP && l2capSocket != null && l2capSocket!!.isConnected) {
+                        logger.w("Ignoring GATT data write - L2CAP transport is active")
+                        // Send success response to avoid client errors, but ignore the data
+                        if (responseNeeded) {
+                            try {
+                                gattServer!!.sendResponse(
+                                    device,
+                                    requestId,
+                                    BluetoothGatt.GATT_SUCCESS,
+                                    0,
+                                    null
+                                )
+                            } catch (error: SecurityException) {
+                                callback.onError(error)
+                            }
+                        }
                         return
                     }
 
@@ -885,19 +898,45 @@ class GattServer(
             l2capSocket = l2capServerSocket?.accept()
 
             if (l2capSocket != null) {
-                logger.i("L2CAP connection established")
+                logger.i("L2CAP socket accepted from ${l2capSocket!!.remoteDevice.address}")
+
+                // Track if this is the first connection signal (State 0x01 not yet received)
+                val isFirstConnection = (currentConnection == null)
+
+                // Verify this is from the same device we have a GATT connection with
+                if (currentConnection == null) {
+                    logger.w("L2CAP connection before GATT State 0x01")
+                    logger.i("Some implementations use L2CAP connection as readiness signal instead of State 0x01")
+
+                    // Set currentConnection from L2CAP
+                    currentConnection = l2capSocket!!.remoteDevice
+                    logger.i("Set currentConnection from L2CAP: ${currentConnection!!.address}")
+                } else if (!l2capSocket!!.remoteDevice.address.equals(currentConnection!!.address)) {
+                    logger.e("L2CAP connection from different device ${l2capSocket!!.remoteDevice.address}, " +
+                            "expected ${currentConnection!!.address} - rejecting")
+                    l2capSocket?.close()
+                    l2capSocket = null
+                    return
+                } else {
+                    logger.i("L2CAP connection from correct device: ${currentConnection!!.address}")
+                }
 
                 // Start read thread for incoming data
-                // Use thread pool for L2CAP read operations
                 threadPool.launchIO {
                     readL2CAPData()
                 }
 
-                // Notify that we're using L2CAP
+                // Mark that L2CAP transport is now active
+                // Data will be sent/received via L2CAP instead of GATT characteristics
+                logger.i("Switching to L2CAP transport for data transfer")
                 callback.onState("L2CAP Connected")
 
-                // Trigger onPeerConnected so the application layer can send initial data
-                callback.onPeerConnected()
+                // If this is the first connection signal (no State 0x01 yet), trigger onPeerConnected
+                // Some clients (especially iOS) use L2CAP connection as readiness signal
+                if (isFirstConnection) {
+                    logger.i("Triggering onPeerConnected from L2CAP connection (no State 0x01 received)")
+                    callback.onPeerConnected()
+                }
             }
         } catch (e: IOException) {
             if (!Thread.currentThread().isInterrupted) {
