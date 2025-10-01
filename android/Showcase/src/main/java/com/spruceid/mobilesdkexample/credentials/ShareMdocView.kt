@@ -5,8 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,8 +51,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialsViewModel
@@ -218,20 +214,24 @@ fun NfcShareMdocView(
     val currentState by credentialViewModel.currState.collectAsState()
     val credentials by credentialViewModel.credentials.collectAsState()
     val error by credentialViewModel.error.collectAsState()
+    val bluetoothPermissionsGranted by credentialViewModel.bluetoothPermissionsGranted.collectAsState()
 
     var isBluetoothEnabled by remember {
         mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
     }
 
-    val launcherMultiplePermissions =
-        rememberLauncherForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { permissionsMap ->
-            val areGranted = permissionsMap.values.reduce { acc, next -> acc && next }
+    val launcherMultiplePermissions = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissionsMap ->
+        if (permissionsMap.isNotEmpty()){
+            val areGranted = permissionsMap.values.all { it }
+            credentialViewModel.setBluetoothPermissionsGranted(areGranted);
+
             if (!areGranted) {
                 // @TODO: Show dialog
             }
         }
+    }
 
     DisposableEffect(Unit) {
 
@@ -246,29 +246,31 @@ fun NfcShareMdocView(
                 }
             }
         }
-        val receiver =
-            object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
-                        val state =
-                            intent.getIntExtra(
-                                BluetoothAdapter.EXTRA_STATE,
-                                BluetoothAdapter.ERROR
-                            )
-                        when (state) {
-                            BluetoothAdapter.STATE_OFF -> isBluetoothEnabled = false
-                            BluetoothAdapter.STATE_ON -> isBluetoothEnabled = true
-                            else -> {}
-                        }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                    val state =
+                        intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    when (state) {
+                        BluetoothAdapter.STATE_OFF -> isBluetoothEnabled = false
+                        BluetoothAdapter.STATE_ON -> isBluetoothEnabled = true
+                        else -> {}
                     }
                 }
             }
+        }
         val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
         context.registerReceiver(receiver, filter)
         onDispose {
             NfcPresentationService.shareScreenCallback = null
             context.unregisterReceiver(receiver)
             NfcListenManager.userRequested = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            credentialViewModel.setBluetoothPermissionsGranted(false)
         }
     }
 
