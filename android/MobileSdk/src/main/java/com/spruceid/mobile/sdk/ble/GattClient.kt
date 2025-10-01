@@ -52,9 +52,7 @@ class GattClient(
     private val threadPool = BleThreadPool.getInstance(config)
     private val L2CAP_BUFFER_SIZE = (1 shl 16) // 64K
 
-    enum class UseL2CAP { IfAvailable, Yes, No }
-
-    private var useL2CAP = UseL2CAP.No
+    private var useL2CAP = config.useL2CAP
 
     var gattClient: BluetoothGatt? = null
 
@@ -569,7 +567,7 @@ class GattClient(
 
                                     // Something went wrong.  Fall back to the old flow, don't try L2CAP
                                     // again for this run.
-                                    useL2CAP = UseL2CAP.No
+                                    useL2CAP = BleConfiguration.L2CAPMode.NEVER
                                     enableNotification(
                                         gatt,
                                         characteristicServer2Client,
@@ -816,13 +814,13 @@ class GattClient(
             // Use L2CAP if supported by GattServer and by this OS version
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && characteristicL2CAP != null) {
-                if (useL2CAP == UseL2CAP.IfAvailable) {
-                    useL2CAP = UseL2CAP.Yes
+                if (useL2CAP == BleConfiguration.L2CAPMode.IF_AVAILABLE) {
+                    useL2CAP = BleConfiguration.L2CAPMode.ALWAYS
                     enableNotification(gatt, characteristicL2CAP, "L2CAP")
                     return
                 }
             } else {
-                useL2CAP = UseL2CAP.No
+                useL2CAP = BleConfiguration.L2CAPMode.NEVER
             }
             enableNotification(gatt, characteristicServer2Client, "Server2Client")
         } catch (error: SecurityException) {
@@ -916,7 +914,7 @@ class GattClient(
 
         logger.logDataTransfer("Sending", data.size)
 
-        if (useL2CAP == UseL2CAP.Yes) {
+        if (useL2CAP == BleConfiguration.L2CAPMode.ALWAYS) {
             responseData.add(data)
         } else {
             queueLock.withLock {
@@ -1090,7 +1088,7 @@ class GattClient(
      * Fallback to GATT when L2CAP fails
      */
     private fun fallbackToGATTConnection(gatt: BluetoothGatt) {
-        useL2CAP = UseL2CAP.No
+        useL2CAP = BleConfiguration.L2CAPMode.NEVER
         reportLog("Falling back to GATT transport")
         enableNotification(
             gatt,
