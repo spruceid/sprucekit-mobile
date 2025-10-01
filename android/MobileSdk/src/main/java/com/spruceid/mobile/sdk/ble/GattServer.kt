@@ -235,7 +235,6 @@ class GattServer(
                 if (charUuid.equals(characteristicStateUuid) && value.size == 1) {
                     if (value[0].toInt() == 0x01) {
                         // State 0x01 = START signal - establish GATT connection
-                        // L2CAP negotiation happens AFTER this, not before
 
                         if (currentConnection != null) {
                             logger.i(
