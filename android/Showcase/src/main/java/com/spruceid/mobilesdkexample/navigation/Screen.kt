@@ -18,7 +18,9 @@ const val ADD_TO_WALLET_PATH = "add_to_wallet/{rawCredential}"
 const val SCAN_QR_PATH = "scan_qr"
 const val HANDLE_OID4VCI_PATH = "oid4vci/{url}"
 const val HANDLE_OID4VP_PATH = "oid4vp/{url}"
+const val HANDLE_OID4VP_WITH_CREDENTIAL_PACK_PATH = "oid4vp/{url}/{credential_pack_id}"
 const val HANDLE_MDOC_OID4VP_PATH = "mdoc_oid4vp/{url}"
+const val HANDLE_MDOC_OID4VP_WITH_CREDENTIAL_PACK_PATH = "mdoc_oid4vp/{url}/{credential_pack_id}"
 const val CREDENTIAL_DETAILS_PATH = "credential_details/{credential_pack_id}"
 
 sealed class Screen(val route: String) {
@@ -42,6 +44,8 @@ sealed class Screen(val route: String) {
     object ScanQRScreen : Screen(SCAN_QR_PATH)
     object HandleOID4VCI : Screen(HANDLE_OID4VCI_PATH)
     object HandleOID4VP : Screen(HANDLE_OID4VP_PATH)
+    object HandleOID4VPWithCredentialPack : Screen(HANDLE_OID4VP_WITH_CREDENTIAL_PACK_PATH)
     object HandleMdocOID4VP : Screen(HANDLE_MDOC_OID4VP_PATH)
+    object HandleMdocOID4VPWithCredentialPack : Screen(HANDLE_MDOC_OID4VP_WITH_CREDENTIAL_PACK_PATH)
     object CredentialDetailsScreen : Screen(CREDENTIAL_DETAILS_PATH)
 }

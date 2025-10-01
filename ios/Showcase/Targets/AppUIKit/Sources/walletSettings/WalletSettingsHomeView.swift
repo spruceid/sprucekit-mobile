@@ -54,15 +54,14 @@ struct WalletSettingsHomeHeader: View {
 }
 
 struct WalletSettingsHomeBody: View {
-    @EnvironmentObject private var credentialPackObservable:
-        CredentialPackObservable
-    @EnvironmentObject private var hacApplicationObservable:
-        HacApplicationObservable
+    @EnvironmentObject private var credentialPackObservable: CredentialPackObservable
+    @EnvironmentObject private var hacApplicationObservable: HacApplicationObservable
     @StateObject private var environmentConfig = EnvironmentConfig.shared
     @Binding var path: NavigationPath
     var onBack: () -> Void
     @State private var isApplyingForMdl = false
-
+    @State var showDeleteDialog: Bool = false
+    
     @ViewBuilder
     var activityLogButton: some View {
         Button {
@@ -81,32 +80,7 @@ struct WalletSettingsHomeBody: View {
         Button {
             Task {
                 do {
-                    let credentialPacks = credentialPackObservable
-                        .credentialPacks
-                    try await credentialPacks.asyncForEach { credentialPack in
-                        try await credentialPackObservable.delete(
-                            credentialPack: credentialPack
-                        )
-                        credentialPack.list().forEach { credential in
-                            let credentialInfo = getCredentialIdTitleAndIssuer(
-                                credentialPack: credentialPack,
-                                credential: credential
-                            )
-                            _ = WalletActivityLogDataStore.shared.insert(
-                                credentialPackId: credentialPack.id.uuidString,
-                                credentialId: credentialInfo.0,
-                                credentialTitle: credentialInfo.1,
-                                issuer: credentialInfo.2,
-                                action: "Deleted",
-                                dateTime: Date(),
-                                additionalInformation: ""
-                            )
-                        }
-                    }
-                    let _ = HacApplicationDataStore.shared.deleteAll()
-                } catch {
-                    // TODO: display error message
-                    print(error)
+                    showDeleteDialog = true
                 }
             }
         } label: {
@@ -119,6 +93,46 @@ struct WalletSettingsHomeBody: View {
         .padding(.vertical, 13)
         .background(Color("ColorRose700"))
         .cornerRadius(8)
+        .alert("Delete credentials", isPresented: $showDeleteDialog) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                let credentialPacks = credentialPackObservable
+                    .credentialPacks
+                Task {
+                    do {
+                        try await credentialPacks.asyncForEach { credentialPack in
+                            try await credentialPackObservable.delete(
+                                credentialPack: credentialPack
+                            )
+                            credentialPack.list().forEach { credential in
+                                let credentialInfo = getCredentialIdTitleAndIssuer(
+                                    credentialPack: credentialPack,
+                                    credential: credential
+                                )
+                                _ = WalletActivityLogDataStore.shared.insert(
+                                    credentialPackId: credentialPack.id.uuidString,
+                                    credentialId: credentialInfo.0,
+                                    credentialTitle: credentialInfo.1,
+                                    issuer: credentialInfo.2,
+                                    action: "Deleted",
+                                    dateTime: Date(),
+                                    additionalInformation: ""
+                                )
+                            }
+                        }
+                    } catch {
+                        // TODO: display error message
+                        print(error)
+                    }
+                }
+                let _ = HacApplicationDataStore.shared.deleteAll()
+            }
+        }
+        message: {
+            Text(
+                "Are you sure you want to delete all the credentials? This action cannot be undone."
+            )
+        }
     }
 
     @ViewBuilder
@@ -144,12 +158,12 @@ struct WalletSettingsHomeBody: View {
             Task {
                 do {
                     let walletAttestation =
-                        try await hacApplicationObservable
+                    try await hacApplicationObservable
                         .getWalletAttestation()
                         .unwrap()
 
                     let issuance =
-                        try await hacApplicationObservable.issuanceClient
+                    try await hacApplicationObservable.issuanceClient
                         .newIssuance(walletAttestation: walletAttestation)
 
                     let hacApplication = HacApplicationDataStore.shared.insert(
@@ -162,41 +176,39 @@ struct WalletSettingsHomeBody: View {
                     )
 
                     switch status {
-                        case .proofingRequired(let proofingUrl):
-                            if let hacApplication = hacApplication {
-                                if let url = URL(string: proofingUrl) {
-                                    UIApplication.shared.open(
-                                        url,
-                                        options: [:],
-                                        completionHandler: nil
-                                    )
-                                } else {
-                                    print("Invalid proofing URL")
-                                }
+                    case .proofingRequired(let proofingUrl):
+                        if let hacApplication = hacApplication {
+                            if let url = URL(string: proofingUrl) {
+                                UIApplication.shared.open(
+                                    url,
+                                    options: [:],
+                                    completionHandler: nil
+                                )
                             } else {
-                                print("hacApplication is nil")
+                                print("Invalid proofing URL")
                             }
-
-                        case .readyToProvision(_):
-                            print("Expected ProofingRequired status")
-                            ToastManager.shared.showError(
-                                message:
-                                    "Error during attestation: Expected ProofingRequired status"
-                            )
-                        case .awaitingManualReview:
-                            print("Expected ProofingRequired status")
-                            ToastManager.shared.showError(
-                                message:
-                                    "Error during attestation: Expected ProofingRequired status"
-                            )
-                        case .applicationDenied:
-                            print("Expected ProofingRequired status")
-                            ToastManager.shared.showError(
-                                message:
-                                    "Error during attestation: Expected ProofingRequired status"
-                            )
+                        } else {
+                            print("hacApplication is nil")
                         }
-
+                    case .readyToProvision(_):
+                        print("Expected ProofingRequired status")
+                        ToastManager.shared.showError(
+                            message:
+                                "Error during attestation: Expected ProofingRequired status"
+                        )
+                    case .awaitingManualReview:
+                        print("Expected ProofingRequired status")
+                        ToastManager.shared.showError(
+                            message:
+                                "Error during attestation: Expected ProofingRequired status"
+                        )
+                    case .applicationDenied:
+                        print("Expected ProofingRequired status")
+                        ToastManager.shared.showError(
+                            message:
+                                "Error during attestation: Expected ProofingRequired status"
+                        )
+                    }
                 } catch let error as DCError {
                     ToastManager.shared.showError(
                         message:

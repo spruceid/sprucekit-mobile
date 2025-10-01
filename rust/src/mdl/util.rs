@@ -55,13 +55,60 @@ impl From<anyhow::Error> for MdlUtilError {
     }
 }
 
+/// Test mDL data struct to provide dummy data
+/// to pass to generating a test mDL.
+#[derive(uniffi::Record, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct TestMdlData {
+    family_name: String,
+    given_name: String,
+    birth_date: String,
+    issue_date: String,
+    expiry_date: String,
+    issuing_country: String,
+    issuing_authority: String,
+    document_number: String,
+    portrait: String,
+    driving_privileges: Vec<String>,
+    un_distinguishing_sign: String,
+    administrative_number: String,
+    sex: u16,
+    height: u16,
+    weight: u16,
+    eye_colour: String,
+    hair_colour: String,
+    birth_place: String,
+    resident_address: String,
+    portrait_capture_date: String,
+    age_in_years: u16,
+    age_birth_year: u16,
+    age_over_18: bool,
+    age_over_21: bool,
+    age_over_60: bool,
+    nationality: String,
+    resident_city: String,
+    resident_state: String,
+    resident_postal_code: String,
+    resident_country: String,
+}
+
 #[uniffi::export]
 /// Generate a new test mDL with hardcoded values, using the supplied key as the DeviceKey.
 pub fn generate_test_mdl(
     key_manager: Arc<dyn KeyStore>,
     key_alias: KeyAlias,
 ) -> Result<crate::credential::mdoc::Mdoc, MdlUtilError> {
-    Ok(generate_test_mdl_inner(key_manager, key_alias)?)
+    Ok(generate_test_mdl_inner(key_manager, key_alias, None)?)
+}
+
+#[uniffi::export]
+/// Generate a new test mDL with hardcoded values, using the supplied key as the DeviceKey.
+pub fn generate_test_mdl_with_data(
+    key_manager: Arc<dyn KeyStore>,
+    key_alias: KeyAlias,
+    data: TestMdlData,
+) -> Result<crate::credential::mdoc::Mdoc, MdlUtilError> {
+    Ok(generate_test_mdl_inner(key_manager, key_alias, Some(data))?)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -75,6 +122,7 @@ struct MinimalEcJwk {
 fn generate_test_mdl_inner(
     key_manager: Arc<dyn KeyStore>,
     key_alias: KeyAlias,
+    data: Option<TestMdlData>,
 ) -> Result<crate::credential::mdoc::Mdoc> {
     tracing::info!("Generating test mDL");
     let (certificate, signer) =
@@ -91,7 +139,7 @@ fn generate_test_mdl_inner(
     )
     .context("failed to parse public key")?;
 
-    let mdoc_builder = prepare_mdoc(pk).context("failed to prepare mdoc")?;
+    let mdoc_builder = prepare_mdoc(pk, data).context("failed to prepare mdoc")?;
 
     let x5chain = X5Chain::builder()
         .with_certificate(certificate)
@@ -136,8 +184,13 @@ fn generate_test_mdl_inner(
     ))
 }
 
-fn prepare_mdoc(pub_key: PublicKey) -> Result<isomdl::issuance::mdoc::Builder> {
-    let isomdl_data = serde_json::json!(
+fn prepare_mdoc(
+    pub_key: PublicKey,
+    data: Option<TestMdlData>,
+) -> Result<isomdl::issuance::mdoc::Builder> {
+    let isomdl_data = data.map(|d| {
+        serde_json::to_value(&d)
+    }).unwrap_or(Ok(serde_json::json!(
         {
           "family_name":"Doe",
           "given_name":"John",
@@ -170,7 +223,7 @@ fn prepare_mdoc(pub_key: PublicKey) -> Result<isomdl::issuance::mdoc::Builder> {
           "resident_postal_code":"90001",
           "resident_country": "US"
         }
-    );
+    )))?;
 
     let doc_type = String::from("org.iso.18013.5.1.mDL");
     let isomdl_namespace = String::from("org.iso.18013.5.1");

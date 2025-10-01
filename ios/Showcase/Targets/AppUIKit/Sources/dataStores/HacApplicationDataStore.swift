@@ -7,67 +7,65 @@ struct HacApplication: Hashable {
 }
 
 class HacApplicationDataStore {
-
-    static let DIR_ACTIVITY_LOG_DB = "HacApplicationDB"
-    static let STORE_NAME = "hac_applications.sqlite3"
-
-    private let hacApplications = Table("hac_applications")
+    private let hacApplications = Table(DatabaseManager.TABLE_HAC_APPLICATIONS)
 
     private let id = SQLite.Expression<String>("id")
     private let issuanceId = SQLite.Expression<String>("issuanceId")
 
     static let shared = HacApplicationDataStore()
 
-    private var db: Connection?
-
     private init() {
-        if let docDir = FileManager.default.urls(
-            for: .documentDirectory,
-            in: .userDomainMask
-        ).first {
-            let dirPath = docDir.appendingPathComponent(
-                Self.DIR_ACTIVITY_LOG_DB
-            )
+        createTableIfNotExists()
+        migrateFromOldDatabase()
+    }
 
-            do {
-                try FileManager.default.createDirectory(
-                    atPath: dirPath.path,
-                    withIntermediateDirectories: true,
-                    attributes: nil
-                )
-                let dbPath = dirPath.appendingPathComponent(Self.STORE_NAME)
-                    .path
-                db = try Connection(dbPath)
-                createTable()
-                print("SQLiteDataStore init successfully at: \(dbPath) ")
-            } catch {
-                db = nil
-                print("SQLiteDataStore init error: \(error)")
-            }
-        } else {
-            db = nil
+    private func getDatabase() -> Connection? {
+        return DatabaseManager.shared.getDatabase()
+    }
+
+    private func createTableIfNotExists() {
+        guard let database = getDatabase() else { return }
+
+        DatabaseManager.shared.createTableIfNotExists(
+            DatabaseManager.TABLE_HAC_APPLICATIONS
+        ) { table in
+            table.column(id, primaryKey: true)
+            table.column(issuanceId)
         }
     }
 
-    private func createTable() {
-        guard let database = db else {
-            return
-        }
-        do {
-            try database.run(
-                hacApplications.create { table in
-                    table.column(id, primaryKey: true)
-                    table.column(issuanceId)
-                }
-            )
-            print("Table Created...")
-        } catch {
-            print(error)
+    private func migrateFromOldDatabase() {
+        let oldDbPath = DatabaseManager.shared.getOldDatabasePath(
+            "HacApplicationDB/hac_applications.sqlite3"
+        )
+
+        DatabaseManager.shared.migrateFromOldDatabase(
+            oldDbPath,
+            tableName: DatabaseManager.TABLE_HAC_APPLICATIONS
+        ) { oldDb, newDb in
+            let oldTable = Table("hac_applications")
+            let oldId = SQLite.Expression<String>("id")
+            let oldIssuanceId = SQLite.Expression<String>("issuanceId")
+
+            let newTable = Table(DatabaseManager.TABLE_HAC_APPLICATIONS)
+            let newId = SQLite.Expression<String>("id")
+            let newIssuanceId = SQLite.Expression<String>("issuanceId")
+
+            for row in try oldDb.prepare(oldTable) {
+                let insert = newTable.insert(
+                    newId <- row[oldId],
+                    newIssuanceId <- row[oldIssuanceId]
+                )
+                try newDb.run(insert)
+            }
+
+            let count = try oldDb.scalar(oldTable.count)
+            print("HAC Applications: Migrated \(count) records")
         }
     }
 
     func insert(issuanceId: String) -> UUID? {
-        guard let database = db else { return nil }
+        guard let database = getDatabase() else { return nil }
 
         let newId = UUID()
         let insert = hacApplications.insert(
@@ -85,7 +83,7 @@ class HacApplicationDataStore {
 
     func getAllHacApplications() -> [HacApplication] {
         var applications: [HacApplication] = []
-        guard let database = db else { return [] }
+        guard let database = getDatabase() else { return [] }
 
         do {
             for application in try database.prepare(
@@ -105,7 +103,7 @@ class HacApplicationDataStore {
     }
 
     func getHacApplication(issuanceId: String) -> HacApplication? {
-        guard let database = db else { return nil }
+        guard let database = getDatabase() else { return nil }
 
         do {
             let filter = hacApplications.filter(self.issuanceId == issuanceId)
@@ -123,7 +121,7 @@ class HacApplicationDataStore {
     }
 
     func delete(id: UUID) -> Bool {
-        guard let database = db else {
+        guard let database = getDatabase() else {
             return false
         }
         do {
@@ -137,7 +135,7 @@ class HacApplicationDataStore {
     }
 
     func deleteAll() -> Bool {
-        guard let database = db else {
+        guard let database = getDatabase() else {
             return false
         }
         do {

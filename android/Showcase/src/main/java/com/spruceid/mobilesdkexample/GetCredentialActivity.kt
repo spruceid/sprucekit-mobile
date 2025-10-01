@@ -10,13 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import app.rive.runtime.kotlin.RiveAnimationView
-import app.rive.runtime.kotlin.core.ExperimentalAssetLoader
 import com.spruceid.mobile.sdk.rs.FieldId180137
 import com.spruceid.mobile.sdk.rs.RequestMatch180137
 import com.spruceid.mobilesdkexample.wallet.MdocFieldSelector
 import com.spruceid.mobile.sdk.dcapi.Activity as DcApiActivity
 
-class GetCredentialActivity() : DcApiActivity() {
+class GetCredentialActivity : DcApiActivity() {
     @Composable
     override fun ConsentView(
         match: RequestMatch180137,
@@ -33,7 +32,6 @@ class GetCredentialActivity() : DcApiActivity() {
         )
     }
 
-    @OptIn(ExperimentalAssetLoader::class)
     @Composable
     override fun LoadingView() {
         Column(

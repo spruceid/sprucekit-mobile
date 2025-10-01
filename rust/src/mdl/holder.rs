@@ -109,7 +109,7 @@ impl ApduHandoverDriver {
 /// the state of the presentation, a String containing the QR code URI, and a
 /// String containing the BLE ident.
 ///
-#[uniffi::export]
+#[uniffi::export(async_runtime = "tokio")]
 pub async fn initialize_mdl_presentation(
     mdoc_id: Uuid,
     engagement: DeviceEngagementData,
@@ -271,6 +271,7 @@ pub struct MdlPresentationSession {
 struct InProcessRecord {
     session: device::SessionManager,
     items_request: device::RequestedItems,
+    reader_common_name: Option<String>,
 }
 
 #[uniffi::export]
@@ -304,9 +305,11 @@ impl MdlPresentationSession {
         let mut in_process = self.in_process.lock().map_err(|_| RequestError::Generic {
             value: "Could not lock mutex".to_string(),
         })?;
+
         *in_process = Some(InProcessRecord {
             session: session_manager,
             items_request: items_requests.items_request.clone(),
+            reader_common_name: items_requests.common_name,
         });
 
         Ok(items_requests
@@ -417,10 +420,33 @@ impl MdlPresentationSession {
     pub fn get_ble_ident(&self) -> Vec<u8> {
         self.ble_ident.clone()
     }
+
+    /// Return the Reader common name, if available from the session
+    ///
+    /// Will return an error if the session mutex lock cannot be acquired.
+    pub fn reader_name(&self) -> Result<String, SessionError> {
+        Ok(self
+            .in_process
+            .lock()
+            .map_err(|e| SessionError::Mutex {
+                value: e.to_string(),
+            })?
+            .as_ref()
+            .and_then(|r| r.reader_common_name.clone())
+            .unwrap_or("Unknown Reader".into()))
+    }
+}
+
+#[derive(uniffi::Record, Clone)]
+pub struct ItemsRequest {
+    doc_type: String,
+    namespaces: HashMap<String, HashMap<String, bool>>,
 }
 
 #[derive(thiserror::Error, uniffi::Error, Debug)]
 pub enum SessionError {
+    #[error("Session mutex error: {value}")]
+    Mutex { value: String },
     #[error("{value}")]
     Generic { value: String },
     #[error("BLE Device Retrieval Error: {0}")]
@@ -433,12 +459,6 @@ pub enum SessionError {
 pub enum RequestError {
     #[error("{value}")]
     Generic { value: String },
-}
-
-#[derive(uniffi::Record, Clone)]
-pub struct ItemsRequest {
-    doc_type: String,
-    namespaces: HashMap<String, HashMap<String, bool>>,
 }
 
 #[derive(thiserror::Error, uniffi::Error, Debug)]

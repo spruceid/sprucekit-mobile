@@ -36,15 +36,19 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 @Composable
 fun MRZScanner(
     title: String = "Scan QR Code",
+    titleColor: Color = Color.White,
     subtitle: String = "Please align within the guides",
+    subtitleColor: Color = Color.White,
     cancelButtonLabel: String = "Cancel",
+    cancelButtonColor: Color = Color.White,
+    cancelButtonBorderColor: Color = Color.White,
+    hideCancelButton: Boolean = false,
     onRead: (content: String) -> Unit,
-    isMatch: (content: String) -> Boolean = {_ -> true},
+    isMatch: (content: String) -> Boolean = { _ -> true },
     onCancel: () -> Unit,
     fontFamily: FontFamily = FontFamily.Default,
     guidesColor: Color = Color.White,
     readerColor: Color = Color.White,
-    textColor: Color = Color.White,
     backgroundOpacity: Float = 0.5f,
 ) {
 
@@ -67,11 +71,15 @@ fun MRZScanner(
 
     GenericCameraXScanner(
         title = title,
+        titleColor = titleColor,
         subtitle = subtitle,
+        subtitleColor = subtitleColor,
         cancelButtonLabel = cancelButtonLabel,
+        cancelButtonColor = cancelButtonColor,
+        cancelButtonBorderColor = cancelButtonBorderColor,
         onCancel = onCancel,
+        hideCancelButton = hideCancelButton,
         fontFamily = fontFamily,
-        textColor = textColor,
         imageAnalyzer = MlKitAnalyzer(
             listOf(textRecognizer),
             COORDINATE_SYSTEM_ORIGINAL,
@@ -81,29 +89,29 @@ fun MRZScanner(
                 text.textBlocks
                     .flatMap { textBlock -> textBlock.lines }
                     .mapNotNull { lines ->
-                        lines.takeIf { firstLineRegex.matches(it.text)  }?.let {
-                            if(it.text.length == 30) {
+                        lines.takeIf { firstLineRegex.matches(it.text) }?.let {
+                            if (it.text.length == 30) {
                                 firstLine = it.text
                             }
                         }
-                        lines.takeIf { secondLineRegex.matches(it.text)  }?.let {
-                            if(it.text.length == 30) {
+                        lines.takeIf { secondLineRegex.matches(it.text) }?.let {
+                            if (it.text.length == 30) {
                                 secondLine = it.text
                             }
                         }
-                        lines.takeIf { thirdLineRegex.matches(it.text)  }?.let {
-                            if(it.text.length == 30) {
+                        lines.takeIf { thirdLineRegex.matches(it.text) }?.let {
+                            if (it.text.length == 30) {
                                 thirdLine = it.text
                             }
                         }
                     }
 
-                if(
+                if (
                     firstLine != null && secondLine != null && thirdLine != null) {
                     val mrz = """$firstLine
                         |$secondLine
                         |$thirdLine""".trimMargin()
-                    if(isMatch(mrz)) {
+                    if (isMatch(mrz)) {
                         onRead(mrz)
                     }
                     firstLine = null
@@ -136,10 +144,10 @@ fun MRZScannerBackground(
         initialValue = canvasSize.height * .35f,
         targetValue = canvasSize.height * .35f + canvasSize.width * .6f,
         animationSpec =
-        infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
+            infiniteRepeatable(
+                animation = tween(1000, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
         "QR code line animation",
     )
 

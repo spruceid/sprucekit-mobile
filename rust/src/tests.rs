@@ -24,6 +24,7 @@ const OID4VCI_CREDENTIAL_OFFER_URI: &str = "openid-credential-offer://?credentia
 const MSO_MDOC_OID4VCI_CREDENTIAL_OFFER_URI: &str = "openid-credential-offer://?credential_offer=%7B%22credential_issuer%22%3A%22https%3A%2F%2F0b16-2001-1284-f50e-a746-f8de-7ed-6278-9f7e.ngrok-free.app%22%2C%22credential_configuration_ids%22%3A%5B%22org.iso.18013.5.1.mDL%22%5D%2C%22grants%22%3A%7B%22urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Apre-authorized_code%22%3A%7B%22pre-authorized_code%22%3A%22JIHGFEDCBA%22%2C%22tx_code%22%3Anull%2C%22interval%22%3Anull%2C%22authorization_server%22%3Anull%7D%7D%7D";
 const OID4VP_URI: &str = "openid4vp://authorize?client_id=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz1AEkyzEHrWvfJX78zXZHiu6m%2Fopenid%2Fclient%2Fauthorization%2Fresponse&request_uri=https%3A%2F%2Fqa.veresexchanger.dev%2Fexchangers%2Fz19vRLNoFaBKDeDaMzRjUj8hi%2Fexchanges%2Fz1AEkyzEHrWvfJX78zXZHiu6m%2Fopenid%2Fclient%2Fauthorization%2Frequest";
 
+#[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 #[error("HTTP error: {0}")]
 pub struct TestError(StatusCode);

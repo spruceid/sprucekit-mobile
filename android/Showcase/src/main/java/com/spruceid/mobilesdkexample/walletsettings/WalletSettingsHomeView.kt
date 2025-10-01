@@ -47,6 +47,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.ControlledSimpleDeleteAlertDialog
 import com.spruceid.mobilesdkexample.utils.SettingsHomeItem
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
@@ -127,6 +128,7 @@ fun WalletSettingsHomeBody(
     val scope = rememberCoroutineScope()
 
     var isApplyingForMdl by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     val isDevMode by EnvironmentConfig.isDevMode.collectAsState()
 
     Column(
@@ -149,7 +151,7 @@ fun WalletSettingsHomeBody(
             }
         )
 
-        GenerateMockMdlButton(credentialPacksViewModel = credentialPacksViewModel)
+        GenerateMockMdlButton(credentialPacksViewModel = credentialPacksViewModel, walletActivityLogsViewModel = walletActivityLogsViewModel)
 
         SettingsHomeItem(
             icon = {
@@ -227,6 +229,28 @@ fun WalletSettingsHomeBody(
         Spacer(Modifier.weight(1f))
         Button(
             onClick = {
+                showDeleteDialog = true
+            },
+            shape = RoundedCornerShape(5.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ColorRose600,
+                contentColor = Color.White,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 30.dp)
+        ) {
+            Text(
+                text = "Delete all added credentials",
+                fontFamily = Inter,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White,
+            )
+        }
+        ControlledSimpleDeleteAlertDialog(
+            showDialog = showDeleteDialog,
+            message = "Are you sure you want to delete all the credentials? This action cannot be undone.",
+            onConfirm = {
                 GlobalScope.launch {
                     credentialPacksViewModel.deleteAllCredentialPacks(onDeleteCredentialPack = { credentialPack ->
                         credentialPack.list().forEach { credential ->
@@ -249,23 +273,14 @@ fun WalletSettingsHomeBody(
                         }
                     })
                     hacApplicationsViewModel.deleteAllApplications()
+                    showDeleteDialog = false
                 }
             },
-            shape = RoundedCornerShape(5.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = ColorRose600,
-                contentColor = Color.White,
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 30.dp)
-        ) {
-            Text(
-                text = "Delete all added credentials",
-                fontFamily = Inter,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
-            )
-        }
+            onClose = {
+                showDeleteDialog = false
+            },
+            confirmButtonText = "Delete"
+        )
+
     }
 }

@@ -1,11 +1,16 @@
 package com.spruceid.mobilesdkexample.utils
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,6 +25,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +43,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorRose200
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose50
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose900
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -48,6 +56,7 @@ enum class ToastType {
 object Toast {
     private val toastMessage = mutableStateOf<String?>(null)
     private val toastType = mutableStateOf(ToastType.SUCCESS)
+    private var hideToastJob: Job? = null
 
     fun showSuccess(message: String) {
         toastType.value = ToastType.SUCCESS
@@ -74,7 +83,8 @@ object Toast {
 
         currentMessage.value?.let { message ->
             LaunchedEffect(message) {
-                scope.launch {
+                hideToastJob?.cancel()
+                hideToastJob = scope.launch {
                     delay(duration)
                     onDismiss()
                 }
@@ -86,11 +96,33 @@ object Toast {
                     .padding(top = 20.dp)
             ) {
                 when (toastType.value) {
-                    ToastType.SUCCESS -> SuccessToast(message = message)
-                    ToastType.WARNING -> WarningToast(message = message)
-                    ToastType.ERROR -> ErrorToast(message = message)
+                    ToastType.SUCCESS -> SuccessToast(
+                        message = message,
+                        onDismiss = {
+                            hideToastJob?.cancel()
+                            onDismiss()
+                        }
+                    )
+
+                    ToastType.WARNING -> WarningToast(
+                        message = message,
+                        onDismiss = {
+                            hideToastJob?.cancel()
+                            onDismiss()
+                        }
+                    )
+
+                    ToastType.ERROR -> ErrorToast(
+                        message = message,
+                        onDismiss = {
+                            hideToastJob?.cancel()
+                            onDismiss()
+                        }
+                    )
                 }
             }
+        } ?: run {
+            Spacer(Modifier)
         }
     }
 }
@@ -98,7 +130,10 @@ object Toast {
 @Composable
 fun SuccessToast(
     message: String,
+    onDismiss: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
+
     Box(
         modifier = Modifier
             .wrapContentHeight()
@@ -111,13 +146,27 @@ fun SuccessToast(
                 color = ColorEmerald200,
                 shape = RoundedCornerShape(6.dp)
             )
+            .pointerInput(Unit) {
+                onDismiss?.let {
+                    detectTapGestures(
+                        onTap = { onDismiss() },
+                        onLongPress = {
+                            val clipboardManager =
+                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Toast Message", message)
+                            clipboardManager.setPrimaryClip(clip)
+                            Toast.showSuccess("Copied to Clipboard!")
+                        }
+                    )
+                }
+            }
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .padding(all = 8.dp)
         ) {
             Image(
                 painter = painterResource(id = R.drawable.success_toast_icon),
@@ -141,7 +190,10 @@ fun SuccessToast(
 @Composable
 fun WarningToast(
     message: String,
+    onDismiss: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
+
     Box(
         modifier = Modifier
             .wrapContentHeight()
@@ -154,13 +206,27 @@ fun WarningToast(
                 color = ColorAmber200,
                 shape = RoundedCornerShape(6.dp)
             )
+            .pointerInput(Unit) {
+                onDismiss?.let {
+                    detectTapGestures(
+                        onTap = { onDismiss() },
+                        onLongPress = {
+                            val clipboardManager =
+                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Toast Message", message)
+                            clipboardManager.setPrimaryClip(clip)
+                            Toast.showSuccess("Copied to Clipboard!")
+                        }
+                    )
+                }
+            }
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .padding(all = 8.dp)
         ) {
             Image(
                 painter = painterResource(id = R.drawable.warning_toast_icon),
@@ -184,7 +250,10 @@ fun WarningToast(
 @Composable
 fun ErrorToast(
     message: String,
+    onDismiss: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
+
     Box(
         modifier = Modifier
             .wrapContentHeight()
@@ -197,13 +266,28 @@ fun ErrorToast(
                 color = ColorRose200,
                 shape = RoundedCornerShape(6.dp)
             )
+            .pointerInput(Unit) {
+                onDismiss?.let {
+                    detectTapGestures(
+                        onTap = { onDismiss() },
+                        onLongPress = {
+                            val clipboardManager =
+                                context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            val clip = ClipData.newPlainText("Toast Message", message)
+                            clipboardManager.setPrimaryClip(clip)
+                            Toast.showSuccess("Copied to Clipboard!")
+                        }
+                    )
+                }
+
+            }
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .padding(all = 8.dp)
         ) {
             Image(
                 painter = painterResource(id = R.drawable.error_toast_icon),

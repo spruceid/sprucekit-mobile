@@ -4,6 +4,7 @@ import SwiftUI
 
 struct HandleOID4VP: Hashable {
     var url: String
+    var credentialPackId: String?
 }
 
 enum Oid4vpSignerError: Error {
@@ -84,6 +85,7 @@ struct HandleOID4VPView: View {
     @EnvironmentObject private var credentialPackObservable:
         CredentialPackObservable
     @Binding var path: NavigationPath
+    var credentialPackId: String?
     var url: String
 
     @State private var holder: Holder?
@@ -99,7 +101,12 @@ struct HandleOID4VPView: View {
 
     func presentCredential() async {
         do {
-            credentialPacks = credentialPackObservable.credentialPacks
+            if let id = credentialPackId,
+               let pack = credentialPackObservable.getById(credentialPackId: id) {
+                credentialPacks = [pack]
+            } else {
+                credentialPacks = credentialPackObservable.credentialPacks
+            }
             var credentials: [ParsedCredential] = []
             credentialPacks.forEach { credentialPack in
                 credentials += credentialPack.list()

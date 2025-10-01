@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.ContextCompat
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.Cwt
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
@@ -89,7 +90,8 @@ fun BitmapImage(
 fun checkAndRequestBluetoothPermissions(
     context: Context,
     permissions: Array<String>,
-    launcher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>
+    launcher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>,
+    credentialViewModel: CredentialsViewModel? = null,
 ) {
     if (
         permissions.all {
@@ -100,6 +102,7 @@ fun checkAndRequestBluetoothPermissions(
         }
     ) {
         // Use bluetooth because permissions are already granted
+        credentialViewModel?.setBluetoothPermissionsGranted(true)
     } else {
         // Request permissions
         launcher.launch(permissions)
@@ -252,7 +255,7 @@ fun getCredentialIdTitleAndIssuer(
     val claims =
         credentialPack.findCredentialClaims(listOf("name", "type", "issuer", "issuing_authority"))
 
-    val cred = if (credential != null) {
+    var cred = if (credential != null) {
         claims.entries.firstNotNullOf { claim ->
             if (claim.key == credential.id()) {
                 claim
@@ -280,6 +283,16 @@ fun getCredentialIdTitleAndIssuer(
             } else {
                 null
             }
+        }
+    }
+    // Assume mDL.
+    if (credential?.asMsoMdoc() != null || cred.equals(null)) {
+        cred = claims.entries.firstNotNullOf { claim ->
+            val issuer = claim.value.get("issuing_authority")
+            claim.value.put("issuer", issuer)
+            val title = "Mobile Drivers License"
+            claim.value.put("name", title)
+            claim
         }
     }
 

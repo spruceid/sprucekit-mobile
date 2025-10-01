@@ -4,6 +4,7 @@ import SwiftUI
 
 struct HandleMdocOID4VP: Hashable {
     var url: String
+    var credentialPackId: String?
 }
 
 public enum MdocOID4VPState {
@@ -23,7 +24,10 @@ public class MdocOID4VPError {
 struct HandleMdocOID4VPView: View {
     @EnvironmentObject private var credentialPackObservable:
         CredentialPackObservable
+    @EnvironmentObject private var keyManager: KeyManager
     @Binding var path: NavigationPath
+    var credentialPackId: String?
+    
     var url: String
 
     @State private var handler: Oid4vp180137?
@@ -36,7 +40,12 @@ struct HandleMdocOID4VPView: View {
 
     func presentCredential() async {
         do {
-            credentialPacks = credentialPackObservable.credentialPacks
+            if let id = credentialPackId,
+               let pack = credentialPackObservable.getById(credentialPackId: id) {
+                credentialPacks = [pack]
+            } else {
+                credentialPacks = credentialPackObservable.credentialPacks
+            }
 
             var credentials: [Mdoc] = []
             credentialPacks.forEach { credentialPack in
@@ -50,11 +59,18 @@ struct HandleMdocOID4VPView: View {
             if !credentials.isEmpty {
                 let handlerRef = try Oid4vp180137(
                     credentials: credentials,
-                    keystore: KeyManager()
+                    keystore: keyManager
                 )
                 handler = handlerRef
                 request = try await handlerRef.processRequest(url: url)
-                state = .selectCredential
+                
+                if credentials.count > 1 {
+                    state = .selectCredential
+                } else {
+                    let matches = request!.matches()
+                    selectedMatch = matches[0]
+                    state = .selectiveDisclosure
+                }
             } else {
                 err = MdocOID4VPError(
                     title: "No matching credential(s)",

@@ -1,3 +1,4 @@
+pub mod activity_log;
 pub mod cwt;
 pub mod json_vc;
 pub mod jwt_vc;
@@ -67,6 +68,9 @@ pub struct PresentableCredential {
     pub(crate) inner: ParsedCredentialInner,
     pub(crate) limit_disclosure: bool,
     pub(crate) selected_fields: Option<Vec<String>>,
+    // This is the ID of the input descriptor that matches
+    // the credential being presented.
+    pub(crate) input_descriptor_id: String,
 }
 
 /// A credential that has been parsed as a known variant.
@@ -140,6 +144,50 @@ impl ParsedCredential {
             }
             CredentialFormat::Cwt => {
                 let cwt = Cwt::new_from_base10(credential)?;
+                Ok(ParsedCredential::new_cwt(cwt))
+            }
+            CredentialFormat::Other(_) => Err(
+                CredentialDecodingError::UnsupportedCredentialFormat(format.to_string()),
+            ),
+        }
+    }
+
+    /// This method attempts to parse the credential depending on the credential format type provided, and provides
+    /// an external UUID that can be used instead of creating a new UUID for the credential. This allows external reference
+    /// IDs to parsed credentials.
+    #[uniffi::constructor]
+    pub fn from_string_with_id_and_format(
+        id: Uuid,
+        format: String,
+        credential: String,
+        key_alias: KeyAlias,
+    ) -> Result<Arc<Self>, CredentialDecodingError> {
+        let format = CredentialFormat::from(format);
+
+        match format {
+            CredentialFormat::MsoMdoc => {
+                let mdoc = Mdoc::from_stringified_document(credential, key_alias)?;
+                Ok(ParsedCredential::new_mso_mdoc(mdoc))
+            }
+            CredentialFormat::JwtVcJson => {
+                let jwt_vc = JwtVc::from_compact_jws(id, credential, Some(key_alias))?;
+                Ok(ParsedCredential::new_jwt_vc_json(jwt_vc))
+            }
+            CredentialFormat::JwtVcJsonLd => {
+                let jwt_vc = JwtVc::from_compact_jws(id, credential, Some(key_alias))?;
+                Ok(ParsedCredential::new_jwt_vc_json_ld(jwt_vc))
+            }
+            CredentialFormat::LdpVc => {
+                let json_vc = JsonVc::from_json_with_id_and_key(id, credential, key_alias)?;
+                Ok(ParsedCredential::new_ldp_vc(json_vc))
+            }
+            CredentialFormat::VCDM2SdJwt => {
+                let sd_jwt =
+                    VCDM2SdJwt::from_compact_sd_jwt_with_id_and_key(id, credential, key_alias)?;
+                Ok(ParsedCredential::new_sd_jwt(sd_jwt))
+            }
+            CredentialFormat::Cwt => {
+                let cwt = Cwt::from_base10(id, credential.as_bytes().into())?.into();
                 Ok(ParsedCredential::new_cwt(cwt))
             }
             CredentialFormat::Other(_) => Err(

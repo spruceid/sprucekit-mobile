@@ -24,11 +24,13 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.launch
 
 @Composable
 fun GenerateMockMdlButton(
-    credentialPacksViewModel: CredentialPacksViewModel
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel
 ) {
     val scope = rememberCoroutineScope()
     Box(
@@ -37,7 +39,7 @@ fun GenerateMockMdlButton(
             .padding(bottom = 20.dp)
             .clickable {
                 scope.launch {
-                    generateMockMdl(credentialPacksViewModel)
+                    generateMockMdl(credentialPacksViewModel, walletActivityLogsViewModel)
                 }
             },
     ) {

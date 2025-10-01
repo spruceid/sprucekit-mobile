@@ -8,9 +8,15 @@ use isomdl::{
     definitions::{helpers::Tag24, IssuerSigned, Mso},
     presentation::{device::Document, Stringify},
 };
+use time::format_description::well_known::Iso8601;
 use uuid::Uuid;
 
-use crate::{crypto::KeyAlias, CredentialType};
+use crate::{
+    credential::activity_log::{self, ActivityLog},
+    crypto::KeyAlias,
+    storage_manager::StorageManagerInterface,
+    CredentialType,
+};
 
 use super::{Credential, CredentialFormat};
 
@@ -121,6 +127,23 @@ impl Mdoc {
     pub fn key_alias(&self) -> KeyAlias {
         self.key_alias.clone()
     }
+
+    pub fn invalidation_date(&self) -> Result<String, MdocDateError> {
+        self.inner
+            .mso
+            .validity_info
+            .valid_until
+            .format(&Iso8601::DEFAULT)
+            .map_err(|e| MdocDateError::Formatting(format!("{e:?}")))
+    }
+
+    pub async fn activity_log(
+        &self,
+        storage: Arc<dyn StorageManagerInterface>,
+    ) -> Result<ActivityLog, activity_log::ActivityLogError> {
+        let credential_id = self.document().id;
+        ActivityLog::load(credential_id, storage).await
+    }
 }
 
 impl Mdoc {
@@ -229,6 +252,12 @@ pub enum MdocInitError {
 pub enum MdocEncodingError {
     #[error("failed to encode Document to CBOR")]
     DocumentCborEncoding,
+}
+
+#[derive(Debug, uniffi::Error, thiserror::Error)]
+pub enum MdocDateError {
+    #[error("failed to encode date as ISO 8601: {0}")]
+    Formatting(String),
 }
 
 /// Convert a ciborium value to a serde_json value for display.

@@ -32,6 +32,11 @@ import com.spruceid.mobile.sdk.ui.MRZScanner
 import com.spruceid.mobile.sdk.ui.PDF417Scanner
 import com.spruceid.mobile.sdk.ui.QRCodeScanner
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 
 enum class ScanningType {
@@ -45,6 +50,8 @@ fun ScanningComponent(
     scanningType: ScanningType,
     title: String = "Scan QR Code",
     subtitle: String = "Please align within the guides",
+    backgroundColor: Color = Color.White,
+    hideCancelButton: Boolean = false,
     onRead: (content: String) -> Unit,
     isMatch: (content: String) -> Boolean = { _ -> true },
     onCancel: () -> Unit
@@ -54,9 +61,9 @@ fun ScanningComponent(
     val permissionsState =
         rememberMultiplePermissionsState(
             permissions =
-            listOf(
-                Manifest.permission.CAMERA,
-            ),
+                listOf(
+                    Manifest.permission.CAMERA,
+                ),
         )
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -86,16 +93,21 @@ fun ScanningComponent(
             when (scanningType) {
                 ScanningType.QRCODE -> QRCodeScanner(
                     title = title,
+                    titleColor = ColorStone950,
                     subtitle = subtitle,
+                    subtitleColor = ColorStone600,
                     cancelButtonLabel = "Cancel",
                     onRead = onRead,
                     isMatch = isMatch,
                     onCancel = onCancel,
+                    hideCancelButton = hideCancelButton,
                     fontFamily = Inter,
                     readerColor = Color.White,
-                    guidesColor = Color.White,
-                    textColor = Color.White,
-                    backgroundOpacity = 0.5f
+                    guidesColor = ColorBlue600,
+                    cancelButtonColor = ColorStone950,
+                    cancelButtonBorderColor = ColorStone300,
+                    instructionsDefaultColor = ColorStone500,
+                    backgroundColor = backgroundColor
                 )
 
                 ScanningType.PDF417 -> PDF417Scanner(
@@ -105,11 +117,11 @@ fun ScanningComponent(
                     onRead = onRead,
                     isMatch = isMatch,
                     onCancel = onCancel,
+                    hideCancelButton = hideCancelButton,
                     fontFamily = Inter,
                     readerColor = Color.White,
                     guidesColor = Color.White,
-                    textColor = Color.White,
-                    backgroundOpacity = 0.5f
+                    backgroundOpacity = 0.5f,
                 )
 
                 ScanningType.MRZ -> MRZScanner(
@@ -119,10 +131,10 @@ fun ScanningComponent(
                     onRead = onRead,
                     isMatch = isMatch,
                     onCancel = onCancel,
+                    hideCancelButton = hideCancelButton,
                     fontFamily = Inter,
                     readerColor = Color.White,
                     guidesColor = Color.White,
-                    textColor = Color.White,
                     backgroundOpacity = 0.5f
                 )
             }
@@ -153,14 +165,14 @@ fun ScanningComponent(
                             context.startActivity(intent)
                         },
                         colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = ColorBase150,
-                            contentColor = Color.White,
-                        ),
+                            ButtonDefaults.buttonColors(
+                                containerColor = ColorBase150,
+                                contentColor = Color.White,
+                            ),
                         modifier =
-                        Modifier
-                            .padding(vertical = 2.dp)
-                            .border(2.dp, Color.Transparent, RoundedCornerShape(100.dp)),
+                            Modifier
+                                .padding(vertical = 2.dp)
+                                .border(2.dp, Color.Transparent, RoundedCornerShape(100.dp)),
                     ) {
                         Text(
                             fontFamily = Inter,
@@ -175,10 +187,10 @@ fun ScanningComponent(
                     Button(
                         onClick = onCancel,
                         colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = ColorBase150,
-                        ),
+                            ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = ColorBase150,
+                            ),
                     ) {
                         Text(
                             text = "Cancel",

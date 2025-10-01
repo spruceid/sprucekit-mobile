@@ -183,6 +183,11 @@ struct WalletHomeBody: View {
             Task {
                 statusListObservable.hasConnection = checkInternetConnection()
                 await loadCredentials()
+                do {
+                    try await credentialPackObservable.registerUnregisteredIDProviderDocuments()
+                } catch {
+                    print("Failed to register unregistered id provider documents", error)
+                }
             }
         })
     }

@@ -11,11 +11,9 @@ struct VerificationMethod: Hashable {
 }
 
 class VerificationMethodDataStore {
-
-    static let DIR_ACTIVITY_LOG_DB = "VerificationMethodDB"
-    static let STORE_NAME = "verification_methods.sqlite3"
-
-    private let verificationMethods = Table("verification_methods")
+    private let verificationMethods = Table(
+        DatabaseManager.TABLE_VERIFICATION_METHODS
+    )
 
     private let id = SQLite.Expression<Int64>("id")
     private let type = SQLite.Expression<String>("type")
@@ -26,52 +24,67 @@ class VerificationMethodDataStore {
 
     static let shared = VerificationMethodDataStore()
 
-    private var db: Connection?
-
     private init() {
-        if let docDir = FileManager.default.urls(
-            for: .documentDirectory, in: .userDomainMask
-        ).first {
-            let dirPath = docDir.appendingPathComponent(
-                Self.DIR_ACTIVITY_LOG_DB)
+        createTableIfNotExists()
+        migrateFromOldDatabase()
+    }
 
-            do {
-                try FileManager.default.createDirectory(
-                    atPath: dirPath.path,
-                    withIntermediateDirectories: true,
-                    attributes: nil
-                )
-                let dbPath = dirPath.appendingPathComponent(Self.STORE_NAME)
-                    .path
-                db = try Connection(dbPath)
-                createTable()
-                print("SQLiteDataStore init successfully at: \(dbPath) ")
-            } catch {
-                db = nil
-                print("SQLiteDataStore init error: \(error)")
-            }
-        } else {
-            db = nil
+    private func getDatabase() -> Connection? {
+        return DatabaseManager.shared.getDatabase()
+    }
+
+    private func createTableIfNotExists() {
+        DatabaseManager.shared.createTableIfNotExists(
+            DatabaseManager.TABLE_VERIFICATION_METHODS
+        ) { table in
+            table.column(id, primaryKey: .autoincrement)
+            table.column(type)
+            table.column(name)
+            table.column(description)
+            table.column(verifierName)
+            table.column(url)
         }
     }
 
-    private func createTable() {
-        guard let database = db else {
-            return
-        }
-        do {
-            try database.run(
-                verificationMethods.create { table in
-                    table.column(id, primaryKey: .autoincrement)
-                    table.column(type)
-                    table.column(name)
-                    table.column(description)
-                    table.column(verifierName)
-                    table.column(url)
-                })
-            print("Table Created...")
-        } catch {
-            print(error)
+    private func migrateFromOldDatabase() {
+        let oldDbPath = DatabaseManager.shared.getOldDatabasePath(
+            "VerificationMethodDB/verification_methods.sqlite3"
+        )
+
+        DatabaseManager.shared.migrateFromOldDatabase(
+            oldDbPath,
+            tableName: DatabaseManager.TABLE_VERIFICATION_METHODS
+        ) { oldDb, newDb in
+            let oldTable = Table("verification_methods")
+            let oldId = SQLite.Expression<Int64>("id")
+            let oldType = SQLite.Expression<String>("type")
+            let oldName = SQLite.Expression<String>("name")
+            let oldDescription = SQLite.Expression<String>("description")
+            let oldVerifierName = SQLite.Expression<String>("verifierName")
+            let oldUrl = SQLite.Expression<String>("url")
+
+            let newTable = Table(DatabaseManager.TABLE_VERIFICATION_METHODS)
+            let newId = SQLite.Expression<Int64>("id")
+            let newType = SQLite.Expression<String>("type")
+            let newName = SQLite.Expression<String>("name")
+            let newDescription = SQLite.Expression<String>("description")
+            let newVerifierName = SQLite.Expression<String>("verifierName")
+            let newUrl = SQLite.Expression<String>("url")
+
+            for row in try oldDb.prepare(oldTable) {
+                let insert = newTable.insert(
+                    newId <- row[oldId],
+                    newType <- row[oldType],
+                    newName <- row[oldName],
+                    newDescription <- row[oldDescription],
+                    newVerifierName <- row[oldVerifierName],
+                    newUrl <- row[oldUrl]
+                )
+                try newDb.run(insert)
+            }
+
+            let count = try oldDb.scalar(oldTable.count)
+            print("Verification Methods: Migrated \(count) records")
         }
     }
 
@@ -82,7 +95,7 @@ class VerificationMethodDataStore {
         verifierName: String,
         url: String
     ) -> Int64? {
-        guard let database = db else { return nil }
+        guard let database = getDatabase() else { return nil }
 
         let insert = verificationMethods.insert(
             self.type <- type,
@@ -102,11 +115,12 @@ class VerificationMethodDataStore {
 
     func getAllVerificationMethods() -> [VerificationMethod] {
         var verificationMethods: [VerificationMethod] = []
-        guard let database = db else { return [] }
+        guard let database = getDatabase() else { return [] }
 
         do {
             for verificationMethod in try database.prepare(
-                self.verificationMethods) {
+                self.verificationMethods
+            ) {
                 verificationMethods.append(
                     VerificationMethod(
                         id: verificationMethod[id],
@@ -125,11 +139,12 @@ class VerificationMethodDataStore {
     }
 
     func getVerificationMethod(rowId: Int64) -> VerificationMethod? {
-        guard let database = db else { return nil }
+        guard let database = getDatabase() else { return nil }
 
         do {
             for verificationMethod in try database.prepare(
-                self.verificationMethods) {
+                self.verificationMethods
+            ) {
                 let elemId = verificationMethod[id]
                 if elemId == rowId {
                     return VerificationMethod(
@@ -149,7 +164,7 @@ class VerificationMethodDataStore {
     }
 
     func delete(id: Int64) -> Bool {
-        guard let database = db else {
+        guard let database = getDatabase() else {
             return false
         }
         do {
@@ -163,12 +178,13 @@ class VerificationMethodDataStore {
     }
 
     func deleteAll() -> Bool {
-        guard let database = db else {
+        guard let database = getDatabase() else {
             return false
         }
         do {
             for verificationMethod in try database.prepare(
-                self.verificationMethods)
+                self.verificationMethods
+            )
             where !delete(id: verificationMethod[id]) {
                 return false
             }

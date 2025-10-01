@@ -95,145 +95,93 @@ let DEFAULT_TRUST_ANCHOR_CERTIFICATES = [
 ]
 
 class TrustedCertificatesDataStore {
-
-    static let DIR_ACTIVITY_LOG_DB = "TrustedCertificatesDB"
-    static let STORE_NAME = "trusted_certificates.sqlite3"
-    static let TABLE_NAME = "trusted_certificates"
-
-    private let CURRENT_DB_VERSION = 2  // Increment this when adding new migrations
-    private let trustedCertificates = Table(TABLE_NAME)
-    private let dbVersion = Table("db_version")
+    private let trustedCertificates = Table(
+        DatabaseManager.TABLE_TRUSTED_CERTIFICATES
+    )
 
     private let id = SQLite.Expression<Int64>("id")
     private let name = SQLite.Expression<String>("name")
     private let content = SQLite.Expression<String>("content")
-    private let version = SQLite.Expression<Int>("version")
 
     static let shared = TrustedCertificatesDataStore()
 
-    private var db: Connection?
-
     private init() {
-        if let docDir = FileManager.default.urls(
-            for: .documentDirectory,
-            in: .userDomainMask
-        ).first {
-            let dirPath = docDir.appendingPathComponent(
-                Self.DIR_ACTIVITY_LOG_DB
-            )
+        createTableIfNotExists()
+        migrateFromOldDatabase()
+        insertDefaultCertificates()
+    }
 
-            do {
-                try FileManager.default.createDirectory(
-                    atPath: dirPath.path,
-                    withIntermediateDirectories: true,
-                    attributes: nil
+    private func getDatabase() -> Connection? {
+        return DatabaseManager.shared.getDatabase()
+    }
+
+    private func createTableIfNotExists() {
+        DatabaseManager.shared.createTableIfNotExists(
+            DatabaseManager.TABLE_TRUSTED_CERTIFICATES
+        ) { table in
+            table.column(id, primaryKey: .autoincrement)
+            table.column(name)
+            table.column(content)
+        }
+    }
+
+    private func migrateFromOldDatabase() {
+        let oldDbPath = DatabaseManager.shared.getOldDatabasePath(
+            "TrustedCertificatesDB/trusted_certificates.sqlite3"
+        )
+
+        DatabaseManager.shared.migrateFromOldDatabase(
+            oldDbPath,
+            tableName: DatabaseManager.TABLE_TRUSTED_CERTIFICATES
+        ) { oldDb, newDb in
+            let oldTable = Table("trusted_certificates")
+            let oldId = SQLite.Expression<Int64>("id")
+            let oldName = SQLite.Expression<String>("name")
+            let oldContent = SQLite.Expression<String>("content")
+
+            let newTable = Table(DatabaseManager.TABLE_TRUSTED_CERTIFICATES)
+            let newId = SQLite.Expression<Int64>("id")
+            let newName = SQLite.Expression<String>("name")
+            let newContent = SQLite.Expression<String>("content")
+
+            for row in try oldDb.prepare(oldTable) {
+                let insert = newTable.insert(
+                    newId <- row[oldId],
+                    newName <- row[oldName],
+                    newContent <- row[oldContent]
                 )
-                let dbPath = dirPath.appendingPathComponent(Self.STORE_NAME)
-                    .path
-                db = try Connection(dbPath)
-                createTables()
-                print("SQLiteDataStore init successfully at: \(dbPath) ")
-                checkAndInsertDefaultCertificates()
-            } catch {
-                db = nil
-                print("SQLiteDataStore init error: \(error)")
+                try newDb.run(insert)
             }
-        } else {
-            db = nil
+
+            let count = try oldDb.scalar(oldTable.count)
+            print("Trusted Certificates: Migrated \(count) records")
         }
     }
 
-    private func createTables() {
-        guard let database = db else {
-            return
-        }
-        do {
-            try database.run(
-                trustedCertificates.create(ifNotExists: true) { table in
-                    table.column(id, primaryKey: .autoincrement)
-                    table.column(name)
-                    table.column(content)
-                }
-            )
+    private func insertDefaultCertificates() {
+        guard let database = getDatabase() else { return }
 
-            try database.run(
-                dbVersion.create(ifNotExists: true) { table in
-                    table.column(version)
-                }
-            )
-
-            // Insert initial version if table is empty
-            let count = try database.scalar(dbVersion.count)
-            if count == 0 {
-                MIGRATION_0_2(database)
-            }
-            MIGRATION_2_3(database)
-
-            print("Tables Created...")
-        } catch {
-            print("Error creating tables: \(error)")
-        }
-    }
-
-    // Migration to version 2: Add HACI Prod certificate
-    private func MIGRATION_0_2(_ database: Connection) {
         do {
             let count = try database.scalar(trustedCertificates.count)
+
             if count == 0 {
-                checkAndInsertDefaultCertificates()
-            } else {
-                try database.transaction {
-                    // Insert the new certificate only if it doesn't exist
+                // Insert default certificates
+                for certificate in DEFAULT_TRUST_ANCHOR_CERTIFICATES {
                     let insert = trustedCertificates.insert(
-                        or: .ignore,
-                        name <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD.0,
-                        content
-                            <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_PROD.1
+                        name <- certificate.0,
+                        content <- certificate.1
                     )
                     try database.run(insert)
-
-                    // Update version
-                    try database.run(dbVersion.update(version <- 2))
                 }
-            }
-        } catch {
-            print("Migration 0 -> 2 error: \(error)")
-        }
-    }
 
-    // Migration to version 3: Add HACI Staging certificate
-    private func MIGRATION_2_3(_ database: Connection) {
-        do {
-            try database.transaction {
-                // Insert the new certificate only if it doesn't exist
-                let insert = trustedCertificates.insert(
-                    or: .ignore,
-                    name <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.0,
-                    content
-                        <- DEFAULT_TRUST_ANCHOR_IACA_SPRUCEID_HACI_STAGING.1
+                print(
+                    "Trusted Certificates: Default certificates inserted successfully"
                 )
-                try database.run(insert)
-
-                // Update version
-                try database.run(dbVersion.update(version <- 3))
             }
         } catch {
-            print("Migration 2 -> 3 error: \(error)")
-        }
-    }
-
-    private func checkAndInsertDefaultCertificates() {
-        guard let database = db else { return }
-
-        do {
-            let count = try database.scalar(trustedCertificates.count)
-            if count == 0 {
-                DEFAULT_TRUST_ANCHOR_CERTIFICATES.forEach { certificate in
-                    _ = insert(name: certificate.0, content: certificate.1)
-                }
-            }
-        } catch {
-            print("Error checking certificates: \(error)")
+            print(
+                "Trusted Certificates: Error inserting default certificates: \(error)"
+            )
         }
     }
 
@@ -241,7 +189,7 @@ class TrustedCertificatesDataStore {
         name: String,
         content: String
     ) -> Int64? {
-        guard let database = db else { return nil }
+        guard let database = getDatabase() else { return nil }
 
         let insert = trustedCertificates.insert(
             self.name <- name,
@@ -258,7 +206,7 @@ class TrustedCertificatesDataStore {
 
     func getAllCertificates() -> [TrustedCertificate] {
         var certificates: [TrustedCertificate] = []
-        guard let database = db else { return [] }
+        guard let database = getDatabase() else { return [] }
 
         do {
             for certificate in try database.prepare(
@@ -279,7 +227,7 @@ class TrustedCertificatesDataStore {
     }
 
     func getCertificate(rowId: Int64) -> TrustedCertificate? {
-        guard let database = db else { return nil }
+        guard let database = getDatabase() else { return nil }
 
         do {
             for certificate in try database.prepare(
@@ -301,7 +249,7 @@ class TrustedCertificatesDataStore {
     }
 
     func delete(id: Int64) -> Bool {
-        guard let database = db else {
+        guard let database = getDatabase() else {
             return false
         }
         do {
@@ -315,7 +263,7 @@ class TrustedCertificatesDataStore {
     }
 
     func deleteAll() -> Bool {
-        guard let database = db else {
+        guard let database = getDatabase() else {
             return false
         }
         do {

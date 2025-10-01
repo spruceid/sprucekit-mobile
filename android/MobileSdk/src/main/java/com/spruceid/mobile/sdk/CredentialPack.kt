@@ -357,7 +357,7 @@ class CredentialPack {
         suspend fun clearPacks(storage: StorageManagerInterface) {
             try {
                 storage.list()
-                    .filter { it.startsWith(CredentialPackContents.STORAGE_PREFIX) }
+                    .filter { it.contains(CredentialPackContents.STORAGE_PREFIX) }
                     .forEach { storage.remove(it) }
             } catch (e: Exception) {
                 throw ClearingException("unable to clear CredentialPacks", e)
@@ -375,7 +375,7 @@ class CredentialPack {
             try {
                 contents =
                     storage.list()
-                        .filter { it.startsWith(CredentialPackContents.STORAGE_PREFIX) }
+                        .filter { it.contains(CredentialPackContents.STORAGE_PREFIX) }
                         .mapNotNull { storage.get(it) }
                         .map { CredentialPackContents(it) }
             } catch (e: Exception) {

@@ -53,7 +53,7 @@ struct VerifierCredentialSuccessView: View {
         .onAppear(perform: {
             Task {
                 do {
-                    self.credentialPack = try addCredential(
+                    self.credentialPack = try await addCredential(
                         credentialPack: CredentialPack(),
                         rawCredential: rawCredential)
 

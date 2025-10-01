@@ -41,26 +41,34 @@ import java.util.EnumMap
 @Composable
 fun PDF417Scanner(
     title: String = "Scan QR Code",
+    titleColor: Color = Color.White,
     subtitle: String = "Please align within the guides",
+    subtitleColor: Color = Color.White,
     cancelButtonLabel: String = "Cancel",
+    cancelButtonColor: Color = Color.White,
+    cancelButtonBorderColor: Color = Color.White,
+    hideCancelButton: Boolean = false,
     onRead: (content: String) -> Unit,
-    isMatch: (content: String) -> Boolean = {_ -> true},
+    isMatch: (content: String) -> Boolean = { _ -> true },
     onCancel: () -> Unit,
     fontFamily: FontFamily = FontFamily.Default,
     guidesColor: Color = Color.White,
     readerColor: Color = Color.White,
-    textColor: Color = Color.White,
     backgroundOpacity: Float = 0.5f,
 ) {
 
     GenericCameraXScanner(
         title = title,
+        titleColor = titleColor,
         subtitle = subtitle,
+        subtitleColor = subtitleColor,
         cancelButtonLabel = cancelButtonLabel,
+        cancelButtonColor = cancelButtonColor,
+        cancelButtonBorderColor = cancelButtonBorderColor,
         onCancel = onCancel,
+        hideCancelButton = hideCancelButton,
         fontFamily = fontFamily,
-        textColor = textColor,
-        imageAnalyzer =  PDF417Analyzer(
+        imageAnalyzer = PDF417Analyzer(
             isMatch = isMatch,
             onQrCodeScanned = { result ->
                 onRead(result)
@@ -77,7 +85,7 @@ fun PDF417Scanner(
 
 class PDF417Analyzer(
     private val onQrCodeScanned: (String) -> Unit,
-    private val isMatch: (content: String) -> Boolean = {_ -> true},
+    private val isMatch: (content: String) -> Boolean = { _ -> true },
 ) : ImageAnalysis.Analyzer {
 
     private val supportedImageFormats = mutableListOf(ImageFormat.YUV_420_888)
@@ -145,10 +153,10 @@ fun PDF417ScannerBackground(
         initialValue = canvasSize.height * .35f,
         targetValue = canvasSize.height * .35f + canvasSize.width * .6f,
         animationSpec =
-        infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
+            infiniteRepeatable(
+                animation = tween(1000, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
         "QR code line animation",
     )
 

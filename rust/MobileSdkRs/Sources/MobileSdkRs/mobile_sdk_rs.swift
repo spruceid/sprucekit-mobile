@@ -569,162 +569,6 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 
 
 
-public protocol ApduHandoverDriverProtocol: AnyObject, Sendable {
-    
-    func getCarrierInfo()  -> NegotiatedCarrierInfo?
-    
-    func processApdu(command: Data)  -> Data
-    
-    func regenerateStaticBleKeys() throws 
-    
-    func reset() 
-    
-}
-open class ApduHandoverDriver: ApduHandoverDriverProtocol, @unchecked Sendable {
-    fileprivate let pointer: UnsafeMutableRawPointer!
-
-    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoPointer {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
-        self.pointer = pointer
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noPointer: NoPointer) {
-        self.pointer = nil
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
-        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_apduhandoverdriver(self.pointer, $0) }
-    }
-public convenience init(negotiated: Bool)throws  {
-    let pointer =
-        try rustCallWithError(FfiConverterTypeApduHandoverInitError_lift) {
-    uniffi_mobile_sdk_rs_fn_constructor_apduhandoverdriver_new(
-        FfiConverterBool.lower(negotiated),$0
-    )
-}
-    self.init(unsafeFromRawPointer: pointer)
-}
-
-    deinit {
-        guard let pointer = pointer else {
-            return
-        }
-
-        try! rustCall { uniffi_mobile_sdk_rs_fn_free_apduhandoverdriver(pointer, $0) }
-    }
-
-    
-
-    
-open func getCarrierInfo() -> NegotiatedCarrierInfo?  {
-    return try!  FfiConverterOptionTypeNegotiatedCarrierInfo.lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_apduhandoverdriver_get_carrier_info(self.uniffiClonePointer(),$0
-    )
-})
-}
-    
-open func processApdu(command: Data) -> Data  {
-    return try!  FfiConverterData.lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_apduhandoverdriver_process_apdu(self.uniffiClonePointer(),
-        FfiConverterData.lower(command),$0
-    )
-})
-}
-    
-open func regenerateStaticBleKeys()throws   {try rustCallWithError(FfiConverterTypeApduHandoverInitError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_apduhandoverdriver_regenerate_static_ble_keys(self.uniffiClonePointer(),$0
-    )
-}
-}
-    
-open func reset()  {try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_apduhandoverdriver_reset(self.uniffiClonePointer(),$0
-    )
-}
-}
-    
-
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeApduHandoverDriver: FfiConverter {
-
-    typealias FfiType = UnsafeMutableRawPointer
-    typealias SwiftType = ApduHandoverDriver
-
-    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> ApduHandoverDriver {
-        return ApduHandoverDriver(unsafeFromRawPointer: pointer)
-    }
-
-    public static func lower(_ value: ApduHandoverDriver) -> UnsafeMutableRawPointer {
-        return value.uniffiClonePointer()
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ApduHandoverDriver {
-        let v: UInt64 = try readInt(&buf)
-        // The Rust code won't compile if a pointer won't fit in a UInt64.
-        // We have to go via `UInt` because that's the thing that's the size of a pointer.
-        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
-        if (ptr == nil) {
-            throw UniffiInternalError.unexpectedNullPointer
-        }
-        return try lift(ptr!)
-    }
-
-    public static func write(_ value: ApduHandoverDriver, into buf: inout [UInt8]) {
-        // This fiddling is because `Int` is the thing that's the same size as a pointer.
-        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
-        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeApduHandoverDriver_lift(_ pointer: UnsafeMutableRawPointer) throws -> ApduHandoverDriver {
-    return try FfiConverterTypeApduHandoverDriver.lift(pointer)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeApduHandoverDriver_lower(_ value: ApduHandoverDriver) -> UnsafeMutableRawPointer {
-    return FfiConverterTypeApduHandoverDriver.lower(value)
-}
-
-
-
-
-
-
 public protocol AsyncHttpClient: AnyObject, Sendable {
     
     func httpClient(request: HttpRequest) async throws  -> HttpResponse
@@ -4842,10 +4686,9 @@ public protocol MdlPresentationSessionProtocol: AnyObject, Sendable {
     func getBleIdent()  -> Data
     
     /**
-     * Returns the generated QR code URI formatted from the device
-     * engagement.
+     * Returns the generated QR code
      */
-    func getQrHandover() throws  -> String
+    func getQrCodeUri()  -> String
     
     /**
      * Handle a request from a reader that is seeking information from the mDL holder.
@@ -4946,12 +4789,11 @@ open func getBleIdent() -> Data  {
 }
     
     /**
-     * Returns the generated QR code URI formatted from the device
-     * engagement.
+     * Returns the generated QR code
      */
-open func getQrHandover()throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeSessionError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_get_qr_handover(self.uniffiClonePointer(),$0
+open func getQrCodeUri() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_get_qr_code_uri(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -5247,128 +5089,6 @@ public func FfiConverterTypeMdoc_lift(_ pointer: UnsafeMutableRawPointer) throws
 #endif
 public func FfiConverterTypeMdoc_lower(_ value: Mdoc) -> UnsafeMutableRawPointer {
     return FfiConverterTypeMdoc.lower(value)
-}
-
-
-
-
-
-
-public protocol NegotiatedCarrierInfoProtocol: AnyObject, Sendable {
-    
-    func getUuid()  -> Uuid
-    
-}
-open class NegotiatedCarrierInfo: NegotiatedCarrierInfoProtocol, @unchecked Sendable {
-    fileprivate let pointer: UnsafeMutableRawPointer!
-
-    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoPointer {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
-        self.pointer = pointer
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noPointer: NoPointer) {
-        self.pointer = nil
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
-        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_negotiatedcarrierinfo(self.pointer, $0) }
-    }
-    // No primary constructor declared for this class.
-
-    deinit {
-        guard let pointer = pointer else {
-            return
-        }
-
-        try! rustCall { uniffi_mobile_sdk_rs_fn_free_negotiatedcarrierinfo(pointer, $0) }
-    }
-
-    
-
-    
-open func getUuid() -> Uuid  {
-    return try!  FfiConverterTypeUuid_lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_negotiatedcarrierinfo_get_uuid(self.uniffiClonePointer(),$0
-    )
-})
-}
-    
-
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeNegotiatedCarrierInfo: FfiConverter {
-
-    typealias FfiType = UnsafeMutableRawPointer
-    typealias SwiftType = NegotiatedCarrierInfo
-
-    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> NegotiatedCarrierInfo {
-        return NegotiatedCarrierInfo(unsafeFromRawPointer: pointer)
-    }
-
-    public static func lower(_ value: NegotiatedCarrierInfo) -> UnsafeMutableRawPointer {
-        return value.uniffiClonePointer()
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NegotiatedCarrierInfo {
-        let v: UInt64 = try readInt(&buf)
-        // The Rust code won't compile if a pointer won't fit in a UInt64.
-        // We have to go via `UInt` because that's the thing that's the size of a pointer.
-        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
-        if (ptr == nil) {
-            throw UniffiInternalError.unexpectedNullPointer
-        }
-        return try lift(ptr!)
-    }
-
-    public static func write(_ value: NegotiatedCarrierInfo, into buf: inout [UInt8]) {
-        // This fiddling is because `Int` is the thing that's the same size as a pointer.
-        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
-        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNegotiatedCarrierInfo_lift(_ pointer: UnsafeMutableRawPointer) throws -> NegotiatedCarrierInfo {
-    return try FfiConverterTypeNegotiatedCarrierInfo.lift(pointer)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeNegotiatedCarrierInfo_lower(_ value: NegotiatedCarrierInfo) -> UnsafeMutableRawPointer {
-    return FfiConverterTypeNegotiatedCarrierInfo.lower(value)
 }
 
 
@@ -11175,78 +10895,6 @@ public func FfiConverterTypeStatusMessage_lower(_ value: StatusMessage) -> RustB
     return FfiConverterTypeStatusMessage.lower(value)
 }
 
-
-public enum ApduHandoverInitError: Swift.Error {
-
-    
-    
-    case KeyGenFailed
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeApduHandoverInitError: FfiConverterRustBuffer {
-    typealias SwiftType = ApduHandoverInitError
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ApduHandoverInitError {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-
-        
-
-        
-        case 1: return .KeyGenFailed
-
-         default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: ApduHandoverInitError, into buf: inout [UInt8]) {
-        switch value {
-
-        
-
-        
-        
-        case .KeyGenFailed:
-            writeInt(&buf, Int32(1))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeApduHandoverInitError_lift(_ buf: RustBuffer) throws -> ApduHandoverInitError {
-    return try FfiConverterTypeApduHandoverInitError.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeApduHandoverInitError_lower(_ value: ApduHandoverInitError) -> RustBuffer {
-    return FfiConverterTypeApduHandoverInitError.lower(value)
-}
-
-
-extension ApduHandoverInitError: Equatable, Hashable {}
-
-
-
-
-extension ApduHandoverInitError: Foundation.LocalizedError {
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
-}
-
-
-
-
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -12621,90 +12269,6 @@ public func FfiConverterTypeDelegatedVerifierStatus_lower(_ value: DelegatedVeri
 
 
 extension DelegatedVerifierStatus: Equatable, Hashable {}
-
-
-
-
-
-
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-/**
- * Device Engagement Data Represents data required to initialize a specific type of device engagement.
- *
- * See: [`DeviceEngagementType`]
- */
-
-public enum DeviceEngagementData {
-    
-    /**
-     * Indicates the device engagement will be via QR code
-     */
-    case qr(Uuid
-    )
-    /**
-     * Indicates the device engagement will be via Near Field Communication (NFC)
-     */
-    case nfc(NegotiatedCarrierInfo
-    )
-}
-
-
-#if compiler(>=6)
-extension DeviceEngagementData: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeDeviceEngagementData: FfiConverterRustBuffer {
-    typealias SwiftType = DeviceEngagementData
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DeviceEngagementData {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .qr(try FfiConverterTypeUuid.read(from: &buf)
-        )
-        
-        case 2: return .nfc(try FfiConverterTypeNegotiatedCarrierInfo.read(from: &buf)
-        )
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: DeviceEngagementData, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case let .qr(v1):
-            writeInt(&buf, Int32(1))
-            FfiConverterTypeUuid.write(v1, into: &buf)
-            
-        
-        case let .nfc(v1):
-            writeInt(&buf, Int32(2))
-            FfiConverterTypeNegotiatedCarrierInfo.write(v1, into: &buf)
-            
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDeviceEngagementData_lift(_ buf: RustBuffer) throws -> DeviceEngagementData {
-    return try FfiConverterTypeDeviceEngagementData.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeDeviceEngagementData_lower(_ value: DeviceEngagementData) -> RustBuffer {
-    return FfiConverterTypeDeviceEngagementData.lower(value)
-}
 
 
 
@@ -15965,10 +15529,6 @@ public enum SessionError: Swift.Error {
     
     case Generic(value: String
     )
-    case BleDeviceRetrieval(String
-    )
-    case NfcRecord(String
-    )
 }
 
 
@@ -15988,12 +15548,6 @@ public struct FfiConverterTypeSessionError: FfiConverterRustBuffer {
         case 1: return .Generic(
             value: try FfiConverterString.read(from: &buf)
             )
-        case 2: return .BleDeviceRetrieval(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 3: return .NfcRecord(
-            try FfiConverterString.read(from: &buf)
-            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -16009,16 +15563,6 @@ public struct FfiConverterTypeSessionError: FfiConverterRustBuffer {
         case let .Generic(value):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(value, into: &buf)
-            
-        
-        case let .BleDeviceRetrieval(v1):
-            writeInt(&buf, Int32(2))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
-        case let .NfcRecord(v1):
-            writeInt(&buf, Int32(3))
-            FfiConverterString.write(v1, into: &buf)
             
         }
     }
@@ -17618,30 +17162,6 @@ fileprivate struct FfiConverterOptionTypeMdoc: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeMdoc.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterOptionTypeNegotiatedCarrierInfo: FfiConverterRustBuffer {
-    typealias SwiftType = NegotiatedCarrierInfo?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterTypeNegotiatedCarrierInfo.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterTypeNegotiatedCarrierInfo.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -19386,11 +18906,11 @@ public func handleResponse(state: MdlSessionManager, response: Data)throws  -> M
  * String containing the BLE ident.
 
  */
-public func initializeMdlPresentation(mdocId: Uuid, engagement: DeviceEngagementData, storageManager: StorageManagerInterface)async throws  -> MdlPresentationSession  {
+public func initializeMdlPresentation(mdocId: Uuid, uuid: Uuid, storageManager: StorageManagerInterface)async throws  -> MdlPresentationSession  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_func_initialize_mdl_presentation(FfiConverterTypeUuid_lower(mdocId),FfiConverterTypeDeviceEngagementData_lower(engagement),FfiConverterTypeStorageManagerInterface_lower(storageManager)
+                uniffi_mobile_sdk_rs_fn_func_initialize_mdl_presentation(FfiConverterTypeUuid_lower(mdocId),FfiConverterTypeUuid_lower(uuid),FfiConverterTypeStorageManagerInterface_lower(storageManager)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
@@ -19417,11 +18937,11 @@ public func initializeMdlPresentation(mdocId: Uuid, engagement: DeviceEngagement
  * String containing the BLE ident.
 
  */
-public func initializeMdlPresentationFromBytes(mdoc: Mdoc, engagement: DeviceEngagementData)throws  -> MdlPresentationSession  {
+public func initializeMdlPresentationFromBytes(mdoc: Mdoc, uuid: Uuid)throws  -> MdlPresentationSession  {
     return try  FfiConverterTypeMdlPresentationSession_lift(try rustCallWithError(FfiConverterTypeSessionError_lift) {
     uniffi_mobile_sdk_rs_fn_func_initialize_mdl_presentation_from_bytes(
         FfiConverterTypeMdoc_lower(mdoc),
-        FfiConverterTypeDeviceEngagementData_lower(engagement),$0
+        FfiConverterTypeUuid_lower(uuid),$0
     )
 })
 }
@@ -19618,10 +19138,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 54017) {
+    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 29387) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 29548) {
+    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 26972) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_list_sd_fields() != 63228) {
@@ -19658,18 +19178,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_verify_vcb_qrcode_against_mrz() != 36527) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_apduhandoverdriver_get_carrier_info() != 50008) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_apduhandoverdriver_process_apdu() != 58281) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_apduhandoverdriver_regenerate_static_ble_keys() != 65248) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_apduhandoverdriver_reset() != 39997) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_asynchttpclient_http_client() != 44924) {
@@ -19819,7 +19327,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_get_ble_ident() != 25991) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_get_qr_handover() != 50505) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_get_qr_code_uri() != 36281) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_handle_request() != 21650) {
@@ -19841,9 +19349,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 39341) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_negotiatedcarrierinfo_get_uuid() != 62502) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vp180137_process_request() != 48065) {
@@ -20087,9 +19592,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_nonce() != 12116) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_apduhandoverdriver_new() != 15780) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 20735) {

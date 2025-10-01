@@ -7,11 +7,11 @@ func credentialDisplayerSelector(
     rawCredential: String,
     goTo: (() -> Void)? = nil,
     onDelete: (() -> Void)? = nil
-) throws
+) async throws
     -> any ICredentialView
 {
     return GenericCredentialItem(
-        credentialPack: try addCredential(
+        credentialPack: try await addCredential(
             credentialPack: CredentialPack(),
             rawCredential: rawCredential
         ),
@@ -32,7 +32,7 @@ func credentialDisplayerSelector(
     )
 }
 
-func addCredential(credentialPack: CredentialPack, rawCredential: String) throws
+func addCredential(credentialPack: CredentialPack, rawCredential: String) async throws
     -> CredentialPack
 {
     if (try? credentialPack.addJwtVc(
@@ -47,12 +47,12 @@ func addCredential(credentialPack: CredentialPack, rawCredential: String) throws
     } else if (try? credentialPack.addCwt(
         cwt: Cwt.newFromBase10(payload: rawCredential))) != nil
     {
-    } else if (try? credentialPack.addMDoc(
+    } else if (try? await credentialPack.addMDoc(
         mdoc: Mdoc.fromStringifiedDocument(
             stringifiedDocument: rawCredential, keyAlias: UUID().uuidString)))
         != nil
     {
-    } else if (try? credentialPack.addMDoc(
+    } else if (try? await credentialPack.addMDoc(
         mdoc: Mdoc.newFromBase64urlEncodedIssuerSigned(
             base64urlEncodedIssuerSigned: rawCredential,
             keyAlias: UUID().uuidString)))
@@ -143,21 +143,21 @@ func getCredentialIdTitleAndIssuer(
                 || credential?.asJsonVc() != nil
                 || credential?.asSdJwt() != nil
         })
-        // Mdoc
-        if cred == nil {
-            cred =
-                claims
-                .first(where: {
-                    return credentialPack.get(credentialId: $0.key)?.asMsoMdoc()
-                        != nil
-                }).map { claim in
-                    var tmpClaim = claim
-                    tmpClaim.value["issuer"] = claim.value["issuing_authority"]
-                    tmpClaim.value["name"] = GenericJSON.string(
-                        "Mobile Drivers License")
-                    return tmpClaim
-                }
-        }
+    }
+    // Mdoc
+    if credential?.asMsoMdoc() != nil || cred == nil{
+        cred =
+            claims
+            .first(where: {
+                return credentialPack.get(credentialId: $0.key)?.asMsoMdoc()
+                    != nil
+            }).map { claim in
+                var tmpClaim = claim
+                tmpClaim.value["issuer"] = claim.value["issuing_authority"]
+                tmpClaim.value["name"] = GenericJSON.string(
+                    "Mobile Drivers License")
+                return tmpClaim
+            }
     }
 
     let credentialKey = cred.map { $0.key } ?? ""

@@ -88,81 +88,90 @@ fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> U
     val currentState by credentialViewModel.currState.collectAsState()
     val credentials by credentialViewModel.credentials.collectAsState()
     val error by credentialViewModel.error.collectAsState()
+    val bluetoothPermissionsGranted by credentialViewModel.bluetoothPermissionsGranted.collectAsState()
 
     var isBluetoothEnabled by remember {
         mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
     }
+    val launcherMultiplePermissions = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissionsMap ->
+        if (permissionsMap.isNotEmpty()){
+            val areGranted = permissionsMap.values.all { it }
+            credentialViewModel.setBluetoothPermissionsGranted(areGranted);
 
-    val launcherMultiplePermissions =
-            rememberLauncherForActivityResult(
-                    ActivityResultContracts.RequestMultiplePermissions()
-            ) { permissionsMap ->
-                val areGranted = permissionsMap.values.reduce { acc, next -> acc && next }
-                if (!areGranted) {
-                    // @TODO: Show dialog
-                }
+            if (!areGranted) {
+                // @TODO: Show dialog
             }
-
-    DisposableEffect(Unit) {
-        val receiver =
-                object : BroadcastReceiver() {
-                    override fun onReceive(context: Context?, intent: Intent?) {
-                        if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
-                            val state =
-                                    intent.getIntExtra(
-                                            BluetoothAdapter.EXTRA_STATE,
-                                            BluetoothAdapter.ERROR
-                                    )
-                            when (state) {
-                                BluetoothAdapter.STATE_OFF -> isBluetoothEnabled = false
-                                BluetoothAdapter.STATE_ON -> isBluetoothEnabled = true
-                                else -> {}
-                            }
-                        }
-                    }
-                }
-        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
-        context.registerReceiver(receiver, filter)
-        onDispose { context.unregisterReceiver(receiver) }
+        }
     }
 
-    LaunchedEffect(key1 = isBluetoothEnabled) {
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                    val state =
+                        intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    when (state) {
+                        BluetoothAdapter.STATE_OFF -> isBluetoothEnabled = false
+                        BluetoothAdapter.STATE_ON -> isBluetoothEnabled = true
+                        else -> {}
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        context.registerReceiver(receiver, filter)
+        onDispose {
+            context.unregisterReceiver(receiver)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            credentialViewModel.setBluetoothPermissionsGranted(false)
+        }
+    }
+
+    LaunchedEffect(Unit) {
         checkAndRequestBluetoothPermissions(
-                context,
-                getPermissions().toTypedArray(),
-                launcherMultiplePermissions
+            context,
+            getPermissions().toTypedArray(),
+            launcherMultiplePermissions,
+            credentialViewModel
         )
-        if (isBluetoothEnabled) {
+    }
+    LaunchedEffect(key1 = bluetoothPermissionsGranted) {
+        if (isBluetoothEnabled && bluetoothPermissionsGranted) {
             credentialViewModel.present(getBluetoothManager(context)!!, CredentialPresentData.Qr())
         }
     }
 
     when (currentState) {
         PresentmentState.UNINITIALIZED ->
-                if (credentials.isNotEmpty()) {
-                    if (!isBluetoothEnabled) {
-                        Text(
-                                text = "Enable Bluetooth to initialize",
-                                fontFamily = Inter,
-                                fontWeight = FontWeight.Normal,
-                                fontSize = 16.sp,
-                                modifier = Modifier.padding(vertical = 20.dp)
-                        )
-                    }
+            if (credentials.isNotEmpty()) {
+                if (!isBluetoothEnabled) {
+                    Text(
+                        text = "Enable Bluetooth to initialize",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(vertical = 20.dp)
+                    )
                 }
+            }
         PresentmentState.ENGAGING_NFC_SEARCHING -> {
             // Unreachable
         }
         PresentmentState.ENGAGING_QR_CODE -> {
             if (session!!.getQrHandover().isNotEmpty()) {
                 Image(
-                        painter =
-                                rememberQrBitmapPainter(
-                                        session!!.getQrHandover(),
-                                        300.dp,
-                                ),
-                        contentDescription = "Share QRCode",
-                        contentScale = ContentScale.FillBounds,
+                    painter = rememberQrBitmapPainter(
+                        session!!.getQrHandover(),
+                        300.dp,
+                    ),
+                    contentDescription = "Share QRCode",
+                    contentScale = ContentScale.FillBounds,
                 )
             }
         }
@@ -228,7 +237,7 @@ fun NfcShareMdocView(
 
         NfcListenManager.userRequested = true
         NfcPresentationService.shareScreenCallback = { carrierInfo: NegotiatedCarrierInfo ->
-            if(isBluetoothEnabled) {
+            if(isBluetoothEnabled && bluetoothPermissionsGranted) {
                 credentialViewModel.viewModelScope.launch {
                     credentialViewModel.present(
                         getBluetoothManager(context)!!,
@@ -263,11 +272,12 @@ fun NfcShareMdocView(
         }
     }
 
-    LaunchedEffect(key1 = isBluetoothEnabled) {
+    LaunchedEffect(Unit) {
         checkAndRequestBluetoothPermissions(
             context,
             getPermissions().toTypedArray(),
-            launcherMultiplePermissions
+            launcherMultiplePermissions,
+            credentialViewModel
         )
     }
 
