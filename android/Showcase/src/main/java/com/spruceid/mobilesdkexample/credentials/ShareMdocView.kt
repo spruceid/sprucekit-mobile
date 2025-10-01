@@ -71,12 +71,6 @@ import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 import kotlinx.coroutines.*
 
 @Composable
-@Deprecated("Specify QrShareMdocView or NfcShareMdocView", ReplaceWith("QrShareMdocView(credentialViewModel, onCancel)"))
-fun ShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> Unit) {
-    QrShareMdocView(credentialViewModel, onCancel)
-}
-
-@Composable
 fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> Unit) {
     val context = LocalContext.current
 
@@ -156,9 +150,6 @@ fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> U
                     )
                 }
             }
-        PresentmentState.ENGAGING_NFC_SEARCHING -> {
-            // Unreachable
-        }
         PresentmentState.ENGAGING_QR_CODE -> {
             if (session!!.getQrHandover().isNotEmpty()) {
                 Image(
@@ -294,10 +285,16 @@ fun NfcShareMdocView(
                         fontSize = 16.sp,
                         modifier = Modifier.padding(vertical = 20.dp)
                     )
+                } else {
+                    Text(
+                        text = "Please tap the device against a reader.",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(vertical = 20.dp)
+                    )
                 }
             }
-        PresentmentState.ENGAGING_NFC_SEARCHING -> {
-        }
         PresentmentState.ENGAGING_QR_CODE -> {
             // Unreachable
         }

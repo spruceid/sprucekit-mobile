@@ -178,7 +178,7 @@ fun CredentialDetailsView(
             )
             tmpTabs.add(
                 CredentialDetailsViewTabs(
-                    { painterResource(id = R.drawable.error_toast_icon) },
+                    { painterResource(id = R.drawable.wallet) }, // TODO: Proper icon
                     { stringResource(id = R.string.details_share_nfc) }
                 )
             )
@@ -486,7 +486,7 @@ fun GenericCredentialDetailsShareNFC(credentialPack: CredentialPack) {
             )
         }
         Text(
-            text = "Tap this phone against a reader to share data. You will see a consent dialogue.",
+            text = "After tapping your device against the reader, you will see a consent dialogue.",
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .padding(horizontal = 24.dp)

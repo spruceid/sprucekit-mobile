@@ -131,7 +131,7 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
                 val uuidStr = presentData.negotiatedCarrierInfo.getUuid()
                 _uuid.value = UUID.fromString(uuidStr)
                 _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Nfc(presentData.negotiatedCarrierInfo))
-                _currState.value = PresentmentState.ENGAGING_NFC_SEARCHING
+                _currState.value = PresentmentState.UNINITIALIZED
             }
             is CredentialPresentData.Qr -> {
                 _uuid.value = UUID.randomUUID()
