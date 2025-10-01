@@ -26,7 +26,6 @@ targets:
         product: SpruceIDMobileSdkRs
       - package: SwiftAlgorithms
         product: Algorithms
-      - sdk: CoreNFC.framework
     scheme:
       testTargets:
         - MobileSdkTests

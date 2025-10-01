@@ -26,10 +26,6 @@ targets:
     supportedDestinations: [iOS]
     platform: iOS
     deploymentTarget: "16.4"
-    entitlements:
-      path: App.entitlements
-      properties:
-        com.apple.developer.nfc.readersession.formats: [TAG, NDEF]
     sources:
       - path: "Targets/App/Sources"
         createIntermediateGroups: true
@@ -72,7 +68,6 @@ targets:
               - mdoc-openid4vp
         NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
         NSCameraUsageDescription: "We need to access your camera for scanning"
-        NFCReaderUsageDescription: "This app uses NFC to read device engagement data for secure credential presentation."
         ITSAppUsesNonExemptEncryption: "NO"
         LSRequiresIPhoneOS: true
         UIApplicationSceneManifest:

@@ -10,7 +10,8 @@ struct CredentialDetailsViewTab {
 }
 
 struct CredentialDetailsView: View {
-    @EnvironmentObject private var credentialPackObservable: CredentialPackObservable
+    @EnvironmentObject private var credentialPackObservable:
+        CredentialPackObservable
     @EnvironmentObject private var statusListObservable: StatusListObservable
     @Binding var path: NavigationPath
     let credentialPackId: String
@@ -49,7 +50,6 @@ struct CredentialDetailsView: View {
             }
             .padding([.horizontal, .bottom], 20)
             .padding(.top, 40)
-
             VStack {
                 Divider()
                 TabView(selection: $selectedTab) {
@@ -57,107 +57,92 @@ struct CredentialDetailsView: View {
                         Array(credentialDetailsViewTabs.enumerated()),
                         id: \.offset
                     ) { index, _ in
-                        tabContent(for: index)
+                        if index == 0 {  // Details
+                            VStack {
+                                if credentialItem != nil {
+                                    if CredentialStatusList.revoked
+                                        != statusListObservable.statusLists[
+                                            credentialPackId] {
+                                        AnyView(
+                                            self.credentialItem!
+                                                .credentialDetails())
+                                    } else {
+                                        AnyView(
+                                            self.credentialItem!
+                                                .credentialRevokedInfo(
+                                                    onClose: {
+                                                        onBack()
+                                                    }))
+                                    }
+                                }
+                            }
                             .tag(index)
+
+                        } else if index == 1, let credPack = credentialPack {  // Share
+                            ShareMdocView(credentialPack: credPack)
+                            .tag(index)
+                        }
                     }
                 }
                 .background(Color("ColorBase50"))
                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-
                 if credentialDetailsViewTabs.count > 1 {
-                    tabIndicators
+                    HStack {
+                        Spacer()
+                        ForEach(
+                            Array(credentialDetailsViewTabs.enumerated()),
+                            id: \.offset
+                        ) { index, tab in
+                            Button(action: { selectedTab = index }) {
+                                Image(tab.image)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .foregroundColor(
+                                        selectedTab == index
+                                            ? Color("ColorBlue600")
+                                            : Color("ColorBase600")
+                                    )
+                                    .overlay(
+                                        Rectangle()
+                                            .frame(height: 4)
+                                            .foregroundColor(
+                                                selectedTab == index
+                                                    ? Color("ColorBlue600")
+                                                    : Color("ColorBase50")
+                                            )
+                                            .offset(y: -4),
+                                        alignment: .top
+                                    )
+                            }
+                            .padding(.horizontal, 12)
+                        }
+                        Spacer()
+                    }
+                    .frame(height: 50)
+                    .padding(.bottom, 20)
                 }
             }
             .background(Color("ColorBase50"))
         }
         .onAppear {
-            setupCredentialData()
+            self.credentialPack =
+                credentialPackObservable.getById(
+                    credentialPackId: credentialPackId) ?? CredentialPack()
+            if credentialPackHasMdoc(credentialPack: credentialPack!) {
+                credentialDetailsViewTabs.append(
+                    CredentialDetailsViewTab(image: "QRCode")
+                )
+            }
+            credentialTitle =
+                getCredentialIdTitleAndIssuer(credentialPack: credentialPack!).1
+            Task {
+                await statusListObservable.fetchAndUpdateStatus(
+                    credentialPack: credentialPack!)
+            }
+            self.credentialItem = credentialDisplayerSelector(
+                credentialPack: credentialPack!)
         }
         .edgesIgnoringSafeArea(.bottom)
         .navigationBarBackButtonHidden(true)
-    }
-
-    @ViewBuilder
-    private func tabContent(for index: Int) -> some View {
-        if index == 0 {
-            detailsTabContent
-        } else if index == 1, let credPack = credentialPack {
-            ShareMdocView(credentialPack: credPack, engagementType: .qr)
-        } else if index == 2, let credPack = credentialPack {
-            ShareMdocView(credentialPack: credPack, engagementType: .nfc)
-        }
-    }
-
-    @ViewBuilder
-    private var detailsTabContent: some View {
-        VStack {
-            if let credentialItem = credentialItem {
-                if CredentialStatusList.revoked
-                    != statusListObservable.statusLists[credentialPackId]
-                {
-                    AnyView(credentialItem.credentialDetails())
-                } else {
-                    AnyView(credentialItem.credentialRevokedInfo(onClose: { onBack() }))
-                }
-            }
-        }
-    }
-
-    private var tabIndicators: some View {
-        HStack {
-            Spacer()
-            ForEach(
-                Array(credentialDetailsViewTabs.enumerated()),
-                id: \.offset
-            ) { index, tab in
-                Button(action: { selectedTab = index }) {
-                    Image(tab.image)
-                        .resizable()
-                        .frame(width: 32, height: 32)
-                        .foregroundColor(
-                            selectedTab == index
-                                ? Color("ColorBlue600")
-                                : Color("ColorBase600")
-                        )
-                        .overlay(
-                            Rectangle()
-                                .frame(height: 4)
-                                .foregroundColor(
-                                    selectedTab == index
-                                        ? Color("ColorBlue600")
-                                        : Color("ColorBase50")
-                                )
-                                .offset(y: -4),
-                            alignment: .top
-                        )
-                }
-                .padding(.horizontal, 12)
-            }
-            Spacer()
-        }
-        .frame(height: 50)
-        .padding(.bottom, 20)
-    }
-
-    private func setupCredentialData() {
-        self.credentialPack =
-            credentialPackObservable.getById(
-                credentialPackId: credentialPackId) ?? CredentialPack()
-        if credentialPackHasMdoc(credentialPack: credentialPack!) {
-            credentialDetailsViewTabs.append(
-                CredentialDetailsViewTab(image: "QRCode")
-            )
-            credentialDetailsViewTabs.append(
-                CredentialDetailsViewTab(image: "NFC")
-            )
-        }
-        credentialTitle =
-            getCredentialIdTitleAndIssuer(credentialPack: credentialPack!).1
-        Task {
-            await statusListObservable.fetchAndUpdateStatus(
-                credentialPack: credentialPack!)
-        }
-        self.credentialItem = credentialDisplayerSelector(
-            credentialPack: credentialPack!)
     }
 }

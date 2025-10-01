@@ -7,18 +7,17 @@ import SwiftUI
 
 struct ShareMdocView: View {
     let credentialPack: CredentialPack
-    let engagementType: DeviceEngagementType
-    @State private var mdocShareSheetView: ShareMdoc?
+    @State private var qrSheetView: ShareMdocQR?
 
-    func getSheetView() async -> ShareMdoc {
-        return await ShareMdoc(credentialPack: credentialPack, engagementType: engagementType)
+    func getQRSheetView() async -> ShareMdocQR {
+        return await ShareMdocQR(credentialPack: credentialPack)
     }
 
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                if let view = mdocShareSheetView {
-                    view.padding()
+                if let qrCode = qrSheetView {
+                    qrCode.padding()
                         .background(
                             RoundedRectangle(cornerRadius: 12)
                                 .stroke(Color("ColorStone300"), lineWidth: 1)
@@ -26,45 +25,34 @@ struct ShareMdocView: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 12))
                         )
                 }
-                
-                let msg = switch(engagementType) {
-                case .qr: "Present this QR code to a verifier in order to share data. You will see a consent dialogue.";
-                case .nfc: "Tap this card to share data. You will see a consent dialogue."
-                }
-                
-                Text(msg)
+                Text(
+                    "Present this QR code to a verifier in order to share data. You will see a consent dialogue."
+                )
                 .multilineTextAlignment(.center)
                 .font(.customFont(font: .inter, style: .regular, size: .small))
                 .foregroundStyle(Color("ColorStone400"))
                 .padding(.vertical, 12)
                 .task {
-                    mdocShareSheetView = await getSheetView()
+                    qrSheetView = await getQRSheetView()
                 }
-
             }
             .padding(.horizontal, 24)
         }
     }
 }
 
-public struct ShareMdoc: View {
+public struct ShareMdocQR: View {
     var credentials: CredentialStore
-    var engagementType: DeviceEngagementType
     @State var proceed = true
     @StateObject var delegate: ShareViewDelegate
 
-    init(credentialPack: CredentialPack, engagementType: DeviceEngagementType) async {
+    init(credentialPack: CredentialPack) async {
         let credentialStore = CredentialStore(
             credentials: credentialPack.list()
         )
         self.credentials = credentialStore
-        self.engagementType = engagementType
-        let viewDelegate = await ShareViewDelegate(
-            credentials: credentialStore, engagementType: engagementType)
+        let viewDelegate = await ShareViewDelegate(credentials: credentialStore)
         self._delegate = StateObject(wrappedValue: viewDelegate)
-        
-        
-        
     }
 
     @ViewBuilder
@@ -89,9 +77,6 @@ public struct ShareMdoc: View {
                         .resizable()
                         .scaledToFit()
                         .aspectRatio(contentMode: .fit)
-                case .nfcHandover(let _data):
-                    // NOTE: the data expected is the request message
-                    Text("NFC Handover not yet implemented")
                 case .error(let error):
                     let message =
                         switch error {
@@ -155,8 +140,6 @@ public struct ShareMdoc: View {
                     }
                 case .connected:
                     Text("Connected")
-                case .disconnected:
-                    Text("BLE connection is disconnected")
                 }
             } else {
                 Text("Operation Canceled")
@@ -166,12 +149,14 @@ public struct ShareMdoc: View {
 }
 
 class ShareViewDelegate: ObservableObject {
-    @Published var state: BLESessionState = .disconnected
+    @Published var state: BLESessionState = .connected
     private var sessionManager: IsoMdlPresentation?
 
-    init(credentials: CredentialStore, engagementType: DeviceEngagementType) async {
+    init(credentials: CredentialStore) async {
         self.sessionManager = await credentials.presentMdocBLE(
-            engagement: engagementType, callback: self)!
+            deviceEngagement: .QRCode,
+            callback: self
+        )!
     }
 
     func cancel() {
