@@ -18,7 +18,7 @@ class TransportBleCentralClientHolder(
     private var serviceUUID: UUID,
     private var updateRequestData: (data: ByteArray) -> Unit,
     private var context: Context,
-    private var callback: BLESessionStateDelegate?,
+    internal var callback: BLESessionStateDelegate?,
 ) {
     private var bluetoothAdapter: BluetoothAdapter? = null
 

@@ -17,6 +17,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use isomdl::definitions::session::Handover;
 use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
     definitions::{
@@ -27,6 +28,70 @@ use isomdl::{
     presentation::device::{self, SessionManagerInit},
 };
 use uuid::Uuid;
+
+#[derive(uniffi::Object, Debug, Clone)]
+pub struct NegotiatedCarrierInfo(
+    isomdl::definitions::device_engagement::nfc::NegotiatedCarrierInfo,
+);
+
+#[uniffi::export]
+impl NegotiatedCarrierInfo {
+    pub fn get_uuid(&self) -> Uuid {
+        self.0.uuid
+    }
+}
+
+#[derive(uniffi::Object, Debug)]
+pub struct ApduHandoverDriver(
+    std::sync::Mutex<isomdl::definitions::device_engagement::nfc::ApduHandoverDriver>,
+);
+
+#[derive(thiserror::Error, uniffi::Error, Debug, Clone, Copy)]
+pub enum ApduHandoverInitError {
+    #[error("Failed to generate static BLE keys")]
+    KeyGenFailed,
+}
+
+#[uniffi::export]
+impl ApduHandoverDriver {
+    #[uniffi::constructor]
+    #[allow(clippy::new_without_default)]
+    pub fn new(negotiated: bool) -> Result<Self, ApduHandoverInitError> {
+        Ok(Self(
+            isomdl::definitions::device_engagement::nfc::ApduHandoverDriver::new(negotiated)
+                .map_err(|_| ApduHandoverInitError::KeyGenFailed)?
+                .into(),
+        ))
+    }
+    pub fn reset(&self) {
+        if let Ok(mut handover) = self.0.lock() {
+            handover.reset();
+        }
+    }
+    pub fn regenerate_static_ble_keys(&self) -> Result<(), ApduHandoverInitError> {
+        self.0
+            .lock()
+            .map_err(|_| ApduHandoverInitError::KeyGenFailed)?
+            .regenerate_static_ble_keys()
+            .map_err(|_| ApduHandoverInitError::KeyGenFailed)
+    }
+    pub fn get_carrier_info(&self) -> Option<Arc<NegotiatedCarrierInfo>> {
+        if let Ok(mut handover) = self.0.lock() {
+            handover
+                .get_carrier_info()
+                .map(|ci| NegotiatedCarrierInfo(*ci).into())
+        } else {
+            None
+        }
+    }
+    pub fn process_apdu(&self, command: &[u8]) -> Vec<u8> {
+        if let Ok(mut handover) = self.0.lock() {
+            handover.process_apdu(command)
+        } else {
+            vec![]
+        }
+    }
+}
 
 /// Begin the mDL presentation process for the holder when the desired
 /// Mdoc is already stored in a [VdcCollection].
@@ -47,7 +112,7 @@ use uuid::Uuid;
 #[uniffi::export(async_runtime = "tokio")]
 pub async fn initialize_mdl_presentation(
     mdoc_id: Uuid,
-    uuid: Uuid,
+    engagement: DeviceEngagementData,
     storage_manager: Arc<dyn StorageManagerInterface>,
 ) -> Result<MdlPresentationSession, SessionError> {
     let vdc_collection = VdcCollection::new(storage_manager);
@@ -65,15 +130,24 @@ pub async fn initialize_mdl_presentation(
     let mdoc: Arc<Mdoc> = document.try_into().map_err(|e| SessionError::Generic {
         value: format!("Error retrieving MDoc from storage: {e:}"),
     })?;
-    let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
-        peripheral_server_mode: None,
-        central_client_mode: Some(CentralClientMode { uuid }),
-    }));
-    let session = SessionManagerInit::initialise(
-        NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone()),
-        Some(drms),
-        None,
-    )
+    let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
+    let engagement_type = engagement.handover_info();
+    let session = match engagement {
+        DeviceEngagementData::QR(uuid) => {
+            let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
+                peripheral_server_mode: None,
+                central_client_mode: Some(CentralClientMode { uuid }),
+            }));
+            SessionManagerInit::initialise(documents, Some(drms), None)
+        }
+        DeviceEngagementData::NFC(negotiated_carrier_info) => {
+            // TODO: don't love that we have to clone this
+            SessionManagerInit::initialise_with_prenegotiated_carrier(
+                documents,
+                &negotiated_carrier_info.0,
+            )
+        }
+    }
     .map_err(|e| SessionError::Generic {
         value: format!("Could not initialize session: {e:?}"),
     })?;
@@ -83,14 +157,14 @@ pub async fn initialize_mdl_presentation(
             value: format!("Couldn't get BLE identification: {e:?}").to_string(),
         })?
         .to_vec();
-    let (engaged_state, qr_code_uri) =
-        session.qr_engagement().map_err(|e| SessionError::Generic {
+    let engaged_state = session
+        .engage(engagement_type)
+        .map_err(|e| SessionError::Generic {
             value: format!("Could not generate qr engagement: {e:?}"),
         })?;
     Ok(MdlPresentationSession {
         engaged: Mutex::new(engaged_state),
         in_process: Mutex::new(None),
-        qr_code_uri,
         ble_ident,
     })
 }
@@ -113,43 +187,83 @@ pub async fn initialize_mdl_presentation(
 #[uniffi::export]
 pub fn initialize_mdl_presentation_from_bytes(
     mdoc: Arc<Mdoc>,
-    uuid: Uuid,
+    engagement: DeviceEngagementData,
 ) -> Result<MdlPresentationSession, SessionError> {
-    let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
-        peripheral_server_mode: None,
-        central_client_mode: Some(CentralClientMode { uuid }),
-    }));
-    let session = SessionManagerInit::initialise(
-        NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone()),
-        Some(drms),
-        None,
-    )
+    let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
+    let handover = engagement.handover_info();
+    let session = match engagement {
+        DeviceEngagementData::QR(uuid) => {
+            let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
+                // NOTE: peripheral server mode is NOT current implemented.
+                // In the peripheral server mode, the mdoc holder generates the UUID
+                // to send over in the Negotiated Handover Select message
+                // TODO: Greg: if we are going to use our mdl reader / holder cross-device
+                // implementations, we will need to implement peripheral server mode.
+                // Marcelo: Sometimes the presentation gets stuck, other times it works.
+                peripheral_server_mode: None,
+                // NOTE: mdoc reader will provide a UUID for central client mode
+                // This UUID comes from the Request Message sent over NFC
+                central_client_mode: Some(CentralClientMode { uuid }),
+                // NOTE: Currently only supporting negotiative handover,
+                // and the mdoc reader is providing a central client mode.
+            }));
+            SessionManagerInit::initialise(documents, Some(drms), None)
+        }
+        DeviceEngagementData::NFC(carrier) => {
+            // TODO: don't love that we have to clone this
+            SessionManagerInit::initialise_with_prenegotiated_carrier(documents, &carrier.0)
+        }
+    }
     .map_err(|e| SessionError::Generic {
         value: format!("Could not initialize session: {e:?}"),
     })?;
+
     let ble_ident = session
         .ble_ident()
         .map_err(|e| SessionError::Generic {
             value: format!("Couldn't get BLE identification: {e:?}").to_string(),
         })?
         .to_vec();
-    let (engaged_state, qr_code_uri) =
-        session.qr_engagement().map_err(|e| SessionError::Generic {
+    let engaged_state = session
+        .engage(handover)
+        .map_err(|e| SessionError::Generic {
             value: format!("Could not generate qr engagement: {e:?}"),
         })?;
     Ok(MdlPresentationSession {
         engaged: Mutex::new(engaged_state),
         in_process: Mutex::new(None),
-        qr_code_uri,
         ble_ident,
     })
+}
+
+/// Device Engagement Data Represents data required to initialize a specific type of device engagement.
+///
+/// See: [`DeviceEngagementType`]
+#[derive(uniffi::Enum, Debug, Clone)]
+pub enum DeviceEngagementData {
+    /// Indicates the device engagement will be via QR code
+    QR(uuid::Uuid),
+    /// Indicates the device engagement will be via Near Field Communication (NFC)
+    NFC(Arc<NegotiatedCarrierInfo>),
+}
+
+impl DeviceEngagementData {
+    /// Converts the DeviceEngagementData to its isomdl counterpart
+    fn handover_info(&self) -> Handover {
+        // 18013-5 §9.1.5.1
+        match self {
+            DeviceEngagementData::QR(_) => Handover::QR,
+            DeviceEngagementData::NFC(nci) => {
+                Handover::NFC(nci.0.hs_message.clone(), nci.0.hr_message.clone())
+            }
+        }
+    }
 }
 
 #[derive(uniffi::Object)]
 pub struct MdlPresentationSession {
     engaged: Mutex<device::SessionManagerEngaged>,
     in_process: Mutex<Option<InProcessRecord>>,
-    pub qr_code_uri: String,
     pub ble_ident: Vec<u8>,
 }
 
@@ -291,9 +405,15 @@ impl MdlPresentationSession {
         Ok(msg_bytes)
     }
 
-    /// Returns the generated QR code
-    pub fn get_qr_code_uri(&self) -> String {
-        self.qr_code_uri.clone()
+    /// Returns the generated QR code URI formatted from the device
+    /// engagement.
+    pub fn get_qr_handover(&self) -> Result<String, SessionError> {
+        let session = self.engaged.lock().map_err(|e| SessionError::Generic {
+            value: format!("Could not get lock on session: {e:?}"),
+        })?;
+        session.qr_handover().map_err(|e| SessionError::Generic {
+            value: format!("Could not generate QR code: {e:?}"),
+        })
     }
 
     /// Returns the BLE identification
@@ -329,6 +449,10 @@ pub enum SessionError {
     Mutex { value: String },
     #[error("{value}")]
     Generic { value: String },
+    #[error("BLE Device Retrieval Error: {0}")]
+    BLEDeviceRetrieval(String),
+    #[error("NFC NDEF Message Record Error: {0}")]
+    NfcRecord(String),
 }
 
 #[derive(thiserror::Error, uniffi::Error, Debug)]
@@ -411,9 +535,13 @@ mod tests {
         let vdc_collection = VdcCollection::new(smi.clone());
         vdc_collection.add(&mdl).await.unwrap();
 
-        let presentation_session = initialize_mdl_presentation(mdl.id, Uuid::new_v4(), smi.clone())
-            .await
-            .unwrap();
+        let presentation_session = initialize_mdl_presentation(
+            mdl.id,
+            DeviceEngagementData::QR(Uuid::new_v4()),
+            smi.clone(),
+        )
+        .await
+        .unwrap();
         let namespaces: device_request::Namespaces = [(
             "org.iso.18013.5.1".to_string(),
             [
@@ -435,9 +563,19 @@ mod tests {
             purpose: TrustPurpose::Iaca,
         }])
         .unwrap();
+
+        let qr_code_uri: String = {
+            presentation_session
+                .engaged
+                .lock()
+                .expect("Failed to acquire presentation session lock")
+                .qr_handover()
+                .expect("failed to generate QR code")
+        };
+
         let (mut reader_session_manager, request, _ble_ident) =
             reader::SessionManager::establish_session(
-                presentation_session.qr_code_uri.clone(),
+                qr_code_uri.clone(),
                 namespaces.clone(),
                 trust_anchor,
             )
@@ -484,9 +622,13 @@ mod tests {
         let vdc_collection = VdcCollection::new(smi.clone());
         vdc_collection.add(&mdl).await.unwrap();
 
-        let presentation_session = initialize_mdl_presentation(mdl.id, Uuid::new_v4(), smi.clone())
-            .await
-            .unwrap();
+        let presentation_session = initialize_mdl_presentation(
+            mdl.id,
+            DeviceEngagementData::QR(Uuid::new_v4()),
+            smi.clone(),
+        )
+        .await
+        .unwrap();
         let namespaces = [(
             "org.iso.18013.5.1".to_string(),
             [
@@ -498,8 +640,18 @@ mod tests {
         )]
         .into_iter()
         .collect();
+
+        let qr_code_uri: String = {
+            presentation_session
+                .engaged
+                .lock()
+                .expect("Failed to acquire presentation session lock")
+                .qr_handover()
+                .expect("failed to generate QR code")
+        };
+
         let reader_session_data = crate::reader::establish_session(
-            presentation_session.qr_code_uri.clone(),
+            qr_code_uri,
             namespaces,
             Some(vec![include_str!(
                 "../../tests/res/mdl/utrecht-certificate.pem"

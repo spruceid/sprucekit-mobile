@@ -491,6 +491,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_cbor_value_to_string() {
         // Test null
         assert_eq!(CborValue::Null.to_string(), "");
