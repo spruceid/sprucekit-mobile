@@ -36,7 +36,9 @@ abstract class BaseNfcPresentationService : HostApduService() {
         private val apduHandoverDriver: ApduHandoverDriver
             get() {
                 if (_apduHandoverDriver == null) {
-                    _apduHandoverDriver = ApduHandoverDriver(false) // Use static handover, temporarily
+                    _apduHandoverDriver =
+                        // Use static handover, temporarily
+                        ApduHandoverDriver(negotiated = false, strict = false)
                 }
                 return _apduHandoverDriver!!
             }
@@ -50,7 +52,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
 
     override fun processCommandApdu(commandApdu: ByteArray, extras: Bundle?): ByteArray? {
 
-        if(resetQueued) {
+        if (resetQueued) {
             Log.w(TAG, "Resetting APDU driver")
             resetQueued = false
             apduHandoverDriver.reset()
@@ -62,7 +64,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
 
         // Read binary commands shouldn't affect state flags,
         // since they may come after the success state is reached.
-        if(!isReadBinaryCommand) {
+        if (!isReadBinaryCommand) {
             if (!inNegotiation) {
                 negotiationStarted()
                 inNegotiation = true
@@ -93,15 +95,23 @@ abstract class BaseNfcPresentationService : HostApduService() {
         // handover techniques before giving up.
         if (!returnedApduSuccessStatus) {
             doNotNotifyOnDisconnect = true
-            negotiationFailedFlag = true
-            Log.e(TAG, "ERR response, setting flags")
+
+            // We don't want to report errors returned for SELECT AID to the user
+            // because this probably means that both:
+            //  1. the APDU handover driver is in strict mode
+            //  2. the device communicating with us over NFC is not an mDOC reader
+            val isSelectAidCommand = commandApdu.size < 4 && commandApdu[0] == 0xA4.toByte() && commandApdu[2] == 0x04.toByte()
+            if(!isSelectAidCommand) {
+                negotiationFailedFlag = true
+                Log.e(TAG, "ERR response, setting flags")
+            }
         }
 
         return ret
     }
 
     override fun onDeactivated(reason: Int) {
-        currentInteractionId++;
+        currentInteractionId++
 
         // Wait a moment before turning off NDEF listening.
         // This is because the shift from mDoc -> NDEF triggers a disconnect, but

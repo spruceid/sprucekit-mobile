@@ -56,11 +56,17 @@ pub enum ApduHandoverInitError {
 impl ApduHandoverDriver {
     #[uniffi::constructor]
     #[allow(clippy::new_without_default)]
-    pub fn new(negotiated: bool) -> Result<Self, ApduHandoverInitError> {
+    /// Create a new APDU handover driver.
+    ///
+    /// * `negotiated`: true -> use negotiated handover (not implemented yet), false -> use static handover.
+    /// * `strict`: require selecting the MDOC AID before responding to NDEF reads. If strict is false, we will always return NDEF messages.
+    pub fn new(negotiated: bool, strict: bool) -> Result<Self, ApduHandoverInitError> {
         Ok(Self(
-            isomdl::definitions::device_engagement::nfc::ApduHandoverDriver::new(negotiated)
-                .map_err(|_| ApduHandoverInitError::KeyGenFailed)?
-                .into(),
+            isomdl::definitions::device_engagement::nfc::ApduHandoverDriver::new(
+                negotiated, strict,
+            )
+            .map_err(|_| ApduHandoverInitError::KeyGenFailed)?
+            .into(),
         ))
     }
     pub fn reset(&self) {
