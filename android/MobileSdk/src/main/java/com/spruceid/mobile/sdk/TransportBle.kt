@@ -10,9 +10,9 @@ import java.util.*
  */
 class TransportBle(private var bluetoothManager: BluetoothManager) {
 
-    private lateinit var transportBleCentralClientHolder: TransportBleCentralClientHolder
-    private lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder
-    private lateinit var transportBlePeripheralServerReader: TransportBlePeripheralServerReader
+    internal lateinit var transportBleCentralClientHolder: TransportBleCentralClientHolder
+    internal lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder
+    internal lateinit var transportBlePeripheralServerReader: TransportBlePeripheralServerReader
 
     /**
      * Reserved for later matching with available cbor options.

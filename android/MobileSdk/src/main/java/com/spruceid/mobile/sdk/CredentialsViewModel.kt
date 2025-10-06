@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothManager
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
+import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -119,12 +120,26 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         _currState.value = PresentmentState.SELECT_NAMESPACES
     }
 
-    suspend fun present(bluetoothManager: BluetoothManager) {
+    // We specify a default value for presentData, defaulting to QR presentation
+    // This is a really bad place for a default, but having it makes adding NFC backwards-compatible
+    suspend fun present(bluetoothManager: BluetoothManager, presentData: CredentialPresentData = CredentialPresentData.Qr()) {
         Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
-        _uuid.value = UUID.randomUUID()
+
         val mdoc = this.firstMdoc()
-        _session.value = initializeMdlPresentationFromBytes(mdoc, _uuid.value.toString())
-        _currState.value = PresentmentState.ENGAGING_QR_CODE
+        when (presentData) {
+            is CredentialPresentData.Nfc -> {
+                val uuidStr = presentData.negotiatedCarrierInfo.getUuid()
+                _uuid.value = UUID.fromString(uuidStr)
+                _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Nfc(presentData.negotiatedCarrierInfo))
+                _currState.value = PresentmentState.UNINITIALIZED
+            }
+            is CredentialPresentData.Qr -> {
+                _uuid.value = UUID.randomUUID()
+                _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Qr(_uuid.value.toString()))
+                _currState.value = PresentmentState.ENGAGING_QR_CODE
+            }
+        }
+        Log.d("CredentialsViewModel", "Presenting with UUID: ${_uuid.value}")
         _transport.value = Transport(bluetoothManager)
         _transport.value!!
             .initialize(
