@@ -320,21 +320,21 @@ class MDocReaderBLEPeripheral: NSObject {
     }
 
     private func drainWritingQueue() {
-        if (writingQueue == nil) {
+        if writingQueue == nil {
             return
         }
-        while (readyToSend && writingQueueChunkIndex! <= writingQueueTotalChunks!) {
-            if (failedLastSend) {
+        while readyToSend && writingQueueChunkIndex! <= writingQueueTotalChunks! {
+            if failedLastSend {
                 readyToSend = peripheralManager!.updateValue(lastChunk!, for: writeCharacteristic!, onSubscribedCentrals: nil)
                 failedLastSend = !readyToSend
                 continue
             }
             var chunk = writingQueue?.next()
-            
-            if (chunk == nil) {
+
+            if chunk == nil {
                 break
             }
-            
+
             var firstByte: Data.Element
             writingQueueChunkIndex! += 1
             if writingQueueChunkIndex == writingQueueTotalChunks {
@@ -345,14 +345,14 @@ class MDocReaderBLEPeripheral: NSObject {
             chunk!.reverse()
             chunk!.append(firstByte)
             chunk!.reverse()
-            
+
             readyToSend = peripheralManager!.updateValue(chunk!, for: writeCharacteristic!, onSubscribedCentrals: nil)
             failedLastSend = !readyToSend
-            if (failedLastSend) {
+            if failedLastSend {
                 lastChunk = chunk
             }
         }
-        
+
         if writingQueueChunkIndex == writingQueueTotalChunks && !failedLastSend {
             writingQueue = nil
             machinePendingState = .awaitResponse
