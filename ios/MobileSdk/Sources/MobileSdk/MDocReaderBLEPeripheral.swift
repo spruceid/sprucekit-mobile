@@ -325,7 +325,9 @@ class MDocReaderBLEPeripheral: NSObject {
         }
         while readyToSend && writingQueueChunkIndex! <= writingQueueTotalChunks! {
             if failedLastSend {
-                readyToSend = peripheralManager!.updateValue(lastChunk!, for: writeCharacteristic!, onSubscribedCentrals: nil)
+                readyToSend = peripheralManager!.updateValue(lastChunk!,
+                                                             for: writeCharacteristic!,
+                                                             onSubscribedCentrals: nil)
                 failedLastSend = !readyToSend
                 continue
             }
