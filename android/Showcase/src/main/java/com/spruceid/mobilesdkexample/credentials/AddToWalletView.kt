@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.credentials
 
+import android.util.Log
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
