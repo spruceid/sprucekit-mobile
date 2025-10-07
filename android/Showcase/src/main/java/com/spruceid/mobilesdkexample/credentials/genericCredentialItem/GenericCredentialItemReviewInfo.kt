@@ -43,6 +43,7 @@ fun GenericCredentialItemReviewInfo(
             color = ColorStone950,
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(bottom = 20.dp)
         )
         // Header
         if (customItemListItem != null) {
@@ -68,6 +69,7 @@ fun GenericCredentialItemReviewInfo(
             Modifier
                 .fillMaxSize()
                 .weight(weight = 1f, fill = false)
+                .padding(top = 5.dp)
         ) {
             if (customCredentialItemDetails != null) {
                 customCredentialItemDetails(
