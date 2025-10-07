@@ -56,6 +56,7 @@ import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
+import com.spruceid.mobilesdkexample.wallet.wallethomeview.WalletHomeHeader
 import com.spruceid.mobilesdkexample.walletsettings.generateMockMdl
 import kotlinx.coroutines.launch
 
@@ -63,72 +64,26 @@ import kotlinx.coroutines.launch
 fun WalletHomeView(
     navController: NavController
 ) {
-    Column(
-        Modifier
-            .padding(all = 20.dp)
-            .padding(top = 30.dp)
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
-        WalletHomeHeader(navController = navController)
-        WalletHomeBody(
-            navController = navController
-        )
+        Column(
+            Modifier.fillMaxSize()
+        ) {
+            WalletHomeHeader(navController = navController)
+            Column(
+                Modifier.padding(horizontal = 20.dp)
+            ) {
+                WalletHomeBody(
+                    navController = navController
+                )
+            }
+
+        }
     }
 }
 
-@Composable
-fun WalletHomeHeader(navController: NavController) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = "Wallet",
-            fontFamily = Inter,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 20.sp,
-            color = ColorStone950
-        )
-        Spacer(Modifier.weight(1f))
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier =
-                Modifier
-                    .width(36.dp)
-                    .height(36.dp)
-                    .padding(start = 4.dp)
-                    .clip(shape = RoundedCornerShape(8.dp))
-                    .background(ColorBase150)
-                    .clickable { navController.navigate(Screen.ScanQRScreen.route) }
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.qrcode_scanner),
-                contentDescription = stringResource(id = R.string.qrcode_scanner),
-                colorFilter = ColorFilter.tint(ColorStone400),
-                modifier = Modifier
-                    .width(20.dp)
-                    .height(20.dp)
-            )
-        }
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier =
-                Modifier
-                    .width(36.dp)
-                    .height(36.dp)
-                    .padding(start = 4.dp)
-                    .clip(shape = RoundedCornerShape(8.dp))
-                    .background(ColorBase150)
-                    .clickable {
-                        navController.navigate(Screen.WalletSettingsHomeScreen.route)
-                    }
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.user),
-                contentDescription = stringResource(id = R.string.user),
-                modifier = Modifier
-                    .width(20.dp)
-                    .height(20.dp)
-            )
-        }
-    }
-}
+
 
 @Composable
 fun WalletHomeBody(
