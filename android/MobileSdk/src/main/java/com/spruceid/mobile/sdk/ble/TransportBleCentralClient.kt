@@ -5,11 +5,9 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
-import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
-import android.util.Log
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.byteArrayToHex
 import java.util.*
@@ -34,15 +32,16 @@ import java.util.*
  * @see ISO 18013-5 Table 11 for BLE Central configuration requirements
  * @see ISO 18013-5 Section 8.3.3.1.1.4 for role-specific implementation details
  */
-class TransportBleCentralClientHolder(
+class TransportBleCentralClient(
     private var application: String,
     private var serviceUUID: UUID,
     private var updateRequestData: (data: ByteArray) -> Unit,
-    private var callback: BLESessionStateDelegate?,
+    private var callback: BLESessionStateDelegate?
 ) {
     private val stateMachine = BleConnectionStateMachine.getInstance()
     private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
-    private var logger = BleLogger.getInstance("TransportBleCentralClientHolder")
+    private var logger = BleLogger.getInstance("TransportBleCentralClient")
+    private val isReader = application == "Reader"
 
     private lateinit var gattClient: GattClient
     private lateinit var identValue: ByteArray
@@ -86,14 +85,7 @@ class TransportBleCentralClientHolder(
         val gattClientCallback: GattClientCallback = object : GattClientCallback() {
             override fun onPeerConnected() {
                 logger.d("Peer Connected")
-                // Transition to connected state
-                if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
-                    callback?.update(mapOf(Pair("connected", "")))
-                } else {
-                    logger.w(
-                        "Failed to transition to CONNECTED state"
-                    )
-                }
+                callback?.update(mapOf(Pair("connected", "")))
             }
 
             override fun onPeerDisconnected() {
@@ -169,7 +161,7 @@ class TransportBleCentralClientHolder(
         }
 
         gattClient = GattClient(
-            gattClientCallback, serviceUUID
+            gattClientCallback, serviceUUID, isReader
         )
         scan()
     }
@@ -204,6 +196,7 @@ class TransportBleCentralClientHolder(
     fun scan() {
         val filter: ScanFilter =
             ScanFilter.Builder().setServiceUuid(ParcelUuid(serviceUUID)).build()
+        logger.d("BleCentralClient Scanning")
 
         val filterList: MutableList<ScanFilter> = ArrayList()
         filterList.add(filter)

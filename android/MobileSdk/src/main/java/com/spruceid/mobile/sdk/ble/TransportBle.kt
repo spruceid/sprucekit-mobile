@@ -1,7 +1,6 @@
 package com.spruceid.mobile.sdk.ble
 
 import android.Manifest
-import android.bluetooth.BluetoothManager
 import androidx.annotation.RequiresPermission
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import java.util.*
@@ -13,7 +12,7 @@ class TransportBle {
 
     private val logger = BleLogger.getInstance("TransportBle")
 
-    private lateinit var transportBleCentralClientHolder: TransportBleCentralClientHolder
+    private lateinit var transportBleCentralClient: TransportBleCentralClient
     private lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder
     private lateinit var transportBlePeripheralServerReader: TransportBlePeripheralServerReader
 
@@ -34,16 +33,16 @@ class TransportBle {
         /**
          * Transport Central Client Holder
          */
-        if (deviceRetrievalOption == "Central" && application == "Holder") {
-            logger.d("Selecting Transport Central Client Holder")
+        if (deviceRetrievalOption == "Central") {
+            logger.d("Selecting Transport Central Client $application")
             if (updateRequestData != null) {
-                transportBleCentralClientHolder = TransportBleCentralClientHolder(
+                transportBleCentralClient = TransportBleCentralClient(
                     application,
                     serviceUUID,
                     updateRequestData,
                     callback,
                 )
-                transportBleCentralClientHolder.connect(ident)
+                transportBleCentralClient.connect(ident)
             }
         }
 
@@ -78,8 +77,8 @@ class TransportBle {
     fun send(payload: ByteArray) {
         logger.logDataTransfer("Sending", payload.size)
 
-        if (this::transportBleCentralClientHolder.isInitialized) {
-            transportBleCentralClientHolder.send(payload)
+        if (this::transportBleCentralClient.isInitialized) {
+            transportBleCentralClient.send(payload)
         }
 
         if (this::transportBlePeripheralServerHolder.isInitialized) {
@@ -94,8 +93,8 @@ class TransportBle {
         logger.i("Terminating BLE transport")
 
         try {
-            if (this::transportBleCentralClientHolder.isInitialized) {
-                transportBleCentralClientHolder.disconnect()
+            if (this::transportBleCentralClient.isInitialized) {
+                transportBleCentralClient.disconnect()
             }
 
             if (this::transportBlePeripheralServerHolder.isInitialized) {
@@ -117,8 +116,8 @@ class TransportBle {
         logger.w("Performing hard reset of BLE transport")
 
         try {
-            if (this::transportBleCentralClientHolder.isInitialized) {
-                transportBleCentralClientHolder.hardReset()
+            if (this::transportBleCentralClient.isInitialized) {
+                transportBleCentralClient.hardReset()
             }
 
             if (this::transportBlePeripheralServerHolder.isInitialized) {

@@ -130,6 +130,7 @@ class BleConnectionStateMachine private constructor() {
     fun transitionTo(newState: State, error: String? = null): Boolean {
         synchronized(stateLock) {
             val current = _connectionState.value.state
+            logger.i("Transitioning from $current to ${newState.name}")
             val allowedTransitions = validTransitions[current] ?: emptySet()
             if (newState == State.ERROR || newState == State.DISCONNECTING) {
                 try {
