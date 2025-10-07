@@ -46,6 +46,7 @@ import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
+import com.spruceid.mobilesdkexample.wallet.wallethomeview.WalletHomeHeader
 import com.spruceid.mobilesdkexample.walletsettings.generateMockMdl
 import kotlinx.coroutines.launch
 
