@@ -2,7 +2,7 @@ package com.spruceid.mobilesdkexample
 
 import android.bluetooth.le.ScanResult
 import android.util.Log
-import com.spruceid.mobile.sdk.BleCentralCallback
+import com.spruceid.mobile.sdk.ble.BleCentralCallback
 
 class BleCentralCallbackHandler : BleCentralCallback() {
     override fun onScanResult(callbackType: Int, result: ScanResult) {

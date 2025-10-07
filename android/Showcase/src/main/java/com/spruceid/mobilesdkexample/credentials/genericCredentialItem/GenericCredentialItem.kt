@@ -47,7 +47,7 @@ class GenericCredentialItem : ICredentialView {
     }
 
     @Composable
-    override fun credentialListItem(withOptions: Boolean) {
+    override fun CredentialListItem(withOptions: Boolean) {
         GenericCredentialItemListItem(
             statusListViewModel = statusListViewModel,
             credentialPack = credentialPack,
@@ -58,7 +58,7 @@ class GenericCredentialItem : ICredentialView {
     }
 
     @Composable
-    override fun credentialListItem() {
+    override fun CredentialListItem() {
         GenericCredentialItemListItem(
             statusListViewModel = statusListViewModel,
             credentialPack = credentialPack,
@@ -69,12 +69,12 @@ class GenericCredentialItem : ICredentialView {
     }
 
     @Composable
-    override fun credentialDetails() {
+    override fun CredentialDetails() {
         GenericCredentialItemDetails(statusListViewModel, credentialPack)
     }
 
     @Composable
-    override fun credentialReviewInfo(footerActions: @Composable () -> Unit) {
+    override fun CredentialReviewInfo(footerActions: @Composable () -> Unit) {
         GenericCredentialItemReviewInfo(
             statusListViewModel = statusListViewModel,
             credentialPack = credentialPack,
@@ -83,12 +83,12 @@ class GenericCredentialItem : ICredentialView {
     }
 
     @Composable
-    override fun credentialRevokedInfo(onClose: () -> Unit) {
+    override fun CredentialRevokedInfo(onClose: () -> Unit) {
         GenericCredentialItemRevokedInfo(credentialPack, onClose)
     }
 
     @Composable
-    override fun credentialPreviewAndDetails() {
+    override fun CredentialPreviewAndDetails() {
         GenericCredentialItemPreviewAndDetails(
             statusListViewModel = statusListViewModel,
             credentialPack = credentialPack,

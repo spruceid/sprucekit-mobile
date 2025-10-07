@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.credentials
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -131,6 +132,8 @@ fun ShareMdocView(
     }
     LaunchedEffect(key1 = bluetoothPermissionsGranted) {
         if (isBluetoothEnabled && bluetoothPermissionsGranted) {
+            // We do check for permissions
+            @SuppressLint("MissingPermission")
             credentialViewModel.present(getBluetoothManager(context)!!)
         }
     }

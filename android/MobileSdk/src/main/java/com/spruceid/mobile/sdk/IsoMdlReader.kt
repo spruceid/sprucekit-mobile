@@ -3,6 +3,7 @@ package com.spruceid.mobile.sdk
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
+import com.spruceid.mobile.sdk.ble.Transport
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseData
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseException
@@ -26,18 +27,20 @@ class IsoMdlReader(
             val sessionData = establishSession(uri, requestedItems, trustAnchorRegistry)
 
             session = sessionData.state
-            bleManager = Transport(platformBluetooth)
-            bleManager.initialize(
-                "Reader",
-                UUID.fromString(sessionData.uuid),
-                "BLE",
-                "Peripheral",
-                sessionData.bleIdent,
-                null,
-                context,
-                callback,
-                sessionData.request
-            )
+            bleManager = Transport(platformBluetooth, context)
+            try {
+                bleManager.initialize(
+                    "Reader",
+                    UUID.fromString(sessionData.uuid),
+                    "BLE",
+                    "Peripheral",
+                    sessionData.bleIdent,
+                    null,
+                    callback,
+                    sessionData.request
+                )
+            } catch (e: SecurityException) {
+            }
 
         } catch (e: Error) {
             Log.e("BleSessionManager.constructor", e.toString())
