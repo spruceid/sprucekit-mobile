@@ -86,7 +86,9 @@ pub fn cose_sign1(signer: Arc<dyn SigningKey>, payload: Vec<u8>) -> Result<Vec<u
         .algorithm(coset::iana::Algorithm::ES256)
         .build();
 
-    let cose_sign1_builder = coset::CoseSign1Builder::new().protected(header);
+    let cose_sign1_builder = coset::CoseSign1Builder::new()
+        // unprotected header for x5chain attestation
+        .protected(header);
     let prepared_cose_sign1 =
         PreparedCoseSign1::new(cose_sign1_builder, Some(&cbor_payload), None, false)
             .map_err(|e| CryptoError::General(format!("failed to prepare CoseSign1: {e:?}")))?;
