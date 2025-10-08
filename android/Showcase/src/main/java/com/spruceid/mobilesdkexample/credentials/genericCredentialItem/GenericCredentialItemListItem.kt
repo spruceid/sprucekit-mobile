@@ -142,8 +142,8 @@ fun genericCredentialListItemDescriptionFormatter(
             style = TextStyle(
                 shadow = Shadow(
                     color = Color.Black,
-                    offset = Offset(2f, 2f),
-                    blurRadius = 2f
+                    offset = Offset(2.5f, 2.5f),
+                    blurRadius = 10f
                 )
             )
         )
@@ -382,8 +382,8 @@ private fun titleFormatter(
             style = TextStyle(
                 shadow = Shadow(
                     color = Color.Black,
-                    offset = Offset(2f, 2f),
-                    blurRadius = 2f
+                    offset = Offset(2.5f, 2.5f),
+                    blurRadius = 10f
                 )
             )
         )
