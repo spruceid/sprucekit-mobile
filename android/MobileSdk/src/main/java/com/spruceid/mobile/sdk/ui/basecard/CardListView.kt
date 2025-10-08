@@ -75,11 +75,18 @@ fun CardListView(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            // Backdrop overlay (10% opacity)
+            // Linear gradient overlay: 5% black at top, 25% black at bottom
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.1f))
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.0f), // Top
+                                Color.Black.copy(alpha = 0.3f)  // Bottom
+                            )
+                        )
+                    )
             )
         }
 
