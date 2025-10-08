@@ -99,8 +99,8 @@ fun HacApplicationListItem(
                     brush = Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to Color(0xFFC8BFAD),
-                            0.1f to Color.White.copy(alpha = 0.2f),
-                            0.9f to Color.White.copy(alpha = 0.2f),
+                            0.3f to Color.White.copy(alpha = 0.2f),
+                            0.8f to Color.White.copy(alpha = 0.2f),
                             1.0f to Color(0xFFC8BFAD),
                         ),
                     )
