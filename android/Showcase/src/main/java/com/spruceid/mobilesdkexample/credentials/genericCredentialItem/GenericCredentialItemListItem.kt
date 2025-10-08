@@ -24,9 +24,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -80,6 +83,7 @@ fun genericCredentialListItemDescriptionFormatter(
 ) {
     val statusList by statusListViewModel.observeStatusForId(credentialPack.id())
         .collectAsState()
+    Log.d("STATUS LIST", statusList.toString())
     val credential = values.toList().firstNotNullOfOrNull {
         val cred = credentialPack.getCredentialById(it.first)
         val mdoc = cred?.asMsoMdoc()
@@ -132,9 +136,16 @@ fun genericCredentialListItemDescriptionFormatter(
         Text(
             text = description,
             fontFamily = Inter,
-            fontWeight = FontWeight.Normal,
+            fontWeight = FontWeight.Medium,
             fontSize = 14.sp,
-            color = Color.White
+            color = Color.White,
+            style = TextStyle(
+                shadow = Shadow(
+                    color = Color.Black,
+                    offset = Offset(2f, 2f),
+                    blurRadius = 2f
+                )
+            )
         )
         CredentialStatusSmall(
             statusList ?: CredentialStatusList.UNDEFINED
@@ -364,10 +375,17 @@ private fun titleFormatter(
         Text(
             text = title,
             fontFamily = Inter,
-            fontWeight = FontWeight.Medium,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
             color = Color.White,
-            modifier = Modifier.padding(bottom = 6.dp)
+            modifier = Modifier.padding(bottom = 6.dp),
+            style = TextStyle(
+                shadow = Shadow(
+                    color = Color.Black,
+                    offset = Offset(2f, 2f),
+                    blurRadius = 2f
+                )
+            )
         )
         if (showBottomSheet) {
             CredentialOptionsDialogActions(
