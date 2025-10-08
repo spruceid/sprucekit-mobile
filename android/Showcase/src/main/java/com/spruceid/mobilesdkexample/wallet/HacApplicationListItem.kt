@@ -217,9 +217,9 @@ fun HacApplicationListItem(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Issuer
+                // Subtitle
                 Text(
-                    text = "SpruceID",
+                    text = "Credential Application",
                     fontFamily = Inter,
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
