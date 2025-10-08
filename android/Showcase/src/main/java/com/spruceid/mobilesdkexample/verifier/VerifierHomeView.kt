@@ -57,10 +57,8 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.ColorTerracotta600
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
-import com.spruceid.mobilesdkexample.wallet.wallethomeview.createEllipticalGradientShader
 
 @Composable
 fun VerifierHomeView(
