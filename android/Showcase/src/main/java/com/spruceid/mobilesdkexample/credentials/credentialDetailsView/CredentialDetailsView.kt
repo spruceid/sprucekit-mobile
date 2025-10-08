@@ -4,28 +4,16 @@ import android.Manifest
 import android.app.Application
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -40,8 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -53,10 +39,10 @@ import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobilesdkexample.LoadingView
-import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.credentials.CredentialOptionsDialogActions
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.credentials.ShareMdocView
-import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
@@ -64,12 +50,18 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.ModalBottomSheetHost
+import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.credentialPackHasMdoc
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
+import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.utils.getFileContent
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 enum class CredentialMode {
@@ -88,9 +80,15 @@ fun CredentialDetailsView(
     navController: NavController,
     credentialPackId: String
 ) {
+    val scope = rememberCoroutineScope()
+
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
     val credentialViewModel: CredentialsViewModel = activityHiltViewModel()
     val statusListViewModel: StatusListViewModel = activityHiltViewModel()
+    val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
+    val helpersViewModel: HelpersViewModel = activityHiltViewModel()
+
+
     var credentialTitle by remember { mutableStateOf<String?>(null) }
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
     var credentialPack by remember { mutableStateOf<CredentialPack?>(null) }
@@ -130,9 +128,56 @@ fun CredentialDetailsView(
     }
 
     fun back() {
-        navController.navigate(Screen.HomeScreen.route) {
-            popUpTo(0)
+        // Immediately disable scan mode to cleanup camera faster
+        if (currentMode == CredentialMode.SCAN) {
+            currentMode = CredentialMode.NONE
         }
+        navController.popBackStack()
+    }
+
+    fun onDelete() {
+        scope.launch {
+            try {
+                credentialPack?.let { pack ->
+                    // Log activity before deletion
+                    pack.list().forEach { credential ->
+                        val credentialInfo = getCredentialIdTitleAndIssuer(pack, credential)
+                        walletActivityLogsViewModel.saveWalletActivityLog(
+                            WalletActivityLogs(
+                                credentialPackId = credentialPackId,
+                                credentialId = credentialInfo.first,
+                                credentialTitle = credentialInfo.second,
+                                issuer = credentialInfo.third ?: "",
+                                action = "Deleted",
+                                dateTime = getCurrentSqlDate(),
+                                additionalInformation = ""
+                            )
+                        )
+                    }
+
+                    // Delete the credential pack
+                    credentialPacksViewModel.deleteCredentialPack(pack)
+
+                    // Show success toast
+                    Toast.showSuccess("Credential deleted successfully")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // If deletion fails, maybe we should navigate back to avoid being stuck
+                back()
+            }
+        }
+    }
+
+    fun onExport() {
+        credentialPack?.let { pack ->
+            helpersViewModel.exportText(
+                getFileContent(pack),
+                "$credentialTitle.json",
+                "text/plain"
+            )
+        }
+
     }
 
     LaunchedEffect(isLoading, credentialPacks) {
@@ -229,7 +274,7 @@ fun CredentialDetailsView(
                             ) {
                                 Text(
                                     modifier = Modifier.align(Alignment.Center),
-                                    text = "Add some cool text here!",
+                                    text = "Scan to verify or share your credential",
                                     color = ColorStone400
                                 )
 
@@ -287,6 +332,24 @@ fun CredentialDetailsView(
                 }
             )
         }
+    }
+    // Handle credential options dialog
+    if (showBottomSheet) {
+        CredentialOptionsDialogActions(
+            setShowBottomSheet = { show ->
+                showBottomSheet = show
+            },
+            onDelete = {
+                showBottomSheet = false
+                onDelete()
+            },
+            onExport = {
+                showBottomSheet = false
+                onExport()
+            }
+
+
+        )
     }
 }
 
