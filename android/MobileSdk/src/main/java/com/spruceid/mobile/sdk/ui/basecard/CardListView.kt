@@ -83,7 +83,7 @@ fun CardListView(
                         brush = Brush.verticalGradient(
                             colors = listOf(
                                 Color.Black.copy(alpha = 0.0f), // Top
-                                Color.Black.copy(alpha = 0.35f)  // Bottom
+                                Color.Black.copy(alpha = 0.9f)  // Bottom
                             )
                         )
                     )
