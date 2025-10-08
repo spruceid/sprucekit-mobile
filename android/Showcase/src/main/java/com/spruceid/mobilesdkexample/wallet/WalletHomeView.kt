@@ -46,7 +46,6 @@ import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
-import com.spruceid.mobilesdkexample.wallet.wallethomeview.WalletHomeHeader
 import com.spruceid.mobilesdkexample.walletsettings.generateMockMdl
 import kotlinx.coroutines.launch
 
@@ -73,7 +72,30 @@ fun WalletHomeView(
     }
 }
 
+@Composable
+fun WalletHomeHeader(
+    navController: NavController?
+) {
+    val gradientColors = listOf(ColorBlue600, ColorBase1)
+    val buttons = listOf(
+        HeaderButton(
+            icon = painterResource(id = R.drawable.qrcode_scanner),
+            contentDescription = stringResource(id = R.string.qrcode_scanner),
+            onClick = { navController?.navigate(Screen.ScanQRScreen.route) }
+        ),
+        HeaderButton(
+            icon = painterResource(id = R.drawable.user),
+            contentDescription = stringResource(id = R.string.user),
+            onClick = { navController?.navigate(Screen.WalletSettingsHomeScreen.route) }
+        )
+    )
 
+    HomeHeader(
+        title = "Wallet",
+        gradientColors = gradientColors,
+        buttons = buttons
+    )
+}
 
 @Composable
 fun WalletHomeBody(
