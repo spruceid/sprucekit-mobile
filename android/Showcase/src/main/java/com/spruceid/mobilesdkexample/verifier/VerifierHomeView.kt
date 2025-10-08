@@ -48,8 +48,8 @@ import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.components.HeaderButton
 import com.spruceid.mobilesdkexample.ui.components.HomeHeader
+import com.spruceid.mobilesdkexample.ui.theme.ColorAmber600
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
-import com.spruceid.mobilesdkexample.ui.theme.ColorBlue500
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorPurple600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
@@ -57,10 +57,8 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.ColorTerracotta600
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
-import com.spruceid.mobilesdkexample.wallet.wallethomeview.createEllipticalGradientShader
 
 @Composable
 fun VerifierHomeView(
@@ -86,10 +84,9 @@ fun VerifierHomeView(
 
 @Composable
 fun VerifierHomeHeader(
-    navController: NavController
+    navController: NavController,
 ) {
-    val gradientColors = listOf(ColorBlue500, ColorBase1)
-
+    val gradientColors = listOf(ColorAmber600, ColorBase1)
     val buttons = listOf(
         HeaderButton(
             icon = painterResource(id = R.drawable.cog),
