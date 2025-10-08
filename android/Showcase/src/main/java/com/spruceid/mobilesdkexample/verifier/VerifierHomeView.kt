@@ -2,35 +2,54 @@ package com.spruceid.mobilesdkexample.verifier
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shader
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
-import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
+import com.spruceid.mobilesdkexample.ui.components.HeaderButton
+import com.spruceid.mobilesdkexample.ui.components.HomeHeader
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue500
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorPurple600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
@@ -38,22 +57,30 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.ColorTerracotta600
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
+import com.spruceid.mobilesdkexample.wallet.wallethomeview.createEllipticalGradientShader
 
 @Composable
 fun VerifierHomeView(
     navController: NavController
 ) {
-    Column(
-        Modifier
-            .padding(all = 20.dp)
-            .padding(top = 20.dp)
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
-        VerifierHomeHeader(navController = navController)
-        VerifierHomeBody(
-            navController = navController
-        )
+        Column(
+            Modifier.fillMaxSize()
+        ) {
+            VerifierHomeHeader(navController = navController)
+            Column(
+                Modifier.padding(horizontal = 20.dp)
+            ) {
+                VerifierHomeBody(
+                    navController = navController
+                )
+            }
+        }
     }
 }
 
@@ -61,36 +88,21 @@ fun VerifierHomeView(
 fun VerifierHomeHeader(
     navController: NavController
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = "Verifier",
-            fontFamily = Inter,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 20.sp,
-            color = ColorStone950
+    val gradientColors = listOf(ColorBlue500, ColorBase1)
+
+    val buttons = listOf(
+        HeaderButton(
+            icon = painterResource(id = R.drawable.cog),
+            contentDescription = stringResource(id = R.string.cog),
+            onClick = { navController.navigate(Screen.VerifierSettingsHomeScreen.route) }
         )
-        Spacer(Modifier.weight(1f))
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .width(36.dp)
-                .height(36.dp)
-                .padding(start = 4.dp)
-                .clip(shape = RoundedCornerShape(8.dp))
-                .background(ColorBase150)
-                .clickable {
-                    navController.navigate(Screen.VerifierSettingsHomeScreen.route)
-                }
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.cog),
-                contentDescription = stringResource(id = R.string.cog),
-                modifier = Modifier
-                    .width(20.dp)
-                    .height(20.dp)
-            )
-        }
-    }
+    )
+
+    HomeHeader(
+        title = "Verifier",
+        gradientColors = gradientColors,
+        buttons = buttons
+    )
 }
 
 @Composable
