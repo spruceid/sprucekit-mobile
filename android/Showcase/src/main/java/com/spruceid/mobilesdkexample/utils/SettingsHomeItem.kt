@@ -65,7 +65,7 @@ fun SettingsHomeItem(
                 Image(
                     painter = painterResource(id = R.drawable.chevron),
                     contentDescription = stringResource(id = R.string.chevron),
-                    modifier = Modifier.scale(0.5f)
+                    modifier = Modifier.scale(1.1f)
                 )
             }
 
