@@ -4,12 +4,26 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Base64
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
+import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.Cwt
@@ -481,6 +495,7 @@ private fun formatDateValue(fieldValue: String): String? {
                 val date = inputFormat.parse(fieldValue)
                 date?.let { outputFormat.format(it) }
             }
+
             else -> null
         }
     } catch (e: Exception) {
@@ -532,6 +547,61 @@ fun formatCredentialFieldValue(
         CredentialFieldType.IMAGE -> {
             // For images, return empty string as we'll handle the image display separately
             ""
+        }
+    }
+}
+
+@Composable
+fun RenderCredentialFieldValue(
+    fieldType: CredentialFieldType,
+    rawFieldValue: String,
+    formattedValue: String,
+    displayName: String
+) {
+    when (fieldType) {
+        CredentialFieldType.IMAGE -> {
+            // Display the actual portrait image
+            if (rawFieldValue.isNotEmpty()) {
+                val bitmap = remember(rawFieldValue) {
+                    try {
+                        // Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
+                        val cleanBase64 = if (rawFieldValue.startsWith("data:")) {
+                            rawFieldValue.substringAfter("base64,")
+                        } else {
+                            rawFieldValue
+                        }
+                        val imageBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+                bitmap?.let {
+                    Image(
+                        bitmap = it.asImageBitmap(),
+                        contentDescription = displayName,
+                        modifier = Modifier
+                            .size(75.dp, 75.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                    )
+                }
+            }
+        }
+
+        else -> {
+            // Show the formatted field value for text and dates
+            if (formattedValue.isNotEmpty()) {
+                Text(
+                    text = formattedValue,
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 12.sp,
+                    color = ColorStone600,
+                    textAlign = TextAlign.End
+                )
+            }
         }
     }
 }
