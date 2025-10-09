@@ -17,6 +17,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use isomdl::cbor;
+use isomdl::definitions::device_engagement::nfc::NegotiatedCarrierInfo as IsoMdlNegotiatedCarrierInfo;
 use isomdl::definitions::session::Handover;
 use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
@@ -30,14 +32,28 @@ use isomdl::{
 use uuid::Uuid;
 
 #[derive(uniffi::Object, Debug, Clone)]
-pub struct NegotiatedCarrierInfo(
-    isomdl::definitions::device_engagement::nfc::NegotiatedCarrierInfo,
-);
+pub struct NegotiatedCarrierInfo(IsoMdlNegotiatedCarrierInfo);
 
 #[uniffi::export]
 impl NegotiatedCarrierInfo {
     pub fn get_uuid(&self) -> Uuid {
         self.0.uuid
+    }
+
+    pub fn to_cbor(&self) -> Result<Vec<u8>, SessionError> {
+        cbor::to_vec(&self.0).map_err(|e| SessionError::Generic {
+            value: format!("Failed to serialize negotiated carrier info to CBOR: {e:?}"),
+        })
+    }
+
+    #[uniffi::constructor]
+    pub fn from_cbor(value: Vec<u8>) -> Result<Self, SessionError> {
+        let info: IsoMdlNegotiatedCarrierInfo =
+            cbor::from_slice(&value).map_err(|e| SessionError::Generic {
+                value: format!("Failed to serialize negotiated carrier info to CBOR: {e:?}"),
+            })?;
+
+        Ok(Self(info))
     }
 }
 
