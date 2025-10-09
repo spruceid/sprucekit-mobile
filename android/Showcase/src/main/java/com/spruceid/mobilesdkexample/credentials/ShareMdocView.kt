@@ -73,6 +73,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.CredentialFieldType
+import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 import com.spruceid.mobilesdkexample.utils.formatCredentialFieldValue
 import com.spruceid.mobilesdkexample.utils.getCredentialFieldType
@@ -99,7 +100,7 @@ fun ShareMdocView(
     val launcherMultiplePermissions = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissionsMap ->
-        if (permissionsMap.isNotEmpty()){
+        if (permissionsMap.isNotEmpty()) {
             val areGranted = permissionsMap.values.all { it }
             credentialViewModel.setBluetoothPermissionsGranted(areGranted);
 
@@ -237,7 +238,12 @@ fun ShareMdocSelectiveDisclosureView(
         },
         sheetState = selectNamespacesSheetState,
         containerColor = ColorBase1,
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 0.dp, bottomEnd = 0.dp)
+        shape = RoundedCornerShape(
+            topStart = 16.dp,
+            topEnd = 16.dp,
+            bottomStart = 0.dp,
+            bottomEnd = 0.dp
+        )
     ) {
         Column(
             modifier = Modifier
@@ -272,35 +278,35 @@ fun ShareMdocSelectiveDisclosureView(
                         itemsRequest.namespaces.entries
                             .sortedBy { if (it.key == "org.iso.18013.5.1") 0 else 1 }
                             .forEach { namespaceSpec ->
-                            Column {
-                                Text(
-                                    text = namespaceSpec.key,
-                                    fontFamily = Inter,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 18.sp,
-                                    color = ColorStone950,
-                                    modifier = Modifier.padding(top = 16.dp)
-                                )
-                                namespaceSpec.value.entries
-                                    .sortedBy { getFieldSortOrder(it.key) }
-                                    .forEach { namespace ->
-                                        ShareMdocSelectiveDisclosureNamespaceItem(
-                                            namespace = namespace,
-                                            credentialPack = credentialPack,
-                                            isChecked = allowedNamespaces[itemsRequest.docType]?.get(
-                                                namespaceSpec.key
-                                            )?.contains(namespace.key) ?: false,
-                                            onCheck = { _ ->
-                                                credentialViewModel.toggleAllowedNamespace(
-                                                    itemsRequest.docType,
-                                                    namespaceSpec.key,
-                                                    namespace.key
-                                                )
-                                            }
-                                        )
-                                    }
+                                Column {
+                                    Text(
+                                        text = namespaceSpec.key,
+                                        fontFamily = Inter,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 18.sp,
+                                        color = ColorStone950,
+                                        modifier = Modifier.padding(top = 16.dp)
+                                    )
+                                    namespaceSpec.value.entries
+                                        .sortedBy { getFieldSortOrder(it.key) }
+                                        .forEach { namespace ->
+                                            ShareMdocSelectiveDisclosureNamespaceItem(
+                                                namespace = namespace,
+                                                credentialPack = credentialPack,
+                                                isChecked = allowedNamespaces[itemsRequest.docType]?.get(
+                                                    namespaceSpec.key
+                                                )?.contains(namespace.key) ?: false,
+                                                onCheck = { _ ->
+                                                    credentialViewModel.toggleAllowedNamespace(
+                                                        itemsRequest.docType,
+                                                        namespaceSpec.key,
+                                                        namespace.key
+                                                    )
+                                                }
+                                            )
+                                        }
+                                }
                             }
-                        }
                     }
                 }
             }
@@ -429,51 +435,12 @@ fun ShareMdocSelectiveDisclosureNamespaceItem(
             modifier = Modifier.weight(1f)
         )
 
-        // Show the field value based on type
-        when (fieldType) {
-            CredentialFieldType.IMAGE -> {
-                // Display the actual portrait image
-                if (rawFieldValue.isNotEmpty()) {
-                    val bitmap = remember(rawFieldValue) {
-                        try {
-                            // Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
-                            val cleanBase64 = if (rawFieldValue.startsWith("data:")) {
-                                rawFieldValue.substringAfter("base64,")
-                            } else {
-                                rawFieldValue
-                            }
-                            val imageBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
-                            BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-
-                    bitmap?.let {
-                        Image(
-                            bitmap = it.asImageBitmap(),
-                            contentDescription = displayName,
-                            modifier = Modifier
-                                .size(75.dp, 75.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                        )
-                    }
-                }
-            }
-            else -> {
-                // Show the formatted field value for text and dates
-                if (formattedValue.isNotEmpty()) {
-                    Text(
-                        text = formattedValue,
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 12.sp,
-                        color = ColorStone600,
-                        textAlign = TextAlign.End
-                    )
-                }
-            }
-        }
+        // Render field value 
+        RenderCredentialFieldValue(
+            fieldType = fieldType,
+            rawFieldValue = rawFieldValue,
+            formattedValue = formattedValue,
+            displayName = displayName
+        )
     }
 }
