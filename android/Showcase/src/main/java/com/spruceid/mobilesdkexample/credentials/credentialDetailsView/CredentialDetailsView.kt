@@ -402,6 +402,7 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
         ) {
             ShareMdocView(
                 credentialViewModel = credentialViewModel,
+                credentialPack = credentialPack,
                 onCancel = {
                     cancel()
                 }
