@@ -14,6 +14,7 @@ import com.spruceid.mobile.sdk.rs.coseKeyEc2P256PublicKey
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Signature
+import java.security.cert.Certificate
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import javax.crypto.Cipher
@@ -191,6 +192,23 @@ class KeyManager : SpruceKitKeyStore {
                 val y = clampOrFill(ecPublicKey.w.affineY.toByteArray())
 
                 return coseKeyEc2P256PublicKey(x, y, id.toByteArray())
+            }
+        }
+
+        return null
+    }
+
+    /**
+     *
+     *  Returns the certificate corresponding to the signing key ID provided
+     */
+    fun signingKeyCertificateChain(id: String): List<ByteArray>? {
+        val ks = getKeyStore()
+        val key = ks.getEntry(id, null)
+
+        if (key is KeyStore.PrivateKeyEntry) {
+            if (key.certificate.publicKey is ECPublicKey) {
+                return key.certificateChain.map { it.encoded }
             }
         }
 

@@ -1,7 +1,13 @@
 use std::sync::Arc;
 
 use anyhow::anyhow;
-use isomdl::{cose::sign1::PreparedCoseSign1, definitions::helpers::Tag24};
+use isomdl::{
+    cose::sign1::PreparedCoseSign1,
+    definitions::{
+        helpers::Tag24,
+        x509::{x5chain::X5CHAIN_COSE_HEADER_LABEL, X5Chain},
+    },
+};
 use serde::{Deserialize, Serialize};
 use ssi::claims::cose::coset::{self, iana::Algorithm, AsCborValue, CoseKeyBuilder};
 
@@ -75,23 +81,60 @@ impl CryptoCurveUtils {
 /// signed by the signing key, with the signature included in the
 /// CBOR bytes encoded COSE_Sign1 object returned.
 #[uniffi::export]
-pub fn cose_sign1(signer: Arc<dyn SigningKey>, payload: Vec<u8>) -> Result<Vec<u8>> {
-    let payload = Tag24::new(payload).map_err(|e| {
-        CryptoError::General(format!("Failed to construct CBOR Tag24 data item: {e:?}"))
-    })?;
-    let cbor_payload = isomdl::cbor::to_vec(&payload)
-        .map_err(|e| CryptoError::General(format!("Failed to encode payload as CBOR: {e:?}")))?;
+pub fn cose_sign1(
+    signer: Arc<dyn SigningKey>,
+    payload: Vec<u8>,
+    x509_cert_pem: Option<Vec<Vec<u8>>>,
+    is_cbor_payload: bool,
+) -> Result<Vec<u8>> {
+    let cbor_payload = if is_cbor_payload {
+        payload
+    } else {
+        let payload = Tag24::new(payload).map_err(|e| {
+            CryptoError::General(format!("Failed to construct CBOR Tag24 data item: {e:?}"))
+        })?;
+        isomdl::cbor::to_vec(&payload)
+            .map_err(|e| CryptoError::General(format!("Failed to encode payload as CBOR: {e:?}")))?
+    };
 
-    let header = coset::HeaderBuilder::new()
-        .algorithm(coset::iana::Algorithm::ES256)
-        .build();
+    let mut header = coset::HeaderBuilder::new().algorithm(coset::iana::Algorithm::ES256);
+    // .build();
 
-    let cose_sign1_builder = coset::CoseSign1Builder::new()
-        // unprotected header for x5chain attestation
-        .protected(header);
-    let prepared_cose_sign1 =
-        PreparedCoseSign1::new(cose_sign1_builder, Some(&cbor_payload), None, false)
-            .map_err(|e| CryptoError::General(format!("failed to prepare CoseSign1: {e:?}")))?;
+    let mut cose_sign1_builder = coset::CoseSign1Builder::new();
+
+    if let Some(certificates) = x509_cert_pem {
+        let mut x5chain_builder = X5Chain::builder();
+
+        if let Some(cert) = certificates.first() {
+            x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
+                CryptoError::General(format!(
+                    "Failed to construct x5chain with certificate: {e:?}"
+                ))
+            })?;
+        }
+
+        // for cert in certificates.iter() {
+        //     x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
+        //         CryptoError::General(format!(
+        //             "Failed to construct x5chain with certificate: {e:?}"
+        //         ))
+        //     })?;
+        // }
+
+        let x5chain = x5chain_builder
+            .build()
+            .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
+
+        header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
+    }
+
+    // Add payload directly to cose sign1 builder
+    cose_sign1_builder = cose_sign1_builder
+        .protected(header.build())
+        .payload(cbor_payload);
+
+    let prepared_cose_sign1 = PreparedCoseSign1::new(cose_sign1_builder, None, None, false)
+        .map_err(|e| CryptoError::General(format!("failed to prepare CoseSign1: {e:?}")))?;
 
     let signature = signer
         .sign(prepared_cose_sign1.signature_payload().to_vec())
@@ -127,6 +170,7 @@ pub fn cose_key_ec2_p256_public_key(x: Vec<u8>, y: Vec<u8>, kid: Vec<u8>) -> Res
 
 #[cfg(test)]
 pub(crate) use test::*;
+use x509_cert::Certificate;
 
 #[cfg(test)]
 mod test {

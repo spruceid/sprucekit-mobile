@@ -1,4 +1,4 @@
-use isomdl::definitions::{mcd::*, CoseKey};
+use isomdl::definitions::{helpers::ByteStr, mcd::*, CoseKey};
 use ssi::claims::cose::coset::TaggedCborSerializable;
 use std::sync::Arc;
 
@@ -78,14 +78,14 @@ impl MobileIdCapabilityDescriptorBuilder {
         self: Arc<Self>,
         cose_key_bytes: Vec<u8>,
     ) -> Result<Arc<Self>, CryptoError> {
-        let cose_key: CoseKey = ciborium::from_reader(&cose_key_bytes[..])
-            .map_err(|e| CryptoError::General(format!("Failed to decode COSE key: {e:?}")))?;
+        // let cose_key: CoseKey = ciborium::from_reader(&cose_key_bytes[..])
+        //     .map_err(|e| CryptoError::General(format!("Failed to decode COSE key: {e:?}")))?;
 
-        let app_attestation_key_bytes = isomdl::definitions::helpers::Tag24::new(cose_key)
-            .map_err(|e| CryptoError::General(format!("Failed to create Tag24: {e:?}")))?;
+        // let app_attestation_key_bytes = isomdl::definitions::helpers::Tag24::new(cose_key)
+        //     .map_err(|e| CryptoError::General(format!("Failed to create Tag24: {e:?}")))?;
 
         Ok(Arc::new(Self {
-            app_attestation_key_bytes: Some(app_attestation_key_bytes),
+            app_attestation_key_bytes: Some(ByteStr::from(cose_key_bytes)),
             ..(*self).clone()
         }))
     }
@@ -139,11 +139,9 @@ impl MobileIdCapabilityDescriptorBuilder {
             secure_area_attestation_objects: self.secure_area_attestation_objects.clone(),
         };
 
-        // mcd.to_tagged_vec()
-        isomdl::cbor::to_vec(&mcd)
+        // isomdl::cbor::to_vec(&mcd)
+        mcd.to_tagged_vec()
             .map_err(|e| CryptoError::General(format!("Failed to serialize MCD: {e:?}")))
-
-        //
     }
 
     pub fn get_version(&self) -> u64 {
