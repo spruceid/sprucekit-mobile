@@ -271,7 +271,6 @@ fun MdocFieldSelector(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .padding(top = 48.dp)
     ) {
         Text(
             buildAnnotatedString {
@@ -484,7 +483,6 @@ fun MdocSelector(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .padding(top = 48.dp)
     ) {
         Text(
             text = "Select the credential to share",

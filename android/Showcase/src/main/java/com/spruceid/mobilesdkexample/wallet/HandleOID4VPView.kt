@@ -329,7 +329,6 @@ fun DataFieldSelector(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .padding(top = 48.dp)
     ) {
         Text(
             buildAnnotatedString {
@@ -490,7 +489,6 @@ fun CredentialSelector(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .padding(top = 48.dp)
     ) {
         Text(
             text = "Select the credential${if (allowMultiple) "(s)" else ""} to share",

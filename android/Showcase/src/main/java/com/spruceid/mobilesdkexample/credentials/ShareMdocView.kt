@@ -250,7 +250,6 @@ fun ShareMdocSelectiveDisclosureView(
                 .fillMaxWidth()
                 .height((LocalConfiguration.current.screenHeightDp * .8f).dp)
                 .padding(horizontal = 24.dp)
-                .padding(top = 48.dp)
         ) {
             Text(
                 buildAnnotatedString {
