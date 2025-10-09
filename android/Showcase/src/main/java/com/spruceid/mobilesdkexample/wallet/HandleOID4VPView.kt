@@ -5,10 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -21,6 +23,7 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,14 +68,19 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
 import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
+import com.spruceid.mobilesdkexample.utils.formatCredentialFieldValue
+import com.spruceid.mobilesdkexample.utils.getCredentialFieldType
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.utils.getFieldDisplayName
 import com.spruceid.mobilesdkexample.utils.trustedDids
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
@@ -310,10 +318,12 @@ fun DataFieldSelector(
     onContinue: (selectedFields: List<List<String>>) -> Unit,
     onCancel: () -> Unit
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
+
     var selectedFields by remember {
         mutableStateOf(requestedFields.filter { it.required() }.map { it.path() }.toList())
     }
-    val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
 
     Column(
         modifier = Modifier
@@ -336,6 +346,10 @@ fun DataFieldSelector(
             textAlign = TextAlign.Center
         )
 
+        val credentialPack = credentialPacks.firstOrNull { credentialPack ->
+            credentialPack.getCredentialById(selectedCredential.asParsedCredential().id()) != null
+        }
+
         Column(
             modifier =
                 Modifier
@@ -343,31 +357,31 @@ fun DataFieldSelector(
                     .verticalScroll(rememberScrollState())
                     .weight(weight = 1f, fill = false)
         ) {
-            requestedFields.forEach {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(
-                        enabled = selectedCredential.selectiveDisclosable() && !it.required(),
-                        checked = selectedFields.contains(it.path()) || it.required(),
-                        onCheckedChange = { v ->
-                            selectedFields = if (!v) {
-                                selectedFields.minus(it.path())
-                            } else {
-                                selectedFields.plus(it.path())
-                            }
+            requestedFields.forEach { field ->
+                DataFieldSelectorItem(
+                    field = field,
+                    credentialPack = credentialPack,
+                    selectedCredential = selectedCredential,
+                    checked = selectedFields.contains(field.path()) || field.required(),
+                    onCheckedChange = { v ->
+                        selectedFields = if (!v) {
+                            selectedFields.minus(field.path())
+                        } else {
+                            selectedFields.plus(field.path())
                         }
-                    )
-                    Text(
-                        buildAnnotatedString {
-                            withStyle(style = paragraphStyle) {
-                                append("\t\t")
-                                append(it.name()?.replaceFirstChar(Char::titlecase) ?: "")
-                            }
-                        },
-                    )
-                }
+                    }
+                )
             }
         }
 
+        // Separator line above buttons
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+                .height(1.dp)
+                .background(ColorStone200)
+        )
         Row(
             modifier =
                 Modifier
@@ -378,7 +392,7 @@ fun DataFieldSelector(
         ) {
             Button(
                 onClick = { onCancel() },
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors =
                     ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
@@ -390,7 +404,7 @@ fun DataFieldSelector(
                         .border(
                             width = 1.dp,
                             color = ColorStone300,
-                            shape = RoundedCornerShape(6.dp)
+                            shape = RoundedCornerShape(20.dp)
                         )
                         .weight(1f)
             ) {
@@ -404,14 +418,14 @@ fun DataFieldSelector(
 
             Button(
                 onClick = { onContinue(listOf(selectedFields)) },
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .background(
                             color = ColorEmerald900,
-                            shape = RoundedCornerShape(6.dp),
+                            shape = RoundedCornerShape(20.dp),
                         )
                         .weight(1f)
             ) {
@@ -684,5 +698,63 @@ fun CredentialSelectorItem(
                 modifier = Modifier.padding(16.dp)
             )
         }
+    }
+}
+
+@Composable
+fun DataFieldSelectorItem(
+    field: RequestedField,
+    credentialPack: CredentialPack?,
+    selectedCredential: PresentableCredential,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val fieldName = field.name() ?: ""
+    val displayName = getFieldDisplayName(fieldName)
+
+    // Get the field value from the credential pack
+    val rawFieldValue = credentialPack?.let { pack ->
+        try {
+            val claims = pack.findCredentialClaims(listOf(fieldName))
+            claims.values.firstOrNull()?.optString(fieldName) ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+    } ?: ""
+
+    val fieldType = getCredentialFieldType(displayName, rawFieldValue)
+    val formattedValue = formatCredentialFieldValue(rawFieldValue, fieldType, fieldName)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            enabled = selectedCredential.selectiveDisclosable() && !field.required(),
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = CheckboxDefaults.colors(
+                checkedColor = ColorBlue600,
+                uncheckedColor = ColorStone300
+            )
+        )
+
+        Text(
+            text = displayName,
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 14.sp,
+            color = ColorStone950,
+            modifier = Modifier.weight(1f)
+        )
+
+        RenderCredentialFieldValue(
+            fieldType = fieldType,
+            rawFieldValue = rawFieldValue,
+            formattedValue = formattedValue,
+            displayName = displayName
+        )
     }
 }
