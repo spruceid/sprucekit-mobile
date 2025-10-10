@@ -307,3 +307,109 @@ class QrCodeAnalyzer(
         }
     }
 }
+
+
+@Composable
+fun MinimalQRCodeScanner(
+    onRead: (content: String) -> Unit,
+    isMatch: (content: String) -> Boolean = { _ -> true },
+    onCancel: () -> Unit,
+    backgroundColor: Color,
+    borderColor: Color = Color.Blue,
+    instructionsText: String = "Scan the provided verification QR Code in order to share data",
+    instructionsColor: Color = Color.Gray,
+    fontFamily: FontFamily = FontFamily.Default
+) {
+    GenericCameraXScanner(
+        title = "",
+        titleColor = Color.Transparent,
+        subtitle = "",
+        subtitleColor = Color.Transparent,
+        cancelButtonLabel = "",
+        onCancel = onCancel,
+        hideCancelButton = true,
+        fontFamily = fontFamily,
+        imageAnalyzer = QrCodeAnalyzer(
+            isMatch = isMatch,
+            onQrCodeScanned = { result ->
+                onRead(result)
+            }),
+        background = {
+            MinimalQRScannerBackground(
+                backgroundColor = backgroundColor,
+                borderColor = borderColor,
+                instructionsText = instructionsText,
+                instructionsColor = instructionsColor,
+                fontFamily = fontFamily
+            )
+        }
+    )
+}
+
+@Composable
+fun MinimalQRScannerBackground(
+    backgroundColor: Color = Color.White,
+    borderColor: Color = Color.Blue,
+    instructionsText: String = "Scan the provided verification QR Code in order to share data",
+    instructionsColor: Color = Color.Gray,
+    fontFamily: FontFamily = FontFamily.Default
+) {
+    val canvasSizeHeightOffsetMultiplier = .08f
+    val canvasSizeWidthOffsetMultiplier = .7f
+
+    Box(
+        Modifier.fillMaxSize()
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(backgroundColor)
+                .drawWithContent {
+                    val canvasWidth = size.width
+                    val canvasHeight = size.height
+                    val width = canvasWidth * canvasSizeWidthOffsetMultiplier
+
+                    val left = (canvasWidth - width) / 2
+                    val top = canvasHeight * canvasSizeHeightOffsetMultiplier
+                    val cornerRadius = 12f
+
+                    drawContent()
+
+                    drawRect(
+                        color = backgroundColor,
+                        size = size
+                    )
+
+                    drawRoundRect(
+                        topLeft = Offset(left, top),
+                        size = Size(width, width),
+                        color = Color.Transparent,
+                        blendMode = BlendMode.SrcIn,
+                        cornerRadius = CornerRadius(cornerRadius),
+                    )
+
+                    drawRoundRect(
+                        topLeft = Offset(left, top),
+                        size = Size(width, width),
+                        color = borderColor,
+                        style = Stroke(2.dp.toPx()),
+                        cornerRadius = CornerRadius(cornerRadius),
+                    )
+                }
+        )
+        if (instructionsText.isNotEmpty()) {
+            Text(
+                text = instructionsText,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 80.dp),
+                color = instructionsColor,
+                fontFamily = fontFamily,
+                fontWeight = FontWeight.Normal,
+                fontSize = 15.sp,
+            )
+        }
+    }
+}

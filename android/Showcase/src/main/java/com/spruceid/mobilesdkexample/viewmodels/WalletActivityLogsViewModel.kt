@@ -32,6 +32,10 @@ class WalletActivityLogsViewModel @Inject constructor(
             walletActivityLogsRepository.getWalletActivityLogs()
     }
 
+    suspend fun getWalletActivityLogsByCredentialPackId(credentialPackId: String): List<WalletActivityLogs> {
+        return walletActivityLogsRepository.getWalletActivityLogsByCredentialPackId(credentialPackId)
+    }
+
     fun generateWalletActivityLogCSV(logs: List<WalletActivityLogs>? = null): String {
         val heading =
             "ID, Credential Pack Id, Credential Id, Credential Title, Issuer, Action, Date Time, Additional Information\n"

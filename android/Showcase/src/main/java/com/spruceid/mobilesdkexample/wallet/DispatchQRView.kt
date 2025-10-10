@@ -12,6 +12,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobilesdkexample.ErrorView
+import com.spruceid.mobilesdkexample.IndividualCredentialScanningComponent
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.navigation.Screen
@@ -47,7 +48,8 @@ fun DispatchQRView(
     supportedTypes: List<SupportedQRTypes> = ALL_SUPPORTED_QR_TYPES,
     backgroundColor: Color = Color.White,
     hideCancelButton: Boolean = false,
-) {
+    useMinimalScanner: Boolean = false,
+    ) {
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
 
@@ -137,12 +139,20 @@ fun DispatchQRView(
             onClose = ::back
         )
     } else {
-        ScanningComponent(
-            scanningType = ScanningType.QRCODE,
-            backgroundColor = backgroundColor,
-            hideCancelButton = hideCancelButton,
-            onRead = ::onRead,
-            onCancel = ::back
-        )
+        if (useMinimalScanner) {
+            IndividualCredentialScanningComponent(
+                backgroundColor = backgroundColor,
+                onRead = ::onRead,
+                onCancel = ::back
+            )
+        } else {
+            ScanningComponent(
+                scanningType = ScanningType.QRCODE,
+                backgroundColor = backgroundColor,
+                hideCancelButton = hideCancelButton,
+                onRead = ::onRead,
+                onCancel = ::back
+            )
+        }
     }
 }

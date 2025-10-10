@@ -111,7 +111,7 @@ fun VerifierSettingsActivityLogScreenHeader(onBack: () -> Unit) {
             contentDescription = stringResource(id = R.string.chevron),
             modifier = Modifier
                 .rotate(180f)
-                .scale(0.4f)
+                .scale(1.4f)
         )
         Text(
             text = "Activity Log",

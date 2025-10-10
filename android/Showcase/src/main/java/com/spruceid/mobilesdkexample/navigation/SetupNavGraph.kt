@@ -9,7 +9,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
-import com.spruceid.mobilesdkexample.credentials.CredentialDetailsView
+import com.spruceid.mobilesdkexample.credentials.credentialDetailsView.CredentialDetailsView
 import com.spruceid.mobilesdkexample.verifier.AddVerificationMethodView
 import com.spruceid.mobilesdkexample.verifier.VerifyCwtView
 import com.spruceid.mobilesdkexample.verifier.VerifyDLView
