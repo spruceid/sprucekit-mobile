@@ -24,6 +24,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
+import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.Cwt
