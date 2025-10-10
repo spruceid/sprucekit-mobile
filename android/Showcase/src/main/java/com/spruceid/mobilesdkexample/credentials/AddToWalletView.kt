@@ -70,7 +70,6 @@ fun AddToWalletView(
             this.async(Dispatchers.Default) {
                 try {
                     val credentialPack = CredentialPack()
-
                     // Try add credential in any supported format
                     credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
 
