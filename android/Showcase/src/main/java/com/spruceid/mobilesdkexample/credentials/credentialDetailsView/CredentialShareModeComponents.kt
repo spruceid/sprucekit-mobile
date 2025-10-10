@@ -32,7 +32,7 @@ fun ScanModeContent(
             supportedTypes = listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
             backgroundColor = ColorBase50,
             hideCancelButton = true,
-            useMinimalScanner = true
+            isInsideCredentialDetails = true
         )
     }
 }

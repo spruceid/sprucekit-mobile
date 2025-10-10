@@ -238,7 +238,7 @@ fun GenericCredentialListItem(
     var showBottomSheet by remember { mutableStateOf(false) }
 
     val listRendering = CardRenderingListView(
-        titleKeys = listOf("name", "type"),
+        titleKeys = listOf("name", "type", "credentialSubject.name", "id"),
         titleFormatter = { values ->
             titleFormatter(
                 credentialPack,
@@ -342,9 +342,32 @@ private fun titleFormatter(
         }
     }
     var title = ""
-    try {
-        title = credential?.get("name").toString()
-        if (title.isBlank()) {
+
+    // Priority 1: name
+    if (title.isBlank()) {
+        try {
+            val name = credential?.optString("name", "") ?: ""
+            if (name.isNotBlank()) {
+                title = name
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    // Priority 2: credentialSubject.name
+    if (title.isBlank()) {
+        try {
+            val credSubjectName = credential?.optString("credentialSubject.name", "") ?: ""
+            if (credSubjectName.isNotBlank()) {
+                title = credSubjectName
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    // Priority 3: type (as array)
+    if (title.isBlank()) {
+        try {
             val arrayTypes = credential?.getJSONArray("type")
             if (arrayTypes != null) {
                 for (i in 0 until arrayTypes.length()) {
@@ -354,8 +377,19 @@ private fun titleFormatter(
                     }
                 }
             }
+        } catch (_: Exception) {
         }
-    } catch (_: Exception) {
+    }
+
+    // Priority 4: id
+    if (title.isBlank()) {
+        try {
+            val id = credential?.optString("id", "") ?: ""
+            if (id.isNotBlank()) {
+                title = id
+            }
+        } catch (_: Exception) {
+        }
     }
 
     Column {
@@ -491,7 +525,8 @@ private fun credentialImageFormatter(
     // Priority 5: credentialSubject.issuer.image
     if (image.isBlank()) {
         try {
-            val credSubjectIssuerImage = credential?.optString("credentialSubject.issuer.image", "") ?: ""
+            val credSubjectIssuerImage =
+                credential?.optString("credentialSubject.issuer.image", "") ?: ""
             if (credSubjectIssuerImage.isNotBlank()) {
                 image = credSubjectIssuerImage
             }

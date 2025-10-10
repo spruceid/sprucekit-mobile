@@ -1,14 +1,23 @@
 package com.spruceid.mobilesdkexample.wallet
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobilesdkexample.ErrorView
@@ -16,6 +25,8 @@ import com.spruceid.mobilesdkexample.IndividualCredentialScanningComponent
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -48,12 +59,14 @@ fun DispatchQRView(
     supportedTypes: List<SupportedQRTypes> = ALL_SUPPORTED_QR_TYPES,
     backgroundColor: Color = Color.White,
     hideCancelButton: Boolean = false,
-    useMinimalScanner: Boolean = false,
-    ) {
+    isInsideCredentialDetails: Boolean = false,
+) {
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
 
     var err by remember { mutableStateOf<String?>(null) }
+    var showOID4VPModal by remember { mutableStateOf(false) }
+    var modalPayload by remember { mutableStateOf<String?>(null) }
 
     fun back() {
         navController.navigate(
@@ -81,33 +94,40 @@ fun DispatchQRView(
                 if (qrType != null && supportedTypes.contains(qrType)) {
                     when (qrType) {
                         SupportedQRTypes.OID4VP -> {
-                            val baseRoute = when {
-                                payload.startsWith(OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->
-                                    Screen.HandleOID4VPWithCredentialPack.route.replace(
-                                        "{credential_pack_id}",
-                                        credentialPackId
-                                    )
+                            if (isInsideCredentialDetails) {
+                                // Show modal instead of navigating
+                                modalPayload = payload
+                                showOID4VPModal = true
+                            } else {
+                                // Navigate to full screen
+                                val baseRoute = when {
+                                    payload.startsWith(OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->
+                                        Screen.HandleOID4VPWithCredentialPack.route.replace(
+                                            "{credential_pack_id}",
+                                            credentialPackId
+                                        )
 
-                                payload.startsWith(OID4VP_SCHEME) ->
-                                    Screen.HandleOID4VP.route
+                                    payload.startsWith(OID4VP_SCHEME) ->
+                                        Screen.HandleOID4VP.route
 
-                                payload.startsWith(MDOC_OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->
-                                    Screen.HandleMdocOID4VPWithCredentialPack.route.replace(
-                                        "{credential_pack_id}",
-                                        credentialPackId
-                                    )
+                                    payload.startsWith(MDOC_OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->
+                                        Screen.HandleMdocOID4VPWithCredentialPack.route.replace(
+                                            "{credential_pack_id}",
+                                            credentialPackId
+                                        )
 
-                                payload.startsWith(MDOC_OID4VP_SCHEME) ->
-                                    Screen.HandleMdocOID4VP.route
+                                    payload.startsWith(MDOC_OID4VP_SCHEME) ->
+                                        Screen.HandleMdocOID4VP.route
 
-                                else -> throw IllegalArgumentException("Invalid OID4VP scheme")
-                            }
+                                    else -> throw IllegalArgumentException("Invalid OID4VP scheme")
+                                }
 
-                            val route = baseRoute.replace("{url}", encodedUrl)
+                                val route = baseRoute.replace("{url}", encodedUrl)
 
-                            navController.navigate(route) {
-                                launchSingleTop = true
-                                restoreState = true
+                                navController.navigate(route) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         }
 
@@ -139,7 +159,7 @@ fun DispatchQRView(
             onClose = ::back
         )
     } else {
-        if (useMinimalScanner) {
+        if (isInsideCredentialDetails) {
             IndividualCredentialScanningComponent(
                 backgroundColor = backgroundColor,
                 onRead = ::onRead,
@@ -153,6 +173,66 @@ fun DispatchQRView(
                 onRead = ::onRead,
                 onCancel = ::back
             )
+        }
+    }
+
+    // Show OID4VP modal when inside credential details
+    if (showOID4VPModal && modalPayload != null) {
+        OID4VPModal(
+            payload = modalPayload!!,
+            credentialPackId = credentialPackId,
+            navController = navController,
+            onClose = {
+                showOID4VPModal = false
+                modalPayload = null
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OID4VPModal(
+    payload: String,
+    credentialPackId: String?,
+    navController: NavController,
+    onClose: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onClose,
+        sheetState = sheetState,
+        containerColor = ColorBase50,
+        shape = RoundedCornerShape(
+            topStart = 20.dp,
+            topEnd = 20.dp,
+            bottomStart = 0.dp,
+            bottomEnd = 0.dp
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+        ) {
+            when {
+                payload.startsWith(OID4VP_SCHEME) -> {
+                    HandleOID4VPView(
+                        navController = navController,
+                        url = payload,
+                        credentialPackId = credentialPackId
+                    )
+                }
+
+                payload.startsWith(MDOC_OID4VP_SCHEME) -> {
+                    HandleMdocOID4VPView(
+                        navController = navController,
+                        url = payload,
+                        credentialPackId = credentialPackId
+                    )
+                }
+            }
         }
     }
 }
