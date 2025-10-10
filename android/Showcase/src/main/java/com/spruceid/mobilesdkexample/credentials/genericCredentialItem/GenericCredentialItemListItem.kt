@@ -2,6 +2,7 @@ package com.spruceid.coloradofwd.credentials.genericCredentialItem
 
 import android.util.Log
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -289,7 +290,10 @@ fun GenericCredentialListItem(
             backgroundImageResId = R.drawable.credential_bg,
             credentialImageKeys = listOf(
                 "portrait",
+                "image",
                 "issuer.image",
+                "credentialSubject.image",
+                "credentialSubject.issuer.image",
                 "issuer.name",
                 "type",
                 "credentialSubject.achievement.image.id"
@@ -423,44 +427,87 @@ private fun credentialImageFormatter(
     }
 
     var image = ""
-    // First priority: Look for portrait field
-    try {
-        val portraitImage = credential?.optString("portrait", "") ?: ""
-        if (portraitImage.isNotBlank()) {
-            image = portraitImage
+
+    // Priority 1: portrait
+    if (image.isBlank()) {
+        try {
+            val portraitImage = credential?.optString("portrait", "") ?: ""
+            if (portraitImage.isNotBlank()) {
+                image = portraitImage
+            }
+        } catch (_: Exception) {
         }
-    } catch (_: Exception) {
     }
 
-    // Second priority: Existing image options
-    try {
-        val issuerImage = credential?.getJSONObject("issuer.image")
-        issuerImage?.optString("image").let {
-            if (it != null) {
-                image = it.toString()
-                return
+    // Priority 2: image
+    if (image.isBlank()) {
+        try {
+            val imageField = credential?.optString("image", "") ?: ""
+            if (imageField.isNotBlank()) {
+                image = imageField
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    // Priority 3: issuer.image (as object or string)
+    if (image.isBlank()) {
+        try {
+            val issuerImage = credential?.getJSONObject("issuer.image")
+            issuerImage?.optString("image")?.let {
+                if (it.isNotBlank()) {
+                    image = it
+                }
+            }
+            if (image.isBlank()) {
+                issuerImage?.optString("id")?.let {
+                    if (it.isNotBlank()) {
+                        image = it
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+
+        if (image.isBlank()) {
+            try {
+                image = credential?.optString("issuer.image", "") ?: ""
+            } catch (_: Exception) {
             }
         }
+    }
 
-        issuerImage?.optString("id").let {
-            if (it != null) {
-                image = it.toString()
-                return
+    // Priority 4: credentialSubject.image
+    if (image.isBlank()) {
+        try {
+            val credSubjectImage = credential?.optString("credentialSubject.image", "") ?: ""
+            if (credSubjectImage.isNotBlank()) {
+                image = credSubjectImage
             }
+        } catch (_: Exception) {
         }
-
-    } catch (_: Exception) {
     }
 
-    try {
-        image = credential?.getString("issuer.image") ?: ""
-    } catch (_: Exception) {
+    // Priority 5: credentialSubject.issuer.image
+    if (image.isBlank()) {
+        try {
+            val credSubjectIssuerImage = credential?.optString("credentialSubject.issuer.image", "") ?: ""
+            if (credSubjectIssuerImage.isNotBlank()) {
+                image = credSubjectIssuerImage
+            }
+        } catch (_: Exception) {
+        }
     }
 
-    try {
-        image = credential?.getString("credentialSubject.achievement.image.id") ?: ""
-    } catch (e: Exception) {
-        e.printStackTrace()
+    // Priority 6-7: issuer.name and type are handled by the SDK automatically
+
+    // Priority 8: credentialSubject.achievement.image.id
+    if (image.isBlank()) {
+        try {
+            image = credential?.optString("credentialSubject.achievement.image.id", "") ?: ""
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     var alt = ""
@@ -477,6 +524,7 @@ private fun credentialImageFormatter(
             modifier = Modifier
                 .width(40.dp)
                 .height(40.dp)
+                .background(Color.White, RoundedCornerShape(4.dp))
                 .border(
                     width = 1.dp,
                     color = Color.Black.copy(alpha = 0.1f),
