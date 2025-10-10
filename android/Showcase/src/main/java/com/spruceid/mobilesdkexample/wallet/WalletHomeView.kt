@@ -182,7 +182,7 @@ fun WalletHomeBody(
                     Modifier
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
-                        .padding(top = 20.dp)
+                        .padding(top = 20.dp, bottom = 90.dp)
                 ) {
                     hacApplications.forEach { hacApplication ->
                         HacApplicationListItem(

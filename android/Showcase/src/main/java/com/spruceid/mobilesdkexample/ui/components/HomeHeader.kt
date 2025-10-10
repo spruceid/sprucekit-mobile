@@ -91,7 +91,7 @@ fun HomeHeader(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 50.dp, bottom = 40.dp)
+                .padding(top = 50.dp, bottom = 5.dp)
                 .padding(horizontal = 26.dp)
         ) {
             // SpruceKit title row

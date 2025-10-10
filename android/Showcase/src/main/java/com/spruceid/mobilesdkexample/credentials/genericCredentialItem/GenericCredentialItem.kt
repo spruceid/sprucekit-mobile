@@ -95,7 +95,7 @@ class GenericCredentialItem : ICredentialView {
             goTo = goTo,
             onDelete = onDelete,
             onExport = onExport,
-            withOptions = true
+            withOptions = false
         )
     }
 }
