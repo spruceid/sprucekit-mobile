@@ -145,7 +145,7 @@ fun VerifierHomeBody(
         Modifier
             .fillMaxWidth()
             .padding(top = 20.dp)
-            .padding(bottom = 60.dp)
+            .padding(bottom = 90.dp)
     ) {
 
         item {
