@@ -376,18 +376,13 @@ fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
                 )
                 .padding(8.dp)
         ) {
-            credential?.asMsoMdoc()?.let {
-                ShareMdocView(
-                    credentialViewModel = credentialViewModel,
-                    mdoc = it,
-                    onCancel = {
-                        cancel()
-                    }
-                )
-            } ?: run {
-                Text("Here")
-                //TODO: this is basically a switch, right now only supports mdoc, add new types later
-            }
+            ShareMdocView(
+                credentialViewModel = credentialViewModel,
+                credentialPack = credentialPack,
+                onCancel = {
+                    cancel()
+                }
+            )
         }
         Text(
             text = "Present this QR code to a verifier in order to share data. You will see a consent dialogue.",

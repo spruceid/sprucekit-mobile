@@ -1,6 +1,10 @@
 package com.spruceid.mobilesdkexample.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -164,11 +168,13 @@ fun SetupNavGraph(
             if (!url.startsWith("openid4vp")) {
                 url = "openid4vp://$url"
             }
-            HandleOID4VPView(
-                navController,
-                url,
-                null,
-            )
+            Box(modifier = Modifier.padding(top = 48.dp)) {
+                HandleOID4VPView(
+                    navController,
+                    url,
+                    null,
+                )
+            }
         }
         composable(
             route = Screen.HandleOID4VPWithCredentialPack.route,
@@ -188,11 +194,13 @@ fun SetupNavGraph(
                 url = "openid4vp://$url"
             }
             val credentialPackId = backStackEntry.arguments?.getString("credential_pack_id")
-            HandleOID4VPView(
-                navController,
-                url,
-                credentialPackId,
-            )
+            Box(modifier = Modifier.padding(top = 48.dp)) {
+                HandleOID4VPView(
+                    navController,
+                    url,
+                    credentialPackId,
+                )
+            }
         }
         composable(
             route = Screen.HandleMdocOID4VP.route,
@@ -207,11 +215,13 @@ fun SetupNavGraph(
             if (!url.startsWith("mdoc-openid4vp")) {
                 url = "mdoc-openid4vp://$url"
             }
-            HandleMdocOID4VPView(
-                navController,
-                url,
-                null
-            )
+            Box(modifier = Modifier.padding(top = 48.dp)) {
+                HandleMdocOID4VPView(
+                    navController,
+                    url,
+                    null
+                )
+            }
         }
         composable(
             route = Screen.HandleMdocOID4VPWithCredentialPack.route,
@@ -231,11 +241,13 @@ fun SetupNavGraph(
                 url = "mdoc-openid4vp://$url"
             }
             val credentialPackId = backStackEntry.arguments?.getString("credential_pack_id")
-            HandleMdocOID4VPView(
-                navController,
-                url,
-                credentialPackId
-            )
+            Box(modifier = Modifier.padding(top = 48.dp)) {
+                HandleMdocOID4VPView(
+                    navController,
+                    url,
+                    credentialPackId
+                )
+            }
         }
         composable(
             route = Screen.CredentialDetailsScreen.route
