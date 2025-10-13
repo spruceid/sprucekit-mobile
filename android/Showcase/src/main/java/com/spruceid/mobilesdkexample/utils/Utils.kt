@@ -82,6 +82,21 @@ fun String.isImage(): Boolean {
             contains("data:image")
 }
 
+fun String.toTitle(): String =
+    if (this == this.uppercase() || this.firstOrNull()?.isUpperCase() == true) {
+        this
+    } else {
+        this
+            .split(" ")
+            .joinToString(" ") { word ->
+                if (word.isNotEmpty()) {
+                    word.substring(0, 1).uppercase() + word.substring(1).lowercase()
+                } else {
+                    word
+                }
+            }
+    }
+
 @Composable
 fun BitmapImage(
     byteArray: ByteArray,
