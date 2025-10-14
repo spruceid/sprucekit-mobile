@@ -202,7 +202,7 @@ fn prepare_mdoc(
           "document_number": format!("DL{}", rand::thread_rng().gen_range(10_000_000..100_000_000)),
           "portrait":include_str!("../../tests/res/mdl/portrait.base64"),
           "driving_privileges":[],
-          "country_code":"USA",
+          "un_distinguishing_sign":"USA",
           "administrative_number":format!("ADM{}", rand::thread_rng().gen_range(10_000_000..100_000_000)),
           "sex":1,
           "height":180,
