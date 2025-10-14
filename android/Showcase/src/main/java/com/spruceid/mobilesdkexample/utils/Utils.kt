@@ -53,6 +53,14 @@ fun formatSqlDateTime(sqlDate: Date): String {
     return formatter.format(sqlDate)
 }
 
+// Use this function to rename a field key to a more "user-friendly" value
+fun String.getKeyReadable(): String {
+    if (this == "un_distinguishing_sign") {
+        return "country_code"
+    }
+    return this
+}
+
 fun String.splitCamelCase() = replace(
     String.format(
         "%s|%s|%s",
