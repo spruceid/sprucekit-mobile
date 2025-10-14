@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -446,7 +447,8 @@ fun MdocFieldSelectorItem(
             colors = CheckboxDefaults.colors(
                 checkedColor = ColorBlue600,
                 uncheckedColor = ColorStone300,
-            )
+            ),
+            modifier = Modifier.width(36.dp)
         )
         // Format the display name using utility function
         val displayName = getFieldDisplayName(field.displayableName)

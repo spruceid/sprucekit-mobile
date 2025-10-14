@@ -477,7 +477,8 @@ fun ShareMdocSelectiveDisclosureNamespaceItem(
             colors = CheckboxDefaults.colors(
                 checkedColor = ColorBlue600,
                 uncheckedColor = ColorStone300,
-            )
+            ),
+            modifier = Modifier.width(36.dp)
         )
         Text(
             text = displayName,
