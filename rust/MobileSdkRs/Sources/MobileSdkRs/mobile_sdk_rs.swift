@@ -395,7 +395,13 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 
 
 // Public interface members begin here.
-
+// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+private let IDX_CALLBACK_FREE: Int32 = 0
+// Callback return codes
+private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
+private let UNIFFI_CALLBACK_ERROR: Int32 = 1
+private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -1265,13 +1271,7 @@ open func httpClient(request: HttpRequest)async throws  -> HttpResponse  {
     
 
 }
-// Magic number for the Rust proxy to call using the same mechanism as every other method,
-// to free the callback once it's dropped by Rust.
-private let IDX_CALLBACK_FREE: Int32 = 0
-// Callback return codes
-private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
-private let UNIFFI_CALLBACK_ERROR: Int32 = 1
-private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
+
 
 // Put the implementation in a struct so we don't pollute the top-level namespace
 fileprivate struct UniffiCallbackInterfaceAsyncHttpClient {
@@ -5812,6 +5812,10 @@ public func FfiConverterTypeLogWriter_lower(_ value: LogWriter) -> UnsafeMutable
 
 public protocol MdlSessionManagerProtocol: AnyObject, Sendable {
     
+    func bleCentralClientDetails()  -> [CentralClientDetails]
+    
+    func blePeripheralServerDetails()  -> [PeripheralServerDetails]
+    
 }
 open class MdlSessionManager: MdlSessionManagerProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -5864,6 +5868,20 @@ open class MdlSessionManager: MdlSessionManagerProtocol, @unchecked Sendable {
 
     
 
+    
+open func bleCentralClientDetails() -> [CentralClientDetails]  {
+    return try!  FfiConverterSequenceTypeCentralClientDetails.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdlsessionmanager_ble_central_client_details(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func blePeripheralServerDetails() -> [PeripheralServerDetails]  {
+    return try!  FfiConverterSequenceTypePeripheralServerDetails.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdlsessionmanager_ble_peripheral_server_details(self.uniffiClonePointer(),$0
+    )
+})
+}
     
 
 }
@@ -10933,6 +10951,77 @@ public func FfiConverterTypeApprovedResponse180137_lower(_ value: ApprovedRespon
 
 
 /**
+ * Connection details for connecting to an mdoc that is using BLE Central Client mode.
+ */
+public struct CentralClientDetails {
+    /**
+     * The UUID of the service that the mdoc is advertising.
+     */
+    public var serviceUuid: Uuid
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The UUID of the service that the mdoc is advertising.
+         */serviceUuid: Uuid) {
+        self.serviceUuid = serviceUuid
+    }
+}
+
+#if compiler(>=6)
+extension CentralClientDetails: Sendable {}
+#endif
+
+
+extension CentralClientDetails: Equatable, Hashable {
+    public static func ==(lhs: CentralClientDetails, rhs: CentralClientDetails) -> Bool {
+        if lhs.serviceUuid != rhs.serviceUuid {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(serviceUuid)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCentralClientDetails: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CentralClientDetails {
+        return
+            try CentralClientDetails(
+                serviceUuid: FfiConverterTypeUuid.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CentralClientDetails, into buf: inout [UInt8]) {
+        FfiConverterTypeUuid.write(value.serviceUuid, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCentralClientDetails_lift(_ buf: RustBuffer) throws -> CentralClientDetails {
+    return try FfiConverterTypeCentralClientDetails.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCentralClientDetails_lower(_ value: CentralClientDetails) -> RustBuffer {
+    return FfiConverterTypeCentralClientDetails.lower(value)
+}
+
+
+/**
  * An unparsed credential, retrieved from storage.
  */
 public struct Credential {
@@ -11964,15 +12053,13 @@ public func FfiConverterTypeMDLReaderResponseData_lower(_ value: MdlReaderRespon
 
 public struct MdlReaderSessionData {
     public var state: MdlSessionManager
-    public var uuid: Uuid
     public var request: Data
     public var bleIdent: Data
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(state: MdlSessionManager, uuid: Uuid, request: Data, bleIdent: Data) {
+    public init(state: MdlSessionManager, request: Data, bleIdent: Data) {
         self.state = state
-        self.uuid = uuid
         self.request = request
         self.bleIdent = bleIdent
     }
@@ -11992,7 +12079,6 @@ public struct FfiConverterTypeMDLReaderSessionData: FfiConverterRustBuffer {
         return
             try MdlReaderSessionData(
                 state: FfiConverterTypeMDLSessionManager.read(from: &buf), 
-                uuid: FfiConverterTypeUuid.read(from: &buf), 
                 request: FfiConverterData.read(from: &buf), 
                 bleIdent: FfiConverterData.read(from: &buf)
         )
@@ -12000,7 +12086,6 @@ public struct FfiConverterTypeMDLReaderSessionData: FfiConverterRustBuffer {
 
     public static func write(_ value: MdlReaderSessionData, into buf: inout [UInt8]) {
         FfiConverterTypeMDLSessionManager.write(value.state, into: &buf)
-        FfiConverterTypeUuid.write(value.uuid, into: &buf)
         FfiConverterData.write(value.request, into: &buf)
         FfiConverterData.write(value.bleIdent, into: &buf)
     }
@@ -12081,6 +12166,93 @@ public func FfiConverterTypeOid4vciExchangeOptions_lift(_ buf: RustBuffer) throw
 #endif
 public func FfiConverterTypeOid4vciExchangeOptions_lower(_ value: Oid4vciExchangeOptions) -> RustBuffer {
     return FfiConverterTypeOid4vciExchangeOptions.lower(value)
+}
+
+
+/**
+ * Connection details for connecting to an mdoc that is using BLE Peripheral Server mode.
+ */
+public struct PeripheralServerDetails {
+    /**
+     * The UUID of the service that the mdoc is advertising.
+     */
+    public var serviceUuid: Uuid
+    /**
+     * The Bluetooth device address of the peripheral server. If available, this can be used
+     * to more quickly identify the correct device to connect to.
+     */
+    public var bleDeviceAddress: Data?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The UUID of the service that the mdoc is advertising.
+         */serviceUuid: Uuid, 
+        /**
+         * The Bluetooth device address of the peripheral server. If available, this can be used
+         * to more quickly identify the correct device to connect to.
+         */bleDeviceAddress: Data?) {
+        self.serviceUuid = serviceUuid
+        self.bleDeviceAddress = bleDeviceAddress
+    }
+}
+
+#if compiler(>=6)
+extension PeripheralServerDetails: Sendable {}
+#endif
+
+
+extension PeripheralServerDetails: Equatable, Hashable {
+    public static func ==(lhs: PeripheralServerDetails, rhs: PeripheralServerDetails) -> Bool {
+        if lhs.serviceUuid != rhs.serviceUuid {
+            return false
+        }
+        if lhs.bleDeviceAddress != rhs.bleDeviceAddress {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(serviceUuid)
+        hasher.combine(bleDeviceAddress)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePeripheralServerDetails: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PeripheralServerDetails {
+        return
+            try PeripheralServerDetails(
+                serviceUuid: FfiConverterTypeUuid.read(from: &buf), 
+                bleDeviceAddress: FfiConverterOptionData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PeripheralServerDetails, into buf: inout [UInt8]) {
+        FfiConverterTypeUuid.write(value.serviceUuid, into: &buf)
+        FfiConverterOptionData.write(value.bleDeviceAddress, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeripheralServerDetails_lift(_ buf: RustBuffer) throws -> PeripheralServerDetails {
+    return try FfiConverterTypePeripheralServerDetails.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeripheralServerDetails_lower(_ value: PeripheralServerDetails) -> RustBuffer {
+    return FfiConverterTypePeripheralServerDetails.lower(value)
 }
 
 
@@ -12798,6 +12970,9 @@ extension ActivityLogEntryType: Equatable, Hashable {}
 
 
 
+
+
+
 public enum ActivityLogError: Swift.Error {
 
     
@@ -12915,11 +13090,14 @@ extension ActivityLogError: Equatable, Hashable {}
 
 
 
+
 extension ActivityLogError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -12993,6 +13171,9 @@ public func FfiConverterTypeAuthenticationStatus_lower(_ value: AuthenticationSt
 
 
 extension AuthenticationStatus: Equatable, Hashable {}
+
+
+
 
 
 
@@ -13072,11 +13253,14 @@ extension CborLdEncodingError: Equatable, Hashable {}
 
 
 
+
 extension CborLdEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -13217,6 +13401,8 @@ public func FfiConverterTypeCborValue_lower(_ value: CborValue) -> RustBuffer {
 
 
 
+
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -13309,6 +13495,9 @@ public func FfiConverterTypeClaimValue_lower(_ value: ClaimValue) -> RustBuffer 
 
 
 extension ClaimValue: Equatable, Hashable {}
+
+
+
 
 
 
@@ -13448,11 +13637,14 @@ extension CredentialDecodingError: Equatable, Hashable {}
 
 
 
+
 extension CredentialDecodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -13561,11 +13753,14 @@ extension CredentialEncodingError: Equatable, Hashable {}
 
 
 
+
 extension CredentialEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -13677,6 +13872,9 @@ extension CredentialFormat: Equatable, Hashable {}
 
 
 
+
+
+
 public enum CredentialPresentationError: Swift.Error {
 
     
@@ -13752,11 +13950,14 @@ extension CredentialPresentationError: Equatable, Hashable {}
 
 
 
+
 extension CredentialPresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -13825,11 +14026,14 @@ extension CryptoError: Equatable, Hashable {}
 
 
 
+
 extension CryptoError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14096,11 +14300,14 @@ extension CwtError: Equatable, Hashable {}
 
 
 
+
 extension CwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14179,11 +14386,14 @@ extension DcApiError: Equatable, Hashable {}
 
 
 
+
 extension DcApiError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -14264,6 +14474,9 @@ public func FfiConverterTypeDelegatedVerifierStatus_lower(_ value: DelegatedVeri
 
 
 extension DelegatedVerifierStatus: Equatable, Hashable {}
+
+
+
 
 
 
@@ -14357,11 +14570,14 @@ extension DidError: Equatable, Hashable {}
 
 
 
+
 extension DidError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -14428,6 +14644,9 @@ public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
 
 
 extension DidMethod: Equatable, Hashable {}
+
+
+
 
 
 
@@ -14532,6 +14751,9 @@ public func FfiConverterTypeFlowState_lower(_ value: FlowState) -> RustBuffer {
 
 
 extension FlowState: Equatable, Hashable {}
+
+
+
 
 
 
@@ -14663,11 +14885,14 @@ extension HttpClientError: Equatable, Hashable {}
 
 
 
+
 extension HttpClientError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14811,11 +15036,14 @@ extension IssuanceServiceError: Equatable, Hashable {}
 
 
 
+
 extension IssuanceServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14880,11 +15108,14 @@ extension JsonVcEncodingError: Equatable, Hashable {}
 
 
 
+
 extension JsonVcEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -14967,11 +15198,14 @@ extension JsonVcInitError: Equatable, Hashable {}
 
 
 
+
 extension JsonVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15078,11 +15312,14 @@ extension JwtVcInitError: Equatable, Hashable {}
 
 
 
+
 extension JwtVcInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15181,11 +15418,14 @@ extension KeyTransformationError: Equatable, Hashable {}
 
 
 
+
 extension KeyTransformationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15278,11 +15518,14 @@ extension MdlReaderResponseError: Equatable, Hashable {}
 
 
 
+
 extension MdlReaderResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15351,11 +15594,14 @@ extension MdlReaderResponseSerializeError: Equatable, Hashable {}
 
 
 
+
 extension MdlReaderResponseSerializeError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15424,11 +15670,14 @@ extension MdlReaderSessionError: Equatable, Hashable {}
 
 
 
+
 extension MdlReaderSessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -15535,6 +15784,9 @@ extension MDocItem: Equatable, Hashable {}
 
 
 
+
+
+
 public enum MdlUtilError: Swift.Error {
 
     
@@ -15600,11 +15852,14 @@ extension MdlUtilError: Equatable, Hashable {}
 
 
 
+
 extension MdlUtilError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15673,11 +15928,14 @@ extension MdocDateError: Equatable, Hashable {}
 
 
 
+
 extension MdocDateError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15742,11 +16000,14 @@ extension MdocEncodingError: Equatable, Hashable {}
 
 
 
+
 extension MdocEncodingError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15857,11 +16118,14 @@ extension MdocInitError: Equatable, Hashable {}
 
 
 
+
 extension MdocInitError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -15950,11 +16214,14 @@ extension Oid4vp180137Error: Equatable, Hashable {}
 
 
 
+
 extension Oid4vp180137Error: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -16333,11 +16600,14 @@ extension Oid4vpError: Equatable, Hashable {}
 
 
 
+
 extension Oid4vpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -16494,11 +16764,14 @@ extension Oid4vciError: Equatable, Hashable {}
 
 
 
+
 extension Oid4vciError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -16577,11 +16850,14 @@ extension Oid4vpVerifierError: Equatable, Hashable {}
 
 
 
+
 extension Oid4vpVerifierError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -16664,6 +16940,9 @@ public func FfiConverterTypeOutcome_lower(_ value: Outcome) -> RustBuffer {
 
 
 extension Outcome: Equatable, Hashable {}
+
+
+
 
 
 
@@ -16854,11 +17133,14 @@ extension PermissionRequestError: Equatable, Hashable {}
 
 
 
+
 extension PermissionRequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -16959,11 +17241,14 @@ extension PopError: Equatable, Hashable {}
 
 
 
+
 extension PopError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17112,11 +17397,14 @@ extension PresentationBuilderError: Equatable, Hashable {}
 
 
 
+
 extension PresentationBuilderError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17225,11 +17513,14 @@ extension PresentationError: Equatable, Hashable {}
 
 
 
+
 extension PresentationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17298,11 +17589,14 @@ extension RequestError: Equatable, Hashable {}
 
 
 
+
 extension RequestError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17377,11 +17671,14 @@ extension ResponseError: Equatable, Hashable {}
 
 
 
+
 extension ResponseError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17496,11 +17793,14 @@ extension SdJwtError: Equatable, Hashable {}
 
 
 
+
 extension SdJwtError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17579,11 +17879,14 @@ extension SessionError: Equatable, Hashable {}
 
 
 
+
 extension SessionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17668,11 +17971,14 @@ extension SignatureError: Equatable, Hashable {}
 
 
 
+
 extension SignatureError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17747,11 +18053,14 @@ extension StatusListError: Equatable, Hashable {}
 
 
 
+
 extension StatusListError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17862,11 +18171,14 @@ extension StorageManagerError: Equatable, Hashable {}
 
 
 
+
 extension StorageManagerError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -17935,11 +18247,14 @@ extension TerminationError: Equatable, Hashable {}
 
 
 
+
 extension TerminationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -18014,11 +18329,14 @@ extension VcbVerificationError: Equatable, Hashable {}
 
 
 
+
 extension VcbVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -18087,11 +18405,14 @@ extension VcVerificationError: Equatable, Hashable {}
 
 
 
+
 extension VcVerificationError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -18182,11 +18503,14 @@ extension VpError: Equatable, Hashable {}
 
 
 
+
 extension VpError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -18253,6 +18577,9 @@ public func FfiConverterTypeVcdmVersion_lower(_ value: VcdmVersion) -> RustBuffe
 
 
 extension VcdmVersion: Equatable, Hashable {}
+
+
+
 
 
 
@@ -18369,11 +18696,14 @@ extension VdcCollectionError: Equatable, Hashable {}
 
 
 
+
 extension VdcCollectionError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -18443,6 +18773,9 @@ public func FfiConverterTypeVerificationResult_lower(_ value: VerificationResult
 
 
 extension VerificationResult: Equatable, Hashable {}
+
+
+
 
 
 
@@ -18606,11 +18939,14 @@ extension WalletServiceError: Equatable, Hashable {}
 
 
 
+
 extension WalletServiceError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
 }
+
+
 
 
 
@@ -19736,6 +20072,31 @@ fileprivate struct FfiConverterSequenceTypeStatus20240406: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCentralClientDetails: FfiConverterRustBuffer {
+    typealias SwiftType = [CentralClientDetails]
+
+    public static func write(_ value: [CentralClientDetails], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCentralClientDetails.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CentralClientDetails] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CentralClientDetails]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCentralClientDetails.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCredentialResponse: FfiConverterRustBuffer {
     typealias SwiftType = [CredentialResponse]
 
@@ -19803,6 +20164,31 @@ fileprivate struct FfiConverterSequenceTypeItemsRequest: FfiConverterRustBuffer 
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeItemsRequest.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypePeripheralServerDetails: FfiConverterRustBuffer {
+    typealias SwiftType = [PeripheralServerDetails]
+
+    public static func write(_ value: [PeripheralServerDetails], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePeripheralServerDetails.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PeripheralServerDetails] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PeripheralServerDetails]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePeripheralServerDetails.read(from: &buf))
         }
         return seq
     }
@@ -21641,6 +22027,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_logwriter_flush() != 63605) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlsessionmanager_ble_central_client_details() != 2120) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlsessionmanager_ble_peripheral_server_details() != 14440) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_generate_response() != 37013) {

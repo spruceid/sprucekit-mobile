@@ -18,20 +18,26 @@ public class MDocReader {
         trustAnchorRegistry: [String]?
     ) throws {
         self.callback = callback
+        let sessionData: MdlReaderSessionData
         do {
-            let sessionData = try SpruceIDMobileSdkRs.establishSession(
+            sessionData = try SpruceIDMobileSdkRs.establishSession(
                 uri: uri,
                 requestedItems: requestedItems,
                 trustAnchorRegistry: trustAnchorRegistry)
-            self.sessionManager = sessionData.state
-            self.bleManager = MDocReaderBLEPeripheral(
-                callback: self,
-                serviceUuid: CBUUID(string: sessionData.uuid),
-                request: sessionData.request,
-                bleIdent: sessionData.bleIdent)
         } catch {
             throw MDocReaderError.initializing(message: "\(error)")
         }
+        
+        self.sessionManager = sessionData.state
+        guard let centralClient = sessionManager.bleCentralClientDetails().first else {
+            // TODO: Once there is support for Central Client Reader, also check for Peripheral Server details if Central Client Holder is not supported.
+            throw MDocReaderError.initializing(message: "mdoc did not offer central client mode")
+        }
+        self.bleManager = MDocReaderBLEPeripheral(
+            callback: self,
+            serviceUuid: CBUUID(string: centralClient.serviceUuid),
+            request: sessionData.request,
+            bleIdent: sessionData.bleIdent)
     }
 
     public func cancel() {

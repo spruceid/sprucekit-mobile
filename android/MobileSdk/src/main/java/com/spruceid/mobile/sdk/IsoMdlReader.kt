@@ -29,9 +29,11 @@ class IsoMdlReader(
             session = sessionData.state
             bleManager = Transport(platformBluetooth, context)
             try {
+                // TODO: Once there is support for Central Client Reader, also check for Peripheral
+                // Server details if Central Client Holder is not supported.
                 bleManager.initialize(
                     "Reader",
-                    UUID.fromString(sessionData.uuid),
+                    UUID.fromString(session.bleCentralClientDetails().first().serviceUuid),
                     "BLE",
                     "Peripheral",
                     sessionData.bleIdent,
