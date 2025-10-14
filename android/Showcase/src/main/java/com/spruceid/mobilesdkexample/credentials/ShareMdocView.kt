@@ -5,8 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.graphics.BitmapFactory
-import android.util.Base64
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +28,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
@@ -50,7 +50,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -73,11 +72,12 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald800
-import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 import com.spruceid.mobilesdkexample.utils.formatCredentialFieldValue
@@ -379,11 +379,19 @@ fun ShareMdocSelectiveDisclosureView(
                         )
                         .weight(1f)
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        modifier = Modifier.size(20.dp),
+                        tint = ColorStone950
+                    )
+                    Spacer(modifier = Modifier.size(6.dp))
                     Text(
-                        text = "Cancel",
-                        fontFamily = Inter,
+                        text = "Close",
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.SemiBold,
                         color = ColorStone950,
+                        fontSize = 14.sp
                     )
                 }
 
@@ -396,20 +404,28 @@ fun ShareMdocSelectiveDisclosureView(
                         }
                     },
                     shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald800),
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
-                            color = ColorEmerald900,
+                            color = ColorEmerald800,
                             shape = RoundedCornerShape(20.dp),
                         )
                         .weight(1f)
                 ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Approve",
+                        modifier = Modifier.size(20.dp),
+                        tint = ColorBase50
+                    )
+                    Spacer(modifier = Modifier.size(6.dp))
                     Text(
                         text = "Approve",
                         fontFamily = Inter,
                         fontWeight = FontWeight.SemiBold,
                         color = ColorBase50,
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -452,10 +468,10 @@ fun ShareMdocSelectiveDisclosureNamespaceItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 8.dp, vertical = 0.dp)
     ) {
         Checkbox(
-            isChecked,
+            checked = isChecked,
             onCheckedChange = onCheck,
             enabled = true,
             colors = CheckboxDefaults.colors(
@@ -465,10 +481,10 @@ fun ShareMdocSelectiveDisclosureNamespaceItem(
         )
         Text(
             text = displayName,
-            fontFamily = Inter,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            color = ColorStone950,
+            fontFamily = Switzer,
+            fontWeight = FontWeight.Normal,
+            fontSize = 15.sp,
+            color = ColorStone500,
             modifier = Modifier.weight(1f)
         )
 
