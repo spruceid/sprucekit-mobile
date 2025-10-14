@@ -17,20 +17,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -46,7 +52,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -62,17 +67,17 @@ import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.PresentmentState
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
+import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald800
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
-import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.utils.CredentialFieldType
 import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 import com.spruceid.mobilesdkexample.utils.formatCredentialFieldValue
@@ -179,13 +184,28 @@ fun ShareMdocView(
         }
 
         PresentmentState.SELECT_NAMESPACES -> {
-            Text(
-                text = "Selecting namespaces...",
-                fontFamily = Inter,
-                fontWeight = FontWeight.Normal,
-                fontSize = 16.sp,
-                modifier = Modifier.padding(vertical = 20.dp)
-            )
+            Box(
+                modifier = Modifier.size(300.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(32.dp),
+                        color = ColorStone950,
+                        strokeWidth = 3.dp
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Loading...",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        color = ColorStone950
+                    )
+                }
+            }
             ShareMdocSelectiveDisclosureView(
                 credentialViewModel = credentialViewModel,
                 credentialPack = credentialPack,
@@ -193,13 +213,31 @@ fun ShareMdocView(
             )
         }
 
-        PresentmentState.SUCCESS -> Text(
-            text = "Successfully presented credential.",
-            fontFamily = Inter,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            modifier = Modifier.padding(vertical = 20.dp)
-        )
+        PresentmentState.SUCCESS ->
+            Box(
+                modifier = Modifier.size(300.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = ColorEmerald800
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Successfully presented credential.",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        color = ColorEmerald800,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
 
         PresentmentState.ERROR -> Text(
             text = "Error: $error",
