@@ -48,7 +48,7 @@ impl MDLSessionManager {
         self.0
             .ble_central_client_options()
             .map(|cc| CentralClientDetails {
-                service_uuid: cc.uuid,
+                service_uuid: cc.uuid.clone(),
             })
             .collect()
     }
@@ -57,7 +57,7 @@ impl MDLSessionManager {
         self.0
             .ble_peripheral_server_options()
             .map(|ps| PeripheralServerDetails {
-                service_uuid: ps.uuid,
+                service_uuid: ps.uuid.clone(),
                 ble_device_address: ps.ble_device_address.clone().map(Vec::from),
             })
             .collect()
