@@ -16,6 +16,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase800
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
@@ -139,13 +141,13 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
 
 /**
  * Displays a JSONObject with all fields flattened to the same level.
- * Nested objects are flattened with field names like "Parent Subfield".
+ * Nested objects show their parent prefix as a section title with hierarchical indentation.
  */
 @Composable
 fun flattenedRowDisplayer(
     obj: JSONObject,
     filter: List<String>,
-    prefix: String = ""
+    nestingLevel: Int = 0
 ): List<Unit> {
     val res = mutableListOf<Unit>()
 
@@ -156,107 +158,134 @@ fun flattenedRowDisplayer(
         .filter { !filter.contains(it) }
         .forEach { key ->
             val readableKey = key.getKeyReadable().splitCamelCase().removeUnderscores()
-            val displayKey = if (prefix.isEmpty()) readableKey else "$prefix $readableKey"
 
             when {
+                // Check if the current value is another Json Object
                 obj.optJSONObject(key) != null -> {
+                    // Add section title for nested object
+                    res.add(
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(
+                                    start = (nestingLevel * 12).dp,
+                                    top = if (nestingLevel == 0) 16.dp else 12.dp
+                                )
+                        ) {
+                            Text(
+                                text = readableKey,
+                                fontFamily = Switzer,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp,
+                                color = ColorBase800
+                            )
+                        }
+                    )
                     // Recursively flatten nested objects
                     val jsonObject = obj.getJSONObject(key)
-                    res.addAll(flattenedRowDisplayer(jsonObject, filter, displayKey))
+                    res.addAll(flattenedRowDisplayer(jsonObject, filter, nestingLevel + 1))
                 }
+                // Check if it is an JSON Array
                 obj.optJSONArray(key) != null -> {
                     val jsonArray = obj.getJSONArray(key)
-                    val arrayValues = mutableListOf<String>()
 
                     for (i in 0 until jsonArray.length()) {
                         when {
                             jsonArray.optJSONObject(i) != null -> {
-                                // Flatten nested objects in array
-                                val arrayJsonObject = jsonArray.getJSONObject(i)
-                                res.addAll(
-                                    flattenedRowDisplayer(
-                                        arrayJsonObject,
-                                        filter,
-                                        "$displayKey ${i + 1}"
-                                    )
+                                // Add section title for array item
+                                res.add(
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                start = (nestingLevel * 12).dp,
+                                                top = if (nestingLevel == 0) 16.dp else 12.dp
+                                            )
+                                    ) {
+                                        Text(
+                                            text = "$readableKey ${i + 1}",
+                                            fontFamily = Switzer,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 14.sp,
+                                            color = ColorBase800
+                                        )
+                                    }
                                 )
+                                // Recursively flatten array objects
+                                val arrayJsonObject = jsonArray.getJSONObject(i)
+                                res.addAll(flattenedRowDisplayer(arrayJsonObject, filter, nestingLevel + 1))
                             }
                             else -> {
-                                arrayValues.add(jsonArray.get(i).toString())
-                            }
-                        }
-                    }
-
-                    // Display comma-separated array values if any
-                    if (arrayValues.isNotEmpty()) {
-                        res.add(
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 12.dp)
-                                ) {
-                                    Text(
-                                        text = displayKey,
-                                        fontFamily = Switzer,
-                                        fontWeight = FontWeight.Normal,
-                                        fontSize = 14.sp,
-                                        color = ColorStone500,
-                                        modifier = Modifier.weight(1f),
-                                        softWrap = true
-                                    )
-                                    Spacer(modifier = Modifier.width(20.dp))
-                                    Text(
-                                        text = arrayValues.joinToString(", "),
-                                        fontFamily = Switzer,
-                                        fontWeight = FontWeight.Normal,
-                                        fontSize = 15.sp,
-                                        color = ColorStone950,
-                                        textAlign = TextAlign.End,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                HorizontalDivider(
-                                    color = Color.Black.copy(alpha = 0.2f),
-                                    thickness = 1.dp
+                                // Primitive array values
+                                val value = jsonArray.get(i).toString()
+                                val fieldType = getCredentialFieldType(readableKey, value)
+                                val formattedValue = formatCredentialFieldValue(value, fieldType, key, maxLength = 100)
+                                res.add(
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(
+                                                start = (nestingLevel * 12).dp,
+                                                top = 12.dp,
+                                                bottom = 12.dp
+                                            )
+                                    ) {
+                                        Text(
+                                            text = "$readableKey ${i + 1}",
+                                            fontFamily = Switzer,
+                                            fontWeight = FontWeight.Normal,
+                                            fontSize = 14.sp,
+                                            color = ColorStone500
+                                        )
+                                        RenderCredentialFieldValue(
+                                            fieldType = fieldType,
+                                            rawFieldValue = value,
+                                            formattedValue = formattedValue,
+                                            displayName = readableKey
+                                        )
+                                        HorizontalDivider(
+                                            modifier = Modifier.padding(top = 2.dp),
+                                            color = ColorStone200,
+                                            thickness = 1.dp
+                                        )
+                                    }
                                 )
                             }
-                        )
+                        }
                     }
                 }
                 else -> {
                     // Primitive values shown in rows
                     val value = obj.get(key).toString()
                     if (value != "null") {
+                        val fieldType = getCredentialFieldType(readableKey, value)
+                        val formattedValue = formatCredentialFieldValue(value, fieldType, key, maxLength = 100)
                         res.add(
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = displayKey,
-                                        fontFamily = Switzer,
-                                        fontWeight = FontWeight.Normal,
-                                        fontSize = 14.sp,
-                                        color = ColorStone500,
-                                        modifier = Modifier.weight(1f),
-                                        softWrap = true
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(
+                                        start = (nestingLevel * 12).dp,
+                                        top = 12.dp,
+                                        bottom = 12.dp
                                     )
-                                    Spacer(modifier = Modifier.width(40.dp))
-                                    val fieldType = getCredentialFieldType(displayKey, value)
-                                    val formattedValue = formatCredentialFieldValue(value, fieldType, key, maxLength = 21)
-                                    RenderCredentialFieldValue(
-                                        fieldType = fieldType,
-                                        rawFieldValue = value,
-                                        formattedValue = formattedValue,
-                                        displayName = displayKey
-                                    )
-                                }
+                            ) {
+                                Text(
+                                    text = readableKey,
+                                    fontFamily = Switzer,
+                                    fontWeight = FontWeight.Normal,
+                                    fontSize = 14.sp,
+                                    color = ColorStone500
+                                )
+                                RenderCredentialFieldValue(
+                                    fieldType = fieldType,
+                                    rawFieldValue = value,
+                                    formattedValue = formattedValue,
+                                    displayName = readableKey
+                                )
                                 HorizontalDivider(
-                                    color = Color.Black.copy(alpha = 0.2f),
+                                    modifier = Modifier.padding(top = 2.dp),
+                                    color = ColorStone200,
                                     thickness = 1.dp
                                 )
                             }

@@ -8,6 +8,8 @@ import android.util.Base64
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -618,14 +620,17 @@ fun RenderCredentialFieldValue(
                 }
 
                 bitmap?.let {
-                    Image(
-                        bitmap = it.asImageBitmap(),
-                        contentDescription = displayName,
-                        modifier = Modifier
-                            .size(90.dp, 90.dp)
-                            .clip(RoundedCornerShape(4.dp))
-                            .border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                    )
+                    Box(Modifier.padding(vertical = 3.dp)){
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = displayName,
+                            modifier = Modifier
+                                .size(90.dp, 90.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        )
+                    }
+
                 }
             }
         }
