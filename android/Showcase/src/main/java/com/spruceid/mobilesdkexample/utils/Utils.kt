@@ -644,7 +644,7 @@ fun RenderCredentialFieldValue(
                     fontWeight = FontWeight.Normal,
                     fontSize = 15.sp,
                     color = ColorStone950,
-                    textAlign = TextAlign.End
+                    textAlign = TextAlign.Start
                 )
             }
         }
