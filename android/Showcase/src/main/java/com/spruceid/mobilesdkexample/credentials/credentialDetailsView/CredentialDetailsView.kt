@@ -384,5 +384,5 @@ fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
                 }
             )
         }
-    }
+   }
 }
