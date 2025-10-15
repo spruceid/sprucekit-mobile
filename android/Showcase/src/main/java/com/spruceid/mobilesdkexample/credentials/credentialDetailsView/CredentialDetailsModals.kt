@@ -84,9 +84,9 @@ fun DetailsModal(
         ) {
             credentialItem?.let {
                 if (statusList != CredentialStatusList.REVOKED) {
-                    credentialItem.credentialDetails()
+                    credentialItem.CredentialDetails()
                 } else {
-                    credentialItem.credentialRevokedInfo {
+                    credentialItem.CredentialRevokedInfo {
                         onClose()
                         onBack()
                     }
