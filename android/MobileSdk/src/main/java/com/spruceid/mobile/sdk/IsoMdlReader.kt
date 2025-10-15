@@ -29,18 +29,43 @@ class IsoMdlReader(
             session = sessionData.state
             bleManager = Transport(platformBluetooth, context)
             try {
-                // TODO: Once there is support for Central Client Reader, also check for Peripheral
-                // Server details if Central Client Holder is not supported.
-                bleManager.initialize(
-                    "Reader",
-                    UUID.fromString(session.bleCentralClientDetails().first().serviceUuid),
-                    "BLE",
-                    "Peripheral",
-                    sessionData.bleIdent,
-                    null,
-                    callback,
-                    sessionData.request
-                )
+                val peripheralDetails = session.blePeripheralServerDetails()
+                val centralDetails = session.bleCentralClientDetails()
+
+                when {
+                    centralDetails.isNotEmpty() -> {
+                        // Primary: Prefer mdoc Central Client mode per ISO 18013-5 Section 8.3.3.1.1.4
+                        // "If the mdoc indicates during device engagement that it supports both modes,
+                        // the mdoc reader should select the mdoc central client mode."
+                        // Holder connects as Central → Reader advertises as Peripheral
+                        bleManager.initialize(
+                            "Reader",
+                            UUID.fromString(centralDetails.first().serviceUuid),
+                            "BLE",
+                            "Peripheral",
+                            sessionData.bleIdent,
+                            null,
+                            callback,
+                            sessionData.request
+                        )
+                    }
+                    peripheralDetails.isNotEmpty() -> {
+                        // Fallback: Holder as Peripheral Server
+                        // Reader connects as Central → Holder advertises as Peripheral
+                        bleManager.initialize(
+                            "Reader",
+                            UUID.fromString(peripheralDetails.first().serviceUuid),
+                            "BLE",
+                            "Central",
+                            sessionData.bleIdent,
+                            ::updateResponseData,
+                            callback,
+                            sessionData.request
+                        )
+                    }
+
+                    else -> throw Error("No BLE transport options in Device Engagement")
+                }
             } catch (e: SecurityException) {
             }
 
@@ -64,5 +89,11 @@ class IsoMdlReader(
         } catch (e: MdlReaderResponseException) {
             throw e
         }
+    }
+
+    private fun updateResponseData(data: ByteArray){
+        // Handle mDL response when Reader is Central (Client)
+        val response = handleMdlReaderResponseData(data)
+        callback.update(mapOf("mdl" to response))
     }
 }
