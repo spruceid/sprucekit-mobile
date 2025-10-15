@@ -53,6 +53,14 @@ fun formatSqlDateTime(sqlDate: Date): String {
     return formatter.format(sqlDate)
 }
 
+// Use this function to rename a field key to a more "user-friendly" value
+fun String.getKeyReadable(): String {
+    if (this == "un_distinguishing_sign") {
+        return "country_code"
+    }
+    return this
+}
+
 fun String.splitCamelCase() = replace(
     String.format(
         "%s|%s|%s",
@@ -81,6 +89,21 @@ fun String.isImage(): Boolean {
             (lowercase().contains("portrait") && !lowercase().contains("date")) ||
             contains("data:image")
 }
+
+fun String.toTitle(): String =
+    if (this == this.uppercase() || this.firstOrNull()?.isUpperCase() == true) {
+        this
+    } else {
+        this
+            .split(" ")
+            .joinToString(" ") { word ->
+                if (word.isNotEmpty()) {
+                    word.substring(0, 1).uppercase() + word.substring(1).lowercase()
+                } else {
+                    word
+                }
+            }
+    }
 
 @Composable
 fun BitmapImage(

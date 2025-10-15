@@ -384,16 +384,5 @@ fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
                 }
             )
         }
-        Text(
-            text = "Present this QR code to a verifier in order to share data. You will see a consent dialogue.",
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .padding(top = 12.dp),
-            fontFamily = Inter,
-            fontWeight = FontWeight.Normal,
-            fontSize = 14.sp,
-            color = ColorStone500,
-        )
     }
 }
