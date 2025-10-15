@@ -384,5 +384,5 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack?) {
                 }
             )
         }
-    }
+   }
 }
