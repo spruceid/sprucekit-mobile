@@ -12,10 +12,12 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.Accordion
+import com.spruceid.mobilesdkexample.utils.getKeyReadable
 import com.spruceid.mobilesdkexample.utils.isDate
 import com.spruceid.mobilesdkexample.utils.isImage
 import com.spruceid.mobilesdkexample.utils.removeUnderscores
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
+import com.spruceid.mobilesdkexample.utils.toTitle
 import org.json.JSONObject
 
 @Composable
@@ -66,7 +68,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                                 ) {
                                     if (i == 0) {
                                         Text(
-                                            key.splitCamelCase().removeUnderscores(),
+                                            key.getKeyReadable().splitCamelCase().removeUnderscores(),
                                             fontFamily = Inter,
                                             fontWeight = FontWeight.Normal,
                                             fontSize = 16.sp,
@@ -74,7 +76,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                                         )
                                     }
                                     Text(
-                                        jsonArray.get(i).toString(),
+                                        jsonArray.get(i).toString().toTitle(),
                                         fontFamily = Inter,
                                         fontWeight = FontWeight.Normal,
                                         fontSize = 17.sp,
@@ -95,7 +97,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                             Modifier.padding(bottom = 12.dp)
                         ) {
                             Text(
-                                key.splitCamelCase().removeUnderscores(),
+                                key.getKeyReadable().splitCamelCase().removeUnderscores(),
                                 fontFamily = Inter,
                                 fontWeight = FontWeight.Normal,
                                 fontSize = 16.sp,
@@ -107,7 +109,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                                 CredentialDate(value)
                             } else {
                                 Text(
-                                    value,
+                                    text = value.toTitle(),
                                     fontFamily = Inter,
                                     fontWeight = FontWeight.Normal,
                                     fontSize = 17.sp,
