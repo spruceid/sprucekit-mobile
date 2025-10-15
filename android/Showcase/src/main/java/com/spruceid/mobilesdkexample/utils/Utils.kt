@@ -22,8 +22,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
-import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.Cwt
@@ -35,6 +33,8 @@ import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.credentials.genericCredentialItem.GenericCredentialItem
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import org.json.JSONArray
 import org.json.JSONObject
@@ -459,11 +459,7 @@ private val FIELD_METADATA = mapOf(
 
 fun getFieldDisplayName(fieldName: String): String {
     return FIELD_METADATA[fieldName.lowercase()]?.displayName
-        ?: fieldName.replace("_", " ").split(" ").joinToString(" ") { word ->
-            word.replaceFirstChar { char ->
-                if (char.isLowerCase()) char.titlecase() else char.toString()
-            }
-        }
+        ?: fieldName.getKeyReadable().splitCamelCase().removeUnderscores()
 }
 
 fun getFieldSortOrder(fieldName: String): Int {
@@ -605,7 +601,7 @@ fun RenderCredentialFieldValue(
                         bitmap = it.asImageBitmap(),
                         contentDescription = displayName,
                         modifier = Modifier
-                            .size(75.dp, 75.dp)
+                            .size(90.dp, 90.dp)
                             .clip(RoundedCornerShape(4.dp))
                             .border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
                     )
@@ -618,10 +614,10 @@ fun RenderCredentialFieldValue(
             if (formattedValue.isNotEmpty()) {
                 Text(
                     text = formattedValue,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
-                    fontSize = 12.sp,
-                    color = ColorStone600,
+                    fontSize = 15.sp,
+                    color = ColorStone950,
                     textAlign = TextAlign.End
                 )
             }

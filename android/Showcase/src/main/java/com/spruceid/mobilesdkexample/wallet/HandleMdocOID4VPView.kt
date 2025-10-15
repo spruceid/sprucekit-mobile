@@ -8,18 +8,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,9 +73,11 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
 import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
@@ -361,11 +370,19 @@ fun MdocFieldSelector(
                     )
                     .weight(1f)
             ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close",
+                    modifier = Modifier.size(20.dp),
+                    tint = ColorStone950
+                )
+                Spacer(modifier = Modifier.size(6.dp))
                 Text(
-                    text = "Cancel",
-                    fontFamily = Inter,
+                    text = "Close",
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorStone950,
+                    fontSize = 14.sp
                 )
             }
 
@@ -386,11 +403,19 @@ fun MdocFieldSelector(
                     )
                     .weight(1f)
             ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Approve",
+                    modifier = Modifier.size(20.dp),
+                    tint = ColorBase50
+                )
+                Spacer(modifier = Modifier.size(6.dp))
                 Text(
                     text = "Approve",
                     fontFamily = Inter,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorBase50,
+                    fontSize = 14.sp
                 )
             }
         }
@@ -422,17 +447,18 @@ fun MdocFieldSelectorItem(
             colors = CheckboxDefaults.colors(
                 checkedColor = ColorBlue600,
                 uncheckedColor = ColorStone300,
-            )
+            ),
+            modifier = Modifier.width(36.dp)
         )
         // Format the display name using utility function
         val displayName = getFieldDisplayName(field.displayableName)
 
         Text(
             text = displayName,
-            fontFamily = Inter,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            color = ColorStone950,
+            fontFamily = Switzer,
+            fontWeight = FontWeight.Normal,
+            fontSize = 15.sp,
+            color = ColorStone500,
             modifier = Modifier.weight(1f)
         )
 
