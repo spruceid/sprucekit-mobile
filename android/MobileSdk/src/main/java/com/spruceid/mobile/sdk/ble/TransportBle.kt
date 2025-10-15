@@ -53,7 +53,7 @@ class TransportBle {
             logger.d("Selecting Peripheral Server Holder")
 
             transportBlePeripheralServerHolder = TransportBlePeripheralServerHolder(
-                application, serviceUUID
+                application, serviceUUID, updateRequestData
             )
             transportBlePeripheralServerHolder.start()
         }

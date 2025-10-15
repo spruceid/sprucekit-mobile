@@ -17,6 +17,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use isomdl::definitions::device_engagement::PeripheralServerMode;
 use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
     definitions::{
@@ -116,7 +117,10 @@ pub fn initialize_mdl_presentation_from_bytes(
     uuid: Uuid,
 ) -> Result<MdlPresentationSession, SessionError> {
     let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
-        peripheral_server_mode: None,
+        peripheral_server_mode: Some(PeripheralServerMode {
+            uuid,
+            ble_device_address: None,
+        }),
         central_client_mode: Some(CentralClientMode { uuid }),
     }));
     let session = SessionManagerInit::initialise(

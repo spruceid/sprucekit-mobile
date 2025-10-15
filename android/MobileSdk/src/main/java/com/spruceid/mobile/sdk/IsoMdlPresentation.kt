@@ -39,8 +39,10 @@ class IsoMdlPresentation(
         try {
             session = initializeMdlPresentationFromBytes(this.mdoc, uuid.toString())
             this.bleManager = Transport(this.bluetoothManager, context)
-            //TODO: The SDK only generates Central Client Device Engagement - should add support to
-            // peripheral
+
+            // Central: receives data via GATT notifications from Reader's Server2Client characteristic
+            // Peripheral: receives data via GATT writes to Holder's Client2Server characteristic
+            Log.d("IsoMdlPresentation", "HOLDER AS $bleMode")
             this.bleManager!!
                 .initialize(
                     "Holder",
@@ -51,6 +53,7 @@ class IsoMdlPresentation(
                     ::updateRequestData,
                     callback
                 )
+
             this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
         } catch (e: Error) {
             Log.e("BleSessionManager.constructor", e.toString())
