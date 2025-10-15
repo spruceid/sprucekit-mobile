@@ -78,16 +78,41 @@ fun String.removeCommas() = replace(",", "")
 
 fun String.removeEscaping() = replace("\\/", "/")
 
+/**
+ * Checks if a string represents a date field based on field name patterns or date format detection
+ */
 fun String.isDate(): Boolean {
-    return lowercase().contains("date") ||
-            lowercase().contains("from") ||
-            lowercase().contains("until")
+    val lower = lowercase()
+    return when {
+        // Common date field name patterns
+        lower.contains("date") -> true
+        lower.contains("from") -> true
+        lower.contains("until") -> true
+        lower.contains("timestamp") -> true
+        // Check if value matches ISO 8601 or common date formats
+        matches(Regex("\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}Z?)?")) -> true
+        matches(Regex("\\d{2}/\\d{2}/\\d{4}")) -> true
+        matches(Regex("\\d{2}-\\d{2}-\\d{4}")) -> true
+        else -> false
+    }
 }
 
+/**
+ * Checks if a string represents an image field based on field name patterns or data URI detection
+ */
 fun String.isImage(): Boolean {
-    return lowercase().contains("image") ||
-            (lowercase().contains("portrait") && !lowercase().contains("date")) ||
-            contains("data:image")
+    val lower = lowercase()
+    return when {
+        // Common image field name patterns
+        lower.contains("image") -> true
+        lower.contains("portrait") && !lower.contains("date") -> true
+        // Check if value is a data URI or base64 image
+        startsWith("data:image/") -> true
+        startsWith("/9j/") -> true  // JPEG base64 header
+        startsWith("iVBORw0KGgo") -> true  // PNG base64 header
+        startsWith("R0lGOD") -> true  // GIF base64 header
+        else -> false
+    }
 }
 
 fun String.toTitle(): String =
@@ -473,23 +498,15 @@ enum class CredentialFieldType {
 }
 
 fun getCredentialFieldType(displayName: String, fieldValue: String = ""): CredentialFieldType {
-    return when (displayName) {
-        "Portrait" -> CredentialFieldType.IMAGE
-        else -> {
-            val lowerDisplayName = displayName.lowercase()
-            val lowerFieldValue = fieldValue.lowercase()
-            when {
-                lowerDisplayName.contains("portrait") ||
-                        lowerDisplayName.contains("image") ||
-                        lowerDisplayName.contains("photo") -> CredentialFieldType.IMAGE
-                // Check if field value contains "date" or looks like a date format
-                lowerFieldValue.contains("date") ||
-                        fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z?")) ||
-                        fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) -> CredentialFieldType.DATE
-
-                else -> CredentialFieldType.TEXT
-            }
-        }
+    return when {
+        // Use existing helper functions to check field type
+        displayName.isImage() -> CredentialFieldType.IMAGE
+        fieldValue.isImage() -> CredentialFieldType.IMAGE
+        displayName.isDate() -> CredentialFieldType.DATE
+        // Check if field value looks like a date format
+        fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z?")) ||
+                fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) -> CredentialFieldType.DATE
+        else -> CredentialFieldType.TEXT
     }
 }
 
@@ -514,7 +531,6 @@ private fun formatDateValue(fieldValue: String): String? {
                 val date = inputFormat.parse(fieldValue)
                 date?.let { outputFormat.format(it) }
             }
-
             else -> null
         }
     } catch (e: Exception) {
@@ -525,7 +541,8 @@ private fun formatDateValue(fieldValue: String): String? {
 fun formatCredentialFieldValue(
     fieldValue: String,
     fieldType: CredentialFieldType,
-    fieldName: String = ""
+    fieldName: String = "",
+    maxLength: Int = 17
 ): String {
     return when (fieldType) {
         CredentialFieldType.DATE -> {
@@ -558,7 +575,11 @@ fun formatCredentialFieldValue(
                             if (char.isLowerCase()) char.titlecase() else char.toString()
                         }
                     }
-                    if (titleCaseValue.length > 20) "${titleCaseValue.take(17)}..." else titleCaseValue
+                    if (maxLength > 0 && titleCaseValue.length > maxLength + 3) {
+                        "${titleCaseValue.take(maxLength)}..."
+                    } else {
+                        titleCaseValue
+                    }
                 }
             }
         }
