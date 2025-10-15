@@ -119,6 +119,8 @@ fun ShareMdocView(
     DisposableEffect(Unit) {
         onDispose {
             credentialViewModel.setBluetoothPermissionsGranted(false)
+            // Clean up BLE connection when leaving the screen
+            credentialViewModel.cancel()
         }
     }
 

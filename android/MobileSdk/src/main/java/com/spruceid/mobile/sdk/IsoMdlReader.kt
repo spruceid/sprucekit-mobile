@@ -34,6 +34,7 @@ class IsoMdlReader(
 
                 when {
                     centralDetails.isNotEmpty() -> {
+                        Log.d("stateCheckFull", "HOLDER AS CENTRAL AND READER AS PERIPHERAL")
                         // Primary: Prefer mdoc Central Client mode per ISO 18013-5 Section 8.3.3.1.1.4
                         // "If the mdoc indicates during device engagement that it supports both modes,
                         // the mdoc reader should select the mdoc central client mode."
@@ -50,6 +51,7 @@ class IsoMdlReader(
                         )
                     }
                     peripheralDetails.isNotEmpty() -> {
+                        Log.d("stateCheckFull", "HOLDER AS PERIPHERAL AND READER AS CENTRAL")
                         // Fallback: Holder as Peripheral Server
                         // Reader connects as Central → Holder advertises as Peripheral
                         bleManager.initialize(
