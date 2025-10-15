@@ -26,7 +26,8 @@ class IsoMdlPresentation(
     val keyAlias: String,
     val bluetoothManager: BluetoothManager,
     val callback: BLESessionStateDelegate,
-    val context: Context
+    val context: Context,
+    val bleMode: String = "Central" // "Central" or "Peripheral"
 ) {
     val uuid: UUID = UUID.randomUUID()
     var session: MdlPresentationSession? = null
@@ -38,12 +39,14 @@ class IsoMdlPresentation(
         try {
             session = initializeMdlPresentationFromBytes(this.mdoc, uuid.toString())
             this.bleManager = Transport(this.bluetoothManager, context)
+            //TODO: The SDK only generates Central Client Device Engagement - should add support to
+            // peripheral
             this.bleManager!!
                 .initialize(
                     "Holder",
                     this.uuid,
                     "BLE",
-                    "Central",
+                    bleMode,
                     session!!.getBleIdent(),
                     ::updateRequestData,
                     callback
