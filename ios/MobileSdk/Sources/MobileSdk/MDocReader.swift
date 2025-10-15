@@ -27,10 +27,11 @@ public class MDocReader {
         } catch {
             throw MDocReaderError.initializing(message: "\(error)")
         }
-        
+
         self.sessionManager = sessionData.state
         guard let centralClient = sessionManager.bleCentralClientDetails().first else {
-            // TODO: Once there is support for Central Client Reader, also check for Peripheral Server details if Central Client Holder is not supported.
+            // TODO: Once there is support for Central Client Reader, also check for Peripheral Server
+            // details if Central Client Holder is not supported.
             throw MDocReaderError.initializing(message: "mdoc did not offer central client mode")
         }
         self.bleManager = MDocReaderBLEPeripheral(
