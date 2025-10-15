@@ -40,6 +40,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBlue200
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone100
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 
@@ -171,7 +172,7 @@ private fun RowScope.ModeButton(
             ) {
                 onClick()
             }
-            .padding(vertical = 12.dp),
+            .padding(vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -182,8 +183,8 @@ private fun RowScope.ModeButton(
                 painter = painterResource(id = iconRes),
                 contentDescription = text,
                 modifier = Modifier
-                    .width(20.dp)
-                    .height(20.dp)
+                    .width(27.dp)
+                    .height(27.dp)
                     .padding(end = 8.dp),
                 colorFilter = ColorFilter.tint(textColor)
             )
@@ -228,7 +229,7 @@ private fun MiddleMenuSection(
                     shape = RoundedCornerShape(12.dp)
                 )
                 .clip(RoundedCornerShape(12.dp))
-                .padding(vertical = 6.dp, horizontal = 12.dp),
+                .padding(vertical = 6.dp, horizontal = 0.dp),
             verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             MenuRow(
@@ -290,8 +291,8 @@ private fun MenuRow(
                 painter = painterResource(id = iconRes),
                 contentDescription = text,
                 modifier = Modifier
-                    .width(28.dp)
-                    .height(28.dp)
+                    .width(32.dp)
+                    .height(32.dp)
                     .padding(end = 12.dp),
                 colorFilter = ColorFilter.tint(ColorStone950)
             )
@@ -308,7 +309,7 @@ private fun MenuRow(
             modifier = Modifier
                 .width(24.dp)
                 .height(24.dp),
-            colorFilter = ColorFilter.tint(Color.Black)
+            colorFilter = ColorFilter.tint(ColorStone400)
         )
     }
 }

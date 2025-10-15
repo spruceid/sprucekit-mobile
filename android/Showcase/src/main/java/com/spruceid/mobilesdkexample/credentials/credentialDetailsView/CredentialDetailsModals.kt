@@ -57,25 +57,6 @@ fun DetailsModal(
             .fillMaxWidth()
             .fillMaxHeight(0.75f)
     ) {
-        // Header with drag handle
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 16.dp)
-        ) {
-            // Drag handle
-            Box(
-                modifier = Modifier
-                    .width(40.dp)
-                    .height(4.dp)
-                    .background(
-                        ColorStone600,
-                        RoundedCornerShape(2.dp)
-                    )
-                    .align(Alignment.Center)
-            )
-        }
-
         // Content
         Column(
             Modifier
@@ -154,25 +135,6 @@ fun ActivityLogModal(
             .fillMaxWidth()
             .fillMaxHeight(0.75f)
     ) {
-        // Header with drag handle
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 16.dp)
-        ) {
-            // Drag handle
-            Box(
-                modifier = Modifier
-                    .width(40.dp)
-                    .height(4.dp)
-                    .background(
-                        ColorStone600,
-                        RoundedCornerShape(2.dp)
-                    )
-                    .align(Alignment.Center)
-            )
-        }
-
         // Title
         Text(
             text = "Activity Log",
