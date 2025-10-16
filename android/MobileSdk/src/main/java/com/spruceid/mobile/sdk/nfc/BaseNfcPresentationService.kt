@@ -52,6 +52,8 @@ abstract class BaseNfcPresentationService : HostApduService() {
 
     override fun processCommandApdu(commandApdu: ByteArray, extras: Bundle?): ByteArray? {
 
+        if(!shouldPerformHandoverEngagement()) return null;
+
         if (resetQueued) {
             Log.w(TAG, "Resetting APDU driver")
             resetQueued = false
@@ -111,6 +113,9 @@ abstract class BaseNfcPresentationService : HostApduService() {
     }
 
     override fun onDeactivated(reason: Int) {
+
+        if(!shouldPerformHandoverEngagement()) return;
+
         currentInteractionId++
 
         // Wait a moment before turning off NDEF listening.
@@ -196,6 +201,12 @@ abstract class BaseNfcPresentationService : HostApduService() {
                     it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
         }
     }
+
+    /**
+     * This method is called each time an NFC request is received from a reader.
+     * If this method returns false, the service will not respond with an APDU message.
+     */
+    abstract fun shouldPerformHandoverEngagement(): Boolean
 
     abstract fun componentName(): ComponentName
 

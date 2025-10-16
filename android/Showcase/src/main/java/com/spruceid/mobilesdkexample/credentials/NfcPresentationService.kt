@@ -10,6 +10,10 @@ import com.spruceid.mobilesdkexample.utils.Toast
 
 class NfcPresentationService : BaseNfcPresentationService() {
 
+    override fun shouldPerformHandoverEngagement(): Boolean {
+        return appInForeground() && shareScreenCallback != null
+    }
+
     override fun negotiationFailed(error: NfcPresentationError) {
 
         if (!appInForeground()) {
