@@ -145,8 +145,13 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun submitNamespaces(allowedNamespaces: Map<String, Map<String, List<String>>>) {
-        if (allowedNamespaces.isEmpty()) {
-            val e = Error("Select at least one namespace")
+        // Check if any fields are actually selected
+        val hasSelectedFields = allowedNamespaces.values.any { docTypeNamespaces ->
+            docTypeNamespaces.values.any { fields -> fields.isNotEmpty() }
+        }
+
+        if (!hasSelectedFields) {
+            val e = Error("Select at least one attribute to share")
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
             _currState.value = PresentmentState.ERROR
             _error.value = e

@@ -6,10 +6,12 @@ import android.content.Context
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.spruceid.mobile.sdk.ble.Transport
+import com.spruceid.mobile.sdk.rs.CentralClientDetails
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
+import com.spruceid.mobile.sdk.rs.PeripheralServerDetails
 import com.spruceid.mobile.sdk.rs.RequestException
 import com.spruceid.mobile.sdk.rs.initializeMdlPresentationFromBytes
 import java.security.KeyStore
@@ -37,7 +39,19 @@ class IsoMdlPresentation(
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun initialize() {
         try {
-            session = initializeMdlPresentationFromBytes(this.mdoc, uuid.toString())
+            session = when (bleMode) {
+                "Central" -> initializeMdlPresentationFromBytes(
+                    this.mdoc,
+                    CentralClientDetails(uuid.toString()),
+                    null
+                )
+                "Peripheral" -> initializeMdlPresentationFromBytes(
+                    this.mdoc,
+                    null,
+                    PeripheralServerDetails(uuid.toString(), null)
+                )
+                else -> throw IllegalArgumentException("Invalid bleMode: $bleMode. Must be 'Central' or 'Peripheral'")
+            }
             this.bleManager = Transport(this.bluetoothManager, context)
 
             // Central: receives data via GATT notifications from Reader's Server2Client characteristic
@@ -100,10 +114,18 @@ class IsoMdlPresentation(
     }
 
     fun updateRequestData(data: ByteArray) {
+        // Only process the first request. Subsequent messages are status/termination messages.
+        // TODO: Not sure what to do here (termination messages)
+        if (this.itemsRequests.isNotEmpty()) {
+            Log.d("IsoMdlPresentation", "Ignoring subsequent message (${data.size} bytes) - request already processed")
+            return
+        }
+
         try {
             this.itemsRequests = session!!.handleRequest(data)
             this.callback.update(mapOf(Pair("selectNamespaces", this.itemsRequests)))
         } catch (e: RequestException) {
+            Log.e("IsoMdlPresentation", "Error handling request: ${e.message}", e)
             this.callback.error(e)
         }
     }
