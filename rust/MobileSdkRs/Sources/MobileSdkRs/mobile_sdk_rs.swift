@@ -5812,6 +5812,10 @@ public func FfiConverterTypeLogWriter_lower(_ value: LogWriter) -> UnsafeMutable
 
 public protocol MdlSessionManagerProtocol: AnyObject, Sendable {
     
+    func bleCentralClientDetails()  -> [CentralClientDetails]
+    
+    func blePeripheralServerDetails()  -> [PeripheralServerDetails]
+    
 }
 open class MdlSessionManager: MdlSessionManagerProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -5864,6 +5868,20 @@ open class MdlSessionManager: MdlSessionManagerProtocol, @unchecked Sendable {
 
     
 
+    
+open func bleCentralClientDetails() -> [CentralClientDetails]  {
+    return try!  FfiConverterSequenceTypeCentralClientDetails.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdlsessionmanager_ble_central_client_details(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func blePeripheralServerDetails() -> [PeripheralServerDetails]  {
+    return try!  FfiConverterSequenceTypePeripheralServerDetails.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdlsessionmanager_ble_peripheral_server_details(self.uniffiClonePointer(),$0
+    )
+})
+}
     
 
 }
@@ -10933,6 +10951,77 @@ public func FfiConverterTypeApprovedResponse180137_lower(_ value: ApprovedRespon
 
 
 /**
+ * Connection details for connecting to an mdoc that is using BLE Central Client mode.
+ */
+public struct CentralClientDetails {
+    /**
+     * The UUID of the service that the mdoc is advertising.
+     */
+    public var serviceUuid: Uuid
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The UUID of the service that the mdoc is advertising.
+         */serviceUuid: Uuid) {
+        self.serviceUuid = serviceUuid
+    }
+}
+
+#if compiler(>=6)
+extension CentralClientDetails: Sendable {}
+#endif
+
+
+extension CentralClientDetails: Equatable, Hashable {
+    public static func ==(lhs: CentralClientDetails, rhs: CentralClientDetails) -> Bool {
+        if lhs.serviceUuid != rhs.serviceUuid {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(serviceUuid)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCentralClientDetails: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CentralClientDetails {
+        return
+            try CentralClientDetails(
+                serviceUuid: FfiConverterTypeUuid.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CentralClientDetails, into buf: inout [UInt8]) {
+        FfiConverterTypeUuid.write(value.serviceUuid, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCentralClientDetails_lift(_ buf: RustBuffer) throws -> CentralClientDetails {
+    return try FfiConverterTypeCentralClientDetails.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCentralClientDetails_lower(_ value: CentralClientDetails) -> RustBuffer {
+    return FfiConverterTypeCentralClientDetails.lower(value)
+}
+
+
+/**
  * An unparsed credential, retrieved from storage.
  */
 public struct Credential {
@@ -11964,15 +12053,13 @@ public func FfiConverterTypeMDLReaderResponseData_lower(_ value: MdlReaderRespon
 
 public struct MdlReaderSessionData {
     public var state: MdlSessionManager
-    public var uuid: Uuid
     public var request: Data
     public var bleIdent: Data
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(state: MdlSessionManager, uuid: Uuid, request: Data, bleIdent: Data) {
+    public init(state: MdlSessionManager, request: Data, bleIdent: Data) {
         self.state = state
-        self.uuid = uuid
         self.request = request
         self.bleIdent = bleIdent
     }
@@ -11992,7 +12079,6 @@ public struct FfiConverterTypeMDLReaderSessionData: FfiConverterRustBuffer {
         return
             try MdlReaderSessionData(
                 state: FfiConverterTypeMDLSessionManager.read(from: &buf), 
-                uuid: FfiConverterTypeUuid.read(from: &buf), 
                 request: FfiConverterData.read(from: &buf), 
                 bleIdent: FfiConverterData.read(from: &buf)
         )
@@ -12000,7 +12086,6 @@ public struct FfiConverterTypeMDLReaderSessionData: FfiConverterRustBuffer {
 
     public static func write(_ value: MdlReaderSessionData, into buf: inout [UInt8]) {
         FfiConverterTypeMDLSessionManager.write(value.state, into: &buf)
-        FfiConverterTypeUuid.write(value.uuid, into: &buf)
         FfiConverterData.write(value.request, into: &buf)
         FfiConverterData.write(value.bleIdent, into: &buf)
     }
@@ -12081,6 +12166,93 @@ public func FfiConverterTypeOid4vciExchangeOptions_lift(_ buf: RustBuffer) throw
 #endif
 public func FfiConverterTypeOid4vciExchangeOptions_lower(_ value: Oid4vciExchangeOptions) -> RustBuffer {
     return FfiConverterTypeOid4vciExchangeOptions.lower(value)
+}
+
+
+/**
+ * Connection details for connecting to an mdoc that is using BLE Peripheral Server mode.
+ */
+public struct PeripheralServerDetails {
+    /**
+     * The UUID of the service that the mdoc is advertising.
+     */
+    public var serviceUuid: Uuid
+    /**
+     * The Bluetooth device address of the peripheral server. If available, this can be used
+     * to more quickly identify the correct device to connect to.
+     */
+    public var bleDeviceAddress: Data?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The UUID of the service that the mdoc is advertising.
+         */serviceUuid: Uuid, 
+        /**
+         * The Bluetooth device address of the peripheral server. If available, this can be used
+         * to more quickly identify the correct device to connect to.
+         */bleDeviceAddress: Data?) {
+        self.serviceUuid = serviceUuid
+        self.bleDeviceAddress = bleDeviceAddress
+    }
+}
+
+#if compiler(>=6)
+extension PeripheralServerDetails: Sendable {}
+#endif
+
+
+extension PeripheralServerDetails: Equatable, Hashable {
+    public static func ==(lhs: PeripheralServerDetails, rhs: PeripheralServerDetails) -> Bool {
+        if lhs.serviceUuid != rhs.serviceUuid {
+            return false
+        }
+        if lhs.bleDeviceAddress != rhs.bleDeviceAddress {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(serviceUuid)
+        hasher.combine(bleDeviceAddress)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePeripheralServerDetails: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PeripheralServerDetails {
+        return
+            try PeripheralServerDetails(
+                serviceUuid: FfiConverterTypeUuid.read(from: &buf), 
+                bleDeviceAddress: FfiConverterOptionData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PeripheralServerDetails, into buf: inout [UInt8]) {
+        FfiConverterTypeUuid.write(value.serviceUuid, into: &buf)
+        FfiConverterOptionData.write(value.bleDeviceAddress, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeripheralServerDetails_lift(_ buf: RustBuffer) throws -> PeripheralServerDetails {
+    return try FfiConverterTypePeripheralServerDetails.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePeripheralServerDetails_lower(_ value: PeripheralServerDetails) -> RustBuffer {
+    return FfiConverterTypePeripheralServerDetails.lower(value)
 }
 
 
@@ -19736,6 +19908,31 @@ fileprivate struct FfiConverterSequenceTypeStatus20240406: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCentralClientDetails: FfiConverterRustBuffer {
+    typealias SwiftType = [CentralClientDetails]
+
+    public static func write(_ value: [CentralClientDetails], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCentralClientDetails.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CentralClientDetails] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CentralClientDetails]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCentralClientDetails.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCredentialResponse: FfiConverterRustBuffer {
     typealias SwiftType = [CredentialResponse]
 
@@ -19803,6 +20000,31 @@ fileprivate struct FfiConverterSequenceTypeItemsRequest: FfiConverterRustBuffer 
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeItemsRequest.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypePeripheralServerDetails: FfiConverterRustBuffer {
+    typealias SwiftType = [PeripheralServerDetails]
+
+    public static func write(_ value: [PeripheralServerDetails], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePeripheralServerDetails.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PeripheralServerDetails] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PeripheralServerDetails]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePeripheralServerDetails.read(from: &buf))
         }
         return seq
     }
@@ -21641,6 +21863,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_logwriter_flush() != 63605) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlsessionmanager_ble_central_client_details() != 2120) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlsessionmanager_ble_peripheral_server_details() != 14440) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_generate_response() != 37013) {
