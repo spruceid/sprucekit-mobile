@@ -41,8 +41,11 @@ class TransportBleCentralClient(
     private var updateRequestData: (data: ByteArray) -> Unit,
     private var callback: BLESessionStateDelegate?
 ) {
-    private val stateMachine = BleConnectionStateMachine.getInstance()
-    private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
+    private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.CLIENT)
+    // Lazy initialization to avoid accessing state machine before it's started
+    private val bluetoothAdapter: BluetoothAdapter by lazy {
+        stateMachine.getBluetoothManager().adapter
+    }
     private var logger = BleLogger.getInstance("TransportBleCentralClient")
     private val isReader = application == "Reader"
 

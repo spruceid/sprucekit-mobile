@@ -130,8 +130,7 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
             mdoc = mdoc,
             keyAlias = mdoc.keyAlias(),
             bluetoothManager = bluetoothManager,
-            context = getApplication<Application>().applicationContext,
-            bleMode = "Peripheral"
+            context = getApplication<Application>().applicationContext
         )
 
         // Initialize will trigger the callback with engagingQRCode state

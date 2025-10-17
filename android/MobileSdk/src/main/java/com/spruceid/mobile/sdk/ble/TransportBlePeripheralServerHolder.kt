@@ -18,8 +18,11 @@ class TransportBlePeripheralServerHolder(
     private var updateRequestData: ((data: ByteArray) -> Unit)?
 ) {
 
-    private val stateMachine = BleConnectionStateMachine.getInstance()
-    private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
+    private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.SERVER)
+    // Lazy initialization to avoid accessing state machine before it's started
+    private val bluetoothAdapter: BluetoothAdapter by lazy {
+        stateMachine.getBluetoothManager().adapter
+    }
     private var logger = BleLogger.getInstance("TransportBlePeripheralServerHolder")
 
     private lateinit var blePeripheral: BlePeripheral
