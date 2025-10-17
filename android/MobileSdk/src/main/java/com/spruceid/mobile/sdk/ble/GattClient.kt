@@ -44,7 +44,7 @@ class GattClient(
     private val config: BleConfiguration = BleConfiguration()
 ) {
     private val logger = BleLogger.getInstance("GattClient")
-    private val stateMachine = BleConnectionStateMachine.getInstance()
+    private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.CLIENT)
     private val btAdapter = stateMachine.getBluetoothManager().adapter
     private val context: Context = stateMachine.getContext()
     private val errorHandler = BleErrorHandler(logger)

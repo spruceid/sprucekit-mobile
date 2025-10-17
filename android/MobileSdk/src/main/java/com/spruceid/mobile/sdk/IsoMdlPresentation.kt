@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
 import androidx.annotation.RequiresPermission
+import com.spruceid.mobile.sdk.ble.BleConnectionStateMachineInstanceType
 import com.spruceid.mobile.sdk.ble.Transport
 import com.spruceid.mobile.sdk.rs.CentralClientDetails
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
@@ -28,49 +29,119 @@ class IsoMdlPresentation(
     val keyAlias: String,
     val bluetoothManager: BluetoothManager,
     val callback: BLESessionStateDelegate,
-    val context: Context,
-    val bleMode: String = "Central" // "Central" or "Peripheral"
+    val context: Context
 ) {
-    val uuid: UUID = UUID.randomUUID()
+    private val uuidCentral: UUID = UUID.randomUUID()
+    private val uuidPeripheral: UUID = UUID.randomUUID()
+
     var session: MdlPresentationSession? = null
     var itemsRequests: List<ItemsRequest> = listOf()
-    var bleManager: Transport? = null
+
+    // Dual transport instances for simultaneous operation
+    private var centralTransport: Transport? = null
+    private var peripheralTransport: Transport? = null
+
+    // Track which mode successfully connected first
+    @Volatile
+    private var connectedMode: String? = null
+    private val connectionLock = Any()
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun initialize() {
         try {
-            session = when (bleMode) {
-                "Central" -> initializeMdlPresentationFromBytes(
-                    this.mdoc,
-                    CentralClientDetails(uuid.toString()),
-                    null
-                )
-                "Peripheral" -> initializeMdlPresentationFromBytes(
-                    this.mdoc,
-                    null,
-                    PeripheralServerDetails(uuid.toString(), null)
-                )
-                else -> throw IllegalArgumentException("Invalid bleMode: $bleMode. Must be 'Central' or 'Peripheral'")
-            }
-            this.bleManager = Transport(this.bluetoothManager, context)
+            // Per ISO 18013-5: Always advertise both modes in QR code
+            Log.d("IsoMdlPresentation", "Initializing dual-mode presentation with separate UUIDs")
+            session = initializeMdlPresentationFromBytes(
+                this.mdoc,
+                CentralClientDetails(uuidCentral.toString()),
+                PeripheralServerDetails(uuidPeripheral.toString(), null)
+            )
 
-            // Central: receives data via GATT notifications from Reader's Server2Client characteristic
-            // Peripheral: receives data via GATT writes to Holder's Client2Server characteristic
-            Log.d("IsoMdlPresentation", "HOLDER AS $bleMode")
-            this.bleManager!!
-                .initialize(
-                    "Holder",
-                    this.uuid,
-                    "BLE",
-                    bleMode,
-                    session!!.getBleIdent(),
-                    ::updateRequestData,
-                    callback
-                )
-
+            // Display QR code immediately
             this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
+
+            // Start both transports simultaneously
+            startPeripheralTransport()
+            startCentralTransport()
+
         } catch (e: Error) {
-            Log.e("BleSessionManager.constructor", e.toString())
+            Log.e("IsoMdlPresentation.initialize", e.toString())
+            this.callback.error(Exception(e.message, e))
+        }
+    }
+
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    private fun startPeripheralTransport() {
+        Log.d("IsoMdlPresentation", "Starting Peripheral transport (advertising with UUID: $uuidPeripheral)")
+        // Use "server" type for peripheral to get separate state machine instance
+        peripheralTransport = Transport(this.bluetoothManager, context, stateMachineType = BleConnectionStateMachineInstanceType.SERVER)
+        peripheralTransport!!.initialize(
+            "Holder",
+            uuidPeripheral,
+            "BLE",
+            "Peripheral",
+            session!!.getBleIdent(),
+            { data -> onDataReceived("Peripheral", data) },
+            callback
+        )
+    }
+
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    private fun startCentralTransport() {
+        Log.d("IsoMdlPresentation", "Starting Central transport (scanning for UUID: $uuidCentral)")
+        // Use "default" type for central to get separate state machine instance
+        centralTransport = Transport(this.bluetoothManager, context, stateMachineType = BleConnectionStateMachineInstanceType.CLIENT)
+        centralTransport!!.initialize(
+            "Holder",
+            uuidCentral,
+            "BLE",
+            "Central",
+            session!!.getBleIdent(),
+            { data -> onDataReceived("Central", data) },
+            callback
+        )
+    }
+
+    private fun onDataReceived(mode: String, data: ByteArray) {
+        val shouldProcess = synchronized(connectionLock) {
+            // First data received wins - terminate the other mode
+            if (connectedMode == null) {
+                connectedMode = mode
+                Log.d("IsoMdlPresentation", "Connection established via $mode mode - terminating other mode")
+
+                // Terminate the unused transport
+                try {
+                    when (mode) {
+                        "Central" -> {
+                            Log.d("IsoMdlPresentation", "Terminating unused Peripheral transport")
+                            peripheralTransport?.terminate()
+                            peripheralTransport = null
+                        }
+                        "Peripheral" -> {
+                            Log.d("IsoMdlPresentation", "Terminating unused Central transport")
+                            centralTransport?.terminate()
+                            centralTransport = null
+                        }
+                        else -> {
+                            Log.w("IsoMdlPresentation", "Unknown mode: $mode")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("IsoMdlPresentation", "Error terminating unused transport: ${e.message}")
+                }
+                true // Process this data
+            } else if (connectedMode == mode) {
+                true // Already connected via this mode, process data
+            } else {
+                // This shouldn't happen, but log it if it does
+                Log.w("IsoMdlPresentation", "Received data from $mode but already connected via $connectedMode - ignoring")
+                false // Don't process
+            }
+        }
+
+        // Forward data to the handler if we should process it
+        if (shouldProcess) {
+            updateRequestData(data)
         }
     }
 
@@ -101,7 +172,16 @@ class IsoMdlPresentation(
                 CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(signature)
                     ?: throw Error("unrecognized signature encoding")
             val response = session!!.submitResponse(normalizedSignature)
-            this.bleManager!!.send(response)
+
+            // Send through whichever transport is connected
+            val activeTransport = when (connectedMode) {
+                "Central" -> centralTransport
+                "Peripheral" -> peripheralTransport
+                else -> throw IllegalStateException("No active transport connection")
+            }
+
+            activeTransport?.send(response)
+                ?: throw IllegalStateException("Active transport is null")
         } catch (e: Error) {
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
             this.callback.update(mapOf(Pair("error", e.toString())))
@@ -110,7 +190,22 @@ class IsoMdlPresentation(
     }
 
     fun terminate() {
-        this.bleManager!!.terminate()
+        // Terminate both transports
+        try {
+            centralTransport?.terminate()
+            centralTransport = null
+        } catch (e: Exception) {
+            Log.w("IsoMdlPresentation", "Error terminating central transport: ${e.message}")
+        }
+
+        try {
+            peripheralTransport?.terminate()
+            peripheralTransport = null
+        } catch (e: Exception) {
+            Log.w("IsoMdlPresentation", "Error terminating peripheral transport: ${e.message}")
+        }
+
+        connectedMode = null
     }
 
     fun updateRequestData(data: ByteArray) {
