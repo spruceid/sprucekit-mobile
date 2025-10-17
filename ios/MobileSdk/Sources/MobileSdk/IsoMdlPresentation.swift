@@ -30,7 +30,7 @@ public class IsoMdlPresentation {
         do {
             self.session =
                 try SpruceIDMobileSdkRs.initializeMdlPresentationFromBytes(
-                    mdoc: mdoc.inner, uuid: self.uuid.uuidString)
+                    mdoc: mdoc.inner, centralClientMode: CentralClientDetails(serviceUuid: self.uuid.uuidString), peripheralServerMode: nil);
             bleManager = MDocHolderBLECentral(
                 callback: self,
                 serviceUuid: CBUUID(nsuuid: self.uuid),
