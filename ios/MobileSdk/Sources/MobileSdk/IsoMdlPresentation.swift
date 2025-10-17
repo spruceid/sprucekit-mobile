@@ -29,8 +29,13 @@ public class IsoMdlPresentation {
         self.useL2CAP = useL2CAP
         do {
             self.session =
-                try SpruceIDMobileSdkRs.initializeMdlPresentationFromBytes(
-                    mdoc: mdoc.inner, centralClientMode: CentralClientDetails(serviceUuid: self.uuid.uuidString), peripheralServerMode: nil);
+            try SpruceIDMobileSdkRs.initializeMdlPresentationFromBytes(
+                mdoc: mdoc.inner,
+                centralClientMode: CentralClientDetails(
+                    serviceUuid: self.uuid.uuidString
+                ),
+                peripheralServerMode: nil
+            )
             bleManager = MDocHolderBLECentral(
                 callback: self,
                 serviceUuid: CBUUID(nsuuid: self.uuid),
