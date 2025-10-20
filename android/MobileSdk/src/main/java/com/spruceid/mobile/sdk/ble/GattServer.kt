@@ -49,8 +49,9 @@ class GattServer(
 
     private val logger = BleLogger.getInstance("GattServer")
     private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.SERVER)
-    private val bluetoothManager: BluetoothManager = stateMachine.getBluetoothManager()
-    private val context: Context = stateMachine.getContext()
+    // Lazy initialization to avoid accessing state machine before it's started
+    private val bluetoothManager: BluetoothManager by lazy { stateMachine.getBluetoothManager() }
+    private val context: Context by lazy { stateMachine.getContext() }
     private val errorHandler = BleErrorHandler(logger)
     private val threadPool = BleThreadPool.getInstance(config)
 

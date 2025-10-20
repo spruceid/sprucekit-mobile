@@ -1,6 +1,7 @@
 package com.spruceid.mobile.sdk.ble
 
 import android.Manifest
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import java.util.*
@@ -31,16 +32,28 @@ class TransportBle {
     ) {
 
         /**
-         * Transport Central Client Holder
+         * Transport Central Client Holder or Reader
          */
         if (deviceRetrievalOption == "Central") {
             logger.d("Selecting Transport Central Client $application")
-            if (updateRequestData != null) {
+            if (application == "Holder" && updateRequestData != null) {
+                // Holder as Central: receives request, sends response
                 transportBleCentralClient = TransportBleCentralClient(
                     application,
                     serviceUUID,
                     updateRequestData,
                     callback,
+                    null  // No requestData for Holder
+                )
+                transportBleCentralClient.connect(ident)
+            } else if (application == "Reader") {
+                // Reader as Central: sends request, receives response
+                transportBleCentralClient = TransportBleCentralClient(
+                    application,
+                    serviceUUID,
+                    null,  // No updateRequestData callback for Reader
+                    callback,
+                    encodedEDeviceKeyBytes  // The mDL request to send
                 )
                 transportBleCentralClient.connect(ident)
             }
