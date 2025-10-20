@@ -8,30 +8,51 @@ import java.lang.ref.WeakReference
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+enum class BleConnectionStateMachineInstanceType {
+    CLIENT,
+    SERVER
+}
 /**
- * Singleton thread-safe state machine for BLE connections to prevent invalid state transitions
- * Uses StateFlow for reactive UI updates and stores BluetoothManager instance
+ * Thread-safe dual-instance (dualton) state machine for managing BLE connections and preventing invalid state transitions.
+ *
+ * This class provides two separate instances:
+ * - One for acting as a **Central Client** (scanning, connecting)
+ * - One for acting as a **Peripheral Server** (advertising)
+ *
+ * This separation allows simultaneous operation in both roles, enabling use cases such as scanning while advertising.
  */
 class BleConnectionStateMachine private constructor() {
 
     companion object {
         @Volatile
-        private var INSTANCE: BleConnectionStateMachine? = null
+        private var CLIENT_INSTANCE: BleConnectionStateMachine? = null
 
-        fun getInstance(): BleConnectionStateMachine {
-            return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: BleConnectionStateMachine().also { INSTANCE = it }
+        @Volatile
+        private var SERVER_INSTANCE: BleConnectionStateMachine? = null
+
+        fun getInstance(type: BleConnectionStateMachineInstanceType= BleConnectionStateMachineInstanceType.CLIENT): BleConnectionStateMachine {
+            return when (type) {
+                BleConnectionStateMachineInstanceType.SERVER -> SERVER_INSTANCE ?: synchronized(this) {
+                    SERVER_INSTANCE ?: BleConnectionStateMachine().also { SERVER_INSTANCE = it }
+                }
+                BleConnectionStateMachineInstanceType.CLIENT -> CLIENT_INSTANCE ?: synchronized(this) {
+                    CLIENT_INSTANCE ?: BleConnectionStateMachine().also { CLIENT_INSTANCE = it }
+                }
             }
         }
 
         /**
          * Reset the singleton instance (mainly for testing)
          */
-        fun resetInstance() {
+        fun resetInstance(type: BleConnectionStateMachineInstanceType) {
             synchronized(this) {
-                INSTANCE = null
+                when (type) {
+                    BleConnectionStateMachineInstanceType.CLIENT -> CLIENT_INSTANCE = null
+                    BleConnectionStateMachineInstanceType.SERVER -> SERVER_INSTANCE = null
+                }
             }
         }
+
     }
 
     enum class State {

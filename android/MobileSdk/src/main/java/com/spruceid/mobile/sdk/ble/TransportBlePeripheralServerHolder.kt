@@ -13,11 +13,16 @@ import java.util.*
  * 18013-5 section 8.3.3.1.1.4 Table 12.
  */
 class TransportBlePeripheralServerHolder(
-    private var application: String, private var serviceUUID: UUID
+    private var application: String,
+    private var serviceUUID: UUID,
+    private var updateRequestData: ((data: ByteArray) -> Unit)?
 ) {
 
-    private val stateMachine = BleConnectionStateMachine.getInstance()
-    private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
+    private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.SERVER)
+    // Lazy initialization to avoid accessing state machine before it's started
+    private val bluetoothAdapter: BluetoothAdapter by lazy {
+        stateMachine.getBluetoothManager().adapter
+    }
     private var logger = BleLogger.getInstance("TransportBlePeripheralServerHolder")
 
     private lateinit var blePeripheral: BlePeripheral
@@ -89,6 +94,12 @@ class TransportBlePeripheralServerHolder(
                 // Transition to disconnected state on termination
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 gattServer.stop()
+            }
+
+            override fun onMessageReceived(data: ByteArray) {
+                logger.d("Received request data: ${data.size} bytes")
+                // Forward the request data to IsoMdlPresentation
+                updateRequestData?.invoke(data)
             }
 
             override fun onLog(message: String) {

@@ -19417,6 +19417,30 @@ fileprivate struct FfiConverterOptionTypeActivityLogFilterOptions: FfiConverterR
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeCentralClientDetails: FfiConverterRustBuffer {
+    typealias SwiftType = CentralClientDetails?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeCentralClientDetails.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeCentralClientDetails.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeCredential: FfiConverterRustBuffer {
     typealias SwiftType = Credential?
 
@@ -19481,6 +19505,30 @@ fileprivate struct FfiConverterOptionTypeDelegatedVerifierOid4vpResponse: FfiCon
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeDelegatedVerifierOid4vpResponse.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypePeripheralServerDetails: FfiConverterRustBuffer {
+    typealias SwiftType = PeripheralServerDetails?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePeripheralServerDetails.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePeripheralServerDetails.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -21404,7 +21452,10 @@ public func initializeMdlPresentation(mdocId: Uuid, uuid: Uuid, storageManager: 
  *
  * Arguments:
  * mdoc: the Mdoc to be presented, as an [Mdoc] object
- * uuid: the Bluetooth Low Energy Client Central Mode UUID to be used
+ * central_client_mode: optional BLE Central Client Mode engagement details
+ * peripheral_server_mode: optional BLE Peripheral Server Mode engagement details
+ *
+ * Note: At least one engagement mode must be provided.
  *
  * Returns:
  * A Result, with the `Ok` containing a tuple consisting of an enum representing
@@ -21412,11 +21463,12 @@ public func initializeMdlPresentation(mdocId: Uuid, uuid: Uuid, storageManager: 
  * String containing the BLE ident.
 
  */
-public func initializeMdlPresentationFromBytes(mdoc: Mdoc, uuid: Uuid)throws  -> MdlPresentationSession  {
+public func initializeMdlPresentationFromBytes(mdoc: Mdoc, centralClientMode: CentralClientDetails?, peripheralServerMode: PeripheralServerDetails?)throws  -> MdlPresentationSession  {
     return try  FfiConverterTypeMdlPresentationSession_lift(try rustCallWithError(FfiConverterTypeSessionError_lift) {
     uniffi_mobile_sdk_rs_fn_func_initialize_mdl_presentation_from_bytes(
         FfiConverterTypeMdoc_lower(mdoc),
-        FfiConverterTypeUuid_lower(uuid),$0
+        FfiConverterOptionTypeCentralClientDetails.lower(centralClientMode),
+        FfiConverterOptionTypePeripheralServerDetails.lower(peripheralServerMode),$0
     )
 })
 }
@@ -21622,7 +21674,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 29387) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 26972) {
+    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 6159) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_list_sd_fields() != 63228) {

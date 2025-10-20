@@ -18,12 +18,12 @@ abstract class BlePeripheralCallback {
 
 class BlePeripheral(
     private var callback: BlePeripheralCallback,
-    private var serviceUUID: UUID
+    private var serviceUUID: UUID,
+    private val stateMachineType: BleConnectionStateMachineInstanceType = BleConnectionStateMachineInstanceType.SERVER
 ) {
 
-    private var bluetoothAdapter: BluetoothAdapter =
-        BleConnectionStateMachine.getInstance().getBluetoothManager().adapter
-    private var bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
+    private val bluetoothAdapter: BluetoothAdapter = BleConnectionStateMachine.getInstance(stateMachineType).getBluetoothManager().adapter
+    private val bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
 
     /**
      * Advertisement callback.
