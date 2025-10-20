@@ -45,8 +45,9 @@ class GattClient(
 ) {
     private val logger = BleLogger.getInstance("GattClient")
     private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.CLIENT)
-    private val btAdapter = stateMachine.getBluetoothManager().adapter
-    private val context: Context = stateMachine.getContext()
+    // Lazy initialization to avoid accessing state machine before it's started
+    private val btAdapter by lazy { stateMachine.getBluetoothManager().adapter }
+    private val context: Context by lazy { stateMachine.getContext() }
     private val errorHandler = BleErrorHandler(logger)
     private val terminationProvider = BleTerminationProvider(stateMachine, logger)
     private val threadPool = BleThreadPool.getInstance(config)
@@ -176,10 +177,13 @@ class GattClient(
                         return
                     }
 
+                    // Ident characteristic only exists in Reader service (Table 6), not Holder service (Table 5)
+                    // When Reader connects to Holder as Central, this will be null and that's correct
                     characteristicIdent = service.getCharacteristic(identUuid)
-                    if (characteristicIdent == null) {
-                        reportError("Ident characteristic not found.")
-                        return
+                    if (characteristicIdent != null) {
+                        logger.d("Ident characteristic found: ${characteristicIdent!!.uuid}")
+                    } else {
+                        logger.d("Ident characteristic not found (optional per ISO 18013-5 Table 5/6)")
                     }
 
                     callback.onState(BleStates.ServicesDiscovered.string)
