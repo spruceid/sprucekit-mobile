@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.launch
@@ -59,7 +59,7 @@ fun GenerateMockMdlButton(
                     )
                     Text(
                         text = "Generate mDL",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.Medium,
                         fontSize = 17.sp,
                         color = ColorStone950,
@@ -76,7 +76,7 @@ fun GenerateMockMdlButton(
 
             Text(
                 text = "Generate a fresh test mDL issued by the SpruceID Test CA",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
                 color = ColorStone600,

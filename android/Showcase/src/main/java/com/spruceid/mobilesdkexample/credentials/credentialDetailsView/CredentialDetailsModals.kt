@@ -39,7 +39,7 @@ import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
@@ -138,7 +138,7 @@ fun ActivityLogModal(
         // Title
         Text(
             text = "Activity Log",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
             color = ColorStone950,

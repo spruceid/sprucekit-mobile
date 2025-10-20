@@ -49,7 +49,7 @@ import com.spruceid.mobilesdkexample.credentials.FullSizeCredentialImage
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import org.json.JSONObject
@@ -136,7 +136,7 @@ fun genericCredentialListItemDescriptionFormatter(
     ) {
         Text(
             text = description,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Medium,
             fontSize = 14.sp,
             color = Color.White,
@@ -412,7 +412,7 @@ private fun titleFormatter(
         }
         Text(
             text = title,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
             color = Color.White,

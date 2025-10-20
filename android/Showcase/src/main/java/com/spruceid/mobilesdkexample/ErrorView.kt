@@ -45,7 +45,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,7 +75,7 @@ fun ErrorView(
             )
             Text(
                 errorTitle,
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 26.sp,
                 color = ColorRose600,
@@ -83,7 +83,7 @@ fun ErrorView(
             )
             Text(
                 "View technical details",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone600,
@@ -118,7 +118,7 @@ fun ErrorView(
             ) {
                 Text(
                     text = closeButtonLabel,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorStone950,
                 )
@@ -190,7 +190,7 @@ fun ErrorView(
                             ) {
                                 Text(
                                     text = "Close",
-                                    fontFamily = Inter,
+                                    fontFamily = Switzer,
                                     fontWeight = FontWeight.SemiBold,
                                     color = ColorStone950,
                                 )

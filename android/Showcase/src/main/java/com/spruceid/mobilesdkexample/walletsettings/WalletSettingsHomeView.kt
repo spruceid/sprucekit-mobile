@@ -46,7 +46,7 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.ControlledSimpleDeleteAlertDialog
 import com.spruceid.mobilesdkexample.utils.SettingsHomeItem
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
@@ -87,7 +87,7 @@ fun WalletSettingsHomeHeader(onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "Preferences",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
             color = ColorStone950
@@ -242,7 +242,7 @@ fun WalletSettingsHomeBody(
         ) {
             Text(
                 text = "Delete all added credentials",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
             )
