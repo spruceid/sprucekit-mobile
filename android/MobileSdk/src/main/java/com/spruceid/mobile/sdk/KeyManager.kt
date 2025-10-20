@@ -63,19 +63,19 @@ class KeyManager : SpruceKitKeyStore {
      * @property id of the secret key.
      * @returns KeyManagerEnvironment indicating the environment used to generate the key.
      */
-    fun generateSigningKey(id: String): KeyManagerEnvironment {
+    fun generateSigningKey(id: String, challenge: ByteArray? = null): KeyManagerEnvironment {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                generateSigningKeyWithStrongbox(id)
+                generateSigningKeyWithStrongbox(id, challenge)
 
                 return KeyManagerEnvironment.Strongbox
             } else {
-                generateSigningKeyTEE(id)
+                generateSigningKeyTEE(id, challenge)
 
                 return KeyManagerEnvironment.TEE
             }
         } catch (e: Exception) {
-            generateSigningKeyTEE(id)
+            generateSigningKeyTEE(id, challenge)
 
             return KeyManagerEnvironment.TEE
         }
@@ -86,7 +86,7 @@ class KeyManager : SpruceKitKeyStore {
      * @property id of the secret key.
      */
     @RequiresApi(Build.VERSION_CODES.P)
-    private fun generateSigningKeyWithStrongbox(id: String) {
+    private fun generateSigningKeyWithStrongbox(id: String, challenge: ByteArray? = null) {
         val generator =
             KeyPairGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_EC,
@@ -101,6 +101,11 @@ class KeyManager : SpruceKitKeyStore {
                 .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
                 .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
                 .setIsStrongBoxBacked(true)
+                .apply {
+                    if (challenge != null) {
+                        setAttestationChallenge(challenge)
+                    }
+                }
                 .build()
 
         generator.initialize(spec)
@@ -111,7 +116,7 @@ class KeyManager : SpruceKitKeyStore {
      * Generates a secp256r1 signing key by id/alias in the Keystore with TEE.
      * @property id of the secret key.
      */
-    private fun generateSigningKeyTEE(id: String) {
+    private fun generateSigningKeyTEE(id: String, challenge: ByteArray? = null) {
         val generator =
             KeyPairGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_EC,
@@ -125,6 +130,11 @@ class KeyManager : SpruceKitKeyStore {
             )
                 .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
                 .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                .apply {
+                    if (challenge != null) {
+                        setAttestationChallenge(challenge)
+                    }
+                }
                 .build()
 
         generator.initialize(spec)
@@ -199,10 +209,9 @@ class KeyManager : SpruceKitKeyStore {
     }
 
     /**
-     *
-     *  Returns the certificate corresponding to the signing key ID provided
+     *  Returns the certificate corresponding to the key ID provided
      */
-    fun signingKeyCertificateChain(id: String): List<ByteArray>? {
+    fun keyCertificateChain(id: String): List<ByteArray>? {
         val ks = getKeyStore()
         val key = ks.getEntry(id, null)
 

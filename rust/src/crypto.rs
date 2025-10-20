@@ -5,7 +5,9 @@ use isomdl::{
     cose::sign1::PreparedCoseSign1,
     definitions::{
         helpers::Tag24,
+        traits::ToCbor,
         x509::{x5chain::X5CHAIN_COSE_HEADER_LABEL, X5Chain},
+        CoseKey, EC2Curve, EC2Y,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -105,7 +107,7 @@ pub fn cose_sign1(
     if let Some(certificates) = x509_cert_pem {
         let mut x5chain_builder = X5Chain::builder();
 
-        if let Some(cert) = certificates.first() {
+        if let Some(cert) = certificates.iter().next() {
             x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
                 CryptoError::General(format!(
                     "Failed to construct x5chain with certificate: {e:?}"
@@ -152,20 +154,30 @@ pub fn cose_sign1(
 /// Returns a cose key based on the p-256 curve.
 /// Return cose key value is returned as a CBOR-encoded byte array.
 #[uniffi::export]
-pub fn cose_key_ec2_p256_public_key(x: Vec<u8>, y: Vec<u8>, kid: Vec<u8>) -> Result<Vec<u8>> {
-    let value = CoseKeyBuilder::new_ec2_pub_key(coset::iana::EllipticCurve::P_256, x, y)
-        .algorithm(Algorithm::ES256)
-        .key_id(kid)
-        .add_key_op(coset::iana::KeyOperation::Sign)
-        .build()
-        .to_cbor_value()
-        .map_err(|e| anyhow!("failed encode cose key to cbor value: {e:?}"))?;
+pub fn cose_key_ec2_p256_public_key(x: Vec<u8>, y: Vec<u8>, _kid: Vec<u8>) -> Result<Vec<u8>> {
+    let device_key = CoseKey::EC2 {
+        crv: EC2Curve::P256,
+        x,
+        y: EC2Y::Value(y),
+    };
 
-    let mut buf = Vec::new();
-    ciborium::into_writer(&value, &mut buf)
+    // let value = CoseKeyBuilder::new_ec2_pub_key(coset::iana::EllipticCurve::P_256, x, y)
+    //     .algorithm(Algorithm::ES256)
+    //     .key_id(kid)
+    //     .add_key_op(coset::iana::KeyOperation::Sign)
+    //     .build()
+    //     .to_cbor_value()
+    //     .map_err(|e| anyhow!("failed encode cose key to cbor value: {e:?}"))?;
+
+    let bytes = device_key
+        .to_cbor_bytes()
         .map_err(|e| anyhow!("failed serialize cose key to cbor bytes: {e:?}"))?;
 
-    Ok(buf)
+    // let mut buf = Vec::new();
+    // ciborium::into_writer(&value, &mut buf)
+    //     .map_err(|e| anyhow!("failed serialize cose key to cbor bytes: {e:?}"))?;
+
+    Ok(bytes)
 }
 
 #[cfg(test)]
