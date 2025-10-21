@@ -52,11 +52,11 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorAmber600
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorPurple600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.ColorTerracotta600
-import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
@@ -73,7 +73,7 @@ fun VerifierHomeView(
         ) {
             VerifierHomeHeader(navController = navController)
             Column(
-                Modifier.padding(horizontal = 20.dp)
+                Modifier.padding(horizontal = 26.dp)
             ) {
                 VerifierHomeBody(
                     navController = navController
@@ -89,6 +89,11 @@ fun VerifierHomeHeader(
 ) {
     val gradientColors = listOf(ColorAmber600, ColorBase1)
     val buttons = listOf(
+        HeaderButton(
+            icon = painterResource(id = R.drawable.add),
+            contentDescription = stringResource(id = R.string.add),
+            onClick = { navController.navigate(Screen.AddVerificationMethodScreen.route) }
+        ),
         HeaderButton(
             icon = painterResource(id = R.drawable.cog),
             contentDescription = stringResource(id = R.string.cog),
@@ -118,30 +123,6 @@ fun VerifierHomeBody(
         }
     }
 
-    Row(
-        modifier = Modifier
-            .padding(top = 20.dp)
-    ) {
-        Text(
-            text = "VERIFICATIONS",
-            fontFamily = Switzer,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = ColorStone400
-        )
-        Spacer(Modifier.weight(1f))
-        Text(
-            text = "+ New Verification",
-            fontFamily = Switzer,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-            color = ColorBlue600,
-            modifier = Modifier.clickable {
-                navController.navigate(Screen.AddVerificationMethodScreen.route)
-            }
-        )
-    }
-
     LazyColumn(
         Modifier
             .fillMaxWidth()
@@ -151,23 +132,7 @@ fun VerifierHomeBody(
 
         item {
             VerifierListItem(
-                title = "Driver's License Document",
-                description = "Verifies physical driver's licenses issued by the state of Utopia",
-                type = VerifierListItemTagType.SCAN_QR_CODE,
-                modifier = Modifier.clickable {
-                    navController.navigate(Screen.VerifyDLScreen.route)
-                }
-            )
-            VerifierListItem(
-                title = "Employment Authorization Document",
-                description = "Verifies physical Employment Authorization issued by the state of Utopia",
-                type = VerifierListItemTagType.SCAN_QR_CODE,
-                modifier = Modifier.clickable {
-                    navController.navigate(Screen.VerifyEAScreen.route)
-                }
-            )
-            VerifierListItem(
-                title = "Mobile Driver's Licence",
+                title = "Mobile Driver's License",
                 description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
@@ -175,7 +140,7 @@ fun VerifierHomeBody(
                 }
             )
             VerifierListItem(
-                title = "Mobile Driver's Licence - Over 18",
+                title = "Mobile Driver's License - Over 18",
                 description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
@@ -196,6 +161,22 @@ fun VerifierHomeBody(
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
                     navController.navigate(Screen.VerifyCWTScreen.route)
+                }
+            )
+            VerifierListItem(
+                title = "Driver's License Document",
+                description = "Verifies physical driver's licenses issued by the state of Utopia",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyDLScreen.route)
+                }
+            )
+            VerifierListItem(
+                title = "Employment Authorization Document",
+                description = "Verifies physical Employment Authorization issued by the state of Utopia",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyEAScreen.route)
                 }
             )
         }
@@ -232,7 +213,7 @@ fun VerifierListItem(
         modifier = modifier.padding(vertical = 12.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -251,10 +232,11 @@ fun VerifierListItem(
             fontFamily = Switzer,
             fontWeight = FontWeight.Normal,
             fontSize = 14.sp,
+            lineHeight = 19.sp,
             color = ColorStone600,
         )
     }
-    HorizontalDivider()
+    HorizontalDivider(color = ColorStone200)
 }
 
 @Composable
@@ -310,7 +292,7 @@ fun VerifierListItemTag(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     color = Color.White,
-                    modifier = Modifier.padding(horizontal = 1.dp)
+                    modifier = Modifier.padding(start = 6.dp, end = 2.dp)
                 )
                 Image(
                     painter = painterResource(id = R.drawable.arrow_triangle_right),
