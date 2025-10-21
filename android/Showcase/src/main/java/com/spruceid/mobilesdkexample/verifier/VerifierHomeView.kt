@@ -90,6 +90,11 @@ fun VerifierHomeHeader(
     val gradientColors = listOf(ColorAmber600, ColorBase1)
     val buttons = listOf(
         HeaderButton(
+            icon = painterResource(id = R.drawable.add),
+            contentDescription = stringResource(id = R.string.add),
+            onClick = { navController.navigate(Screen.AddVerificationMethodScreen.route) }
+        ),
+        HeaderButton(
             icon = painterResource(id = R.drawable.cog),
             contentDescription = stringResource(id = R.string.cog),
             onClick = { navController.navigate(Screen.VerifierSettingsHomeScreen.route) }
@@ -116,30 +121,6 @@ fun VerifierHomeBody(
         } else {
             return VerifierListItemTagType.SCAN_QR_CODE
         }
-    }
-
-    Row(
-        modifier = Modifier
-            .padding(top = 20.dp)
-    ) {
-        Text(
-            text = "VERIFICATIONS",
-            fontFamily = Switzer,
-            fontWeight = FontWeight.Bold,
-            fontSize = 14.sp,
-            color = ColorStone400
-        )
-        Spacer(Modifier.weight(1f))
-        Text(
-            text = "+ New Verification",
-            fontFamily = Switzer,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-            color = ColorBlue600,
-            modifier = Modifier.clickable {
-                navController.navigate(Screen.AddVerificationMethodScreen.route)
-            }
-        )
     }
 
     LazyColumn(
