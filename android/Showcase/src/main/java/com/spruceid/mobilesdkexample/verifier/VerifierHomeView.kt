@@ -310,7 +310,7 @@ fun VerifierListItemTag(
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     color = Color.White,
-                    modifier = Modifier.padding(horizontal = 1.dp)
+                    modifier = Modifier.padding(start = 6.dp, end = 2.dp)
                 )
                 Image(
                     painter = painterResource(id = R.drawable.arrow_triangle_right),
