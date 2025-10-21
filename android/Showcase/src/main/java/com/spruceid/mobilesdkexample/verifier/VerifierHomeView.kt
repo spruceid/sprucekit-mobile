@@ -213,7 +213,7 @@ fun VerifierListItem(
         modifier = modifier.padding(vertical = 12.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -232,6 +232,7 @@ fun VerifierListItem(
             fontFamily = Switzer,
             fontWeight = FontWeight.Normal,
             fontSize = 14.sp,
+            lineHeight = 19.sp,
             color = ColorStone600,
         )
     }
