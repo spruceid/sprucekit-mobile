@@ -285,6 +285,7 @@ class MDocReaderBLEPeripheral: NSObject {
     }
 
     func disconnect() {
+        peripheralManager?.updateValue(Data([0x02]), for: stateCharacteristic!, onSubscribedCentrals: nil)
         print("Disconnecting...")
         peripheralManager.stopAdvertising()
         activeStream?.close()
