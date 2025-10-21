@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,7 +45,7 @@ fun CredentialOptionsDialogActions(
         Text(
             text = "Credential Options",
             textAlign = TextAlign.Center,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Normal,
             fontSize = 12.sp,
             color = ColorStone950,
@@ -69,7 +69,7 @@ fun CredentialOptionsDialogActions(
             ) {
                 Text(
                     text = "Export",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     color = ColorBlue600,
                 )
@@ -92,7 +92,7 @@ fun CredentialOptionsDialogActions(
             ) {
                 Text(
                     text = "Delete",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     color = ColorRose600,
                 )
@@ -117,7 +117,7 @@ fun CredentialOptionsDialogActions(
         ) {
             Text(
                 text = "Cancel",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Bold,
                 color = ColorBlue600,
             )

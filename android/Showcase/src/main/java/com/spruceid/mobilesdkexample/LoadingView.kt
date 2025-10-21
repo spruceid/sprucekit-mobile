@@ -24,7 +24,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import app.rive.runtime.kotlin.RiveAnimationView
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase800
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 
 @Composable
 fun LoadingView(
@@ -56,7 +56,7 @@ fun LoadingView(
             )
             Text(
                 text = loadingText,
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 color = ColorBase800,
                 fontSize = 20.sp,
@@ -84,7 +84,7 @@ fun LoadingView(
                 ) {
                     Text(
                         text = cancelButtonLabel,
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.Black,
                     )

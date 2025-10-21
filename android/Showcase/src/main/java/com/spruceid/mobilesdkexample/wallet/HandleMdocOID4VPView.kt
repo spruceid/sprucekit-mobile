@@ -76,7 +76,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
 import com.spruceid.mobilesdkexample.utils.Toast
@@ -286,7 +286,7 @@ fun MdocFieldSelector(
                 withStyle(style = SpanStyle(color = Color.Blue)) { append(origin) }
                 append(" is requesting access to the following information")
             },
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
             color = ColorStone950,
@@ -412,7 +412,7 @@ fun MdocFieldSelector(
                 Spacer(modifier = Modifier.size(6.dp))
                 Text(
                     text = "Approve",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorBase50,
                     fontSize = 14.sp
@@ -512,7 +512,7 @@ fun MdocSelector(
     ) {
         Text(
             text = "Select the credential to share",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
             color = ColorStone950,
@@ -561,7 +561,7 @@ fun MdocSelector(
             ) {
                 Text(
                     text = "Cancel",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorStone950,
                 )
@@ -590,7 +590,7 @@ fun MdocSelector(
             ) {
                 Text(
                     text = "Continue",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorBase50,
                 )
@@ -642,7 +642,7 @@ fun MdocSelectorItem(
             )
             Text(
                 text = "Mobile Drivers License",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
                 color = ColorStone950,

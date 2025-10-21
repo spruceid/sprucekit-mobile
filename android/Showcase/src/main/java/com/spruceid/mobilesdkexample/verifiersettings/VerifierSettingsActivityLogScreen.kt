@@ -52,7 +52,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone900
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 import com.spruceid.mobilesdkexample.utils.DropdownInput
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
@@ -115,7 +115,7 @@ fun VerifierSettingsActivityLogScreenHeader(onBack: () -> Unit) {
         )
         Text(
             text = "Activity Log",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
             color = ColorStone950
@@ -174,7 +174,7 @@ fun VerifierSettingsActivityLogScreenBody(
             ) {
                 Text(
                     text = "No Activity Log Found",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Normal,
                     color = ColorStone400
@@ -191,7 +191,7 @@ fun VerifierSettingsActivityLogScreenBody(
                     Column {
                         Text(
                             text = log.credentialTitle,
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp,
                             color = ColorStone950,
@@ -200,7 +200,7 @@ fun VerifierSettingsActivityLogScreenBody(
                         if (log.issuer.isNotBlank()) {
                             Text(
                                 text = log.issuer,
-                                fontFamily = Inter,
+                                fontFamily = Switzer,
                                 fontWeight = FontWeight.Normal,
                                 fontSize = 15.sp,
                                 color = ColorStone600,
@@ -210,7 +210,7 @@ fun VerifierSettingsActivityLogScreenBody(
                         CredentialStatusSmall(status = credentialStatusListFromString(log.status))
                         Text(
                             text = formatSqlDateTime(log.verificationDateTime),
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.Normal,
                             fontSize = 15.sp,
                             color = ColorStone600,
@@ -246,7 +246,7 @@ fun VerifierSettingsActivityLogScreenBody(
                     )
                     Text(
                         text = "Export",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                         color = ColorStone950,
@@ -277,7 +277,7 @@ fun FilterModal() {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             "Filters",
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.Normal,
                             fontSize = 24.sp,
                             color = ColorStone900
@@ -333,7 +333,7 @@ fun FilterModal() {
                     ) {
                         Text(
                             text = "Cancel",
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.Black,
                         )
@@ -355,7 +355,7 @@ fun FilterModal() {
                     ) {
                         Text(
                             text = "Apply",
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.SemiBold,
                             color = ColorBase50,
                         )

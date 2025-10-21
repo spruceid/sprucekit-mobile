@@ -40,7 +40,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 
 enum class ScanningType {
     QRCODE, PDF417, MRZ
@@ -104,7 +104,7 @@ fun ScanningComponent(
                     isMatch = isMatch,
                     onCancel = onCancel,
                     hideCancelButton = hideCancelButton,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     readerColor = Color.White,
                     guidesColor = ColorBlue600,
                     cancelButtonColor = ColorStone950,
@@ -121,7 +121,7 @@ fun ScanningComponent(
                     isMatch = isMatch,
                     onCancel = onCancel,
                     hideCancelButton = hideCancelButton,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     readerColor = Color.White,
                     guidesColor = Color.White,
                     backgroundOpacity = 0.5f,
@@ -135,7 +135,7 @@ fun ScanningComponent(
                     isMatch = isMatch,
                     onCancel = onCancel,
                     hideCancelButton = hideCancelButton,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     readerColor = Color.White,
                     guidesColor = Color.White,
                     backgroundOpacity = 0.5f
@@ -149,13 +149,13 @@ fun ScanningComponent(
                 title = {
                     Text(
                         "Camera permission denied",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                     )
                 },
                 text = {
                     Text(
                         "Please provide the permissions for scanning QR code",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                     )
                 },
                 confirmButton = {
@@ -178,7 +178,7 @@ fun ScanningComponent(
                                 .border(2.dp, Color.Transparent, RoundedCornerShape(100.dp)),
                     ) {
                         Text(
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             text = "Go to Settings",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
@@ -197,7 +197,7 @@ fun ScanningComponent(
                     ) {
                         Text(
                             text = "Cancel",
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
                             color = ColorBase150,
@@ -260,7 +260,7 @@ fun IndividualCredentialScanningComponent(
                 borderColor = ColorBase500,
                 instructionsText = "",
                 instructionsColor = ColorBase800,
-                fontFamily = Inter
+                fontFamily = Switzer
             )
         } else {
             AlertDialog(
@@ -270,13 +270,13 @@ fun IndividualCredentialScanningComponent(
                 title = {
                     Text(
                         "Camera permission denied",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                     )
                 },
                 text = {
                     Text(
                         "Please provide the permissions for scanning QR code",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                     )
                 },
                 confirmButton = {
@@ -299,7 +299,7 @@ fun IndividualCredentialScanningComponent(
                                 .border(2.dp, Color.Transparent, RoundedCornerShape(100.dp)),
                     ) {
                         Text(
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             text = "Go to Settings",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
@@ -318,7 +318,7 @@ fun IndividualCredentialScanningComponent(
                     ) {
                         Text(
                             text = "Cancel",
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
                             color = ColorBase150,
