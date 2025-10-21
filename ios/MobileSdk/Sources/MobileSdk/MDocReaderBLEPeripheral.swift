@@ -215,6 +215,7 @@ class MDocReaderBLEPeripheral: NSObject {
                 }
 
             case .sendingRequest:
+                peripheralManager.stopAdvertising()
                 if machinePendingState == .awaitResponse {
                     machineState = .awaitResponse
                 }
@@ -301,12 +302,6 @@ class MDocReaderBLEPeripheral: NSObject {
 
         machineState = .initial
         machinePendingState = .initial
-
-        peripheralManager = CBPeripheralManager(
-            delegate: self,
-            queue: nil,
-            options: [CBPeripheralManagerOptionShowPowerAlertKey: true]
-        )
         print("✅ Disconnected")
     }
 
