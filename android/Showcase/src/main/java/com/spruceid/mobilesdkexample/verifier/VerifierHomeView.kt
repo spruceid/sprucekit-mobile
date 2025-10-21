@@ -150,8 +150,24 @@ fun VerifierHomeBody(
     ) {
 
         item {
-           VerifierListItem(
-                title = "Mobile Driver's License",
+            VerifierListItem(
+                title = "Driver's License Document",
+                description = "Verifies physical driver's licenses issued by the state of Utopia",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyDLScreen.route)
+                }
+            )
+            VerifierListItem(
+                title = "Employment Authorization Document",
+                description = "Verifies physical Employment Authorization issued by the state of Utopia",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyEAScreen.route)
+                }
+            )
+            VerifierListItem(
+                title = "Mobile Driver's Licence",
                 description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
@@ -159,19 +175,11 @@ fun VerifierHomeBody(
                 }
             )
             VerifierListItem(
-                title = "Mobile Driver's License - Over 18",
+                title = "Mobile Driver's Licence - Over 18",
                 description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
                     navController.navigate(Screen.VerifyMDlOver18Screen.route)
-                }
-            ) 
-            VerifierListItem(
-                title = "Employment Authorization Document",
-                description = "Verifies physical Employment Authorization issued by the state of Utopia",
-                type = VerifierListItemTagType.SCAN_QR_CODE,
-                modifier = Modifier.clickable {
-                    navController.navigate(Screen.VerifyEAScreen.route)
                 }
             )
             VerifierListItem(
@@ -188,14 +196,6 @@ fun VerifierHomeBody(
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
                     navController.navigate(Screen.VerifyCWTScreen.route)
-                }
-            )
-            VerifierListItem(
-                title = "Driver's License Document",
-                description = "Verifies physical driver's licenses issued by the state of Utopia",
-                type = VerifierListItemTagType.SCAN_QR_CODE,
-                modifier = Modifier.clickable {
-                    navController.navigate(Screen.VerifyDLScreen.route)
                 }
             )
         }
@@ -246,7 +246,6 @@ fun VerifierListItem(
             Spacer(modifier = Modifier.weight(1f))
             VerifierListItemTag(type = type)
         }
-        // 140% line height
         Text(
             text = description,
             fontFamily = Switzer,
