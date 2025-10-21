@@ -1,35 +1,37 @@
 package com.spruceid.mobilesdkexample.credentials
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
-import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
-import com.spruceid.mobilesdkexample.ui.theme.ColorRose300
-import com.spruceid.mobilesdkexample.ui.theme.ColorRose500
+import com.spruceid.mobilesdkexample.R
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase800
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
-import com.spruceid.mobilesdkexample.ui.theme.ColorRose800
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import kotlinx.coroutines.launch
@@ -50,39 +52,27 @@ fun CredentialOptionsDialogActions(
         },
         sheetState = sheetState,
         modifier = Modifier.navigationBarsPadding(),
-        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-        dragHandle = null,
-        containerColor = Color.Transparent
+        shape = RoundedCornerShape(
+            topStart = 16.dp,
+            topEnd = 16.dp,
+            bottomStart = 0.dp,
+            bottomEnd = 0.dp
+        ),
+        containerColor = ColorBase1,
     ) {
+
         Column(
-            modifier = Modifier.padding(horizontal = 8.dp)
+            modifier = Modifier.padding(bottom = 48.dp)
         ) {
             // Action buttons section grouped together
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(ColorBase50)
+                    .background(ColorBase1)
             ) {
-                // Title
-                Text(
-                    text = "Credential Options",
-                    textAlign = TextAlign.Center,
-                    fontFamily = Switzer,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 12.sp,
-                    color = ColorStone950.copy(alpha = 0.6f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 10.dp)
-                )
-
                 if (onExport != null) {
-                    HorizontalDivider(
-                        thickness = 0.5.dp,
-                        color = ColorStone950.copy(alpha = 0.2f)
-                    )
-                    Button(
+                    TextButton(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion {
                                 if (!sheetState.isVisible) {
@@ -91,30 +81,40 @@ fun CredentialOptionsDialogActions(
                             }
                             onExport()
                         },
-                        shape = RoundedCornerShape(0.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ColorBase50,
-                            contentColor = ColorBlue600,
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
                     ) {
-                        Text(
-                            text = "Export",
-                            fontFamily = Switzer,
-                            fontWeight = FontWeight.Normal,
-                            fontSize = 18.sp,
-                            color = ColorBlue600,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Start,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.export),
+                                contentDescription = "Export credential",
+                                tint = ColorStone950,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Export credential",
+                                fontFamily = Switzer,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 16.sp,
+                                color = ColorStone950
+                            )
+                        }
                     }
                 }
 
                 if (onDelete != null) {
                     HorizontalDivider(
-                        thickness = 0.5.dp,
-                        color = ColorStone950.copy(alpha = 0.2f)
+                        thickness = 1.dp,
+                        color = ColorStone200,
+                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 24.dp)
                     )
-                    Button(
+                    TextButton(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion {
                                 if (!sheetState.isVisible) {
@@ -123,56 +123,47 @@ fun CredentialOptionsDialogActions(
                             }
                             onDelete()
                         },
-                        shape = RoundedCornerShape(0.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ColorBase50,
-                            contentColor = ColorRose600,
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
                     ) {
-                        Text(
-                            text = "Delete",
-                            fontFamily = Switzer,
-                            fontWeight = FontWeight.Normal,
-                            fontSize = 18.sp,
-                            color = ColorRose600,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.delete),
+                                    contentDescription = "Delete from wallet",
+                                    tint = ColorRose600,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Delete from wallet",
+                                    fontFamily = Switzer,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 16.sp,
+                                    color = ColorRose600
+                                )
+                            }
+                            Text(
+                                text = "This cannot be undone",
+                                fontFamily = Switzer,
+                                fontWeight = FontWeight.Normal,
+                                fontSize = 15.sp,
+                                color = ColorBase800,
+                                modifier = Modifier.padding(start = 26.dp)
+                            )
+                        }
                     }
                 }
             }
 
-            // Spacer between actions and cancel
-            Spacer(modifier = Modifier.padding(4.dp))
-
-            // Cancel button (completely separated like iOS)
-            Button(
-                onClick = {
-                    scope.launch { sheetState.hide() }.invokeOnCompletion {
-                        if (!sheetState.isVisible) {
-                            setShowBottomSheet(false)
-                        }
-                    }
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ColorBase50,
-                    contentColor = ColorBlue600,
-                ),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Cancel",
-                    fontFamily = Switzer,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 18.sp,
-                    color = ColorBlue600,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-
-            // Bottom padding for safe area
-            Spacer(modifier = Modifier.padding(bottom = 16.dp))
         }
     }
 }
