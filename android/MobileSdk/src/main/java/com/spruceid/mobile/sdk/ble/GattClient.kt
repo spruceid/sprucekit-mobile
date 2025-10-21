@@ -105,7 +105,7 @@ class GattClient(
          * Discover services to connect to.
          */
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
-            reportLog("onConnectionStateChange $newState")
+            reportLog("onConnectionStateChange newState: [$newState]")
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 if (stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTED)) {
                     clearCache()
@@ -121,10 +121,6 @@ class GattClient(
                 } else {
                     reportError("Invalid state transition to connected")
                 }
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
-                callback.onPeerDisconnected()
-                reportLog("GATT Server disconnected.")
             }
         }
 
@@ -1021,6 +1017,7 @@ class GattClient(
         this.reset()
 
         try {
+            gattClient?.close()
             gattClient = device.connectGatt(
                 context, false, bluetoothGattCallback,
                 BluetoothDevice.TRANSPORT_LE
