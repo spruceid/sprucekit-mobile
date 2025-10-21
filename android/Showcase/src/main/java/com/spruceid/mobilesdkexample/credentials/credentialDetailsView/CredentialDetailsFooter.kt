@@ -88,13 +88,12 @@ private fun ScanShareButtons(
 ) {
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .fillMaxWidth(),
         horizontalArrangement = Arrangement.Center
     ) {
         Row(
             modifier = Modifier
-                .width(300.dp)
+                .fillMaxWidth()
                 .shadow(
                     elevation = 4.dp,
                     shape = RoundedCornerShape(24.dp),
@@ -207,12 +206,12 @@ private fun MiddleMenuSection(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 16.dp, start = 20.dp, end = 20.dp),
+            .padding(top = 16.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .width(300.dp)
+                .fillMaxWidth()
                 .shadow(
                     elevation = 4.dp,
                     shape = RoundedCornerShape(12.dp),

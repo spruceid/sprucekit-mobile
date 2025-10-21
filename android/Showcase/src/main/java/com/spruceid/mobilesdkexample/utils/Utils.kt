@@ -641,10 +641,10 @@ fun RenderCredentialFieldValue(
                 Text(
                     text = formattedValue,
                     fontFamily = Switzer,
-                    fontWeight = FontWeight.Normal,
+                    fontWeight = FontWeight.Medium,
                     fontSize = 15.sp,
                     color = ColorStone950,
-                    textAlign = TextAlign.Start
+                    textAlign = TextAlign.End
                 )
             }
         }

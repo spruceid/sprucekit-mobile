@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +36,7 @@ import androidx.navigation.NavController
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
@@ -90,8 +92,9 @@ fun WalletSettingsActivityLogScreenHeader(onBack: () -> Unit) {
             painter = painterResource(id = R.drawable.chevron),
             contentDescription = stringResource(id = R.string.chevron),
             modifier = Modifier
-                .rotate(180f)
-                .scale(0.4f)
+                .rotate(180f),
+            colorFilter = ColorFilter.tint(ColorStone950)
+
         )
         Text(
             text = "Activity Log",
@@ -161,7 +164,7 @@ fun WalletSettingsActivityLogScreenBody(
                             color = ColorStone600,
                             modifier = Modifier.padding(bottom = 4.dp),
                         )
-                        HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp))
+                        HorizontalDivider(modifier = Modifier.padding(bottom = 12.dp), color = ColorStone200, thickness = 1.dp)
                     }
                 }
             }
