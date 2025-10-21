@@ -73,7 +73,7 @@ fun VerifierHomeView(
         ) {
             VerifierHomeHeader(navController = navController)
             Column(
-                Modifier.padding(horizontal = 20.dp)
+                Modifier.padding(horizontal = 26.dp)
             ) {
                 VerifierHomeBody(
                     navController = navController
