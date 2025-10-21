@@ -52,7 +52,7 @@ To configure the same device OpenID4VP flow:
 
 To configure NFC presentation support:
 - Android: [See here](./android/MobileSdk/src/main/java/com/spruceid/mobile/sdk/nfc/NFC.md)
-- iOS: iOS does not yet allow third-party applications to emulate NFC tags. This will be available in an upcoming release.
+- iOS: iOS does not yet allow third-party applications to emulate NFC tags. This may be available in an upcoming release.
 
 ## Contributing
 
