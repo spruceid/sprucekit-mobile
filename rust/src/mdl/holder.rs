@@ -163,7 +163,7 @@ pub async fn initialize_mdl_presentation(
             SessionManagerInit::initialise(documents, Some(drms), None)
         }
         DeviceEngagementData::NFC(negotiated_carrier_info) => {
-            // TODO: don't love that we have to clone this
+            // I don't love that we have to clone this
             SessionManagerInit::initialise_with_prenegotiated_carrier(
                 documents,
                 &negotiated_carrier_info.0,
@@ -232,7 +232,7 @@ pub fn initialize_mdl_presentation_from_bytes(
             SessionManagerInit::initialise(documents, Some(drms), None)
         }
         DeviceEngagementData::NFC(carrier) => {
-            // TODO: don't love that we have to clone this
+            // I don't love that we have to clone this
             SessionManagerInit::initialise_with_prenegotiated_carrier(documents, &carrier.0)
         }
     }

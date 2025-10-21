@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.ConnectionLiveData
-import com.spruceid.mobile.sdk.RustLogger
 import com.spruceid.mobile.sdk.nfc.NfcListenManager
 import com.spruceid.mobilesdkexample.credentials.NfcPresentationService
 import com.spruceid.mobilesdkexample.navigation.Screen

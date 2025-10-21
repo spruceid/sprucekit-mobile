@@ -123,7 +123,6 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     // We specify a default value for presentData, defaulting to QR presentation
     // This is a really bad place for a default, but having it makes adding NFC backwards-compatible
     suspend fun present(bluetoothManager: BluetoothManager, presentData: CredentialPresentData = CredentialPresentData.Qr()) {
-        Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
 
         val mdoc = this.firstMdoc()
         when (presentData) {
@@ -139,7 +138,7 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
                 _currState.value = PresentmentState.ENGAGING_QR_CODE
             }
         }
-        Log.d("CredentialsViewModel", "Presenting with UUID: ${_uuid.value}")
+
         _transport.value = Transport(bluetoothManager)
         _transport.value!!
             .initialize(

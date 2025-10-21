@@ -90,4 +90,5 @@ If you use `NfcListenManager`, make sure to initialize it with
 `init(appContext, ComponentName(appContext, NfcPresentationService::class.java))` when your app starts.
 
 Alternatively, if you want to configure the app to *always* listen for any NDEF messages,
-you can add that to the manifest, and add `NfcListenManager.disabled = true` to your app's startup.
+you can add listening for "D2760000850101" to the app's manifest, and add
+`NfcListenManager.disabled = true` to your app's startup code.

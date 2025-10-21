@@ -444,9 +444,6 @@ name = "bitflags"
 version = "2.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b8e56985ec62d17e9c1001dc89c88ecd7dc08e47eba5ec7c29c7b5eeecde967"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "bitmaps"
@@ -2559,6 +2556,7 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.1.0"
+source = "git+https://github.com/spruceid/isomdl?rev=6084a83#6084a8355e7f194556f365f46a8c3772ad35d321"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2580,7 +2578,6 @@ dependencies = [
  "hkdf",
  "hmac",
  "isomdl-macros",
- "ndef-rs",
  "p256",
  "p384",
  "pem-rfc7468 0.7.0",
@@ -2593,8 +2590,8 @@ dependencies = [
  "sha2 0.10.9",
  "signature",
  "ssi-jwk 0.2.1",
- "strum 0.24.1",
- "strum_macros 0.24.3",
+ "strum",
+ "strum_macros",
  "thiserror 1.0.69",
  "time",
  "tracing",
@@ -2606,6 +2603,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
+source = "git+https://github.com/spruceid/isomdl?rev=6084a83#6084a8355e7f194556f365f46a8c3772ad35d321"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3412,19 +3410,6 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
-]
-
-[[package]]
-name = "ndef-rs"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3924c8348c52dcd52b857b7b063ff07477ded65daeb69e76bfb8799a6f5a51c"
-dependencies = [
- "anyhow",
- "bitflags 2.9.1",
- "byteorder",
- "strum 0.26.3",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -6049,15 +6034,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
 
 [[package]]
-name = "strum"
-version = "0.26.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fec0f0aef304996cf250b31b5a10dee7980c85da9d759361292b8bca5a18f06"
-dependencies = [
- "strum_macros 0.26.4",
-]
-
-[[package]]
 name = "strum_macros"
 version = "0.24.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6068,19 +6044,6 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "strum_macros"
-version = "0.26.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c6bee85a5a24955dc440386795aa378cd9cf82acd5f764469152d2270e581be"
-dependencies = [
- "heck 0.5.0",
- "proc-macro2",
- "quote",
- "rustversion",
- "syn 2.0.104",
 ]
 
 [[package]]

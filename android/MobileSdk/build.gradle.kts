@@ -21,12 +21,12 @@ publishing {
     // }
     publications {
         // This command must be commented on when releasing a new version.
-        create<MavenPublication>("debug") {
-           groupId = "com.spruceid.mobile.sdk"
-           artifactId = "mobilesdk"
-           version = System.getenv("VERSION")
-         afterEvaluate { from(components["release"]) }
-        }
+        // create<MavenPublication>("debug") {
+        //    groupId = "com.spruceid.mobile.sdk"
+        //    artifactId = "mobilesdk"
+        //    version = System.getenv("VERSION")
+        //  afterEvaluate { from(components["release"]) }
+        // }
 
         // Creates a Maven publication called "release".
         create<MavenPublication>("release") {
@@ -97,8 +97,8 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(
-                    getDefaultProguardFile("proguard-android-optimize.txt"),
-                    "proguard-rules.pro"
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
             )
         }
     }

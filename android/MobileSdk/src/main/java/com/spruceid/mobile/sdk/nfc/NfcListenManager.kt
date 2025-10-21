@@ -29,7 +29,6 @@ object NfcListenManager {
             componentName: ComponentName
     ) {
         if (_presentationServiceRequested == requested) return
-        Log.d(TAG, "Setting presentationServiceRequested to $requested ")
         _presentationServiceRequested = requested
         _applicationCtx = applicationContext
         _componentName = componentName
@@ -45,7 +44,6 @@ object NfcListenManager {
     var userRequested
         get() = _userRequested
         set(value) {
-            Log.d(TAG, "Setting userRequested to $value")
             if(_userRequested == value) return
             _userRequested = value
             reconfigure()
@@ -62,13 +60,11 @@ object NfcListenManager {
         }
         val cardEmulation = CardEmulation.getInstance(NfcAdapter.getDefaultAdapter(_applicationCtx))
 
-        val success =
-                cardEmulation.registerAidsForService(
-                        _componentName,
-                        CardEmulation.CATEGORY_OTHER,
-                        aids.map { it }
-                )
-        Log.d(TAG, "Registered AIDs for service: $success (${aids.joinToString(", ") { it }})")
+        cardEmulation.registerAidsForService(
+            _componentName,
+            CardEmulation.CATEGORY_OTHER,
+            aids.map { it }
+        )
     }
 
     private fun reconfigure() {

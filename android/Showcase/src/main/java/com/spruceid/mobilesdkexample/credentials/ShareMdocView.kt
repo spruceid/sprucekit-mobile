@@ -164,33 +164,33 @@ fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> U
         }
         PresentmentState.SELECT_NAMESPACES -> {
             Text(
-                    text = "Selecting namespaces...",
-                    fontFamily = Inter,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 16.sp,
-                    modifier = Modifier.padding(vertical = 20.dp)
+                text = "Selecting namespaces...",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
             )
             ShareMdocSelectiveDisclosureView(
-                    credentialViewModel = credentialViewModel,
-                    onCancel = onCancel
+                credentialViewModel = credentialViewModel,
+                onCancel = onCancel
             )
         }
         PresentmentState.SUCCESS ->
-                Text(
-                        text = "Successfully presented credential.",
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(vertical = 20.dp)
-                )
+            Text(
+                text = "Successfully presented credential.",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
         PresentmentState.ERROR ->
-                Text(
-                        text = "Error: $error",
-                        fontFamily = Inter,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(vertical = 20.dp)
-                )
+            Text(
+                text = "Error: $error",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
     }
 }
 
@@ -334,8 +334,8 @@ fun NfcShareMdocView(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShareMdocSelectiveDisclosureView(
-        credentialViewModel: CredentialsViewModel,
-        onCancel: () -> Unit
+    credentialViewModel: CredentialsViewModel,
+    onCancel: () -> Unit
 ) {
     val itemsRequests by credentialViewModel.itemsRequest.collectAsState()
     val allowedNamespaces by credentialViewModel.allowedNamespaces.collectAsState()
@@ -345,8 +345,8 @@ fun ShareMdocSelectiveDisclosureView(
     LaunchedEffect(Unit) {
         itemsRequests.map { itemsRequest ->
             credentialViewModel.addAllAllowedNamespaces(
-                    itemsRequest.docType,
-                    itemsRequest.namespaces
+                itemsRequest.docType,
+                itemsRequest.namespaces
             )
         }
     }
@@ -368,51 +368,51 @@ fun ShareMdocSelectiveDisclosureView(
                 .padding(top = 48.dp)
         ) {
             Text(
-                    buildAnnotatedString {
-                        withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
-                        append(" is requesting access to the following information")
-                    },
-                    fontFamily = Inter,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    color = ColorStone950,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    textAlign = TextAlign.Center
+                buildAnnotatedString {
+                    withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
+                    append(" is requesting access to the following information")
+                },
+                fontFamily = Inter,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = ColorStone950,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                textAlign = TextAlign.Center
             )
 
             Column(
-                    modifier =
-                            Modifier.fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                                    .weight(weight = 1f, fill = false)
+                modifier =
+                        Modifier.fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .weight(weight = 1f, fill = false)
             ) {
                 itemsRequests.map { itemsRequest ->
                     Column {
                         itemsRequest.namespaces.map { namespaceSpec ->
                             Column {
                                 Text(
-                                        text = namespaceSpec.key,
-                                        fontFamily = Inter,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 18.sp,
-                                        color = ColorStone950,
-                                        modifier = Modifier.padding(top = 16.dp)
+                                    text = namespaceSpec.key,
+                                    fontFamily = Inter,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 18.sp,
+                                    color = ColorStone950,
+                                    modifier = Modifier.padding(top = 16.dp)
                                 )
                                 namespaceSpec.value.forEach { namespace ->
                                     ShareMdocSelectiveDisclosureNamespaceItem(
-                                            namespace = namespace,
-                                            isChecked =
-                                                    allowedNamespaces[itemsRequest.docType]
-                                                            ?.get(namespaceSpec.key)
-                                                            ?.contains(namespace.key)
-                                                            ?: false,
-                                            onCheck = { _ ->
-                                                credentialViewModel.toggleAllowedNamespace(
-                                                        itemsRequest.docType,
-                                                        namespaceSpec.key,
-                                                        namespace.key
-                                                )
-                                            }
+                                        namespace = namespace,
+                                        isChecked =
+                                                allowedNamespaces[itemsRequest.docType]
+                                                        ?.get(namespaceSpec.key)
+                                                        ?.contains(namespace.key)
+                                                        ?: false,
+                                        onCheck = { _ ->
+                                            credentialViewModel.toggleAllowedNamespace(
+                                                    itemsRequest.docType,
+                                                    namespaceSpec.key,
+                                                    namespace.key
+                                            )
+                                        }
                                     )
                                 }
                             }
@@ -422,60 +422,60 @@ fun ShareMdocSelectiveDisclosureView(
             }
 
             Row(
-                    modifier =
-                            Modifier.fillMaxWidth()
-                                    .padding(vertical = 12.dp)
-                                    .navigationBarsPadding(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp)
+                    .navigationBarsPadding(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Button(
-                        onClick = { onCancel() },
-                        shape = RoundedCornerShape(6.dp),
-                        colors =
-                                ButtonDefaults.buttonColors(
-                                        containerColor = Color.Transparent,
-                                        contentColor = ColorStone950,
-                                ),
-                        modifier =
-                                Modifier.fillMaxWidth()
-                                        .border(
-                                                width = 1.dp,
-                                                color = ColorStone300,
-                                                shape = RoundedCornerShape(6.dp)
-                                        )
-                                        .weight(1f)
+                    onClick = { onCancel() },
+                    shape = RoundedCornerShape(6.dp),
+                    colors =
+                            ButtonDefaults.buttonColors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = ColorStone950,
+                            ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp,
+                            color = ColorStone300,
+                            shape = RoundedCornerShape(6.dp)
+                        )
+                        .weight(1f)
                 ) {
                     Text(
-                            text = "Cancel",
-                            fontFamily = Inter,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ColorStone950,
+                        text = "Cancel",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ColorStone950,
                     )
                 }
 
                 Button(
-                        onClick = {
-                            try {
-                                credentialViewModel.submitNamespaces(allowedNamespaces)
-                            } catch (e: Error) {
-                                Log.e("SelectiveDisclosureView", e.stackTraceToString())
-                            }
-                        },
-                        shape = RoundedCornerShape(6.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
-                        modifier =
-                                Modifier.fillMaxWidth()
-                                        .background(
-                                                color = ColorEmerald900,
-                                                shape = RoundedCornerShape(6.dp),
-                                        )
-                                        .weight(1f)
+                    onClick = {
+                        try {
+                            credentialViewModel.submitNamespaces(allowedNamespaces)
+                        } catch (e: Error) {
+                            Log.e("SelectiveDisclosureView", e.stackTraceToString())
+                        }
+                    },
+                    shape = RoundedCornerShape(6.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = ColorEmerald900,
+                            shape = RoundedCornerShape(6.dp),
+                        )
+                        .weight(1f)
                 ) {
                     Text(
-                            text = "Approve",
-                            fontFamily = Inter,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ColorBase50,
+                        text = "Approve",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ColorBase50,
                     )
                 }
             }
@@ -485,31 +485,30 @@ fun ShareMdocSelectiveDisclosureView(
 
 @Composable
 fun ShareMdocSelectiveDisclosureNamespaceItem(
-        namespace: Map.Entry<String, Boolean>,
-        isChecked: Boolean,
-        onCheck: (Boolean) -> Unit
+    namespace: Map.Entry<String, Boolean>,
+    isChecked: Boolean,
+    onCheck: (Boolean) -> Unit
 ) {
     Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)
     ) {
         Checkbox(
-                isChecked,
-                onCheckedChange = onCheck,
-                enabled = true,
-                colors =
-                        CheckboxDefaults.colors(
-                                checkedColor = ColorBlue600,
-                                uncheckedColor = ColorStone300,
-                        )
+            isChecked,
+            onCheckedChange = onCheck,
+            enabled = true,
+            colors = CheckboxDefaults.colors(
+                checkedColor = ColorBlue600,
+                uncheckedColor = ColorStone300,
+            )
         )
         Text(
-                text = namespace.key,
-                fontFamily = Inter,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp,
-                color = ColorStone950,
-                modifier = Modifier.weight(1f)
+            text = namespace.key,
+            fontFamily = Inter,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 18.sp,
+            color = ColorStone950,
+            modifier = Modifier.weight(1f)
         )
     }
 }

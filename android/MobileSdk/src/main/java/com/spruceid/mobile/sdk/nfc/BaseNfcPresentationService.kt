@@ -55,7 +55,6 @@ abstract class BaseNfcPresentationService : HostApduService() {
         if(!shouldPerformHandoverEngagement()) return null;
 
         if (resetQueued) {
-            Log.w(TAG, "Resetting APDU driver")
             resetQueued = false
             apduHandoverDriver.reset()
         }
@@ -70,8 +69,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
             if (!inNegotiation) {
                 negotiationStarted()
                 inNegotiation = true
-            }
-            Log.d(TAG, "Got !read cmd, resetting flags")
+            
             doNotNotifyOnDisconnect = false
             negotiationFailedFlag = false
         }
@@ -81,7 +79,6 @@ abstract class BaseNfcPresentationService : HostApduService() {
         val ret = apduHandoverDriver.processApdu(commandApdu)
         val carrierInfo = apduHandoverDriver.getCarrierInfo()
         if (carrierInfo != null) {
-            Log.d(TAG, "Negotiated! Setting flags.")
             Handler(Looper.getMainLooper()).post { negotiatedTransport(carrierInfo) }
             doNotNotifyOnDisconnect = true
         }
@@ -105,7 +102,6 @@ abstract class BaseNfcPresentationService : HostApduService() {
             val isSelectAidCommand = commandApdu.size < 4 && commandApdu[0] == 0xA4.toByte() && commandApdu[2] == 0x04.toByte()
             if(!isSelectAidCommand) {
                 negotiationFailedFlag = true
-                Log.e(TAG, "ERR response, setting flags")
             }
         }
 
@@ -188,8 +184,6 @@ abstract class BaseNfcPresentationService : HostApduService() {
                 apduHandoverDriver.regenerateStaticBleKeys()
             }
         }
-
-        Log.i(TAG, "deactivated: $reason")
     }
 
     fun appInForeground(): Boolean {

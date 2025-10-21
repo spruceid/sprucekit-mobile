@@ -17,9 +17,8 @@ class NfcPresentationService : BaseNfcPresentationService() {
     override fun negotiationFailed(error: NfcPresentationError) {
 
         if (!appInForeground()) {
-            // TODO: Launch wallet activity?
+            return // Should be unreachable
         }
-        // Toast.makeText(applicationContext, error.humanReadable, Toast.LENGTH_LONG).show()
         Toast.showError(error.humanReadable)
     }
 
@@ -28,7 +27,6 @@ class NfcPresentationService : BaseNfcPresentationService() {
             it(carrierInfo)
         } ?: run {
             Toast.showWarning("Please select a credential.")
-            // TODO: Display a credential picker.
         }
     }
 
