@@ -150,22 +150,6 @@ fun VerifierHomeBody(
 
         item {
             VerifierListItem(
-                title = "Driver's License Document",
-                description = "Verifies physical driver's licenses issued by the state of Utopia",
-                type = VerifierListItemTagType.SCAN_QR_CODE,
-                modifier = Modifier.clickable {
-                    navController.navigate(Screen.VerifyDLScreen.route)
-                }
-            )
-            VerifierListItem(
-                title = "Employment Authorization Document",
-                description = "Verifies physical Employment Authorization issued by the state of Utopia",
-                type = VerifierListItemTagType.SCAN_QR_CODE,
-                modifier = Modifier.clickable {
-                    navController.navigate(Screen.VerifyEAScreen.route)
-                }
-            )
-            VerifierListItem(
                 title = "Mobile Driver's License",
                 description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,
@@ -195,6 +179,22 @@ fun VerifierHomeBody(
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
                     navController.navigate(Screen.VerifyCWTScreen.route)
+                }
+            )
+            VerifierListItem(
+                title = "Driver's License Document",
+                description = "Verifies physical driver's licenses issued by the state of Utopia",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyDLScreen.route)
+                }
+            )
+            VerifierListItem(
+                title = "Employment Authorization Document",
+                description = "Verifies physical Employment Authorization issued by the state of Utopia",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyEAScreen.route)
                 }
             )
         }
