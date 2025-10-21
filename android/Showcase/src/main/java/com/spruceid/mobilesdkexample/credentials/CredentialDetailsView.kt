@@ -147,6 +147,7 @@ fun CredentialDetailsView(
 
     fun back() {
         navController.navigate(Screen.HomeScreen.route) {
+            credentialViewModel.cancel()
             popUpTo(0)
         }
     }
@@ -381,6 +382,7 @@ fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
                     }
                 )
             } ?: run {
+                Text("Here")
                 //TODO: this is basically a switch, right now only supports mdoc, add new types later
             }
         }
