@@ -250,7 +250,6 @@ fun flattenedRowDisplayer(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
                                                 text = "$readableKey ${i + 1}",
@@ -305,8 +304,7 @@ fun flattenedRowDisplayer(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
                                         text = readableKey,
