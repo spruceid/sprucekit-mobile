@@ -121,7 +121,8 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     // We specify a default value for presentData, defaulting to QR presentation
-    // This is a really bad place for a default, but having it makes adding NFC backwards-compatible
+    // Having a default value for the presentData to this feels wrong, but is required
+    // for the addition of NFC support to be backwards compatible.
     suspend fun present(bluetoothManager: BluetoothManager, presentData: CredentialPresentData = CredentialPresentData.Qr()) {
 
         val mdoc = this.firstMdoc()
