@@ -354,9 +354,8 @@ fun MinimalQRScannerBackground(
     instructionsColor: Color = Color.Gray,
     fontFamily: FontFamily = FontFamily.Default
 ) {
-    val canvasSizeHeightOffsetMultiplier = .08f
-    val canvasSizeWidthOffsetMultiplier = .7f
-
+    val canvasSizeHeightOffsetMultiplier = .01f
+    val canvasSizeWidthOffsetMultiplier = 0.991f
     Box(
         Modifier.fillMaxSize()
     ) {
@@ -371,7 +370,7 @@ fun MinimalQRScannerBackground(
 
                     val left = (canvasWidth - width) / 2
                     val top = canvasHeight * canvasSizeHeightOffsetMultiplier
-                    val cornerRadius = 12f
+                    val cornerRadius = 12.dp.toPx()
 
                     drawContent()
 

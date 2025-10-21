@@ -230,7 +230,7 @@ fun CredentialDetailsView(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(top = 60.dp)
+                    .padding(top = 60.dp, bottom = 10.dp)
             ) {
                 // Credential card
                 Column(
@@ -248,7 +248,9 @@ fun CredentialDetailsView(
                 }
 
                 // Middle of the screen - takes remaining space
-                Box(modifier = Modifier.weight(1f)) {
+                Box(modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 34.dp)) {
                     when (currentMode) {
                         CredentialMode.SCAN -> ScanModeContent(
                             navController,
@@ -280,52 +282,56 @@ fun CredentialDetailsView(
             }
 
             // Buttons + Close button (footer) - always visible at bottom
-            CredentialDetailFooter(
-                selectedTab = currentMode,
-                hasShareSupport = hasMdocSupport,
-                onScanClick = {
-                    if (currentMode == CredentialMode.SCAN) {
-                        // If already in Scan mode, go back to initial state
-                        currentMode = CredentialMode.NONE
-                    } else {
-                        // Check camera permission before switching to Scan mode
-                        permissionsLauncher.launch(arrayOf(Manifest.permission.CAMERA))
-                        currentMode = CredentialMode.SCAN // Switch to Scan mode
+            Column(
+                modifier = Modifier.padding(horizontal = 34.dp)
+            ) {
+                CredentialDetailFooter(
+                    selectedTab = currentMode,
+                    hasShareSupport = hasMdocSupport,
+                    onScanClick = {
+                        if (currentMode == CredentialMode.SCAN) {
+                            // If already in Scan mode, go back to initial state
+                            currentMode = CredentialMode.NONE
+                        } else {
+                            // Check camera permission before switching to Scan mode
+                            permissionsLauncher.launch(arrayOf(Manifest.permission.CAMERA))
+                            currentMode = CredentialMode.SCAN // Switch to Scan mode
+                        }
+                    },
+                    onShareClick = {
+                        if (currentMode == CredentialMode.SHARE) {
+                            // If already in Share mode, go back to initial state
+                            currentMode = CredentialMode.NONE
+                        } else {
+                            currentMode = CredentialMode.SHARE // Switch to Share mode
+                        }
+                    },
+                    onDetailsClick = {
+                        ModalBottomSheetHost.show {
+                            DetailsModal(
+                                credentialItem = credentialItem,
+                                statusList = statusList,
+                                onClose = { ModalBottomSheetHost.hide() },
+                                onBack = { back() }
+                            )
+                        }
+                    },
+                    onActivityLogClick = {
+                        ModalBottomSheetHost.show {
+                            ActivityLogModal(
+                                credentialPackId = credentialPackId,
+                                onClose = { ModalBottomSheetHost.hide() }
+                            )
+                        }
+                    },
+                    onMoreClick = {
+                        showBottomSheet = true
+                    },
+                    onCloseClick = {
+                        back()
                     }
-                },
-                onShareClick = {
-                    if (currentMode == CredentialMode.SHARE) {
-                        // If already in Share mode, go back to initial state
-                        currentMode = CredentialMode.NONE
-                    } else {
-                        currentMode = CredentialMode.SHARE // Switch to Share mode
-                    }
-                },
-                onDetailsClick = {
-                    ModalBottomSheetHost.show {
-                        DetailsModal(
-                            credentialItem = credentialItem,
-                            statusList = statusList,
-                            onClose = { ModalBottomSheetHost.hide() },
-                            onBack = { back() }
-                        )
-                    }
-                },
-                onActivityLogClick = {
-                    ModalBottomSheetHost.show {
-                        ActivityLogModal(
-                            credentialPackId = credentialPackId,
-                            onClose = { ModalBottomSheetHost.hide() }
-                        )
-                    }
-                },
-                onMoreClick = {
-                    showBottomSheet = true
-                },
-                onCloseClick = {
-                    back()
-                }
-            )
+                )
+            }
         }
     }
     // Handle credential options dialog
@@ -393,7 +399,7 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
                     color = ColorStone300,
                     shape = RoundedCornerShape(12.dp)
                 )
-                .padding(8.dp)
+                .padding(12.dp)
         ) {
             ShareMdocView(
                 credentialViewModel = credentialViewModel,
@@ -403,5 +409,5 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
                 }
             )
         }
-   }
+    }
 }
