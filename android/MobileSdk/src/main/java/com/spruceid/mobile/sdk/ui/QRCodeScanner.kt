@@ -354,49 +354,61 @@ fun MinimalQRScannerBackground(
     instructionsColor: Color = Color.Gray,
     fontFamily: FontFamily = FontFamily.Default
 ) {
-    val canvasSizeHeightOffsetMultiplier = .08f
-    val canvasSizeWidthOffsetMultiplier = .7f
+    // Padding from edges to ensure the scanner doesn't touch screen boundaries
+    val edgePadding = 1.dp
 
     Box(
-        Modifier.fillMaxSize()
+        Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
         Box(
             Modifier
                 .fillMaxSize()
                 .background(backgroundColor)
                 .drawWithContent {
-                    val canvasWidth = size.width
-                    val canvasHeight = size.height
-                    val width = canvasWidth * canvasSizeWidthOffsetMultiplier
+                    // Calculate the maximum square that fits in the available space
+                    val padding = edgePadding.toPx()
+                    val availableWidth = size.width - (padding * 2)
+                    val availableHeight = size.height - (padding * 2)
 
-                    val left = (canvasWidth - width) / 2
-                    val top = canvasHeight * canvasSizeHeightOffsetMultiplier
-                    val cornerRadius = 12f
+                    // Use the smaller dimension to ensure square fits
+                    val scannerSize = minOf(availableWidth, availableHeight)
 
+                    // Center the square
+                    val left = (size.width - scannerSize) / 2
+                    val top = (size.height - scannerSize) / 2
+                    val cornerRadius = 12.dp.toPx()
+
+                    // Draw camera feed first
                     drawContent()
 
+                    // Draw semi-transparent overlay over entire screen
                     drawRect(
                         color = backgroundColor,
                         size = size
                     )
 
+                    // Cut out a transparent square in the center for camera view
                     drawRoundRect(
                         topLeft = Offset(left, top),
-                        size = Size(width, width),
+                        size = Size(scannerSize, scannerSize),
                         color = Color.Transparent,
                         blendMode = BlendMode.SrcIn,
                         cornerRadius = CornerRadius(cornerRadius),
                     )
 
+                    // Draw border around the scanner area
                     drawRoundRect(
                         topLeft = Offset(left, top),
-                        size = Size(width, width),
+                        size = Size(scannerSize, scannerSize),
                         color = borderColor,
                         style = Stroke(2.dp.toPx()),
                         cornerRadius = CornerRadius(cornerRadius),
                     )
                 }
         )
+
+        // Instructions text overlay
         if (instructionsText.isNotEmpty()) {
             Text(
                 text = instructionsText,

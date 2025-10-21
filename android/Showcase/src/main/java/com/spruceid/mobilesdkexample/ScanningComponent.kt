@@ -257,7 +257,7 @@ fun IndividualCredentialScanningComponent(
                 isMatch = isMatch,
                 onCancel = onCancel,
                 backgroundColor = backgroundColor,
-                borderColor = ColorBase500,
+                borderColor = ColorStone300,
                 instructionsText = "",
                 instructionsColor = ColorBase800,
                 fontFamily = Switzer
