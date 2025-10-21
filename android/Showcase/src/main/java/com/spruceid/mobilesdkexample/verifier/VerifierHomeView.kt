@@ -57,7 +57,6 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.ColorTerracotta600
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
-import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 
@@ -167,7 +166,7 @@ fun VerifierHomeBody(
                 }
             )
             VerifierListItem(
-                title = "Mobile Driver's Licence",
+                title = "Mobile Driver's License",
                 description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
@@ -175,7 +174,7 @@ fun VerifierHomeBody(
                 }
             )
             VerifierListItem(
-                title = "Mobile Driver's Licence - Over 18",
+                title = "Mobile Driver's License - Over 18",
                 description = "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,
                 modifier = Modifier.clickable {
