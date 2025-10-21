@@ -72,7 +72,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
 import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
@@ -335,7 +335,7 @@ fun DataFieldSelector(
                 withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
                 append(" is requesting access to the following information")
             },
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
             color = ColorStone950,
@@ -409,7 +409,7 @@ fun DataFieldSelector(
             ) {
                 Text(
                     text = "Cancel",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorStone950,
                 )
@@ -430,7 +430,7 @@ fun DataFieldSelector(
             ) {
                 Text(
                     text = "Approve",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorBase50,
                 )
@@ -492,7 +492,7 @@ fun CredentialSelector(
     ) {
         Text(
             text = "Select the credential${if (allowMultiple) "(s)" else ""} to share",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
             color = ColorStone950,
@@ -505,7 +505,7 @@ fun CredentialSelector(
         if (allowMultiple) {
             Text(
                 text = "Select All",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
                 color = ColorBlue600,
@@ -563,7 +563,7 @@ fun CredentialSelector(
             ) {
                 Text(
                     text = "Cancel",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorStone950,
                 )
@@ -601,7 +601,7 @@ fun CredentialSelector(
             ) {
                 Text(
                     text = "Continue",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorBase50,
                 )
@@ -661,7 +661,7 @@ fun CredentialSelectorItem(
             )
             Text(
                 text = getCredentialTitle(credential),
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
                 color = ColorStone950,
@@ -741,7 +741,7 @@ fun DataFieldSelectorItem(
 
         Text(
             text = displayName,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Normal,
             fontSize = 14.sp,
             color = ColorStone950,

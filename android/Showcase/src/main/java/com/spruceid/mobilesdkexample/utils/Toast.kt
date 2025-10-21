@@ -42,7 +42,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose200
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose50
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose900
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -178,7 +178,7 @@ fun SuccessToast(
             Text(
                 text = message,
                 color = ColorEmerald900,
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
                 modifier = Modifier.padding(start = 10.dp)
@@ -238,7 +238,7 @@ fun WarningToast(
             Text(
                 text = message,
                 color = ColorAmber900,
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
                 modifier = Modifier.padding(start = 10.dp)
@@ -299,7 +299,7 @@ fun ErrorToast(
             Text(
                 text = message,
                 color = ColorRose900,
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp,
                 modifier = Modifier.padding(start = 10.dp)

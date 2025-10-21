@@ -23,7 +23,7 @@ import com.spruceid.mobilesdkexample.credentials.CredentialStatusSmall
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
@@ -50,7 +50,7 @@ fun CompactCredentialInfo(
         ) {
             Text(
                 text = name,
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
                 color = ColorStone950
@@ -78,7 +78,7 @@ fun CompactCredentialInfo(
             ) {
                 Text(
                     text = issuer,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
                     color = ColorStone600,

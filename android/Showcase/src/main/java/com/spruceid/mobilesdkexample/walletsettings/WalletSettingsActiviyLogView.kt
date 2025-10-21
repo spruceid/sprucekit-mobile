@@ -39,7 +39,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.formatSqlDateTime
 import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
@@ -95,7 +95,7 @@ fun WalletSettingsActivityLogScreenHeader(onBack: () -> Unit) {
         )
         Text(
             text = "Activity Log",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
             color = ColorStone950
@@ -122,7 +122,7 @@ fun WalletSettingsActivityLogScreenBody(
             ) {
                 Text(
                     text = "No Activity Log Found",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Normal,
                     color = ColorStone400
@@ -139,7 +139,7 @@ fun WalletSettingsActivityLogScreenBody(
                     Column {
                         Text(
                             text = log.credentialTitle,
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 17.sp,
                             color = ColorStone950,
@@ -147,7 +147,7 @@ fun WalletSettingsActivityLogScreenBody(
                         )
                         Text(
                             text = log.action,
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.Normal,
                             fontSize = 15.sp,
                             color = ColorStone600,
@@ -155,7 +155,7 @@ fun WalletSettingsActivityLogScreenBody(
                         )
                         Text(
                             text = formatSqlDateTime(log.dateTime),
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.Normal,
                             fontSize = 15.sp,
                             color = ColorStone600,
@@ -191,7 +191,7 @@ fun WalletSettingsActivityLogScreenBody(
                     )
                     Text(
                         text = "Export",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                         color = ColorStone950,

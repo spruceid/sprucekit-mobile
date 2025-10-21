@@ -53,7 +53,7 @@ import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.ApplicationStatusSmall
 import com.spruceid.mobilesdkexample.db.HacApplications
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.ControlledSimpleDeleteAlertDialog
 import com.spruceid.mobilesdkexample.viewmodels.HacApplicationsViewModel
 import kotlinx.coroutines.launch
@@ -202,7 +202,7 @@ fun HacApplicationListItem(
                 // Credential title
                 Text(
                     text = "Mobile Drivers License",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 20.sp,
                     color = ColorStone950,
@@ -220,7 +220,7 @@ fun HacApplicationListItem(
                 // Subtitle
                 Text(
                     text = "Credential Application",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Medium,
                     fontSize = 14.sp,
                     color = ColorStone950.copy(alpha = 0.7f)
