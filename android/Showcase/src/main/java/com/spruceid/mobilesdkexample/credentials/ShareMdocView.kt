@@ -78,7 +78,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
@@ -172,7 +172,7 @@ fun ShareMdocView(
                 if (!isBluetoothEnabled) {
                     Text(
                         text = "Enable Bluetooth to initialize",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.Normal,
                         fontSize = 16.sp,
                         modifier = Modifier.padding(vertical = 20.dp)
@@ -209,7 +209,7 @@ fun ShareMdocView(
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "Loading...",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.Normal,
                         fontSize = 16.sp,
                         color = ColorStone950
@@ -240,7 +240,7 @@ fun ShareMdocView(
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "Successfully presented credential.",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                         color = ColorEmerald800,
@@ -251,7 +251,7 @@ fun ShareMdocView(
 
         PresentmentState.ERROR -> Text(
             text = "Error: $error",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Normal,
             fontSize = 16.sp,
             modifier = Modifier.padding(vertical = 20.dp)
@@ -304,7 +304,7 @@ fun ShareMdocSelectiveDisclosureView(
                     withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
                     append(" is requesting access to the following information")
                 },
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 color = ColorStone950,
@@ -328,7 +328,7 @@ fun ShareMdocSelectiveDisclosureView(
                                 Column {
                                     Text(
                                         text = namespaceSpec.key,
-                                        fontFamily = Inter,
+                                        fontFamily = Switzer,
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 18.sp,
                                         color = ColorStone950,
@@ -432,7 +432,7 @@ fun ShareMdocSelectiveDisclosureView(
                     Spacer(modifier = Modifier.size(6.dp))
                     Text(
                         text = "Approve",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.SemiBold,
                         color = ColorBase50,
                         fontSize = 14.sp

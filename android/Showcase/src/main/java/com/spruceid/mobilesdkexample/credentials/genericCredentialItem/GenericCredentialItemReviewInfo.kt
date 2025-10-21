@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 
 @Composable
@@ -37,7 +37,7 @@ fun GenericCredentialItemReviewInfo(
         Text(
             text = "Review Info",
             textAlign = TextAlign.Center,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp,
             color = ColorStone950,

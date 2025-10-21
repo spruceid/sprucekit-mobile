@@ -20,7 +20,6 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase800
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.Accordion
 import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
@@ -83,7 +82,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                                     if (i == 0) {
                                         Text(
                                             key.getKeyReadable().splitCamelCase().removeUnderscores(),
-                                            fontFamily = Inter,
+                                            fontFamily = Switzer,
                                             fontWeight = FontWeight.Normal,
                                             fontSize = 16.sp,
                                             color = ColorStone500,
@@ -91,7 +90,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                                     }
                                     Text(
                                         jsonArray.get(i).toString().toTitle(),
-                                        fontFamily = Inter,
+                                        fontFamily = Switzer,
                                         fontWeight = FontWeight.Normal,
                                         fontSize = 17.sp,
                                         color = ColorStone950,
@@ -112,7 +111,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                         ) {
                             Text(
                                 key.getKeyReadable().splitCamelCase().removeUnderscores(),
-                                fontFamily = Inter,
+                                fontFamily = Switzer,
                                 fontWeight = FontWeight.Normal,
                                 fontSize = 16.sp,
                                 color = ColorStone500,
@@ -124,7 +123,7 @@ fun genericObjectDisplayer(obj: JSONObject, filter: List<String>, level: Int = 1
                             } else {
                                 Text(
                                     text = value.toTitle(),
-                                    fontFamily = Inter,
+                                    fontFamily = Switzer,
                                     fontWeight = FontWeight.Normal,
                                     fontSize = 17.sp,
                                     color = ColorStone950,

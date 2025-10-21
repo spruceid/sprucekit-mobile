@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 
 @Composable
 fun ControlledSimpleDeleteAlertDialog(
@@ -29,7 +29,7 @@ fun ControlledSimpleDeleteAlertDialog(
                 TextButton(onClick = { onConfirm() }) {
                     Text(
                         text = confirmButtonText,
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.Normal,
                         color = ColorRose600,
                     )
@@ -39,7 +39,7 @@ fun ControlledSimpleDeleteAlertDialog(
                 TextButton(onClick = { onClose() }) {
                     Text(
                         text = dismissButtonText,
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.Bold,
                         color = ColorBlue600,
                     )

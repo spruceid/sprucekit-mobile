@@ -56,7 +56,8 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.ColorTerracotta600
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
 
@@ -123,7 +124,7 @@ fun VerifierHomeBody(
     ) {
         Text(
             text = "VERIFICATIONS",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp,
             color = ColorStone400
@@ -131,7 +132,7 @@ fun VerifierHomeBody(
         Spacer(Modifier.weight(1f))
         Text(
             text = "+ New Verification",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp,
             color = ColorBlue600,
@@ -236,9 +237,9 @@ fun VerifierListItem(
         ) {
             Text(
                 text = title,
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 18.sp,
+                fontSize = 16.sp,
                 color = ColorStone950,
                 modifier = Modifier.weight(4f)
             )
@@ -247,7 +248,7 @@ fun VerifierListItem(
         }
         Text(
             text = description,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Normal,
             fontSize = 14.sp,
             color = ColorStone600,
@@ -276,7 +277,7 @@ fun VerifierListItemTag(
                 )
                 Text(
                     text = "Display",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     color = Color.White,
@@ -305,7 +306,7 @@ fun VerifierListItemTag(
                 )
                 Text(
                     text = "Scan",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
                     color = Color.White,
