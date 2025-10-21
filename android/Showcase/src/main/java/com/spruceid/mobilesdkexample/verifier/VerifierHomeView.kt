@@ -52,6 +52,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorAmber600
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorPurple600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone400
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
@@ -253,7 +254,7 @@ fun VerifierListItem(
             color = ColorStone600,
         )
     }
-    HorizontalDivider()
+    HorizontalDivider(color = ColorStone200)
 }
 
 @Composable
