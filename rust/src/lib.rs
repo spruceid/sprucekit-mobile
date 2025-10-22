@@ -7,6 +7,7 @@ pub mod credential;
 pub mod crypto;
 pub mod did;
 pub mod haci;
+pub mod jsonld;
 pub mod local_store;
 pub mod logger;
 pub mod mdl;
