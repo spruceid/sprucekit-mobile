@@ -27,8 +27,10 @@ ssi = { version = "0.12", features = ["secp256r1", "secp384r1"] }
 anyhow = "1.0.97"
 async-trait = "0.1"
 base64 = "0.22.0"
+bs58 = "0.5"
 cbor-ld = { git = "https://github.com/spruceid/cbor-ld", rev = "bc04985" }
 ciborium = "0.2.2"
+ecdsa = { version = "0.16", features = ["signing", "verifying"] }
 either = "1.13"
 futures = "0.3"
 futures-util = "0.3.31"
@@ -41,6 +43,7 @@ hpke = { version = "0.13.0", default-features = false, features = [
 # Patch of josekit to support RustCrypto for JWE generation in the 18013-7 Annex B OID4VP profile.
 # Default josekit uses openssl which cannot be easily used in a mobile library.
 josekit = { git = "https://github.com/cobward/josekit-rs", rev = "635c8a7" }
+json-ld = "0.21"
 json-syntax = "0.12.5"
 itertools = "0.13"
 log = { version = "0.4", features = ["std", "serde"] }
