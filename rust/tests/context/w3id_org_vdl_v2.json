@@ -1,0 +1,121 @@
+{
+  "@context": {
+    "@protected": true,
+    "id": "@id",
+    "type": "@type",
+    "name": "https://schema.org/name",
+    "description": "https://schema.org/description",
+    "image": {
+      "@id": "https://schema.org/image",
+      "@type": "@id"
+    },
+    "url": {
+      "@id": "https://schema.org/url",
+      "@type": "@id"
+    },
+    "Iso18013DriversLicenseCredential": "https://w3id.org/vdl#Iso18013DriversLicenseCredential",
+    "LicensedDriver": {
+      "@id": "https://w3id.org/vdl#LicensedDriver",
+      "@type": "@id",
+      "@context": {
+        "@protected": true,
+        "driversLicense": {
+          "@id": "https://w3id.org/vdl#license",
+          "@type": "@id"
+        }
+      }
+    },
+    "Iso18013DriversLicense": {
+      "@id": "https://w3id.org/vdl#Iso18013DriversLicense",
+      "@context": {
+        "@protected": true,
+        "administrative_number": "https://w3id.org/vdl#administrativeNumber",
+        "age_birth_year": {
+          "@id": "https://w3id.org/vdl#ageBirthYear",
+          "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+        },
+        "age_in_years": {
+          "@id": "https://w3id.org/vdl#ageInYears",
+          "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+        },
+        "age_over_18": "https://w3id.org/vdl#ageOver18",
+        "age_over_21": "https://w3id.org/vdl#ageOver21",
+        "age_over_25": "https://w3id.org/vdl#ageOver25",
+        "age_over_62": "https://w3id.org/vdl#ageOver62",
+        "age_over_65": "https://w3id.org/vdl#ageOver65",
+        "birth_date": {
+          "@id": "https://w3id.org/vdl#birthDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "birth_place": "https://w3id.org/vdl#birthPlace",
+        "document_number": "https://w3id.org/vdl#documentNumber",
+        "driving_privileges": {
+          "@id": "https://w3id.org/vdl#drivingPrivileges",
+          "@type": "@json"
+        },
+        "expiry_date": {
+          "@id": "https://w3id.org/vdl#expiryDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "eye_colour": "https://w3id.org/vdl#eyeColour",
+        "family_name": "https://w3id.org/vdl#familyName",
+        "family_name_national_character": "https://w3id.org/vdl#familyNameNationalCharacter",
+        "given_name": "https://w3id.org/vdl#givenName",
+        "given_name_national_character": "https://w3id.org/vdl#givenNameNationalCharacter",
+        "hair_colour": "https://w3id.org/vdl#hairColour",
+        "height": {
+          "@id": "https://w3id.org/vdl#height",
+          "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+        },
+        "issue_date": {
+          "@id": "https://w3id.org/vdl#issueDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "issuing_authority": "https://w3id.org/vdl#issuingAuthority",
+        "issuing_country": "https://w3id.org/vdl#issuingCountry",
+        "issuing_jurisdiction": "https://w3id.org/vdl#issuingJurisdiction",
+        "nationality": "https://w3id.org/vdl#nationality",
+        "portrait": {
+          "@id": "https://w3id.org/vdl#portrait",
+          "@type": "@id"
+        },
+        "portrait_capture_date": {
+          "@id": "https://w3id.org/vdl#portraitCaptureDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "resident_address": "https://w3id.org/vdl#residentAddress",
+        "resident_city": "https://w3id.org/vdl#residentCity",
+        "resident_country": "https://w3id.org/vdl#residentCountry",
+        "resident_postal_code": "https://w3id.org/vdl#residentPostalCode",
+        "resident_state": "https://w3id.org/vdl#residentState",
+        "sex": {
+          "@id": "https://w3id.org/vdl#sex",
+          "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+        },
+        "signature_usual_mark": {
+          "@id": "https://w3id.org/vdl#signatureUsualMark",
+          "@type": "@id"
+        },
+        "un_distinguishing_sign": "https://w3id.org/vdl#unDistinguishingSign",
+        "weight": {
+          "@id": "https://w3id.org/vdl#weight",
+          "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+        }
+      }
+    },
+    "OpticalBarcodeCredential": "https://w3id.org/vdl#OpticalBarcodeCredential",
+    "TerseBitstringStatusListEntry": {
+      "@id": "https://w3id.org/vdl#TerseBitstringStatusListEntry",
+      "@context": {
+        "@protected": true,
+        "id": "@id",
+        "type": "@type",
+        "terseStatusListBaseUrl": {
+          "@type": "@id",
+          "@id": "https://w3id.org/vdl#terseStatusListBaseUrl"
+        },
+        "terseStatusListIndex": "https://w3id.org/vdl#terseStatusListIndex"
+      }
+    }
+  }
+}

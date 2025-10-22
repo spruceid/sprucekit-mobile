@@ -561,6 +561,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bs58"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4"
+dependencies = [
+ "tinyvec",
+]
+
+[[package]]
 name = "btree-range-map"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -659,7 +668,7 @@ dependencies = [
 [[package]]
 name = "cbor-ld"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/cbor-ld.git?rev=74a439a#74a439a94b54c762a2c2178c6f59cc6dbe6634a9"
+source = "git+https://github.com/spruceid/cbor-ld?rev=74a439a#74a439a94b54c762a2c2178c6f59cc6dbe6634a9"
 dependencies = [
  "chrono",
  "ciborium",
@@ -1328,7 +1337,7 @@ version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0aaad8e1d2d58265ea8f2f7ce34866f56091809603d3f698398a72cfa844681"
 dependencies = [
- "bs58",
+ "bs58 0.4.0",
  "iref",
  "k256",
  "multibase 0.9.1",
@@ -1351,7 +1360,7 @@ checksum = "aa4f2ae9956104014d0c80da8da9974c0f3397dc7ccfab0fa488868f004a33bb"
 dependencies = [
  "async-trait",
  "bech32",
- "bs58",
+ "bs58 0.4.0",
  "chrono",
  "iref",
  "serde",
@@ -1371,7 +1380,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "940c436de944fb0e7c7b8d5ab38dcf09af958de3fadbc59ee95141affc85026f"
 dependencies = [
  "async-trait",
- "bs58",
+ "bs58 0.4.0",
  "chrono",
  "iref",
  "json-patch",
@@ -3261,11 +3270,13 @@ dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
+ "bs58 0.5.1",
  "cbor-ld 0.2.0 (git+https://github.com/spruceid/cbor-ld?rev=bc04985)",
  "chrono",
  "ciborium",
  "cose-rs",
  "csv",
+ "ecdsa",
  "either",
  "futures",
  "futures-util",
@@ -3275,6 +3286,7 @@ dependencies = [
  "isomdl",
  "itertools",
  "josekit",
+ "json-ld",
  "json-syntax",
  "log",
  "miniz_oxide 0.7.4",
@@ -5178,7 +5190,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44bd44fe8f27632b0a80415dc934e4ec00a89c9bf99aec3073e037e7f38c04f1"
 dependencies = [
- "bs58",
+ "bs58 0.4.0",
  "linked-data",
  "serde",
  "ssi-jwk 0.3.2",
@@ -5275,7 +5287,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53aded7b6dc3dabb004ee658fc46358c09623ad7aa61b99388ff734ae222d5d2"
 dependencies = [
  "async-trait",
- "bs58",
+ "bs58 0.4.0",
  "digest 0.9.0",
  "ed25519-dalek",
  "getrandom 0.2.16",
@@ -5554,7 +5566,7 @@ checksum = "2e5310d92e495cfed2483a058a88a4b21d8c68279d91d695ed9c0a7b8d032dfe"
 dependencies = [
  "base64 0.22.1",
  "blake2b_simd 0.5.11",
- "bs58",
+ "bs58 0.4.0",
  "ed25519-dalek",
  "getrandom 0.2.16",
  "json-syntax",
@@ -5745,7 +5757,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2c5be034d42fff88b344a216f9ee9a7c1f0c4a15768b9cd2cd82d8bd0826d329"
 dependencies = [
  "base64 0.22.1",
- "bs58",
+ "bs58 0.4.0",
  "chrono",
  "hex",
  "iref",
@@ -5862,7 +5874,7 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48b4f7813b283873d738acea52abde2f44c3e117b05504740aac6dacae79155d"
 dependencies = [
- "bs58",
+ "bs58 0.4.0",
  "educe 0.4.23",
  "hex",
  "iref",
@@ -6788,7 +6800,7 @@ name = "w3c-vc-barcodes"
 version = "0.1.0"
 source = "git+https://github.com/spruceid/w3c-vc-barcodes?rev=18f0b5a#18f0b5a6723bfbc951e45a60fc7d0334812f5760"
 dependencies = [
- "cbor-ld 0.2.0 (git+https://github.com/spruceid/cbor-ld.git?rev=74a439a)",
+ "cbor-ld 0.2.0 (git+https://github.com/spruceid/cbor-ld?rev=74a439a)",
  "csv",
  "iref",
  "json-syntax",
