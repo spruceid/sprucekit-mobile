@@ -9,8 +9,19 @@ use crate::{
 #[derive(uniffi::Object, Debug)]
 #[allow(dead_code)]
 pub struct DecodedVcbVdl {
-    pub cbor_value: ciborium::Value,
-    pub json_value: serde_json::Value,
+    cbor_value: ciborium::Value,
+    json_value: serde_json::Value,
+}
+
+#[uniffi::export]
+impl DecodedVcbVdl {
+    pub fn cbor_value(&self) -> String {
+        format!("{:#?}", self.cbor_value)
+    }
+
+    pub fn json_value(&self) -> String {
+        self.json_value.to_string()
+    }
 }
 
 /// Decode VDL credential from barcode string generated as defined
