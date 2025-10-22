@@ -191,7 +191,8 @@ mod tests {
         // println!("{:#?}", decoded);
 
         // Verify signature
-        let is_valid = vcb_vdl::verify_vcb_vdl_json_signature(decoded.json_value()).unwrap();
+        let is_valid =
+            vcb_vdl::verify_vcb_vdl_json_signature(decoded.json_value.to_string()).unwrap();
 
         assert!(is_valid);
     }
