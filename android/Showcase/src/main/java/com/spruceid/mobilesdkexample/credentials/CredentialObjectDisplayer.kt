@@ -154,26 +154,83 @@ fun flattenedRowDisplayer(
 ): List<Unit> {
     val res = mutableListOf<Unit>()
 
-    obj
-        .keys()
-        .asSequence()
-        .sorted()
-        .filter { !filter.contains(it) }
-        .forEach { key ->
-            val readableKey = key.getKeyReadable().splitCamelCase().removeUnderscores()
+    // Partition keys into primitive and nested
+    val allKeys = obj.keys().asSequence().sorted().filter { !filter.contains(it) }.toList()
+    val primitiveKeys = allKeys.filter { key ->
+        obj.optJSONObject(key) == null && obj.optJSONArray(key) == null && obj.get(key).toString() != "null"
+    }
+    val nestedKeys = allKeys.filter { key ->
+        obj.optJSONObject(key) != null || obj.optJSONArray(key) != null
+    }
 
-            when {
-                // Check if the current value is another Json Object
-                obj.optJSONObject(key) != null -> {
+    // Process primitive keys first
+    primitiveKeys.forEach { key ->
+        val readableKey = key.getKeyReadable().splitCamelCase().removeUnderscores()
+        val value = obj.get(key).toString()
+        val fieldType = getCredentialFieldType(readableKey, value)
+        val formattedValue =
+            formatCredentialFieldValue(value, fieldType, key, maxLength = 100)
+        res.add(
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = (nestingLevel * 5).dp,
+                        bottom = 8.dp
+                    )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = readableKey,
+                        fontFamily = Switzer,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 14.sp,
+                        color = ColorStone600,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        RenderCredentialFieldValue(
+                            fieldType = fieldType,
+                            rawFieldValue = value,
+                            formattedValue = formattedValue,
+                            displayName = readableKey
+                        )
+                    }
+
+                }
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = 8.dp),
+                    color = ColorStone200,
+                    thickness = 1.dp
+                )
+            }
+        )
+    }
+
+    // Then process nested keys
+    nestedKeys.forEach { key ->
+        val readableKey = key.getKeyReadable().splitCamelCase().removeUnderscores()
+
+        when {
+            // Check if the current value is another Json Object
+            obj.optJSONObject(key) != null -> {
                     // Add section title for nested object
                     res.add(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(
-                                    start = (nestingLevel * 12).dp,
-                                    top = if (nestingLevel == 0) 16.dp else 12.dp,
-                                    bottom = 4.dp
+                                    start = (nestingLevel * 6).dp,
+                                    top = if (nestingLevel == 0) 12.dp else 8.dp,
+                                    bottom = 8.dp
                                 )
                         ) {
                             Text(
@@ -202,9 +259,9 @@ fun flattenedRowDisplayer(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(
-                                                start = (nestingLevel * 10).dp,
-                                                top = if (nestingLevel == 0) 16.dp else 12.dp,
-                                                bottom = 4.dp
+                                                start = (nestingLevel * 5).dp,
+                                                top = if (nestingLevel == 0) 12.dp else 8.dp,
+                                                bottom = 8.dp
                                             )
                                     ) {
                                         Text(
@@ -242,7 +299,7 @@ fun flattenedRowDisplayer(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(
-                                                start = (nestingLevel * 10).dp,
+                                                start = (nestingLevel * 5).dp,
                                                 bottom = 8.dp,
                                             )
                                     ) {
@@ -283,61 +340,8 @@ fun flattenedRowDisplayer(
                         }
                     }
                 }
-
-                else -> {
-                    // Primitive values shown in rows
-                    val value = obj.get(key).toString()
-                    if (value != "null") {
-                        val fieldType = getCredentialFieldType(readableKey, value)
-                        val formattedValue =
-                            formatCredentialFieldValue(value, fieldType, key, maxLength = 100)
-                        res.add(
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        start = (nestingLevel * 10).dp,
-                                        bottom = 8.dp
-                                    )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(
-                                        text = readableKey,
-                                        fontFamily = Switzer,
-                                        fontWeight = FontWeight.Normal,
-                                        fontSize = 14.sp,
-                                        color = ColorStone600,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    Box(
-                                        modifier = Modifier.weight(1f),
-                                        contentAlignment = Alignment.CenterEnd
-                                    ) {
-                                        RenderCredentialFieldValue(
-                                            fieldType = fieldType,
-                                            rawFieldValue = value,
-                                            formattedValue = formattedValue,
-                                            displayName = readableKey
-                                        )
-                                    }
-
-                                }
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(top = 8.dp),
-                                    color = ColorStone200,
-                                    thickness = 1.dp
-                                )
-                            }
-                        )
-                    }
-                }
-            }
         }
+    }
 
     return res.toList()
 }
