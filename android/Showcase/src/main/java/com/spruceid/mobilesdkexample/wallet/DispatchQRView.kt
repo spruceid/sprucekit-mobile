@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.wallet
 
+import android.content.Intent
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,14 +31,22 @@ const val OID4VCI_SCHEME = "openid-credential-offer://"
 const val HTTP_SCHEME = "http://"
 const val HTTPS_SCHEME = "https://"
 
+const val FIDO_SCHEME = "fido:/"
+
 enum class SupportedQRTypes {
     OID4VP,
     OID4VCI,
-    HTTP
+    HTTP,
+
+    FIDO,
 }
 
-val ALL_SUPPORTED_QR_TYPES =
-    listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.OID4VCI, SupportedQRTypes.HTTP)
+val ALL_SUPPORTED_QR_TYPES = listOf(
+    SupportedQRTypes.OID4VP,
+    SupportedQRTypes.OID4VCI,
+    SupportedQRTypes.HTTP,
+    SupportedQRTypes.FIDO,
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -72,6 +81,7 @@ fun DispatchQRView(
                     payload.startsWith(MDOC_OID4VP_SCHEME) -> SupportedQRTypes.OID4VP
                     payload.startsWith(OID4VCI_SCHEME) -> SupportedQRTypes.OID4VCI
                     payload.startsWith(HTTP_SCHEME) || payload.startsWith(HTTPS_SCHEME) -> SupportedQRTypes.HTTP
+                    payload.lowercase().startsWith(FIDO_SCHEME) -> SupportedQRTypes.FIDO
                     else -> null
                 }
 
@@ -117,6 +127,11 @@ fun DispatchQRView(
                         }
 
                         SupportedQRTypes.HTTP -> {
+                            uriHandler.openUri(payload)
+                            back()
+                        }
+
+                        SupportedQRTypes.FIDO -> {
                             uriHandler.openUri(payload)
                             back()
                         }
