@@ -28,6 +28,10 @@ struct CredentialDetailsView: View {
     func onBack() {
         path.removeLast()
     }
+    
+    func mdoc() -> Mdoc? {
+        credentialPack?.list().compactMap { $0.asMsoMdoc() }.firstNonNil { $0 }
+    }
 
     var body: some View {
         VStack {
@@ -97,8 +101,8 @@ struct CredentialDetailsView: View {
                                 hideCancelButton: true
                             )
                             .tag(index)
-                        } else if index == 2, let credPack = credentialPack {  // Share
-                            ShareMdocView(credentialPack: credPack)
+                        } else if index == 2, let mdoc = mdoc() {  // Share
+                            ShareMdocView(mdoc: mdoc)
                                 .tag(index)
                         }
                     }

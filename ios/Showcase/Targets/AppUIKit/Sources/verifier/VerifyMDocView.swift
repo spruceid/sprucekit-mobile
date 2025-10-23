@@ -134,7 +134,6 @@ public struct MDocReaderView: View {
                 uri: uri,
                 requestedItems: requestedItems,
                 trustAnchorRegistry: trustAnchorRegistry,
-                onCancel: onCancel
             )
         )
         self.onCancel = onCancel
@@ -155,7 +154,13 @@ public struct MDocReaderView: View {
     public var body: some View {
         VStack {
             switch self.delegate.state {
-            case .advertizing:
+            case .initializing:
+                LoadingView(
+                    loadingText: "Initializing...",
+                    cancelButtonLabel: "Cancel",
+                    onCancel: { self.cancel() }
+                )
+            case .connecting:
                 LoadingView(
                     loadingText: "Waiting for holder...",
                     cancelButtonLabel: "Cancel",
@@ -163,66 +168,51 @@ public struct MDocReaderView: View {
                 )
             case .connected:
                 LoadingView(
-                    loadingText: "Waiting for mDoc...",
+                    loadingText: "Waiting for mdoc...",
                     cancelButtonLabel: "Cancel",
                     onCancel: { self.cancel() }
                 )
-            case .error(let error):
-                let message =
-                    switch error {
-                    case .bluetooth(let central):
-                        switch central.state {
-                        case .poweredOff:
-                            "Is Powered Off."
-                        case .unsupported:
-                            "Is Unsupported."
-                        case .unauthorized:
-                            switch CBManager.authorization {
-                            case .denied:
-                                "Authorization denied"
-                            case .restricted:
-                                "Authorization restricted"
-                            case .allowedAlways:
-                                "Authorized"
-                            case .notDetermined:
-                                "Authorization not determined"
-                            @unknown default:
-                                "Unknown authorization error"
-                            }
-                        case .unknown:
-                            "Unknown"
-                        case .resetting:
-                            "Resetting"
-                        case .poweredOn:
-                            "Impossible"
-                        @unknown default:
-                            "Error"
-                        }
-                    case .server(let error):
-                        error
-                    case .generic(let error):
-                        error
-                    }
+            case .mdocDisconnected:
                 ErrorView(
-                    errorTitle: "Error Verifying",
-                    errorDetails: message,
+                    errorTitle: "The mdoc disconnected unexpectedly",
+                    errorDetails: "",
                     onClose: { self.cancel() }
                 )
-            case .downloadProgress(let index):
+            case .error:
+                ErrorView(
+                    errorTitle: "Error Verifying",
+                    errorDetails: "",
+                    onClose: { self.cancel() }
+                )
+            case .sendingRequest(let bytesSoFar, let outOfTotalBytes):
                 LoadingView(
                     loadingText:
-                        "Downloading... \(index) chunks received so far.",
+                        "Sending request... \(bytesSoFar / outOfTotalBytes * 100)%",
                     cancelButtonLabel: "Cancel",
                     onCancel: { self.cancel() }
                 )
-            case .success(.mdlReaderResponseData(let mdlResponseData)):
+            case .sentRequest:
+                LoadingView(
+                    loadingText:
+                        "Waiting for response...",
+                    cancelButtonLabel: "Cancel",
+                    onCancel: { self.cancel() }
+                )
+            case .receivingResponse:
+                LoadingView(
+                    loadingText:
+                        "Receiving response...",
+                    cancelButtonLabel: "Cancel",
+                    onCancel: { self.cancel() }
+                )
+            case .receivedResponse(let r):
                 VerifierMdocResultView(
-                    result: mdlResponseData.verifiedResponse,
-                    issuerAuthenticationStatus: mdlResponseData
+                    result: r.data.verifiedResponse,
+                    issuerAuthenticationStatus: r.data
                         .issuerAuthentication,
-                    deviceAuthenticationStatus: mdlResponseData
+                    deviceAuthenticationStatus: r.data
                         .deviceAuthentication,
-                    responseProcessingErrors: mdlResponseData.errors,
+                    responseProcessingErrors: r.data.errors,
                     onClose: {
                         onCancel()
                     },
@@ -236,29 +226,34 @@ public struct MDocReaderView: View {
                         )
                     }
                 )
-            case .success(.item(let mdlResponseData)):
-                VerifierMdocResultView(
-                    result: mdlResponseData,
-                    issuerAuthenticationStatus: .unchecked,
-                    deviceAuthenticationStatus: .unchecked,
-                    responseProcessingErrors: nil,
-                    onClose: {
-                        onCancel()
-                    },
-                    logVerification: { title, issuer, status in
-                        _ = VerificationActivityLogDataStore.shared.insert(
-                            credentialTitle: title,
-                            issuer: issuer,
-                            status: status,
-                            verificationDateTime: Date(),
-                            additionalInformation: ""
-                        )
-                    }
-                )
+            case .action(.authorizeBluetoothForApp):
+                authorizeBluetooth
+            case .action(.turnOnBluetooth):
+                turnOnBluetoothView
             }
         }
         .padding(.all, 30)
         .navigationBarBackButtonHidden(true)
+    }
+    
+    @ViewBuilder
+    var authorizeBluetooth: some View {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            Button("Authorize bluetooth to continue") {
+                UIApplication.shared.open(url)
+            }
+            .padding(10)
+            .buttonStyle(.bordered)
+            .tint(.blue)
+            .foregroundColor(.blue)
+        } else {
+            Text("Open iPhone settings and allow bluetooth permissions for this app to continue.")
+        }
+    }
+    
+    @ViewBuilder
+    var turnOnBluetoothView: some View {
+        Text("Turn on bluetooth to continue.")
     }
 
     func cancel() {
@@ -267,38 +262,35 @@ public struct MDocReaderView: View {
     }
 }
 
-class MDocScanViewDelegate: ObservableObject {
-    @Published var state: BLEReaderSessionState = .advertizing
-    private var mdocReader: MDocReader?
+class MDocScanViewDelegate: ObservableObject & MdocProximityReader.Delegate {
+    @Published var state: MdocProximityReader.State = .initializing
+    private var mdocReader: MdocProximityReader? = nil
 
     init(
         uri: String,
         requestedItems: [String: [String: Bool]],
-        trustAnchorRegistry: [String]?,
-        onCancel: () -> Void
+        trustAnchorRegistry: [String]?
     ) {
-        do {
-            self.mdocReader = try MDocReader(
-                callback: self,
-                uri: uri,
-                requestedItems: requestedItems,
-                trustAnchorRegistry: trustAnchorRegistry
-            )
-        } catch {
-            ToastManager.shared.showError(message: "\(error)", duration: 5.0)
-            cancel()
-            onCancel()
-        }
+        self.mdocReader = MdocProximityReader(
+            fromHolderQrCode: uri,
+            delegate: self,
+            requestedItems: requestedItems,
+            trustAnchorRegistry: trustAnchorRegistry,
+            l2capUsage: .disableL2CAP
+        )
+    }
+    
+    func reset() {
+        self.mdocReader?.reset()
     }
 
     func cancel() {
-        self.mdocReader?.cancel()
+        self.mdocReader?.disconnect()
     }
-}
-
-extension MDocScanViewDelegate: BLEReaderSessionStateDelegate {
-    public func update(state: BLEReaderSessionState) {
-        // TODO: add logs when refactor the verifier
-        self.state = state
+    
+    func connectionState(changedTo: SpruceIDMobileSdk.MdocProximityReader.State) {
+        DispatchQueue.main.async {
+            self.state = changedTo
+        }
     }
 }

@@ -11490,7 +11490,7 @@ public func FfiConverterTypeApprovedResponse180137_lower(_ value: ApprovedRespon
  */
 public struct CentralClientDetails {
     /**
-     * The UUID of the service that the mdoc is advertising.
+     * The UUID of the service that the mdoc is listening for.
      */
     public var serviceUuid: Uuid
 
@@ -11498,7 +11498,7 @@ public struct CentralClientDetails {
     // declare one manually.
     public init(
         /**
-         * The UUID of the service that the mdoc is advertising.
+         * The UUID of the service that the mdoc is listening for.
          */serviceUuid: Uuid) {
         self.serviceUuid = serviceUuid
     }
