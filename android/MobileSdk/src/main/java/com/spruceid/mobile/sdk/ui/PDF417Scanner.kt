@@ -23,11 +23,11 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -86,17 +87,6 @@ fun PDF417Scanner(
     backgroundOpacity: Float = 0.5f,
 ) {
     // Lock orientation to landscape for PDF417 scanning
-    val context = LocalContext.current
-    DisposableEffect(Unit) {
-        val activity = context as? Activity
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-
-        onDispose {
-            // Restore to portrait when leaving the scanner
-            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
-    }
-
     PDF417GenericScanner(
         title = title,
         titleColor = titleColor,
@@ -197,7 +187,7 @@ fun PDF417GenericScanner(
             e.printStackTrace()
         }
         try {
-            cameraControl?.setZoomRatio(2f)
+            cameraControl?.setZoomRatio(1.3f)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -217,15 +207,14 @@ fun PDF417GenericScanner(
                 },
             )
             background()
-            Column(
-                Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.SpaceBetween,
+            Box(
+                Modifier.fillMaxSize()
             ) {
                 Column(
                     Modifier
-                        .fillMaxWidth()
-                        .padding(top = 40.dp)
-                        .padding(horizontal = 30.dp),
+                        .align(alignment = Alignment.CenterEnd)
+                        .rotate(90f)
+                        .offset(y = (-80).dp)
                 ) {
                     Text(
                         text = title,
@@ -245,8 +234,11 @@ fun PDF417GenericScanner(
 
                 if (!hideCancelButton) {
                     Column(
-                        Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .rotate(90f)
+                            .offset(y = 120.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Button(
                             onClick = handleCancel,
@@ -349,7 +341,7 @@ fun PDF417ScannerBackground(
     }
 
     // Calculate scanning area dimensions for landscape PDF417 scanning
-    val scanAreaHeight = canvasSize.height * .35f
+    val scanAreaHeight = canvasSize.height * .65f
     val scanAreaTop = (canvasSize.height - scanAreaHeight) / 2
     val scanAreaBottom = scanAreaTop + scanAreaHeight
 
@@ -375,8 +367,8 @@ fun PDF417ScannerBackground(
                 val canvasHeight = size.height
 
                 // Wide and short rectangle for landscape PDF417 scanning
-                val width = canvasWidth * .8f
-                val height = canvasHeight * .35f
+                val width = canvasWidth * .35f
+                val height = canvasHeight * .65f
 
                 val left = (canvasWidth - width) / 2
                 val top = (canvasHeight - height) / 2
