@@ -507,7 +507,8 @@ fun getCredentialFieldType(displayName: String, fieldValue: String = ""): Creden
         displayName.isDate() -> CredentialFieldType.DATE
         // Check if field value looks like a date format
         fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z?")) ||
-                fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) -> CredentialFieldType.DATE
+                fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) ||
+                fieldValue.matches(Regex("\\d{8}")) -> CredentialFieldType.DATE
         else -> CredentialFieldType.TEXT
     }
 }
@@ -529,6 +530,13 @@ private fun formatDateValue(fieldValue: String): String? {
             // Handle simple date format (e.g., "2024-01-15")
             fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) -> {
                 val inputFormat = SimpleDateFormat("yyyy-MM-dd")
+                val outputFormat = SimpleDateFormat("MMM dd, yyyy")
+                val date = inputFormat.parse(fieldValue)
+                date?.let { outputFormat.format(it) }
+            }
+            // Handle 8-digit date format MMDDYYYY (e.g., "01011190" for Jan 01, 1990)
+            fieldValue.matches(Regex("\\d{8}")) -> {
+                val inputFormat = SimpleDateFormat("MMddyyyy")
                 val outputFormat = SimpleDateFormat("MMM dd, yyyy")
                 val date = inputFormat.parse(fieldValue)
                 date?.let { outputFormat.format(it) }

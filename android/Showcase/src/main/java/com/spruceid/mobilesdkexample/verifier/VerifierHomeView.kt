@@ -148,6 +148,22 @@ fun VerifierHomeBody(
                 }
             )
             VerifierListItem(
+                title = "Verify VCB VDL",
+                description = "Verify a driver's license encoded as a verifiable credential QRCode",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyVcbVdlScreen.route)
+                }
+            )
+            VerifierListItem(
+                title = "Verify PDF417 AAMVA",
+                description = "Verify a driver's license encoded as a PDF417 bar code",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyPdf417Aamva.route)
+                }
+            )
+            VerifierListItem(
                 title = "Verifiable Credential",
                 description = "Verifies a verifiable credential by reading the verifiable presentation QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,

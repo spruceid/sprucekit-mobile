@@ -410,6 +410,61 @@ impl CborKeyMapper {
     }
 }
 
+/// Base45 character table (per RFC 9285 and W3C VC Barcodes)
+const BASE_45_TABLE: [char; 45] = [
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+    'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+    'U', 'V', 'W', 'X', 'Y', 'Z', ' ', '$', '%', '*',
+    '+', '-', '.', '/', ':',
+];
+
+/// Decodes base45 string back to bytes (w3c-vc-barcodes implementation)
+pub fn base45_decode(encoded: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    // Create reverse lookup table
+    let mut reverse_table = HashMap::new();
+    for (i, &c) in BASE_45_TABLE.iter().enumerate() {
+        reverse_table.insert(c, i as u16);
+    }
+
+    let mut result = Vec::new();
+    let mut chars = encoded.chars();
+
+    while let Some(c) = chars.next() {
+        let c_val = reverse_table.get(&c)
+            .ok_or_else(|| format!("Invalid base45 character: {}", c))?;
+
+        match chars.next() {
+            Some(d) => {
+                let d_val = reverse_table.get(&d)
+                    .ok_or_else(|| format!("Invalid base45 character: {}", d))?;
+
+                match chars.next() {
+                    Some(e) => {
+                        // Decode 3 characters to 2 bytes
+                        let e_val = reverse_table.get(&e)
+                            .ok_or_else(|| format!("Invalid base45 character: {}", e))?;
+
+                        let value = (*c_val as u32) + (*d_val as u32) * 45 + (*e_val as u32) * 45 * 45;
+                        let a = ((value >> 8) & 0xFF) as u8;
+                        let b = (value & 0xFF) as u8;
+                        result.push(a);
+                        result.push(b);
+                    }
+                    None => {
+                        // Decode 2 characters to 1 byte
+                        let value = *c_val + *d_val * 45;
+                        result.push(value as u8);
+                    }
+                }
+            }
+            None => return Err("Invalid base45 string: odd number of characters".into()),
+        }
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
