@@ -25,6 +25,45 @@ pub enum MDLReaderSessionError {
 #[derive(uniffi::Object)]
 pub struct MDLSessionManager(reader::SessionManager);
 
+/// Connection details for connecting to an mdoc that is using BLE Central Client mode.
+#[derive(uniffi::Record)]
+pub struct CentralClientDetails {
+    /// The UUID of the service that the mdoc is advertising.
+    pub service_uuid: Uuid,
+}
+
+/// Connection details for connecting to an mdoc that is using BLE Peripheral Server mode.
+#[derive(uniffi::Record)]
+pub struct PeripheralServerDetails {
+    /// The UUID of the service that the mdoc is advertising.
+    pub service_uuid: Uuid,
+    /// The Bluetooth device address of the peripheral server. If available, this can be used
+    /// to more quickly identify the correct device to connect to.
+    pub ble_device_address: Option<Vec<u8>>,
+}
+
+#[uniffi::export]
+impl MDLSessionManager {
+    pub fn ble_central_client_details(&self) -> Vec<CentralClientDetails> {
+        self.0
+            .ble_central_client_options()
+            .map(|cc| CentralClientDetails {
+                service_uuid: cc.uuid,
+            })
+            .collect()
+    }
+
+    pub fn ble_peripheral_server_details(&self) -> Vec<PeripheralServerDetails> {
+        self.0
+            .ble_peripheral_server_options()
+            .map(|ps| PeripheralServerDetails {
+                service_uuid: ps.uuid,
+                ble_device_address: ps.ble_device_address.clone().map(Vec::from),
+            })
+            .collect()
+    }
+}
+
 impl std::fmt::Debug for MDLSessionManager {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Debug for SessionManager not implemented")
@@ -34,7 +73,6 @@ impl std::fmt::Debug for MDLSessionManager {
 #[derive(uniffi::Record)]
 pub struct MDLReaderSessionData {
     pub state: Arc<MDLSessionManager>,
-    uuid: Uuid,
     pub request: Vec<u8>,
     ble_ident: Vec<u8>,
 }
@@ -85,19 +123,11 @@ pub fn establish_session(
                 value: format!("unable to establish session: {e:?}"),
             },
         )?;
-    let manager2 = manager.clone();
-    let uuid =
-        manager2
-            .first_central_client_uuid()
-            .ok_or_else(|| MDLReaderSessionError::Generic {
-                value: "the device did not transmit a central client uuid".to_string(),
-            })?;
 
     Ok(MDLReaderSessionData {
         state: Arc::new(MDLSessionManager(manager)),
         request,
         ble_ident: ble_ident.to_vec(),
-        uuid: *uuid,
     })
 }
 

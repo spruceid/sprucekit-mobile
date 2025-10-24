@@ -76,11 +76,6 @@ impl Handover {
     }
 }
 
-#[derive(Deserialize, Serialize)]
-struct DcApiResponseData {
-    response: String,
-}
-
 #[uniffi::export(async_runtime = "tokio")]
 pub async fn build_annex_c_response(
     request: Vec<u8>,

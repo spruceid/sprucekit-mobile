@@ -33,6 +33,9 @@ class MDocReaderBLEPeripheral: NSObject {
     var writingQueueTotalChunks: Int?
     var writingQueueChunkIndex: Int?
     var writingQueue: IndexingIterator<ChunksOfCountCollection<Data>>?
+    var readyToSend = true
+    var failedLastSend = false
+    var lastChunk: Data?
 
     var activeStream: MDocReaderBLEPeripheralConnection?
 
@@ -199,8 +202,8 @@ class MDocReaderBLEPeripheral: NSObject {
                 // for us to initiate.
 
                 // This will trigger wallet-sdk-kt to send 0x01 to start the exchange
-                // peripheralManager.updateValue(Data([0x01]), for: self.stateCharacteristic!,
-                //                               onSubscribedCentrals: nil)
+                 peripheralManager.updateValue(Data([0x01]), for: self.stateCharacteristic!,
+                                               onSubscribedCentrals: nil)
 
                 machineState = .awaitRequestStart
                 machinePendingState = .awaitRequestStart
@@ -254,29 +257,29 @@ class MDocReaderBLEPeripheral: NSObject {
                                                       value: bleIdent,
                                                       permissions: [.readable])
         // wallet-sdk-kt is failing if this is present
-        if useL2CAP {
-            // 18013-5 doesn't require .indicate, but without it we don't seem to be able to propagate the PSM
-            // through to central.
-            l2capCharacteristic = CBMutableCharacteristic(type: readerL2CAPCharacteristicId,
-                                                          properties: [.read, .indicate, .notify],
-                                                          value: nil,
-                                                          permissions: [.readable])
-
-            if let stateC = stateCharacteristic,
-               let readC = readCharacteristic,
-               let writeC = writeCharacteristic,
-               let identC = identCharacteristic,
-               let l2capC = l2capCharacteristic {
-                service.characteristics = (service.characteristics ?? []) + [stateC, readC, writeC, identC, l2capC]
-            }
-        } else {
+//        if useL2CAP {
+//            // 18013-5 doesn't require .indicate, but without it we don't seem to be able to propagate the PSM
+//            // through to central.
+//            l2capCharacteristic = CBMutableCharacteristic(type: readerL2CAPCharacteristicId,
+//                                                          properties: [.read, .indicate, .notify],
+//                                                          value: nil,
+//                                                          permissions: [.readable])
+//
+//            if let stateC = stateCharacteristic,
+//               let readC = readCharacteristic,
+//               let writeC = writeCharacteristic,
+//               let identC = identCharacteristic,
+//               let l2capC = l2capCharacteristic {
+//                service.characteristics = (service.characteristics ?? []) + [stateC, readC, writeC, identC, l2capC]
+//            }
+//        } else {
             if let stateC = stateCharacteristic,
                let readC = readCharacteristic,
                let writeC = writeCharacteristic,
                let identC = identCharacteristic {
                 service.characteristics = (service.characteristics ?? []) + [stateC, readC, writeC, identC]
             }
-        }
+//        }
         peripheralManager.add(service)
     }
 
@@ -317,27 +320,44 @@ class MDocReaderBLEPeripheral: NSObject {
     }
 
     private func drainWritingQueue() {
-        if writingQueue != nil {
-            if var chunk = writingQueue?.next() {
-                var firstByte: Data.Element
-                writingQueueChunkIndex! += 1
-                if writingQueueChunkIndex == writingQueueTotalChunks {
-                    firstByte = 0x00
-                } else {
-                    firstByte = 0x01
-                }
-                chunk.reverse()
-                chunk.append(firstByte)
-                chunk.reverse()
-                peripheralManager?.updateValue(chunk, for: writeCharacteristic!, onSubscribedCentrals: nil)
-
-                if firstByte == 0x00 {
-                    machinePendingState = .awaitResponse
-                }
-            } else {
-                writingQueue = nil
-                machinePendingState = .awaitResponse
+        if writingQueue == nil {
+            return
+        }
+        while readyToSend && writingQueueChunkIndex! <= writingQueueTotalChunks! {
+            if failedLastSend {
+                readyToSend = peripheralManager!.updateValue(lastChunk!,
+                                                             for: writeCharacteristic!,
+                                                             onSubscribedCentrals: nil)
+                failedLastSend = !readyToSend
+                continue
             }
+            var chunk = writingQueue?.next()
+
+            if chunk == nil {
+                break
+            }
+
+            var firstByte: Data.Element
+            writingQueueChunkIndex! += 1
+            if writingQueueChunkIndex == writingQueueTotalChunks {
+                firstByte = 0x00
+            } else {
+                firstByte = 0x01
+            }
+            chunk!.reverse()
+            chunk!.append(firstByte)
+            chunk!.reverse()
+
+            readyToSend = peripheralManager!.updateValue(chunk!, for: writeCharacteristic!, onSubscribedCentrals: nil)
+            failedLastSend = !readyToSend
+            if failedLastSend {
+                lastChunk = chunk
+            }
+        }
+
+        if writingQueueChunkIndex == writingQueueTotalChunks && !failedLastSend {
+            writingQueue = nil
+            machinePendingState = .awaitResponse
         }
     }
 
@@ -435,6 +455,7 @@ extension MDocReaderBLEPeripheral: CBPeripheralManagerDelegate {
 
     /// Handle space available for sending.  This is part of the send loop for the old (non-L2CAP) flow.
     func peripheralManagerIsReady(toUpdateSubscribers _: CBPeripheralManager) {
+        readyToSend = true
         drainWritingQueue()
     }
 
@@ -470,13 +491,13 @@ extension MDocReaderBLEPeripheral: CBPeripheralManagerDelegate {
         print("Received read request for \(MDocCharacteristicNameFromUUID(request.characteristic.uuid))")
 
         // Since there is no callback for MTU on iOS we will grab it here.
-        maximumCharacteristicSize = min(request.central.maximumUpdateValueLength, 512)
+        maximumCharacteristicSize = min(request.central.maximumUpdateValueLength, 515)
 
         if request.characteristic.uuid == readerIdentCharacteristicId {
             peripheralManager.respond(to: request, withResult: .success)
-        } else if request.characteristic.uuid == readerL2CAPCharacteristicId {
-            peripheralManager.respond(to: request, withResult: .success)
-            machinePendingState = .l2capRead
+//        } else if request.characteristic.uuid == readerL2CAPCharacteristicId {
+//            peripheralManager.respond(to: request, withResult: .success)
+//            machinePendingState = .l2capRead
         } else {
             let name = MDocCharacteristicNameFromUUID(request.characteristic.uuid)
             callback.callback(message: .error(.server("Read on unexpected characteristic with UUID \(name)")))
@@ -487,7 +508,7 @@ extension MDocReaderBLEPeripheral: CBPeripheralManagerDelegate {
     func peripheralManager(_: CBPeripheralManager, didReceiveWrite requests: [CBATTRequest]) {
         for request in requests {
             // Since there is no callback for MTU on iOS we will grab it here.
-            maximumCharacteristicSize = min(request.central.maximumUpdateValueLength, 512)
+            maximumCharacteristicSize = min(request.central.maximumUpdateValueLength, 515)
 
             do {
                 try processData(central: request.central, characteristic: request.characteristic, value: request.value)

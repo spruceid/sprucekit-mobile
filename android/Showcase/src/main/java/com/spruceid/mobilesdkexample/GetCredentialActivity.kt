@@ -27,7 +27,7 @@ class GetCredentialActivity : DcApiActivity() {
             match = match,
             onContinue = { onContinue(it.approvedFields) },
             onCancel = onCancel,
-            innerColumnModifier = Modifier,
+            modifier = Modifier,
             origin = origin
         )
     }
