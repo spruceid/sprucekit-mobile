@@ -11,7 +11,7 @@ use isomdl::{
     },
 };
 use serde::{Deserialize, Serialize};
-use ssi::claims::cose::coset::{self, iana::Algorithm, AsCborValue, CoseKeyBuilder};
+use ssi::claims::cose::coset;
 
 uniffi::custom_newtype!(KeyAlias, String);
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
@@ -82,6 +82,10 @@ impl CryptoCurveUtils {
 /// a Tag24 data item and constructing a COSE_Sign1 object that is
 /// signed by the signing key, with the signature included in the
 /// CBOR bytes encoded COSE_Sign1 object returned.
+///
+/// The `is_cbor_payload` boolean parameter informs whether the
+/// payload is already CBOR encoded, if the payload is not CBOR encoded,
+/// then it will be a Tag24 payload.
 #[uniffi::export]
 pub fn cose_sign1(
     signer: Arc<dyn SigningKey>,
@@ -100,28 +104,19 @@ pub fn cose_sign1(
     };
 
     let mut header = coset::HeaderBuilder::new().algorithm(coset::iana::Algorithm::ES256);
-    // .build();
 
     let mut cose_sign1_builder = coset::CoseSign1Builder::new();
 
     if let Some(certificates) = x509_cert_pem {
         let mut x5chain_builder = X5Chain::builder();
 
-        if let Some(cert) = certificates.iter().next() {
+        for cert in certificates.iter() {
             x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
                 CryptoError::General(format!(
                     "Failed to construct x5chain with certificate: {e:?}"
                 ))
             })?;
         }
-
-        // for cert in certificates.iter() {
-        //     x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
-        //         CryptoError::General(format!(
-        //             "Failed to construct x5chain with certificate: {e:?}"
-        //         ))
-        //     })?;
-        // }
 
         let x5chain = x5chain_builder
             .build()
@@ -130,7 +125,6 @@ pub fn cose_sign1(
         header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
     }
 
-    // Add payload directly to cose sign1 builder
     cose_sign1_builder = cose_sign1_builder
         .protected(header.build())
         .payload(cbor_payload);
@@ -161,28 +155,15 @@ pub fn cose_key_ec2_p256_public_key(x: Vec<u8>, y: Vec<u8>, _kid: Vec<u8>) -> Re
         y: EC2Y::Value(y),
     };
 
-    // let value = CoseKeyBuilder::new_ec2_pub_key(coset::iana::EllipticCurve::P_256, x, y)
-    //     .algorithm(Algorithm::ES256)
-    //     .key_id(kid)
-    //     .add_key_op(coset::iana::KeyOperation::Sign)
-    //     .build()
-    //     .to_cbor_value()
-    //     .map_err(|e| anyhow!("failed encode cose key to cbor value: {e:?}"))?;
-
     let bytes = device_key
         .to_cbor_bytes()
         .map_err(|e| anyhow!("failed serialize cose key to cbor bytes: {e:?}"))?;
-
-    // let mut buf = Vec::new();
-    // ciborium::into_writer(&value, &mut buf)
-    //     .map_err(|e| anyhow!("failed serialize cose key to cbor bytes: {e:?}"))?;
 
     Ok(bytes)
 }
 
 #[cfg(test)]
 pub(crate) use test::*;
-use x509_cert::Certificate;
 
 #[cfg(test)]
 mod test {

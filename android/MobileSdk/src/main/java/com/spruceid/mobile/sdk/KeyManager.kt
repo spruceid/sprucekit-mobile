@@ -86,7 +86,7 @@ class KeyManager : SpruceKitKeyStore {
      * @property id of the secret key.
      */
     @RequiresApi(Build.VERSION_CODES.P)
-    private fun generateSigningKeyWithStrongbox(id: String, challenge: ByteArray? = null) {
+    fun generateSigningKeyWithStrongbox(id: String, challenge: ByteArray? = null) {
         val generator =
             KeyPairGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_EC,
@@ -116,7 +116,7 @@ class KeyManager : SpruceKitKeyStore {
      * Generates a secp256r1 signing key by id/alias in the Keystore with TEE.
      * @property id of the secret key.
      */
-    private fun generateSigningKeyTEE(id: String, challenge: ByteArray? = null) {
+    fun generateSigningKeyTEE(id: String, challenge: ByteArray? = null) {
         val generator =
             KeyPairGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_EC,
@@ -283,7 +283,7 @@ class KeyManager : SpruceKitKeyStore {
      * @property id of the secret key.
      */
     @RequiresApi(Build.VERSION_CODES.P)
-    private fun generateEncryptionKeyWithStrongbox(id: String) {
+    fun generateEncryptionKeyWithStrongbox(id: String) {
         val generator =
             KeyGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_AES,
@@ -308,7 +308,7 @@ class KeyManager : SpruceKitKeyStore {
      * Generates an AES encryption key with a provided id in the Keystore.
      * @property id of the secret key.
      */
-    private fun generateEncryptionKeyWithTEE(id: String) {
+    fun generateEncryptionKeyWithTEE(id: String) {
         val generator =
             KeyGenerator.getInstance(
                 KeyProperties.KEY_ALGORITHM_AES,
