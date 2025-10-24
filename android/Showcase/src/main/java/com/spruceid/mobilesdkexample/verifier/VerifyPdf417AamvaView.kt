@@ -1,7 +1,5 @@
 package com.spruceid.mobilesdkexample.verifier
 
-import android.content.Context
-import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,11 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.spruceid.mobile.sdk.rs.DecodedVcbVdl
-import com.spruceid.mobile.sdk.rs.decodeVcbVdlToJson
-import com.spruceid.mobile.sdk.rs.verifyVcbVdlJsonSignature
+import com.spruceid.mobile.sdk.rs.DecodedPdf417Aamva
+import com.spruceid.mobile.sdk.rs.decodePdf417AamvaFromPayload
+import com.spruceid.mobile.sdk.rs.verifyPdf417AamvaSignature
 import com.spruceid.mobilesdkexample.ErrorView
-import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.navigation.Screen
@@ -44,14 +41,24 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
-fun VerifyVcbVdlView(
+fun VerifyPdf417AamvaView(
     navController: NavController
 ) {
-    val ctx = LocalContext.current
+
+    var PDF417_AAMVA_NEVADA_PUBLIC_KEY = """
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5UfhdL6MSLJwnwwndiBtsjLURvIn
+QesCz68mZEqlztk+6BJYZeWiawyzIYv/BOHRWDo5VBuybIrK/grjVHy/1w==
+-----END PUBLIC KEY-----"""
+
+
+    var ctx = LocalContext.current
     var success by remember {
         mutableStateOf<Boolean?>(null)
     }
@@ -59,11 +66,11 @@ fun VerifyVcbVdlView(
         mutableStateOf<Boolean?>(null)
     }
 
-    var decodedVcbVdl by remember {
-        mutableStateOf<DecodedVcbVdl?>(null)
+    var decodedPdf417Aamva  by remember {
+        mutableStateOf<DecodedPdf417Aamva?>(null)
     }
 
-    var qrCodeContent by remember {
+    var barCodeContent by remember {
         mutableStateOf<String?>(null)
     }
 
@@ -74,11 +81,10 @@ fun VerifyVcbVdlView(
     fun onRead(content: String) {
         GlobalScope.launch {
             try {
-                qrCodeContent = content
-                val context = getVcbVdlContext(ctx)
+                barCodeContent = content
+                decodedPdf417Aamva = decodePdf417AamvaFromPayload(payload = content)
+                isValid = verifyPdf417AamvaSignature(decoded = decodedPdf417Aamva!!, publicKeyPem = PDF417_AAMVA_NEVADA_PUBLIC_KEY)
 
-                decodedVcbVdl = decodeVcbVdlToJson(barcodeString = content, contexts = context)
-                isValid = verifyVcbVdlJsonSignature(decodedVcbVdl!!.jsonValue())
                 success = true
             } catch (e: Exception) {
                 error = e.message ?: e.toString()
@@ -86,6 +92,75 @@ fun VerifyVcbVdlView(
                 e.printStackTrace()
             }
         }
+    }
+
+    // Shenanigans to transform it to a JSON-LD
+    fun transformAamvaFieldsToReadable(dlFieldsJson: String): String {
+        val dlFields = JSONObject(dlFieldsJson)
+        val readableFields = JSONObject()
+
+        // Map AAMVA codes to human-readable names
+        val fieldMapping = mapOf(
+            "DCS" to "family_name",
+            "DAC" to "given_name",
+            "DAD" to "middle_name",
+            "DBB" to "birth_date",
+            "DBA" to "expiry_date",
+            "DBD" to "issue_date",
+            "DAY" to "eye_colour",
+            "DAU" to "height",
+            "DAW" to "weight",
+            "DBC" to "sex",
+            "DAZ" to "hair_colour",
+            "DAG" to "resident_address",
+            "DAH" to "address_street_2",
+            "DAI" to "resident_city",
+            "DAJ" to "resident_state",
+            "DAK" to "resident_postal_code",
+            "DAQ" to "document_number",
+            "DCF" to "document_discriminator",
+            "DCG" to "issuing_country",
+            "DCA" to "vehicle_class",
+            "DCB" to "restrictions",
+            "DCD" to "endorsements",
+            "DDE" to "family_name_truncation",
+            "DDF" to "given_name_truncation",
+            "DDG" to "middle_name_truncation",
+            "DCI" to "place_of_birth",
+            "DCJ" to "audit_information",
+            "DCK" to "inventory_control_number",
+            "DBN" to "alias_family_name",
+            "DBG" to "alias_given_name",
+            "DBS" to "alias_suffix",
+            "DCU" to "name_suffix"
+        )
+
+        // Transform each field
+        for (key in dlFields.keys()) {
+            val readableName = fieldMapping[key] ?: key
+            readableFields.put(readableName, dlFields.getString(key))
+        }
+
+        // Wrap in proper Verifiable Credential structure
+        val vcStructure = JSONObject()
+        vcStructure.put("@context", JSONArray().apply {
+            put("https://www.w3.org/2018/credentials/v1")
+        })
+        vcStructure.put("type", JSONArray().apply {
+            put("VerifiableCredential")
+            put("PDF417AamvaDL")
+        })
+
+        // Add issuer
+        val issuerObj = JSONObject()
+        issuerObj.put("id", "did:key:zDnaeoLyiMWjCMbgH5mBSvusfk534bDnua362RNwVKmwdgAKc") //TODO: Just change that
+        issuerObj.put("name", "Spruce Systems Inc.")
+        vcStructure.put("issuer", issuerObj)
+
+        // Add credential subject with readable fields
+        vcStructure.put("credentialSubject", readableFields)
+
+        return vcStructure.toString()
     }
 
     fun back() {
@@ -99,33 +174,37 @@ fun VerifyVcbVdlView(
     fun restart() {
         success = null
         isValid = null
-        decodedVcbVdl = null
-        qrCodeContent = null
+        decodedPdf417Aamva = null
+        barCodeContent = null
     }
 
     if (success == null) {
         ScanningComponent(
-            scanningType = ScanningType.QRCODE,
+            scanningType = ScanningType.PDF417,
             onRead = ::onRead,
             onCancel = ::back
         )
     } else if (success == true) {
+        val readableJson = transformAamvaFieldsToReadable(
+            decodedPdf417Aamva!!.dlFieldsJson(),
+        )
+
         VerifierBarCodeSuccessView(
-            jsonCredential = decodedVcbVdl!!.jsonValue(),
+            jsonCredential = readableJson,
             isValid = isValid!!,
             onClose = ::back,
             onRestart = ::restart,
             allDataContent = {
-                VcbVdlAllDataView(
-                    qrCodeCredential = qrCodeContent!!,
-                    cborCredential = decodedVcbVdl!!.cborValue(),
-                    jsonCredential = decodedVcbVdl!!.jsonValue()
+                Pdf417AamvaAllDataView(
+                    barCodeContent = barCodeContent!!,
+                    znFieldsJson = decodedPdf417Aamva!!.znFieldsJson(),
+                    dlFieldsJson = decodedPdf417Aamva!!.dlFieldsJson()
                 )
             }
         )
     } else {
         ErrorView(
-            "Failed to verify VCB VDL",
+            "Failed to verify PDF417 AAMVA",
             errorDetails = error,
             onClose = ::back
         )
@@ -133,21 +212,29 @@ fun VerifyVcbVdlView(
 }
 
 @Composable
-private fun VcbVdlAllDataView(
-    qrCodeCredential: String,
-    cborCredential: String,
-    jsonCredential: String
+private fun Pdf417AamvaAllDataView(
+    barCodeContent: String,
+    znFieldsJson: String,
+    dlFieldsJson: String
 ) {
-    var qrCodeExpanded by remember { mutableStateOf(false) }
-    var cborExpanded by remember { mutableStateOf(false) }
-    var jsonExpanded by remember { mutableStateOf(false) }
+    var barcodeExpanded by remember { mutableStateOf(false) }
+    var znExpanded by remember { mutableStateOf(false) }
+    var dlExpanded by remember { mutableStateOf(false) }
 
-    // Format JSON-LD with proper indentation
-    val formattedJson = remember(jsonCredential) {
+    // Format JSON with proper indentation
+    val formattedZnJson = remember(znFieldsJson) {
         try {
-            JSONObject(jsonCredential).toString(4)
+            JSONObject(znFieldsJson).toString(4)
         } catch (e: Exception) {
-            jsonCredential
+            znFieldsJson
+        }
+    }
+
+    val formattedDlJson = remember(dlFieldsJson) {
+        try {
+            JSONObject(dlFieldsJson).toString(4)
+        } catch (e: Exception) {
+            dlFieldsJson
         }
     }
 
@@ -156,32 +243,32 @@ private fun VcbVdlAllDataView(
             .padding(vertical = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // Raw QR Code Accordion
+        // Raw Barcode Content Accordion
         Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { qrCodeExpanded = !qrCodeExpanded }
+                    .clickable { barcodeExpanded = !barcodeExpanded }
                     .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Raw QR Code",
+                    text = "Raw Barcode Content",
                     fontFamily = Switzer,
                     fontWeight = FontWeight.Medium,
                     fontSize = 16.sp,
                     color = ColorStone950
                 )
                 Icon(
-                    imageVector = if (qrCodeExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (qrCodeExpanded) "Collapse" else "Expand",
+                    imageVector = if (barcodeExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (barcodeExpanded) "Collapse" else "Expand",
                     tint = ColorStone600
                 )
             }
-            if (qrCodeExpanded) {
+            if (barcodeExpanded) {
                 Text(
-                    text = qrCodeCredential,
+                    text = barCodeContent,
                     fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
@@ -194,32 +281,32 @@ private fun VcbVdlAllDataView(
             HorizontalDivider(color = ColorStone200)
         }
 
-        // Raw CBOR Accordion
+        // ZN Fields JSON Accordion
         Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { cborExpanded = !cborExpanded }
+                    .clickable { znExpanded = !znExpanded }
                     .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Raw CBOR",
+                    text = "ZN Fields (JSON)",
                     fontFamily = Switzer,
                     fontWeight = FontWeight.Medium,
                     fontSize = 16.sp,
                     color = ColorStone950
                 )
                 Icon(
-                    imageVector = if (cborExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (cborExpanded) "Collapse" else "Expand",
+                    imageVector = if (znExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (znExpanded) "Collapse" else "Expand",
                     tint = ColorStone600
                 )
             }
-            if (cborExpanded) {
+            if (znExpanded) {
                 Text(
-                    text = cborCredential,
+                    text = formattedZnJson,
                     fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
@@ -232,32 +319,32 @@ private fun VcbVdlAllDataView(
             HorizontalDivider(color = ColorStone200)
         }
 
-        // Raw JSON-LD Accordion
+        // DL Fields JSON Accordion
         Column {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { jsonExpanded = !jsonExpanded }
+                    .clickable { dlExpanded = !dlExpanded }
                     .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Raw JSON-LD",
+                    text = "DL Fields (JSON)",
                     fontFamily = Switzer,
                     fontWeight = FontWeight.Medium,
                     fontSize = 16.sp,
                     color = ColorStone950
                 )
                 Icon(
-                    imageVector = if (jsonExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (jsonExpanded) "Collapse" else "Expand",
+                    imageVector = if (dlExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (dlExpanded) "Collapse" else "Expand",
                     tint = ColorStone600
                 )
             }
-            if (jsonExpanded) {
+            if (dlExpanded) {
                 Text(
-                    text = formattedJson,
+                    text = formattedDlJson,
                     fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 12.sp,
@@ -270,24 +357,4 @@ private fun VcbVdlAllDataView(
             HorizontalDivider(color = ColorStone200)
         }
     }
-}
-
-fun getVcbVdlContext(ctx: Context): Map<String, String> {
-    val context = mutableMapOf<String, String>()
-
-    context["https://w3id.org/vdl/v2"] =
-        ctx.resources
-            .openRawResource(R.raw.w3id_org_vdl_v2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    context["https://www.w3.org/ns/credentials/v2"] =
-        ctx.resources
-            .openRawResource(R.raw.w3_org_ns_credentials_v2)
-            .bufferedReader()
-            .readLines()
-            .joinToString("")
-
-    return context
 }
