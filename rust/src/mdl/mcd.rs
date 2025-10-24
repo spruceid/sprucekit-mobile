@@ -15,6 +15,12 @@ pub struct MobileIdCapabilityDescriptorBuilder {
     secure_area_attestation_objects: Vec<SecureAreaAttestationObject>,
 }
 
+impl Default for MobileIdCapabilityDescriptorBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[uniffi::export]
 impl MobileIdCapabilityDescriptorBuilder {
     #[uniffi::constructor]
