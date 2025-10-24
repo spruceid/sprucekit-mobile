@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.verifier
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,9 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
-import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
-import com.spruceid.mobilesdkexample.ui.theme.ColorBase500
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald50
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald500
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
@@ -68,13 +67,12 @@ import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import org.json.JSONObject
 
 @Composable
-fun VerifierVcbVdlSuccessView(
-    qrCodeCredential: String,
+fun VerifierBarCodeSuccessView(
     jsonCredential: String,
-    cborCredential: String,
     isValid: Boolean,
     onClose: () -> Unit,
     onRestart: () -> Unit,
+    allDataContent: @Composable () -> Unit,
 ) {
     val statusListViewModel: StatusListViewModel = activityHiltViewModel()
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
@@ -83,44 +81,74 @@ fun VerifierVcbVdlSuccessView(
     var selectedTab by remember { mutableStateOf(0) } // 0 = Personal Data, 1 = All Data
 
     LaunchedEffect(Unit) {
-        credentialItem = credentialDisplaySelector(
-            jsonCredential,
-            statusListViewModel = statusListViewModel,
-            null,
-            null,
-            null
-        )
-        statusListViewModel.fetchAndUpdateStatus(credentialItem!!.credentialPack)
-        val credential = credentialItem!!.credentialPack.list().first()
-        val claims = credentialItem!!.credentialPack.getCredentialClaims(
-            credential,
-            listOf("name", "type", "description", "issuer", "Given Names", "Family Name")
-        )
-
         try {
-            title = claims.optString("name")?.takeIf { it.isNotBlank() }
-            if (title.isNullOrBlank()) {
-                val arrayTypes = claims.optJSONArray("type")
-                if (arrayTypes != null) {
-                    for (i in 0 until arrayTypes.length()) {
-                        if (arrayTypes.get(i).toString() != "VerifiableCredential") {
-                            title = arrayTypes.get(i).toString().splitCamelCase()
-                            break
+            credentialItem = credentialDisplaySelector(
+                jsonCredential,
+                statusListViewModel = statusListViewModel,
+                null,
+                null,
+                null
+            )
+            Log.d("VERIFIER BAR CODE", credentialItem.toString())
+
+            if (credentialItem != null) {
+                statusListViewModel.fetchAndUpdateStatus(credentialItem!!.credentialPack)
+                val credentials = credentialItem!!.credentialPack.list()
+
+                Log.d("VERIFIER BAR CODE", credentials.toString())
+
+                // Only process if we have credentials
+                if (credentials.isNotEmpty()) {
+                    val credential = credentials.first()
+                    val claims = credentialItem!!.credentialPack.getCredentialClaims(
+                        credential,
+                        listOf("name", "type", "description", "issuer", "Given Names", "Family Name")
+                    )
+
+                    try {
+                        title = claims.optString("name")?.takeIf { it.isNotBlank() }
+                        if (title.isNullOrBlank()) {
+                            val arrayTypes = claims.optJSONArray("type")
+                            if (arrayTypes != null) {
+                                for (i in 0 until arrayTypes.length()) {
+                                    if (arrayTypes.get(i).toString() != "VerifiableCredential") {
+                                        title = arrayTypes.get(i).toString().splitCamelCase()
+                                        break
+                                    }
+                                }
+                            }
                         }
+                        if (title.isNullOrBlank()) {
+                            // Try to get name from credentialSubject
+                            val credentialSubject = claims.optJSONObject("credentialSubject")
+                            if (credentialSubject != null) {
+                                val givenName = credentialSubject.optString("given_name", "")
+                                val familyName = credentialSubject.optString("family_name", "")
+                                if (givenName.isNotBlank() || familyName.isNotBlank()) {
+                                    title = "$givenName $familyName".trim()
+                                }
+                            }
+                        }
+                        if (title.isNullOrBlank()) {
+                            val names = claims.optString("Given Names", "")
+                            val family = claims.optString("Family Name", "")
+                            if (names.isNotBlank() || family.isNotBlank()) {
+                                title = "$names $family".trim()
+                            }
+                        }
+                    } catch (_: Exception) {
+                    }
+
+                    try {
+                        issuer = claims.getJSONObject("issuer").getString("name").toString()
+                    } catch (_: Exception) {
                     }
                 }
             }
-            if (title.isNullOrBlank()) {
-                val names = claims.get("Given Names").toString()
-                val family = claims.get("Family Name").toString()
-                title = "$names $family"
-            }
-        } catch (_: Exception) {
-        }
-
-        try {
-            issuer = claims.getJSONObject("issuer").getString("name").toString()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("VERIFIER BAR CODE", "Error processing credential", e)
+            // Credential display selector doesn't support this format
+            // That's okay, we'll just show default title/issuer
         }
     }
 
@@ -241,11 +269,7 @@ fun VerifierVcbVdlSuccessView(
             if (selectedTab == 0) {
                 PersonalDataView(credentialItem = credentialItem)
             } else {
-                AllDataView(
-                    qrCodeCredential = qrCodeCredential,
-                    cborCredential = cborCredential,
-                    jsonCredential = jsonCredential
-                )
+                allDataContent()
             }
         }
 
@@ -379,9 +403,9 @@ private fun StatusBanner(isValid: Boolean) {
             Image(
                 painter = painterResource(
                     id = if (isValid)
-                        com.spruceid.mobilesdkexample.R.drawable.valid_check
+                        R.drawable.valid_check
                     else
-                        com.spruceid.mobilesdkexample.R.drawable.invalid_check
+                        R.drawable.invalid_check
                 ),
                 contentDescription = if (isValid)
                     stringResource(id = com.spruceid.mobilesdkexample.R.string.valid_check)
@@ -410,144 +434,3 @@ private fun PersonalDataView(credentialItem: ICredentialView?) {
         credentialItem.credentialDetails()
     }
 }
-
-@Composable
-private fun AllDataView(
-    qrCodeCredential: String,
-    cborCredential: String,
-    jsonCredential: String
-) {
-    var qrCodeExpanded by remember { mutableStateOf(false) }
-    var cborExpanded by remember { mutableStateOf(false) }
-    var jsonExpanded by remember { mutableStateOf(false) }
-
-    // Format JSON-LD with proper indentation
-    val formattedJson = remember(jsonCredential) {
-        try {
-            JSONObject(jsonCredential).toString(4)
-        } catch (e: Exception) {
-            jsonCredential
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .padding(vertical = 16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        // Raw QR Code Accordion
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { qrCodeExpanded = !qrCodeExpanded }
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Raw QR Code",
-                    fontFamily = Switzer,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp,
-                    color = ColorStone950
-                )
-                Icon(
-                    imageVector = if (qrCodeExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (qrCodeExpanded) "Collapse" else "Expand",
-                    tint = ColorStone600
-                )
-            }
-            if (qrCodeExpanded) {
-                Text(
-                    text = qrCodeCredential,
-                    fontFamily = Switzer,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 12.sp,
-                    color = ColorStone600,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                )
-            }
-            HorizontalDivider(color = ColorStone200)
-        }
-
-        // Raw CBOR Accordion
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { cborExpanded = !cborExpanded }
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Raw CBOR",
-                    fontFamily = Switzer,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp,
-                    color = ColorStone950
-                )
-                Icon(
-                    imageVector = if (cborExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (cborExpanded) "Collapse" else "Expand",
-                    tint = ColorStone600
-                )
-            }
-            if (cborExpanded) {
-                Text(
-                    text = cborCredential,
-                    fontFamily = Switzer,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 12.sp,
-                    color = ColorStone600,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                )
-            }
-            HorizontalDivider(color = ColorStone200)
-        }
-
-        // Raw JSON-LD Accordion
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { jsonExpanded = !jsonExpanded }
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Raw JSON-LD",
-                    fontFamily = Switzer,
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp,
-                    color = ColorStone950
-                )
-                Icon(
-                    imageVector = if (jsonExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (jsonExpanded) "Collapse" else "Expand",
-                    tint = ColorStone600
-                )
-            }
-            if (jsonExpanded) {
-                Text(
-                    text = formattedJson,
-                    fontFamily = Switzer,
-                    fontWeight = FontWeight.Normal,
-                    fontSize = 12.sp,
-                    color = ColorStone600,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                )
-            }
-            HorizontalDivider(color = ColorStone200)
-        }
-    }
-}
-
