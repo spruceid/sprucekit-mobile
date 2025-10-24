@@ -117,7 +117,7 @@ fun QRCodeScannerBackground(
     fontFamily: FontFamily = FontFamily.Default
 ) {
     val canvasSizeHeightOffsetMultiplier = .25f
-    val canvasSizeWidthOffsetMultiplier = .6f
+    val canvasSizeWidthOffsetMultiplier = .85f
 
     var canvasSize by remember {
         mutableStateOf(Size(0f, 0f))
