@@ -172,7 +172,11 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
         let xDataRaw: Data = fullData.subdata(in: 0..<32)
         let yDataRaw: Data = fullData.subdata(in: 32..<64)
 
-        return coseKeyEc2P256PublicKey(x: xDataRaw, y: yDataRaw, kid: Data(id.utf8))
+        do {
+            return try coseKeyEc2P256PublicKey(x: xDataRaw, y: yDataRaw, kid: Data(id.utf8))
+        } catch {
+            return nil
+        }
     }
 
     /**
