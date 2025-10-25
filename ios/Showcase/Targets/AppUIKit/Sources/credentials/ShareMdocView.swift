@@ -168,7 +168,7 @@ class ShareViewDelegate: ObservableObject {
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: DEFAULT_SIGNING_KEY_ID,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true,
+            kSecReturnRef as String: true
         ]
 
         var item: CFTypeRef?
@@ -353,8 +353,7 @@ struct ShareMdocSDSheetView: View {
     }
 
     private func binding(docType: String, namespace: String, item: String)
-        -> Binding<Bool>
-    {
+        -> Binding<Bool> {
         return .init(
             get: { self.itemsSelected[docType]![namespace]![item]! },
             set: { self.itemsSelected[docType]![namespace]![item] = $0 }

@@ -4,14 +4,13 @@ import Security
 import SpruceIDMobileSdkRs
 
 public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject, @unchecked
-    Sendable
-{
+    Sendable {
     /// Migrate keys between access groups. For more information see
     /// https://developer.apple.com/documentation/Security/kSecAttrAccessGroup
     public func migrateToAccessGroup(oldAccessGroup: String, newAccessGroup: String) throws {
         let searchAttrs: [String: Any] = [
             kSecClass as String: kSecClassKey,
-            kSecAttrAccessGroup as String: oldAccessGroup,
+            kSecAttrAccessGroup as String: oldAccessGroup
         ]
         let targetAttrs: [String: Any] = [
             kSecAttrAccessGroup as String: newAccessGroup
@@ -25,8 +24,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     }
 
     public func getSigningKey(alias: SpruceIDMobileSdkRs.KeyAlias) throws -> any SpruceIDMobileSdkRs
-        .SigningKey
-    {
+        .SigningKey {
         guard let jwkString = Self.getJwk(id: alias) else {
             throw KeyManError.missing
         }
@@ -54,7 +52,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true,
+            kSecReturnRef as String: true
         ]
 
         var item: CFTypeRef?
@@ -71,7 +69,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true,
+            kSecReturnRef as String: true
         ]
 
         var item: CFTypeRef?
@@ -106,8 +104,8 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             kSecPrivateKeyAttrs as String: [
                 kSecAttrIsPermanent as String: true,
                 kSecAttrApplicationTag as String: tag,
-                kSecAttrAccessControl as String: access,
-            ],
+                kSecAttrAccessControl as String: access
+            ]
         ]
 
         var error: Unmanaged<CFError>?
@@ -143,7 +141,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             "crv": "P-256",
             "alg": "ES256",
             "x": xCoordinate,
-            "y": yCoordinate,
+            "y": yCoordinate
         ]
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [])
@@ -226,8 +224,8 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             kSecPrivateKeyAttrs as String: [
                 kSecAttrIsPermanent as String: true,
                 kSecAttrApplicationTag as String: tag,
-                kSecAttrAccessControl as String: access,
-            ],
+                kSecAttrAccessControl as String: access
+            ]
         ]
 
         var error: Unmanaged<CFError>?

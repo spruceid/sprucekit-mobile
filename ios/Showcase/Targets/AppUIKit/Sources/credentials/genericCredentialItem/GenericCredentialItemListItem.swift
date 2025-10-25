@@ -221,8 +221,7 @@ func genericCredentialListItemDescriptionFormatter(
     statusListObservable: StatusListObservable,
     values: [String: [String: GenericJSON]]
 )
-    -> some View
-{
+    -> some View {
     let credential: [String: GenericJSON] =
         values.first(where: {
             let credential = credentialPack.get(credentialId: $0.key)
@@ -274,8 +273,7 @@ func genericCredentialListItemLeadingIconFormatter(
     credentialPack: CredentialPack,
     values: [String: [String: GenericJSON]]
 )
-    -> some View
-{
+    -> some View {
     let credential =
         values.first(where: {
             let credential = credentialPack.get(credentialId: $0.key)

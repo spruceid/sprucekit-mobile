@@ -102,8 +102,7 @@ public class StorageManager: NSObject, StorageManagerInterface, @unchecked Senda
                             in: .userDomainMask,
                             appropriateFor: nil,  // Ignored
                             create: true)  // May not exist, make if necessary.
-                    }
-            else {
+                    } else {
                 return nil
             }
 

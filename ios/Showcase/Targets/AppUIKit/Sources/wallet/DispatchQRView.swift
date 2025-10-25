@@ -77,14 +77,12 @@ struct DispatchQRView: View {
         // Analyze payload and determine QR code type
         let qrType: SupportedQRTypes? = {
             if payload.hasPrefix(OID4VP_SCHEME)
-                || payload.hasPrefix(MDOC_OID4VP_SCHEME)
-            {
+                || payload.hasPrefix(MDOC_OID4VP_SCHEME) {
                 return .oid4vp
             } else if payload.hasPrefix(OID4VCI_SCHEME) {
                 return .oid4vci
             } else if payload.hasPrefix(HTTP_SCHEME)
-                || payload.hasPrefix(HTTPS_SCHEME)
-            {
+                || payload.hasPrefix(HTTPS_SCHEME) {
                 return .http
             }
             return nil
@@ -123,8 +121,7 @@ struct DispatchQRView: View {
 
         case .http:
             if let url = URL(string: payload),
-                UIApplication.shared.canOpenURL(url)
-            {
+                UIApplication.shared.canOpenURL(url) {
                 await UIApplication.shared.open(url)
                 onBack()
                 return true

@@ -70,8 +70,7 @@ class HacApplicationObservable: ObservableObject {
     @MainActor func getWalletAttestation() async -> String? {
         // If we already have a valid attestation, return it
         if let attestation = walletAttestation,
-            walletServiceClient.isTokenValid()
-        {
+            walletServiceClient.isTokenValid() {
             return attestation
         }
 
@@ -116,8 +115,7 @@ class HacApplicationObservable: ObservableObject {
     // MARK: - Issuance State Management
 
     @MainActor func updateIssuanceState(applicationId: UUID, issuanceId: String)
-        async
-    {
+        async {
         do {
             let walletAttestation = try await getWalletAttestation().unwrap()
             let status = try await issuanceClient.checkStatus(

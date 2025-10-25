@@ -41,8 +41,7 @@ public struct ContentView: View {
                 where: {
                     $0.name == "sd-jwt"
                 }
-            )?.value
-        {
+            )?.value {
             self.path.append(
                 AddToWallet(rawCredential: sdJwtQuery)
             )
@@ -54,8 +53,7 @@ public struct ContentView: View {
                 where: {
                     $0.name == "spruceid-mdl"
                 }
-            )?.value
-        {
+            )?.value {
             sheetOpen = true
             spruceMdlId = id
         }

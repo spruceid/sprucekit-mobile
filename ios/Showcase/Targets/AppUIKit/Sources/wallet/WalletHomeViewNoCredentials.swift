@@ -10,7 +10,7 @@ struct WalletHomeViewNoCredentials: View {
                     // No-credential Card
                     VStack(spacing: 36) {
                         // Title and Subtitle
-                        VStack(spacing: 8){
+                        VStack(spacing: 8) {
                             Text("Welcome!")
                                 .font(.customFont(font: .inter, style: .bold, size: .h0))
                                 .foregroundColor(Color("ColorBlue600"))
@@ -66,7 +66,7 @@ struct WalletHomeViewNoCredentials: View {
                                         .init(
                                             color: Color("ColorBlue900"),
                                             location: 1.0
-                                        ),
+                                        )
                                     ]),
                                     startPoint: .top,
                                     endPoint: .bottom

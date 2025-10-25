@@ -37,7 +37,7 @@ public func generateMockMdl() async {
             dateTime: Date(),
             additionalInformation: ""
         )
-        
+
         ToastManager.shared.showSuccess(
             message: "Test mDL added to your wallet"
         )

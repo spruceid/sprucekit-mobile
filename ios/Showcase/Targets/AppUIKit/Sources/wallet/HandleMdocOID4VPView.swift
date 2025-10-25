@@ -27,7 +27,7 @@ struct HandleMdocOID4VPView: View {
     @EnvironmentObject private var keyManager: KeyManager
     @Binding var path: NavigationPath
     var credentialPackId: String?
-    
+
     var url: String
 
     @State private var handler: Oid4vp180137?
@@ -63,7 +63,7 @@ struct HandleMdocOID4VPView: View {
                 )
                 handler = handlerRef
                 request = try await handlerRef.processRequest(url: url)
-                
+
                 if credentials.count > 1 {
                     state = .selectCredential
                 } else {
