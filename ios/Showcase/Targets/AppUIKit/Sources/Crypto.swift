@@ -1,7 +1,7 @@
 import Foundation
 import SpruceIDMobileSdkRs
 
-class CryptoImpl: Crypto {
+class CryptoImpl: Crypto, @unchecked Sendable {
     func p256Verify(certificateDer: Data, payload: Data, signature: Data) -> SpruceIDMobileSdkRs.VerificationResult {
         guard let certificate = SecCertificateCreateWithData(nil, certificateDer as CFData) else {
             return .failure(cause: "unable to parse certificate")

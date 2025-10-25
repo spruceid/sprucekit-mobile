@@ -41,8 +41,7 @@ public struct ContentView: View {
                 where: {
                     $0.name == "sd-jwt"
                 }
-            )?.value
-        {
+            )?.value {
             self.path.append(
                 AddToWallet(rawCredential: sdJwtQuery)
             )
@@ -54,8 +53,7 @@ public struct ContentView: View {
                 where: {
                     $0.name == "spruceid-mdl"
                 }
-            )?.value
-        {
+            )?.value {
             sheetOpen = true
             spruceMdlId = id
         }
@@ -69,7 +67,7 @@ public struct ContentView: View {
 
     func handleOid4vciUrl(url: URL) {
         self.path.append(
-            HandleOID4VCI(url: url.absoluteString)
+            HandleOID4VCI(url: url.absoluteString, onSuccess: {})
         )
     }
 

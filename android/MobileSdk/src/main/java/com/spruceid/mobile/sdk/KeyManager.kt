@@ -8,10 +8,13 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.KeyAlias
+import com.spruceid.mobile.sdk.rs.KeyStore as SpruceKitKeyStore
 import com.spruceid.mobile.sdk.rs.SigningKey
+import com.spruceid.mobile.sdk.rs.coseKeyEc2P256PublicKey
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Signature
+import java.security.cert.Certificate
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import javax.crypto.Cipher
@@ -19,11 +22,8 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import com.spruceid.mobile.sdk.rs.KeyStore as SpruceKitKeyStore
 
-/**
- * Implementation of the secure key management with Strongbox and TEE as backup.
- */
+/** Implementation of the secure key management with Strongbox and TEE as backup. */
 class KeyManager : SpruceKitKeyStore {
 
     /**
@@ -31,9 +31,7 @@ class KeyManager : SpruceKitKeyStore {
      * @return instance of the key store.
      */
     private fun getKeyStore(): KeyStore {
-        return KeyStore.getInstance("AndroidKeyStore").apply {
-            load(null)
-        }
+        return KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
     }
 
     /**
@@ -53,35 +51,31 @@ class KeyManager : SpruceKitKeyStore {
         return entry.secretKey
     }
 
-    /**
-     * Resets the Keystore by removing all of the keys.
-     */
+    /** Resets the Keystore by removing all of the keys. */
     fun reset() {
         val ks = getKeyStore()
-        ks.aliases().iterator().forEach {
-            ks.deleteEntry(it)
-        }
+        ks.aliases().iterator().forEach { ks.deleteEntry(it) }
     }
 
     /**
-     * Generates a secp256r1 signing key by id/alias in the Keystore with Strongbox when
-     * min SDK and hardware requirements are met, otherwise using TEE.
+     * Generates a secp256r1 signing key by id/alias in the Keystore with Strongbox when min SDK and
+     * hardware requirements are met, otherwise using TEE.
      * @property id of the secret key.
      * @returns KeyManagerEnvironment indicating the environment used to generate the key.
      */
-    fun generateSigningKey(id: String): KeyManagerEnvironment {
+    fun generateSigningKey(id: String, challenge: ByteArray? = null): KeyManagerEnvironment {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                generateSigningKeyWithStrongbox(id)
+                generateSigningKeyWithStrongbox(id, challenge)
 
                 return KeyManagerEnvironment.Strongbox
             } else {
-                generateSigningKeyTEE(id)
+                generateSigningKeyTEE(id, challenge)
 
                 return KeyManagerEnvironment.TEE
             }
         } catch (e: Exception) {
-            generateSigningKeyTEE(id)
+            generateSigningKeyTEE(id, challenge)
 
             return KeyManagerEnvironment.TEE
         }
@@ -92,21 +86,27 @@ class KeyManager : SpruceKitKeyStore {
      * @property id of the secret key.
      */
     @RequiresApi(Build.VERSION_CODES.P)
-    private fun generateSigningKeyWithStrongbox(id: String) {
-        val generator = KeyPairGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_EC,
-            "AndroidKeyStore",
-        )
+    fun generateSigningKeyWithStrongbox(id: String, challenge: ByteArray? = null) {
+        val generator =
+            KeyPairGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_EC,
+                "AndroidKeyStore",
+            )
 
-        val spec = KeyGenParameterSpec.Builder(
-            id,
-            KeyProperties.PURPOSE_SIGN
-                    or KeyProperties.PURPOSE_VERIFY,
-        )
-            .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
-            .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
-            .setIsStrongBoxBacked(true)
-            .build()
+        val spec =
+            KeyGenParameterSpec.Builder(
+                id,
+                KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
+            )
+                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
+                .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                .setIsStrongBoxBacked(true)
+                .apply {
+                    if (challenge != null) {
+                        setAttestationChallenge(challenge)
+                    }
+                }
+                .build()
 
         generator.initialize(spec)
         generator.generateKeyPair()
@@ -116,29 +116,34 @@ class KeyManager : SpruceKitKeyStore {
      * Generates a secp256r1 signing key by id/alias in the Keystore with TEE.
      * @property id of the secret key.
      */
-    private fun generateSigningKeyTEE(id: String) {
-        val generator = KeyPairGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_EC,
-            "AndroidKeyStore",
-        )
+    fun generateSigningKeyTEE(id: String, challenge: ByteArray? = null) {
+        val generator =
+            KeyPairGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_EC,
+                "AndroidKeyStore",
+            )
 
-        val spec = KeyGenParameterSpec.Builder(
-            id,
-            KeyProperties.PURPOSE_SIGN
-                    or KeyProperties.PURPOSE_VERIFY,
-        )
-            .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
-            .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
-            .build()
+        val spec =
+            KeyGenParameterSpec.Builder(
+                id,
+                KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY,
+            )
+                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
+                .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
+                .apply {
+                    if (challenge != null) {
+                        setAttestationChallenge(challenge)
+                    }
+                }
+                .build()
 
         generator.initialize(spec)
         generator.generateKeyPair()
     }
 
     /**
-     * Assumes the value above 32 will always be 33.
-     * BigInteger will add an extra byte to keep the number positive.
-     * But the key values will always be 32 bytes.
+     * Assumes the value above 32 will always be 33. BigInteger will add an extra byte to keep the
+     * number positive. But the key values will always be 32 bytes.
      * @property input byte array to be processed.
      * @return byte array with 32 bytes.
      */
@@ -164,20 +169,55 @@ class KeyManager : SpruceKitKeyStore {
         if (key is KeyStore.PrivateKeyEntry) {
             if (key.certificate.publicKey is ECPublicKey) {
                 val ecPublicKey = key.certificate.publicKey as ECPublicKey
-                val x = Base64.encodeToString(
-                    clampOrFill(ecPublicKey.w.affineX.toByteArray()),
-                    Base64.URL_SAFE
-                            xor Base64.NO_PADDING
-                            xor Base64.NO_WRAP
-                )
-                val y = Base64.encodeToString(
-                    clampOrFill(ecPublicKey.w.affineY.toByteArray()),
-                    Base64.URL_SAFE
-                            xor Base64.NO_PADDING
-                            xor Base64.NO_WRAP
-                )
+                val x =
+                    Base64.encodeToString(
+                        clampOrFill(ecPublicKey.w.affineX.toByteArray()),
+                        Base64.URL_SAFE xor Base64.NO_PADDING xor Base64.NO_WRAP
+                    )
+                val y =
+                    Base64.encodeToString(
+                        clampOrFill(ecPublicKey.w.affineY.toByteArray()),
+                        Base64.URL_SAFE xor Base64.NO_PADDING xor Base64.NO_WRAP
+                    )
 
                 return """{"kty":"EC","crv":"P-256","alg":"ES256","x":"$x","y":"$y"}"""
+            }
+        }
+
+        return null
+    }
+
+    /**
+     *
+     * Returns the public key as CBOR-encoded COSE key.
+     */
+    fun coseKeyEc2P256PubKey(id: String): ByteArray? {
+        val ks = getKeyStore()
+        val key = ks.getEntry(id, null)
+
+        if (key is KeyStore.PrivateKeyEntry) {
+            if (key.certificate.publicKey is ECPublicKey) {
+                val ecPublicKey = key.certificate.publicKey as ECPublicKey
+                val x = clampOrFill(ecPublicKey.w.affineX.toByteArray())
+                val y = clampOrFill(ecPublicKey.w.affineY.toByteArray())
+
+                return coseKeyEc2P256PublicKey(x, y, id.toByteArray())
+            }
+        }
+
+        return null
+    }
+
+    /**
+     *  Returns the certificate corresponding to the key ID provided
+     */
+    fun keyCertificateChain(id: String): List<ByteArray>? {
+        val ks = getKeyStore()
+        val key = ks.getEntry(id, null)
+
+        if (key is KeyStore.PrivateKeyEntry) {
+            if (key.certificate.publicKey is ECPublicKey) {
+                return key.certificateChain.map { it.encoded }
             }
         }
 
@@ -243,21 +283,22 @@ class KeyManager : SpruceKitKeyStore {
      * @property id of the secret key.
      */
     @RequiresApi(Build.VERSION_CODES.P)
-    private fun generateEncryptionKeyWithStrongbox(id: String) {
-        val generator = KeyGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_AES,
-            "AndroidKeyStore",
-        )
+    fun generateEncryptionKeyWithStrongbox(id: String) {
+        val generator =
+            KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES,
+                "AndroidKeyStore",
+            )
 
-        val spec = KeyGenParameterSpec.Builder(
-            id,
-            KeyProperties.PURPOSE_ENCRYPT
-                    or KeyProperties.PURPOSE_DECRYPT,
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setIsStrongBoxBacked(true)
-            .build()
+        val spec =
+            KeyGenParameterSpec.Builder(
+                id,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setIsStrongBoxBacked(true)
+                .build()
 
         generator.init(spec)
         generator.generateKey()
@@ -267,20 +308,21 @@ class KeyManager : SpruceKitKeyStore {
      * Generates an AES encryption key with a provided id in the Keystore.
      * @property id of the secret key.
      */
-    private fun generateEncryptionKeyWithTEE(id: String) {
-        val generator = KeyGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_AES,
-            "AndroidKeyStore",
-        )
+    fun generateEncryptionKeyWithTEE(id: String) {
+        val generator =
+            KeyGenerator.getInstance(
+                KeyProperties.KEY_ALGORITHM_AES,
+                "AndroidKeyStore",
+            )
 
-        val spec = KeyGenParameterSpec.Builder(
-            id,
-            KeyProperties.PURPOSE_ENCRYPT
-                    or KeyProperties.PURPOSE_DECRYPT,
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .build()
+        val spec =
+            KeyGenParameterSpec.Builder(
+                id,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .build()
 
         generator.init(spec)
         generator.generateKey()
@@ -304,7 +346,7 @@ class KeyManager : SpruceKitKeyStore {
 
     /**
      * Decrypts the provided payload by a key id and initialization vector.
-     * @property id  of the secret key.
+     * @property id of the secret key.
      * @property iv initialization vector.
      * @property payload to be encrypted.
      * @return the decrypted payload.
@@ -318,8 +360,8 @@ class KeyManager : SpruceKitKeyStore {
     }
 
     /**
-     * Encrypts data using envelope encryption pattern with direct AES/GCM.
-     * This method is much faster for large payloads than hardware security modules.
+     * Encrypts data using envelope encryption pattern with direct AES/GCM. This method is much
+     * faster for large payloads than hardware security modules.
      *
      * Reference:https://cloud.google.com/kms/docs/envelope-encryption
      *
@@ -339,8 +381,8 @@ class KeyManager : SpruceKitKeyStore {
     }
 
     /**
-     * Decrypts data using envelope encryption pattern with direct AES/GCM.
-     * This method is much faster for large payloads than hardware security modules.
+     * Decrypts data using envelope encryption pattern with direct AES/GCM. This method is much
+     * faster for large payloads than hardware security modules.
      *
      * Reference: https://cloud.google.com/kms/docs/envelope-encryption
      *
@@ -359,7 +401,7 @@ class KeyManager : SpruceKitKeyStore {
     }
 
     override fun getSigningKey(alias: KeyAlias): SigningKey {
-        val jwk = this.getJwk(alias) ?: throw Error("key not found");
+        val jwk = this.getJwk(alias) ?: throw Error("key not found")
         return P256SigningKey(alias, jwk)
     }
 }
@@ -369,8 +411,8 @@ class P256SigningKey(private val alias: String, private val jwk: String) : Signi
     override fun jwk(): String = this.jwk
 
     override fun sign(payload: ByteArray): ByteArray {
-        val derSignature = KeyManager().signPayload(alias, payload) ?: throw Error("key not found");
+        val derSignature = KeyManager().signPayload(alias, payload) ?: throw Error("key not found")
         return CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(derSignature)
-            ?: throw Error("signature encoding not recognized");
+            ?: throw Error("signature encoding not recognized")
     }
 }

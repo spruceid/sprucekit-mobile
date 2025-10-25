@@ -26,7 +26,7 @@ extension View {
 }
 
 extension RequestedField: Hashable, Equatable {
-    public static func ==(lhs: RequestedField, rhs: RequestedField) -> Bool {
+    public static func == (lhs: RequestedField, rhs: RequestedField) -> Bool {
         return ObjectIdentifier(lhs) == ObjectIdentifier(rhs)
     }
 

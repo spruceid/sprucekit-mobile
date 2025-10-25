@@ -14,9 +14,9 @@ enum DCAPIState {
 @available(iOS 26.0, *)
 public struct DocumentProviderExtensionView: View {
     @State private var state: DCAPIState = .selectCredential
-    @State private var initLoad: MdocSelector? = nil;
-    let context: ISO18013MobileDocumentRequestContext;
-    
+    @State private var initLoad: MdocSelector?
+    let context: ISO18013MobileDocumentRequestContext
+
     public init(context: ISO18013MobileDocumentRequestContext) {
         self.context = context
     }
@@ -32,13 +32,13 @@ public struct DocumentProviderExtensionView: View {
                 }
             )
         case .selectCredential:
-            if (initLoad == nil) {
+            if initLoad == nil {
                 Text("Loading...")
                     .task {
                         do {
                             var bundle = Bundle.main
                             let appGroupId = bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String
-                            
+
                             let presentmentRequests = context.request.presentmentRequests.map({presentmentRequest in
                                 let requestSets = presentmentRequest.documentRequestSets.map({documentRequestSet in
                                     let requests = documentRequestSet.requests.map({request in
@@ -55,7 +55,7 @@ public struct DocumentProviderExtensionView: View {
                                 })
                                 return Iosiso18013MobileDocumentRequestPresentmentRequest(documentRequestSets: requestSets, isMandatory: presentmentRequest.isMandatory)
                             })
-                            let document_request = Iosiso18013MobileDocumentRequest(presentmentRequests: presentmentRequests);
+                            let document_request = Iosiso18013MobileDocumentRequest(presentmentRequests: presentmentRequests)
                             let credentials = try await CredentialPackObservable(appGroupId: appGroupId).loadAndUpdateAll().flatMap({pack in
                                 pack.list()
                             })
@@ -89,7 +89,7 @@ public struct DocumentProviderExtensionView: View {
                             try await context.sendResponse { rawRequest in
                                 var origin = origin.absoluteString
                                 if origin.last == "/" {
-                                    let _ = origin.popLast()
+                                    _ = origin.popLast()
                                 }
                                 let responseData = try await buildAnnexCResponse(request: rawRequest.requestData, origin: origin, selectedMatch: selectedMatch, parsedCredentials: credentials, approvedResponse: approvedResponse, keyStore: KeyManager())
                                 return ISO18013MobileDocumentResponse(responseData: responseData)

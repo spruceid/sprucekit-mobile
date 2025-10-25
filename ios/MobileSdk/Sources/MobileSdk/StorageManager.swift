@@ -5,14 +5,13 @@
 /// iCloud backps.
 
 import Foundation
-
 import SpruceIDMobileSdkRs
 
 // The following is a stripped-down version of the protocol definition from the Rust layer against which the storage
 // manager is intended to link.
 
 /// Store and retrieve sensitive data.
-public class StorageManager: NSObject, StorageManagerInterface {
+public class StorageManager: NSObject, StorageManagerInterface, @unchecked Sendable {
     let appGroupId: String?
 
     /// - Parameters:
@@ -28,34 +27,42 @@ public class StorageManager: NSObject, StorageManagerInterface {
             throw StorageManagerError.InternalError
         }
         let fileman = FileManager.default
-        var bundle = Bundle.main
-        guard let appGroupAsdir = fileman.containerURL(forSecurityApplicationGroupIdentifier: appGroupId!)
+        let bundle = Bundle.main
+        guard
+            let appGroupAsdir = fileman.containerURL(
+                forSecurityApplicationGroupIdentifier: appGroupId!)
         else {
             throw StorageManagerError.InternalError
         }
-        let appAsdir = try fileman.url(for: .applicationSupportDirectory,
-                                       in: .userDomainMask,
-                                       appropriateFor: nil, // Ignored
-                                       create: false)
-        guard let appname = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ??
-            bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+        let appAsdir = try fileman.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,  // Ignored
+            create: false)
+        guard
+            let appname = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+                ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
         else {
             throw StorageManagerError.InternalError
         }
         let appGroupDatadir: URL
         let appDatadir: URL
         if #available(iOS 16.0, *) {
-            appGroupDatadir = appGroupAsdir.appending(path: "\(appname)/sprucekit/datastore/",
-                                                      directoryHint: .isDirectory)
-            appDatadir = appAsdir.appending(path: "\(appname)/sprucekit/datastore/", directoryHint: .isDirectory)
+            appGroupDatadir = appGroupAsdir.appending(
+                path: "\(appname)/sprucekit/datastore/",
+                directoryHint: .isDirectory)
+            appDatadir = appAsdir.appending(
+                path: "\(appname)/sprucekit/datastore/", directoryHint: .isDirectory)
         } else {
-            appGroupDatadir = appGroupAsdir.appendingPathComponent("\(appname)/sprucekit/datastore/")
+            appGroupDatadir = appGroupAsdir.appendingPathComponent(
+                "\(appname)/sprucekit/datastore/")
             appDatadir = appAsdir.appendingPathComponent("\(appname)/sprucekit/datastore/")
         }
         if fileman.fileExists(atPath: appDatadir.path) {
-            try fileman.createDirectory(at: appGroupDatadir.deletingLastPathComponent(),
-                                        withIntermediateDirectories: true,
-                                        attributes: nil)
+            try fileman.createDirectory(
+                at: appGroupDatadir.deletingLastPathComponent(),
+                withIntermediateDirectories: true,
+                attributes: nil)
             try fileman.moveItem(at: appDatadir, to: appGroupDatadir)
         }
     }
@@ -85,14 +92,17 @@ public class StorageManager: NSObject, StorageManagerInterface {
                 }
             }
 
-            guard let asdir = if let id = appGroupId {
-                fileman.containerURL(forSecurityApplicationGroupIdentifier: id)
-            } else {
-                try fileman.url(for: .applicationSupportDirectory,
-                                in: .userDomainMask,
-                                appropriateFor: nil, // Ignored
-                                create: true) // May not exist, make if necessary.
-            } else {
+            guard
+                let asdir =
+                    if let id = appGroupId {
+                        fileman.containerURL(forSecurityApplicationGroupIdentifier: id)
+                    } else {
+                        try fileman.url(
+                            for: .applicationSupportDirectory,
+                            in: .userDomainMask,
+                            appropriateFor: nil,  // Ignored
+                            create: true)  // May not exist, make if necessary.
+                    } else {
                 return nil
             }
 
@@ -100,8 +110,9 @@ public class StorageManager: NSObject, StorageManagerInterface {
             // named after the app; normally, that's `CFBundleDisplayName` from `info.plist`, but that key doesn't
             // have to be set, in which case we need to use `CFBundleName`.
 
-            guard let appname = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ??
-                bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
+            guard
+                let appname = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String
+                    ?? bundle.object(forInfoDictionaryKey: "CFBundleName") as? String
             else {
                 return nil
             }
@@ -109,13 +120,15 @@ public class StorageManager: NSObject, StorageManagerInterface {
             let datadir: URL
 
             if #available(iOS 16.0, *) {
-                datadir = asdir.appending(path: "\(appname)/sprucekit/datastore/", directoryHint: .isDirectory)
+                datadir = asdir.appending(
+                    path: "\(appname)/sprucekit/datastore/", directoryHint: .isDirectory)
             } else {
                 datadir = asdir.appendingPathComponent("\(appname)/sprucekit/datastore/")
             }
 
             if !fileman.fileExists(atPath: datadir.path) {
-                try fileman.createDirectory(at: datadir, withIntermediateDirectories: true, attributes: nil)
+                try fileman.createDirectory(
+                    at: datadir, withIntermediateDirectories: true, attributes: nil)
             }
 
             return datadir.appendingPathComponent(file)

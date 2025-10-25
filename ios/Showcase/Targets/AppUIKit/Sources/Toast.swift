@@ -10,14 +10,14 @@ class ToastManager: ObservableObject {
     @Published var message: String?
     @Published var type: ToastType = .success
     @Published var isShowing: Bool = false
-    
+
     private var hideToastWorkItem: DispatchWorkItem?
 
     func showSuccess(message: String, duration: TimeInterval = 3.0) {
         self.message = message
         self.type = .success
         self.isShowing = true
-        
+
         scheduleHideToast(duration: duration)
     }
 
@@ -25,7 +25,7 @@ class ToastManager: ObservableObject {
         self.message = message
         self.type = .warning
         self.isShowing = true
-        
+
         scheduleHideToast(duration: duration)
     }
 
@@ -33,24 +33,24 @@ class ToastManager: ObservableObject {
         self.message = message
         self.type = .error
         self.isShowing = true
-        
+
         scheduleHideToast(duration: duration)
     }
-    
+
     private func scheduleHideToast(duration: TimeInterval) {
         hideToastWorkItem?.cancel()
-        
+
         hideToastWorkItem = DispatchWorkItem { [weak self] in
             DispatchQueue.main.async {
                 self?.isShowing = false
             }
         }
-        
+
         if let workItem = hideToastWorkItem {
             DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: workItem)
         }
     }
-    
+
     func hideToast() {
         hideToastWorkItem?.cancel()
         isShowing = false

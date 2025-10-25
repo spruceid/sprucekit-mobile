@@ -21,7 +21,7 @@ struct CredentialDetailsView: View {
     @State var credentialItem: (any ICredentialView)?
     @State var credentialDetailsViewTabs = [
         CredentialDetailsViewTab(image: "Info"),
-        CredentialDetailsViewTab(image: "QRCodeReader"),
+        CredentialDetailsViewTab(image: "QRCodeReader")
     ]
     @State private var selectedTab = 0
 
@@ -67,8 +67,7 @@ struct CredentialDetailsView: View {
                                     if CredentialStatusList.revoked
                                         != statusListObservable.statusLists[
                                             credentialPackId
-                                        ]
-                                    {
+                                        ] {
                                         AnyView(
                                             self.credentialItem!
                                                 .credentialDetails()
@@ -91,7 +90,7 @@ struct CredentialDetailsView: View {
                                 credentialPackId: credentialPackId,
                                 supportedTypes: [
                                     SupportedQRTypes.oid4vp,
-                                    SupportedQRTypes.http,
+                                    SupportedQRTypes.http
                                 ],
                                 backgroundColor: Color("ColorBase50"),
                                 hideCancelButton: true

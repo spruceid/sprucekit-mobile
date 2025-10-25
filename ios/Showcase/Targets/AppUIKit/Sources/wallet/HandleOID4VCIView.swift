@@ -3,7 +3,7 @@ import SpruceIDMobileSdkRs
 import SwiftUI
 
 struct HandleOID4VCI: Hashable {
-    var url: String, onSuccess: (() -> Void)? = nil
+    var url: String, onSuccess: (() -> Void)?
 
     static func == (lhs: HandleOID4VCI, rhs: HandleOID4VCI) -> Bool {
         lhs.url == rhs.url

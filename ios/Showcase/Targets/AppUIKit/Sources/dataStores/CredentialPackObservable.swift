@@ -11,7 +11,7 @@ class CredentialPackObservable: ObservableObject {
             appGroupId: appGroupId)
         self.credentialPacks = credentialPacks
     }
-    
+
     public func registerUnregisteredIDProviderDocuments() async throws {
         for credentialPack in credentialPacks {
             try await credentialPack.registerUnregisteredIDProviderDocuments()

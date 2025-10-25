@@ -61,7 +61,7 @@ struct WalletSettingsHomeBody: View {
     var onBack: () -> Void
     @State private var isApplyingForMdl = false
     @State var showDeleteDialog: Bool = false
-    
+
     @ViewBuilder
     var activityLogButton: some View {
         Button {
@@ -125,7 +125,7 @@ struct WalletSettingsHomeBody: View {
                         print(error)
                     }
                 }
-                let _ = HacApplicationDataStore.shared.deleteAll()
+                _ = HacApplicationDataStore.shared.deleteAll()
             }
         }
         message: {
@@ -190,7 +190,7 @@ struct WalletSettingsHomeBody: View {
                         } else {
                             print("hacApplication is nil")
                         }
-                    case .readyToProvision(_):
+                    case .readyToProvision:
                         print("Expected ProofingRequired status")
                         ToastManager.shared.showError(
                             message:

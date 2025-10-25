@@ -116,8 +116,7 @@ struct WalletHomeBody: View {
                     loadingText: ""
                 )
             } else if !credentialPackObservable.credentialPacks.isEmpty
-                || !hacApplicationObservable.hacApplications.isEmpty
-            {
+                || !hacApplicationObservable.hacApplications.isEmpty {
                 ZStack {
                     ScrollView(.vertical, showsIndicators: false) {
                         Section {

@@ -8,8 +8,7 @@ func credentialDisplayerSelector(
     goTo: (() -> Void)? = nil,
     onDelete: (() -> Void)? = nil
 ) async throws
-    -> any ICredentialView
-{
+    -> any ICredentialView {
     return GenericCredentialItem(
         credentialPack: try await addCredential(
             credentialPack: CredentialPack(),
@@ -33,31 +32,24 @@ func credentialDisplayerSelector(
 }
 
 func addCredential(credentialPack: CredentialPack, rawCredential: String) async throws
-    -> CredentialPack
-{
+    -> CredentialPack {
     if (try? credentialPack.addJwtVc(
-        jwtVc: JwtVc.newFromCompactJws(jws: rawCredential))) != nil
-    {
+        jwtVc: JwtVc.newFromCompactJws(jws: rawCredential))) != nil {
     } else if (try? credentialPack.addJsonVc(
-        jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential))) != nil
-    {
+        jsonVc: JsonVc.newFromJson(utf8JsonString: rawCredential))) != nil {
     } else if (try? credentialPack.addSdJwt(
-        sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential))) != nil
-    {
+        sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential))) != nil {
     } else if (try? credentialPack.addCwt(
-        cwt: Cwt.newFromBase10(payload: rawCredential))) != nil
-    {
+        cwt: Cwt.newFromBase10(payload: rawCredential))) != nil {
     } else if (try? await credentialPack.addMDoc(
         mdoc: Mdoc.fromStringifiedDocument(
             stringifiedDocument: rawCredential, keyAlias: UUID().uuidString)))
-        != nil
-    {
+        != nil {
     } else if (try? await credentialPack.addMDoc(
         mdoc: Mdoc.newFromBase64urlEncodedIssuerSigned(
             base64urlEncodedIssuerSigned: rawCredential,
             keyAlias: UUID().uuidString)))
-        != nil
-    {
+        != nil {
     } else {
         throw CredentialError.parsingError(
             "Couldn't parse credential: \(rawCredential)")
@@ -66,8 +58,7 @@ func addCredential(credentialPack: CredentialPack, rawCredential: String) async 
 }
 
 func credentialHasType(credentialPack: CredentialPack, credentialType: String)
-    -> Bool
-{
+    -> Bool {
     let credentialTypes = credentialPack.findCredentialClaims(claimNames: [
         "type"
     ])
@@ -91,8 +82,7 @@ func credentialPackHasMdoc(credentialPack: CredentialPack) -> Bool {
 func genericObjectFlattener(
     object: [String: GenericJSON], filter: [String] = []
 ) -> [String:
-    String]
-{
+    String] {
     var res: [String: String] = [:]
     object
         .filter { !filter.contains($0.key) }
@@ -128,7 +118,7 @@ func getCredentialIdTitleAndIssuer(
     credentialPack: CredentialPack, credential: ParsedCredential? = nil
 ) -> (String, String, String) {
     let claims = credentialPack.findCredentialClaims(claimNames: [
-        "name", "type", "issuer", "issuing_authority",
+        "name", "type", "issuer", "issuing_authority"
     ])
 
     var cred: Dictionary<Uuid, [String: GenericJSON]>.Element?
@@ -145,7 +135,7 @@ func getCredentialIdTitleAndIssuer(
         })
     }
     // Mdoc
-    if credential?.asMsoMdoc() != nil || cred == nil{
+    if credential?.asMsoMdoc() != nil || cred == nil {
         cred =
             claims
             .first(where: {
@@ -175,12 +165,10 @@ func getCredentialIdTitleAndIssuer(
 
     var issuer = ""
     if let issuerName = credentialValue["issuer"]?.dictValue?["name"]?
-        .toString()
-    {
+        .toString() {
         issuer = issuerName
     } else if let issuerId = credentialValue["issuer"]?.dictValue?["id"]?
-        .toString()
-    {
+        .toString() {
         issuer = issuerId
     } else if let issuerId = credentialValue["issuer"]?.toString() {
         issuer = issuerId

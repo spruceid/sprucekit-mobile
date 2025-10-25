@@ -51,7 +51,7 @@ struct CredentialDate: View {
         } else if let date = genericDateOnlyFormatter.date(from: dateString) {
             self.parsedDate = dateOnlyFormatter.string(from: date)
         } else if let timestamp = Double(dateString) {
-            let date = Date(timeIntervalSince1970: timestamp);
+            let date = Date(timeIntervalSince1970: timestamp)
             self.parsedDate = dateOnlyFormatter.string(from: date)
         } else {
             print("no... \(dateString)")

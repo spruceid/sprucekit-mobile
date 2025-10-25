@@ -1,8 +1,7 @@
 import Foundation
-
 import SpruceIDMobileSdkRs
 
-public class Oid4vciSyncHttpClient: SyncHttpClient {
+public class Oid4vciSyncHttpClient: SyncHttpClient, @unchecked Sendable {
     public init() {}
 
     public func httpClient(request: HttpRequest) throws -> HttpResponse {
@@ -11,9 +10,10 @@ public class Oid4vciSyncHttpClient: SyncHttpClient {
         }
 
         let session = URLSession.shared
-        var req = URLRequest(url: url,
-                             cachePolicy: .useProtocolCachePolicy,
-                             timeoutInterval: 60)
+        var req = URLRequest(
+            url: url,
+            cachePolicy: .useProtocolCachePolicy,
+            timeoutInterval: 60)
         req.httpMethod = request.method
         req.httpBody = request.body
         req.allHTTPHeaderFields = request.headers
@@ -75,7 +75,7 @@ public class Oid4vciSyncHttpClient: SyncHttpClient {
     }
 }
 
-public class Oid4vciAsyncHttpClient: AsyncHttpClient {
+public class Oid4vciAsyncHttpClient: AsyncHttpClient, @unchecked Sendable {
     public init() {}
 
     public func httpClient(request: HttpRequest) async throws -> HttpResponse {
@@ -84,9 +84,10 @@ public class Oid4vciAsyncHttpClient: AsyncHttpClient {
         }
 
         let session = URLSession.shared
-        var req = URLRequest(url: url,
-                             cachePolicy: .useProtocolCachePolicy,
-                             timeoutInterval: 60)
+        var req = URLRequest(
+            url: url,
+            cachePolicy: .useProtocolCachePolicy,
+            timeoutInterval: 60)
         req.httpMethod = request.method
         req.httpBody = request.body
         req.allHTTPHeaderFields = request.headers
