@@ -3,6 +3,7 @@ import Foundation
 import Security
 import SpruceIDMobileSdkRs
 
+@unchecked Sendable
 public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject {
     /// Migrate keys between access groups. For more information see
     /// https://developer.apple.com/documentation/Security/kSecAttrAccessGroup
@@ -154,7 +155,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     /**
      * Returns the public key as a CBOR-encoded COSE key byte array
      */
-    public static func coseKeyEc2P256PubKey(id: String) -> [UInt8]? {
+    public static func coseKeyEc2P256PubKey(id: String) -> Data? {
         guard let key = getSecretKey(id: id),
             let publicKey = SecKeyCopyPublicKey(key)
         else {
@@ -288,6 +289,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     }
 }
 
+@unchecked Sendable
 public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey {
     private let alias: String
     private let jwkString: String

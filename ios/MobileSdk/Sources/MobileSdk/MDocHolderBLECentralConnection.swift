@@ -10,6 +10,7 @@ public protocol MDocHolderBLECentralConnectionDelegate: AnyObject {
     func connectionEnd()
 }
 
+@unchecked Sendable
 class MDocHolderBLECentralConnection: BLEInternalL2CAPConnection {
     private let controlDelegate: MDocHolderBLECentralConnectionDelegate
 
