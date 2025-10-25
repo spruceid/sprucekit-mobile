@@ -116,7 +116,7 @@ struct DispatchQRView: View {
             }
 
         case .oid4vci:
-            path.append(HandleOID4VCI(url: payload))
+            path.append(HandleOID4VCI(url: payload, onSuccess: {}))
             return true
 
         case .http:

@@ -12,7 +12,7 @@ enum Oid4vpSignerError: Error {
     case illegalArgumentException(reason: String)
 }
 
-class Signer: PresentationSigner {
+class Signer: PresentationSigner, @unchecked Sendable {
     private let keyId: String
     private let _jwk: String
     private let didJwk = DidMethodUtils(method: DidMethod.jwk)

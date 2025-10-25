@@ -67,7 +67,7 @@ public struct ContentView: View {
 
     func handleOid4vciUrl(url: URL) {
         self.path.append(
-            HandleOID4VCI(url: url.absoluteString)
+            HandleOID4VCI(url: url.absoluteString, onSuccess: {})
         )
     }
 

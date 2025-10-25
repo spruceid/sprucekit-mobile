@@ -27,7 +27,7 @@ public class StorageManager: NSObject, StorageManagerInterface, @unchecked Senda
             throw StorageManagerError.InternalError
         }
         let fileman = FileManager.default
-        var bundle = Bundle.main
+        let bundle = Bundle.main
         guard
             let appGroupAsdir = fileman.containerURL(
                 forSecurityApplicationGroupIdentifier: appGroupId!)
