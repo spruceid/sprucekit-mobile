@@ -1,8 +1,7 @@
 import Foundation
 import SpruceIDMobileSdkRs
 
-@unchecked Sendable
-public class Oid4vciSyncHttpClient: SyncHttpClient {
+public class Oid4vciSyncHttpClient: SyncHttpClient, @unchecked Sendable {
     public init() {}
 
     public func httpClient(request: HttpRequest) throws -> HttpResponse {
@@ -76,8 +75,7 @@ public class Oid4vciSyncHttpClient: SyncHttpClient {
     }
 }
 
-@unchecked Sendable
-public class Oid4vciAsyncHttpClient: AsyncHttpClient {
+public class Oid4vciAsyncHttpClient: AsyncHttpClient, @unchecked Sendable {
     public init() {}
 
     public func httpClient(request: HttpRequest) async throws -> HttpResponse {

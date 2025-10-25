@@ -3,8 +3,9 @@ import Foundation
 import Security
 import SpruceIDMobileSdkRs
 
-@unchecked Sendable
-public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject {
+public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject, @unchecked
+    Sendable
+{
     /// Migrate keys between access groups. For more information see
     /// https://developer.apple.com/documentation/Security/kSecAttrAccessGroup
     public func migrateToAccessGroup(oldAccessGroup: String, newAccessGroup: String) throws {
@@ -289,8 +290,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     }
 }
 
-@unchecked Sendable
-public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey {
+public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey, @unchecked Sendable {
     private let alias: String
     private let jwkString: String
 

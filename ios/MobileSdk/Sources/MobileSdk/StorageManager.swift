@@ -11,8 +11,7 @@ import SpruceIDMobileSdkRs
 // manager is intended to link.
 
 /// Store and retrieve sensitive data.
-@unchecked Sendable
-public class StorageManager: NSObject, StorageManagerInterface {
+public class StorageManager: NSObject, StorageManagerInterface, @unchecked Sendable {
     let appGroupId: String?
 
     /// - Parameters:
