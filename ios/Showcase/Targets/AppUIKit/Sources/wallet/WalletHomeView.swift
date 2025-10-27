@@ -16,40 +16,25 @@ struct WalletHomeView: View {
 
 struct WalletHomeHeader: View {
     @Binding var path: NavigationPath
+    
+    var gradientColors = [Color("ColorBlue600"), Color("ColorBase1")]
 
     var body: some View {
-        HStack {
-            Text("Wallet")
-                .font(.customFont(font: .inter, style: .bold, size: .h2))
-                .padding(.leading, 36)
-                .foregroundStyle(Color("ColorStone950"))
-            Spacer()
-            Button {
+        let buttons = [
+            HeaderButton(
+                icon: Image("QRCodeReader"),
+                contentDescription: "Universal QRCode Reader"
+            ) {
                 path.append(DispatchQR())
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("ColorBase150"))
-                        .frame(width: 36, height: 36)
-                    Image("QRCodeReader")
-                        .foregroundColor(Color("ColorStone400"))
-                }
-            }
-            .padding(.trailing, 4)
-            Button {
+            },
+            HeaderButton(
+                icon: Image("User"),
+                contentDescription: "Wallet settings"
+            ) {
                 path.append(WalletSettingsHome())
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("ColorBase150"))
-                        .frame(width: 36, height: 36)
-                    Image("User")
-                        .foregroundColor(Color("ColorStone400"))
-                }
             }
-            .padding(.trailing, 20)
-        }
-        .padding(.top, 10)
+        ]
+        HomeHeader(title: "Wallet", gradientColors: gradientColors, buttons: buttons)
     }
 }
 

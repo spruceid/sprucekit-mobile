@@ -14,30 +14,21 @@ struct VerifierHomeView: View {
 
 struct VerifierHomeHeader: View {
     @Binding var path: NavigationPath
+    var gradientColors = [Color("ColorAmber600"), Color("ColorBase1")]
 
     var body: some View {
-        HStack {
-            Text("Verifier")
-                .font(.customFont(font: .inter, style: .bold, size: .h2))
-                .padding(.leading, 30)
-                .foregroundStyle(Color("ColorStone950"))
-            Spacer()
-            Button {
+        let buttons = [
+            HeaderButton(
+                icon: Image("Cog"),
+                contentDescription: "Verifier settings"
+            ) {
                 path.append(VerifierSettingsHome())
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .foregroundColor(Color("ColorBase150"))
-                        .frame(width: 36, height: 36)
-                    Image("Cog")
-                        .foregroundColor(Color("ColorStone400"))
-                }
-            }
-            .padding(.trailing, 20)
-        }
-        .padding(.top, 10)
+            },
+        ]
+        HomeHeader(title: "Verifier", gradientColors: gradientColors, buttons: buttons)
     }
 }
+
 
 struct VerifierHomeBody: View {
     @Binding var path: NavigationPath
