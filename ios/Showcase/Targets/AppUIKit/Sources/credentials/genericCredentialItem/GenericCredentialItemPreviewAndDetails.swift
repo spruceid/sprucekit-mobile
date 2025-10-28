@@ -35,7 +35,7 @@ struct GenericCredentialItemPreviewAndDetails: View {
                 GenericCredentialItemListItem(
                     credentialPack: credentialPack,
                     onDelete: onDelete,
-                    withOptions: true
+                    withOptions: false
                 )
             }
         }

@@ -1,5 +1,33 @@
 import SwiftUI
 
+/// Struct with styling options for card rendering
+public struct CardStyle {
+    /// Optional image name for the top-left logo
+    var topLeftLogoImage: String?
+    /// Optional color for the top-left logo tint
+    var topLeftLogoTint: Color?
+    /// Optional image name for the card background image
+    var backgroundImage: String?
+    /// Optional list of keys for credential image
+    var credentialImageKeys: [String]?
+    /// Optional formatter for credential image
+    var credentialImageFormatter: (([String: [String: GenericJSON]]) -> any View)?
+
+    public init(
+        topLeftLogoImage: String? = nil,
+        topLeftLogoTint: Color? = nil,
+        backgroundImage: String? = nil,
+        credentialImageKeys: [String]? = nil,
+        credentialImageFormatter: (([String: [String: GenericJSON]]) -> any View)? = nil
+    ) {
+        self.topLeftLogoImage = topLeftLogoImage
+        self.topLeftLogoTint = topLeftLogoTint
+        self.backgroundImage = backgroundImage
+        self.credentialImageKeys = credentialImageKeys
+        self.credentialImageFormatter = credentialImageFormatter
+    }
+}
+
 /// Struct with the specification to display the credential pack in a list view
 public struct CardRenderingListView {
     /// An array of keys that will be used to generate an array of values extracted from the credentials
@@ -26,10 +54,12 @@ public struct CardRenderingListView {
     /// [OPTIONAL] - An array of keys that will be used to generate an array of values extracted from the credentials
     var trailingActionKeys: [String]?
     /**
-    [OPTIONAL] - Method used to create a custom trailing action button. 
+    [OPTIONAL] - Method used to create a custom trailing action button.
     Receives an array of values based on the array of keys for the same field
     */
     var trailingActionButton: (([String: [String: GenericJSON]]) -> any View)?
+    /// [OPTIONAL] - Styling configuration for the card
+    var cardStyle: CardStyle?
 
     public init(
         titleKeys: [String],
@@ -39,7 +69,8 @@ public struct CardRenderingListView {
         leadingIconKeys: [String]? = nil,
         leadingIconFormatter: (([String: [String: GenericJSON]]) -> any View)? = nil,
         trailingActionKeys: [String]? = nil,
-        trailingActionButton: (([String: [String: GenericJSON]]) -> any View)? = nil
+        trailingActionButton: (([String: [String: GenericJSON]]) -> any View)? = nil,
+        cardStyle: CardStyle? = nil
     ) {
         self.titleKeys = titleKeys
         self.titleFormatter = titleFormatter
@@ -49,6 +80,7 @@ public struct CardRenderingListView {
         self.leadingIconFormatter = leadingIconFormatter
         self.trailingActionKeys = trailingActionKeys
         self.trailingActionButton = trailingActionButton
+        self.cardStyle = cardStyle
     }
 }
 
@@ -135,47 +167,108 @@ public struct CardListView: View {
     public var body: some View {
         let descriptionValues = credentialPack.findCredentialClaims(claimNames: rendering.descriptionKeys ?? [])
         let titleValues = credentialPack.findCredentialClaims(claimNames: rendering.titleKeys)
-        HStack {
-            // Leading icon
-            if rendering.leadingIconFormatter != nil {
-                AnyView(
-                    rendering.leadingIconFormatter!(
-                        credentialPack.findCredentialClaims(claimNames: rendering.leadingIconKeys ?? [])
-                    )
+
+        ZStack(alignment: .topLeading) {
+            // Background image
+            if let backgroundImage = rendering.cardStyle?.backgroundImage {
+                Image(backgroundImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+
+                // Dark gradient overlay
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.black.opacity(0.0),
+                        Color.black.opacity(0.9)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
             }
-            VStack(alignment: .leading) {
-                // Title
-                if rendering.titleFormatter != nil {
-                    AnyView(rendering.titleFormatter!(titleValues))
-                } else if titleValues.count > 0 {
-                    let value = titleValues.values
-                        .reduce("", { $0 + $1.values.map {$0.toString()}
-                        .joined(separator: " ")
-                    })
-                    Text(value)
+
+            VStack(spacing: 0) {
+                // Top row: Logo + Credential Image
+                HStack(alignment: .top) {
+                    // Top-left logo
+                    if let logoImage = rendering.cardStyle?.topLeftLogoImage {
+                        Image(logoImage)
+                            .resizable()
+                            .renderingMode(.template)
+                            .foregroundColor(rendering.cardStyle?.topLeftLogoTint ?? .white)
+                            .frame(width: 24, height: 24)
+                    }
+
+                    Spacer()
+
+                    // Credential image
+                    if let credentialImageFormatter = rendering.cardStyle?.credentialImageFormatter {
+                        AnyView(
+                            credentialImageFormatter(
+                                credentialPack.findCredentialClaims(
+                                    claimNames: rendering.cardStyle?.credentialImageKeys ?? []
+                                )
+                            )
+                        )
+                    }
                 }
-                // Description
-                if rendering.descriptionFormatter != nil {
-                    AnyView(rendering.descriptionFormatter!(descriptionValues))
-                } else if descriptionValues.count > 0 {
-                    let value = descriptionValues.values
-                        .reduce("", { $0 + $1.values.map {$0.toString()}
-                        .joined(separator: " ")
-                    })
-                    Text(value)
+                .padding(20)
+
+                Spacer()
+
+                // Bottom content: Title and Description
+                VStack(alignment: .leading, spacing: 4) {
+                    // Title
+                    if rendering.titleFormatter != nil {
+                        AnyView(rendering.titleFormatter!(titleValues))
+                    } else if titleValues.count > 0 {
+                        let value = titleValues.values
+                            .reduce("", { $0 + $1.values.map {$0.toString()}
+                            .joined(separator: " ")
+                        })
+                        Text(value)
+                            .foregroundColor(.white)
+                    }
+
+                    // Issuer and status row
+                    HStack {
+                         if rendering.descriptionFormatter != nil {
+                            AnyView(rendering.descriptionFormatter!(descriptionValues))
+                        } else if descriptionValues.count > 0 {
+                            let value = descriptionValues.values
+                                .reduce("", { $0 + $1.values.map {$0.toString()}
+                                .joined(separator: " ")
+                            })
+                            Text(value)
+                                .foregroundColor(.white)
+                        }
+                    }
                 }
-            }
-            Spacer()
-            // Trailing action button
-            if rendering.trailingActionButton != nil {
-                AnyView(
-                    rendering.trailingActionButton!(
-                        credentialPack.findCredentialClaims(claimNames: rendering.trailingActionKeys ?? [])
-                    )
-                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
             }
         }
+        .frame(height: 190)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(
+                    LinearGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: Color(red: 0.78, green: 0.75, blue: 0.68), location: 0.0),
+                            .init(color: Color.white.opacity(0.2), location: 0.1),
+                            .init(color: Color.white.opacity(0.2), location: 0.9),
+                            .init(color: Color(red: 0.78, green: 0.75, blue: 0.68), location: 1.0)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(color: Color.black.opacity(0.4), radius: 3, x: 0, y: 0)
     }
 }
 

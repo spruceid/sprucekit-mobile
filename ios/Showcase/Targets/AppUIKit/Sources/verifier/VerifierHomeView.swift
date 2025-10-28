@@ -132,8 +132,9 @@ struct VerifierHomeBody: View {
             self.verificationMethods = VerificationMethodDataStore.shared
                 .getAllVerificationMethods()
         })
-        .padding(.vertical, 20)
+        .padding(.top, 20)
         .padding(.horizontal, 30)
+        .padding(.bottom, 120)
     }
 }
 

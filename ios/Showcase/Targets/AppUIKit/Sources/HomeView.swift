@@ -8,10 +8,9 @@ enum HomeTabs {
 struct HomeView: View {
     @Binding var path: NavigationPath
     @State var tab = HomeTabs.wallet
-
     var body: some View {
-        VStack {
-            ZStack {
+        ZStack(alignment: .bottom) {
+            Group {
                 switch tab {
                 case .wallet:
                     WalletHomeView(path: $path)
@@ -19,11 +18,11 @@ struct HomeView: View {
                     VerifierHomeView(path: $path)
                 }
             }
-            .frame(maxWidth: .infinity)
-
-            HomeBottomTabs(
-                tab: $tab
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .ignoresSafeArea(edges: .bottom)
+            
+            HomeBottomTabs(tab: $tab)
+                .padding(.bottom, 16)
         }
     }
 }

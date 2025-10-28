@@ -70,7 +70,7 @@ struct HomeHeader: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 10)
-            .padding(.bottom, 30)
+            .padding(.bottom, 5)
             .padding(.horizontal, 26)
 
         }

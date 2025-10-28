@@ -105,7 +105,7 @@ struct WalletHomeBody: View {
             {
                 ZStack {
                     ScrollView(.vertical, showsIndicators: false) {
-                        Section {
+                        VStack(spacing: 0) {
                             ForEach(
                                 hacApplicationObservable.hacApplications,
                                 id: \.self.id
@@ -141,6 +141,7 @@ struct WalletHomeBody: View {
                                 )
                             }
                         }
+                        .padding(.bottom, 120)
                     }
                     .refreshable {
                         statusListObservable.hasConnection =
@@ -148,7 +149,7 @@ struct WalletHomeBody: View {
                         await loadCredentials()
                         await hacApplicationObservable.updateAllIssuanceStates()
                     }
-                    .padding(.top, 20)
+                    .padding(.top, 0)
                 }
             } else {
                 WalletHomeViewNoCredentials(

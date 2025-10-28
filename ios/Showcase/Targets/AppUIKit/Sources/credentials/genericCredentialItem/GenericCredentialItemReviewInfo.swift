@@ -18,11 +18,13 @@ struct GenericCredentialItemReviewInfo: View {
     }
 
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             Text("Review Info")
                 .font(.customFont(font: .inter, style: .bold, size: .h0))
                 .padding(.horizontal, 20)
+                .padding(.bottom, 12)
                 .foregroundStyle(Color("ColorStone950"))
+
             VStack {
                 if customItemListItem != nil {
                     AnyView(customItemListItem!())
@@ -34,8 +36,9 @@ struct GenericCredentialItemReviewInfo: View {
                     )
                 }
             }
-            .frame(height: 100)
             .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+
             ScrollView(.vertical, showsIndicators: false) {
                 VStack {
                     if customCredentialItemDetails != nil {
