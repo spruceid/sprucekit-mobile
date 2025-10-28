@@ -1,5 +1,6 @@
 package com.spruceid.mobile.sdk.ble
 
+import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
@@ -8,8 +9,10 @@ import android.bluetooth.le.ScanSettings
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelUuid
+import androidx.annotation.RequiresPermission
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.byteArrayToHex
+import com.spruceid.mobile.sdk.rs.RequestException
 import java.util.*
 
 /**
@@ -66,6 +69,7 @@ class TransportBleCentralClient(
      *
      * @param ident Device engagement identifier for Reader authentication (Section 8.3.3.1.1.3)
      */
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun connect(ident: ByteArray) {
         // Transition to connecting state
         if (!stateMachine.transitionTo(BleConnectionStateMachine.State.CONNECTING)) {
@@ -127,6 +131,10 @@ class TransportBleCentralClient(
                     // Transition to error state on exception
                     stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, e.message)
                     callback?.update(mapOf(Pair("error", e)))
+                } catch (e: RequestException) {
+                    logger.e("${e.message}")
+                    // this is a workaround for now investigate eReaderDevice key missing on last message
+                    disconnect()
                 }
             }
 
@@ -163,6 +171,7 @@ class TransportBleCentralClient(
         gattClient = GattClient(
             gattClientCallback, serviceUUID, isReader
         )
+
         scan()
     }
 

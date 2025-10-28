@@ -56,6 +56,7 @@ import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.PresentmentState
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
@@ -69,7 +70,8 @@ import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 @Composable
 fun ShareMdocView(
     credentialViewModel: CredentialsViewModel,
-    onCancel: () -> Unit
+    mdoc: Mdoc,
+    onCancel: () -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -85,7 +87,7 @@ fun ShareMdocView(
     val launcherMultiplePermissions = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissionsMap ->
-        if (permissionsMap.isNotEmpty()){
+        if (permissionsMap.isNotEmpty()) {
             val areGranted = permissionsMap.values.all { it }
             credentialViewModel.setBluetoothPermissionsGranted(areGranted);
 
@@ -134,7 +136,7 @@ fun ShareMdocView(
         if (isBluetoothEnabled && bluetoothPermissionsGranted) {
             // We do check for permissions
             @SuppressLint("MissingPermission")
-            credentialViewModel.present(getBluetoothManager(context)!!)
+            credentialViewModel.present(getBluetoothManager(context)!!, mdoc)
         }
     }
 
@@ -175,6 +177,7 @@ fun ShareMdocView(
             )
             ShareMdocSelectiveDisclosureView(
                 credentialViewModel = credentialViewModel,
+                mdoc = mdoc,
                 onCancel = onCancel
             )
         }
@@ -201,7 +204,8 @@ fun ShareMdocView(
 @Composable
 fun ShareMdocSelectiveDisclosureView(
     credentialViewModel: CredentialsViewModel,
-    onCancel: () -> Unit
+    mdoc: Mdoc,
+    onCancel: () -> Unit,
 ) {
     val itemsRequests by credentialViewModel.itemsRequest.collectAsState()
     val allowedNamespaces by credentialViewModel.allowedNamespaces.collectAsState()
@@ -319,7 +323,7 @@ fun ShareMdocSelectiveDisclosureView(
                 Button(
                     onClick = {
                         try {
-                            credentialViewModel.submitNamespaces(allowedNamespaces)
+                            credentialViewModel.submitNamespaces(allowedNamespaces, mdoc)
                         } catch (e: Error) {
                             Log.e("SelectiveDisclosureView", e.stackTraceToString())
                         }

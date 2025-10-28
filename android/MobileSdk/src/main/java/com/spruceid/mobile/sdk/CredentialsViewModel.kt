@@ -64,16 +64,6 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         _credentials.value.add(credential)
     }
 
-    private fun firstMdoc(): Mdoc {
-        val mdoc = _credentials.value
-            .map { credential -> credential.asMsoMdoc() }
-            .firstOrNull()
-        if (mdoc == null) {
-            throw Exception("no mdoc found")
-        }
-        return mdoc
-    }
-
     fun toggleAllowedNamespace(docType: String, specName: String, fieldName: String) {
         val allowedForSpec = _allowedNamespaces.value[docType]!![specName]
         if (!allowedForSpec!!.contains(fieldName)) {
@@ -123,13 +113,16 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    suspend fun present(bluetoothManager: BluetoothManager) {
-        Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
+    suspend fun present(bluetoothManager: BluetoothManager, mdoc: Mdoc) {
         _uuid.value = UUID.randomUUID()
-        val mdoc = this.firstMdoc()
         _session.value = initializeMdlPresentationFromBytes(mdoc, _uuid.value.toString())
         _currState.value = PresentmentState.ENGAGING_QR_CODE
-        _transport.value = Transport(bluetoothManager, getApplication<Application>().applicationContext)
+        if (_transport.value == null) _transport.value =
+            Transport(bluetoothManager, getApplication<Application>().applicationContext)
+        Log.d(
+            "CredentialsViewModel.present",
+            "Credentials: ${_credentials.value}, Transport: ${_transport.value}"
+        )
         _transport.value!!
             .initialize(
                 "Holder",
@@ -149,8 +142,7 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         _transport.value = null
     }
 
-    fun submitNamespaces(allowedNamespaces: Map<String, Map<String, List<String>>>) {
-        val mdoc = this.firstMdoc()
+    fun submitNamespaces(allowedNamespaces: Map<String, Map<String, List<String>>>, mdoc: Mdoc) {
         if (allowedNamespaces.isEmpty()) {
             val e = Error("Select at least one namespace")
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())

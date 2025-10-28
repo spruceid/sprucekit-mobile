@@ -215,6 +215,7 @@ class MDocReaderBLEPeripheral: NSObject {
                 }
 
             case .sendingRequest:
+                peripheralManager.stopAdvertising()
                 if machinePendingState == .awaitResponse {
                     machineState = .awaitResponse
                 }
@@ -284,6 +285,7 @@ class MDocReaderBLEPeripheral: NSObject {
     }
 
     func disconnect() {
+        peripheralManager?.updateValue(Data([0x02]), for: stateCharacteristic!, onSubscribedCentrals: nil)
         print("Disconnecting...")
         peripheralManager.stopAdvertising()
         activeStream?.close()
@@ -301,12 +303,6 @@ class MDocReaderBLEPeripheral: NSObject {
 
         machineState = .initial
         machinePendingState = .initial
-
-        peripheralManager = CBPeripheralManager(
-            delegate: self,
-            queue: nil,
-            options: [CBPeripheralManagerOptionShowPowerAlertKey: true]
-        )
         print("✅ Disconnected")
     }
 

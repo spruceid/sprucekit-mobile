@@ -34,7 +34,7 @@ class Transport(
     private val threadPool = BleThreadPool.getInstance(config)
     val stateMachine = BleConnectionStateMachine.getInstance()
 
-    private lateinit var transportBLE: TransportBle
+    private val transportBLE: TransportBle = TransportBle()
 
     /**
      * Initialize BLE Transport according to ISO 18013-5 Section 8.3.3.1.1
@@ -81,7 +81,6 @@ class Transport(
             logger.d("Selecting BLE Retrieval per ISO 18013-5 Section 8.3.3")
 
             stateMachine.start(bluetoothManager, context)
-            transportBLE = TransportBle()
             // Use thread pool for initialization with retry manager
             threadPool.launchIO {
                 val result = retryManager.executeWithRetryAndTimeout(
@@ -135,10 +134,8 @@ class Transport(
             return
         }
 
-        if (this::transportBLE.isInitialized) {
-            logger.logDataTransfer("Sending", payload.size)
-            transportBLE.send(payload)
-        }
+        logger.logDataTransfer("Sending", payload.size)
+        transportBLE.send(payload)
     }
 
     /**
@@ -156,9 +153,7 @@ class Transport(
 
         if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
             try {
-                if (this::transportBLE.isInitialized) {
-                    transportBLE.terminate()
-                }
+                transportBLE.terminate()
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
             } catch (e: Exception) {
                 logger.e("Error during termination", e)
