@@ -39,37 +39,86 @@ struct HacApplicationListItem: View {
 
     var body: some View {
         if let application = hacApplication {
-            HStack {
-                VStack(alignment: .leading) {
-                    VStack(alignment: .leading, spacing: 12) {
+            ZStack {
+                // Background image
+                Image("CredentialBg")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .opacity(0.6)
+
+                // White overlay
+                Color.white.opacity(0.75)
+
+                // Content
+                VStack {
+                    // Top row: Logo and status
+                    HStack(alignment: .top) {
+                        Image("SpruceLogo")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 24, height: 24)
+
+                        Spacer()
+
+                        if issuanceStatus == nil {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(0.8)
+                        } else {
+                            ApplicationStatusSmall(status: issuanceStatus)
+                        }
+                    }
+
+                    Spacer()
+
+                    // Bottom content
+                    VStack(alignment: .leading, spacing: 8) {
                         Text("Mobile Drivers License")
                             .font(
                                 .customFont(
                                     font: .inter,
                                     style: .semiBold,
-                                    size: .h1
+                                    size: .h2
                                 )
                             )
                             .foregroundStyle(Color("ColorStone950"))
-                        ApplicationStatusSmall(
-                            status: issuanceStatus
-                        )
+                            .shadow(color: .black.opacity(0.1), radius: 2, x: 1, y: 1)
+
+                        Text("Credential Application")
+                            .font(
+                                .customFont(
+                                    font: .inter,
+                                    style: .medium,
+                                    size: .p
+                                )
+                            )
+                            .foregroundStyle(Color("ColorStone950").opacity(0.7))
                     }
-                    .padding(.leading, 12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                Spacer()
+                .padding(16)
             }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.03), radius: 5)
-            )
+            .frame(height: 190)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color("ColorBase300"), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(
+                        LinearGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: Color("#C8BFAD"), location: 0.0),
+                                .init(color: Color.white.opacity(0.2), location: 0.3),
+                                .init(color: Color.white.opacity(0.2), location: 0.8),
+                                .init(color: Color("#C8BFAD"), location: 1.0)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
             )
-            .padding(12)
+            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 15)
             .alert("Delete Application", isPresented: $showDeleteDialog) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive) {
@@ -119,37 +168,6 @@ struct HacApplicationListItem: View {
                     }
                 }
             }
-        } else {
-            HStack {
-                VStack(alignment: .leading) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Mobile Drivers License")
-                            .font(
-                                .customFont(
-                                    font: .inter,
-                                    style: .semiBold,
-                                    size: .h1
-                                )
-                            )
-                            .foregroundStyle(Color("ColorStone950"))
-                        ApplicationStatusSmall(status: nil)
-                    }
-                    .padding(.leading, 12)
-                }
-                Spacer()
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.03), radius: 5)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color("ColorBase300"), lineWidth: 1)
-            )
-            .padding(12)
-            .redacted(reason: .placeholder)
         }
     }
 }

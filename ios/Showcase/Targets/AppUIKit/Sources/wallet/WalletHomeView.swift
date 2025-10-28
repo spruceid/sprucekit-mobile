@@ -142,6 +142,7 @@ struct WalletHomeBody: View {
                             }
                         }
                         .padding(.bottom, 120)
+                        .padding(.top, 8)
                     }
                     .refreshable {
                         statusListObservable.hasConnection =
@@ -149,7 +150,6 @@ struct WalletHomeBody: View {
                         await loadCredentials()
                         await hacApplicationObservable.updateAllIssuanceStates()
                     }
-                    .padding(.top, 0)
                 }
             } else {
                 WalletHomeViewNoCredentials(
