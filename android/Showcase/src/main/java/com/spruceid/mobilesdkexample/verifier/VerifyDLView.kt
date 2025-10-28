@@ -1,10 +1,12 @@
 package com.spruceid.mobilesdkexample.verifier
 
+import android.app.Activity
+import android.content.pm.ActivityInfo
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.navigation.NavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -27,8 +29,8 @@ fun VerifyDLView(
 ) {
     val verificationActivityLogsViewModel: VerificationActivityLogsViewModel =
         activityHiltViewModel()
-    var success by remember { mutableStateOf<Boolean?>(null) }
-    var verifying by remember { mutableStateOf<Boolean>(false) }
+    var success by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    var verifying by rememberSaveable { mutableStateOf(false) }
 
 
     fun onRead(content: String) {
@@ -57,6 +59,10 @@ fun VerifyDLView(
     }
 
     fun back() {
+        // Restore orientation when leaving the entire view
+        val activity = (navController.context as? Activity)
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+
         navController.navigate(
             Screen.HomeScreen.route.replace("{tab}", "verifier")
         ) {
@@ -68,7 +74,7 @@ fun VerifyDLView(
         LoadingView(loadingText = "Verifying...")
     } else if (success == null) {
         ScanningComponent(
-            subtitle = "Scan the\nback of your driver's license",
+            subtitle = "Scan the back of your driver's license",
             scanningType = ScanningType.PDF417,
             onRead = ::onRead,
             onCancel = ::back

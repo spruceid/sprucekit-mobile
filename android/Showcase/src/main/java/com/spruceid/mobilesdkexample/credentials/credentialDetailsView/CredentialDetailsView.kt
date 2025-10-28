@@ -96,6 +96,8 @@ fun CredentialDetailsView(
     var currentMode by remember { mutableStateOf(CredentialMode.NONE) }
     // Show/Hide action menu for a credential
     var showBottomSheet by remember { mutableStateOf(false) }
+    // Prevent double-tap navigation
+    var isNavigatingBack by remember { mutableStateOf(false) }
 
     val isLoading by credentialPacksViewModel.loading.collectAsState()
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
@@ -125,6 +127,10 @@ fun CredentialDetailsView(
     }
 
     fun back() {
+        // Prevent double-tap navigation
+        if (isNavigatingBack) return
+        isNavigatingBack = true
+
         // Immediately disable scan mode to cleanup camera faster
         if (currentMode == CredentialMode.SCAN) {
             currentMode = CredentialMode.NONE

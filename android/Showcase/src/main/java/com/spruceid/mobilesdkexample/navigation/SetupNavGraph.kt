@@ -20,7 +20,9 @@ import com.spruceid.mobilesdkexample.verifier.VerifyDLView
 import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
 import com.spruceid.mobilesdkexample.verifier.VerifyEAView
 import com.spruceid.mobilesdkexample.verifier.VerifyMDocView
+import com.spruceid.mobilesdkexample.verifier.VerifyPdf417AamvaView
 import com.spruceid.mobilesdkexample.verifier.VerifyVCView
+import com.spruceid.mobilesdkexample.verifier.VerifyVcbVdlView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsTrustedCertificatesView
@@ -74,6 +76,16 @@ fun SetupNavGraph(
             route = Screen.VerifyMDocScreen.route,
         ) {
             VerifyMDocView(navController)
+        }
+        composable(
+            route = Screen.VerifyVcbVdlScreen.route,
+        ) {
+            VerifyVcbVdlView(navController)
+        }
+        composable(
+            route = Screen.VerifyPdf417Aamva.route,
+        ) {
+            VerifyPdf417AamvaView(navController)
         }
         composable(
             route = Screen.VerifyMDlOver18Screen.route,
