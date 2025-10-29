@@ -1,8 +1,6 @@
 package com.spruceid.mobile.sdk.ui
 
-import android.app.Activity
 import android.content.Context
-import android.content.pm.ActivityInfo
 import android.graphics.ImageFormat
 import android.os.Build
 import android.util.Range
@@ -13,6 +11,8 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.LinearEasing
@@ -26,7 +26,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -59,14 +58,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.ContextCompat
+import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.DecodeHintType
 import com.google.zxing.PlanarYUVLuminanceSource
+import com.google.zxing.common.GlobalHistogramBinarizer
 import com.google.zxing.common.HybridBinarizer
 import com.google.zxing.pdf417.PDF417Reader
 import java.nio.ByteBuffer
 import java.util.EnumMap
+import java.util.concurrent.Executors
 
 @Composable
 fun PDF417Scanner(
@@ -157,7 +158,7 @@ fun PDF417GenericScanner(
         val previewView = PreviewView(context)
         val preview =
             Preview.Builder()
-                .setTargetFrameRate(Range(20, 45))
+                .setTargetFrameRate(Range(30, 60)) // Higher frame rate for faster scanning
                 .setTargetRotation(Surface.ROTATION_0)
                 .build()
         val selector =
@@ -165,12 +166,25 @@ fun PDF417GenericScanner(
                 .requireLensFacing(CameraSelector.LENS_FACING_BACK)
                 .build()
         preview.setSurfaceProvider(previewView.surfaceProvider)
+
+        val resolutionSelector = ResolutionSelector.Builder()
+            .setResolutionStrategy(
+                ResolutionStrategy(
+                    android.util.Size(1920, 1080),
+                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                )
+            )
+            .build()
+
         val imageAnalysis =
             ImageAnalysis.Builder()
+                .setResolutionSelector(resolutionSelector)
                 .setBackpressureStrategy(STRATEGY_KEEP_ONLY_LATEST)
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                 .build()
+
         imageAnalysis.setAnalyzer(
-            ContextCompat.getMainExecutor(context),
+            Executors.newSingleThreadExecutor(),
             imageAnalyzer
         )
         var cameraControl: CameraControl? = null
@@ -289,33 +303,55 @@ class PDF417Analyzer(
 
         if (image.format in supportedImageFormats) {
             val bytes = image.planes[0].buffer.toByteArray()
+
+            val useROI = image.width >= 1280
+            val cropWidth = if (useROI) (image.width * 0.8).toInt() else image.width
+            val cropHeight = if (useROI) (image.height * 0.8).toInt() else image.height
+            val left = if (useROI) (image.width - cropWidth) / 2 else 0
+            val top = if (useROI) (image.height - cropHeight) / 2 else 0
+
             val source =
                 PlanarYUVLuminanceSource(
                     bytes,
                     image.width,
                     image.height,
-                    0,
-                    0,
-                    image.width,
-                    image.height,
+                    left,
+                    top,
+                    cropWidth,
+                    cropHeight,
                     false,
                 )
-            val binaryBmp = BinaryBitmap(HybridBinarizer(source))
 
             val hints: MutableMap<DecodeHintType, Any?> = EnumMap(
                 DecodeHintType::class.java
             )
-
             hints[DecodeHintType.TRY_HARDER] = true
+            hints[DecodeHintType.POSSIBLE_FORMATS] = listOf(BarcodeFormat.PDF_417)
+            hints[DecodeHintType.ALSO_INVERTED] = true
+            hints[DecodeHintType.PURE_BARCODE] = false
+
+            val reader = PDF417Reader()
 
             try {
-                val result = PDF417Reader().decode(binaryBmp, hints)
+                // Try HybridBinarizer first (better for high contrast)
+                val binaryBmp1 = BinaryBitmap(HybridBinarizer(source))
+                val result = reader.decode(binaryBmp1, hints)
                 if (isMatch(result.text)) {
                     hasScanned = true
                     onQrCodeScanned(result.text)
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } catch (e1: Exception) {
+                try {
+                    // Fallback to GlobalHistogramBinarizer for dense/low-contrast codes
+                    val binaryBmp2 = BinaryBitmap(GlobalHistogramBinarizer(source))
+                    val result = reader.decode(binaryBmp2, hints)
+                    if (isMatch(result.text)) {
+                        hasScanned = true
+                        onQrCodeScanned(result.text)
+                    }
+                } catch (e2: Exception) {
+                    // Silent fail - continue to next frame
+                }
             } finally {
                 image.close()
             }
