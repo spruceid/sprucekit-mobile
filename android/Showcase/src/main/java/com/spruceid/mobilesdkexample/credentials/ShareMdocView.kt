@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.credentials
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context

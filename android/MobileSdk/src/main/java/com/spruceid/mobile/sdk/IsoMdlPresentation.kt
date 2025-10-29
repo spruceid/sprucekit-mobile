@@ -1,8 +1,11 @@
 package com.spruceid.mobile.sdk
 
+import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
+import androidx.annotation.RequiresPermission
+import com.spruceid.mobile.sdk.ble.Transport
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.ItemsRequest
@@ -34,6 +37,7 @@ class IsoMdlPresentation(
     var bleManager: Transport? = null
     lateinit var deviceEngagementData: DeviceEngagementData
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun initialize(presentationData: CredentialPresentData = CredentialPresentData.Qr()) {
 
         when (presentationData) {
@@ -48,28 +52,26 @@ class IsoMdlPresentation(
 
         try {
             session = initializeMdlPresentationFromBytes(this.mdoc, deviceEngagementData)
-
-            this.bleManager = Transport(this.bluetoothManager)
-            this.bleManager!!.initialize(
-                "Holder",
-                this.uuid,
-                "BLE",
-                "Central",
-                session!!.getBleIdent(),
-                ::updateRequestData,
-                context,
-                callback
-            )
+            this.bleManager = Transport(this.bluetoothManager, context)
+            this.bleManager!!
+                .initialize(
+                    "Holder",
+                    this.uuid,
+                    "BLE",
+                    "Central",
+                    session!!.getBleIdent(),
+                    ::updateRequestData,
+                    callback
+                )
 
             // Set the callback to the transport BLE client holder callback.
-            callback = this.bleManager!!.transportBLE.transportBleCentralClientHolder.callback
+            callback = this.bleManager!!.transportBLE.transportBleCentralClient.callback
 
             // Only when the Device engagement type is QR do we
             // require the `engagingQRCode`
             if (deviceEngagementData is DeviceEngagementData.Qr && callback != null) {
                 callback!!.update(mapOf(Pair("engagingQRCode", session!!.getQrHandover())))
             }
-
         } catch (e: Error) {
             Log.e("IsoMdlPresentation.constructor", e.toString())
         }

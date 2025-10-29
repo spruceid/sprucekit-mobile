@@ -1,5 +1,12 @@
 package com.spruceid.mobile.sdk
 
+import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.Context
+import android.content.Context.BLUETOOTH_SERVICE
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
 import com.spruceid.mobile.sdk.rs.CborValue
 import com.spruceid.mobile.sdk.rs.LogWriter
@@ -103,4 +110,42 @@ fun CborValue.toText(): String {
         is CborValue.Bytes -> v1.toString()
         CborValue.Null -> ""
     }
+}
+
+fun getPermissions(): List<String> {
+    val permissions =
+        arrayListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+    /**
+     * The OS seems to omit certain permission requests like "BLUETOOTH" to the user depending
+     * on the OS version. Although, this does not cause an error it will create a dependency on
+     * a permission that can never be accepted.
+     */
+    if (Build.VERSION.SDK_INT >= 31) {
+        permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+        permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
+        permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+    } else {
+        permissions.add(Manifest.permission.BLUETOOTH)
+        permissions.add(Manifest.permission.BLUETOOTH_ADMIN)
+        permissions.add(Manifest.permission.BLUETOOTH_PRIVILEGED)
+    }
+
+    return permissions
+}
+
+fun isBluetoothEnabled(context: Context): Boolean {
+    val bluetoothManager = context.getSystemService(BLUETOOTH_SERVICE) as BluetoothManager?
+    val bluetoothAdapter: BluetoothAdapter? = bluetoothManager?.adapter
+
+    return if (bluetoothAdapter == null || !context.packageManager.hasSystemFeature(
+            PackageManager.FEATURE_BLUETOOTH)) {
+        false
+    } else {
+        bluetoothAdapter.isEnabled
+    }
+}
+
+fun getBluetoothManager(context: Context): BluetoothManager? {
+    return context.getSystemService(BLUETOOTH_SERVICE) as? BluetoothManager
 }

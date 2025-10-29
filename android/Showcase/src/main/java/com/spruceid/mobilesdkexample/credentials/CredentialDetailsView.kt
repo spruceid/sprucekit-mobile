@@ -53,7 +53,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialStatusList
@@ -270,9 +269,9 @@ fun CredentialDetailsView(
                             ) {
                                 credentialItem?.let {
                                     if (statusList != CredentialStatusList.REVOKED) {
-                                        credentialItem!!.credentialDetails()
+                                        credentialItem!!.CredentialDetails()
                                     } else {
-                                        credentialItem!!.credentialRevokedInfo {
+                                        credentialItem!!.CredentialRevokedInfo {
                                             back()
                                         }
                                     }
@@ -280,7 +279,7 @@ fun CredentialDetailsView(
                             }
                         }
 
-                       1 ->  {  // Scan to verify
+                        1 -> {  // Scan to verify
                             DispatchQRView(
                                 navController,
                                 credentialPackId,
