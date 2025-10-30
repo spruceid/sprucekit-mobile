@@ -1,8 +1,6 @@
 package com.spruceid.mobilesdkexample.credentials
 
-// import android.widget.Toast
 import android.content.ComponentName
-import androidx.lifecycle.MutableLiveData
 import com.spruceid.mobile.sdk.nfc.BaseNfcPresentationService
 import com.spruceid.mobile.sdk.nfc.NfcPresentationError
 import com.spruceid.mobile.sdk.rs.NegotiatedCarrierInfo

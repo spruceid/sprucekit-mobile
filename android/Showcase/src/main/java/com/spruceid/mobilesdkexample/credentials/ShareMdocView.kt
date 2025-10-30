@@ -58,6 +58,7 @@ import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.PresentmentState
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.nfc.NfcListenManager
 import com.spruceid.mobile.sdk.rs.NegotiatedCarrierInfo
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
@@ -72,7 +73,11 @@ import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 import kotlinx.coroutines.*
 
 @Composable
-fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> Unit) {
+fun QrShareMdocView(
+    credentialViewModel: CredentialsViewModel,
+    mdoc: Mdoc,
+    onCancel: () -> Unit,
+) {
     val context = LocalContext.current
 
     val session by credentialViewModel.session.collectAsState()
@@ -83,18 +88,6 @@ fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> U
 
     var isBluetoothEnabled by remember {
         mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
-    }
-    val launcherMultiplePermissions = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissionsMap ->
-        if (permissionsMap.isNotEmpty()){
-            val areGranted = permissionsMap.values.all { it }
-            credentialViewModel.setBluetoothPermissionsGranted(areGranted);
-
-            if (!areGranted) {
-                // @TODO: Show dialog
-            }
-        }
     }
 
     DisposableEffect(Unit) {
@@ -118,25 +111,14 @@ fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> U
         }
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            credentialViewModel.setBluetoothPermissionsGranted(false)
+    LaunchedEffect(key1 = bluetoothPermissionsGranted) {
+        if (isBluetoothEnabled && bluetoothPermissionsGranted) {
+            // We do check for permissions
+            @SuppressLint("MissingPermission")
+            credentialViewModel.present(getBluetoothManager(context)!!, mdoc, CredentialPresentData.Qr())
         }
     }
 
-    LaunchedEffect(Unit) {
-        checkAndRequestBluetoothPermissions(
-            context,
-            getPermissions().toTypedArray(),
-            launcherMultiplePermissions,
-            credentialViewModel
-        )
-    }
-    LaunchedEffect(key1 = bluetoothPermissionsGranted) {
-        if (isBluetoothEnabled && bluetoothPermissionsGranted) {
-            credentialViewModel.present(getBluetoothManager(context)!!, CredentialPresentData.Qr())
-        }
-    }
 
     when (currentState) {
         PresentmentState.UNINITIALIZED ->
@@ -173,6 +155,7 @@ fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> U
             )
             ShareMdocSelectiveDisclosureView(
                 credentialViewModel = credentialViewModel,
+                mdoc = mdoc,
                 onCancel = onCancel
             )
         }
@@ -198,6 +181,7 @@ fun QrShareMdocView(credentialViewModel: CredentialsViewModel, onCancel: () -> U
 @Composable
 fun NfcShareMdocView(
     credentialViewModel: CredentialsViewModel,
+    mdoc: Mdoc,
     onCancel: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -212,27 +196,16 @@ fun NfcShareMdocView(
         mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
     }
 
-    val launcherMultiplePermissions = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissionsMap ->
-        if (permissionsMap.isNotEmpty()){
-            val areGranted = permissionsMap.values.all { it }
-            credentialViewModel.setBluetoothPermissionsGranted(areGranted);
-
-            if (!areGranted) {
-                // @TODO: Show dialog
-            }
-        }
-    }
-
     DisposableEffect(Unit) {
 
         NfcListenManager.userRequested = true
         NfcPresentationService.shareScreenCallback = { carrierInfo: NegotiatedCarrierInfo ->
             if(isBluetoothEnabled && bluetoothPermissionsGranted) {
                 credentialViewModel.viewModelScope.launch {
+                    @SuppressLint("MissingPermission")
                     credentialViewModel.present(
                         getBluetoothManager(context)!!,
+                        mdoc,
                         CredentialPresentData.Nfc(carrierInfo)
                     )
                 }
@@ -258,21 +231,6 @@ fun NfcShareMdocView(
             context.unregisterReceiver(receiver)
             NfcListenManager.userRequested = false
         }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            credentialViewModel.setBluetoothPermissionsGranted(false)
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        checkAndRequestBluetoothPermissions(
-            context,
-            getPermissions().toTypedArray(),
-            launcherMultiplePermissions,
-            credentialViewModel
-        )
     }
 
     when (currentState) {
@@ -309,6 +267,7 @@ fun NfcShareMdocView(
             )
             ShareMdocSelectiveDisclosureView(
                 credentialViewModel = credentialViewModel,
+                mdoc = mdoc,
                 onCancel = onCancel
             )
         }
@@ -336,7 +295,8 @@ fun NfcShareMdocView(
 @Composable
 fun ShareMdocSelectiveDisclosureView(
     credentialViewModel: CredentialsViewModel,
-    onCancel: () -> Unit
+    mdoc: Mdoc,
+    onCancel: () -> Unit,
 ) {
     val itemsRequests by credentialViewModel.itemsRequest.collectAsState()
     val allowedNamespaces by credentialViewModel.allowedNamespaces.collectAsState()
@@ -457,7 +417,7 @@ fun ShareMdocSelectiveDisclosureView(
                 Button(
                     onClick = {
                         try {
-                            credentialViewModel.submitNamespaces(allowedNamespaces)
+                            credentialViewModel.submitNamespaces(allowedNamespaces, mdoc)
                         } catch (e: Error) {
                             Log.e("SelectiveDisclosureView", e.stackTraceToString())
                         }

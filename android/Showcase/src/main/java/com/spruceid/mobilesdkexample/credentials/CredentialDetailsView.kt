@@ -1,7 +1,6 @@
 package com.spruceid.mobilesdkexample.credentials
 
 import android.Manifest
-import android.app.Application
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -151,6 +150,7 @@ fun CredentialDetailsView(
 
     fun back() {
         navController.navigate(Screen.HomeScreen.route) {
+            credentialViewModel.cancel()
             popUpTo(0)
         }
     }
@@ -290,11 +290,15 @@ fun CredentialDetailsView(
                         }
 
                         2 -> { // Share QR
-                            GenericCredentialDetailsShareQRCode(credentialPack!!)
+                            GenericCredentialDetailsShareQRCode(
+                                credentialPack!!.list().firstOrNull()
+                            )
                         }
 
                         3 -> { // Share NFC
-                            GenericCredentialDetailsShareNFC(credentialPack!!)
+                            GenericCredentialDetailsShareNFC(
+                                credentialPack!!.list().firstOrNull()
+                            )
                         }
                     }
                 }
@@ -361,32 +365,9 @@ fun DetailsViewBottomTabs(
 }
 
 @Composable
-fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
-    val context = LocalContext.current
-    val application = context.applicationContext as Application
+fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
 
-    fun newCredentialViewModel(): CredentialsViewModel {
-        val credentialViewModel = ViewModelProvider.AndroidViewModelFactory(application)
-            .create(CredentialsViewModel::class.java)
-        val parsedCredential: ParsedCredential? =
-            credentialPack.list().firstNotNullOfOrNull { credential ->
-                try {
-                    if (credential.asMsoMdoc() != null) {
-                        return@firstNotNullOfOrNull credential
-                    }
-                } catch (_: Exception) {
-                }
-                null
-            }
-        parsedCredential?.let {
-            credentialViewModel.storeCredential(parsedCredential)
-        }
-        return credentialViewModel
-    }
-
-    val credentialViewModel by remember {
-        mutableStateOf(newCredentialViewModel())
-    }
+    val credentialViewModel: CredentialsViewModel = activityHiltViewModel()
 
     fun cancel() {
         credentialViewModel.cancel()
@@ -407,12 +388,18 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
                 )
                 .padding(8.dp)
         ) {
-            QrShareMdocView(
-                credentialViewModel = credentialViewModel,
-                onCancel = {
-                    cancel()
-                }
-            )
+            credential?.asMsoMdoc()?.let {
+                QrShareMdocView(
+                    credentialViewModel = credentialViewModel,
+                    mdoc = it,
+                    onCancel = {
+                        cancel()
+                    }
+                )
+            } ?: run {
+                Text("Here")
+                //TODO: this is basically a switch, right now only supports mdoc, add new types later
+            }
         }
         Text(
             text = "Present this QR code to a verifier in order to share data. You will see a consent dialogue.",
@@ -429,32 +416,9 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
 }
 
 @Composable
-fun GenericCredentialDetailsShareNFC(credentialPack: CredentialPack) {
-    val context = LocalContext.current
-    val application = context.applicationContext as Application
+fun GenericCredentialDetailsShareNFC(credential: ParsedCredential?) {
 
-    fun newCredentialViewModel(): CredentialsViewModel {
-        val credentialViewModel = ViewModelProvider.AndroidViewModelFactory(application)
-            .create(CredentialsViewModel::class.java)
-        val parsedCredential: ParsedCredential? =
-            credentialPack.list().firstNotNullOfOrNull { credential ->
-                try {
-                    if (credential.asMsoMdoc() != null) {
-                        return@firstNotNullOfOrNull credential
-                    }
-                } catch (_: Exception) {
-                }
-                null
-            }
-        parsedCredential?.let {
-            credentialViewModel.storeCredential(parsedCredential)
-        }
-        return credentialViewModel
-    }
-
-    val credentialViewModel by remember {
-        mutableStateOf(newCredentialViewModel())
-    }
+    val credentialViewModel: CredentialsViewModel = activityHiltViewModel()
 
     fun cancel() {
         credentialViewModel.cancel()
@@ -475,14 +439,18 @@ fun GenericCredentialDetailsShareNFC(credentialPack: CredentialPack) {
                 )
                 .padding(8.dp)
         ) {
-            // TODO: ShareMdocView contains a Bluetooth support check, and displays
-            //       an error message if it's disabled. Maybe we should copy that here?
-            NfcShareMdocView(
-                credentialViewModel = credentialViewModel,
-                onCancel = {
-                    cancel()
-                }
-            )
+            credential?.asMsoMdoc()?.let {
+                NfcShareMdocView(
+                    credentialViewModel = credentialViewModel,
+                    mdoc = it,
+                    onCancel = {
+                        cancel()
+                    }
+                )
+            } ?: run {
+                Text("Here")
+                //TODO: this is basically a switch, right now only supports mdoc, add new types later
+            }
         }
         Text(
             text = "After tapping your device against the reader, you will see a consent dialogue.",

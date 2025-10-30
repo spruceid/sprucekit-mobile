@@ -48,8 +48,6 @@ abstract class BaseNfcPresentationService : HostApduService() {
         Handler(Looper.getMainLooper()).postDelayed(action, delay.inWholeMilliseconds)
     }
 
-    private val TAG = "BaseNfcPresentationService"
-
     override fun processCommandApdu(commandApdu: ByteArray, extras: Bundle?): ByteArray? {
 
         if(!shouldPerformHandoverEngagement()) return null;
@@ -69,6 +67,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
             if (!inNegotiation) {
                 negotiationStarted()
                 inNegotiation = true
+            }
             
             doNotNotifyOnDisconnect = false
             negotiationFailedFlag = false
