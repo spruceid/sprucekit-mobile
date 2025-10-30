@@ -52,11 +52,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewModelScope
+import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.PresentmentState
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.rs.Mdoc
+import com.spruceid.mobile.sdk.nfc.NfcListenManager
+import com.spruceid.mobile.sdk.rs.NegotiatedCarrierInfo
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
@@ -66,9 +70,10 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
+import kotlinx.coroutines.*
 
 @Composable
-fun ShareMdocView(
+fun QrShareMdocView(
     credentialViewModel: CredentialsViewModel,
     mdoc: Mdoc,
     onCancel: () -> Unit,
@@ -83,18 +88,6 @@ fun ShareMdocView(
 
     var isBluetoothEnabled by remember {
         mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
-    }
-    val launcherMultiplePermissions = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissionsMap ->
-        if (permissionsMap.isNotEmpty()) {
-            val areGranted = permissionsMap.values.all { it }
-            credentialViewModel.setBluetoothPermissionsGranted(areGranted);
-
-            if (!areGranted) {
-                // @TODO: Show dialog
-            }
-        }
     }
 
     DisposableEffect(Unit) {
@@ -118,27 +111,14 @@ fun ShareMdocView(
         }
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            credentialViewModel.setBluetoothPermissionsGranted(false)
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        checkAndRequestBluetoothPermissions(
-            context,
-            getPermissions().toTypedArray(),
-            launcherMultiplePermissions,
-            credentialViewModel
-        )
-    }
     LaunchedEffect(key1 = bluetoothPermissionsGranted) {
         if (isBluetoothEnabled && bluetoothPermissionsGranted) {
             // We do check for permissions
             @SuppressLint("MissingPermission")
-            credentialViewModel.present(getBluetoothManager(context)!!, mdoc)
+            credentialViewModel.present(getBluetoothManager(context)!!, mdoc, CredentialPresentData.Qr())
         }
     }
+
 
     when (currentState) {
         PresentmentState.UNINITIALIZED ->
@@ -153,12 +133,11 @@ fun ShareMdocView(
                     )
                 }
             }
-
         PresentmentState.ENGAGING_QR_CODE -> {
-            if (session!!.getQrCodeUri().isNotEmpty()) {
+            if (session!!.getQrHandover().isNotEmpty()) {
                 Image(
                     painter = rememberQrBitmapPainter(
-                        session!!.getQrCodeUri(),
+                        session!!.getQrHandover(),
                         300.dp,
                     ),
                     contentDescription = "Share QRCode",
@@ -166,7 +145,6 @@ fun ShareMdocView(
                 )
             }
         }
-
         PresentmentState.SELECT_NAMESPACES -> {
             Text(
                 text = "Selecting namespaces...",
@@ -181,24 +159,137 @@ fun ShareMdocView(
                 onCancel = onCancel
             )
         }
-
-        PresentmentState.SUCCESS -> Text(
-            text = "Successfully presented credential.",
-            fontFamily = Inter,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            modifier = Modifier.padding(vertical = 20.dp)
-        )
-
-        PresentmentState.ERROR -> Text(
-            text = "Error: $error",
-            fontFamily = Inter,
-            fontWeight = FontWeight.Normal,
-            fontSize = 16.sp,
-            modifier = Modifier.padding(vertical = 20.dp)
-        )
+        PresentmentState.SUCCESS ->
+            Text(
+                text = "Successfully presented credential.",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
+        PresentmentState.ERROR ->
+            Text(
+                text = "Error: $error",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
     }
 }
+
+@Composable
+fun NfcShareMdocView(
+    credentialViewModel: CredentialsViewModel,
+    mdoc: Mdoc,
+    onCancel: () -> Unit,
+) {
+    val context = LocalContext.current
+
+    val session by credentialViewModel.session.collectAsState()
+    val currentState by credentialViewModel.currState.collectAsState()
+    val credentials by credentialViewModel.credentials.collectAsState()
+    val error by credentialViewModel.error.collectAsState()
+    val bluetoothPermissionsGranted by credentialViewModel.bluetoothPermissionsGranted.collectAsState()
+
+    var isBluetoothEnabled by remember {
+        mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
+    }
+
+    DisposableEffect(Unit) {
+
+        NfcListenManager.userRequested = true
+        NfcPresentationService.shareScreenCallback = { carrierInfo: NegotiatedCarrierInfo ->
+            if(isBluetoothEnabled && bluetoothPermissionsGranted) {
+                credentialViewModel.viewModelScope.launch {
+                    @SuppressLint("MissingPermission")
+                    credentialViewModel.present(
+                        getBluetoothManager(context)!!,
+                        mdoc,
+                        CredentialPresentData.Nfc(carrierInfo)
+                    )
+                }
+            }
+        }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == BluetoothAdapter.ACTION_STATE_CHANGED) {
+                    val state =
+                        intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)
+                    when (state) {
+                        BluetoothAdapter.STATE_OFF -> isBluetoothEnabled = false
+                        BluetoothAdapter.STATE_ON -> isBluetoothEnabled = true
+                        else -> {}
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        context.registerReceiver(receiver, filter)
+        onDispose {
+            NfcPresentationService.shareScreenCallback = null
+            context.unregisterReceiver(receiver)
+            NfcListenManager.userRequested = false
+        }
+    }
+
+    when (currentState) {
+        PresentmentState.UNINITIALIZED ->
+            if (credentials.isNotEmpty()) {
+                if (!isBluetoothEnabled) {
+                    Text(
+                        text = "Enable Bluetooth to initialize",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(vertical = 20.dp)
+                    )
+                } else {
+                    Text(
+                        text = "Please tap the device against a reader.",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(vertical = 20.dp)
+                    )
+                }
+            }
+        PresentmentState.ENGAGING_QR_CODE -> {
+            // Unreachable
+        }
+        PresentmentState.SELECT_NAMESPACES -> {
+            Text(
+                text = "Selecting namespaces...",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
+            ShareMdocSelectiveDisclosureView(
+                credentialViewModel = credentialViewModel,
+                mdoc = mdoc,
+                onCancel = onCancel
+            )
+        }
+        PresentmentState.SUCCESS ->
+            Text(
+                text = "Successfully presented credential.",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
+        PresentmentState.ERROR ->
+            Text(
+                text = "Error: $error",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -246,17 +337,15 @@ fun ShareMdocSelectiveDisclosureView(
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 color = ColorStone950,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                 textAlign = TextAlign.Center
             )
 
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .weight(weight = 1f, fill = false)
+                modifier =
+                        Modifier.fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .weight(weight = 1f, fill = false)
             ) {
                 itemsRequests.map { itemsRequest ->
                     Column {
@@ -273,14 +362,16 @@ fun ShareMdocSelectiveDisclosureView(
                                 namespaceSpec.value.forEach { namespace ->
                                     ShareMdocSelectiveDisclosureNamespaceItem(
                                         namespace = namespace,
-                                        isChecked = allowedNamespaces[itemsRequest.docType]?.get(
-                                            namespaceSpec.key
-                                        )?.contains(namespace.key) ?: false,
+                                        isChecked =
+                                                allowedNamespaces[itemsRequest.docType]
+                                                        ?.get(namespaceSpec.key)
+                                                        ?.contains(namespace.key)
+                                                        ?: false,
                                         onCheck = { _ ->
                                             credentialViewModel.toggleAllowedNamespace(
-                                                itemsRequest.docType,
-                                                namespaceSpec.key,
-                                                namespace.key
+                                                    itemsRequest.docType,
+                                                    namespaceSpec.key,
+                                                    namespace.key
                                             )
                                         }
                                     )
@@ -301,14 +392,17 @@ fun ShareMdocSelectiveDisclosureView(
                 Button(
                     onClick = { onCancel() },
                     shape = RoundedCornerShape(6.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = ColorStone950,
-                    ),
+                    colors =
+                            ButtonDefaults.buttonColors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = ColorStone950,
+                            ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .border(
-                            width = 1.dp, color = ColorStone300, shape = RoundedCornerShape(6.dp)
+                            width = 1.dp,
+                            color = ColorStone300,
+                            shape = RoundedCornerShape(6.dp)
                         )
                         .weight(1f)
                 ) {
@@ -358,9 +452,7 @@ fun ShareMdocSelectiveDisclosureNamespaceItem(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 8.dp)
+        modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)
     ) {
         Checkbox(
             isChecked,

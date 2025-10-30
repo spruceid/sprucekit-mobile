@@ -39,7 +39,7 @@ class TransportBleCentralClient(
     private var application: String,
     private var serviceUUID: UUID,
     private var updateRequestData: (data: ByteArray) -> Unit,
-    private var callback: BLESessionStateDelegate?
+    internal var callback: BLESessionStateDelegate?
 ) {
     private val stateMachine = BleConnectionStateMachine.getInstance()
     private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter

@@ -4,6 +4,7 @@ import SpruceIDMobileSdkRs
 
 public enum DeviceEngagement {
     case QRCode
+    case NFC(NegotiatedCarrierInfo)
 }
 
 /// To be implemented by the consumer to update the UI
@@ -18,26 +19,48 @@ public class IsoMdlPresentation {
     var mdoc: MDoc
     var bleManager: MDocHolderBLECentral!
     var useL2CAP: Bool
+    var engagement: DeviceEngagement
+    var nfcReaderSession: NFCReaderSession?
 
     public init?(
         mdoc: MDoc, engagement: DeviceEngagement,
-        callback: BLESessionStateDelegate, useL2CAP: Bool
+        callback: BLESessionStateDelegate, useL2CAP: Bool,
     ) {
+        
         self.callback = callback
-        self.uuid = UUID()
         self.mdoc = mdoc
         self.useL2CAP = useL2CAP
+        self.engagement = engagement
+        
         do {
+            
+            let engagementData: DeviceEngagementData
+            switch engagement {
+            case .QRCode:
+                self.uuid = UUID()
+                engagementData = .qr(self.uuid.uuidString)
+            case .NFC(let nci):
+                self.uuid = UUID.init(uuidString: nci.getUuid())!
+                engagementData = .nfc(nci)
+            }
+            
             self.session =
                 try SpruceIDMobileSdkRs.initializeMdlPresentationFromBytes(
-                    mdoc: mdoc.inner, uuid: self.uuid.uuidString)
+                    mdoc: mdoc.inner, engagement: engagementData)
+            super.init()
             bleManager = MDocHolderBLECentral(
                 callback: self,
                 serviceUuid: CBUUID(nsuuid: self.uuid),
                 useL2CAP: useL2CAP)
-            self.callback.update(
-                state: .engagingQRCode(
-                    session.getQrCodeUri().data(using: .ascii)!))
+            switch engagement {
+            case .QRCode:
+                self.callback.update(
+                    state: .engagingQRCode(
+                        try session.getQrHandover().data(using: .ascii)!))
+            default:
+                break
+            }
+
         } catch {
             print("\(error)")
             return nil
@@ -69,7 +92,7 @@ public class IsoMdlPresentation {
                 self.cancel()
                 return
             }
-            guard let signature =
+            guard let signature = 
                     CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(bytes: derSignature) else {
                 self.callback.update(
                     state: .error(

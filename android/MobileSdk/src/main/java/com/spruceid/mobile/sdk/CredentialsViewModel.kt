@@ -8,6 +8,7 @@ import androidx.annotation.RequiresPermission
 import androidx.lifecycle.AndroidViewModel
 import com.spruceid.mobile.sdk.ble.Transport
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
+import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -112,11 +113,25 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         _currState.value = PresentmentState.SELECT_NAMESPACES
     }
 
+    // We specify a default value for presentData, defaulting to QR presentation
+    // Having a default value for the presentData to this feels wrong, but is required
+    // for the addition of NFC support to be backwards compatible.
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    suspend fun present(bluetoothManager: BluetoothManager, mdoc: Mdoc) {
-        _uuid.value = UUID.randomUUID()
-        _session.value = initializeMdlPresentationFromBytes(mdoc, _uuid.value.toString())
-        _currState.value = PresentmentState.ENGAGING_QR_CODE
+    suspend fun present(bluetoothManager: BluetoothManager, mdoc: Mdoc, presentData: CredentialPresentData = CredentialPresentData.Qr()) {
+        when (presentData) {
+            is CredentialPresentData.Nfc -> {
+                val uuidStr = presentData.negotiatedCarrierInfo.getUuid()
+                _uuid.value = UUID.fromString(uuidStr)
+                _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Nfc(presentData.negotiatedCarrierInfo))
+                _currState.value = PresentmentState.UNINITIALIZED
+            }
+            is CredentialPresentData.Qr -> {
+                _uuid.value = UUID.randomUUID()
+                _session.value = initializeMdlPresentationFromBytes(mdoc, DeviceEngagementData.Qr(_uuid.value.toString()))
+                _currState.value = PresentmentState.ENGAGING_QR_CODE
+            }
+        }
+
         if (_transport.value == null) _transport.value =
             Transport(bluetoothManager, getApplication<Application>().applicationContext)
         Log.d(

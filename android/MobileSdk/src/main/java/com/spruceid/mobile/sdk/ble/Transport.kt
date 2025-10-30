@@ -34,7 +34,7 @@ class Transport(
     private val threadPool = BleThreadPool.getInstance(config)
     val stateMachine = BleConnectionStateMachine.getInstance()
 
-    private val transportBLE: TransportBle = TransportBle()
+    internal val transportBLE: TransportBle = TransportBle()
 
     /**
      * Initialize BLE Transport according to ISO 18013-5 Section 8.3.3.1.1
