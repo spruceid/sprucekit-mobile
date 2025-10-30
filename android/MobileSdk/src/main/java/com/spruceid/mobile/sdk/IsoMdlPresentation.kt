@@ -19,6 +19,26 @@ import java.security.KeyStore
 import java.security.Signature
 import java.util.UUID
 
+enum class PresentationMode {
+    /**
+     * Central mode only: Holder acts as BLE Central (scanner).
+     * Reader must act as Peripheral (advertiser).
+     */
+    CENTRAL_ONLY,
+
+    /**
+     * Peripheral mode only: Holder acts as BLE Peripheral (advertiser).
+     * Reader must act as Central (scanner).
+     */
+    PERIPHERAL_ONLY,
+
+    /**
+     * Dual mode (default): Holder acts as both Central and Peripheral simultaneously.
+     * First mode to establish connection wins. Provides maximum compatibility per ISO 18013-5.
+     */
+    DUAL_MODE
+}
+
 abstract class BLESessionStateDelegate {
     abstract fun update(state: Map<String, Any>)
     abstract fun error(error: Exception)
@@ -29,7 +49,8 @@ class IsoMdlPresentation(
     val keyAlias: String,
     val bluetoothManager: BluetoothManager,
     val callback: BLESessionStateDelegate,
-    val context: Context
+    val context: Context,
+    val mode: PresentationMode = PresentationMode.DUAL_MODE
 ) {
     private val uuidCentral: UUID = UUID.randomUUID()
     private val uuidPeripheral: UUID = UUID.randomUUID()
@@ -49,20 +70,47 @@ class IsoMdlPresentation(
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun initialize() {
         try {
-            // Per ISO 18013-5: Always advertise both modes in QR code
-            Log.d("IsoMdlPresentation", "Initializing dual-mode presentation with separate UUIDs")
-            session = initializeMdlPresentationFromBytes(
-                this.mdoc,
-                CentralClientDetails(uuidCentral.toString()),
-                PeripheralServerDetails(uuidPeripheral.toString(), null)
-            )
-
-            // Display QR code immediately
-            this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
-
-            // Start both transports simultaneously
-            startPeripheralTransport()
-            startCentralTransport()
+            // Initialize session based on selected mode
+            when (mode) {
+                PresentationMode.CENTRAL_ONLY -> {
+                    Log.d("IsoMdlPresentation", "Initializing Central-only mode (UUID: $uuidCentral)")
+                    session = initializeMdlPresentationFromBytes(
+                        this.mdoc,
+                        CentralClientDetails(uuidCentral.toString()),
+                        null
+                    )
+                    // Display QR code
+                    this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
+                    // Start only Central transport
+                    startCentralTransport()
+                }
+                PresentationMode.PERIPHERAL_ONLY -> {
+                    Log.d("IsoMdlPresentation", "Initializing Peripheral-only mode (UUID: $uuidPeripheral)")
+                    session = initializeMdlPresentationFromBytes(
+                        this.mdoc,
+                        null,
+                        PeripheralServerDetails(uuidPeripheral.toString(), null)
+                    )
+                    // Display QR code
+                    this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
+                    // Start only Peripheral transport
+                    startPeripheralTransport()
+                }
+                PresentationMode.DUAL_MODE -> {
+                    // Per ISO 18013-5: Advertise both modes in QR code for maximum compatibility
+                    Log.d("IsoMdlPresentation", "Initializing dual-mode presentation (Central UUID: $uuidCentral, Peripheral UUID: $uuidPeripheral)")
+                    session = initializeMdlPresentationFromBytes(
+                        this.mdoc,
+                        CentralClientDetails(uuidCentral.toString()),
+                        PeripheralServerDetails(uuidPeripheral.toString(), null)
+                    )
+                    // Display QR code
+                    this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
+                    // Start both transports simultaneously
+                    startPeripheralTransport()
+                    startCentralTransport()
+                }
+            }
 
         } catch (e: Error) {
             Log.e("IsoMdlPresentation.initialize", e.toString())
@@ -104,10 +152,10 @@ class IsoMdlPresentation(
 
     private fun onDataReceived(mode: String, data: ByteArray) {
         val shouldProcess = synchronized(connectionLock) {
-            // First data received wins - terminate the other mode
+            // First data received wins - terminate the other mode (if in DUAL_MODE)
             if (connectedMode == null) {
                 connectedMode = mode
-                Log.d("IsoMdlPresentation", "Connection established via $mode mode - terminating other mode")
+                Log.d("IsoMdlPresentation", "Connection established via $mode mode")
 
                 // Terminate the unused transport
                 try {
