@@ -1,6 +1,6 @@
 [package]
 name = "mobile-sdk-rs"
-version = "0.12.9"
+version = "0.12.10"
 edition = "2021"
 authors = ["Spruce Systems, Inc."]
 license = "Apache-2.0 OR MIT"
@@ -19,7 +19,7 @@ path = "uniffi-bindgen.rs"
 cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", features = [
     "time",
 ] }
-isomdl = { git = "https://github.com/spruceid/isomdl", rev = "fed574c" }
+isomdl = { git = "https://github.com/spruceid/isomdl", rev = "6849315" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "081eb4" }
 openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "2b0c8ba" }
 ssi = { version = "0.12", features = ["secp256r1", "secp384r1"] }

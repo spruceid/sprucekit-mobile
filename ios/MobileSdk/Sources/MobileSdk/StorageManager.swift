@@ -5,14 +5,13 @@
 /// iCloud backps.
 
 import Foundation
-
 import SpruceIDMobileSdkRs
 
 // The following is a stripped-down version of the protocol definition from the Rust layer against which the storage
 // manager is intended to link.
 
 /// Store and retrieve sensitive data.
-public class StorageManager: NSObject, StorageManagerInterface {
+public class StorageManager: NSObject, StorageManagerInterface, @unchecked Sendable {
     let appGroupId: String?
 
     /// - Parameters:
