@@ -6417,6 +6417,282 @@ public func FfiConverterTypeMdoc_lower(_ value: Mdoc) -> UnsafeMutableRawPointer
 
 
 
+public protocol MobileIdCapabilityDescriptorBuilderProtocol: AnyObject, Sendable {
+    
+    func addAppDataTransmissionInterface(interface: Int64)  -> MobileIdCapabilityDescriptorBuilder
+    
+    func addAppEngagementInterface(interface: Int64)  -> MobileIdCapabilityDescriptorBuilder
+    
+    func addAppSupportedDevFeature(feature: Int64)  -> MobileIdCapabilityDescriptorBuilder
+    
+    func addCertificationBytes(cert: Data)  -> MobileIdCapabilityDescriptorBuilder
+    
+    func addCertificationText(cert: String)  -> MobileIdCapabilityDescriptorBuilder
+    
+    func addSecureAreaAttestationObject(saEncoding: UInt8, saAttestationObjectValue: SaAttestationObjectValueBuilder) throws  -> MobileIdCapabilityDescriptorBuilder
+    
+    func appAttestationKeyFromCoordinates(x: Data, y: Data, kid: Data) throws  -> MobileIdCapabilityDescriptorBuilder
+    
+    func appAttestationKeyFromCoseKeyBytes(coseKeyBytes: Data) throws  -> MobileIdCapabilityDescriptorBuilder
+    
+    func build() throws  -> Data
+    
+    func getAppDataTransmissionInterfaces()  -> [Int64]
+    
+    func getAppEngagementInterfaces()  -> [Int64]
+    
+    func getAppSupportedDevFeatures()  -> [Int64]
+    
+    func getCertificationsCount()  -> UInt32
+    
+    func getSecureAreaAttestationObjectsCount()  -> UInt32
+    
+    func getVersion()  -> UInt64
+    
+    func version(version: UInt64)  -> MobileIdCapabilityDescriptorBuilder
+    
+}
+open class MobileIdCapabilityDescriptorBuilder: MobileIdCapabilityDescriptorBuilderProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_mobileidcapabilitydescriptorbuilder(self.pointer, $0) }
+    }
+public convenience init() {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_mobileidcapabilitydescriptorbuilder_new($0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_mobileidcapabilitydescriptorbuilder(pointer, $0) }
+    }
+
+    
+
+    
+open func addAppDataTransmissionInterface(interface: Int64) -> MobileIdCapabilityDescriptorBuilder  {
+    return try!  FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_add_app_data_transmission_interface(self.uniffiClonePointer(),
+        FfiConverterInt64.lower(interface),$0
+    )
+})
+}
+    
+open func addAppEngagementInterface(interface: Int64) -> MobileIdCapabilityDescriptorBuilder  {
+    return try!  FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_add_app_engagement_interface(self.uniffiClonePointer(),
+        FfiConverterInt64.lower(interface),$0
+    )
+})
+}
+    
+open func addAppSupportedDevFeature(feature: Int64) -> MobileIdCapabilityDescriptorBuilder  {
+    return try!  FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_add_app_supported_dev_feature(self.uniffiClonePointer(),
+        FfiConverterInt64.lower(feature),$0
+    )
+})
+}
+    
+open func addCertificationBytes(cert: Data) -> MobileIdCapabilityDescriptorBuilder  {
+    return try!  FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_add_certification_bytes(self.uniffiClonePointer(),
+        FfiConverterData.lower(cert),$0
+    )
+})
+}
+    
+open func addCertificationText(cert: String) -> MobileIdCapabilityDescriptorBuilder  {
+    return try!  FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_add_certification_text(self.uniffiClonePointer(),
+        FfiConverterString.lower(cert),$0
+    )
+})
+}
+    
+open func addSecureAreaAttestationObject(saEncoding: UInt8, saAttestationObjectValue: SaAttestationObjectValueBuilder)throws  -> MobileIdCapabilityDescriptorBuilder  {
+    return try  FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_add_secure_area_attestation_object(self.uniffiClonePointer(),
+        FfiConverterUInt8.lower(saEncoding),
+        FfiConverterTypeSaAttestationObjectValueBuilder_lower(saAttestationObjectValue),$0
+    )
+})
+}
+    
+open func appAttestationKeyFromCoordinates(x: Data, y: Data, kid: Data)throws  -> MobileIdCapabilityDescriptorBuilder  {
+    return try  FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_app_attestation_key_from_coordinates(self.uniffiClonePointer(),
+        FfiConverterData.lower(x),
+        FfiConverterData.lower(y),
+        FfiConverterData.lower(kid),$0
+    )
+})
+}
+    
+open func appAttestationKeyFromCoseKeyBytes(coseKeyBytes: Data)throws  -> MobileIdCapabilityDescriptorBuilder  {
+    return try  FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_app_attestation_key_from_cose_key_bytes(self.uniffiClonePointer(),
+        FfiConverterData.lower(coseKeyBytes),$0
+    )
+})
+}
+    
+open func build()throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_build(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getAppDataTransmissionInterfaces() -> [Int64]  {
+    return try!  FfiConverterSequenceInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_get_app_data_transmission_interfaces(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getAppEngagementInterfaces() -> [Int64]  {
+    return try!  FfiConverterSequenceInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_get_app_engagement_interfaces(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getAppSupportedDevFeatures() -> [Int64]  {
+    return try!  FfiConverterSequenceInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_get_app_supported_dev_features(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getCertificationsCount() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_get_certifications_count(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getSecureAreaAttestationObjectsCount() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_get_secure_area_attestation_objects_count(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getVersion() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_get_version(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func version(version: UInt64) -> MobileIdCapabilityDescriptorBuilder  {
+    return try!  FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mobileidcapabilitydescriptorbuilder_version(self.uniffiClonePointer(),
+        FfiConverterUInt64.lower(version),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMobileIdCapabilityDescriptorBuilder: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = MobileIdCapabilityDescriptorBuilder
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> MobileIdCapabilityDescriptorBuilder {
+        return MobileIdCapabilityDescriptorBuilder(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: MobileIdCapabilityDescriptorBuilder) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MobileIdCapabilityDescriptorBuilder {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: MobileIdCapabilityDescriptorBuilder, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lift(_ pointer: UnsafeMutableRawPointer) throws -> MobileIdCapabilityDescriptorBuilder {
+    return try FfiConverterTypeMobileIdCapabilityDescriptorBuilder.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMobileIdCapabilityDescriptorBuilder_lower(_ value: MobileIdCapabilityDescriptorBuilder) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeMobileIdCapabilityDescriptorBuilder.lower(value)
+}
+
+
+
+
+
+
 /**
  * Handler for OpenID4VP requests according to the profile in ISO/IEC 18013-7 Annex B.
  *
@@ -8469,6 +8745,246 @@ public func FfiConverterTypeRequestedField_lift(_ pointer: UnsafeMutableRawPoint
 #endif
 public func FfiConverterTypeRequestedField_lower(_ value: RequestedField) -> UnsafeMutableRawPointer {
     return FfiConverterTypeRequestedField.lower(value)
+}
+
+
+
+
+
+
+public protocol SaAttestationObjectValueBuilderProtocol: AnyObject, Sendable {
+    
+    func addCertificationBytes(cert: Data)  -> SaAttestationObjectValueBuilder
+    
+    func addCertificationText(cert: String)  -> SaAttestationObjectValueBuilder
+    
+    func addSaSupportedUserAuth(auth: Int64)  -> SaAttestationObjectValueBuilder
+    
+    func getSaIndex()  -> UInt64
+    
+    func getSaInterface()  -> Int64
+    
+    func getSaSupportedUserAuth()  -> [Int64]
+    
+    func getSaType()  -> Int64?
+    
+    func saAttestationFormat(format: Int64)  -> SaAttestationObjectValueBuilder
+    
+    func saAttestationKeyFromCoordinates(x: Data, y: Data, kid: Data) throws  -> SaAttestationObjectValueBuilder
+    
+    func saAttestationKeyFromCoseKeyBytes(coseKeyBytes: Data) throws  -> SaAttestationObjectValueBuilder
+    
+    func saAttestationStatement(statement: Data)  -> SaAttestationObjectValueBuilder
+    
+    func saType(saType: Int64)  -> SaAttestationObjectValueBuilder
+    
+}
+open class SaAttestationObjectValueBuilder: SaAttestationObjectValueBuilderProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_saattestationobjectvaluebuilder(self.pointer, $0) }
+    }
+public convenience init(saIndex: UInt64, saInterface: Int64) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_saattestationobjectvaluebuilder_new(
+        FfiConverterUInt64.lower(saIndex),
+        FfiConverterInt64.lower(saInterface),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_saattestationobjectvaluebuilder(pointer, $0) }
+    }
+
+    
+
+    
+open func addCertificationBytes(cert: Data) -> SaAttestationObjectValueBuilder  {
+    return try!  FfiConverterTypeSaAttestationObjectValueBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_add_certification_bytes(self.uniffiClonePointer(),
+        FfiConverterData.lower(cert),$0
+    )
+})
+}
+    
+open func addCertificationText(cert: String) -> SaAttestationObjectValueBuilder  {
+    return try!  FfiConverterTypeSaAttestationObjectValueBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_add_certification_text(self.uniffiClonePointer(),
+        FfiConverterString.lower(cert),$0
+    )
+})
+}
+    
+open func addSaSupportedUserAuth(auth: Int64) -> SaAttestationObjectValueBuilder  {
+    return try!  FfiConverterTypeSaAttestationObjectValueBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_add_sa_supported_user_auth(self.uniffiClonePointer(),
+        FfiConverterInt64.lower(auth),$0
+    )
+})
+}
+    
+open func getSaIndex() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_get_sa_index(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getSaInterface() -> Int64  {
+    return try!  FfiConverterInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_get_sa_interface(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getSaSupportedUserAuth() -> [Int64]  {
+    return try!  FfiConverterSequenceInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_get_sa_supported_user_auth(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func getSaType() -> Int64?  {
+    return try!  FfiConverterOptionInt64.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_get_sa_type(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func saAttestationFormat(format: Int64) -> SaAttestationObjectValueBuilder  {
+    return try!  FfiConverterTypeSaAttestationObjectValueBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_sa_attestation_format(self.uniffiClonePointer(),
+        FfiConverterInt64.lower(format),$0
+    )
+})
+}
+    
+open func saAttestationKeyFromCoordinates(x: Data, y: Data, kid: Data)throws  -> SaAttestationObjectValueBuilder  {
+    return try  FfiConverterTypeSaAttestationObjectValueBuilder_lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_sa_attestation_key_from_coordinates(self.uniffiClonePointer(),
+        FfiConverterData.lower(x),
+        FfiConverterData.lower(y),
+        FfiConverterData.lower(kid),$0
+    )
+})
+}
+    
+open func saAttestationKeyFromCoseKeyBytes(coseKeyBytes: Data)throws  -> SaAttestationObjectValueBuilder  {
+    return try  FfiConverterTypeSaAttestationObjectValueBuilder_lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_sa_attestation_key_from_cose_key_bytes(self.uniffiClonePointer(),
+        FfiConverterData.lower(coseKeyBytes),$0
+    )
+})
+}
+    
+open func saAttestationStatement(statement: Data) -> SaAttestationObjectValueBuilder  {
+    return try!  FfiConverterTypeSaAttestationObjectValueBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_sa_attestation_statement(self.uniffiClonePointer(),
+        FfiConverterData.lower(statement),$0
+    )
+})
+}
+    
+open func saType(saType: Int64) -> SaAttestationObjectValueBuilder  {
+    return try!  FfiConverterTypeSaAttestationObjectValueBuilder_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_saattestationobjectvaluebuilder_sa_type(self.uniffiClonePointer(),
+        FfiConverterInt64.lower(saType),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSaAttestationObjectValueBuilder: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = SaAttestationObjectValueBuilder
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> SaAttestationObjectValueBuilder {
+        return SaAttestationObjectValueBuilder(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: SaAttestationObjectValueBuilder) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SaAttestationObjectValueBuilder {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: SaAttestationObjectValueBuilder, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSaAttestationObjectValueBuilder_lift(_ pointer: UnsafeMutableRawPointer) throws -> SaAttestationObjectValueBuilder {
+    return try FfiConverterTypeSaAttestationObjectValueBuilder.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSaAttestationObjectValueBuilder_lower(_ value: SaAttestationObjectValueBuilder) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeSaAttestationObjectValueBuilder.lower(value)
 }
 
 
@@ -19585,6 +20101,30 @@ fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionSequenceData: FfiConverterRustBuffer {
+    typealias SwiftType = [Data]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceData.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceData.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionDictionaryStringString: FfiConverterRustBuffer {
     typealias SwiftType = [String: String]?
 
@@ -19681,6 +20221,31 @@ fileprivate struct FfiConverterOptionTypeValue: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceInt64: FfiConverterRustBuffer {
+    typealias SwiftType = [Int64]
+
+    public static func write(_ value: [Int64], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterInt64.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Int64] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Int64]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterInt64.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]
 
@@ -19698,6 +20263,31 @@ fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceData: FfiConverterRustBuffer {
+    typealias SwiftType = [Data]
+
+    public static func write(_ value: [Data], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterData.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Data] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Data]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterData.read(from: &buf))
         }
         return seq
     }
@@ -21312,6 +21902,39 @@ public func configureLogger(writer: LogWriter)  {try! rustCall() {
     )
 }
 }
+/**
+ * Returns a cose key based on the p-256 curve.
+ * Return cose key value is returned as a CBOR-encoded byte array.
+ */
+public func coseKeyEc2P256PublicKey(x: Data, y: Data, kid: Data)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_cose_key_ec2_p256_public_key(
+        FfiConverterData.lower(x),
+        FfiConverterData.lower(y),
+        FfiConverterData.lower(kid),$0
+    )
+})
+}
+/**
+ * This method encodes raw bytes as CBOR, tagging the payload as
+ * a Tag24 data item and constructing a COSE_Sign1 object that is
+ * signed by the signing key, with the signature included in the
+ * CBOR bytes encoded COSE_Sign1 object returned.
+ *
+ * The `is_cbor_payload` boolean parameter informs whether the
+ * payload is already CBOR encoded, if the payload is not CBOR encoded,
+ * then it will be a Tag24 payload.
+ */
+public func coseSign1(signer: SigningKey, payload: Data, x509CertPem: [Data]?, isCborPayload: Bool)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_cose_sign1(
+        FfiConverterTypeSigningKey_lower(signer),
+        FfiConverterData.lower(payload),
+        FfiConverterOptionSequenceData.lower(x509CertPem),
+        FfiConverterBool.lower(isCborPayload),$0
+    )
+})
+}
 public func decodeRevealSdJwt(input: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeSdJwtError_lift) {
     uniffi_mobile_sdk_rs_fn_func_decode_reveal_sd_jwt(
@@ -21644,6 +22267,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_configure_logger() != 58645) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_cose_key_ec2_p256_public_key() != 38421) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 49406) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 34951) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -21962,6 +22591,54 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 39341) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_add_app_data_transmission_interface() != 61562) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_add_app_engagement_interface() != 59368) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_add_app_supported_dev_feature() != 57767) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_add_certification_bytes() != 51858) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_add_certification_text() != 24072) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_add_secure_area_attestation_object() != 51280) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_app_attestation_key_from_coordinates() != 4183) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_app_attestation_key_from_cose_key_bytes() != 44345) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_build() != 792) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_get_app_data_transmission_interfaces() != 17057) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_get_app_engagement_interfaces() != 60911) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_get_app_supported_dev_features() != 39642) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_get_certifications_count() != 57077) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_get_secure_area_attestation_objects_count() != 8764) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_get_version() != 32661) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_version() != 13279) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vp180137_process_request() != 48065) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -22101,6 +22778,42 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_retained() != 21715) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_add_certification_bytes() != 64005) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_add_certification_text() != 21716) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_add_sa_supported_user_auth() != 38444) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_get_sa_index() != 45273) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_get_sa_interface() != 21414) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_get_sa_supported_user_auth() != 58780) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_get_sa_type() != 50706) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_format() != 46382) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_key_from_coordinates() != 47884) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_key_from_cose_key_bytes() != 12848) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_statement() != 58898) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_type() != 37543) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_signingkey_jwk() != 16453) {
@@ -22292,6 +23005,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_base64url_encoded_issuer_signed() != 17520) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_mobileidcapabilitydescriptorbuilder_new() != 3324) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137_new() != 4916) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -22338,6 +23054,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_parse_from_credential() != 15018) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_saattestationobjectvaluebuilder_new() != 45461) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_from_compact_sd_jwt_with_id_and_key() != 12914) {
