@@ -174,6 +174,47 @@ class WalletActivityLogDataStore {
         }
         return walletActivityLogs
     }
+    
+    func getWalletActivityLogsByCredentialPackId(credentialPackId packId: String) -> [WalletActivityLog] {
+        var walletActivityLogs: [WalletActivityLog] = []
+        guard let database = getDatabase() else { return [] }
+
+        let dateTimeFormatterDisplay = {
+            let dtFormatter = DateFormatter()
+            dtFormatter.dateStyle = .medium
+            dtFormatter.timeStyle = .short
+            dtFormatter.locale = Locale(identifier: "en_US_POSIX")
+            return dtFormatter
+        }()
+
+        do {
+            for walletActivityLog in try database.prepare(
+                self.walletActivityLogs.filter(self.credentialPackId == packId).order(dateTime.desc)
+            ) {
+                walletActivityLogs.append(
+                    WalletActivityLog(
+                        id: walletActivityLog[id],
+                        credential_pack_id: walletActivityLog[credentialPackId],
+                        credential_id: walletActivityLog[credentialId],
+                        credential_title: walletActivityLog[
+                            credentialTitle
+                        ],
+                        issuer: walletActivityLog[issuer],
+                        action: walletActivityLog[action],
+                        date_time: dateTimeFormatterDisplay.string(
+                            from: walletActivityLog[dateTime]
+                        ),
+                        additional_information: walletActivityLog[
+                            additionalInformation
+                        ]
+                    )
+                )
+            }
+        } catch {
+            print(error)
+        }
+        return walletActivityLogs
+    }
 
     func delete(id: Int64) -> Bool {
         guard let database = getDatabase() else {

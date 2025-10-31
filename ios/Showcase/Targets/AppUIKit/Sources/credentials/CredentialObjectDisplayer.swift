@@ -213,3 +213,151 @@ func genericObjectDisplayer(
         }
     return res
 }
+
+// MARK: - Flattened Row Displayer
+
+func flattenedRowDisplayer(
+    object: [String: GenericJSON],
+    filter: [String] = [],
+    nestingLevel: Int = 0
+) -> [AnyView] {
+    var res: [AnyView] = []
+
+    object
+        .filter { !filter.contains($0.key) }
+        .sorted(by: { $0.0 < $1.0 })
+        .forEach { (key, value) in
+            let readableKey = key.getKeyReadable().camelCaseToWords().replaceUnderscores().toTitle()
+
+            // If its a json
+            if let dictValue = value.dictValue {
+                res.append(
+                    AnyView(
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(readableKey)
+                                .font(.customFont(font: .inter, style: .bold, size: .p))
+                                .foregroundColor(Color("ColorBase800"))
+                        }
+                        .padding(.leading, CGFloat(nestingLevel * 12))
+                        .padding(.top, nestingLevel == 0 ? 16 : 12)
+                        .padding(.bottom, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    )
+                )
+
+                let nestedViews = flattenedRowDisplayer(
+                    object: dictValue,
+                    filter: filter,
+                    nestingLevel: nestingLevel + 1
+                )
+                res.append(contentsOf: nestedViews)
+
+            // If its an array
+            } else if let arrayValue = value.arrayValue {
+                for (index, item) in arrayValue.enumerated() {
+                    if let dictItem = item.dictValue {
+                        res.append(
+                            AnyView(
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(readableKey) \(index + 1)")
+                                        .font(.customFont(font: .inter, style: .semiBold, size: .p))
+                                        .foregroundColor(Color("ColorBase800"))
+                                }
+                                .padding(.leading, CGFloat(nestingLevel * 10))
+                                .padding(.top, nestingLevel == 0 ? 16 : 12)
+                                .padding(.bottom, 4)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            )
+                        )
+
+                        let arrayViews = flattenedRowDisplayer(
+                            object: dictItem,
+                            filter: filter,
+                            nestingLevel: nestingLevel + 1
+                        )
+                        res.append(contentsOf: arrayViews)
+
+                    } else {
+                        let itemValue = item.toString()
+                        let fieldType = getCredentialFieldType(displayName: readableKey, fieldValue: itemValue)
+                        let formattedValue = formatCredentialFieldValue(
+                            fieldValue: itemValue,
+                            fieldType: fieldType,
+                            fieldName: key,
+                            maxLength: 100
+                        )
+
+                        res.append(
+                            AnyView(
+                                VStack(spacing: 0) {
+                                    HStack(alignment: .top) {
+                                        Text("\(readableKey) \(index + 1)")
+                                            .font(.customFont(font: .inter, style: .regular, size: .p))
+                                            .foregroundColor(Color("ColorStone600"))
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                                        RenderCredentialFieldValue(
+                                            fieldType: fieldType,
+                                            rawFieldValue: itemValue,
+                                            formattedValue: formattedValue,
+                                            displayName: readableKey
+                                        )
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.bottom, 10)
+
+                                    Divider()
+                                        .background(Color("ColorStone200"))
+                                }
+                                .padding(.leading, CGFloat(nestingLevel * 10))
+                                .frame(maxWidth: .infinity)
+                            )
+                        )
+                    }
+                }
+
+            } else {
+                let fieldValue = value.toString()
+                if fieldValue != "null" {
+                    let fieldType = getCredentialFieldType(displayName: readableKey, fieldValue: fieldValue)
+                    let formattedValue = formatCredentialFieldValue(
+                        fieldValue: fieldValue,
+                        fieldType: fieldType,
+                        fieldName: key,
+                        maxLength: 100
+                    )
+
+                    res.append(
+                        AnyView(
+                            VStack(spacing: 0) {
+                                HStack(alignment: .top) {
+                                    Text(readableKey)
+                                        .font(.customFont(font: .inter, style: .regular, size: .p))
+                                        .foregroundColor(Color("ColorStone600"))
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                                    RenderCredentialFieldValue(
+                                        fieldType: fieldType,
+                                        rawFieldValue: fieldValue,
+                                        formattedValue: formattedValue,
+                                        displayName: readableKey
+                                    )
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.bottom, 10)
+
+                                Divider()
+                                    .background(Color("ColorStone200"))
+                            }
+                            .padding(.leading, CGFloat(nestingLevel * 10))
+                            .frame(maxWidth: .infinity)
+                        )
+                    )
+                }
+            }
+        }
+
+    return res
+}

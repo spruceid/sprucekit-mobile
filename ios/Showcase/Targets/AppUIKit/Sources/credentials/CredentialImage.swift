@@ -11,7 +11,6 @@ struct CredentialImage: View {
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 60, height: 60)
                 } placeholder: {
                 })
         } else {
@@ -27,7 +26,7 @@ struct CredentialImage: View {
                 )?
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 60, height: 60))
+            )
         }
     }
 }
@@ -56,6 +55,43 @@ struct CredentialGenericJSONArrayImage: View {
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 60, height: 60)
+        }
+    }
+}
+
+struct FullSizeCredentialImage: View {
+    var image: String
+    var contentDescription: String
+
+    var body: some View {
+        if image.contains("https://") {
+            AsyncImage(url: URL(string: image)) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 0)
+                    .accessibilityLabel(contentDescription)
+            } placeholder: {
+                Color.clear
+            }
+        } else {
+            if let decodedImage = Image(
+                base64String:
+                    image
+                    .replacingOccurrences(
+                        of: "data:image/png;base64,", with: ""
+                    )
+                    .replacingOccurrences(
+                        of: "data:image/jpeg;base64,", with: "")
+            ) {
+                decodedImage
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .shadow(color: Color.black.opacity(0.12), radius: 3, x: 0, y: 0)
+                    .accessibilityLabel(contentDescription)
+            } else {
+                Color.clear
+            }
         }
     }
 }

@@ -35,11 +35,12 @@ struct GenericCredentialItemPreviewAndDetails: View {
                 GenericCredentialItemListItem(
                     credentialPack: credentialPack,
                     onDelete: onDelete,
-                    withOptions: true
+                    withOptions: false
                 )
             }
         }
-        .padding(.all, 12)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 15)
         .onTapGesture {
             if case CredentialStatusList.revoked =
                 statusListObservable.statusLists[

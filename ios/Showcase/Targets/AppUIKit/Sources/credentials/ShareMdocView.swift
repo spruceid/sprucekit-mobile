@@ -15,28 +15,12 @@ struct ShareMdocView: View {
 
     var body: some View {
         ZStack {
-            VStack(spacing: 0) {
-                if let qrCode = qrSheetView {
-                    qrCode.padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color("ColorStone300"), lineWidth: 1)
-                                .background(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        )
-                }
-                Text(
-                    "Present this QR code to a verifier in order to share data. You will see a consent dialogue."
-                )
-                .multilineTextAlignment(.center)
-                .font(.customFont(font: .inter, style: .regular, size: .small))
-                .foregroundStyle(Color("ColorStone400"))
-                .padding(.vertical, 12)
-                .task {
-                    qrSheetView = await getQRSheetView()
-                }
+            if let qrCode = qrSheetView {
+                qrCode
             }
-            .padding(.horizontal, 24)
+        }
+        .task {
+            qrSheetView = await getQRSheetView()
         }
     }
 }
@@ -128,7 +112,16 @@ public struct ShareMdocQR: View {
                     ).progressViewStyle(.linear)
                     cancelButton
                 case .success:
-                    Text("Successfully presented credential.")
+                    VStack(spacing: 10) {
+                        Image("Valid")
+                            .resizable()
+                            .frame(width: 32, height: 32)
+                            .foregroundColor(Color("ColorEmerald800"))
+                        Text("Successfully presented credential.")
+                            .font(.customFont(font: .inter, style: .semiBold, size: .h4))
+                            .foregroundColor(Color("ColorEmerald800"))
+                            .multilineTextAlignment(.center)
+                    }
                 case .selectNamespaces(let items):
                     ShareMdocSelectiveDisclosureView(
                         itemsRequests: items,

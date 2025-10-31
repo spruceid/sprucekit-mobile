@@ -18,7 +18,7 @@ struct GenericCredentialItemListItem: View {
             credentialPack: credentialPack,
             rendering: CardRendering.list(
                 CardRenderingListView(
-                    titleKeys: ["name", "type"],
+                    titleKeys: ["name", "type", "credentialSubject.name", "id"],
                     titleFormatter: { (values) in
                         let credential: [String: GenericJSON] =
                             values.first(where: {
@@ -61,12 +61,13 @@ struct GenericCredentialItemListItem: View {
                                     .customFont(
                                         font: .inter,
                                         style: .semiBold,
-                                        size: .h1
+                                        size: .h2
                                     )
                                 )
-                                .foregroundStyle(Color("ColorStone950"))
+                                .foregroundStyle(Color.white)
+                                .shadow(color: .black, radius: 12, x: 2.5, y: 2.5)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .padding(.leading, 12)
                     },
                     descriptionKeys: ["description", "issuer"],
                     descriptionFormatter: descriptionFormatter ?? { values in
@@ -76,13 +77,27 @@ struct GenericCredentialItemListItem: View {
                             values: values
                         )
                     },
-                    leadingIconKeys: ["issuer", "credentialSubject"],
-                    leadingIconFormatter: leadingIconFormatter ?? { values in
-                        genericCredentialListItemLeadingIconFormatter(
-                            credentialPack: credentialPack,
-                            values: values
-                        )
-                    }
+                    cardStyle: CardStyle(
+                        topLeftLogoImage: "SpruceLogo",
+                        topLeftLogoTint: .white,
+                        backgroundImage: "CredentialBg",
+                        credentialImageKeys: [
+                            "portrait",
+                            "image",
+                            "issuer.image",
+                            "credentialSubject.image",
+                            "credentialSubject.issuer.image",
+                            "issuer.name",
+                            "type",
+                            "credentialSubject.achievement.image.id"
+                        ],
+                        credentialImageFormatter: { values in
+                            credentialImageFormatter(
+                                credentialPack: credentialPack,
+                                values: values
+                            )
+                        }
+                    )
                 )
             )
         )
@@ -94,7 +109,7 @@ struct GenericCredentialItemListItem: View {
             credentialPack: credentialPack,
             rendering: CardRendering.list(
                 CardRenderingListView(
-                    titleKeys: ["name", "type"],
+                    titleKeys: ["name", "type", "credentialSubject.name", "id"],
                     titleFormatter: { (values) in
                         let credential: [String: GenericJSON] =
                             values.first(where: {
@@ -129,48 +144,43 @@ struct GenericCredentialItemListItem: View {
                             }
                         }
 
-                        return ZStack(alignment: .topLeading) {
-                            HStack(alignment: .top) {
-                                Spacer()
-                                VStack {
-                                    Spacer()
-                                    Image("ThreeDotsHorizontal")
-                                    Spacer()
-                                }
-                                .frame(width: 32, height: 32)
-                                .background(Color.white)
+                        return HStack(alignment: .center, spacing: 8) {
+                            Text(title ?? "")
+                                .font(
+                                    .customFont(
+                                        font: .inter,
+                                        style: .semiBold,
+                                        size: .h2
+                                    )
+                                )
+                                .foregroundStyle(Color.white)
+                                .shadow(color: .black, radius: 10, x: 2.5, y: 2.5)
+
+                            Spacer()
+
+                            Image("ThreeDotsHorizontal")
+                                .resizable()
+                                .renderingMode(.template)
+                                .foregroundColor(.white)
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 15)
                                 .onTapGesture {
                                     optionsOpen = true
                                 }
-                            }
-                            .padding(.trailing, -12)
-                            HStack {
-                                Text(title ?? "")
-                                    .padding(.trailing, 12)
-                                    .font(
-                                        .customFont(
-                                            font: .inter,
-                                            style: .semiBold,
-                                            size: .h1
+                                .confirmationDialog(
+                                    Text("Credential Options"),
+                                    isPresented: $optionsOpen,
+                                    titleVisibility: .visible,
+                                    actions: {
+                                        CredentialOptionsDialogActions(
+                                            onDelete: onDelete,
+                                            exportFileName:
+                                                "\(title ?? "credential").json",
+                                            credentialPack: credentialPack
                                         )
-                                    )
-                                    .foregroundStyle(Color("ColorStone950"))
-                            }
-                            .confirmationDialog(
-                                Text("Credential Options"),
-                                isPresented: $optionsOpen,
-                                titleVisibility: .visible,
-                                actions: {
-                                    CredentialOptionsDialogActions(
-                                        onDelete: onDelete,
-                                        exportFileName:
-                                            "\(title ?? "credential").json",
-                                        credentialPack: credentialPack
-                                    )
-                                }
-                            )
+                                    }
+                                )
                         }
-                        .padding(.leading, 12)
                     },
                     descriptionKeys: ["description", "issuer"],
                     descriptionFormatter: descriptionFormatter ?? { values in
@@ -180,13 +190,27 @@ struct GenericCredentialItemListItem: View {
                             values: values
                         )
                     },
-                    leadingIconKeys: ["issuer", "credentialSubject"],
-                    leadingIconFormatter: leadingIconFormatter ?? { values in
-                        genericCredentialListItemLeadingIconFormatter(
-                            credentialPack: credentialPack,
-                            values: values
-                        )
-                    }
+                    cardStyle: CardStyle(
+                        topLeftLogoImage: "SpruceLogo",
+                        topLeftLogoTint: .white,
+                        backgroundImage: "CredentialBg",
+                        credentialImageKeys: [
+                            "portrait",
+                            "image",
+                            "issuer.image",
+                            "credentialSubject.image",
+                            "credentialSubject.issuer.image",
+                            "issuer.name",
+                            "type",
+                            "credentialSubject.achievement.image.id"
+                        ],
+                        credentialImageFormatter: { values in
+                            credentialImageFormatter(
+                                credentialPack: credentialPack,
+                                values: values
+                            )
+                        }
+                    )
                 )
             )
         )
@@ -194,28 +218,15 @@ struct GenericCredentialItemListItem: View {
 
     var body: some View {
         VStack {
-            VStack {
-                if withOptions {
-                    listItemWithOptions()
-                } else {
-                    listItem()
-                }
+            if withOptions {
+                listItemWithOptions()
+            } else {
+                listItem()
             }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.03), radius: 5)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color("ColorBase300"), lineWidth: 1)
-            )
         }
     }
 }
 
-@ViewBuilder
 func genericCredentialListItemDescriptionFormatter(
     credentialPack: CredentialPack,
     statusListObservable: StatusListObservable,
@@ -254,23 +265,23 @@ func genericCredentialListItemDescriptionFormatter(
         description = issuerName
     }
 
-    return VStack(alignment: .leading, spacing: 12) {
+    let status = statusListObservable.statusLists[credentialPack.id.uuidString]
+
+    return HStack(alignment: .bottom) {
         Text(description)
-            .font(.customFont(font: .inter, style: .regular, size: .p))
-            .foregroundStyle(Color("ColorStone600"))
-            .padding(.top, 4)
-        CredentialStatusSmall(
-            status:
-                statusListObservable.statusLists[
-                    credentialPack.id.uuidString
-                ]
-        )
+            .font(.customFont(font: .inter, style: .medium, size: .p))
+            .foregroundStyle(Color.white)
+            .shadow(color: .black, radius: 12, x: 3, y: 3)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+        CredentialStatusSmall(status: status)
     }
-    .padding(.leading, 12)
+    .frame(maxWidth: .infinity)
 }
 
-@ViewBuilder
-func genericCredentialListItemLeadingIconFormatter(
+
+func credentialImageFormatter(
     credentialPack: CredentialPack,
     values: [String: [String: GenericJSON]]
 )
@@ -282,30 +293,55 @@ func genericCredentialListItemLeadingIconFormatter(
             return credential?.asJwtVc() != nil
                 || credential?.asJsonVc() != nil
                 || credential?.asSdJwt() != nil
+                || credential?.asMsoMdoc() != nil
         }).map { $0.value } ?? [:]
 
-    let issuerImg = credential["issuer"]?.dictValue?["image"]
-    var stringValue = ""
+    var image = ""
 
-    if let dictValue = issuerImg?.dictValue {
-        if let imageValue = dictValue["image"]?.toString() {
-            stringValue = imageValue
-        } else if let idValue = dictValue["id"]?.toString() {
-            stringValue = idValue
+    // First priority: Look for portrait field
+    if let portraitImage = credential["portrait"]?.toString(), !portraitImage.isEmpty {
+        image = portraitImage
+    }
+
+    // Second priority: Existing image options
+    if image.isEmpty {
+        let issuerImg = credential["issuer"]?.dictValue?["image"]
+
+        if let dictValue = issuerImg?.dictValue {
+            if let imageValue = dictValue["image"]?.toString() {
+                image = imageValue
+            } else if let idValue = dictValue["id"]?.toString() {
+                image = idValue
+            }
         } else {
-            stringValue = ""
+            image = issuerImg?.toString() ?? ""
         }
-    } else {
-        stringValue = issuerImg?.toString() ?? ""
     }
 
     // Try parse OB3
-    if stringValue.isEmpty {
-        stringValue =
+    if image.isEmpty {
+        image =
             credential["credentialSubject"]?.dictValue?[
                 "achievement"
             ]?.dictValue?["image"]?.dictValue?["id"]?.toString() ?? ""
     }
 
-    return CredentialImage(image: stringValue)
+    var alt = ""
+    if let issuerName = credential["issuer"]?.dictValue?["name"]?.toString() {
+        alt = issuerName
+    }
+
+    if !image.isEmpty {
+        return AnyView(
+            FullSizeCredentialImage(image: image, contentDescription: alt)
+                .frame(width: 40, height: 40)
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.black.opacity(0.1), lineWidth: 1)
+                )
+        )
+    } else {
+        return AnyView(EmptyView())
+    }
 }
