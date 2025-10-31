@@ -55,6 +55,7 @@ public struct AVMetadataObjectScanner: View {
     var backgroundOpacity: Double
     var regionOfInterest: CGSize
     var scannerGuides: (any View)?
+    var cutoutCornerRadius: CGFloat
 
     public init(
         metadataObjectTypes: [AVMetadataObject.ObjectType] = [.qr],
@@ -75,7 +76,8 @@ public struct AVMetadataObjectScanner: View {
         backgroundColor: Color = .black,
         backgroundOpacity: Double = 0.75,
         regionOfInterest: CGSize = CGSize(width: 0, height: 0),
-        scannerGuides: (any View)? = nil
+        scannerGuides: (any View)? = nil,
+        cutoutCornerRadius: CGFloat = 0
     ) {
         self.metadataObjectTypes = metadataObjectTypes
         self.title = title
@@ -96,13 +98,14 @@ public struct AVMetadataObjectScanner: View {
         self.backgroundOpacity = backgroundOpacity
         self.regionOfInterest = regionOfInterest
         self.scannerGuides = scannerGuides
+        self.cutoutCornerRadius = cutoutCornerRadius
     }
 
     public var body: some View {
         ZStack(alignment: .top) {
             GeometryReader { geometry in
                 let size = UIScreen.screenSize
-                let clearCutOutYPosition = geometry.size.height / 2.5
+                let clearCutOutYPosition = geometry.size.height / 2
                 return ZStack {
                     CameraView(
                         frameSize: CGSize(
@@ -118,7 +121,7 @@ public struct AVMetadataObjectScanner: View {
                                 backgroundColor.opacity(backgroundOpacity)
                             )
                             .frame(width: size.width, height: size.height)
-                        Rectangle()
+                        RoundedRectangle(cornerRadius: cutoutCornerRadius, style: .circular)
                             .frame(
                                 width: regionOfInterest.width,
                                 height: regionOfInterest.height

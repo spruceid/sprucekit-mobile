@@ -30,6 +30,7 @@ struct DispatchQRView: View {
     var supportedTypes: [SupportedQRTypes] = allSupportedQRTypes
     var backgroundColor: Color = .white
     var hideCancelButton: Bool = false
+    var useMinimalScanner: Bool = false
 
     func handleRequest(payload: String) {
         Task {
@@ -55,19 +56,29 @@ struct DispatchQRView: View {
                 )
             } else {
                 VStack {
-                    ScanningComponent(
-                        path: $path,
-                        scanningParams: Scanning(
-                            title: "Scan QR Code",
-                            scanningType: .qrcode,
-                            onCancel: onBack,
-                            hideCancelButton: hideCancelButton,
+                    if useMinimalScanner {
+                        MinimalScanningComponent(
+                            backgroundColor: backgroundColor,
                             onRead: { code in
                                 handleRequest(payload: code)
                             },
-                            backgroundColor: backgroundColor
+                            onCancel: onBack
                         )
-                    )
+                    } else {
+                        ScanningComponent(
+                            path: $path,
+                            scanningParams: Scanning(
+                                title: "Scan QR Code",
+                                scanningType: .qrcode,
+                                onCancel: onBack,
+                                hideCancelButton: hideCancelButton,
+                                onRead: { code in
+                                    handleRequest(payload: code)
+                                },
+                                backgroundColor: backgroundColor
+                            )
+                        )
+                    }
                 }
             }
         }

@@ -175,3 +175,83 @@ public struct QRCodeScanner: View {
         )
     }
 }
+
+// MARK: - Minimal QR Code Scanner
+
+public struct MinimalQRCodeScanner: View {
+    var metadataObjectTypes: [AVMetadataObject.ObjectType] = [.qr]
+    var onCancel: () -> Void
+    var onRead: (String) -> Void
+    var backgroundColor: Color
+    var borderColor: Color
+    var instructionsText: String
+    var instructionsFont: Font?
+    var instructionsColor: Color
+    var cutoutCornerRadius: CGFloat
+
+    public init(
+        onRead: @escaping (String) -> Void,
+        onCancel: @escaping () -> Void,
+        backgroundColor: Color = .white,
+        borderColor: Color = .gray,
+        instructionsText: String = "",
+        instructionsFont: Font? = nil,
+        instructionsColor: Color = .gray,
+        cutoutCornerRadius: CGFloat = 12
+    ) {
+        self.onCancel = onCancel
+        self.onRead = onRead
+        self.backgroundColor = backgroundColor
+        self.borderColor = borderColor
+        self.instructionsText = instructionsText
+        self.instructionsFont = instructionsFont
+        self.instructionsColor = instructionsColor
+        self.cutoutCornerRadius = cutoutCornerRadius
+    }
+
+    public var body: some View {
+        GeometryReader { geometry in
+            let screenWidth = geometry.size.width
+            let scannerSize = screenWidth * 0.83
+
+            AVMetadataObjectScanner(
+                metadataObjectTypes: metadataObjectTypes,
+                title: "",
+                subtitle: "",
+                cancelButtonLabel: "",
+                onRead: onRead,
+                onCancel: onCancel,
+                hideCancelButton: true,
+                readerColor: backgroundColor,
+                backgroundColor: backgroundColor,
+                backgroundOpacity: 1,
+                regionOfInterest: CGSize(width: scannerSize, height: scannerSize),
+                scannerGuides: ZStack {
+                    RoundedRectangle(cornerRadius: cutoutCornerRadius, style: .circular)
+                        .stroke(
+                            borderColor,
+                            style: StrokeStyle(
+                                lineWidth: 2,
+                                lineCap: .round,
+                                lineJoin: .round
+                            )
+                        )
+                        .frame(width: scannerSize, height: scannerSize)
+
+                    if !instructionsText.isEmpty {
+                        VStack {
+                            Spacer()
+                            Text(instructionsText)
+                                .font(instructionsFont)
+                                .foregroundColor(instructionsColor)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 8)
+                        }
+                        .offset(y: scannerSize / 2 + 40)
+                    }
+                },
+                cutoutCornerRadius: cutoutCornerRadius
+            )
+        }
+    }
+}

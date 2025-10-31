@@ -36,7 +36,7 @@ struct GenericCredentialItemReviewInfo: View {
                     )
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 10)
 
             ScrollView(.vertical, showsIndicators: false) {
@@ -48,6 +48,7 @@ struct GenericCredentialItemReviewInfo: View {
                             credentialPack: credentialPack)
                     }
                 }
+                .padding(.horizontal, 18)
             }
         }
     }

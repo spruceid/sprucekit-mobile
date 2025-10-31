@@ -39,77 +39,85 @@ struct HacApplicationListItem: View {
 
     var body: some View {
         if let application = hacApplication {
-            ZStack {
-                // Background image
-                Image("CredentialBg")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .opacity(0.6)
-
-                // White overlay
-                Color.white.opacity(0.75)
-
-                // Content
-                VStack {
-                    // Top row: Logo and status
-                    HStack(alignment: .top) {
-                        Image("SpruceLogo")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 24, height: 24)
-
-                        Spacer()
-
-                        if issuanceStatus == nil {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .scaleEffect(0.8)
-                        } else {
-                            ApplicationStatusSmall(status: issuanceStatus)
-                        }
-                    }
+            VStack {
+                // Top row: Logo and status
+                HStack(alignment: .top) {
+                    Image("SpruceLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 24, height: 24)
 
                     Spacer()
 
-                    // Bottom content
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Mobile Drivers License")
-                            .font(
-                                .customFont(
-                                    font: .inter,
-                                    style: .semiBold,
-                                    size: .h2
-                                )
-                            )
-                            .foregroundStyle(Color("ColorStone950"))
-                            .shadow(color: .black.opacity(0.1), radius: 2, x: 1, y: 1)
-
-                        Text("Credential Application")
-                            .font(
-                                .customFont(
-                                    font: .inter,
-                                    style: .medium,
-                                    size: .p
-                                )
-                            )
-                            .foregroundStyle(Color("ColorStone950").opacity(0.7))
+                    if issuanceStatus == nil {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(0.8)
+                    } else {
+                        ApplicationStatusSmall(status: issuanceStatus)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(16)
+
+                Spacer()
+
+                // Bottom content
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Mobile Drivers License")
+                        .font(
+                            .customFont(
+                                font: .inter,
+                                style: .semiBold,
+                                size: .h2
+                            )
+                        )
+                        .foregroundStyle(Color("ColorStone950"))
+                        .shadow(
+                            color: .black.opacity(0.1),
+                            radius: 2,
+                            x: 1,
+                            y: 1
+                        )
+
+                    Text("Credential Application")
+                        .font(
+                            .customFont(
+                                font: .inter,
+                                style: .medium,
+                                size: .p
+                            )
+                        )
+                        .foregroundStyle(Color("ColorStone950").opacity(0.7))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(height: 190)
+            .padding(16)
+            .background(
+                ZStack {
+                    Image("CredentialBg")
+                        .resizable()
+                        .scaledToFill()
+                        .opacity(0.6)
+
+                    Color.white.opacity(0.75)
+                }
+            )
+            .frame(height: 195)
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(
                         LinearGradient(
-                            gradient: Gradient(stops: [
-                                .init(color: Color("#C8BFAD"), location: 0.0),
-                                .init(color: Color.white.opacity(0.2), location: 0.3),
-                                .init(color: Color.white.opacity(0.2), location: 0.8),
-                                .init(color: Color("#C8BFAD"), location: 1.0)
-                            ]),
+                            gradient: Gradient(
+stops: [
+    .init(
+        color: Color(hex: "#C8BFAD"),
+        location: 0.0
+    ),
+    .init(color: Color.white.opacity(0.2), location: 0.3),
+    .init(color: Color.white.opacity(0.2), location: 0.8),
+    .init(color: Color(hex: "#C8BFAD"), location: 1.0)
+]
+                            ),
                             startPoint: .top,
                             endPoint: .bottom
                         ),

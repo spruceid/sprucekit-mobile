@@ -168,27 +168,7 @@ public struct CardListView: View {
         let descriptionValues = credentialPack.findCredentialClaims(claimNames: rendering.descriptionKeys ?? [])
         let titleValues = credentialPack.findCredentialClaims(claimNames: rendering.titleKeys)
 
-        ZStack(alignment: .topLeading) {
-            // Background image
-            if let backgroundImage = rendering.cardStyle?.backgroundImage {
-                Image(backgroundImage)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
-
-                // Dark gradient overlay
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color.black.opacity(0.0),
-                        Color.black.opacity(0.9)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
-
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
                 // Top row: Logo + Credential Image
                 HStack(alignment: .top) {
                     // Top-left logo
@@ -245,12 +225,28 @@ public struct CardListView: View {
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(20)
-            }
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(height: 190)
-        .frame(maxWidth: .infinity)
+        .background(
+            ZStack {
+                if let backgroundImage = rendering.cardStyle?.backgroundImage {
+                    Image(backgroundImage)
+                        .resizable()
+                        .scaledToFill()
+
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            Color.black.opacity(0.0),
+                            Color.black.opacity(0.9)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                }
+            }
+        )
+        .frame(height: 195)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
             RoundedRectangle(cornerRadius: 16)

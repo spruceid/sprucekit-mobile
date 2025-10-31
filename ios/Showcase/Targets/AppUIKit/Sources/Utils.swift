@@ -78,6 +78,22 @@ extension Optional {
     }
 }
 
+extension Color {
+    init(hex: String) {
+        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
+
+        var rgb: UInt64 = 0
+        Scanner(string: hexSanitized).scanHexInt64(&rgb)
+
+        let r = Double((rgb >> 16) & 0xFF) / 255.0
+        let g = Double((rgb >> 8) & 0xFF) / 255.0
+        let b = Double(rgb & 0xFF) / 255.0
+
+        self.init(red: r, green: g, blue: b)
+    }
+}
+
 func generateQRCode(from data: Data) -> UIImage {
     let context = CIContext()
     let filter = CIFilter.qrCodeGenerator()
@@ -215,5 +231,169 @@ func convertMDocItemToGenericJSON(_ item: MDocItem) -> GenericJSON {
         return mapToGenericJSON(value)
     case .array(let value):
         return .array(value.map { convertMDocItemToGenericJSON($0) })
+    }
+}
+
+// MARK: - Credential Field Type and Formatting
+
+enum CredentialFieldType {
+    case text
+    case date
+    case image
+}
+
+func getCredentialFieldType(displayName: String, fieldValue: String = "") -> CredentialFieldType {
+    let lowerDisplayName = displayName.lowercased()
+    let lowerValue = fieldValue.lowercased()
+
+    if lowerDisplayName.contains("image") && !lowerDisplayName.contains("date") {
+        return .image
+    }
+    if lowerDisplayName.contains("portrait") && !lowerDisplayName.contains("date") {
+        return .image
+    }
+    if lowerValue.contains("data:image") || (lowerValue.hasPrefix("http") && (lowerValue.contains(".jpg") || lowerValue.contains(".png") || lowerValue.contains(".jpeg"))) {
+        return .image
+    }
+
+    if lowerDisplayName.contains("date") || lowerDisplayName.contains("from") || lowerDisplayName.contains("until") || lowerDisplayName.contains("expiry") {
+        return .date
+    }
+
+    if fieldValue.range(of: #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z?$"#, options: .regularExpression) != nil {
+        return .date
+    }
+    if fieldValue.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil {
+        return .date
+    }
+
+    return .text
+}
+
+func formatCredentialFieldValue(fieldValue: String, fieldType: CredentialFieldType, fieldName: String = "", maxLength: Int = 17) -> String {
+    switch fieldType {
+    case .date:
+        return formatDateValue(fieldValue) ?? fieldValue
+
+    case .text:
+        if let formattedDate = formatDateValue(fieldValue) {
+            return formattedDate
+        }
+
+        if fieldName.lowercased() == "sex" {
+            switch fieldValue {
+            case "1": return "M"
+            case "2": return "F"
+            case "M", "m", "male": return "M"
+            case "F", "f", "female": return "F"
+            default: return fieldValue.uppercased()
+            }
+        }
+
+        if fieldValue.lowercased() == "true" {
+            return "True"
+        }
+        if fieldValue.lowercased() == "false" {
+            return "False"
+        }
+
+        let titleCaseValue = fieldValue.split(separator: " ")
+            .map { word -> String in
+                guard !word.isEmpty else { return "" }
+                let firstChar = word.prefix(1).uppercased()
+                let rest = word.dropFirst()
+                return firstChar + rest
+            }
+            .joined(separator: " ")
+
+        if maxLength > 0 && titleCaseValue.count > maxLength + 3 {
+            let index = titleCaseValue.index(titleCaseValue.startIndex, offsetBy: maxLength)
+            return String(titleCaseValue[..<index]) + "..."
+        }
+
+        return titleCaseValue
+
+    case .image:
+        return fieldValue
+    }
+}
+
+private func formatDateValue(_ fieldValue: String) -> String? {
+    let dateFormatter = DateFormatter()
+    let outputFormatter = DateFormatter()
+    outputFormatter.dateFormat = "MMM dd, yyyy"
+
+    if fieldValue.range(of: #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z?$"#, options: .regularExpression) != nil {
+        if fieldValue.hasSuffix("Z") {
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        } else {
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        }
+
+        if let date = dateFormatter.date(from: fieldValue) {
+            return outputFormatter.string(from: date)
+        }
+    }
+
+    if fieldValue.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil {
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+        if let date = dateFormatter.date(from: fieldValue) {
+            return outputFormatter.string(from: date)
+        }
+    }
+
+    return nil
+}
+
+struct RenderCredentialFieldValue: View {
+    let fieldType: CredentialFieldType
+    let rawFieldValue: String
+    let formattedValue: String
+    let displayName: String
+
+    var body: some View {
+        switch fieldType {
+        case .image:
+            if !rawFieldValue.isEmpty {
+                CredentialImage(image: rawFieldValue)
+                    .frame(width: 100, height: 100)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.black.opacity(0.1), lineWidth: 1)
+                    )
+            }
+
+        case .date, .text:
+            Text(formattedValue)
+                .font(.customFont(font: .inter, style: .regular, size: .h4))
+                .foregroundColor(Color("ColorStone950"))
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+extension String {
+    func getKeyReadable() -> String {
+        if self == "un_distinguishing_sign" {
+            return "country_code"
+        }
+        return self.replacingOccurrences(of: "_", with: " ")
+    }
+
+    func toTitle() -> String {
+        if self == self.uppercased() || self.first?.isUppercase == true {
+            return self
+        }
+
+        return self
+            .split(separator: " ")
+            .map { word in
+                guard !word.isEmpty else { return "" }
+                let firstChar = word.prefix(1).uppercased()
+                let rest = word.dropFirst().lowercased()
+                return firstChar + rest
+            }
+            .joined(separator: " ")
     }
 }

@@ -11,7 +11,6 @@ struct CredentialImage: View {
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 60, height: 60)
                 } placeholder: {
                 })
         } else {
@@ -27,7 +26,7 @@ struct CredentialImage: View {
                 )?
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 60, height: 60))
+            )
         }
     }
 }

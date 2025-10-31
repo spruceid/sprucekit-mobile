@@ -240,3 +240,94 @@ struct ScanningComponent: View {
         .navigationBarBackButtonHidden(true)
     }
 }
+
+// MARK: - Minimal Scanning Component (for individual credential scanning)
+
+struct MinimalScanningComponent: View {
+    var backgroundColor: Color = Color("ColorBase50")
+    var onRead: (String) -> Void
+    var onCancel: () -> Void
+
+    /// QR Code Scanner properties
+    @State private var cameraPermission: Permission = .idle
+
+    /// Error properties
+    @State private var errorMessage: String = ""
+    @State private var showError: Bool = false
+    @Environment(\.openURL) private var openURL
+
+    /// Checking camera permission
+    func checkCameraPermisssion() {
+        Task {
+            switch AVCaptureDevice.authorizationStatus(for: .video) {
+            case .authorized:
+                cameraPermission = .approved
+            case .notDetermined:
+                /// Requesting camera access
+                if await AVCaptureDevice.requestAccess(for: .video) {
+                    /// Permission Granted
+                    cameraPermission = .approved
+                } else {
+                    /// Permission Denied
+                    cameraPermission = .denied
+                    /// Presenting Error message
+                    presentError("Please provide access to your camera")
+                }
+            case .denied, .restricted:
+                cameraPermission = .denied
+                /// Presenting Error message
+                presentError("Please provide access to your camera")
+            default: break
+            }
+        }
+    }
+
+    /// Presenting Error
+    func presentError(_ message: String) {
+        errorMessage = message
+        showError.toggle()
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                if cameraPermission == Permission.approved {
+                    MinimalQRCodeScanner(
+                        onRead: onRead,
+                        onCancel: onCancel,
+                        backgroundColor: backgroundColor,
+                        borderColor: Color("ColorStone300"),
+                        instructionsText: "",
+                        instructionsFont: .customFont(
+                            font: .inter,
+                            style: .regular,
+                            size: .p
+                        ),
+                        instructionsColor: Color("ColorBase800")
+                    )
+                }
+            }
+        }
+        .onAppear(perform: checkCameraPermisssion)
+        .alert(isPresented: $showError) {
+            Alert(
+                title: Text(errorMessage),
+                message: nil,
+                primaryButton: .default(
+                    Text("Settings"),
+                    action: {
+                        let settingString = UIApplication.openSettingsURLString
+                        if let settingURL = URL(string: settingString) {
+                            openURL(settingURL)
+                        }
+                    }
+                ),
+                secondaryButton: .destructive(
+                    Text("Cancel"),
+                    action: onCancel
+                )
+            )
+        }
+        .navigationBarBackButtonHidden(true)
+    }
+}
