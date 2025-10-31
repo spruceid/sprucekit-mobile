@@ -33,7 +33,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.ColorYellow700
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 
 @Composable
 fun CredentialStatusSmall(status: CredentialStatusList) {
@@ -50,7 +50,7 @@ fun CredentialStatusSmall(status: CredentialStatusList) {
             )
             Text(
                 text = "Valid",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorEmerald600
@@ -69,7 +69,7 @@ fun CredentialStatusSmall(status: CredentialStatusList) {
             )
             Text(
                 text = "Revoked",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorRose700
@@ -88,7 +88,7 @@ fun CredentialStatusSmall(status: CredentialStatusList) {
             )
             Text(
                 text = "Suspended",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorYellow700
@@ -107,7 +107,7 @@ fun CredentialStatusSmall(status: CredentialStatusList) {
             )
             Text(
                 text = "Unknown",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorStone950
@@ -126,7 +126,7 @@ fun CredentialStatusSmall(status: CredentialStatusList) {
             )
             Text(
                 text = "Invalid",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorRose700
@@ -146,7 +146,7 @@ fun CredentialStatusSmall(status: CredentialStatusList) {
             )
             Text(
                 text = "Pending",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorBlue600
@@ -165,7 +165,7 @@ fun CredentialStatusSmall(status: CredentialStatusList) {
             )
             Text(
                 text = "Ready",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorEmerald600
@@ -180,7 +180,7 @@ fun CredentialStatus(status: CredentialStatusList) {
         CredentialStatusList.VALID -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -210,7 +210,7 @@ fun CredentialStatus(status: CredentialStatusList) {
                 )
                 Text(
                     text = "VALID",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorBase50
@@ -221,7 +221,7 @@ fun CredentialStatus(status: CredentialStatusList) {
         CredentialStatusList.REVOKED -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -251,7 +251,7 @@ fun CredentialStatus(status: CredentialStatusList) {
                 )
                 Text(
                     text = "REVOKED",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorBase50
@@ -262,7 +262,7 @@ fun CredentialStatus(status: CredentialStatusList) {
         CredentialStatusList.SUSPENDED -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -292,7 +292,7 @@ fun CredentialStatus(status: CredentialStatusList) {
                 )
                 Text(
                     text = "SUSPENDED",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorBase50
@@ -303,7 +303,7 @@ fun CredentialStatus(status: CredentialStatusList) {
         CredentialStatusList.UNKNOWN -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -333,7 +333,7 @@ fun CredentialStatus(status: CredentialStatusList) {
                 )
                 Text(
                     text = "UNKNOWN",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorStone950
@@ -344,7 +344,7 @@ fun CredentialStatus(status: CredentialStatusList) {
         CredentialStatusList.INVALID -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -374,7 +374,7 @@ fun CredentialStatus(status: CredentialStatusList) {
                 )
                 Text(
                     text = "INVALID",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorBase50
@@ -387,7 +387,7 @@ fun CredentialStatus(status: CredentialStatusList) {
         CredentialStatusList.PENDING -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -417,7 +417,7 @@ fun CredentialStatus(status: CredentialStatusList) {
                 )
                 Text(
                     text = "PENDING",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorBase50
@@ -428,7 +428,7 @@ fun CredentialStatus(status: CredentialStatusList) {
         CredentialStatusList.READY -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -458,7 +458,7 @@ fun CredentialStatus(status: CredentialStatusList) {
                 )
                 Text(
                     text = "READY",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorBase50

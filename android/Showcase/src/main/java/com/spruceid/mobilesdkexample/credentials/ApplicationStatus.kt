@@ -32,7 +32,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone100
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 
 @Composable
 fun ApplicationStatusSmall(status: FlowState) {
@@ -49,7 +49,7 @@ fun ApplicationStatusSmall(status: FlowState) {
             )
             Text(
                 text = "Proofing Required",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorStone950
@@ -68,7 +68,7 @@ fun ApplicationStatusSmall(status: FlowState) {
             )
             Text(
                 text = "Awaiting Manual Review",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorBlue600
@@ -87,7 +87,7 @@ fun ApplicationStatusSmall(status: FlowState) {
             )
             Text(
                 text = "Ready to Provision",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorEmerald600
@@ -106,7 +106,7 @@ fun ApplicationStatusSmall(status: FlowState) {
             )
             Text(
                 text = "Application Denied",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 11.sp,
                 color = ColorRose700
@@ -121,7 +121,7 @@ fun ApplicationStatus(status: FlowState) {
         is FlowState.ProofingRequired -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -151,7 +151,7 @@ fun ApplicationStatus(status: FlowState) {
                 )
                 Text(
                     text = "PROOFING REQUIRED",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorStone950
@@ -162,7 +162,7 @@ fun ApplicationStatus(status: FlowState) {
         FlowState.AwaitingManualReview -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -192,7 +192,7 @@ fun ApplicationStatus(status: FlowState) {
                 )
                 Text(
                     text = "AWAITING MANUAL REVIEW",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorBase50
@@ -203,7 +203,7 @@ fun ApplicationStatus(status: FlowState) {
         is FlowState.ReadyToProvision -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -233,7 +233,7 @@ fun ApplicationStatus(status: FlowState) {
                 )
                 Text(
                     text = "READY TO PROVISION",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorBase50
@@ -244,7 +244,7 @@ fun ApplicationStatus(status: FlowState) {
         FlowState.ApplicationDenied -> Column {
             Text(
                 "Status",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Normal,
                 fontSize = 16.sp,
                 color = ColorStone500,
@@ -274,7 +274,7 @@ fun ApplicationStatus(status: FlowState) {
                 )
                 Text(
                     text = "APPLICATION DENIED",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 18.sp,
                     color = ColorBase50

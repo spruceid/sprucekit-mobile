@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">SpruceKit</string>
+    <string name="add">Add</string>
     <string name="user">User profile</string>
     <string name="qrcode_scanner">Scan QR Code</string>
     <string name="qrcode">QR Code</string>

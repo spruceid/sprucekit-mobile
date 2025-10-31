@@ -26,7 +26,7 @@ import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
@@ -104,7 +104,7 @@ fun VerifierCredentialSuccessView(
             title?.let {
                 Text(
                     text = it,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
                     color = ColorStone950,
@@ -114,7 +114,7 @@ fun VerifierCredentialSuccessView(
             issuer?.let {
                 Text(
                     text = it,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
                     color = ColorStone600
@@ -156,7 +156,7 @@ fun VerifierCredentialSuccessView(
 //                )
 //                Text(
 //                    text = "Rescan",
-//                    fontFamily = Inter,
+//                    fontFamily = Switzer,
 //                    fontWeight = FontWeight.SemiBold,
 //                    color = Color.White,
 //                )
@@ -182,7 +182,7 @@ fun VerifierCredentialSuccessView(
         ) {
             Text(
                 text = "Close",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 color = ColorStone950,
             )

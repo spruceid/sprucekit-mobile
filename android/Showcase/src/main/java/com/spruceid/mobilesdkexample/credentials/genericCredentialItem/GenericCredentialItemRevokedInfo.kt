@@ -21,7 +21,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorRose700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 
 @Composable
@@ -38,7 +38,7 @@ fun GenericCredentialItemRevokedInfo(
         Text(
             text = "Revoked Credential",
             textAlign = TextAlign.Left,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp,
             color = ColorStone950,
@@ -48,7 +48,7 @@ fun GenericCredentialItemRevokedInfo(
         Text(
             text = "The following credential(s) have been revoked:",
             textAlign = TextAlign.Left,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Normal,
             fontSize = 16.sp,
             color = ColorStone600,
@@ -59,7 +59,7 @@ fun GenericCredentialItemRevokedInfo(
         Text(
             text = credentialTitleAndIssuer.second,
             textAlign = TextAlign.Left,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp,
             color = ColorRose700,
@@ -87,7 +87,7 @@ fun GenericCredentialItemRevokedInfo(
         ) {
             Text(
                 text = "Close",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 color = ColorStone950,
             )

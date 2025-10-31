@@ -307,3 +307,121 @@ class QrCodeAnalyzer(
         }
     }
 }
+
+
+@Composable
+fun MinimalQRCodeScanner(
+    onRead: (content: String) -> Unit,
+    isMatch: (content: String) -> Boolean = { _ -> true },
+    onCancel: () -> Unit,
+    backgroundColor: Color,
+    borderColor: Color = Color.Blue,
+    instructionsText: String = "Scan the provided verification QR Code in order to share data",
+    instructionsColor: Color = Color.Gray,
+    fontFamily: FontFamily = FontFamily.Default
+) {
+    GenericCameraXScanner(
+        title = "",
+        titleColor = Color.Transparent,
+        subtitle = "",
+        subtitleColor = Color.Transparent,
+        cancelButtonLabel = "",
+        onCancel = onCancel,
+        hideCancelButton = true,
+        fontFamily = fontFamily,
+        imageAnalyzer = QrCodeAnalyzer(
+            isMatch = isMatch,
+            onQrCodeScanned = { result ->
+                onRead(result)
+            }),
+        background = {
+            MinimalQRScannerBackground(
+                backgroundColor = backgroundColor,
+                borderColor = borderColor,
+                instructionsText = instructionsText,
+                instructionsColor = instructionsColor,
+                fontFamily = fontFamily
+            )
+        }
+    )
+}
+
+@Composable
+fun MinimalQRScannerBackground(
+    backgroundColor: Color = Color.White,
+    borderColor: Color = Color.Blue,
+    instructionsText: String = "Scan the provided verification QR Code in order to share data",
+    instructionsColor: Color = Color.Gray,
+    fontFamily: FontFamily = FontFamily.Default
+) {
+    // Padding from edges to ensure the scanner doesn't touch screen boundaries
+    val edgePadding = 1.dp
+
+    Box(
+        Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(backgroundColor)
+                .drawWithContent {
+                    // Calculate the maximum square that fits in the available space
+                    val padding = edgePadding.toPx()
+                    val availableWidth = size.width - (padding * 2)
+                    val availableHeight = size.height - (padding * 2)
+
+                    // Use the smaller dimension to ensure square fits
+                    val scannerSize = minOf(availableWidth, availableHeight)
+
+                    // Center the square
+                    val left = (size.width - scannerSize) / 2
+                    val top = (size.height - scannerSize) / 2
+                    val cornerRadius = 12.dp.toPx()
+
+                    // Draw camera feed first
+                    drawContent()
+
+                    // Draw semi-transparent overlay over entire screen
+                    drawRect(
+                        color = backgroundColor,
+                        size = size
+                    )
+
+                    // Cut out a transparent square in the center for camera view
+                    drawRoundRect(
+                        topLeft = Offset(left, top),
+                        size = Size(scannerSize, scannerSize),
+                        color = Color.Transparent,
+                        blendMode = BlendMode.SrcIn,
+                        cornerRadius = CornerRadius(cornerRadius),
+                    )
+
+                    // Draw border around the scanner area
+                    drawRoundRect(
+                        topLeft = Offset(left, top),
+                        size = Size(scannerSize, scannerSize),
+                        color = borderColor,
+                        style = Stroke(2.dp.toPx()),
+                        cornerRadius = CornerRadius(cornerRadius),
+                    )
+                }
+        )
+
+        // Instructions text overlay
+        if (instructionsText.isNotEmpty()) {
+            Text(
+                text = instructionsText,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 80.dp),
+                color = instructionsColor,
+                fontFamily = fontFamily,
+                fontWeight = FontWeight.Normal,
+                fontSize = 15.sp,
+            )
+        }
+    }
+}

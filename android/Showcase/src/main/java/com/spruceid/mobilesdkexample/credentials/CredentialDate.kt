@@ -10,7 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -71,7 +71,7 @@ fun CredentialDate(dateString: String) {
     date?.let {
         Text(
             it,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Normal,
             fontSize = 17.sp,
             color = ColorStone950,

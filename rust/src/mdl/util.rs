@@ -209,7 +209,7 @@ fn prepare_mdoc(
           "weight":75,
           "eye_colour":"blue",
           "hair_colour":"black",
-          "birth_place":"USA, California",
+          "birth_place":"California, USA",
           "resident_address":"123 Main St, Los Angeles, California, 90001",
           "portrait_capture_date":"2020-01-01T12:00:00Z",
           "age_in_years":35,

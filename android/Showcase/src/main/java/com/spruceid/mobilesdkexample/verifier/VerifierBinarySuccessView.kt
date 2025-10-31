@@ -33,7 +33,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.ui.theme.MobileSdkTheme
 
 @Composable
@@ -74,7 +74,7 @@ fun VerifierBinarySuccessView(
                         )
                         Text(
                             text = "True",
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.Normal,
                             fontSize = 32.sp,
                             color = Color.White,
@@ -109,7 +109,7 @@ fun VerifierBinarySuccessView(
                         )
                         Text(
                             text = "False",
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.Normal,
                             fontSize = 32.sp,
                             color = Color.White,
@@ -121,7 +121,7 @@ fun VerifierBinarySuccessView(
 
         Text(
             text = description,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 26.sp,
             color = ColorStone950,
@@ -142,7 +142,7 @@ fun VerifierBinarySuccessView(
         ) {
             Text(
                 text = "Close",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
             )

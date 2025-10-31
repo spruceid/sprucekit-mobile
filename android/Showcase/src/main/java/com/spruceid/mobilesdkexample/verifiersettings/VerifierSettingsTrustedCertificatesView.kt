@@ -40,7 +40,7 @@ import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.db.TrustedCertificates
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.SimpleAlertDialog
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.FileData
@@ -82,11 +82,11 @@ fun VerifierSettingsTrustedCertificatesHeader(onBack: () -> Unit) {
             contentDescription = stringResource(id = R.string.chevron),
             modifier = Modifier
                 .rotate(180f)
-                .scale(0.4f)
+                .scale(1.4f)
         )
         Text(
             text = "Trusted Certificates",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
             color = ColorStone950
@@ -135,7 +135,7 @@ fun VerifierSettingsTrustedCertificatesBody() {
         Spacer(Modifier.weight(1f))
         Text(
             text = "+ New Certificate",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 14.sp,
             color = ColorBlue600,
@@ -160,7 +160,7 @@ fun VerifierSettingsTrustedCertificatesBody() {
                         ) {
                             Text(
                                 text = certificate.name,
-                                fontFamily = Inter,
+                                fontFamily = Switzer,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 18.sp,
                                 color = ColorStone950,

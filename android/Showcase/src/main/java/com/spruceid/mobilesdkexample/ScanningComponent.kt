@@ -29,15 +29,18 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.spruceid.mobile.sdk.ui.MRZScanner
+import com.spruceid.mobile.sdk.ui.MinimalQRCodeScanner
 import com.spruceid.mobile.sdk.ui.PDF417Scanner
 import com.spruceid.mobile.sdk.ui.QRCodeScanner
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase500
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase800
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 
 enum class ScanningType {
     QRCODE, PDF417, MRZ
@@ -101,7 +104,7 @@ fun ScanningComponent(
                     isMatch = isMatch,
                     onCancel = onCancel,
                     hideCancelButton = hideCancelButton,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     readerColor = Color.White,
                     guidesColor = ColorBlue600,
                     cancelButtonColor = ColorStone950,
@@ -118,7 +121,7 @@ fun ScanningComponent(
                     isMatch = isMatch,
                     onCancel = onCancel,
                     hideCancelButton = hideCancelButton,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     readerColor = Color.White,
                     guidesColor = Color.White,
                     backgroundOpacity = 0.5f,
@@ -132,7 +135,7 @@ fun ScanningComponent(
                     isMatch = isMatch,
                     onCancel = onCancel,
                     hideCancelButton = hideCancelButton,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     readerColor = Color.White,
                     guidesColor = Color.White,
                     backgroundOpacity = 0.5f
@@ -146,13 +149,13 @@ fun ScanningComponent(
                 title = {
                     Text(
                         "Camera permission denied",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                     )
                 },
                 text = {
                     Text(
                         "Please provide the permissions for scanning QR code",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                     )
                 },
                 confirmButton = {
@@ -175,7 +178,7 @@ fun ScanningComponent(
                                 .border(2.dp, Color.Transparent, RoundedCornerShape(100.dp)),
                     ) {
                         Text(
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             text = "Go to Settings",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
@@ -194,7 +197,128 @@ fun ScanningComponent(
                     ) {
                         Text(
                             text = "Cancel",
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = ColorBase150,
+                        )
+                    }
+                },
+            )
+        }
+    }
+}
+
+@ExperimentalMaterial3Api
+@ExperimentalPermissionsApi
+@Composable
+fun IndividualCredentialScanningComponent(
+    backgroundColor: Color = Color.White,
+    onRead: (content: String) -> Unit,
+    isMatch: (content: String) -> Boolean = { _ -> true },
+    onCancel: () -> Unit
+) {
+    val context = LocalContext.current
+
+    val permissionsState =
+        rememberMultiplePermissionsState(
+            permissions =
+                listOf(
+                    Manifest.permission.CAMERA,
+                ),
+        )
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(
+        key1 = lifecycleOwner,
+        effect = {
+            val observer =
+                LifecycleEventObserver { _, event ->
+                    if (event == Lifecycle.Event.ON_START) {
+                        permissionsState.launchMultiplePermissionRequest()
+                    }
+                }
+            lifecycleOwner.lifecycle.addObserver(observer)
+
+            onDispose {
+                lifecycleOwner.lifecycle.removeObserver(observer)
+            }
+        },
+    )
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        val permissionNotGranted =
+            permissionsState.permissions.filter { perm -> !perm.status.isGranted }
+        if (permissionNotGranted.isEmpty()) {
+            MinimalQRCodeScanner(
+                onRead = onRead,
+                isMatch = isMatch,
+                onCancel = onCancel,
+                backgroundColor = backgroundColor,
+                borderColor = ColorStone300,
+                instructionsText = "",
+                instructionsColor = ColorBase800,
+                fontFamily = Switzer
+            )
+        } else {
+            AlertDialog(
+                containerColor = Color.White,
+                shape = RoundedCornerShape(8.dp),
+                onDismissRequest = onCancel,
+                title = {
+                    Text(
+                        "Camera permission denied",
+                        fontFamily = Switzer,
+                    )
+                },
+                text = {
+                    Text(
+                        "Please provide the permissions for scanning QR code",
+                        fontFamily = Switzer,
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            // send to app settings if permission is denied permanently
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                            val uri = Uri.fromParts("package", context.packageName, null)
+                            intent.data = uri
+                            context.startActivity(intent)
+                        },
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = ColorBase150,
+                                contentColor = Color.White,
+                            ),
+                        modifier =
+                            Modifier
+                                .padding(vertical = 2.dp)
+                                .border(2.dp, Color.Transparent, RoundedCornerShape(100.dp)),
+                    ) {
+                        Text(
+                            fontFamily = Switzer,
+                            text = "Go to Settings",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            color = Color.White,
+                        )
+                    }
+                },
+                dismissButton = {
+                    Button(
+                        onClick = onCancel,
+                        colors =
+                            ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = ColorBase150,
+                            ),
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
                             color = ColorBase150,

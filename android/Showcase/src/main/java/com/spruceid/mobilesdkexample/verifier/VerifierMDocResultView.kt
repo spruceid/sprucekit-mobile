@@ -31,7 +31,7 @@ import com.spruceid.mobilesdkexample.credentials.genericObjectDisplayer
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.ErrorToast
 import com.spruceid.mobilesdkexample.utils.SimpleAlertDialog
 import com.spruceid.mobilesdkexample.utils.WarningToast
@@ -71,7 +71,7 @@ fun VerifierMDocResultView(
         ) {
             Text(
                 text = title,
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 color = ColorStone950,
@@ -80,7 +80,7 @@ fun VerifierMDocResultView(
             issuer?.let {
                 Text(
                     text = it,
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.Normal,
                     fontSize = 14.sp,
                     color = ColorStone600
@@ -138,7 +138,7 @@ fun VerifierMDocResultView(
         ) {
             Text(
                 text = "Close",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 color = ColorStone950,
             )

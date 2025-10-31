@@ -5,19 +5,28 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -62,13 +71,22 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone200
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
+import com.spruceid.mobilesdkexample.utils.RenderCredentialFieldValue
+import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
+import com.spruceid.mobilesdkexample.utils.formatCredentialFieldValue
+import com.spruceid.mobilesdkexample.utils.getCredentialFieldType
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.utils.getFieldDisplayName
+import com.spruceid.mobilesdkexample.utils.getFieldSortOrder
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -125,8 +143,8 @@ fun HandleMdocOID4VPView(
                 withContext(Dispatchers.IO) {
                     val usableCredentialPacks = credentialPackId
                         ?.takeIf { it.isNotBlank() }
-                        ?.let { id -> credentialPacksViewModel.getById(id)}
-                        ?.let {listOf(it)}
+                        ?.let { id -> credentialPacksViewModel.getById(id) }
+                        ?.let { listOf(it) }
                         ?: credentialPacks
 
                     val credentials = mutableListOf<Mdoc>()
@@ -220,6 +238,7 @@ fun HandleMdocOID4VPView(
                                     additionalInformation = ""
                                 )
                             )
+                            Toast.showSuccess("Shared successfully")
                             onBack(redirect)
                         } catch (e: Exception) {
                             error = MdocOID4VPError(
@@ -246,6 +265,9 @@ fun MdocFieldSelector(
     modifier: Modifier = Modifier.fillMaxSize(),
     origin: String = "Verifier"
 ) {
+    val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
+
     var selectedFields by remember {
         mutableStateOf<Set<FieldId180137>>(
             match.requestedFields()
@@ -258,14 +280,13 @@ fun MdocFieldSelector(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .padding(top = 48.dp)
     ) {
         Text(
             buildAnnotatedString {
                 withStyle(style = SpanStyle(color = Color.Blue)) { append(origin) }
                 append(" is requesting access to the following information")
             },
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
             color = ColorStone950,
@@ -280,24 +301,54 @@ fun MdocFieldSelector(
                 .verticalScroll(rememberScrollState())
                 .weight(weight = 1f, fill = false)
         ) {
-            match.requestedFields().forEach { field ->
-                MdocFieldSelectorItem(
-                    field,
-                    checked = selectedFields.contains(field.id),
-                    selectField = {
-                        val newSet: MutableSet<FieldId180137> = selectedFields.toMutableSet()
-                        newSet.add(field.id)
-                        selectedFields = newSet
-                    },
-                    deselectField = {
-                        val newSet: MutableSet<FieldId180137> = selectedFields.toMutableSet()
-                        newSet.remove(field.id)
-                        selectedFields = newSet
-                    })
+            val credentialPack = credentialPacks.firstOrNull { credentialPack ->
+                credentialPack.getCredentialById(match.credentialId()) != null
             }
+
+            match.requestedFields()
+                .sortedBy { getFieldSortOrder(it.displayableName) }
+                .forEach { field ->
+                    // Get portrait image if this is the portrait field
+                    val portraitValue =
+                        if (field.displayableName.equals("portrait", ignoreCase = true)) {
+                            credentialPack?.let { pack ->
+                                try {
+                                    val claims = pack.findCredentialClaims(listOf("portrait"))
+                                    claims.values.firstOrNull()?.optString("portrait") ?: ""
+                                } catch (e: Exception) {
+                                    ""
+                                }
+                            } ?: ""
+                        } else {
+                            ""
+                        }
+
+                    MdocFieldSelectorItem(
+                        field,
+                        portraitValue = portraitValue,
+                        checked = selectedFields.contains(field.id),
+                        selectField = {
+                            val newSet: MutableSet<FieldId180137> = selectedFields.toMutableSet()
+                            newSet.add(field.id)
+                            selectedFields = newSet
+                        },
+                        deselectField = {
+                            val newSet: MutableSet<FieldId180137> = selectedFields.toMutableSet()
+                            newSet.remove(field.id)
+                            selectedFields = newSet
+                        })
+                }
 
         }
 
+        // Separator line above buttons
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 16.dp)
+                .height(1.dp)
+                .background(ColorStone200)
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -307,7 +358,7 @@ fun MdocFieldSelector(
         ) {
             Button(
                 onClick = { onCancel() },
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
                     contentColor = ColorStone950,
@@ -315,15 +366,23 @@ fun MdocFieldSelector(
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(
-                        width = 1.dp, color = ColorStone300, shape = RoundedCornerShape(6.dp)
+                        width = 1.dp, color = ColorStone300, shape = RoundedCornerShape(20.dp)
                     )
                     .weight(1f)
             ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Close",
+                    modifier = Modifier.size(20.dp),
+                    tint = ColorStone950
+                )
+                Spacer(modifier = Modifier.size(6.dp))
                 Text(
-                    text = "Cancel",
-                    fontFamily = Inter,
+                    text = "Close",
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorStone950,
+                    fontSize = 14.sp
                 )
             }
 
@@ -334,21 +393,29 @@ fun MdocFieldSelector(
                     )
                     onContinue(approvedResponse)
                 },
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
                         color = ColorEmerald900,
-                        shape = RoundedCornerShape(6.dp),
+                        shape = RoundedCornerShape(20.dp),
                     )
                     .weight(1f)
             ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Approve",
+                    modifier = Modifier.size(20.dp),
+                    tint = ColorBase50
+                )
+                Spacer(modifier = Modifier.size(6.dp))
                 Text(
                     text = "Approve",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorBase50,
+                    fontSize = 14.sp
                 )
             }
         }
@@ -358,11 +425,15 @@ fun MdocFieldSelector(
 @Composable
 fun MdocFieldSelectorItem(
     field: RequestedField180137,
+    portraitValue: String,
     checked: Boolean,
     selectField: () -> Unit,
     deselectField: () -> Unit,
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
         Checkbox(
             checked,
             onCheckedChange = { checked ->
@@ -376,15 +447,44 @@ fun MdocFieldSelectorItem(
             colors = CheckboxDefaults.colors(
                 checkedColor = ColorBlue600,
                 uncheckedColor = ColorStone300,
-            )
+            ),
+            modifier = Modifier.width(36.dp)
         )
+        // Format the display name using utility function
+        val displayName = getFieldDisplayName(field.displayableName)
+
         Text(
-            text = field.displayableName,
-            fontFamily = Inter,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 18.sp,
-            color = ColorStone950,
+            text = displayName,
+            fontFamily = Switzer,
+            fontWeight = FontWeight.Normal,
+            fontSize = 15.sp,
+            color = ColorStone500,
             modifier = Modifier.weight(1f)
+        )
+
+        // Show field value using utility function
+        // If this is a portrait field and we have the portrait value, use it
+        val rawFieldValue = if (portraitValue.isNotEmpty()) {
+            portraitValue
+        } else {
+            field.displayableValue ?: ""
+        }
+
+        val fieldType = getCredentialFieldType(
+            displayName,
+            rawFieldValue
+        )
+        val formattedValue = formatCredentialFieldValue(
+            rawFieldValue,
+            fieldType,
+            field.displayableName
+        )
+
+        RenderCredentialFieldValue(
+            fieldType = fieldType,
+            rawFieldValue = rawFieldValue,
+            formattedValue = formattedValue,
+            displayName = displayName
         )
     }
 }
@@ -409,11 +509,10 @@ fun MdocSelector(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .padding(top = 48.dp)
     ) {
         Text(
             text = "Select the credential to share",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Bold,
             fontSize = 20.sp,
             color = ColorStone950,
@@ -462,7 +561,7 @@ fun MdocSelector(
             ) {
                 Text(
                     text = "Cancel",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorStone950,
                 )
@@ -491,7 +590,7 @@ fun MdocSelector(
             ) {
                 Text(
                     text = "Continue",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorBase50,
                 )
@@ -543,7 +642,7 @@ fun MdocSelectorItem(
             )
             Text(
                 text = "Mobile Drivers License",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,
                 color = ColorStone950,

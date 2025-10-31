@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 
 @Composable
 fun Accordion(
@@ -77,7 +77,7 @@ private fun AccordionHeader(
     ) {
         Text(
             title,
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.Normal,
             fontSize = 16.sp,
             color = ColorStone500,

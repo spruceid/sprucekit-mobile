@@ -11,6 +11,9 @@ interface WalletActivityLogsDao {
 
     @Query("SELECT * FROM wallet_activity_logs ORDER BY dateTime DESC")
     fun getAllWalletActivityLogs(): List<WalletActivityLogs>
+
+    @Query("SELECT * FROM wallet_activity_logs WHERE credentialPackId = :credentialPackId ORDER BY dateTime DESC")
+    fun getWalletActivityLogsByCredentialPackId(credentialPackId: String): List<WalletActivityLogs>
 }
 
 @Dao

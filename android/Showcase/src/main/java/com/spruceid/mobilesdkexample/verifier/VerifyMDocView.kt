@@ -49,7 +49,7 @@ import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
@@ -282,7 +282,7 @@ fun VerifyMDocView(
                 ) {
                     Text(
                         text = "Enable Bluetooth to start",
-                        fontFamily = Inter,
+                        fontFamily = Switzer,
                         fontWeight = FontWeight.Normal,
                         fontSize = 16.sp,
                         modifier = Modifier.padding(vertical = 20.dp)
@@ -306,7 +306,7 @@ fun VerifyMDocView(
                     ) {
                         Text(
                             text = "Cancel",
-                            fontFamily = Inter,
+                            fontFamily = Switzer,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.Black,
                         )
