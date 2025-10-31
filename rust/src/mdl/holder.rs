@@ -11,6 +11,7 @@
 
 use crate::credential::mdoc::Mdoc;
 use crate::{storage_manager::StorageManagerInterface, vdc_collection::VdcCollection};
+use crate::{CentralClientDetails, PeripheralServerDetails};
 use std::ops::DerefMut;
 use std::{
     collections::HashMap,
@@ -103,7 +104,10 @@ pub async fn initialize_mdl_presentation(
 ///
 /// Arguments:
 /// mdoc: the Mdoc to be presented, as an [Mdoc] object
-/// uuid: the Bluetooth Low Energy Client Central Mode UUID to be used
+/// central_client_mode: optional BLE Central Client Mode engagement details
+/// peripheral_server_mode: optional BLE Peripheral Server Mode engagement details
+///
+/// Note: At least one engagement mode must be provided.
 ///
 /// Returns:
 /// A Result, with the `Ok` containing a tuple consisting of an enum representing
@@ -113,11 +117,29 @@ pub async fn initialize_mdl_presentation(
 #[uniffi::export]
 pub fn initialize_mdl_presentation_from_bytes(
     mdoc: Arc<Mdoc>,
-    uuid: Uuid,
+    central_client_mode: Option<CentralClientDetails>,
+    peripheral_server_mode: Option<PeripheralServerDetails>,
 ) -> Result<MdlPresentationSession, SessionError> {
+    // Ensure exactly one mode is provided
+
+    if central_client_mode.is_none() && peripheral_server_mode.is_none() {
+        return Err(SessionError::Generic {
+                value: "At least one engagement mode (central_client_mode or peripheral_server_mode) must be provided".to_string(),
+            });
+    }
+
     let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
-        peripheral_server_mode: None,
-        central_client_mode: Some(CentralClientMode { uuid }),
+        peripheral_server_mode: peripheral_server_mode.map(|mode| {
+            isomdl::definitions::device_engagement::PeripheralServerMode {
+                uuid: mode.service_uuid,
+                ble_device_address: mode.ble_device_address.map(|addr| addr.into()),
+            }
+        }),
+        central_client_mode: central_client_mode.map(|mode| {
+            isomdl::definitions::device_engagement::CentralClientMode {
+                uuid: mode.service_uuid,
+            }
+        }),
     }));
     let session = SessionManagerInit::initialise(
         NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone()),

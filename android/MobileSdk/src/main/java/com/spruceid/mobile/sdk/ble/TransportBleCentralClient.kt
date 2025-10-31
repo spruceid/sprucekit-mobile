@@ -16,21 +16,31 @@ import com.spruceid.mobile.sdk.rs.RequestException
 import java.util.*
 
 /**
- * BLE Central Client (Holder Role) - ISO 18013-5 Section 8.3.3.1.1.4 Table 11
+ * BLE Central Client - ISO 18013-5 Section 8.3.3.1.1.4 Table 11
  *
- * Implements the mDL Holder device operating as BLE Central/GATT Client:
- * - Table 11: "mDL Holder Device" configuration for BLE Central role
+ * Implements both mDL Holder and Reader devices operating as BLE Central/GATT Client:
+ * - Table 11: Device configuration for BLE Central role
  * - Section 8.3.3.1.1.3: Device engagement using ident parameter
  * - Section 8.3.3.1.1.5: BLE GATT characteristics management
  * - Section 8.3.3.1.1.6: Data transmission protocol implementation
  *
- * Protocol Flow:
+ * Protocol Flow for Holder (application="Holder"):
  * 1. Scan for BLE Peripheral (mDL Reader) advertising the service
  * 2. Connect as GATT Client to Reader's GATT Server
  * 3. Discover and validate required GATT characteristics
  * 4. Authenticate using ident value (Section 8.3.3.1.1.3)
- * 5. Exchange mDL data according to characteristic protocol
- * 6. Handle session termination per Section 8.3.3.1.1.7
+ * 5. Receive mDL request from Reader
+ * 6. Send mDL response using send() method
+ * 7. Handle session termination per Section 8.3.3.1.1.7
+ *
+ * Protocol Flow for Reader (application="Reader"):
+ * 1. Scan for BLE Peripheral (mDL Holder) advertising the service
+ * 2. Connect as GATT Client to Holder's GATT Server
+ * 3. Discover and validate required GATT characteristics
+ * 4. Authenticate using ident value (Section 8.3.3.1.1.3)
+ * 5. Automatically send mDL request (requestData) after connection
+ * 6. Receive mDL response from Holder
+ * 7. Handle session termination per Section 8.3.3.1.1.7
  *
  * @see ISO 18013-5 Table 11 for BLE Central configuration requirements
  * @see ISO 18013-5 Section 8.3.3.1.1.4 for role-specific implementation details
@@ -38,11 +48,15 @@ import java.util.*
 class TransportBleCentralClient(
     private var application: String,
     private var serviceUUID: UUID,
-    private var updateRequestData: (data: ByteArray) -> Unit,
-    private var callback: BLESessionStateDelegate?
+    private var updateRequestData: ((data: ByteArray) -> Unit)? = null,
+    private var callback: BLESessionStateDelegate?,
+    private var requestData: ByteArray? = null
 ) {
-    private val stateMachine = BleConnectionStateMachine.getInstance()
-    private var bluetoothAdapter: BluetoothAdapter = stateMachine.getBluetoothManager().adapter
+    private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.CLIENT)
+    // Lazy initialization to avoid accessing state machine before it's started
+    private val bluetoothAdapter: BluetoothAdapter by lazy {
+        stateMachine.getBluetoothManager().adapter
+    }
     private var logger = BleLogger.getInstance("TransportBleCentralClient")
     private val isReader = application == "Reader"
 
@@ -90,6 +104,12 @@ class TransportBleCentralClient(
             override fun onPeerConnected() {
                 logger.d("Peer Connected")
                 callback?.update(mapOf(Pair("connected", "")))
+
+                // Reader as Central: Send the mDL request to Holder after connection
+                if (isReader && requestData != null) {
+                    logger.d("Sending mDL request: ${requestData!!.size} bytes")
+                    gattClient.sendMessage(requestData!!)
+                }
             }
 
             override fun onPeerDisconnected() {
@@ -106,7 +126,12 @@ class TransportBleCentralClient(
                 )
 
                 if (progress == max) {
-                    callback?.update(mapOf(Pair("success", "")))
+                    // Only send success callback for Holder role, Reader waits for mDL response
+                    if (!isReader) {
+                        callback?.update(mapOf(Pair("success", "")))
+                    } else {
+                        logger.d("mDL request sent successfully")
+                    }
                 } else {
                     callback?.update(
                         mapOf(
@@ -125,7 +150,14 @@ class TransportBleCentralClient(
                 )
 
                 try {
-                    updateRequestData(data)
+                    if (isReader) {
+                        // Reader mode: Forward the mDL response to the application
+                        logger.d("Received mDL response: ${data.size} bytes")
+                        callback?.update(mapOf(Pair("mdl", data)))
+                    } else {
+                        // Holder mode: Process the request data
+                        updateRequestData?.invoke(data)
+                    }
                 } catch (e: Error) {
                     logger.e("${e.message}")
                     // Transition to error state on exception

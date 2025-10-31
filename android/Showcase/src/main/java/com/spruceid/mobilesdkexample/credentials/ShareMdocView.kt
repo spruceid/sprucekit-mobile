@@ -75,7 +75,7 @@ fun ShareMdocView(
 ) {
     val context = LocalContext.current
 
-    val session by credentialViewModel.session.collectAsState()
+    val qrCodeUri by credentialViewModel.qrCodeUri.collectAsState()
     val currentState by credentialViewModel.currState.collectAsState()
     val credentials by credentialViewModel.credentials.collectAsState()
     val error by credentialViewModel.error.collectAsState()
@@ -121,6 +121,8 @@ fun ShareMdocView(
     DisposableEffect(Unit) {
         onDispose {
             credentialViewModel.setBluetoothPermissionsGranted(false)
+            // Clean up BLE connection when leaving the screen
+            credentialViewModel.cancel()
         }
     }
 
@@ -155,10 +157,10 @@ fun ShareMdocView(
             }
 
         PresentmentState.ENGAGING_QR_CODE -> {
-            if (session!!.getQrCodeUri().isNotEmpty()) {
+            if (qrCodeUri.isNotEmpty()) {
                 Image(
                     painter = rememberQrBitmapPainter(
-                        session!!.getQrCodeUri(),
+                        qrCodeUri,
                         300.dp,
                     ),
                     contentDescription = "Share QRCode",
@@ -323,7 +325,7 @@ fun ShareMdocSelectiveDisclosureView(
                 Button(
                     onClick = {
                         try {
-                            credentialViewModel.submitNamespaces(allowedNamespaces, mdoc)
+                            credentialViewModel.submitNamespaces(allowedNamespaces)
                         } catch (e: Error) {
                             Log.e("SelectiveDisclosureView", e.stackTraceToString())
                         }
