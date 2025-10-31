@@ -431,6 +431,6 @@ private fun StatusBanner(isValid: Boolean) {
 @Composable
 private fun PersonalDataView(credentialItem: ICredentialView?) {
     if (credentialItem != null) {
-        credentialItem.credentialDetails()
+        credentialItem.CredentialDetails()
     }
 }

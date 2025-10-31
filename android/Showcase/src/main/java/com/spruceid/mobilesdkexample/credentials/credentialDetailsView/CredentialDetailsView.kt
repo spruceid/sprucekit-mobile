@@ -256,7 +256,7 @@ fun CredentialDetailsView(
                         )
                     } else {
                         // Full credential card for non-selected mode
-                        credentialItem?.credentialListItem(withOptions = false)
+                        credentialItem?.CredentialListItem(withOptions = false)
                     }
                 }
 
@@ -368,7 +368,7 @@ fun CredentialDetailsView(
 }
 
 @Composable
-fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
+fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
 
     val credentialViewModel: CredentialsViewModel = activityHiltViewModel()
 
