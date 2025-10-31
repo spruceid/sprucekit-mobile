@@ -325,7 +325,7 @@ fun ShareMdocSelectiveDisclosureView(
                 Button(
                     onClick = {
                         try {
-                            credentialViewModel.submitNamespaces(allowedNamespaces, mdoc)
+                            credentialViewModel.submitNamespaces(allowedNamespaces)
                         } catch (e: Error) {
                             Log.e("SelectiveDisclosureView", e.stackTraceToString())
                         }

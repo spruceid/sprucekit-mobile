@@ -241,6 +241,13 @@ class GattClient(
             this@GattClient.mtu = validatedMtu
             reportLog("MTU validated and set to ${this@GattClient.mtu} (requested: $mtu)")
 
+            // Check if services have been discovered yet (characteristics are set)
+            // On cached MTU connections, onMtuChanged can fire before onServicesDiscovered
+            if (characteristicServer2Client == null || characteristicState == null) {
+                reportLog("Services not yet discovered, deferring ident/afterIdentObtained until service discovery completes")
+                return
+            }
+
             /**
              * Optional ident characteristic is used for additional reader validation. 18013-5 section
              * 8.3.3.1.1.4.
