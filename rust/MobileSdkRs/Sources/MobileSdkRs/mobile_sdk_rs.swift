@@ -4072,6 +4072,13 @@ public protocol InProgressRequest180137Protocol: AnyObject, Sendable {
     
     func matches()  -> [RequestMatch180137]
     
+    /**
+     * Returns the verifier name requesting authorization.
+     * This value is derived from the `client_id` of the processed
+     * authorization request object.
+     */
+    func requestedBy()  -> String?
+    
     func respond(approvedResponse: ApprovedResponse180137) async throws  -> Url?
     
 }
@@ -4130,6 +4137,18 @@ open class InProgressRequest180137: InProgressRequest180137Protocol, @unchecked 
 open func matches() -> [RequestMatch180137]  {
     return try!  FfiConverterSequenceTypeRequestMatch180137.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_inprogressrequest180137_matches(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Returns the verifier name requesting authorization.
+     * This value is derived from the `client_id` of the processed
+     * authorization request object.
+     */
+open func requestedBy() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_inprogressrequest180137_requested_by(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -22463,6 +22482,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequest180137_matches() != 21157) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequest180137_requested_by() != 32235) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequest180137_respond() != 45984) {
