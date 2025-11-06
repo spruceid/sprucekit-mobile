@@ -47,7 +47,7 @@ fun WalletHomeViewNoCredentials (
     val screenHeight = configuration.screenHeightDp.dp
 
     val isSmallWidth = screenWidth < 380.dp
-    val isSmallHeight = screenHeight < 640.dp
+    val isSmallHeight = screenHeight < 700.dp
 
     Box(
         modifier = Modifier
@@ -69,15 +69,20 @@ fun WalletHomeViewNoCredentials (
                 color = Color.White,
                 shape = RoundedCornerShape(12.dp)
             )
-            .padding(start = 20.dp, top = 24.dp, end = 20.dp, bottom = 16.dp)
+            .padding(
+                start = 20.dp,
+                top = if (isSmallHeight) 16.dp else 24.dp,
+                end = 20.dp,
+                bottom = if (isSmallHeight) 12.dp else 16.dp
+            )
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(36.dp),
+            verticalArrangement = Arrangement.spacedBy(if (isSmallHeight) 20.dp else 36.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Title + Subtitle
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isSmallHeight) 4.dp else 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
@@ -109,7 +114,7 @@ fun WalletHomeViewNoCredentials (
                 contentScale = ContentScale.Fit,
                 modifier = if (isSmallHeight) {
                     Modifier
-                        .height(160.dp)   // smaller height for small screens
+                        .height(120.dp)   // smaller height for small screens
                         .fillMaxWidth()
                 } else {
                     Modifier

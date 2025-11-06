@@ -4,11 +4,25 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Base64
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialsViewModel
@@ -21,6 +35,8 @@ import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.credentials.genericCredentialItem.GenericCredentialItem
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import org.json.JSONArray
 import org.json.JSONObject
@@ -37,6 +53,14 @@ fun getCurrentSqlDate(): Date {
 fun formatSqlDateTime(sqlDate: Date): String {
     val formatter = SimpleDateFormat("MMM dd, yyyy 'at' h:mm a")
     return formatter.format(sqlDate)
+}
+
+// Use this function to rename a field key to a more "user-friendly" value
+fun String.getKeyReadable(): String {
+    if (this == "un_distinguishing_sign") {
+        return "country_code"
+    }
+    return this
 }
 
 fun String.splitCamelCase() = replace(
@@ -56,17 +80,57 @@ fun String.removeCommas() = replace(",", "")
 
 fun String.removeEscaping() = replace("\\/", "/")
 
+/**
+ * Checks if a string represents a date field based on field name patterns or date format detection
+ */
 fun String.isDate(): Boolean {
-    return lowercase().contains("date") ||
-            lowercase().contains("from") ||
-            lowercase().contains("until")
+    val lower = lowercase()
+    return when {
+        // Common date field name patterns
+        lower.contains("date") -> true
+        lower.contains("from") -> true
+        lower.contains("until") -> true
+        lower.contains("timestamp") -> true
+        // Check if value matches ISO 8601 or common date formats
+        matches(Regex("\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}Z?)?")) -> true
+        matches(Regex("\\d{2}/\\d{2}/\\d{4}")) -> true
+        matches(Regex("\\d{2}-\\d{2}-\\d{4}")) -> true
+        else -> false
+    }
 }
 
+/**
+ * Checks if a string represents an image field based on field name patterns or data URI detection
+ */
 fun String.isImage(): Boolean {
-    return lowercase().contains("image") ||
-            (lowercase().contains("portrait") && !lowercase().contains("date")) ||
-            contains("data:image")
+    val lower = lowercase()
+    return when {
+        // Common image field name patterns
+        lower.contains("image") -> true
+        lower.contains("portrait") && !lower.contains("date") -> true
+        // Check if value is a data URI or base64 image
+        startsWith("data:image/") -> true
+        startsWith("/9j/") -> true  // JPEG base64 header
+        startsWith("iVBORw0KGgo") -> true  // PNG base64 header
+        startsWith("R0lGOD") -> true  // GIF base64 header
+        else -> false
+    }
 }
+
+fun String.toTitle(): String =
+    if (this == this.uppercase() || this.firstOrNull()?.isUpperCase() == true) {
+        this
+    } else {
+        this
+            .split(" ")
+            .joinToString(" ") { word ->
+                if (word.isNotEmpty()) {
+                    word.substring(0, 1).uppercase() + word.substring(1).lowercase()
+                } else {
+                    word
+                }
+            }
+    }
 
 @Composable
 fun BitmapImage(
@@ -355,4 +419,234 @@ fun credentialPackHasMdoc(credentialPack: CredentialPack): Boolean {
         }
     }
     return false
+}
+
+// Field name translation and sorting utilities
+data class FieldMetadata(val displayName: String, val sortOrder: Int)
+
+private val FIELD_METADATA = mapOf(
+    "portrait" to FieldMetadata("Portrait", 0),
+    "document_number" to FieldMetadata("Document Number", 1),
+    "document number" to FieldMetadata("Document Number", 1),
+    "given_name" to FieldMetadata("First Name", 2),
+    "given name" to FieldMetadata("First Name", 2),
+    "first name" to FieldMetadata("First Name", 2),
+    "family_name" to FieldMetadata("Last Name", 3),
+    "family name" to FieldMetadata("Last Name", 3),
+    "last name" to FieldMetadata("Last Name", 3),
+    "birth_date" to FieldMetadata("Date of Birth", 4),
+    "birth date" to FieldMetadata("Date of Birth", 4),
+    "date of birth" to FieldMetadata("Date of Birth", 4),
+    "issue_date" to FieldMetadata("Issuance Date", 5),
+    "issue date" to FieldMetadata("Issuance Date", 5),
+    "issuance date" to FieldMetadata("Issuance Date", 5),
+    "expiry_date" to FieldMetadata("Expiration Date", 6),
+    "expiry date" to FieldMetadata("Expiration Date", 6),
+    "expiration date" to FieldMetadata("Expiration Date", 6),
+    "issuing_country" to FieldMetadata("Country", 7),
+    "issuing country" to FieldMetadata("Country", 7),
+    "country" to FieldMetadata("Country", 7),
+    "issuing_authority" to FieldMetadata("Issuer", 8),
+    "issuing authority" to FieldMetadata("Issuer", 8),
+    "authority" to FieldMetadata("Issuer", 8),
+    "sex" to FieldMetadata("Sex", 9),
+    "height" to FieldMetadata("Height", 10),
+    "weight" to FieldMetadata("Weight", 11),
+    "eye_colour" to FieldMetadata("Eye Color", 12),
+    "eye color" to FieldMetadata("Eye Color", 12),
+    "hair_colour" to FieldMetadata("Hair Color", 13),
+    "hair color" to FieldMetadata("Hair Color", 13),
+    "nationality" to FieldMetadata("Nationality", 14),
+    "resident_address" to FieldMetadata("Address", 15),
+    "address" to FieldMetadata("Address", 15),
+    "resident_city" to FieldMetadata("City", 16),
+    "city" to FieldMetadata("City", 16),
+    "resident_state" to FieldMetadata("State", 17),
+    "state" to FieldMetadata("State", 17),
+    "resident_postal_code" to FieldMetadata("Postal Code", 18),
+    "postal code" to FieldMetadata("Postal Code", 18),
+    "phone_number" to FieldMetadata("Phone Number", 19),
+    "phone" to FieldMetadata("Phone Number", 19),
+    "email_address" to FieldMetadata("Email Address", 20),
+    "email" to FieldMetadata("Email Address", 20),
+    "driving_privileges" to FieldMetadata("Driving Privileges", 21),
+    "domestic_driving_privileges" to FieldMetadata("Domestic Driving Privileges", 22),
+    "vehicle_class" to FieldMetadata("Vehicle Class", 23),
+    "restrictions" to FieldMetadata("Restrictions", 24),
+    "endorsements" to FieldMetadata("Endorsements", 25),
+    "age_over_18" to FieldMetadata("Age Over 18", 26),
+    "age_over_21" to FieldMetadata("Age Over 21", 27),
+    "organ_donor" to FieldMetadata("Organ Donor", 28),
+    "veteran" to FieldMetadata("Veteran", 29),
+    "real_id" to FieldMetadata("Real ID", 30),
+    "dhs_compliance" to FieldMetadata("DHS Compliance", 31),
+    "jurisdiction_version" to FieldMetadata("Jurisdiction Version", 32),
+    "jurisdiction_id" to FieldMetadata("Jurisdiction ID", 33)
+)
+
+fun getFieldDisplayName(fieldName: String): String {
+    return FIELD_METADATA[fieldName.lowercase()]?.displayName
+        ?: fieldName.getKeyReadable().splitCamelCase().removeUnderscores()
+}
+
+fun getFieldSortOrder(fieldName: String): Int {
+    return FIELD_METADATA[fieldName.lowercase()]?.sortOrder ?: 999
+}
+
+enum class CredentialFieldType {
+    TEXT,
+    DATE,
+    IMAGE
+}
+
+fun getCredentialFieldType(displayName: String, fieldValue: String = ""): CredentialFieldType {
+    return when {
+        // Use existing helper functions to check field type
+        displayName.isImage() -> CredentialFieldType.IMAGE
+        fieldValue.isImage() -> CredentialFieldType.IMAGE
+        displayName.isDate() -> CredentialFieldType.DATE
+        // Check if field value looks like a date format
+        fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z?")) ||
+                fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) -> CredentialFieldType.DATE
+        else -> CredentialFieldType.TEXT
+    }
+}
+
+private fun formatDateValue(fieldValue: String): String? {
+    return try {
+        when {
+            // Handle ISO 8601 format with time and timezone (e.g., "2024-01-15T10:30:00Z")
+            fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z?")) -> {
+                val inputFormat = if (fieldValue.endsWith("Z")) {
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'")
+                } else {
+                    SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss")
+                }
+                val outputFormat = SimpleDateFormat("MMM dd, yyyy")
+                val date = inputFormat.parse(fieldValue)
+                date?.let { outputFormat.format(it) }
+            }
+            // Handle simple date format (e.g., "2024-01-15")
+            fieldValue.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) -> {
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd")
+                val outputFormat = SimpleDateFormat("MMM dd, yyyy")
+                val date = inputFormat.parse(fieldValue)
+                date?.let { outputFormat.format(it) }
+            }
+            else -> null
+        }
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun formatCredentialFieldValue(
+    fieldValue: String,
+    fieldType: CredentialFieldType,
+    fieldName: String = "",
+    maxLength: Int = 17
+): String {
+    return when (fieldType) {
+        CredentialFieldType.DATE -> {
+            formatDateValue(fieldValue) ?: fieldValue
+        }
+
+        CredentialFieldType.TEXT -> {
+            // First, check if the value looks like a date format
+            formatDateValue(fieldValue)?.let { return it }
+
+            // Handle different text types based on field name
+            when {
+                // Handle sex field specifically
+                fieldName.lowercase() == "sex" -> {
+                    when (fieldValue) {
+                        "1" -> "M"
+                        "2" -> "F"
+                        "M", "m", "male" -> "M"
+                        "F", "f", "female" -> "F"
+                        else -> fieldValue.uppercase()
+                    }
+                }
+                // Handle booleans - text format
+                fieldValue.equals("true", ignoreCase = true) -> "True"
+                fieldValue.equals("false", ignoreCase = true) -> "False"
+                // Handle regular text - convert to title case and truncate if needed
+                else -> {
+                    val titleCaseValue = fieldValue.split(" ").joinToString(" ") { word ->
+                        word.replaceFirstChar { char ->
+                            if (char.isLowerCase()) char.titlecase() else char.toString()
+                        }
+                    }
+                    if (maxLength > 0 && titleCaseValue.length > maxLength + 3) {
+                        "${titleCaseValue.take(maxLength)}..."
+                    } else {
+                        titleCaseValue
+                    }
+                }
+            }
+        }
+
+        CredentialFieldType.IMAGE -> {
+            // For images, return empty string as we'll handle the image display separately
+            ""
+        }
+    }
+}
+
+@Composable
+fun RenderCredentialFieldValue(
+    fieldType: CredentialFieldType,
+    rawFieldValue: String,
+    formattedValue: String,
+    displayName: String
+) {
+    when (fieldType) {
+        CredentialFieldType.IMAGE -> {
+            // Display the actual portrait image
+            if (rawFieldValue.isNotEmpty()) {
+                val bitmap = remember(rawFieldValue) {
+                    try {
+                        // Remove data URL prefix if present (e.g., "data:image/jpeg;base64,")
+                        val cleanBase64 = if (rawFieldValue.startsWith("data:")) {
+                            rawFieldValue.substringAfter("base64,")
+                        } else {
+                            rawFieldValue
+                        }
+                        val imageBytes = Base64.decode(cleanBase64, Base64.DEFAULT)
+                        BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+                bitmap?.let {
+                    Box(Modifier.padding(vertical = 3.dp)){
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = displayName,
+                            modifier = Modifier
+                                .size(90.dp, 90.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .border(1.dp, Color.Black.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                        )
+                    }
+
+                }
+            }
+        }
+
+        else -> {
+            // Show the formatted field value for text and dates
+            if (formattedValue.isNotEmpty()) {
+                Text(
+                    text = formattedValue,
+                    fontFamily = Switzer,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 15.sp,
+                    color = ColorStone950,
+                    textAlign = TextAlign.End
+                )
+            }
+        }
+    }
 }

@@ -25,7 +25,7 @@ import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
@@ -70,7 +70,6 @@ fun AddToWalletView(
             this.async(Dispatchers.Default) {
                 try {
                     val credentialPack = CredentialPack()
-
                     // Try add credential in any supported format
                     credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
 
@@ -129,7 +128,7 @@ fun AddToWalletView(
             ) {
                 Text(
                     text = "Add to Wallet",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = Color.White,
                 )
@@ -149,7 +148,7 @@ fun AddToWalletView(
             ) {
                 Text(
                     text = "Close",
-                    fontFamily = Inter,
+                    fontFamily = Switzer,
                     fontWeight = FontWeight.SemiBold,
                     color = ColorRose600,
                 )

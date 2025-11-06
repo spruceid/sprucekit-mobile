@@ -35,7 +35,7 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.rememberQrBitmapPainter
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
@@ -255,7 +255,7 @@ fun DelegatedVerifierDisplayQRCodeView(payload: String, onClose: () -> Unit) {
         ) {
             Text(
                 text = "Cancel",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 color = ColorStone950,
             )

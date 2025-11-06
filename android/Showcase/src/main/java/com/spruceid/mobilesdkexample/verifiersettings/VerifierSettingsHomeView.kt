@@ -33,7 +33,7 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.ui.theme.Switzer
 import com.spruceid.mobilesdkexample.utils.SettingsHomeItem
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.viewmodels.VerificationMethodsViewModel
@@ -69,7 +69,7 @@ fun VerifierSettingsHomeHeader(onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "Settings",
-            fontFamily = Inter,
+            fontFamily = Switzer,
             fontWeight = FontWeight.SemiBold,
             fontSize = 20.sp,
             color = ColorStone950
@@ -156,7 +156,7 @@ fun VerifierSettingsHomeBody(
         ) {
             Text(
                 text = "Delete all added verification methods",
-                fontFamily = Inter,
+                fontFamily = Switzer,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
             )

@@ -16,6 +16,11 @@ class WalletActivityLogsRepository(private val walletActivityLogsDao: WalletActi
     suspend fun getWalletActivityLogs(): List<WalletActivityLogs> {
         return walletActivityLogsDao.getAllWalletActivityLogs()
     }
+
+    @WorkerThread
+    suspend fun getWalletActivityLogsByCredentialPackId(credentialPackId: String): List<WalletActivityLogs> {
+        return walletActivityLogsDao.getWalletActivityLogsByCredentialPackId(credentialPackId)
+    }
 }
 
 class VerificationActivityLogsRepository(private val verificationActivityLogsDao: VerificationActivityLogsDao) {

@@ -1,4 +1,4 @@
-package com.spruceid.mobile.sdk.ui
+package com.spruceid.mobile.sdk.ui.basecard
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -10,8 +10,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import com.spruceid.mobile.sdk.CredentialPack
 import org.json.JSONObject
+
+/**
+ * Data class with styling options for card rendering
+ * @property topLeftLogoResId Optional resource ID for the top-left logo
+ * @property topLeftLogoTint Optional color for the top-left logo tint
+ * @property backgroundImageResId Optional resource ID for the card background image
+ */
+data class CardStyle(
+    val topLeftLogoResId: Int? = null,
+    val topLeftLogoTint: Color? = null,
+    val backgroundImageResId: Int? = null,
+    val credentialImageKeys: List<String>? = null,
+    val credentialImageFormatter: @Composable ((values: Map<String, JSONObject>) -> Unit)? = null,
+)
 
 /**
  * Data class with the specification to display the credential pack in a list view
@@ -23,6 +38,7 @@ import org.json.JSONObject
  * @property leadingIconFormatter Method used to create a custom leading icon formatter. Receives an array of values based on the array of keys for the same field
  * @property trailingActionKeys A list of keys that will be used to generate a list of values extracted from the credentials
  * @property trailingActionButton Method used to create a custom  trailing action button. Receives an array of values based on the array of keys for the same field
+ * @property cardStyle Optional styling configuration for the card
  */
 data class CardRenderingListView(
     val titleKeys: List<String>,
@@ -32,7 +48,8 @@ data class CardRenderingListView(
     val leadingIconKeys: List<String>? = null,
     val leadingIconFormatter: @Composable ((values: Map<String, JSONObject>) -> Unit)? = null,
     val trailingActionKeys: List<String>? = null,
-    val trailingActionButton: @Composable ((values: Map<String, JSONObject>) -> Unit)? = null
+    val trailingActionButton: @Composable ((values: Map<String, JSONObject>) -> Unit)? = null,
+    val cardStyle: CardStyle? = null
 )
 
 /**
@@ -89,68 +106,6 @@ fun BaseCard(
             CardListView(credentialPack = credentialPack, rendering = rendering.rendering)
         is DETAILS ->
             CardDetailsView(credentialPack = credentialPack, rendering = rendering.rendering)
-    }
-}
-
-/**
- * Renders the credential as a list view item
- * @property credentialPack CredentialPack instance
- * @property rendering CardRenderingListView instance
- */
-@Composable
-fun CardListView(
-    credentialPack: CredentialPack,
-    rendering: CardRenderingListView
-) {
-    val titleValues = credentialPack.findCredentialClaims(rendering.titleKeys)
-    val descriptionValues = credentialPack.findCredentialClaims(rendering.descriptionKeys ?: emptyList())
-
-    Row(
-        Modifier.height(intrinsicSize = IntrinsicSize.Max)
-    ) {
-        // Leading icon
-        if(rendering.leadingIconFormatter != null) {
-            rendering.leadingIconFormatter.invoke(
-                credentialPack.findCredentialClaims(rendering.leadingIconKeys ?: emptyList())
-            )
-        }
-
-        Column {
-            // Title
-            if(rendering.titleFormatter != null) {
-                rendering.titleFormatter.invoke(titleValues)
-            } else {
-                Text(text = titleValues.values
-                    .fold(emptyList<String>()) { acc, next -> acc +
-                        next.keys()
-                            .asSequence()
-                            .map { key -> next.get(key)}
-                            .joinToString(" ") { value -> value.toString() }
-                    }.joinToString("").trim())
-            }
-
-            // Description
-            if(rendering.descriptionFormatter != null) {
-                rendering.descriptionFormatter.invoke(descriptionValues)
-            } else {
-                Text(text = descriptionValues.values
-                    .fold(emptyList<String>()) { acc, next -> acc +
-                            next.keys()
-                                .asSequence()
-                                .map { key -> next.get(key)}
-                                .joinToString(" ") { value -> value.toString() }
-                    }.joinToString("").trim())
-            }
-        }
-
-        Spacer(modifier = Modifier.weight(1.0f))
-
-        // Trailing action button
-        if(rendering.trailingActionButton != null) {
-            rendering.trailingActionButton.invoke(
-                credentialPack.findCredentialClaims(rendering.trailingActionKeys ?: emptyList())
-            )
-        }
     }
 }
 

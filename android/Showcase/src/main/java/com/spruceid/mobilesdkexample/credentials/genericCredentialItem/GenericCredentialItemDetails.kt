@@ -11,12 +11,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialStatusList
-import com.spruceid.mobile.sdk.ui.BaseCard
-import com.spruceid.mobile.sdk.ui.CardRenderingDetailsField
-import com.spruceid.mobile.sdk.ui.CardRenderingDetailsView
-import com.spruceid.mobile.sdk.ui.toCardRendering
+import com.spruceid.mobile.sdk.ui.basecard.BaseCard
+import com.spruceid.mobile.sdk.ui.basecard.CardRenderingDetailsField
+import com.spruceid.mobile.sdk.ui.basecard.CardRenderingDetailsView
+import com.spruceid.mobile.sdk.ui.basecard.toCardRendering
 import com.spruceid.mobilesdkexample.credentials.CredentialStatus
-import com.spruceid.mobilesdkexample.credentials.genericObjectDisplayer
+import com.spruceid.mobilesdkexample.credentials.flattenedRowDisplayer
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 
 @Composable
@@ -55,7 +55,7 @@ fun GenericCredentialItemDetails(
                             statusList ?: CredentialStatusList.UNDEFINED
                         )
                         if (credential != null) {
-                            genericObjectDisplayer(
+                            flattenedRowDisplayer(
                                 credential,
                                 listOf(
                                     "type",
