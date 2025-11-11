@@ -146,24 +146,23 @@ class TransportBlePeripheralServerHolder(
     }
 
     fun stop() {
-        // Transition to disconnecting state
+        try {
+            bluetoothAdapter.name = stateMachine.getAdapterName()
+        } catch (error: SecurityException) {
+            logger.e(error.toString())
+        }
+
+        gattServer.sendTransportSpecificTermination()
+        blePeripheral.stopAdvertise()
+        gattServer.stop()
+        logger.i("Resources cleaned up successfully")
+
+        // Update state machine if possible (best-effort, non-blocking)
         if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
-            try {
-                bluetoothAdapter.name = stateMachine.getAdapterName()
-            } catch (error: SecurityException) {
-                logger.e(error.toString())
-            }
-
-            gattServer.sendTransportSpecificTermination()
-            blePeripheral.stopAdvertise()
-            gattServer.stop()
-
-            // Transition to disconnected state
             stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
+            logger.i("State transitioned to DISCONNECTED")
         } else {
-            logger.w(
-                "Failed to transition to DISCONNECTING state"
-            )
+            logger.i("State transition skipped (current: ${stateMachine.getState()}), but resources cleaned up")
         }
     }
 

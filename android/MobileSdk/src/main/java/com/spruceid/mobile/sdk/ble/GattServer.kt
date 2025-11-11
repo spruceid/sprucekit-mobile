@@ -6,7 +6,6 @@ import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.Context
 import android.os.Build
-import android.util.Log
 import com.spruceid.mobile.sdk.byteArrayToHex
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -525,8 +524,12 @@ class GattServer(
             try {
                 logger.logDataTransfer("Sending via L2CAP", finalData.size)
 
-                // Write encrypted/final data to L2CAP socket
-                l2capSocket!!.outputStream.write(finalData)
+                // Frame message with L2CAP header
+                val framedMessage = L2CapUtils.frame(finalData)
+                logger.d("L2CAP send: payload=${finalData.size} bytes, framed=${framedMessage.size} bytes")
+
+                // Write framed data to L2CAP socket
+                l2capSocket!!.outputStream.write(framedMessage)
                 l2capSocket!!.outputStream.flush()
                 callback.onMessageSendProgress(1, 1) // Indicate completion
                 return
@@ -573,29 +576,42 @@ class GattServer(
     }
 
     /**
-     * Send Session End Signal - Notify Client via State Characteristic
+     * Send Session End Signal
      *
      * For GATT: Sends 0x02 via State characteristic notification
-     * For L2CAP: Schedules delayed socket closure (no GATT signaling)
+     * For L2CAP: Sends empty-payload termination message via L2CAP channel
      * Indicates transaction completion to connected Client device.
      */
     fun sendTransportSpecificTermination() {
-        // L2CAP doesn't use transport-specific termination via GATT
-        if (usingL2CAP) {
-            logger.i("L2CAP doesn't use transport-specific termination, will close after delay")
-            // For L2CAP, schedule close after a delay using thread pool
-            threadPool.scheduleDelayed(1000L) {
-                closeL2CAP()
-            }
-            return
-        }
-
-        // GATT-based termination
         if (currentConnection == null) {
             logger.i("No current connection to send termination to")
             return
         }
 
+        // For L2CAP: Send termination message through the L2CAP channel
+        if (usingL2CAP && l2capSocket != null && l2capSocket!!.isConnected) {
+            try {
+                val terminationMessage = L2CapUtils.createTerminationMessage()
+                logger.i("Sending L2CAP termination message (4 bytes with length=0)")
+                l2capSocket!!.outputStream.write(terminationMessage)
+                l2capSocket!!.outputStream.flush()
+                logger.i("L2CAP termination message sent successfully")
+
+                // Wait for message delivery before returning (blocking, not scheduled)
+                // This prevents thread pool accumulation and ensures proper delivery
+                Thread.sleep(500)
+                logger.i("L2CAP termination delivery delay completed")
+            } catch (e: IOException) {
+                logger.e("Failed to send L2CAP termination: ${e.message}")
+                // Don't close here - let the caller's stop() handle cleanup
+            } catch (e: InterruptedException) {
+                logger.w("L2CAP termination delay interrupted")
+                Thread.currentThread().interrupt()
+            }
+            return
+        }
+
+        // GATT-based termination
         val terminationCode = byteArrayOf(0x02.toByte())
         characteristicState!!.value = terminationCode
 
@@ -607,6 +623,8 @@ class GattServer(
             ) {
                 callback.onError(Error("Error calling notifyCharacteristicsChanged on State"))
                 logger.e("Error calling notifyCharacteristicsChanged on State")
+            } else {
+                logger.i("GATT termination signal (0x02) sent successfully")
             }
         } catch (error: SecurityException) {
             callback.onError(error)

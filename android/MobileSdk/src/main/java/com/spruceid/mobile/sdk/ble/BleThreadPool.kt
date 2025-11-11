@@ -103,6 +103,13 @@ class BleThreadPool private constructor(
     }
 
     /**
+     * Get IO thread pool state for diagnostics
+     */
+    fun getIOPoolState(): String {
+        return "pool_size=${ioExecutor.poolSize}, active=${ioExecutor.activeCount}, queue=${ioExecutor.queue.size}, completed=${ioExecutor.completedTaskCount}"
+    }
+
+    /**
      * Schedule a delayed operation
      */
     fun scheduleDelayed(
