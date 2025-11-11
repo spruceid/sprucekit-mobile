@@ -21935,7 +21935,7 @@ public func coseKeyEc2P256PublicKey(x: Data, y: Data, kid: Data)throws  -> Data 
 })
 }
 /**
- * This method accepts raw bytes to signed and included in a
+ * This method accepts raw bytes to be signed and included in a
  * COSE_Sign1 message.
  *
  * NOTE: The payload must be encoded to the desired format (e.g., CBOR bytes) BEFORE
@@ -22299,7 +22299,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_cose_key_ec2_p256_public_key() != 38421) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 655) {
+    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 53687) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 34951) {

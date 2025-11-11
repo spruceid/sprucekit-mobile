@@ -78,7 +78,7 @@ impl CryptoCurveUtils {
     }
 }
 
-/// This method accepts raw bytes to signed and included in a
+/// This method accepts raw bytes to be signed and included in a
 /// COSE_Sign1 message.
 ///
 /// NOTE: The payload must be encoded to the desired format (e.g., CBOR bytes) BEFORE
