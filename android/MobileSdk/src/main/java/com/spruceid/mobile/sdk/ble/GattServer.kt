@@ -45,7 +45,6 @@ class GattServer(
     private var isReaderServer: Boolean = false,
     private val config: BleConfiguration = BleConfiguration()
 ) {
-    private val bleConfiguration = BleConfiguration()
     private val logger = BleLogger.getInstance("GattServer")
     private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.SERVER)
     // Lazy initialization to avoid accessing state machine before it's started
@@ -76,9 +75,7 @@ class GattServer(
     private var characteristicL2CAP: BluetoothGattCharacteristic? = null
 
     private var mtu = 0
-    private var usingL2CAP =
-        bleConfiguration.useL2CAP == BleConfiguration.L2CAPMode.IF_AVAILABLE
-                || bleConfiguration.useL2CAP == BleConfiguration.L2CAPMode.ALWAYS
+    private var usingL2CAP = config.useL2CAP != BleConfiguration.L2CAPMode.NEVER
 
     @Volatile
     private var writeIsOutstanding = false

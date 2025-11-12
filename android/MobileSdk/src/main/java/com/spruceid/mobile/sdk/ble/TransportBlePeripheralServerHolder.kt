@@ -146,12 +146,6 @@ class TransportBlePeripheralServerHolder(
     }
 
     fun stop() {
-        try {
-            bluetoothAdapter.name = stateMachine.getAdapterName()
-        } catch (error: SecurityException) {
-            logger.e(error.toString())
-        }
-
         gattServer.sendTransportSpecificTermination()
         blePeripheral.stopAdvertise()
         gattServer.stop()
