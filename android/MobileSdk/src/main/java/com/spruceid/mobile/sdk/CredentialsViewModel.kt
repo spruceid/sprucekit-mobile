@@ -56,15 +56,21 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     private val presentationCallback = object : BLESessionStateDelegate() {
         override fun update(state: Map<String, Any>) {
             when {
+                state.containsKey("timeout") -> {
+                    _currState.value = PresentmentState.TIMEOUT
+                }
+
                 state.containsKey("engagingQRCode") -> {
                     _qrCodeUri.value = state["engagingQRCode"] as String
                     _currState.value = PresentmentState.ENGAGING_QR_CODE
                 }
+
                 state.containsKey("selectNamespaces") -> {
                     @Suppress("UNCHECKED_CAST")
                     _itemsRequests.value = state["selectNamespaces"] as List<ItemsRequest>
                     _currState.value = PresentmentState.SELECT_NAMESPACES
                 }
+
                 state.containsKey("error") -> {
                     _currState.value = PresentmentState.ERROR
                     _error.value = Error(state["error"].toString())
