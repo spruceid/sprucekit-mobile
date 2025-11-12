@@ -78,31 +78,17 @@ impl CryptoCurveUtils {
     }
 }
 
-/// This method encodes raw bytes as CBOR, tagging the payload as
-/// a Tag24 data item and constructing a COSE_Sign1 object that is
-/// signed by the signing key, with the signature included in the
-/// CBOR bytes encoded COSE_Sign1 object returned.
+/// This method accepts raw bytes to be signed and included in a
+/// COSE_Sign1 message.
 ///
-/// The `is_cbor_payload` boolean parameter informs whether the
-/// payload is already CBOR encoded, if the payload is not CBOR encoded,
-/// then it will be a Tag24 payload.
+/// NOTE: The payload must be encoded to the desired format (e.g., CBOR bytes) BEFORE
+/// being passed into this method.
 #[uniffi::export]
 pub fn cose_sign1(
     signer: Arc<dyn SigningKey>,
     payload: Vec<u8>,
     x509_cert_pem: Option<Vec<Vec<u8>>>,
-    is_cbor_payload: bool,
 ) -> Result<Vec<u8>> {
-    let cbor_payload = if is_cbor_payload {
-        payload
-    } else {
-        let payload = Tag24::new(payload).map_err(|e| {
-            CryptoError::General(format!("Failed to construct CBOR Tag24 data item: {e:?}"))
-        })?;
-        isomdl::cbor::to_vec(&payload)
-            .map_err(|e| CryptoError::General(format!("Failed to encode payload as CBOR: {e:?}")))?
-    };
-
     let mut header = coset::HeaderBuilder::new().algorithm(coset::iana::Algorithm::ES256);
 
     let mut cose_sign1_builder = coset::CoseSign1Builder::new();
@@ -127,7 +113,7 @@ pub fn cose_sign1(
 
     cose_sign1_builder = cose_sign1_builder
         .protected(header.build())
-        .payload(cbor_payload);
+        .payload(payload);
 
     let prepared_cose_sign1 = PreparedCoseSign1::new(cose_sign1_builder, None, None, false)
         .map_err(|e| CryptoError::General(format!("failed to prepare CoseSign1: {e:?}")))?;
@@ -160,6 +146,27 @@ pub fn cose_key_ec2_p256_public_key(x: Vec<u8>, y: Vec<u8>, _kid: Vec<u8>) -> Re
         .map_err(|e| anyhow!("failed serialize cose key to cbor bytes: {e:?}"))?;
 
     Ok(bytes)
+}
+
+/// Returns the raw bytes as CBOR encoded bytes
+///
+/// If `tag_payload` is true, it will tag the bytes as a Tag24
+/// item
+#[uniffi::export]
+pub fn encode_to_cbor_bytes(payload: Vec<u8>, tag_payload: bool) -> Result<Vec<u8>> {
+    if tag_payload {
+        Tag24::new(payload)
+            .map_err(|e| {
+                CryptoError::General(format!("Failed to construct CBOR Tag24 data item: {e:?}"))
+            })?
+            .to_cbor_bytes()
+            .map_err(|e| {
+                CryptoError::General(format!("Failed to serialize Tag24 to CBOR bytes: {e:?}"))
+            })
+    } else {
+        isomdl::cbor::to_vec(&payload)
+            .map_err(|e| CryptoError::General(format!("Failed to encode payload as CBOR: {e:?}")))
+    }
 }
 
 #[cfg(test)]

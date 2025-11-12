@@ -21935,22 +21935,18 @@ public func coseKeyEc2P256PublicKey(x: Data, y: Data, kid: Data)throws  -> Data 
 })
 }
 /**
- * This method encodes raw bytes as CBOR, tagging the payload as
- * a Tag24 data item and constructing a COSE_Sign1 object that is
- * signed by the signing key, with the signature included in the
- * CBOR bytes encoded COSE_Sign1 object returned.
+ * This method accepts raw bytes to be signed and included in a
+ * COSE_Sign1 message.
  *
- * The `is_cbor_payload` boolean parameter informs whether the
- * payload is already CBOR encoded, if the payload is not CBOR encoded,
- * then it will be a Tag24 payload.
+ * NOTE: The payload must be encoded to the desired format (e.g., CBOR bytes) BEFORE
+ * being passed into this method.
  */
-public func coseSign1(signer: SigningKey, payload: Data, x509CertPem: [Data]?, isCborPayload: Bool)throws  -> Data  {
+public func coseSign1(signer: SigningKey, payload: Data, x509CertPem: [Data]?)throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
     uniffi_mobile_sdk_rs_fn_func_cose_sign1(
         FfiConverterTypeSigningKey_lower(signer),
         FfiConverterData.lower(payload),
-        FfiConverterOptionSequenceData.lower(x509CertPem),
-        FfiConverterBool.lower(isCborPayload),$0
+        FfiConverterOptionSequenceData.lower(x509CertPem),$0
     )
 })
 }
@@ -21969,6 +21965,20 @@ public func decodeRevealSdJwt(input: String)throws  -> String  {
 public func defaultLdJsonContext() -> [String: String]  {
     return try!  FfiConverterDictionaryStringString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_func_default_ld_json_context($0
+    )
+})
+}
+/**
+ * Returns the raw bytes as CBOR encoded bytes
+ *
+ * If `tag_payload` is true, it will tag the bytes as a Tag24
+ * item
+ */
+public func encodeToCborBytes(payload: Data, tagPayload: Bool)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_encode_to_cbor_bytes(
+        FfiConverterData.lower(payload),
+        FfiConverterBool.lower(tagPayload),$0
     )
 })
 }
@@ -22289,13 +22299,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_cose_key_ec2_p256_public_key() != 38421) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 49406) {
+    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 53687) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 34951) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_default_ld_json_context() != 13685) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_encode_to_cbor_bytes() != 25948) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 26937) {
