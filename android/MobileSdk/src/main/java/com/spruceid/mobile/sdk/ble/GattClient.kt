@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
 /**
@@ -51,7 +50,6 @@ class GattClient(
     private val errorHandler = BleErrorHandler(logger)
     private val terminationProvider = BleTerminationProvider(stateMachine, logger)
     private val threadPool = BleThreadPool.getInstance(config)
-    private val L2CAP_BUFFER_SIZE = (1 shl 16) // 64K
 
     private var useL2CAP = config.useL2CAP
 
@@ -143,7 +141,12 @@ class GattClient(
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 try {
                     reportLog("uuid: $serviceUuid, gatt: $gatt")
-                    val service: BluetoothGattService = gatt.getService(serviceUuid)
+                    val service: BluetoothGattService? = gatt.getService(serviceUuid)
+
+                    if (service == null) {
+                        reportError("Service $serviceUuid not found on GATT server")
+                        return
+                    }
 
                     for (gattService in service.characteristics) {
                         logger.d(
@@ -308,14 +311,12 @@ class GattClient(
 
                 afterIdentObtained(gatt)
             } else if (characteristic.uuid.equals(l2capUuid)) {
-                logger.d(
-                    "L2CAP read! '${value.size}' ${status == BluetoothGatt.GATT_SUCCESS}"
-                )
-                if (value.size == 2) {
-                    // This doesn't appear to happen in practice; we get the data back in
-                    // onCharacteristicChanged() instead.
-                    reportLog("L2CAP channel PSM read via onCharacteristicRead()")
-                    //gatt.readCharacteristic(characteristicL2CAP)
+                if (value.size >= 2) {
+                    channelPSM = L2CapUtils.parsePSM(value)
+                    reportLog("L2CAP Channel PSM: $channelPSM")
+                    setupL2CAPConnection(gatt)
+                } else {
+                    reportError("Invalid L2CAP PSM value size: ${value.size}, expected at least 2 bytes")
                 }
             } else {
                 reportError(
@@ -524,76 +525,10 @@ class GattClient(
                 }
 
                 l2capUuid -> {
-                    if (value.size == 2) {
-                        if (channelPSM == 0) {
-                            channelPSM =
-                                (((value[1].toULong() and 0xFFu) shl 8) or (value[0].toULong() and 0xFFu)).toInt()
-                            reportLog("L2CAP Channel: $channelPSM")
-
-                            val device = gatt.device
-
-                            // The android docs recommend cancelling discovery before connecting a socket for
-                            // performance reasons.
-
-                            try {
-                                btAdapter?.cancelDiscovery()
-                            } catch (e: SecurityException) {
-                                reportLog("Unable to cancel discovery. ${e.message}")
-                            }
-
-                            // Use thread pool instead of creating new threads
-                            threadPool.launchIO {
-                                try {
-                                    // createL2capChannel() requires/initiates pairing, so we have to use
-                                    // the "insecure" version.  This requires at least API 29, which we did
-                                    // check elsewhere (we'd never have got this far on a lower API), but
-                                    // the linter isn't smart enough to know that, and we have PR merging
-                                    // gated on a clean bill of health from the linter...
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                                        // Validate PSM range (must be odd and in valid range)
-                                        if (channelPSM <= 0 || channelPSM > 0xFFFF || channelPSM % 2 == 0) {
-                                            reportError("Invalid L2CAP PSM: $channelPSM")
-                                            fallbackToGATTConnection(gatt)
-                                        } else {
-                                            // Try secure L2CAP first, fall back to insecure if needed
-                                            l2capSocket = try {
-                                                device.createL2capChannel(channelPSM)
-                                            } catch (e: Exception) {
-                                                logger.w(
-                                                    "Secure L2CAP failed, falling back to insecure",
-                                                    e
-                                                )
-                                                device.createInsecureL2capChannel(channelPSM)
-                                            }
-
-                                            l2capSocket?.connect()
-                                            logger.i("L2CAP connection established")
-
-                                            // Use thread pool for L2CAP write operations
-                                            threadPool.launchIO { writeResponse() }
-
-                                            // Use thread pool for L2CAP read operations
-                                            threadPool.launchIO { readRequest() }
-                                        }
-                                    }
-                                } catch (e: IOException) {
-                                    reportError("Error connecting to L2CAP socket: ${e.message}")
-
-                                    // Something went wrong.  Fall back to the old flow, don't try L2CAP
-                                    // again for this run.
-                                    useL2CAP = BleConfiguration.L2CAPMode.NEVER
-                                    enableNotification(
-                                        gatt,
-                                        characteristicServer2Client,
-                                        "Server2Client"
-                                    )
-                                } catch (e: SecurityException) {
-                                    reportError("Not authorized to connect to L2CAP socket.")
-                                } catch (e: Exception) {
-                                    logger.e("L2CAP connection setup failed", e)
-                                }
-                            }
-                        }
+                    if (value.size >= 2 && channelPSM == 0) {
+                        channelPSM = L2CapUtils.parsePSM(value)
+                        reportLog("L2CAP Channel: $channelPSM")
+                        setupL2CAPConnection(gatt)
                     }
                 }
 
@@ -611,67 +546,66 @@ class GattClient(
      * L2CAP provides better performance than GATT characteristics for
      * substantial data payloads (Android 10+).
      *
-     * Implements message boundary detection using timing-based approach
-     * since L2CAP streams don't provide framing information.
+     * Uses length-based framing: reads 4-byte header to get message length,
+     * then reads exact number of payload bytes.
      */
     private fun readRequest() {
-        val payload = ByteArrayOutputStream()
-
-        // Keep listening to the InputStream until an exception occurs.
         val inStream = try {
             l2capSocket!!.inputStream
         } catch (e: IOException) {
-            reportError("Error on listening input stream from socket L2CAP: ${e.message}")
+            reportError("Error getting input stream from L2CAP socket: ${e.message}")
             return
         }
 
-        while (true) {
-            val buf = BleSecurityUtils.secureAllocateBuffer(
-                L2CAP_BUFFER_SIZE,
-                config.maxMessageSize,
-                "L2CAP read buffer"
-            )
-            try {
-                val numBytesRead = inStream.read(buf)
-                if (numBytesRead == -1) {
-                    reportError("Failure reading request, peer disconnected.")
+        try {
+            while (true) {
+                // Read and parse 4-byte L2CAP header
+                val headerResult = try {
+                    L2CapUtils.readHeader(inStream)
+                } catch (e: IOException) {
+                    logger.i("L2CAP read: connection closed by peer")
+                    // Signal write thread to exit by sending empty message
+                    responseData.add(ByteArray(0))
                     return
                 }
-                payload.write(buf, 0, numBytesRead)
 
-                reportLog("Currently have ${buf.count()} bytes.")
+                val payloadLength = headerResult.payloadLength
+                val header = headerResult.header
+                logger.d("L2CAP header: reserved=${header[0].toInt()},${header[1].toInt()} length=$payloadLength")
 
-                // We are receiving this data over a stream socket and do not know how large the
-                // message is; there is no framing information provided, the only way we have to
-                // know whether we have the full message is whether any more data comes in after.
-                // To determine this, we take a timestamp, and schedule an event for half a second
-                // later; if nothing has come in the interim, we assume that to be the full
-                // message.
-                //
-                // Technically, we could also attempt to decode the message (it's CBOR-encoded)
-                // to see if it decodes properly.  Unfortunately, this is potentially subject to
-                // false positives; CBOR has several primitives which have unbounded length. For
-                // messages unsing those primitives, the message length is inferred from the
-                // source data length, so if the (incomplete) message end happened to fall on a
-                // primitive boundary (which is quite likely if a higher MTU isn't negotiated) an
-                // incomplete message could "cleanly" decode.
+                // Validate payload length
+                if (payloadLength <= 0) {
+                    reportError("Invalid payload length: $payloadLength")
+                    continue
+                }
 
-                requestTimestamp = TimeSource.Monotonic.markNow()
+                // Security: validate against max message size
+                BleSecurityUtils.validateInputSize(
+                    ByteArray(payloadLength),
+                    config.maxMessageSize,
+                    "L2CAP message"
+                )
 
-                threadPool.scheduleDelayed(500L) {
-                    val now = TimeSource.Monotonic.markNow()
-                    if ((now - requestTimestamp) > 500.milliseconds) {
-                        val message = payload.toByteArray()
-
-                        reportLog("Request complete: ${message.count()} bytes.")
-                        callback.onMessageReceived(message)
+                // Read exact payload bytes
+                val payload = ByteArray(payloadLength)
+                var totalRead = 0
+                while (totalRead < payloadLength) {
+                    val n = inStream.read(payload, totalRead, payloadLength - totalRead)
+                    if (n == -1) {
+                        reportError("Connection closed while reading payload (got $totalRead of $payloadLength bytes)")
+                        return
+                    }
+                    totalRead += n
+                    if (totalRead < payloadLength) {
+                        logger.d("L2CAP read: received $n bytes, total $totalRead/$payloadLength")
                     }
                 }
 
-            } catch (e: IOException) {
-                reportError("Error on listening input stream from socket L2CAP: ${e}")
-                return
+                reportLog("Request complete: $payloadLength bytes")
+                callback.onMessageReceived(payload)
             }
+        } catch (e: IOException) {
+            logger.i("L2CAP read thread exiting: ${e.message}")
         }
     }
 
@@ -719,7 +653,7 @@ class GattClient(
         } catch (e: InterruptedException) {
             reportError("Error closing socket: $e")
         }
-    }
+}
 
     /**
      * Set notifications for a characteristic.  This process is rather more complex than you'd think it would
@@ -830,7 +764,11 @@ class GattClient(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && characteristicL2CAP != null) {
                 if (useL2CAP == BleConfiguration.L2CAPMode.IF_AVAILABLE) {
                     useL2CAP = BleConfiguration.L2CAPMode.ALWAYS
-                    enableNotification(gatt, characteristicL2CAP, "L2CAP")
+                    // L2CAP PSM is static for the session, just read it once (don't use notifications)
+                    logger.i("Reading L2CAP characteristic to get PSM")
+                    if (!gatt.readCharacteristic(characteristicL2CAP)) {
+                        reportError("Error reading L2CAP characteristic.")
+                    }
                     return
                 }
             } else {
@@ -928,9 +866,18 @@ class GattClient(
 
         logger.logDataTransfer("Sending", data.size)
 
-        if (useL2CAP == BleConfiguration.L2CAPMode.ALWAYS) {
-            responseData.add(data)
+        // Check if L2CAP is actually connected, not just configured
+        if (useL2CAP == BleConfiguration.L2CAPMode.ALWAYS && l2capSocket?.isConnected == true) {
+            logger.i("Sending via L2CAP")
+            // Add 4-byte header: [0x00, 0x00, length_high, length_low] (big-endian)
+            val framedMessage = L2CapUtils.frame(data)
+            logger.d("L2CAP send: payload=${data.size} bytes, framed=${framedMessage.size} bytes")
+            responseData.add(framedMessage)
         } else {
+            // Fall back to GATT if L2CAP not actually connected
+            if (useL2CAP == BleConfiguration.L2CAPMode.ALWAYS && l2capSocket?.isConnected != true) {
+                logger.w("L2CAP configured but not connected (socket=${l2capSocket}, isConnected=${l2capSocket?.isConnected}), falling back to GATT")
+            }
             queueLock.withLock {
                 if (mtu < config.minAcceptableMtu) {
                     logger.w("Current MTU $mtu below minimum, adjusting to ${config.minAcceptableMtu}")
@@ -970,11 +917,10 @@ class GattClient(
     }
 
     /**
-     * Send Session Termination Signal - Write 0x02 to State
+     * Send Session Termination Signal
      *
-     * Writes termination code (0x02) to Reader's State characteristic
-     * to signal end of mDL transaction. Reader should respond by
-     * closing the connection. Not used with L2CAP transport.
+     * For GATT: Writes 0x02 to State characteristic
+     * Signals end of mDL transaction to Peripheral device.
      */
     fun sendTransportSpecificTermination() {
         val terminationCode = byteArrayOf(0x02.toByte())
@@ -999,6 +945,7 @@ class GattClient(
                     reportError("Error writing to state characteristic. Code: $res")
                     return
                 }
+                logger.i("GATT termination signal (0x02) sent successfully")
             } else {
                 // Above code addresses the deprecation but requires API 33+
                 @Suppress("deprecation")
@@ -1007,6 +954,8 @@ class GattClient(
                 @Suppress("deprecation")
                 if (!gatt.writeCharacteristic(stateChar)) {
                     reportError("Error writing to state characteristic.")
+                } else {
+                    logger.i("GATT termination signal (0x02) sent successfully")
                 }
             }
         } catch (error: SecurityException) {
@@ -1028,7 +977,16 @@ class GattClient(
         this.reset()
 
         try {
-            gattClient?.close()
+            gattClient?.let { oldGatt ->
+                try {
+                    reportLog("Cleaning up previous GATT connection before reconnecting")
+                    oldGatt.disconnect()
+                    oldGatt.close()
+                } catch (e: Exception) {
+                    reportLog("Error cleaning up old GATT connection: ${e.message}")
+                }
+            }
+
             gattClient = device.connectGatt(
                 context, false, bluetoothGattCallback,
                 BluetoothDevice.TRANSPORT_LE
@@ -1056,8 +1014,15 @@ class GattClient(
     fun disconnect() {
         if (stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTING)) {
             try {
-                // Close L2CAP socket first if it exists
-                // Thread pool operations will be cancelled automatically
+                // Signal L2CAP write thread to exit BEFORE closing socket
+                // This ensures the write thread terminates even if read thread never started
+                // or already exited without sending the exit signal
+                if (l2capSocket != null && l2capSocket?.isConnected == true) {
+                    reportLog("Sending exit signal to L2CAP write thread")
+                    responseData.add(ByteArray(0))
+                }
+
+                // Close L2CAP socket
                 try {
                     l2capSocket?.close()
                 } catch (e: IOException) {
@@ -1065,8 +1030,8 @@ class GattClient(
                 }
 
                 if (gattClient != null) {
-                    gattClient?.close()
                     gattClient?.disconnect()
+                    gattClient?.close()
                     gattClient = null
 
                     callback.onState(BleStates.DisconnectGattClient.string)
@@ -1092,11 +1057,90 @@ class GattClient(
             mtu = 0
             writingQueueTotalChunks = 0
             writingQueue.clear()
+            writeIsOutstanding.set(false)
         }
         synchronized(messageLock) {
             incomingMessage.reset()
         }
         responseData.clear()
+
+        channelPSM = 0
+        setL2CAPNotify = false
+
+        // Clear characteristic references to prevent stale writes from previous session
+        // These will be re-discovered in the next connection
+        reportLog("Clearing characteristic references to prevent stale state from previous connection")
+    }
+
+    /**
+     * Setup L2CAP connection with the given PSM
+     * Handles connection establishment, thread creation, and error fallback
+     */
+    private fun setupL2CAPConnection(gatt: BluetoothGatt) {
+        val device = gatt.device
+
+        // Cancel discovery before connecting socket for performance
+        try {
+            btAdapter?.cancelDiscovery()
+        } catch (e: SecurityException) {
+            reportLog("Unable to cancel discovery. ${e.message}")
+        }
+
+        // Use thread pool for L2CAP connection
+        logger.i("Starting L2CAP connection setup for PSM $channelPSM - Thread pool state: ${threadPool.getIOPoolState()}")
+
+        threadPool.launchIO {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    // Validate PSM range
+                    if (channelPSM <= 0 || channelPSM > 0xFFFF) {
+                        reportLog("Invalid L2CAP PSM: $channelPSM, falling back to GATT")
+                        fallbackToGATTConnection(gatt)
+                    } else {
+                        // Warn if PSM is even (violates BLE spec, but some implementations may assign even PSMs)
+                        if (channelPSM % 2 == 0) {
+                            logger.w("L2CAP PSM $channelPSM is EVEN (violates BLE spec), attempting connection anyway")
+                        }
+
+                        // Try secure L2CAP first, fall back to insecure if needed
+                        l2capSocket = try {
+                            device.createL2capChannel(channelPSM)
+                        } catch (e: Exception) {
+                            logger.w("Secure L2CAP failed, falling back to insecure", e)
+                            device.createInsecureL2capChannel(channelPSM)
+                        }
+
+                        l2capSocket?.connect()
+                        logger.i("L2CAP connection established")
+
+                        // Start L2CAP read/write threads using dedicated Thread instances
+                        // Cannot use coroutines here because these are blocking I/O operations with infinite loops
+                        Thread({ writeResponse() }, "L2CAP-Write").apply {
+                            isDaemon = true
+                            start()
+                        }
+                        Thread({ readRequest() }, "L2CAP-Read").apply {
+                            isDaemon = true
+                            start()
+                        }
+
+                        // With L2CAP, we still need State characteristic for:
+                        // 1. Signaling readiness (write 0x01)
+                        // 2. Receiving termination (receive 0x02)
+                        // Data flows over L2CAP socket, not Server2Client/Client2Server
+                        logger.i("Enabling State notifications for L2CAP mode")
+                        enableNotification(gatt, characteristicState, "State")
+                    }
+                }
+            } catch (e: IOException) {
+                reportLog("Error connecting to L2CAP socket: ${e.message}")
+                fallbackToGATTConnection(gatt)
+            } catch (e: SecurityException) {
+                reportError("Not authorized to connect to L2CAP socket.")
+            } catch (e: Exception) {
+                logger.e("L2CAP connection setup failed", e)
+            }
+        }
     }
 
     /**
