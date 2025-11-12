@@ -52,7 +52,9 @@ class TransportBleCentralClient(
     private var callback: BLESessionStateDelegate?,
     private var requestData: ByteArray? = null
 ) {
-    private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.CLIENT)
+    private val stateMachine =
+        BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.CLIENT)
+
     // Lazy initialization to avoid accessing state machine before it's started
     private val bluetoothAdapter: BluetoothAdapter by lazy {
         stateMachine.getBluetoothManager().adapter
@@ -263,6 +265,8 @@ class TransportBleCentralClient(
                                 }
                                 scanTimeoutRunnable = null
                                 logger.i("connection timeout")
+                                callback?.update(mapOf(Pair("timeout", "")))
+                                disconnect()
                             }
                         }
                     }
