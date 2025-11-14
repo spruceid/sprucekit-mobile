@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use isomdl::{
     cose::sign1::PreparedCoseSign1,
     definitions::{
+        app_attestation::AppleAppAttestData,
         helpers::Tag24,
         traits::ToCbor,
         x509::{x5chain::X5CHAIN_COSE_HEADER_LABEL, X5Chain},
@@ -80,7 +81,7 @@ impl CryptoCurveUtils {
 
 #[derive(uniffi::Enum)]
 pub enum X509CertChainOpts {
-    PEM(Vec<Vec<u8>>),
+    DER(Vec<Vec<u8>>),
     // CBOR encoded App Attest Data from Apple App Attest Service.
     // TODO: This will need to be parsed into a Rust struct that can
     // decode the x5c field from the CBOR mapping.
@@ -104,9 +105,24 @@ pub fn cose_sign1(
 
     let mut cose_sign1_builder = coset::CoseSign1Builder::new();
 
+    let mut x5chain_builder = X5Chain::builder();
+
     match x509_chain_opts {
-        X509CertChainOpts::PEM(certificates) => {
-            let mut x5chain_builder = X5Chain::builder();
+        X509CertChainOpts::DER(certificates) => {
+            for cert in certificates.iter() {
+                x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
+                    CryptoError::General(format!(
+                        "Failed to construct x5chain with certificate: {e:?}"
+                    ))
+                })?;
+            }
+        }
+        X509CertChainOpts::AppleAppAttestData(bytes) => {
+            let attest_data = AppleAppAttestData::from_cbor_bytes(bytes).map_err(|e| {
+                CryptoError::General(format!("Failed to parse apple attestation data: {e:?}"))
+            })?;
+
+            let certificates = attest_data.attestation_statement.x5c;
 
             for cert in certificates.iter() {
                 x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
@@ -115,17 +131,16 @@ pub fn cose_sign1(
                     ))
                 })?;
             }
-
-            let x5chain = x5chain_builder
-                .build()
-                .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
-
-            header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
         }
         _ => {
             unimplemented!("Implement Apple app attest parsing and header building")
         }
     }
+
+    let x5chain = x5chain_builder
+        .build()
+        .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
+    header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
 
     cose_sign1_builder = cose_sign1_builder
         .protected(header.build())
