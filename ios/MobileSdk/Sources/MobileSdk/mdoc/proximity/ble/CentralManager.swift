@@ -19,7 +19,8 @@ class CentralManager: NSObject & Transport {
                 state = .initializing
             case let .scanning(details):
                 state = .scanning(details)
-            case .connecting, .serviceDiscovery, .awaitingIdentUpdate, .awaitingL2CAPUpdate, .openingL2CAPChannel:
+            case .connecting, .serviceDiscovery, .awaitingIdentUpdate, .awaitingL2CAPUpdate,
+                 .openingL2CAPChannel, .awaitingGATTConnection:
                 state = .connecting
             case .connectedViaGATT, .connectedViaL2CAP:
                 state = .connected
@@ -102,9 +103,9 @@ class CentralManager: NSObject & Transport {
             print("sending message from Central via L2CAP")
             l2capManager.send(data: message)
             accepted = true
-        case let .connectedViaGATT(_, _, _, _, outbox):
+        case let .connectedViaGATT(gatt):
             print("sending message from Central via GATT")
-            switch outbox.send(message: message) {
+            switch gatt.outbox.send(message: message) {
             case .accepted:
                 startOrContinueGATTTransmission()
                 accepted = true
@@ -156,7 +157,7 @@ extension CentralManager: CBCentralManagerDelegate {
         self.peripheral = peripheral
         if case .scanning = state {
             print("the CBCentralManager discovered a peripheral:" +
-                  "\(peripheral.name ?? peripheral.identifier.uuidString)")
+                "\(peripheral.name ?? peripheral.identifier.uuidString)")
             centralManager.connect(peripheral)
             state = .connecting(peripheral)
         }
@@ -165,7 +166,7 @@ extension CentralManager: CBCentralManagerDelegate {
     func centralManager(_: CBCentralManager, didConnect peripheral: CBPeripheral) {
         if case .connecting = state, let serviceUuid {
             print("the CBCentralManager connected to a peripheral:" +
-                  " \(peripheral.name ?? peripheral.identifier.uuidString)")
+                " \(peripheral.name ?? peripheral.identifier.uuidString)")
             peripheral.delegate = self
             state = .serviceDiscovery(peripheral)
             peripheral.discoverServices([serviceUuid])
@@ -183,10 +184,11 @@ extension CentralManager: CBPeripheralDelegate {
             print("discovered a service during an unexpected state: \(state)")
             return
         }
-        guard let service = peripheral.services?.first(where: {$0.uuid.uuidString == serviceUuid.uuidString}),
-              error == nil else {
+        guard let service = peripheral.services?.first(where: { $0.uuid.uuidString == serviceUuid.uuidString }),
+              error == nil
+        else {
             print("failed to discover the expected service:" +
-                  "\(serviceUuid): \(error?.localizedDescription ?? "unknown error")")
+                "\(serviceUuid): \(error?.localizedDescription ?? "unknown error")")
             state = .error
             return
         }
@@ -202,7 +204,7 @@ extension CentralManager: CBPeripheralDelegate {
 
         if error != nil {
             print("failed to discover the characteristics for the expected service:" +
-                  "\(serviceUuid?.uuidString ?? "**MISSING**"): \(error!.localizedDescription)")
+                "\(serviceUuid?.uuidString ?? "**MISSING**"): \(error!.localizedDescription)")
             state = .error
             return
         }
@@ -251,7 +253,7 @@ extension CentralManager: CBPeripheralDelegate {
         }
         guard let channel = channel, error == nil else {
             print("an error occurred during L2CAP channel establishment:" +
-                  " \(error?.localizedDescription ?? "unknown error")")
+                " \(error?.localizedDescription ?? "unknown error")")
             if case .forceL2CAP = l2capUsage {
                 self.state = .error
             } else {
@@ -266,6 +268,7 @@ extension CentralManager: CBPeripheralDelegate {
             return
         }
         notifyReady(peripheral: peripheral, state: state)
+        print("established L2CAP connection")
         self.state = .connectedViaL2CAP(
             peripheral: peripheral,
             state: state,
@@ -274,7 +277,12 @@ extension CentralManager: CBPeripheralDelegate {
     }
 
     func peripheralIsReady(toSendWriteWithoutResponse _: CBPeripheral) {
-        startOrContinueGATTTransmission()
+        if case let .awaitingGATTConnection(gatt) = state {
+            print("established GATT connection")
+            state = .connectedViaGATT(gatt)
+        } else {
+            startOrContinueGATTTransmission()
+        }
     }
 }
 
@@ -297,14 +305,10 @@ private extension CentralManager {
         case awaitingL2CAPUpdate(CBPeripheral, CBService)
         /// Attempting to open an L2CAP channel, otherwise fallback to GATT.
         case openingL2CAPChannel(CBPeripheral, CBService)
+        /// Waiting for the Peripheral to be ready to receive more writes after updating the State characteristic.
+        case awaitingGATTConnection(GATTConnection)
         /// Connected to the peripheral via GATT characteristic subscriptions.
-        case connectedViaGATT(
-            peripheral: CBPeripheral,
-            client2Server: CBCharacteristic,
-            state: CBCharacteristic,
-            gattInbox: GATTInbox,
-            gattOutbox: GATTOutbox,
-        )
+        case connectedViaGATT(GATTConnection)
         /// Connected to the peripheral via an L2CAP channel.
         case connectedViaL2CAP(
             peripheral: CBPeripheral,
@@ -317,9 +321,33 @@ private extension CentralManager {
         case error
     }
 
+    class GATTConnection {
+        let peripheral: CBPeripheral,
+            client2Server: CBCharacteristic,
+            state: CBCharacteristic,
+            inbox: GATTInbox,
+            outbox: GATTOutbox
+
+        init(
+            peripheral: CBPeripheral,
+            client2Server: CBCharacteristic,
+            state: CBCharacteristic,
+            inbox: GATTInbox,
+            outbox: GATTOutbox
+        ) {
+            self.peripheral = peripheral
+            self.client2Server = client2Server
+            self.state = state
+            self.inbox = inbox
+            self.outbox = outbox
+        }
+    }
+
     func establishConnection(peripheral: CBPeripheral, service: CBService) {
+        print("establishing the connection")
         if let l2capCharacteristic = service.get(characteristic: participant.l2capCharacteristic()),
            l2capUsage != .disableL2CAP {
+            print("reading L2CAP characteristic")
             peripheral.readValue(for: l2capCharacteristic)
             state = .awaitingL2CAPUpdate(peripheral, service)
         } else if case .forceL2CAP = l2capUsage {
@@ -331,6 +359,7 @@ private extension CentralManager {
     }
 
     func setupGATTTransmission(peripheral: CBPeripheral, service: CBService) {
+        print("setting up GATT transmission")
         switch self.state {
         case .serviceDiscovery, .awaitingIdentUpdate, .openingL2CAPChannel, .awaitingL2CAPUpdate:
             break
@@ -360,16 +389,16 @@ private extension CentralManager {
         peripheral.setNotifyValue(true, for: server2Client)
         notifyReady(peripheral: peripheral, state: state)
 
-        self.state = .connectedViaGATT(
+        self.state = .awaitingGATTConnection(GATTConnection(
             peripheral: peripheral,
             client2Server: client2Server,
             state: state,
-            gattInbox: GATTInbox(delegate: participant.transportDelegate()),
-            gattOutbox: GATTOutbox(
+            inbox: GATTInbox(delegate: participant.transportDelegate()),
+            outbox: GATTOutbox(
                 mtu: min(peripheral.maximumWriteValueLength(for: .withoutResponse), 515),
                 delegate: participant.transportDelegate()
             )
-        )
+        ))
     }
 
     func notifyReady(peripheral: CBPeripheral, state: CBCharacteristic) {
@@ -420,19 +449,20 @@ private extension CentralManager {
 
     func handleServer2ClientCharacteristicUpdate(data: Data) {
         switch state {
-        case let .connectedViaGATT(_, _, _, inbox, _):
-            inbox.accept(chunk: data)
+        case let .connectedViaGATT(gatt):
+            gatt.inbox.accept(chunk: data)
         default:
             print("received server2Client message during an invalid state: \(state)")
         }
     }
 
     func startOrContinueGATTTransmission() {
-        guard case let .connectedViaGATT(peripheral, client2Server, _, _, outbox) = state else {
+        guard case let .connectedViaGATT(gatt) = state else {
+            print("attempted to continue GATT transmission during invalid state: \(state)")
             return
         }
-        if let chunk = outbox.nextChunk() {
-            peripheral.writeValue(chunk.data, for: client2Server, type: .withoutResponse)
+        if let chunk = gatt.outbox.nextChunk() {
+            gatt.peripheral.writeValue(chunk.data, for: gatt.client2Server, type: .withoutResponse)
             chunk.commit()
         }
     }

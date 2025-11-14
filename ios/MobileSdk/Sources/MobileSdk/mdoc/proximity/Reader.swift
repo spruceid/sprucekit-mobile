@@ -38,9 +38,9 @@ public class MdocProximityReader {
                 requestedItems: requestedItems,
                 trustAnchorRegistry: trustAnchorRegistry
             )
-        } catch let error {
+        } catch {
             print("failed to construct session establishment: \(error)")
-            self.delegate.connectionState(changedTo: .error)
+            delegate.connectionState(changedTo: .error)
             return
         }
 
@@ -161,8 +161,34 @@ public class MdocProximityReader {
             }
         }
 
-        func centralDidUpdate(state _: CentralManager.State) {
-            backgroundQueue.async {}
+        func centralDidUpdate(state: CentralManager.State) {
+            backgroundQueue.async {
+                switch state {
+                case .initializing, .scanning, .connecting:
+                    break
+                case .connected:
+                    guard case let .connecting(transport) = self.state else { return }
+                    self.state = .connected(transport)
+                    if !transport.send(message: self.session.request) {
+                        print("failed to send request to mdoc")
+                        self.state = .error
+                    }
+                case .disconnected:
+                    switch self.state {
+                    case .receivedResponse, .mdocDisconnected, .error:
+                        break
+                    default:
+                        self.state = .mdocDisconnected
+                    }
+                case .error:
+                    switch self.state {
+                    case .receivedResponse, .mdocDisconnected, .error:
+                        break
+                    default:
+                        self.state = .error
+                    }
+                }
+            }
         }
 
         func sent(bytesSoFar: Int, outOfTotalBytes: Int) {
@@ -178,7 +204,7 @@ public class MdocProximityReader {
         func received(bytesSoFar: Int, outOfTotalBytes: Int?) {
             guard case .connected = state else { return }
             inner.connectionState(changedTo:
-                    .receivingResponse(bytesSoFar: bytesSoFar, outOfTotalBytes: outOfTotalBytes)
+                .receivingResponse(bytesSoFar: bytesSoFar, outOfTotalBytes: outOfTotalBytes)
             )
         }
 

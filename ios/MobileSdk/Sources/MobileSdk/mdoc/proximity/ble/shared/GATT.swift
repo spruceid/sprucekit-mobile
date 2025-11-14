@@ -53,6 +53,11 @@ class GATTOutbox {
         self.delegate = delegate
     }
 
+    /// The outbox has never received a message to send.
+    func neverSent() -> Bool {
+        message == nil
+    }
+
     func send(message: Data) -> Status {
         if written == total {
             self.message = message
