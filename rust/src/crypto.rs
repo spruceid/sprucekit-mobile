@@ -130,9 +130,7 @@ pub fn cose_sign1(
                 })?;
             }
         }
-        _ => {
-            unimplemented!("Implement Apple app attest parsing and header building")
-        }
+        X509CertChainOpts::None => {}
     }
 
     let x5chain = x5chain_builder
