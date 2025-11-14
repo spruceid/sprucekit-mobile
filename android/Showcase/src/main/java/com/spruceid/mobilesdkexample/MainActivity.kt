@@ -2,9 +2,13 @@ package com.spruceid.mobilesdkexample
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.nfc.NfcAdapter
+import android.nfc.cardemulation.CardEmulation
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.spruceid.mobile.sdk.ConnectionLiveData
+import com.spruceid.mobile.sdk.nfc.NfcListenManager
+import com.spruceid.mobilesdkexample.credentials.NfcPresentationService
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.navigation.SetupNavGraph
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
@@ -94,11 +100,37 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+
+        NfcAdapter.getDefaultAdapter(this)?.let {
+            val cardEmulation = CardEmulation.getInstance(it)
+            if(!cardEmulation.setPreferredService(this, ComponentName(this, NfcPresentationService::class.java))) {
+                Log.e("MainActivity", "cardEmulation.setPreferredService() failed")
+            }
+        }
+    }
+    override fun onPause() {
+        super.onPause()
+        NfcAdapter.getDefaultAdapter(this)?.let {
+            val cardEmulation = CardEmulation.getInstance(it)
+            if (!cardEmulation.unsetPreferredService(this)) {
+                Log.e("MainActivity", "cardEmulation.unsetPreferredService() failed")
+            }
+        }
+    }
+
     @SuppressLint("SourceLockedOrientationActivity")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+
+        // Enables the NFC presentation UI to control what NFC messages the app is listening for
+        NfcListenManager.init(
+            applicationContext,
+            ComponentName(applicationContext, NfcPresentationService::class.java)
+        )
 
         enableEdgeToEdge()
         setContent {

@@ -48,8 +48,9 @@ import java.util.*
 class TransportBleCentralClient(
     private var application: String,
     private var serviceUUID: UUID,
+
     private var updateRequestData: ((data: ByteArray) -> Unit)? = null,
-    private var callback: BLESessionStateDelegate?,
+    internal var callback: BLESessionStateDelegate?,
     private var requestData: ByteArray? = null
 ) {
     private val stateMachine =

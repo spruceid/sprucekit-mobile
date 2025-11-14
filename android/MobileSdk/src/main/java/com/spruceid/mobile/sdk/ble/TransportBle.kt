@@ -13,9 +13,9 @@ class TransportBle {
 
     private val logger = BleLogger.getInstance("TransportBle")
 
-    private lateinit var transportBleCentralClient: TransportBleCentralClient
-    private lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder
-    private lateinit var transportBlePeripheralServerReader: TransportBlePeripheralServerReader
+    internal lateinit var transportBleCentralClient: TransportBleCentralClient
+    internal lateinit var transportBlePeripheralServerHolder: TransportBlePeripheralServerHolder
+    internal lateinit var transportBlePeripheralServerReader: TransportBlePeripheralServerReader
 
     /**
      * Initializes one of the transport modes (Central Client/Peripheral Server).

@@ -8,7 +8,7 @@ public class CredentialStore {
         self.credentials = credentials
     }
 
-    public func presentMdocBLE(deviceEngagement _: DeviceEngagement,
+    public func presentMdocBLE(deviceEngagement: DeviceEngagement,
                                callback: BLESessionStateDelegate,
                                useL2CAP: Bool = true
                                // , trustedReaders: TrustedReaders
@@ -16,7 +16,7 @@ public class CredentialStore {
         if let firstMdoc = credentials.first(where: { $0.asMsoMdoc() != nil }) {
             let mdoc = firstMdoc.asMsoMdoc()!
             return IsoMdlPresentation(mdoc: MDoc(Mdoc: mdoc),
-                                            engagement: DeviceEngagement.QRCode,
+                                            engagement: deviceEngagement,
                                             callback: callback,
                                             useL2CAP: useL2CAP)
         } else {
