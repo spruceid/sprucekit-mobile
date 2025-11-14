@@ -78,6 +78,16 @@ impl CryptoCurveUtils {
     }
 }
 
+#[derive(uniffi::Enum)]
+pub enum X509CertChainOpts {
+    PEM(Vec<Vec<u8>>),
+    // CBOR encoded App Attest Data from Apple App Attest Service.
+    // TODO: This will need to be parsed into a Rust struct that can
+    // decode the x5c field from the CBOR mapping.
+    AppleAppAttestData(Vec<u8>),
+    None,
+}
+
 /// This method accepts raw bytes to be signed and included in a
 /// COSE_Sign1 message.
 ///
@@ -87,28 +97,34 @@ impl CryptoCurveUtils {
 pub fn cose_sign1(
     signer: Arc<dyn SigningKey>,
     payload: Vec<u8>,
-    x509_cert_pem: Option<Vec<Vec<u8>>>,
+    // x509_cert_pem: Option<Vec<Vec<u8>>>,
+    x509_chain_opts: X509CertChainOpts,
 ) -> Result<Vec<u8>> {
     let mut header = coset::HeaderBuilder::new().algorithm(coset::iana::Algorithm::ES256);
 
     let mut cose_sign1_builder = coset::CoseSign1Builder::new();
 
-    if let Some(certificates) = x509_cert_pem {
-        let mut x5chain_builder = X5Chain::builder();
+    match x509_chain_opts {
+        X509CertChainOpts::PEM(certificates) => {
+            let mut x5chain_builder = X5Chain::builder();
 
-        for cert in certificates.iter() {
-            x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
-                CryptoError::General(format!(
-                    "Failed to construct x5chain with certificate: {e:?}"
-                ))
-            })?;
+            for cert in certificates.iter() {
+                x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
+                    CryptoError::General(format!(
+                        "Failed to construct x5chain with certificate: {e:?}"
+                    ))
+                })?;
+            }
+
+            let x5chain = x5chain_builder
+                .build()
+                .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
+
+            header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
         }
-
-        let x5chain = x5chain_builder
-            .build()
-            .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
-
-        header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
+        _ => {
+            unimplemented!("Implement Apple app attest parsing and header building")
+        }
     }
 
     cose_sign1_builder = cose_sign1_builder
