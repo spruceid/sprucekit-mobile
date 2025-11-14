@@ -30,7 +30,7 @@ struct CredentialDetailsView: View {
     }
     
     func mdoc() -> Mdoc? {
-        credentialPack?.list().compactMap { $0.asMsoMdoc() }.firstNonNil { $0 }
+        credentialPack?.list().compactMap { $0.asMsoMdoc() }.first
     }
 
     var body: some View {

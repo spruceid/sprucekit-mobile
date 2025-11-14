@@ -113,14 +113,15 @@ class PeripheralManager: NSObject & Transport {
                 print("sending message from Peripheral via L2CAP")
                 l2cap.send(data: message)
                 accepted = true
-            }
-            switch connected.gattOutbox.send(message: message) {
-            case .accepted:
-                print("sending message from Peripheral via GATT")
-                startOrContinueGATTTransmission()
-                accepted = true
-            case .busy:
-                print("attempted to send message while busy sending another message")
+            } else {
+                switch connected.gattOutbox.send(message: message) {
+                case .accepted:
+                    print("sending message from Peripheral via GATT")
+                    startOrContinueGATTTransmission()
+                    accepted = true
+                case .busy:
+                    print("attempted to send message while busy sending another message")
+                }
             }
         default:
             print("attempted to send message during an invalid state: \(state)")

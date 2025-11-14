@@ -462,4 +462,9 @@ public class MdocProximityPresentationManager {
             self.session = session
         }
     }
+
+    public enum DeviceEngagement {
+        /// Engage using a QR code.
+        case QRCode
+    }
 }
