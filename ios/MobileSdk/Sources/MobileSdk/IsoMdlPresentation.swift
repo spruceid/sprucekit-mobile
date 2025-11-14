@@ -38,7 +38,7 @@ public class IsoMdlPresentation {
             switch engagement {
             case .QRCode:
                 self.uuid = UUID()
-                engagementData = .qr(self.uuid.uuidString)
+                engagementData = .qr
             case .NFC(let nci):
                 self.uuid = UUID.init(uuidString: nci.getUuid())!
                 engagementData = .nfc(nci)

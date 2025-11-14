@@ -42,8 +42,8 @@ Task {
         let mdlSession = try await initializeMdlPresentation(
             mdocId: uuid.uuidString,
             uuid: bleUuid.uuidString,
+            engagement: .qr,
             storageManager: storage,
-            engagement: .qr(bleUuid.uuidString),
         )
         assert(
             try! mdlSession.terminateSession()
