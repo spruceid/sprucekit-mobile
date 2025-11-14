@@ -114,6 +114,11 @@ pub fn cose_sign1(
                     ))
                 })?;
             }
+
+            let x5chain = x5chain_builder
+                .build()
+                .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
+            header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
         }
         X509CertChainOpts::AppleAppAttestData(bytes) => {
             let attest_data = AppleAppAttestData::from_cbor_bytes(bytes).map_err(|e| {
@@ -129,14 +134,14 @@ pub fn cose_sign1(
                     ))
                 })?;
             }
+
+            let x5chain = x5chain_builder
+                .build()
+                .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
+            header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
         }
         X509CertChainOpts::None => {}
     }
-
-    let x5chain = x5chain_builder
-        .build()
-        .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
-    header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
 
     cose_sign1_builder = cose_sign1_builder
         .protected(header.build())
