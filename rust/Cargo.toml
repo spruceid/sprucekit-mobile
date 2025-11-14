@@ -1,6 +1,6 @@
 [package]
 name = "mobile-sdk-rs"
-version = "0.12.12"
+version = "0.12.13"
 edition = "2021"
 authors = ["Spruce Systems, Inc."]
 license = "Apache-2.0 OR MIT"

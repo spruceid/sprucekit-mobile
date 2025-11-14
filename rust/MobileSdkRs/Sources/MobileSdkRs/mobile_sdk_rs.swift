@@ -19320,6 +19320,86 @@ extension WalletServiceError: Foundation.LocalizedError {
 }
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum X509CertChainOpts {
+    
+    case der([Data]
+    )
+    case appleAppAttestData(Data
+    )
+    case none
+}
+
+
+#if compiler(>=6)
+extension X509CertChainOpts: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeX509CertChainOpts: FfiConverterRustBuffer {
+    typealias SwiftType = X509CertChainOpts
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> X509CertChainOpts {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .der(try FfiConverterSequenceData.read(from: &buf)
+        )
+        
+        case 2: return .appleAppAttestData(try FfiConverterData.read(from: &buf)
+        )
+        
+        case 3: return .none
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: X509CertChainOpts, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .der(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterSequenceData.write(v1, into: &buf)
+            
+        
+        case let .appleAppAttestData(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterData.write(v1, into: &buf)
+            
+        
+        case .none:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeX509CertChainOpts_lift(_ buf: RustBuffer) throws -> X509CertChainOpts {
+    return try FfiConverterTypeX509CertChainOpts.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeX509CertChainOpts_lower(_ value: X509CertChainOpts) -> RustBuffer {
+    return FfiConverterTypeX509CertChainOpts.lower(value)
+}
+
+
+extension X509CertChainOpts: Equatable, Hashable {}
+
+
+
 
 
 
@@ -20112,30 +20192,6 @@ fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterSequenceString.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterOptionSequenceData: FfiConverterRustBuffer {
-    typealias SwiftType = [Data]?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterSequenceData.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterSequenceData.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -21941,12 +21997,12 @@ public func coseKeyEc2P256PublicKey(x: Data, y: Data, kid: Data)throws  -> Data 
  * NOTE: The payload must be encoded to the desired format (e.g., CBOR bytes) BEFORE
  * being passed into this method.
  */
-public func coseSign1(signer: SigningKey, payload: Data, x509CertPem: [Data]?)throws  -> Data  {
+public func coseSign1(signer: SigningKey, payload: Data, x509ChainOpts: X509CertChainOpts)throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
     uniffi_mobile_sdk_rs_fn_func_cose_sign1(
         FfiConverterTypeSigningKey_lower(signer),
         FfiConverterData.lower(payload),
-        FfiConverterOptionSequenceData.lower(x509CertPem),$0
+        FfiConverterTypeX509CertChainOpts_lower(x509ChainOpts),$0
     )
 })
 }
@@ -22299,7 +22355,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_cose_key_ec2_p256_public_key() != 38421) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 53687) {
+    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 24981) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 34951) {

@@ -82,9 +82,6 @@ impl CryptoCurveUtils {
 #[derive(uniffi::Enum)]
 pub enum X509CertChainOpts {
     DER(Vec<Vec<u8>>),
-    // CBOR encoded App Attest Data from Apple App Attest Service.
-    // TODO: This will need to be parsed into a Rust struct that can
-    // decode the x5c field from the CBOR mapping.
     AppleAppAttestData(Vec<u8>),
     None,
 }
