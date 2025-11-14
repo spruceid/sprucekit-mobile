@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.credentials
 
+import android.R
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
@@ -9,6 +10,7 @@ import android.content.IntentFilter
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,14 +22,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -35,7 +41,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.currentComposer
+import androidx.compose.runtime.currentRecomposeScope
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -69,7 +79,6 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.utils.checkAndRequestBluetoothPermissions
 import kotlinx.coroutines.*
 
 @Composable
@@ -79,12 +88,12 @@ fun QrShareMdocView(
     onCancel: () -> Unit,
 ) {
     val context = LocalContext.current
-
-    val session by credentialViewModel.session.collectAsState()
+    val qrCodeUri by credentialViewModel.qrCodeUri.collectAsState()
     val currentState by credentialViewModel.currState.collectAsState()
     val credentials by credentialViewModel.credentials.collectAsState()
     val error by credentialViewModel.error.collectAsState()
     val bluetoothPermissionsGranted by credentialViewModel.bluetoothPermissionsGranted.collectAsState()
+    var forceRefresh by remember { mutableStateOf(true) }
 
     var isBluetoothEnabled by remember {
         mutableStateOf(getBluetoothManager(context)!!.adapter.isEnabled)
@@ -111,17 +120,16 @@ fun QrShareMdocView(
         }
     }
 
-    LaunchedEffect(key1 = bluetoothPermissionsGranted) {
-        if (isBluetoothEnabled && bluetoothPermissionsGranted) {
-            // We do check for permissions
-            @SuppressLint("MissingPermission")
-            credentialViewModel.present(getBluetoothManager(context)!!, mdoc, CredentialPresentData.Qr())
-        }
-    }
-
-
     when (currentState) {
-        PresentmentState.UNINITIALIZED ->
+        PresentmentState.UNINITIALIZED -> {
+
+            LaunchedEffect(key1 = bluetoothPermissionsGranted, forceRefresh) {
+                if (isBluetoothEnabled && bluetoothPermissionsGranted) {
+                    // We do check for permissions
+                    @SuppressLint("MissingPermission")
+                    credentialViewModel.present(getBluetoothManager(context)!!, mdoc)
+                }
+            }
             if (credentials.isNotEmpty()) {
                 if (!isBluetoothEnabled) {
                     Text(
@@ -133,11 +141,47 @@ fun QrShareMdocView(
                     )
                 }
             }
+        }
+
+        PresentmentState.TIMEOUT -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 48.dp),
+            ) {
+                Button(
+                    onClick = {
+                        onCancel()
+                        forceRefresh = !forceRefresh
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                    border = BorderStroke(width = 1.dp, color = Color.Black)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh the QR Code",
+                        modifier = Modifier
+                            .size(24.dp),
+                        tint = Color.Black,
+                    )
+                    Text(
+                        text = "Refresh QR Code",
+                        fontFamily = Inter,
+                        fontWeight = FontWeight.Normal,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+                        color = Color.Black,
+                    )
+                }
+            }
+        }
+
         PresentmentState.ENGAGING_QR_CODE -> {
-            if (session!!.getQrHandover().isNotEmpty()) {
+            if (qrCodeUri.isNotEmpty()) {
                 Image(
                     painter = rememberQrBitmapPainter(
-                        session!!.getQrHandover(),
+                        qrCodeUri,
                         300.dp,
                     ),
                     contentDescription = "Share QRCode",
@@ -186,7 +230,6 @@ fun NfcShareMdocView(
 ) {
     val context = LocalContext.current
 
-    val session by credentialViewModel.session.collectAsState()
     val currentState by credentialViewModel.currState.collectAsState()
     val credentials by credentialViewModel.credentials.collectAsState()
     val error by credentialViewModel.error.collectAsState()
@@ -256,6 +299,24 @@ fun NfcShareMdocView(
             }
         PresentmentState.ENGAGING_QR_CODE -> {
             // Unreachable
+        }
+        PresentmentState.TIMEOUT -> {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 48.dp),
+            ) {
+                Text(
+                    text = "Failed to establish link to reader.\nPlease try again.",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+                    color = Color.Black,
+                    textAlign = TextAlign.Center,
+                )
+            }
         }
         PresentmentState.SELECT_NAMESPACES -> {
             Text(
@@ -417,7 +478,7 @@ fun ShareMdocSelectiveDisclosureView(
                 Button(
                     onClick = {
                         try {
-                            credentialViewModel.submitNamespaces(allowedNamespaces, mdoc)
+                            credentialViewModel.submitNamespaces(allowedNamespaces)
                         } catch (e: Error) {
                             Log.e("SelectiveDisclosureView", e.stackTraceToString())
                         }

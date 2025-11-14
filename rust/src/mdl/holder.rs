@@ -11,6 +11,7 @@
 
 use crate::credential::mdoc::Mdoc;
 use crate::{storage_manager::StorageManagerInterface, vdc_collection::VdcCollection};
+use crate::{CentralClientDetails, PeripheralServerDetails};
 use std::ops::DerefMut;
 use std::{
     collections::HashMap,
@@ -134,6 +135,7 @@ impl ApduHandoverDriver {
 #[uniffi::export(async_runtime = "tokio")]
 pub async fn initialize_mdl_presentation(
     mdoc_id: Uuid,
+    uuid: Uuid,
     engagement: DeviceEngagementData,
     storage_manager: Arc<dyn StorageManagerInterface>,
 ) -> Result<MdlPresentationSession, SessionError> {
@@ -155,7 +157,7 @@ pub async fn initialize_mdl_presentation(
     let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
     let engagement_type = engagement.handover_info();
     let session = match engagement {
-        DeviceEngagementData::QR(uuid) => {
+        DeviceEngagementData::QR => {
             let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
                 peripheral_server_mode: None,
                 central_client_mode: Some(CentralClientMode { uuid }),
@@ -163,7 +165,12 @@ pub async fn initialize_mdl_presentation(
             SessionManagerInit::initialise(documents, Some(drms), None)
         }
         DeviceEngagementData::NFC(negotiated_carrier_info) => {
-            // I don't love that we have to clone this
+            if uuid != negotiated_carrier_info.get_uuid() {
+                return Err(SessionError::Generic {
+                    value: "Expected central client mode UUID to match UUID in NFC engagement"
+                        .to_string(),
+                });
+            }
             SessionManagerInit::initialise_with_prenegotiated_carrier(
                 documents,
                 &negotiated_carrier_info.0,
@@ -199,7 +206,10 @@ pub async fn initialize_mdl_presentation(
 ///
 /// Arguments:
 /// mdoc: the Mdoc to be presented, as an [Mdoc] object
-/// uuid: the Bluetooth Low Energy Client Central Mode UUID to be used
+/// central_client_mode: optional BLE Central Client Mode engagement details
+/// peripheral_server_mode: optional BLE Peripheral Server Mode engagement details
+///
+/// Note: At least one engagement mode must be provided.
 ///
 /// Returns:
 /// A Result, with the `Ok` containing a tuple consisting of an enum representing
@@ -209,30 +219,67 @@ pub async fn initialize_mdl_presentation(
 #[uniffi::export]
 pub fn initialize_mdl_presentation_from_bytes(
     mdoc: Arc<Mdoc>,
+    central_client_mode: Option<CentralClientDetails>,
+    peripheral_server_mode: Option<PeripheralServerDetails>,
     engagement: DeviceEngagementData,
 ) -> Result<MdlPresentationSession, SessionError> {
+    // Ensure exactly one mode is provided
+
+    if central_client_mode.is_none() && peripheral_server_mode.is_none() {
+        return Err(SessionError::Generic {
+                value: "At least one engagement mode (central_client_mode or peripheral_server_mode) must be provided".to_string(),
+            });
+    }
+
+    let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
+        peripheral_server_mode: peripheral_server_mode.map(|mode| {
+            isomdl::definitions::device_engagement::PeripheralServerMode {
+                uuid: mode.service_uuid,
+                ble_device_address: mode.ble_device_address.map(|addr| addr.into()),
+            }
+        }),
+        central_client_mode: central_client_mode.map(|mode| {
+            isomdl::definitions::device_engagement::CentralClientMode {
+                uuid: mode.service_uuid,
+            }
+        }),
+    }));
+
+    let drm = &drms[0];
+
     let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
     let handover = engagement.handover_info();
+
     let session = match engagement {
-        DeviceEngagementData::QR(uuid) => {
-            let drms = DeviceRetrievalMethods::new(DeviceRetrievalMethod::BLE(BleOptions {
-                // NOTE: peripheral server mode is NOT current implemented.
-                // In the peripheral server mode, the mdoc holder generates the UUID
-                // to send over in the Negotiated Handover Select message
-                // TODO: Greg: if we are going to use our mdl reader / holder cross-device
-                // implementations, we will need to implement peripheral server mode.
-                // Marcelo: Sometimes the presentation gets stuck, other times it works.
-                peripheral_server_mode: None,
-                // NOTE: mdoc reader will provide a UUID for central client mode
-                // This UUID comes from the Request Message sent over NFC
-                central_client_mode: Some(CentralClientMode { uuid }),
-                // NOTE: Currently only supporting negotiative handover,
-                // and the mdoc reader is providing a central client mode.
-            }));
-            SessionManagerInit::initialise(documents, Some(drms), None)
-        }
+        DeviceEngagementData::QR => SessionManagerInit::initialise(documents, Some(drms), None),
         DeviceEngagementData::NFC(carrier) => {
-            // I don't love that we have to clone this
+            // Validation: PSM is not supported.
+            //             CCM UUID must match NFC engagement UUID.
+            if let DeviceRetrievalMethod::BLE(BleOptions {
+                peripheral_server_mode,
+                central_client_mode,
+            }) = drm
+            {
+                let Some(central_client) = central_client_mode else {
+                    return Err(SessionError::Generic {
+                        value: "NFC only supports BLE central client mode".to_string(),
+                    });
+                };
+                if peripheral_server_mode.is_some() {
+                    return Err(SessionError::Generic {
+                        value: "NFC does not support BLE peripheral support mode".to_string(),
+                    });
+                }
+                if central_client.uuid != carrier.get_uuid() {
+                    return Err(SessionError::Generic {
+                        value: format!(
+                            "Expected central client mode UUID to match UUID in NFC engagement: Central Client UUID: {}, Negotiated UUID: {}",
+                            central_client.uuid,
+                            carrier.get_uuid(),
+                        ),
+                    });
+                }
+            }
             SessionManagerInit::initialise_with_prenegotiated_carrier(documents, &carrier.0)
         }
     }
@@ -264,7 +311,7 @@ pub fn initialize_mdl_presentation_from_bytes(
 #[derive(uniffi::Enum, Debug, Clone)]
 pub enum DeviceEngagementData {
     /// Indicates the device engagement will be via QR code
-    QR(uuid::Uuid),
+    QR,
     /// Indicates the device engagement will be via Near Field Communication (NFC)
     NFC(Arc<NegotiatedCarrierInfo>),
 }
@@ -274,7 +321,7 @@ impl DeviceEngagementData {
     fn handover_info(&self) -> Handover {
         // 18013-5 §9.1.5.1
         match self {
-            DeviceEngagementData::QR(_) => Handover::QR,
+            DeviceEngagementData::QR => Handover::QR,
             DeviceEngagementData::NFC(nci) => {
                 Handover::NFC(nci.0.hs_message.clone(), nci.0.hr_message.clone())
             }
@@ -559,7 +606,8 @@ mod tests {
 
         let presentation_session = initialize_mdl_presentation(
             mdl.id,
-            DeviceEngagementData::QR(Uuid::new_v4()),
+            Uuid::new_v4(),
+            DeviceEngagementData::QR,
             smi.clone(),
         )
         .await
@@ -646,7 +694,8 @@ mod tests {
 
         let presentation_session = initialize_mdl_presentation(
             mdl.id,
-            DeviceEngagementData::QR(Uuid::new_v4()),
+            Uuid::new_v4(),
+            DeviceEngagementData::QR,
             smi.clone(),
         )
         .await

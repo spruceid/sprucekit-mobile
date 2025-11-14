@@ -44,10 +44,14 @@ public class IsoMdlPresentation {
                 engagementData = .nfc(nci)
             }
             
-            self.session =
-                try SpruceIDMobileSdkRs.initializeMdlPresentationFromBytes(
-                    mdoc: mdoc.inner, engagement: engagementData)
-            super.init()
+            self.session = try SpruceIDMobileSdkRs.initializeMdlPresentationFromBytes(
+                mdoc: mdoc.inner,
+                centralClientMode: CentralClientDetails(
+                    serviceUuid: self.uuid.uuidString
+                ),
+                peripheralServerMode: nil,
+                engagement: engagementData
+            )
             bleManager = MDocHolderBLECentral(
                 callback: self,
                 serviceUuid: CBUUID(nsuuid: self.uuid),

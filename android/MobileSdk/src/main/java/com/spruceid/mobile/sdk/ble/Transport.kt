@@ -26,13 +26,14 @@ import java.util.*
 class Transport(
     val bluetoothManager: BluetoothManager,
     val context: Context,
-    private val config: BleConfiguration = BleConfiguration()
+    private val config: BleConfiguration = BleConfiguration(),
+    private val stateMachineType: BleConnectionStateMachineInstanceType = BleConnectionStateMachineInstanceType.CLIENT
 ) {
 
     private val logger = BleLogger.getInstance("Transport")
     private val retryManager = BleRetryManager(config, logger)
     private val threadPool = BleThreadPool.getInstance(config)
-    val stateMachine = BleConnectionStateMachine.getInstance()
+    val stateMachine = BleConnectionStateMachine.getInstance(stateMachineType)
 
     internal val transportBLE: TransportBle = TransportBle()
 

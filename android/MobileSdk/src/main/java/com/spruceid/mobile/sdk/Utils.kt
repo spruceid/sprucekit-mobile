@@ -15,7 +15,7 @@ import com.spruceid.mobile.sdk.rs.configureLogger
 import org.json.JSONArray
 import org.json.JSONObject
 
-class RustLogger: LogWriter {
+class RustLogger : LogWriter {
     var buffer: ByteArray = ByteArray(0)
 
     override fun writeToBuffer(message: ByteArray) {
@@ -67,6 +67,9 @@ enum class PresentmentState {
 
     /// App should display a success message and offer to close the page
     SUCCESS,
+
+    /// App should let the user know that he needs to refresh his QR Code
+    TIMEOUT,
 }
 
 // Recursive function to convert MDocItem to JSONObject
@@ -105,7 +108,9 @@ fun CborValue.toText(): String {
         is CborValue.Float -> v1.toString()
         is CborValue.Bool -> v1.toString()
         is CborValue.Array -> v1.map { it.toText() }.joinToString { ", " }
-        is CborValue.ItemMap -> JSONObject(v1.map { it.key to it.value.toText() }.toMap()).toString()
+        is CborValue.ItemMap -> JSONObject(v1.map { it.key to it.value.toText() }
+            .toMap()).toString()
+
         is CborValue.Tag -> v1.value().toText()
         is CborValue.Bytes -> v1.toString()
         CborValue.Null -> ""
@@ -114,7 +119,10 @@ fun CborValue.toText(): String {
 
 fun getPermissions(): List<String> {
     val permissions =
-        arrayListOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+        arrayListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
 
     /**
      * The OS seems to omit certain permission requests like "BLUETOOTH" to the user depending
@@ -139,7 +147,9 @@ fun isBluetoothEnabled(context: Context): Boolean {
     val bluetoothAdapter: BluetoothAdapter? = bluetoothManager?.adapter
 
     return if (bluetoothAdapter == null || !context.packageManager.hasSystemFeature(
-            PackageManager.FEATURE_BLUETOOTH)) {
+            PackageManager.FEATURE_BLUETOOTH
+        )
+    ) {
         false
     } else {
         bluetoothAdapter.isEnabled
