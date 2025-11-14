@@ -201,20 +201,26 @@ abstract class BaseNfcPresentationService : HostApduService() {
      */
     abstract fun shouldPerformHandoverEngagement(): Boolean
 
+    /**
+     * This should return `ComponentName(applicationContext, MyClassImplementingBaseNfcPresentationService::class.java)`
+     */
     abstract fun componentName(): ComponentName
 
     /**
      * This method is called at the beginning of the NFC negotiation process. If you want to do any
      * background processing/loading, you can kick it off here and wait for it to complete in
-     * `negotiatedTransport`. NOTE: This happens at the beginning of the NFC negotiation process -
-     * there is no guarantee that the app is in the foreground, and no guarantee that NFC
-     * negotiation will succeed!
+     * `negotiatedTransport`.
+     * Only reached if `shouldPerformHandoverEngagement` returns true.
+     * NOTE: This happens at the beginning of the NFC negotiation process -
+     *       there is no implicit guarantee that the app is in the foreground, and no guarantee
+     *       that NFC negotiation will succeed!
      */
     protected fun negotiationStarted() {}
 
     /**
-     * This method is called when NFC negotiation failed. This could be due to failing to find a
-     * compatible transport method.
+     * This method is called when NFC negotiation fails. 
+     * Only reached if `shouldPerformHandoverEngagement` returns true.
+     * @see NfcPresentationError
      */
     abstract fun negotiationFailed(error: NfcPresentationError)
 
@@ -222,6 +228,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
      * This method is called when an NFC reader has successfully negotiated transport for a
      * credential presentation. This *may* be called while the app is in the background, so no
      * assumptions can be made about the app's UI state.
+     * Only reached if `shouldPerformHandoverEngagement` returns true.
      */
     abstract fun negotiatedTransport(carrierInfo: NegotiatedCarrierInfo)
 }

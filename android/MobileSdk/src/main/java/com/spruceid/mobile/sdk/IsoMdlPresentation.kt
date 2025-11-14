@@ -259,7 +259,7 @@ class IsoMdlPresentation(
                 ?: throw IllegalStateException("Active transport is null")
         } catch (e: Error) {
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
-            this.callback?.update(mapOf(Pair("error", e.toString())))
+            this.callback.update(mapOf(Pair("error", e.toString())))
             throw e
         }
     }

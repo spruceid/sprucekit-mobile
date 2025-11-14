@@ -403,10 +403,9 @@ fun ShareMdocSelectiveDisclosureView(
             )
 
             Column(
-                modifier =
-                        Modifier.fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .weight(weight = 1f, fill = false)
+                modifier = Modifier.fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .weight(weight = 1f, fill = false)
             ) {
                 itemsRequests.map { itemsRequest ->
                     Column {
@@ -423,16 +422,15 @@ fun ShareMdocSelectiveDisclosureView(
                                 namespaceSpec.value.forEach { namespace ->
                                     ShareMdocSelectiveDisclosureNamespaceItem(
                                         namespace = namespace,
-                                        isChecked =
-                                                allowedNamespaces[itemsRequest.docType]
-                                                        ?.get(namespaceSpec.key)
-                                                        ?.contains(namespace.key)
-                                                        ?: false,
+                                        isChecked = allowedNamespaces[itemsRequest.docType]
+                                            ?.get(namespaceSpec.key)
+                                            ?.contains(namespace.key)
+                                            ?: false,
                                         onCheck = { _ ->
                                             credentialViewModel.toggleAllowedNamespace(
-                                                    itemsRequest.docType,
-                                                    namespaceSpec.key,
-                                                    namespace.key
+                                                itemsRequest.docType,
+                                                namespaceSpec.key,
+                                                namespace.key
                                             )
                                         }
                                     )
@@ -453,11 +451,10 @@ fun ShareMdocSelectiveDisclosureView(
                 Button(
                     onClick = { onCancel() },
                     shape = RoundedCornerShape(6.dp),
-                    colors =
-                            ButtonDefaults.buttonColors(
-                                    containerColor = Color.Transparent,
-                                    contentColor = ColorStone950,
-                            ),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = ColorStone950,
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
                         .border(
@@ -513,7 +510,9 @@ fun ShareMdocSelectiveDisclosureNamespaceItem(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp)
     ) {
         Checkbox(
             isChecked,

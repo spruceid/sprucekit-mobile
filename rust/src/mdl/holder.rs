@@ -104,6 +104,7 @@ impl ApduHandoverDriver {
                 .get_carrier_info()
                 .map(|ci| NegotiatedCarrierInfo(*ci).into())
         } else {
+            log::error!("failed to get reference to ApduHandoverDriver in get_carrier_info!");
             None
         }
     }
@@ -111,6 +112,7 @@ impl ApduHandoverDriver {
         if let Ok(mut handover) = self.0.lock() {
             handover.process_apdu(command)
         } else {
+            log::error!("failed to get reference to ApduHandoverDriver in process_apdu!");
             vec![]
         }
     }
@@ -245,8 +247,6 @@ pub fn initialize_mdl_presentation_from_bytes(
         }),
     }));
 
-    let drm = &drms[0];
-
     let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
     let handover = engagement.handover_info();
 
@@ -255,10 +255,13 @@ pub fn initialize_mdl_presentation_from_bytes(
         DeviceEngagementData::NFC(carrier) => {
             // Validation: PSM is not supported.
             //             CCM UUID must match NFC engagement UUID.
+            if drms.len() != 1 {
+                return Err(SessionError::Generic { value: format!("Expected a single device retriieval method for NFC present, got {}", drms.len()) });
+            }
             if let DeviceRetrievalMethod::BLE(BleOptions {
                 peripheral_server_mode,
                 central_client_mode,
-            }) = drm
+            }) = &drms[0]
             {
                 let Some(central_client) = central_client_mode else {
                     return Err(SessionError::Generic {

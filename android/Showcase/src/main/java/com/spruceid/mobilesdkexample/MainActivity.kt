@@ -128,8 +128,8 @@ class MainActivity : ComponentActivity() {
 
         // Enables the NFC presentation UI to control what NFC messages the app is listening for
         NfcListenManager.init(
-                applicationContext,
-                ComponentName(applicationContext, NfcPresentationService::class.java)
+            applicationContext,
+            ComponentName(applicationContext, NfcPresentationService::class.java)
         )
 
         enableEdgeToEdge()
