@@ -72,11 +72,6 @@ impl Cwt {
     /// fetches the status list from the URI specified in that claim, decodes the
     /// compressed bit string, and returns the status value at the credential's index.
     ///
-    /// # Parameters
-    ///
-    /// * `status_claim_key` - The CBOR claim key containing status metadata (typically "65535")
-    /// * `status_field_name` - The field name within the claim containing the status list info (typically "status_list")
-    ///
     /// # Returns
     ///
     /// Returns a status code as `i16`:
@@ -93,13 +88,12 @@ impl Cwt {
     /// - The status list response cannot be parsed or decoded
     /// - The credential's index is out of bounds for the status list
     ///
-    pub async fn status(
-        &self,
-        status_claim_key: String,
-        status_field_name: String,
-    ) -> Result<i16, CwtError> {
+    pub async fn status(&self) -> Result<i16, CwtError> {
+        const STATUS_CLAIM_KEY: &str = "65535";
+        const STATUS_FIELD_NAME: &str = "status_list";
+
         // Extract the outer CBOR claim containing status metadata
-        let Some(outer_claim_cbor) = self.claims().get(&status_claim_key).cloned() else {
+        let Some(outer_claim_cbor) = self.claims().get(STATUS_CLAIM_KEY).cloned() else {
             // Credential does not have status information
             return Ok(-1);
         };
@@ -107,7 +101,7 @@ impl Cwt {
         // Extract the outer claim map
         let CborValue::ItemMap(outer_claim_map) = outer_claim_cbor else {
             return Err(CwtError::MalformedClaim(
-                status_claim_key.clone(),
+                STATUS_CLAIM_KEY.to_string(),
                 "value".to_string(),
                 "expected map".to_string(),
             ));
@@ -115,14 +109,14 @@ impl Cwt {
 
         // Extract the status list field
         let status_list_cbor = outer_claim_map
-            .get(&status_field_name)
+            .get(STATUS_FIELD_NAME)
             .cloned()
-            .ok_or_else(|| CwtError::MissingClaim(status_field_name.clone()))?;
+            .ok_or_else(|| CwtError::MissingClaim(STATUS_FIELD_NAME.to_string()))?;
 
         // Extract the status list map
         let CborValue::ItemMap(status_list_map) = status_list_cbor else {
             return Err(CwtError::MalformedClaim(
-                status_field_name.clone(),
+                STATUS_FIELD_NAME.to_string(),
                 "value".to_string(),
                 "expected map".to_string(),
             ));
@@ -141,7 +135,7 @@ impl Cwt {
             }
             _ => {
                 return Err(CwtError::MalformedClaim(
-                    status_field_name,
+                    STATUS_FIELD_NAME.to_string(),
                     "idx".to_string(),
                     "expected integer".to_string(),
                 ))
@@ -158,7 +152,7 @@ impl Cwt {
             CborValue::Text(s) => s,
             _ => {
                 return Err(CwtError::MalformedClaim(
-                    status_field_name,
+                    STATUS_FIELD_NAME.to_string(),
                     "uri".to_string(),
                     "expected integer".to_string(),
                 ))

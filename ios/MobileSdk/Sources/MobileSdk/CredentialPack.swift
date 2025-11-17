@@ -266,7 +266,7 @@ public class CredentialPack {
             } else if let cred = credential.asCwt() {
                 if hasConnection {
                     do {
-                        let status = try await cred.status(statusClaimKey: "65535", statusFieldName: "status_list")
+                        let status = try await cred.status()
                         switch status {
                         case 0:
                             res[credentialId] = CredentialStatusList.valid

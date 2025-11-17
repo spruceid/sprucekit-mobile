@@ -2372,11 +2372,6 @@ public protocol CwtProtocol: AnyObject, Sendable {
      * fetches the status list from the URI specified in that claim, decodes the
      * compressed bit string, and returns the status value at the credential's index.
      *
-     * # Parameters
-     *
-     * * `status_claim_key` - The CBOR claim key containing status metadata (typically "65535")
-     * * `status_field_name` - The field name within the claim containing the status list info (typically "status_list")
-     *
      * # Returns
      *
      * Returns a status code as `i16`:
@@ -2394,7 +2389,7 @@ public protocol CwtProtocol: AnyObject, Sendable {
      * - The credential's index is out of bounds for the status list
 
      */
-    func status(statusClaimKey: String, statusFieldName: String) async throws  -> Int16
+    func status() async throws  -> Int16
     
     func type()  -> CredentialType
     
@@ -2498,11 +2493,6 @@ open func keyAlias() -> KeyAlias?  {
      * fetches the status list from the URI specified in that claim, decodes the
      * compressed bit string, and returns the status value at the credential's index.
      *
-     * # Parameters
-     *
-     * * `status_claim_key` - The CBOR claim key containing status metadata (typically "65535")
-     * * `status_field_name` - The field name within the claim containing the status list info (typically "status_list")
-     *
      * # Returns
      *
      * Returns a status code as `i16`:
@@ -2520,13 +2510,13 @@ open func keyAlias() -> KeyAlias?  {
      * - The credential's index is out of bounds for the status list
 
      */
-open func status(statusClaimKey: String, statusFieldName: String)async throws  -> Int16  {
+open func status()async throws  -> Int16  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_cwt_status(
-                    self.uniffiClonePointer(),
-                    FfiConverterString.lower(statusClaimKey),FfiConverterString.lower(statusFieldName)
+                    self.uniffiClonePointer()
+                    
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_i16,
@@ -22596,7 +22586,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_key_alias() != 20086) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_status() != 30295) {
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_status() != 58229) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_type() != 62248) {

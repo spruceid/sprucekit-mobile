@@ -220,9 +220,8 @@ class CredentialPack {
                 }
             }
             credential.asCwt()?.let {
-                Log.d("CredentialPack", "This is a cwt: ${it.credentialClaims()}")
                 try {
-                    val status = it.status(statusClaimKey = "65535", statusFieldName = "status_list")
+                    val status = it.status()
                     when (status.toInt()) {
                         0 -> res[credentialId] = CredentialStatusList.VALID
                         1 -> res[credentialId] = CredentialStatusList.INVALID
