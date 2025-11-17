@@ -263,6 +263,26 @@ public class CredentialPack {
                 } else {
                     res[credentialId] = CredentialStatusList.unknown
                 }
+            } else if let cred = credential.asCwt() {
+                if hasConnection {
+                    do {
+                        let status = try await cred.status(statusClaimKey: "65535", statusFieldName: "status_list")
+                        switch status {
+                        case 0:
+                            res[credentialId] = CredentialStatusList.valid
+                        case 1:
+                            res[credentialId] = CredentialStatusList.suspended
+                        case 2:
+                            res[credentialId] = CredentialStatusList.revoked
+                        default:
+                            res[credentialId] = CredentialStatusList.undefined
+                        }
+                    } catch {
+                        res[credentialId] = CredentialStatusList.undefined
+                    }
+                } else {
+                    res[credentialId] = CredentialStatusList.unknown
+                }
             }
         }
 
