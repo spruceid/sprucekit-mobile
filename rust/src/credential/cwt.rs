@@ -75,8 +75,7 @@ impl Cwt {
     /// # Parameters
     ///
     /// * `status_claim_key` - The CBOR claim key containing status metadata (typically "65535")
-    /// * `status_field_name` - The field name within the claim containing the status list info
-    /// (typically "status_list")
+    /// * `status_field_name` - The field name within the claim containing the status list info (typically "status_list")
     ///
     /// # Returns
     ///
@@ -93,6 +92,7 @@ impl Cwt {
     /// - The status list cannot be fetched from the URI
     /// - The status list response cannot be parsed or decoded
     /// - The credential's index is out of bounds for the status list
+    ///
     pub async fn status(
         &self,
         status_claim_key: String,
@@ -187,9 +187,9 @@ impl Cwt {
         // Get the status value at the credential's index
         let status_value = decoded_bit_string
             .get(idx)
-            .ok_or_else(|| CwtError::StatusIndexOutOfBounds)?;
+            .ok_or(CwtError::StatusIndexOutOfBounds)?;
 
-        return Ok(status_value.into());
+        Ok(status_value.into())
     }
 }
 
