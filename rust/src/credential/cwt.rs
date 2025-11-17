@@ -11,6 +11,7 @@ use num_traits::Num;
 use ssi::dids::{AnyDidMethod, VerificationMethodDIDResolver};
 use ssi::jwk::JWKResolver;
 use ssi::prelude::AnyJwkMethod;
+use ssi::status::token_status_list::json::JsonStatusList;
 use std::collections::HashMap;
 
 use std::sync::Arc;
@@ -63,6 +64,126 @@ impl Cwt {
 impl Cwt {
     pub async fn verify(&self, crypto: &dyn Crypto) -> Result<(), CwtError> {
         self.validate(crypto).await
+    }
+
+    /// Checks the revocation status of this CWT credential.
+    ///
+    /// This method extracts status list information from a specified CBOR claim field,
+    /// fetches the status list from the URI specified in that claim, decodes the
+    /// compressed bit string, and returns the status value at the credential's index.
+    ///
+    /// # Returns
+    ///
+    /// Returns a status code as `i16`:
+    /// - `0`  - VALID: The credential is currently valid and has not been revoked
+    /// - `1`  - INVALID: The credential is no longer valid
+    /// - `2`  - SUSPENDED: The credential is revoked
+    /// - `-1` - UNKNOWN: The credential does not contain a known status information
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The status list structure is malformed (missing `idx` or `uri` fields)
+    /// - The status list cannot be fetched from the URI
+    /// - The status list response cannot be parsed or decoded
+    /// - The credential's index is out of bounds for the status list
+    ///
+    pub async fn status(&self) -> Result<i16, CwtError> {
+        const STATUS_CLAIM_KEY: &str = "65535";
+        const STATUS_FIELD_NAME: &str = "status_list";
+
+        // Extract the outer CBOR claim containing status metadata
+        let Some(outer_claim_cbor) = self.claims().get(STATUS_CLAIM_KEY).cloned() else {
+            // Credential does not have status information
+            return Ok(-1);
+        };
+
+        // Extract the outer claim map
+        let CborValue::ItemMap(outer_claim_map) = outer_claim_cbor else {
+            return Err(CwtError::MalformedClaim(
+                STATUS_CLAIM_KEY.to_string(),
+                "value".to_string(),
+                "expected map".to_string(),
+            ));
+        };
+
+        // Extract the status list field
+        let status_list_cbor = outer_claim_map
+            .get(STATUS_FIELD_NAME)
+            .cloned()
+            .ok_or_else(|| CwtError::MissingClaim(STATUS_FIELD_NAME.to_string()))?;
+
+        // Extract the status list map
+        let CborValue::ItemMap(status_list_map) = status_list_cbor else {
+            return Err(CwtError::MalformedClaim(
+                STATUS_FIELD_NAME.to_string(),
+                "value".to_string(),
+                "expected map".to_string(),
+            ));
+        };
+
+        // Extract idx (credential's index in the status list)
+        let idx_cbor = status_list_map
+            .get("idx")
+            .cloned()
+            .ok_or(CwtError::MissingClaim("idx".to_string()))?;
+
+        let idx = match idx_cbor {
+            CborValue::Integer(i) => {
+                let idx_i128: i128 = i.as_ref().clone().into();
+                idx_i128 as usize
+            }
+            _ => {
+                return Err(CwtError::MalformedClaim(
+                    STATUS_FIELD_NAME.to_string(),
+                    "idx".to_string(),
+                    "expected integer".to_string(),
+                ))
+            }
+        };
+
+        // Extract uri (where the status list is hosted)
+        let uri_cbor = status_list_map
+            .get("uri")
+            .cloned()
+            .ok_or(CwtError::MissingClaim("uri".to_string()))?;
+
+        let uri = match uri_cbor {
+            CborValue::Text(s) => s,
+            _ => {
+                return Err(CwtError::MalformedClaim(
+                    STATUS_FIELD_NAME.to_string(),
+                    "uri".to_string(),
+                    "expected integer".to_string(),
+                ))
+            }
+        };
+
+        // Fetch the status list from the URI
+        let response = reqwest::get(&uri).await.map_err(|e| {
+            CwtError::StatusListFetch(format!("Failed to fetch from {}: {}", uri, e))
+        })?;
+
+        let response_body = response
+            .text()
+            .await
+            .map_err(|e| CwtError::StatusListFetch(format!("Failed to read response: {}", e)))?;
+
+        // Parse the json status list
+        let json_status_list: JsonStatusList = serde_json::from_str(&response_body)
+            .map_err(|e| CwtError::StatusListParse(format!("Failed to parse JSON: {}", e)))?;
+
+        // Decode the compressed bit string
+        let decoded_bit_string = json_status_list
+            .decode(None)
+            .map_err(|e| CwtError::StatusListDecode(format!("Failed to decode: {}", e)))?;
+
+        // Get the status value at the credential's index
+        let status_value = decoded_bit_string
+            .get(idx)
+            .ok_or(CwtError::StatusIndexOutOfBounds)?;
+
+        Ok(status_value.into())
     }
 }
 
@@ -400,4 +521,13 @@ pub enum CwtError {
     SignerCertificateExpired,
     #[error("Unable to extract extensions from root certificate")]
     UnableToExtractExtensionsFromRootCertificate,
+
+    #[error("Failed to fetch status list: {0}")]
+    StatusListFetch(String),
+    #[error("Failed to parse status list: {0}")]
+    StatusListParse(String),
+    #[error("Failed to decode status list: {0}")]
+    StatusListDecode(String),
+    #[error("Status index out of bounds")]
+    StatusIndexOutOfBounds,
 }
