@@ -3,6 +3,7 @@ package com.spruceid.mobile.sdk
 import android.util.Log
 import com.spruceid.mobile.sdk.rs.CredentialDecodingException
 import com.spruceid.mobile.sdk.rs.Cwt
+import com.spruceid.mobile.sdk.rs.IssuanceServiceClient
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -12,6 +13,7 @@ import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobile.sdk.rs.VdcCollection
 import com.spruceid.mobile.sdk.rs.VdcCollectionException
+import com.spruceid.mobile.sdk.rs.WalletServiceClient
 import org.json.JSONException
 import org.json.JSONObject
 import java.util.UUID
@@ -215,6 +217,25 @@ class CredentialPack {
                     }
                 } else {
                     res[credentialId] = CredentialStatusList.UNKNOWN
+                }
+            }
+            credential.asCwt()?.let {
+                Log.d("CredentialPack", "This is a cwt: ${it.credentialClaims()}")
+                // Maybe fetch the status_list url here, build the StatusListJson and send it
+                // to rust?
+                try {
+                    val status = it.status(statusClaimKey = "65535", statusFieldName = "status_list")
+                    if (status == 0.toShort()) {
+                        res[credentialId] = CredentialStatusList.VALID
+                    } else if (status == 1.toShort()) {
+                        res[credentialId] = CredentialStatusList.INVALID
+                    } else if (status == 2.toShort()) {
+                        res[credentialId] = CredentialStatusList.REVOKED
+                    } else {
+                        res[credentialId] = CredentialStatusList.UNDEFINED
+                    }
+                } catch (_: Exception) {
+                    res[credentialId] = CredentialStatusList.UNDEFINED
                 }
             }
         }
