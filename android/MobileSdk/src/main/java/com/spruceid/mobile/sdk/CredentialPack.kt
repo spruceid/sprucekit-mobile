@@ -221,18 +221,13 @@ class CredentialPack {
             }
             credential.asCwt()?.let {
                 Log.d("CredentialPack", "This is a cwt: ${it.credentialClaims()}")
-                // Maybe fetch the status_list url here, build the StatusListJson and send it
-                // to rust?
                 try {
                     val status = it.status(statusClaimKey = "65535", statusFieldName = "status_list")
-                    if (status == 0.toShort()) {
-                        res[credentialId] = CredentialStatusList.VALID
-                    } else if (status == 1.toShort()) {
-                        res[credentialId] = CredentialStatusList.INVALID
-                    } else if (status == 2.toShort()) {
-                        res[credentialId] = CredentialStatusList.REVOKED
-                    } else {
-                        res[credentialId] = CredentialStatusList.UNDEFINED
+                    when (status.toInt()) {
+                        0 -> res[credentialId] = CredentialStatusList.VALID
+                        1 -> res[credentialId] = CredentialStatusList.INVALID
+                        2 -> res[credentialId] = CredentialStatusList.REVOKED
+                        else -> res[credentialId] = CredentialStatusList.UNDEFINED
                     }
                 } catch (_: Exception) {
                     res[credentialId] = CredentialStatusList.UNDEFINED

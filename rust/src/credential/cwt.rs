@@ -8,7 +8,6 @@ use cose_rs::cwt::claim::ExpirationTime;
 use cose_rs::{cwt::ClaimsSet, CoseSign1};
 use num_bigint::BigUint;
 use num_traits::Num;
-use ssi::dids::document::representation::Json;
 use ssi::dids::{AnyDidMethod, VerificationMethodDIDResolver};
 use ssi::jwk::JWKResolver;
 use ssi::prelude::AnyJwkMethod;
