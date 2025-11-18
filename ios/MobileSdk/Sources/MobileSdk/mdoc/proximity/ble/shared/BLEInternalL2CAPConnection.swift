@@ -54,8 +54,8 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
 
     /// Public send() interface.
     public func send(data: Data) {
-        if !outputDelivered {
-            outputDelivered = true
+        if outputDelivered {
+            outputDelivered = false
             outputData = data
             totalBytesWritten = 0
             originalOutputDataSize = data.count
@@ -81,6 +81,7 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
             outputData = outputData.advanced(by: bytesWritten)
         } else {
             outputData.removeAll()
+            outputDelivered = true
         }
     }
 
@@ -98,7 +99,7 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
 
         channel = nil
 
-        outputDelivered = false
+        outputDelivered = true
         totalBytesWritten = 0
         originalOutputDataSize = 0
     }
@@ -112,6 +113,7 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
         }
         let bytesRead = stream.read(buffer, maxLength: bufLength)
         incomingData.append(buffer, count: bytesRead)
+        streamReceivingData(bytes: bytesRead)
 
         // NOTE: L2CAP is a stream protocol; there's no framing on data, so there's no way to signal that the
         // data exchange is complete.  In principle we could build a framing protocol on top, or we could use
@@ -163,22 +165,22 @@ class BLEInternalL2CAPConnection: NSObject, StreamDelegate, @unchecked Sendable 
     func streamError() { print("Stream error.") }
     func streamUnknownEvent() { print("Stream unknown event.") }
     func streamSentData(bytes _: Int, total _: Int, fraction _: Double) { print("Stream sent data.") }
+    func streamReceivingData(bytes _: Int) { print("Stream received data.") }
     func streamReceivedData(_: Data) { print("Stream received data.") }
 }
 
 /// A UInt16 from Data extension.
 extension UInt16 {
-    var data: Data {
-        var int = self
-        return Data(bytes: &int, count: MemoryLayout<UInt16>.size)
+    func toData() -> Data {
+        withUnsafeBytes(of: littleEndian) { Data($0) }
     }
 }
 
 /// A Data from UInt16 extension.
 extension Data {
-    var uint16: UInt16 {
-        let i16array = withUnsafeBytes { $0.load(as: UInt16.self) }
-        return i16array
+    func toUInt16() -> UInt16? {
+        guard count >= MemoryLayout<UInt16>.size else { return nil }
+        return withUnsafeBytes { $0.load(as: UInt16.self) }
     }
 }
 
