@@ -457,6 +457,22 @@ fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt16: FfiConverterPrimitive {
+    typealias FfiType = Int16
+    typealias SwiftType = Int16
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int16 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int16, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
     typealias FfiType = UInt32
     typealias SwiftType = UInt32
@@ -2460,6 +2476,32 @@ public protocol CwtProtocol: AnyObject, Sendable {
      */
     func keyAlias()  -> KeyAlias?
     
+    /**
+     * Checks the revocation status of this CWT credential.
+     *
+     * This method extracts status list information from a specified CBOR claim field,
+     * fetches the status list from the URI specified in that claim, decodes the
+     * compressed bit string, and returns the status value at the credential's index.
+     *
+     * # Returns
+     *
+     * Returns a status code as `i16`:
+     * - `0`  - VALID: The credential is currently valid and has not been revoked
+     * - `1`  - INVALID: The credential is no longer valid
+     * - `2`  - SUSPENDED: The credential is revoked
+     * - `-1` - UNKNOWN: The credential does not contain a known status information
+     *
+     * # Errors
+     *
+     * Returns an error if:
+     * - The status list structure is malformed (missing `idx` or `uri` fields)
+     * - The status list cannot be fetched from the URI
+     * - The status list response cannot be parsed or decoded
+     * - The credential's index is out of bounds for the status list
+
+     */
+    func status() async throws  -> Int16
+    
     func type()  -> CredentialType
     
     func verify(crypto: Crypto) async throws 
@@ -2552,6 +2594,47 @@ open func keyAlias() -> KeyAlias?  {
             self.uniffiCloneHandle(),$0
     )
 })
+}
+    
+    /**
+     * Checks the revocation status of this CWT credential.
+     *
+     * This method extracts status list information from a specified CBOR claim field,
+     * fetches the status list from the URI specified in that claim, decodes the
+     * compressed bit string, and returns the status value at the credential's index.
+     *
+     * # Returns
+     *
+     * Returns a status code as `i16`:
+     * - `0`  - VALID: The credential is currently valid and has not been revoked
+     * - `1`  - INVALID: The credential is no longer valid
+     * - `2`  - SUSPENDED: The credential is revoked
+     * - `-1` - UNKNOWN: The credential does not contain a known status information
+     *
+     * # Errors
+     *
+     * Returns an error if:
+     * - The status list structure is malformed (missing `idx` or `uri` fields)
+     * - The status list cannot be fetched from the URI
+     * - The status list response cannot be parsed or decoded
+     * - The credential's index is out of bounds for the status list
+
+     */
+open func status()async throws  -> Int16  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_cwt_status(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_i16,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_i16,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_i16,
+            liftFunc: FfiConverterInt16.lift,
+            errorHandler: FfiConverterTypeCwtError_lift
+        )
 }
     
 open func type() -> CredentialType  {
@@ -14026,6 +14109,13 @@ public enum CwtError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
     case RootCertificateExpired
     case SignerCertificateExpired
     case UnableToExtractExtensionsFromRootCertificate
+    case StatusListFetch(String
+    )
+    case StatusListParse(String
+    )
+    case StatusListDecode(String
+    )
+    case StatusIndexOutOfBounds
 
     
 
@@ -14109,6 +14199,16 @@ public struct FfiConverterTypeCwtError: FfiConverterRustBuffer {
         case 22: return .RootCertificateExpired
         case 23: return .SignerCertificateExpired
         case 24: return .UnableToExtractExtensionsFromRootCertificate
+        case 25: return .StatusListFetch(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 26: return .StatusListParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 27: return .StatusListDecode(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 28: return .StatusIndexOutOfBounds
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -14233,6 +14333,25 @@ public struct FfiConverterTypeCwtError: FfiConverterRustBuffer {
         
         case .UnableToExtractExtensionsFromRootCertificate:
             writeInt(&buf, Int32(24))
+        
+        
+        case let .StatusListFetch(v1):
+            writeInt(&buf, Int32(25))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .StatusListParse(v1):
+            writeInt(&buf, Int32(26))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .StatusListDecode(v1):
+            writeInt(&buf, Int32(27))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .StatusIndexOutOfBounds:
+            writeInt(&buf, Int32(28))
         
         }
     }
@@ -22011,6 +22130,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_key_alias() != 20086) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_status() != 58229) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_type() != 62248) {
