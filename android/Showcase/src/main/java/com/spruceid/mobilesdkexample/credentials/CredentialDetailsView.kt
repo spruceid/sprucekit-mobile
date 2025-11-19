@@ -177,7 +177,7 @@ fun CredentialDetailsView(
             )
             tmpTabs.add(
                 CredentialDetailsViewTabs(
-                    { painterResource(id = R.drawable.wallet) }, // TODO: Proper icon
+                    { painterResource(id = R.drawable.wallet) },
                     { stringResource(id = R.string.details_share_nfc) }
                 )
             )
@@ -397,7 +397,7 @@ fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
                     }
                 )
             } ?: run {
-                Text("Here")
+                Text("GenericCredentialDetailsShareQRCode not implemented for non-mDoc credentials")
                 //TODO: this is basically a switch, right now only supports mdoc, add new types later
             }
         }
@@ -448,7 +448,7 @@ fun GenericCredentialDetailsShareNFC(credential: ParsedCredential?) {
                     }
                 )
             } ?: run {
-                Text("Here")
+                Text("GenericCredentialDetailsShareNFC not implemented for non-mDoc credentials")
                 //TODO: this is basically a switch, right now only supports mdoc, add new types later
             }
         }
