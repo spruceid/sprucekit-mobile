@@ -44,6 +44,13 @@ abstract class BaseNfcPresentationService : HostApduService() {
             }
     }
 
+    // NFC Forum, Type 4 Tag §5.2.1
+    private val apduSelectAid = byteArrayOf(
+        0x00.toByte(),
+        0xA4.toByte(),
+        0x04.toByte(),
+    ).toList()
+
     private fun defer(delay: Duration, action: Runnable) {
         Handler(Looper.getMainLooper()).postDelayed(action, delay.inWholeMilliseconds)
     }
@@ -98,7 +105,7 @@ abstract class BaseNfcPresentationService : HostApduService() {
             // because this probably means that both:
             //  1. the APDU handover driver is in strict mode
             //  2. the device communicating with us over NFC is not an mDOC reader
-            val isSelectAidCommand = commandApdu.size < 4 && commandApdu[0] == 0xA4.toByte() && commandApdu[2] == 0x04.toByte()
+            val isSelectAidCommand = commandApdu.size > apduSelectAid.size && commandApdu.slice(0..apduSelectAid.size - 1) == apduSelectAid
             if(!isSelectAidCommand) {
                 negotiationFailedFlag = true
             }
