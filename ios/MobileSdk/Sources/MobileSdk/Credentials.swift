@@ -7,20 +7,4 @@ public class CredentialStore {
     public init(credentials: [ParsedCredential]) {
         self.credentials = credentials
     }
-
-    public func presentMdocBLE(deviceEngagement: DeviceEngagement,
-                               callback: BLESessionStateDelegate,
-                               useL2CAP: Bool = true
-                               // , trustedReaders: TrustedReaders
-    ) -> IsoMdlPresentation? {
-        if let firstMdoc = credentials.first(where: { $0.asMsoMdoc() != nil }) {
-            let mdoc = firstMdoc.asMsoMdoc()!
-            return IsoMdlPresentation(mdoc: MDoc(Mdoc: mdoc),
-                                            engagement: deviceEngagement,
-                                            callback: callback,
-                                            useL2CAP: useL2CAP)
-        } else {
-            return nil
-        }
-    }
 }
