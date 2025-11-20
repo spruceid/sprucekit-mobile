@@ -53,9 +53,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -78,6 +80,7 @@ import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.SupportedQRTypes
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlin.uuid.Uuid
 
 class CredentialDetailsViewTabs(
     val image: @Composable () -> Painter,
@@ -169,7 +172,13 @@ fun CredentialDetailsView(
             tmpTabs.add(
                 CredentialDetailsViewTabs(
                     { painterResource(id = R.drawable.qrcode) },
-                    { stringResource(id = R.string.details_share) }
+                    { stringResource(id = R.string.details_share_qr) }
+                )
+            )
+            tmpTabs.add(
+                CredentialDetailsViewTabs(
+                    { painterResource(id = R.drawable.wallet) },
+                    { stringResource(id = R.string.details_share_nfc) }
                 )
             )
             tabs = tmpTabs
@@ -280,8 +289,14 @@ fun CredentialDetailsView(
                             )
                         }
 
-                        2 -> { // Share
+                        2 -> { // Share QR
                             GenericCredentialDetailsShareQRCode(
+                                credentialPack!!.list().firstOrNull()
+                            )
+                        }
+
+                        3 -> { // Share NFC
+                            GenericCredentialDetailsShareNFC(
                                 credentialPack!!.list().firstOrNull()
                             )
                         }
@@ -374,7 +389,7 @@ fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
                 .padding(8.dp)
         ) {
             credential?.asMsoMdoc()?.let {
-                ShareMdocView(
+                QrShareMdocView(
                     credentialViewModel = credentialViewModel,
                     mdoc = it,
                     onCancel = {
@@ -382,12 +397,63 @@ fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
                     }
                 )
             } ?: run {
-                Text("Here")
+                Text("GenericCredentialDetailsShareQRCode not implemented for non-mDoc credentials")
                 //TODO: this is basically a switch, right now only supports mdoc, add new types later
             }
         }
         Text(
             text = "Present this QR code to a verifier in order to share data. You will see a consent dialogue.",
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(top = 12.dp),
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 14.sp,
+            color = ColorStone500,
+        )
+    }
+}
+
+@Composable
+fun GenericCredentialDetailsShareNFC(credential: ParsedCredential?) {
+
+    val credentialViewModel: CredentialsViewModel = activityHiltViewModel()
+
+    fun cancel() {
+        credentialViewModel.cancel()
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
+            Modifier
+                .clip(shape = RoundedCornerShape(12.dp))
+                .background(ColorBase1)
+                .border(
+                    width = 1.dp,
+                    color = ColorStone300,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(8.dp)
+        ) {
+            credential?.asMsoMdoc()?.let {
+                NfcShareMdocView(
+                    credentialViewModel = credentialViewModel,
+                    mdoc = it,
+                    onCancel = {
+                        cancel()
+                    }
+                )
+            } ?: run {
+                Text("GenericCredentialDetailsShareNFC not implemented for non-mDoc credentials")
+                //TODO: this is basically a switch, right now only supports mdoc, add new types later
+            }
+        }
+        Text(
+            text = "After tapping your device against the reader, you will see a consent dialogue.",
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .padding(horizontal = 24.dp)

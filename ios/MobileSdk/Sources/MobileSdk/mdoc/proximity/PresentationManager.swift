@@ -94,12 +94,20 @@ public class MdocProximityPresentationManager {
                 case .initializing:
                     state = .initializing
                 case let .connecting(connecting):
-                    guard let data = connecting.session.getQrCodeUri().data(using: .ascii) else {
-                        print("failed to parse QR code")
+                    do {
+                        guard let data = try connecting.session.getQrHandover().data(using: .ascii) else {
+                            print("failed to parse QR code")
+                            self.state = .error
+                            return
+                        }
+                        state = .connecting(qrPayload: data)
+                    } catch {
+                        // Should be unreachable - get_qr_handover() only returns Err if the session mutex
+                        // is poisoned, which should never be able to happen.
+                        print("failed to obtain QR code")
                         self.state = .error
                         return
                     }
-                    state = .connecting(qrPayload: data)
                 case .connected:
                     state = .connected
                 case .sentResponse:
@@ -242,6 +250,7 @@ public class MdocProximityPresentationManager {
                     mdoc: mdoc,
                     centralClientMode: initializing.centralDetails,
                     peripheralServerMode: initializing.peripheralDetails,
+                    engagement: .qr,
                 )
             } catch {
                 print("unexpected error preparing the session: \(error.localizedDescription)")
