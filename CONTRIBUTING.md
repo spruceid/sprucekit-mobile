@@ -110,7 +110,7 @@ Run `xcodegen` in `./ios/Showcase` to generate the XCode project.
 ## Releases
 
 ### SDKs
-Use the [`release` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version is the `x.y.z` format.
+Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version is the `x.y.z` format.
 
 ### Showcase Apps
 This is currently done manually and locally.
