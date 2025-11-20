@@ -6,7 +6,9 @@ import android.nfc.NfcAdapter
 import android.nfc.cardemulation.CardEmulation
 import android.util.Log
 
+// ISO 18013-5 §8.3.3.1.2
 val APDU_AID_MDOC = "A0000002480400"
+// NFC Forum, Type 4 Tag §1.9
 val APDU_AID_NDEF_APPLICATION = "D2760000850101"
 
 /// Controls when the device should be listening for different NFC AIDs.
