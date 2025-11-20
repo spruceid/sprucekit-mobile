@@ -127,7 +127,11 @@ fun QrShareMdocView(
                 if (isBluetoothEnabled && bluetoothPermissionsGranted) {
                     // We do check for permissions
                     @SuppressLint("MissingPermission")
-                    credentialViewModel.present(getBluetoothManager(context)!!, mdoc)
+                    credentialViewModel.present(
+                        getBluetoothManager(context)!!,
+                        mdoc,
+                        CredentialPresentData.Qr(),
+                    )
                 }
             }
             if (credentials.isNotEmpty()) {

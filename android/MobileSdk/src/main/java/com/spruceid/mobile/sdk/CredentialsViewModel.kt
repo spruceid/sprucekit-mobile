@@ -126,12 +126,8 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-
-    // We specify a default value for presentData, defaulting to QR presentation
-    // Having a default value for the presentData to this feels wrong, but is required
-    // for the addition of NFC support to be backwards compatible.
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    suspend fun present(bluetoothManager: BluetoothManager, mdoc: Mdoc, presentData: CredentialPresentData = CredentialPresentData.Qr()) {
+    suspend fun present(bluetoothManager: BluetoothManager, mdoc: Mdoc, presentData: CredentialPresentData) {
         Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
 
         // Create IsoMdlPresentation with callback to handle state changes
