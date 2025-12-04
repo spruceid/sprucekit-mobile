@@ -14,6 +14,9 @@
 - `ios/`
     * `MobileSdk/`: Swift SDK built on top of `MobileSdkRS` (under `rust/`)
     * `Showcase/`: Showcase app, our reference app for this SDK
+- `flutter/`
+    * Flutter plugin providing cross-platform access to the SDK
+    * `example/`: Example Flutter app demonstrating the plugin
 
 ### General Dependencies
 
@@ -106,6 +109,54 @@ This and the Rust layer are tied together with the `Package.swift` at the root o
 #### Showcase
 
 Run `xcodegen` in `./ios/Showcase` to generate the XCode project.
+
+### Flutter
+
+The Flutter plugin uses pre-built native frameworks. Before running the Flutter example app, you need to build the iOS frameworks.
+
+#### Prerequisites
+
+- Flutter SDK installed and in your PATH
+- Completed the iOS setup above (Rust layer generated)
+
+#### Building iOS frameworks
+
+From the repository root, run:
+```bash
+./scripts/build_xcframeworks.sh
+```
+
+This script will:
+1. Build the iOS SDK using `xcodebuild`
+2. Package the frameworks into `flutter/ios/Frameworks/`
+3. Clean up intermediate build files
+
+#### Running the example app
+
+```bash
+cd flutter/example
+
+# Install dependencies
+flutter pub get
+
+# iOS: Install CocoaPods dependencies
+cd ios && pod install && cd ..
+
+# Run on iOS
+flutter run -d ios
+
+# Run on Android
+flutter run -d android
+```
+
+#### Regenerating Pigeon bindings
+
+If you modify the Pigeon API definitions in `flutter/pigeons/`, regenerate the bindings:
+```bash
+cd flutter
+dart run pigeon --input pigeons/oid4vci.dart
+dart run pigeon --input pigeons/credential_pack.dart
+```
 
 ## Releases
 

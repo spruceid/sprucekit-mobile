@@ -1,0 +1,22 @@
+PODS:
+  - Flutter (1.0.0)
+  - sprucekit_mobile (0.0.1):
+    - Flutter
+
+DEPENDENCIES:
+  - Flutter (from `Flutter`)
+  - sprucekit_mobile (from `.symlinks/plugins/sprucekit_mobile/ios`)
+
+EXTERNAL SOURCES:
+  Flutter:
+    :path: Flutter
+  sprucekit_mobile:
+    :path: ".symlinks/plugins/sprucekit_mobile/ios"
+
+SPEC CHECKSUMS:
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  sprucekit_mobile: 41f927a4269eb61b50fda6b7145e665931f626f7
+
+PODFILE CHECKSUM: b70e44a06b6c0b980307393682a80894c53ba88f
+
+COCOAPODS: 1.16.2
