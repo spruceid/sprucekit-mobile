@@ -1,22 +1,57 @@
 PODS:
   - Flutter (1.0.0)
-  - sprucekit_mobile (0.0.1):
+  - SpruceIDMobileSdk (0.13.3):
+    - SpruceIDMobileSdkRs (~> 0.13.3)
+    - SwiftAlgorithms (~> 1.0.0)
+  - SpruceIDMobileSdkRs (0.13.3):
+    - SpruceIDMobileSdkRsRustFramework (= 0.13.3)
+  - SpruceIDMobileSdkRsRustFramework (0.13.3)
+  - sprucekit_mobile (0.13.2):
     - Flutter
+    - SpruceIDMobileSdk (~> 0.13.2)
+  - SwiftAlgorithms (1.0.0)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - SpruceIDMobileSdk (from `https://github.com/spruceid/sprucekit-mobile.git`, tag `0.13.3`)
+  - SpruceIDMobileSdkRs (from `https://github.com/spruceid/sprucekit-mobile.git`, tag `0.13.3`)
+  - SpruceIDMobileSdkRsRustFramework (from `https://raw.githubusercontent.com/spruceid/sprucekit-mobile/0.13.3/SpruceIDMobileSdkRsRustFramework.podspec`)
   - sprucekit_mobile (from `.symlinks/plugins/sprucekit_mobile/ios`)
+
+SPEC REPOS:
+  trunk:
+    - SwiftAlgorithms
 
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  SpruceIDMobileSdk:
+    :git: https://github.com/spruceid/sprucekit-mobile.git
+    :tag: 0.13.3
+  SpruceIDMobileSdkRs:
+    :git: https://github.com/spruceid/sprucekit-mobile.git
+    :tag: 0.13.3
+  SpruceIDMobileSdkRsRustFramework:
+    :podspec: https://raw.githubusercontent.com/spruceid/sprucekit-mobile/0.13.3/SpruceIDMobileSdkRsRustFramework.podspec
   sprucekit_mobile:
     :path: ".symlinks/plugins/sprucekit_mobile/ios"
 
+CHECKOUT OPTIONS:
+  SpruceIDMobileSdk:
+    :git: https://github.com/spruceid/sprucekit-mobile.git
+    :tag: 0.13.3
+  SpruceIDMobileSdkRs:
+    :git: https://github.com/spruceid/sprucekit-mobile.git
+    :tag: 0.13.3
+
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  sprucekit_mobile: 41f927a4269eb61b50fda6b7145e665931f626f7
+  SpruceIDMobileSdk: 39bfb4eb56a9a487087388f5f37a88d746a12e74
+  SpruceIDMobileSdkRs: 69cc58ae9bb2d7175f2c328c86dad744c22cccfc
+  SpruceIDMobileSdkRsRustFramework: 5e1eaa82bef5b26ef7c82f2b5d07e704ced43da2
+  sprucekit_mobile: 83f1ba88c8aa197b0a416947f339162cacb651f8
+  SwiftAlgorithms: 38dda4731d19027fdeee1125f973111bf3386b53
 
-PODFILE CHECKSUM: b70e44a06b6c0b980307393682a80894c53ba88f
+PODFILE CHECKSUM: 2cc84e26ef89cd201f761e59083314673db0b193
 
 COCOAPODS: 1.16.2
