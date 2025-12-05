@@ -14,6 +14,9 @@
 - `ios/`
     * `MobileSdk/`: Swift SDK built on top of `MobileSdkRS` (under `rust/`)
     * `Showcase/`: Showcase app, our reference app for this SDK
+- `flutter/`
+    * Flutter plugin providing cross-platform access to the SDK
+    * `example/`: Example Flutter app demonstrating the plugin
 
 ### General Dependencies
 
@@ -106,6 +109,27 @@ This and the Rust layer are tied together with the `Package.swift` at the root o
 #### Showcase
 
 Run `xcodegen` in `./ios/Showcase` to generate the XCode project.
+
+### Flutter
+
+#### Running the example app
+
+```bash
+cd flutter/example
+flutter pub get
+cd ios && pod install && cd ..
+flutter run
+```
+
+For local development, toggle the comments in `flutter/example/ios/Podfile`.
+
+#### Regenerating Pigeon bindings
+
+```bash
+cd flutter
+dart run pigeon --input pigeons/oid4vci.dart
+dart run pigeon --input pigeons/credential_pack.dart
+```
 
 ## Releases
 

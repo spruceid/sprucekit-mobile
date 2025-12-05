@@ -3,4 +3,5 @@
 .direnv/
 .envrc
 /.build
+/build/
 .swiftpm
