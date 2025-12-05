@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name             = 'SpruceIDMobileSdk'
-  spec.version          = '0.13.1'
+  spec.version          = '0.13.2'
   spec.summary          = 'SpruceID Mobile SDK for iOS'
   spec.description      = <<-DESC
                    SpruceID Swift Mobile SDK for credential management, OID4VCI issuance, and verifiable credentials.
