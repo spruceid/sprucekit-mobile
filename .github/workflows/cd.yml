@@ -109,8 +109,10 @@ jobs:
       # - uses: taiki-e/install-action@v2
       #   with:
       #     tool: cargo-swift
-      - name: Install unreleased version of cargo-swift
-        run: cargo install --git https://github.com/antoniusnaumann/cargo-swift
+      # - name: Install unreleased version of cargo-swift
+      #   run: cargo install --git https://github.com/antoniusnaumann/cargo-swift
+      - name: Install static version of cargo-swift
+        run: cargo install cargo-swift@^0.9
 
       - name: Generate Swift package
         run: cargo swift package -p ios -n MobileSdkRs --release
