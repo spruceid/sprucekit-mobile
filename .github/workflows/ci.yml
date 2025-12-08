@@ -144,3 +144,26 @@ jobs:
         run: ./gradlew :mobilesdk:lint -Prust-target=arm64
       - name: Run Showcase lint
         run: ./gradlew :showcase:lint -Prust-target=arm64
+
+  flutter:
+    runs-on: ubuntu-latest
+    if: github.actor != 'sprucekit-mobile-monorepo[bot]'
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Format check
+        run: dart format --set-exit-if-changed lib/sprucekit_mobile.dart pigeons/ example/
