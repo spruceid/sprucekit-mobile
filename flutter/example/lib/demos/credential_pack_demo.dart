@@ -65,7 +65,10 @@ class _CredentialPackDemoState extends State<CredentialPackDemo> {
     });
 
     try {
-      final result = await _api.addRawCredential(_currentPackId!, rawCredential);
+      final result = await _api.addRawCredential(
+        _currentPackId!,
+        rawCredential,
+      );
 
       setState(() {
         _loading = false;
@@ -135,9 +138,7 @@ class _CredentialPackDemoState extends State<CredentialPackDemo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Credential Pack'),
-      ),
+      appBar: AppBar(title: const Text('Credential Pack')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -251,31 +252,33 @@ class _CredentialPackDemoState extends State<CredentialPackDemo> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              ..._credentials.map((cred) => Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ID: ${cred.id}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+              ..._credentials.map(
+                (cred) => Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ID: ${cred.id}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text('Format: ${cred.format.name}'),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Raw: ${cred.rawCredential.length > 100 ? '${cred.rawCredential.substring(0, 100)}...' : cred.rawCredential}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontFamily: 'monospace',
                           ),
-                          const SizedBox(height: 4),
-                          Text('Format: ${cred.format.name}'),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Raw: ${cred.rawCredential.length > 100 ? '${cred.rawCredential.substring(0, 100)}...' : cred.rawCredential}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  )),
+                  ),
+                ),
+              ),
             ],
           ],
         ),

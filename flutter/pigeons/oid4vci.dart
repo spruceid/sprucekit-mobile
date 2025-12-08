@@ -15,12 +15,8 @@ import 'package:pigeon/pigeon.dart';
     dartPackageName: 'sprucekit_mobile',
   ),
 )
-
 /// DID method for proof of possession
-enum DidMethod {
-  jwk,
-  key,
-}
+enum DidMethod { jwk, key }
 
 /// Options for credential exchange
 class Oid4vciExchangeOptions {

@@ -12,8 +12,9 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   final _api = Oid4vci();
   final _offerController = TextEditingController();
   final _clientIdController = TextEditingController(text: 'skit-demo-wallet');
-  final _redirectUrlController =
-      TextEditingController(text: 'https://spruceid.com');
+  final _redirectUrlController = TextEditingController(
+    text: 'https://spruceid.com',
+  );
   final _keyIdController = TextEditingController(text: 'default-signing-key');
 
   bool _loading = false;
@@ -77,9 +78,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('OID4VCI Issuance'),
-      ),
+      appBar: AppBar(title: const Text('OID4VCI Issuance')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

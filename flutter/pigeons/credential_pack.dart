@@ -15,7 +15,6 @@ import 'package:pigeon/pigeon.dart';
     dartPackageName: 'sprucekit_mobile',
   ),
 )
-
 /// Credential status from status list
 enum CredentialStatus {
   valid,
@@ -29,13 +28,7 @@ enum CredentialStatus {
 }
 
 /// Credential format type
-enum CredentialFormat {
-  jwtVc,
-  jsonVc,
-  sdJwt,
-  msoMdoc,
-  cwt,
-}
+enum CredentialFormat { jwtVc, jsonVc, sdJwt, msoMdoc, cwt }
 
 /// A parsed credential with its metadata
 class ParsedCredentialData {

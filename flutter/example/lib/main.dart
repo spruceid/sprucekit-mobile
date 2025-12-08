@@ -34,12 +34,10 @@ class HomeScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('SpruceKit Mobile Examples'),
-      ),
+      appBar: AppBar(title: const Text('SpruceKit Mobile Examples')),
       body: ListView.separated(
         itemCount: demos.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
+        separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (context, index) {
           final (title, icon, screen) = demos[index];
           return ListTile(
