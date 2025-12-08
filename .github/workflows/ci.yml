@@ -153,9 +153,14 @@ jobs:
         working-directory: flutter
     steps:
       - uses: actions/checkout@v4
+      - name: Read Flutter version from fvm
+        uses: kuhnroyal/flutter-fvm-config-action@v2
+        id: fvm-config
+        with:
+          path: flutter/.fvmrc
       - uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
           cache: true
 
       - name: Install dependencies

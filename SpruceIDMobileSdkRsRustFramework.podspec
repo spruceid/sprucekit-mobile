@@ -16,9 +16,6 @@ Pod::Spec.new do |spec|
   spec.ios.deployment_target = '14.0'
 
   spec.static_framework = true
-  # For releases, the framework is downloaded from GitHub releases
-  # For local development, use: 
-  # spec.source = { :path => '../../../' }
   spec.source = { :http => "https://github.com/spruceid/sprucekit-mobile/releases/download/#{spec.version}/RustFramework.xcframework.zip" }
   spec.vendored_frameworks = 'rust/MobileSdkRs/RustFramework.xcframework'
 end

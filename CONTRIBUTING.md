@@ -112,16 +112,21 @@ Run `xcodegen` in `./ios/Showcase` to generate the XCode project.
 
 ### Flutter
 
-#### Running the example app
+#### Local development setup
 
-```bash
-cd flutter/example
-flutter pub get
-cd ios && pod install && cd ..
-flutter run
-```
+To develop the Flutter plugin against local SDK changes:
 
-For local development, toggle the comments in `flutter/example/ios/Podfile`.
+1. Build the Rust layer for iOS.
+
+2. Run the example app:
+   ```bash
+   cd flutter/example
+   flutter pub get
+   cd ios && pod install && cd ..
+   flutter run
+   ```
+
+After making changes to Rust code, rebuild and run `pod install` again.
 
 #### Regenerating Pigeon bindings
 

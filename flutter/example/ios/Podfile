@@ -28,16 +28,15 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 # SpruceID SDK pods
-SPRUCEID_VERSION = '0.13.3'
-
 # For remote use:
-  pod 'SpruceIDMobileSdkRsRustFramework', :podspec => "https://raw.githubusercontent.com/spruceid/sprucekit-mobile/#{SPRUCEID_VERSION}/SpruceIDMobileSdkRsRustFramework.podspec"
-  pod 'SpruceIDMobileSdkRs', :git => 'https://github.com/spruceid/sprucekit-mobile.git', :tag => SPRUCEID_VERSION
-  pod 'SpruceIDMobileSdk', :git => 'https://github.com/spruceid/sprucekit-mobile.git', :tag => SPRUCEID_VERSION
+# SPRUCEID_VERSION = '0.13.3'
+# pod 'SpruceIDMobileSdkRsRustFramework', :podspec => "https://raw.githubusercontent.com/spruceid/sprucekit-mobile/#{SPRUCEID_VERSION}/SpruceIDMobileSdkRsRustFramework.podspec"
+# pod 'SpruceIDMobileSdkRs', :git => 'https://github.com/spruceid/sprucekit-mobile.git', :tag => SPRUCEID_VERSION
+# pod 'SpruceIDMobileSdk', :git => 'https://github.com/spruceid/sprucekit-mobile.git', :tag => SPRUCEID_VERSION
 # For local development:
-# pod 'SpruceIDMobileSdkRsRustFramework', :path => '../../../'
-# pod 'SpruceIDMobileSdkRs', :path => '../../../'
-# pod 'SpruceIDMobileSdk', :path => '../../../'
+pod 'SpruceIDMobileSdkRsRustFramework', :path => '../../../'
+pod 'SpruceIDMobileSdkRs', :path => '../../../'
+pod 'SpruceIDMobileSdk', :path => '../../../'
 
 target 'Runner' do
   use_frameworks! :linkage => :static
