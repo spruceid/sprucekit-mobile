@@ -3,4 +3,8 @@
 .direnv/
 .envrc
 /.build
+/build/
 .swiftpm
+
+# FVM
+.fvm/flutter_sdk

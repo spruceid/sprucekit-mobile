@@ -9,12 +9,14 @@ import com.spruceid.mobile.sdk.ble.BleConnectionStateMachineInstanceType
 import com.spruceid.mobile.sdk.ble.Transport
 import com.spruceid.mobile.sdk.rs.CentralClientDetails
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
+import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.ItemsRequest
 import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.PeripheralServerDetails
 import com.spruceid.mobile.sdk.rs.RequestException
 import com.spruceid.mobile.sdk.rs.initializeMdlPresentationFromBytes
+import com.spruceid.mobile.sdk.PresentationMode
 import java.security.KeyStore
 import java.security.Signature
 import java.util.UUID
@@ -33,10 +35,10 @@ enum class PresentationMode {
     PERIPHERAL_ONLY,
 
     /**
-     * Dual mode (default): Holder acts as both Central and Peripheral simultaneously.
+     * Dual mode: Holder acts as both Central and Peripheral simultaneously.
      * First mode to establish connection wins. Provides maximum compatibility per ISO 18013-5.
      */
-    DUAL_MODE
+    DUAL_MODE,
 }
 
 abstract class BLESessionStateDelegate {
@@ -50,10 +52,11 @@ class IsoMdlPresentation(
     val bluetoothManager: BluetoothManager,
     val callback: BLESessionStateDelegate,
     val context: Context,
-    val mode: PresentationMode = PresentationMode.DUAL_MODE
+    /// If null, defaults to Dual for QR and Central for NFC
+    val mode: PresentationMode? = null,
 ) {
-    private val uuidCentral: UUID = UUID.randomUUID()
-    private val uuidPeripheral: UUID = UUID.randomUUID()
+    private var uuidCentral: UUID = UUID.randomUUID()
+    private var uuidPeripheral: UUID = UUID.randomUUID()
 
     var session: MdlPresentationSession? = null
     var itemsRequests: List<ItemsRequest> = listOf()
@@ -62,50 +65,78 @@ class IsoMdlPresentation(
     private var centralTransport: Transport? = null
     private var peripheralTransport: Transport? = null
 
+    lateinit var deviceEngagementData: DeviceEngagementData
+
     // Track which mode successfully connected first
     @Volatile
     private var connectedMode: String? = null
     private val connectionLock = Any()
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    fun initialize() {
+    fun initialize(presentationData: CredentialPresentData = CredentialPresentData.Qr()) {
+
+        var finalizedMode = mode
+
+        when (presentationData) {
+            is CredentialPresentData.Qr -> {
+                deviceEngagementData = DeviceEngagementData.Qr
+                if(finalizedMode == null) {
+                    finalizedMode = PresentationMode.DUAL_MODE
+                }
+            }
+            is CredentialPresentData.Nfc -> {
+                this.uuidCentral = UUID.fromString(presentationData.negotiatedCarrierInfo.getUuid())
+                Log.d("IsoMdlPresentation", "Negotiated BLE via NFC. (UUID: ${presentationData.negotiatedCarrierInfo.getUuid()})")
+                deviceEngagementData = DeviceEngagementData.Nfc(presentationData.negotiatedCarrierInfo)
+                if(finalizedMode == null) {
+                    finalizedMode = PresentationMode.CENTRAL_ONLY
+                } else if(finalizedMode != PresentationMode.CENTRAL_ONLY) {
+                    throw Error("NFC currently only supports central client mode")
+                }
+            }
+        }
+
         try {
             // Initialize session based on selected mode
-            when (mode) {
+            var ccd: CentralClientDetails? = null
+            var psd: PeripheralServerDetails? = null
+            when (finalizedMode) {
                 PresentationMode.CENTRAL_ONLY -> {
                     Log.d("IsoMdlPresentation", "Initializing Central-only mode (UUID: $uuidCentral)")
-                    session = initializeMdlPresentationFromBytes(
-                        this.mdoc,
-                        CentralClientDetails(uuidCentral.toString()),
-                        null
-                    )
-                    // Display QR code
-                    this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
-                    // Start only Central transport
-                    startCentralTransport()
+                    ccd = CentralClientDetails(uuidCentral.toString())
                 }
                 PresentationMode.PERIPHERAL_ONLY -> {
                     Log.d("IsoMdlPresentation", "Initializing Peripheral-only mode (UUID: $uuidPeripheral)")
-                    session = initializeMdlPresentationFromBytes(
-                        this.mdoc,
-                        null,
-                        PeripheralServerDetails(uuidPeripheral.toString(), null)
-                    )
-                    // Display QR code
-                    this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
-                    // Start only Peripheral transport
-                    startPeripheralTransport()
+                    psd = PeripheralServerDetails(uuidPeripheral.toString(), null)
                 }
                 PresentationMode.DUAL_MODE -> {
                     // Per ISO 18013-5: Advertise both modes in QR code for maximum compatibility
                     Log.d("IsoMdlPresentation", "Initializing dual-mode presentation (Central UUID: $uuidCentral, Peripheral UUID: $uuidPeripheral)")
-                    session = initializeMdlPresentationFromBytes(
-                        this.mdoc,
-                        CentralClientDetails(uuidCentral.toString()),
-                        PeripheralServerDetails(uuidPeripheral.toString(), null)
-                    )
-                    // Display QR code
-                    this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrCodeUri())))
+                    ccd = CentralClientDetails(uuidCentral.toString())
+                    psd = PeripheralServerDetails(uuidPeripheral.toString(), null)
+                }
+            }
+
+            session = initializeMdlPresentationFromBytes(
+                this.mdoc,
+                ccd,
+                psd,
+                deviceEngagementData,
+            )
+
+            // Only trigger the `engagingQRCode` state for QR - NFC stays at default state, waiting for BT connection
+            if (deviceEngagementData is DeviceEngagementData.Qr) {
+                this.callback.update(mapOf(Pair("engagingQRCode", session!!.getQrHandover())))
+            }
+
+            when (finalizedMode) {
+                PresentationMode.CENTRAL_ONLY -> {
+                    startCentralTransport()
+                }
+                PresentationMode.PERIPHERAL_ONLY -> {
+                    startPeripheralTransport()
+                }
+                PresentationMode.DUAL_MODE -> {
                     // Start both transports simultaneously
                     startPeripheralTransport()
                     startCentralTransport()
@@ -196,13 +227,9 @@ class IsoMdlPresentation(
     fun submitNamespaces(items: Map<String, Map<String, List<String>>>) {
         val payload = session!!.generateResponse(items)
 
-        val ks: KeyStore = KeyStore.getInstance(
-            "AndroidKeyStore"
-        )
+        val ks: KeyStore = KeyStore.getInstance("AndroidKeyStore")
 
-        ks.load(
-            null
-        )
+        ks.load(null)
 
         val entry = ks.getEntry(this.keyAlias, null)
         if (entry !is KeyStore.PrivateKeyEntry) {

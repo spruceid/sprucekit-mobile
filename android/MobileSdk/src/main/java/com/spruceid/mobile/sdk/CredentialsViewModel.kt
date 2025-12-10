@@ -127,7 +127,7 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    suspend fun present(bluetoothManager: BluetoothManager, mdoc: Mdoc) {
+    suspend fun present(bluetoothManager: BluetoothManager, mdoc: Mdoc, presentData: CredentialPresentData) {
         Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
 
         // Create IsoMdlPresentation with callback to handle state changes
@@ -136,11 +136,11 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
             mdoc = mdoc,
             keyAlias = mdoc.keyAlias(),
             bluetoothManager = bluetoothManager,
-            context = getApplication<Application>().applicationContext
+            context = getApplication<Application>().applicationContext,
         )
 
         // Initialize will trigger the callback with engagingQRCode state
-        presentation?.initialize()
+        presentation?.initialize(presentData)
     }
 
     fun cancel() {

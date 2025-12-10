@@ -38,8 +38,12 @@ Task {
                 payload: mdocBytes!,
                 keyAlias: "alias"
             ))
+        let bleUuid = UUID()
         let mdlSession = try await initializeMdlPresentation(
-            mdocId: uuid.uuidString, uuid: UUID().uuidString, storageManager: storage
+            mdocId: uuid.uuidString,
+            uuid: bleUuid.uuidString,
+            engagement: .qr,
+            storageManager: storage,
         )
         assert(
             try! mdlSession.terminateSession()

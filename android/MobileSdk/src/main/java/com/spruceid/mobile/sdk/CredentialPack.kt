@@ -3,6 +3,7 @@ package com.spruceid.mobile.sdk
 import android.util.Log
 import com.spruceid.mobile.sdk.rs.CredentialDecodingException
 import com.spruceid.mobile.sdk.rs.Cwt
+import com.spruceid.mobile.sdk.rs.IssuanceServiceClient
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -12,6 +13,7 @@ import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobile.sdk.rs.VdcCollection
 import com.spruceid.mobile.sdk.rs.VdcCollectionException
+import com.spruceid.mobile.sdk.rs.WalletServiceClient
 import org.json.JSONException
 import org.json.JSONObject
 import java.util.UUID
@@ -215,6 +217,19 @@ class CredentialPack {
                     }
                 } else {
                     res[credentialId] = CredentialStatusList.UNKNOWN
+                }
+            }
+            credential.asCwt()?.let {
+                try {
+                    val status = it.status()
+                    when (status.toInt()) {
+                        0 -> res[credentialId] = CredentialStatusList.VALID
+                        1 -> res[credentialId] = CredentialStatusList.INVALID
+                        2 -> res[credentialId] = CredentialStatusList.REVOKED
+                        else -> res[credentialId] = CredentialStatusList.UNDEFINED
+                    }
+                } catch (_: Exception) {
+                    res[credentialId] = CredentialStatusList.UNDEFINED
                 }
             }
         }

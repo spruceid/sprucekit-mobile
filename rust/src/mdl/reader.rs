@@ -28,7 +28,7 @@ pub struct MDLSessionManager(reader::SessionManager);
 /// Connection details for connecting to an mdoc that is using BLE Central Client mode.
 #[derive(uniffi::Record)]
 pub struct CentralClientDetails {
-    /// The UUID of the service that the mdoc is advertising.
+    /// The UUID of the service that the mdoc is listening for.
     pub service_uuid: Uuid,
 }
 
