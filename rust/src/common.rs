@@ -71,7 +71,7 @@ impl From<&str> for Key {
 
 uniffi::custom_newtype!(Value, Vec<u8>);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Value(pub Vec<u8>);
 
 uniffi::custom_type!(Algorithm, String, {
@@ -491,6 +491,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_cbor_value_to_string() {
         // Test null
         assert_eq!(CborValue::Null.to_string(), "");

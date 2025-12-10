@@ -6,25 +6,22 @@ import SpruceIDMobileSdkRs
 import SwiftUI
 
 struct ShareMdocView: View {
-    let credentialPack: CredentialPack
-    @State private var qrSheetView: ShareMdocQR?
+    let mdoc: Mdoc
 
-    func getQRSheetView() async -> ShareMdocQR {
-        return await ShareMdocQR(credentialPack: credentialPack)
+    init(mdoc: Mdoc) {
+        self.mdoc = mdoc
     }
 
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-                if let qrCode = qrSheetView {
-                    qrCode.padding()
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color("ColorStone300"), lineWidth: 1)
-                                .background(Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                        )
-                }
+                ShareMdocQR(mdoc: mdoc).padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color("ColorStone300"), lineWidth: 1)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    )
                 Text(
                     "Present this QR code to a verifier in order to share data. You will see a consent dialogue."
                 )
@@ -32,9 +29,6 @@ struct ShareMdocView: View {
                 .font(.customFont(font: .inter, style: .regular, size: .small))
                 .foregroundStyle(Color("ColorStone400"))
                 .padding(.vertical, 12)
-                .task {
-                    qrSheetView = await getQRSheetView()
-                }
             }
             .padding(.horizontal, 24)
         }
@@ -42,24 +36,28 @@ struct ShareMdocView: View {
 }
 
 public struct ShareMdocQR: View {
-    var credentials: CredentialStore
-    @State var proceed = true
     @StateObject var delegate: ShareViewDelegate
 
-    init(credentialPack: CredentialPack) async {
-        let credentialStore = CredentialStore(
-            credentials: credentialPack.list()
-        )
-        self.credentials = credentialStore
-        let viewDelegate = await ShareViewDelegate(credentials: credentialStore)
+    init(mdoc: Mdoc) {
+        let viewDelegate = ShareViewDelegate(mdoc: mdoc)
         self._delegate = StateObject(wrappedValue: viewDelegate)
+    }
+    
+    @ViewBuilder
+    var resetButton: some View {
+        Button("Reset") {
+            self.delegate.reset()
+        }
+        .padding(10)
+        .buttonStyle(.bordered)
+        .tint(.blue)
+        .foregroundColor(.blue)
     }
 
     @ViewBuilder
     var cancelButton: some View {
         Button("Cancel") {
             self.delegate.cancel()
-            proceed = false
         }
         .padding(10)
         .buttonStyle(.bordered)
@@ -69,144 +67,187 @@ public struct ShareMdocQR: View {
 
     public var body: some View {
         VStack {
-            if proceed {
-                switch self.delegate.state {
-                case .engagingQRCode(let data):
-                    Image(uiImage: generateQRCode(from: data))
-                        .interpolation(.none)
-                        .resizable()
-                        .scaledToFit()
-                        .aspectRatio(contentMode: .fit)
-                case .error(let error):
-                    let message =
-                        switch error {
-                        case .bluetooth(let central):
-                            switch central.state {
-                            case .poweredOff:
-                                "Is Powered Off."
-                            case .unsupported:
-                                "Is Unsupported."
-                            case .unauthorized:
-                                switch CBManager.authorization {
-                                case .denied:
-                                    "Authorization denied"
-                                case .restricted:
-                                    "Authorization restricted"
-                                case .allowedAlways:
-                                    "Authorized"
-                                case .notDetermined:
-                                    "Authorization not determined"
-                                @unknown default:
-                                    "Unknown authorization error"
-                                }
-                            case .unknown:
-                                "Unknown"
-                            case .resetting:
-                                "Resetting"
-                            case .poweredOn:
-                                "Impossible"
-                            @unknown default:
-                                "Error"
-                            }
-                        case .peripheral(let error):
-                            error
-                        case .generic(let error):
-                            error
-                        }
-                    Text(message)
-                case .uploadProgress(let value, let total):
-                    ProgressView(
-                        value: Double(value),
-                        total: Double(total),
-                        label: {
-                            Text("Uploading...").padding(.bottom, 4)
-                        },
-                        currentValueLabel: {
-                            Text("\(100 * value/total)%")
-                                .padding(.top, 4)
-                        }
-                    ).progressViewStyle(.linear)
-                    cancelButton
-                case .success:
-                    Text("Successfully presented credential.")
-                case .selectNamespaces(let items):
-                    ShareMdocSelectiveDisclosureView(
-                        itemsRequests: items,
-                        delegate: delegate,
-                        proceed: $proceed
-                    )
-                    .onChange(of: proceed) { _ in
-                        self.delegate.cancel()
-                    }
-                case .connected:
-                    Text("Connected")
-                }
-            } else {
-                Text("Operation Canceled")
+            switch self.delegate.state {
+            case .initializing:
+                settingUpView
+            case .action(required: .turnOnBluetooth):
+                turnOnBluetoothView
+            case .action(required: .authorizeBluetoothForApp):
+                authorizeBluetooth
+            case .connecting(let qrPayload):
+                connectingView(qrPayload: qrPayload)
+            case .connected:
+                connectedView
+            case .receivingRequest(let bytesSoFar, let total):
+                receivingRequest(bytesSoFar: bytesSoFar, total: total)
+            case .receivedRequest(let request):
+                receivedRequestView(request: request)
+            case .requestDismissed:
+                requestDismissedView
+            case .sendingResponse(let value, let total):
+                sendingResponse(value: value, total: total)
+            case .sentResponse:
+                sentResponseView
+            case .readerDisconnected:
+                readerDisconnectedView
+            case .error:
+                errorView
             }
         }
     }
+    
+    @ViewBuilder
+    var authorizeBluetooth: some View {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            Button("Authorize bluetooth to continue") {
+                UIApplication.shared.open(url)
+            }
+            .padding(10)
+            .buttonStyle(.bordered)
+            .tint(.blue)
+            .foregroundColor(.blue)
+        } else {
+            Text("Open iPhone settings and allow bluetooth permissions for this app to continue.")
+        }
+    }
+    
+    @ViewBuilder
+    func sendingResponse(value: Int, total: Int) -> some View {
+        ProgressView(
+            value: Double(value),
+            total: Double(total),
+            label: {
+                Text("Sending response...").padding(.bottom, 4)
+            },
+            currentValueLabel: {
+                Text("\(100 * value/total)%")
+                    .padding(.top, 4)
+            }
+        ).progressViewStyle(.linear)
+        cancelButton
+    }
+    
+    @ViewBuilder
+    func receivingRequest(bytesSoFar: Int, total: Int?) -> some View {
+        if let total = total {
+            ProgressView(
+                value: Double(bytesSoFar),
+                total: Double(total),
+                label: {
+                    Text("Receiving request...").padding(.bottom, 4)
+                },
+                currentValueLabel: {
+                    Text("\(100 * bytesSoFar/total)%")
+                        .padding(.top, 4)
+                }
+            )
+            .progressViewStyle(.linear)
+        } else {
+            ProgressView {
+                Text("Receiving request...").padding(.bottom, 4)
+            }
+            .progressViewStyle(.linear)
+        }
+        cancelButton
+    }
+
+    @ViewBuilder
+    var settingUpView: some View {
+        ProgressView("Initializing...")
+    }
+
+    @ViewBuilder
+    var turnOnBluetoothView: some View {
+        Text("Turn on bluetooth to continue.")
+    }
+
+    @ViewBuilder
+    func connectingView(qrPayload: Data) -> some View {
+        Image(uiImage: generateQRCode(from: qrPayload))
+            .interpolation(.none)
+            .resizable()
+            .scaledToFit()
+            .aspectRatio(contentMode: .fit)
+    }
+
+    @ViewBuilder
+    var requestDismissedView: some View {
+        Text("Request rejected.")
+        resetButton
+    }
+    
+    @ViewBuilder
+    var readerDisconnectedView: some View {
+        Text("The reader unexpectedly disconnected.")
+        resetButton
+    }
+    
+    @ViewBuilder
+    var errorView: some View {
+        Text("An error occurred, please try again later.")
+        resetButton
+    }
+
+    @ViewBuilder
+    var sentResponseView: some View {
+        Text("Successfully presented credential.")
+        resetButton
+    }
+
+    @ViewBuilder
+    func receivedRequestView(request: MdocProximityPresentationManager.Request) -> some View {
+        ShareMdocSelectiveDisclosureView(
+            request: request,
+            onCancel: { self.delegate.cancel() }
+        )
+    }
+
+    @ViewBuilder
+    var connectedView: some View {
+        Text("Connected.")
+    }
 }
 
-class ShareViewDelegate: ObservableObject {
-    @Published var state: BLESessionState = .connected
-    private var sessionManager: IsoMdlPresentation?
+class ShareViewDelegate: ObservableObject, MdocProximityPresentationManager.Delegate {
+    @Published var state: MdocProximityPresentationManager.State = .initializing
+    
+    private var sessionManager: MdocProximityPresentationManager? = nil
 
-    init(credentials: CredentialStore) async {
-        self.sessionManager = await credentials.presentMdocBLE(
-            deviceEngagement: .QRCode,
-            callback: self
-        )!
+    init(mdoc: Mdoc) {
+        self.sessionManager = MdocProximityPresentationManager(
+            mdoc: mdoc,
+            delegate: self,
+        )
     }
 
     func cancel() {
-        self.sessionManager?.cancel()
+        self.sessionManager?.disconnect()
     }
-
-    func submitItems(items: [String: [String: [String: Bool]]]) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: DEFAULT_SIGNING_KEY_ID,
-            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true,
-        ]
-
-        var item: CFTypeRef?
-        _ = SecItemCopyMatching(query as CFDictionary, &item)
-        let key = item as! SecKey
-        self.sessionManager?.submitNamespaces(
-            items: items.mapValues { namespaces in
-                return namespaces.mapValues { items in
-                    Array(items.filter { $0.value }.keys)
-                }
-            },
-            signingKey: key
-        )
+    
+    func connectionState(changedTo: SpruceIDMobileSdk.MdocProximityPresentationManager.State) {
+        DispatchQueue.main.async {
+            self.state = changedTo
+        }
     }
-}
-
-extension ShareViewDelegate: BLESessionStateDelegate {
-    public func update(state: BLESessionState) {
-        self.state = state
+    
+    func reset() {
+        self.sessionManager?.reset()
     }
 }
 
 public struct ShareMdocSelectiveDisclosureView: View {
     @State private var showingSDSheet = true
     @State private var itemsSelected: [String: [String: [String: Bool]]]
-    @State private var itemsRequests: [ItemsRequest]
-    @Binding var proceed: Bool
-    @StateObject var delegate: ShareViewDelegate
+    @State private var request: MdocProximityPresentationManager.Request
+    private let onCancel: () -> Void
 
     init(
-        itemsRequests: [ItemsRequest],
-        delegate: ShareViewDelegate,
-        proceed: Binding<Bool>
+        request: MdocProximityPresentationManager.Request,
+        onCancel: @escaping () -> Void
     ) {
-        self.itemsRequests = itemsRequests
-        self._delegate = StateObject(wrappedValue: delegate)
+        self.request = request
         var defaultSelected: [String: [String: [String: Bool]]] = [:]
-        for itemRequest in itemsRequests {
+        for itemRequest in request.items {
             var defaultSelectedNamespaces: [String: [String: Bool]] = [:]
             for (namespace, namespaceItems) in itemRequest.namespaces {
                 var defaultSelectedItems: [String: Bool] = [:]
@@ -218,7 +259,7 @@ public struct ShareMdocSelectiveDisclosureView: View {
             defaultSelected[itemRequest.docType] = defaultSelectedNamespaces
         }
         self.itemsSelected = defaultSelected
-        self._proceed = proceed
+        self.onCancel = onCancel
     }
 
     public var body: some View {
@@ -232,14 +273,17 @@ public struct ShareMdocSelectiveDisclosureView: View {
         ) {
             ShareMdocSDSheetView(
                 itemsSelected: $itemsSelected,
-                itemsRequests: $itemsRequests,
-                proceed: $proceed,
+                itemsRequests: request.items,
                 onProceed: {
-                    delegate.submitItems(items: itemsSelected)
+                    request.approve(items:
+                        itemsSelected.mapValues {
+                            $0.mapValues {
+                                $0.filter { $1 }.map{ $0.key }
+                            }
+                        }
+                    )
                 },
-                onCancel: {
-                    delegate.cancel()
-                }
+                onCancel: self.onCancel
             )
         }
     }
@@ -248,8 +292,7 @@ public struct ShareMdocSelectiveDisclosureView: View {
 struct ShareMdocSDSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var itemsSelected: [String: [String: [String: Bool]]]
-    @Binding var itemsRequests: [ItemsRequest]
-    @Binding var proceed: Bool
+    let itemsRequests: [ItemsRequest]
     let onProceed: () -> Void
     let onCancel: () -> Void
 
@@ -309,7 +352,6 @@ struct ShareMdocSDSheetView: View {
             HStack {
                 Button {
                     onCancel()
-                    proceed = false
                 } label: {
                     Text("Cancel")
                         .frame(maxWidth: .infinity)

@@ -130,7 +130,7 @@ fun VerifierCredentialSuccessView(
                 .weight(weight = 1f, fill = false)
         ) {
             if (credentialItem != null) {
-                credentialItem!!.credentialDetails()
+                credentialItem!!.CredentialDetails()
             }
         }
 //        TODO: implement restart flow

@@ -3,7 +3,8 @@ import Foundation
 import Security
 import SpruceIDMobileSdkRs
 
-public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject {
+public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject, @unchecked
+    Sendable {
     /// Migrate keys between access groups. For more information see
     /// https://developer.apple.com/documentation/Security/kSecAttrAccessGroup
     public func migrateToAccessGroup(oldAccessGroup: String, newAccessGroup: String) throws {
@@ -115,36 +116,63 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
      * Returns a JWK for a particular secret key by key id.
      */
     public static func getJwk(id: String) -> String? {
-      guard let key = getSecretKey(id: id) else { return nil }
+        guard let key = getSecretKey(id: id) else { return nil }
 
-      guard let publicKey = SecKeyCopyPublicKey(key) else {
-          return nil
-      }
+        guard let publicKey = SecKeyCopyPublicKey(key) else {
+            return nil
+        }
 
-      var error: Unmanaged<CFError>?
-      guard let data = SecKeyCopyExternalRepresentation(publicKey, &error) as? Data else {
-         return nil
-      }
+        var error: Unmanaged<CFError>?
+        guard let data = SecKeyCopyExternalRepresentation(publicKey, &error) as? Data else {
+            return nil
+        }
 
-      let fullData: Data = data.subdata(in: 1..<data.count)
-      let xDataRaw: Data = fullData.subdata(in: 0..<32)
-      let yDataRaw: Data = fullData.subdata(in: 32..<64)
+        let fullData: Data = data.subdata(in: 1..<data.count)
+        let xDataRaw: Data = fullData.subdata(in: 0..<32)
+        let yDataRaw: Data = fullData.subdata(in: 32..<64)
 
-      let xCoordinate = xDataRaw.base64EncodedUrlSafe
-      let yCoordinate = yDataRaw.base64EncodedUrlSafe
+        let xCoordinate = xDataRaw.base64EncodedUrlSafe
+        let yCoordinate = yDataRaw.base64EncodedUrlSafe
 
-      let jsonObject: [String: Any]  = [
-         "kty": "EC",
-         "crv": "P-256",
-         "alg": "ES256",
-         "x": xCoordinate,
-         "y": yCoordinate
-      ]
+        let jsonObject: [String: Any] = [
+            "kty": "EC",
+            "crv": "P-256",
+            "alg": "ES256",
+            "x": xCoordinate,
+            "y": yCoordinate
+        ]
 
-      guard let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: []) else { return nil }
-      let jsonString = String(data: jsonData, encoding: String.Encoding.ascii)!
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [])
+        else { return nil }
+        let jsonString = String(data: jsonData, encoding: String.Encoding.ascii)!
 
-      return jsonString
+        return jsonString
+    }
+
+    /**
+     * Returns the public key as a CBOR-encoded COSE key byte array
+     */
+    public static func coseKeyEc2P256PubKey(id: String) -> Data? {
+        guard let key = getSecretKey(id: id),
+            let publicKey = SecKeyCopyPublicKey(key)
+        else {
+            return nil
+        }
+
+        var error: Unmanaged<CFError>?
+        guard let data = SecKeyCopyExternalRepresentation(publicKey, &error) as? Data else {
+            return nil
+        }
+
+        let fullData: Data = data.subdata(in: 1..<data.count)
+        let xDataRaw: Data = fullData.subdata(in: 0..<32)
+        let yDataRaw: Data = fullData.subdata(in: 32..<64)
+
+        do {
+            return try coseKeyEc2P256PublicKey(x: xDataRaw, y: yDataRaw, kid: Data(id.utf8))
+        } catch {
+            return nil
+        }
     }
 
     /**
@@ -256,7 +284,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     }
 }
 
-public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey {
+public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey, @unchecked Sendable {
     private let alias: String
     private let jwkString: String
 

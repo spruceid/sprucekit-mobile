@@ -114,7 +114,7 @@ fun AddToWalletView(
             loadingText = "Storing credential..."
         )
     } else if (credentialItem != null) {
-        credentialItem!!.credentialReviewInfo(footerActions = {
+        credentialItem!!.CredentialReviewInfo(footerActions = {
             Button(
                 onClick = {
                     saveCredential()

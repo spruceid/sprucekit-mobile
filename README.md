@@ -48,6 +48,12 @@ To configure the same device OpenID4VP flow:
 - Android: [See here](./android/MobileSdk/src/main/java/com/spruceid/mobile/sdk/ui/SameDeviceOID4VP.md)
 - iOS: [See here](./ios/MobileSdk/Sources/MobileSdk/ui/SameDeviceOID4VP.md)
 
+## Configuring NFC for credential presentation
+
+To configure NFC presentation support:
+- Android: [See here](./android/MobileSdk/src/main/java/com/spruceid/mobile/sdk/nfc/NFC.md)
+- iOS: iOS does not yet allow third-party applications to emulate NFC tags. This may be available in an upcoming release.
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).

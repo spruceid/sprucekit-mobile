@@ -62,7 +62,7 @@ fun GenericCredentialItemListItem(
             )
             .padding(12.dp)
     ) {
-        genericCredentialListItem(
+        GenericCredentialListItem(
             statusListViewModel = statusListViewModel,
             credentialPack = credentialPack,
             withOptions = withOptions,
@@ -73,7 +73,7 @@ fun GenericCredentialItemListItem(
 }
 
 @Composable
-fun genericCredentialListItemDescriptionFormatter(
+fun GenericCredentialListItemDescriptionFormatter(
     statusListViewModel: StatusListViewModel,
     credentialPack: CredentialPack,
     values: Map<String, JSONObject>
@@ -139,7 +139,7 @@ fun genericCredentialListItemDescriptionFormatter(
 }
 
 @Composable
-private fun genericCredentialListItemLeadingIconFormatter(
+private fun GenericCredentialListItemLeadingIconFormatter(
     credentialPack: CredentialPack,
     values: Map<String, JSONObject>
 ) {
@@ -178,7 +178,17 @@ private fun genericCredentialListItemLeadingIconFormatter(
         }
 
     } catch (_: Exception) {
+    }
+
+    try {
         image = credential?.getString("issuer.image") ?: ""
+    } catch (_: Exception) {
+    }
+
+    try {
+        image = credential?.getString("credentialSubject.achievement.image.id") ?: ""
+    } catch (e: Exception) {
+        e.printStackTrace()
     }
 
     var alt = ""
@@ -200,7 +210,7 @@ private fun genericCredentialListItemLeadingIconFormatter(
 
 
 @Composable
-fun genericCredentialListItem(
+fun GenericCredentialListItem(
     statusListViewModel: StatusListViewModel,
     credentialPack: CredentialPack,
     withOptions: Boolean,
@@ -300,7 +310,7 @@ fun genericCredentialListItem(
                     values
                 )
             } else {
-                genericCredentialListItemDescriptionFormatter(
+                GenericCredentialListItemDescriptionFormatter(
                     statusListViewModel,
                     credentialPack,
                     values
@@ -308,7 +318,12 @@ fun genericCredentialListItem(
             }
 
         },
-        leadingIconKeys = listOf("issuer.image", "issuer.name", "type"),
+        leadingIconKeys = listOf(
+            "issuer.image",
+            "issuer.name",
+            "type",
+            "credentialSubject.achievement.image.id"
+        ),
         leadingIconFormatter = { values ->
             if (leadingIconFormatter != null) {
                 leadingIconFormatter.invoke(
@@ -316,7 +331,7 @@ fun genericCredentialListItem(
                     values
                 )
             } else {
-                genericCredentialListItemLeadingIconFormatter(credentialPack, values)
+                GenericCredentialListItemLeadingIconFormatter(credentialPack, values)
             }
 
         }

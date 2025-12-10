@@ -1,6 +1,6 @@
 package com.spruceid.mobilesdkexample.viewmodels
 
-import StorageManager
+
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.toMutableStateList
@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.dcapi.Registry
+import com.spruceid.mobile.sdk.StorageManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async

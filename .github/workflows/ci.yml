@@ -14,6 +14,7 @@ env:
 jobs:
   rust:
     runs-on: ubuntu-latest
+    if: github.actor != 'sprucekit-mobile-monorepo[bot]' # not running CI on release commits
     defaults:
       run:
         working-directory: rust
@@ -29,7 +30,7 @@ jobs:
 
       - name: Verify Swift installation
         run: swift --version
-      
+
       - name: Download JNA
         run: wget https://repo1.maven.org/maven2/net/java/dev/jna/jna/5.14.0/jna-5.14.0.jar
       - name: Download Kotlinx
@@ -44,6 +45,7 @@ jobs:
 
   ios:
     runs-on: macos-15 # macos-latest is currently macos-14 and we need iOS 18.2
+    if: github.actor != 'sprucekit-mobile-monorepo[bot]' # not running CI on release commits
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -58,10 +60,9 @@ jobs:
       # - uses: taiki-e/install-action@v2
       #   with:
       #     tool: cargo-swift
-      - name: Install unreleased version of cargo-swift
-        run: cargo install --git https://github.com/antoniusnaumann/cargo-swift
+      - name: Install static version of cargo-swift
+        run: cargo install cargo-swift@^0.9
       - run: brew install swiftlint
-
       - name: Generate Swift package
         run: cargo swift package -p ios -n MobileSdkRs --target aarch64-apple-ios-sim
         working-directory: rust
@@ -78,15 +79,18 @@ jobs:
           xcodegen generate
           cd ../Showcase
           xcodegen generate
-
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s '/Applications/Xcode_16.4.app/Contents/Developer'
+      - name: Print Xcode version
+        run: xcodebuild -version
       - name: Test MobileSdk
-        uses: mxcl/xcodebuild@v2
+        uses: mxcl/xcodebuild@v3
         with:
           platform: iOS
           scheme: MobileSdk
           working-directory: ios/MobileSdk
       - name: Test Showcase
-        uses: mxcl/xcodebuild@v2
+        uses: mxcl/xcodebuild@v3
         with:
           platform: iOS
           scheme: debug
@@ -98,6 +102,7 @@ jobs:
 
   android:
     runs-on: ubuntu-latest
+    if: github.actor != 'sprucekit-mobile-monorepo[bot]' # not running CI on release commits
     defaults:
       run:
         working-directory: android
@@ -139,3 +144,30 @@ jobs:
         run: ./gradlew :mobilesdk:lint -Prust-target=arm64
       - name: Run Showcase lint
         run: ./gradlew :showcase:lint -Prust-target=arm64
+
+  flutter:
+    runs-on: ubuntu-latest
+    if: github.actor != 'sprucekit-mobile-monorepo[bot]'
+    defaults:
+      run:
+        working-directory: flutter
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Flutter version from fvm
+        uses: kuhnroyal/flutter-fvm-config-action@v2
+        id: fvm-config
+        with:
+          path: flutter/.fvmrc
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm-config.outputs.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Format check
+        run: dart format --set-exit-if-changed lib/sprucekit_mobile.dart pigeons/ example/

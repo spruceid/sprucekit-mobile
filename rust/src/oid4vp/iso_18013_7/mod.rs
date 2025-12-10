@@ -162,6 +162,13 @@ impl InProgressRequest180137 {
             .map_err(OID4VP180137Error::response_processing)
     }
 
+    /// Returns the verifier name requesting authorization.
+    /// This value is derived from the `client_id` of the processed
+    /// authorization request object.
+    pub fn requested_by(&self) -> Option<String> {
+        self.request.client_id().map(|id| id.0.clone())
+    }
+
     pub fn matches(&self) -> Vec<Arc<RequestMatch180137>> {
         self.request_matches.clone()
     }

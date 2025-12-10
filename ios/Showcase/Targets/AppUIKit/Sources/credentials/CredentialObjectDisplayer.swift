@@ -9,7 +9,7 @@ struct CredentialObjectDisplayer: View {
             object: dict,
             filter: [
                 "type", "hashed", "salt", "proof", "renderMethod", "@context",
-                "credentialStatus", "-65537",
+                "credentialStatus", "-65537", "65535"
             ]
         )
     }
@@ -37,7 +37,9 @@ func formatValueString(_ value: GenericJSON) -> String {
 }
 
 func genericObjectDisplayer(
-    object: [String: GenericJSON], filter: [String] = [], level: Int = 1
+    object: [String: GenericJSON],
+    filter: [String] = [],
+    level: Int = 1
 ) -> [AnyView] {
     var res: [AnyView] = []
     object
@@ -46,19 +48,24 @@ func genericObjectDisplayer(
         .forEach { (key, value) in
             if let dictValue = value.dictValue {
                 let tmpViews = genericObjectDisplayer(
-                    object: dictValue, filter: filter, level: level + 1)
+                    object: dictValue,
+                    filter: filter,
+                    level: level + 1
+                )
 
                 if key.count > 2 {
                     res.append(
                         AnyView(
                             VStack(alignment: .leading) {
                                 Accordion(
-                                    title: key, startExpanded: level < 3,
+                                    title: key,
+                                    startExpanded: level < 3,
                                     content: AnyView(
                                         VStack(alignment: .leading, spacing: 20)
                                         {
                                             ForEach(
-                                                0..<tmpViews.count, id: \.self
+                                                0..<tmpViews.count,
+                                                id: \.self
                                             ) { index in
                                                 tmpViews[index]
                                             }
@@ -68,7 +75,8 @@ func genericObjectDisplayer(
                                 )
                                 .padding(.leading, level > 1 ? CGFloat(12) : 0)
                             }
-                        ))
+                        )
+                    )
                 } else {
                     res.append(
                         AnyView(
@@ -81,7 +89,8 @@ func genericObjectDisplayer(
                                 }
                                 .padding(.leading, CGFloat(12))
                             }
-                        ))
+                        )
+                    )
                 }
             } else if let arrayValue = value.arrayValue {
                 if key.lowercased().contains("image")
@@ -98,20 +107,27 @@ func genericObjectDisplayer(
                                 )
                                 .font(
                                     .customFont(
-                                        font: .inter, style: .regular, size: .h4
+                                        font: .inter,
+                                        style: .regular,
+                                        size: .h4
                                     )
                                 )
                                 .foregroundStyle(Color("ColorStone600"))
                                 CredentialGenericJSONArrayImage(
-                                    image: arrayValue)
-                            }))
+                                    image: arrayValue
+                                )
+                            }
+                        )
+                    )
                 } else {
                     var tmpSections: [AnyView] = []
 
                     for (idx, item) in arrayValue.enumerated() {
                         let tmpViews = genericObjectDisplayer(
-                            object: ["\(idx)": item], filter: filter,
-                            level: level + 1)
+                            object: ["\(idx)": item],
+                            filter: filter,
+                            level: level + 1
+                        )
                         tmpSections.append(
                             AnyView(
                                 VStack(alignment: .leading) {
@@ -120,18 +136,21 @@ func genericObjectDisplayer(
                                         tmpViews[index]
                                     }
                                 }
-                            ))
+                            )
+                        )
                     }
                     res.append(
                         AnyView(
                             VStack(alignment: .leading) {
                                 Accordion(
-                                    title: key, startExpanded: level < 3,
+                                    title: key,
+                                    startExpanded: level < 3,
                                     content: AnyView(
                                         VStack(alignment: .leading, spacing: 24)
                                         {
                                             VStack(
-                                                alignment: .leading, spacing: 24
+                                                alignment: .leading,
+                                                spacing: 24
                                             ) {
                                                 ForEach(
                                                     0..<tmpSections.count,
@@ -146,9 +165,13 @@ func genericObjectDisplayer(
                                 )
                                 .padding(.leading, level > 1 ? CGFloat(12) : 0)
                             }
-                        ))
+                        )
+                    )
                 }
             } else {
+                if value.toString() == "null" {
+                    return
+                }
                 res.append(
                     AnyView(
                         VStack(alignment: .leading) {
@@ -158,12 +181,15 @@ func genericObjectDisplayer(
                             )
                             .font(
                                 .customFont(
-                                    font: .inter, style: .regular, size: .h4)
+                                    font: .inter,
+                                    style: .regular,
+                                    size: .h4
+                                )
                             )
                             .foregroundStyle(Color("ColorStone600"))
                             if key.lowercased().contains("image")
                                 || key.lowercased().contains("portrait")
-                                   && !key.lowercased().contains("date")
+                                    && !key.lowercased().contains("date")
                                 || value.toString().contains("data:image")
                             {
                                 CredentialImage(image: value.toString())
@@ -175,11 +201,14 @@ func genericObjectDisplayer(
                             } else if key.lowercased().contains("url") {
                                 Link(
                                     value.toString(),
-                                    destination: URL(string: value.toString())!)
+                                    destination: URL(string: value.toString())!
+                                )
                             } else {
                                 Text(formatValueString(value))
                             }
-                        }))
+                        }
+                    )
+                )
             }
         }
     return res

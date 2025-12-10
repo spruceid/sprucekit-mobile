@@ -1,6 +1,8 @@
 package com.spruceid.mobilesdkexample.credentials
 
-import android.app.Application
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,8 +53,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.CredentialPack
+import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
+import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -75,6 +80,7 @@ import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.SupportedQRTypes
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlin.uuid.Uuid
 
 class CredentialDetailsViewTabs(
     val image: @Composable () -> Painter,
@@ -87,6 +93,7 @@ fun CredentialDetailsView(
     credentialPackId: String
 ) {
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
+    val credentialViewModel: CredentialsViewModel = activityHiltViewModel()
     val statusListViewModel: StatusListViewModel = activityHiltViewModel()
     var credentialTitle by remember { mutableStateOf<String?>(null) }
     var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
@@ -118,8 +125,32 @@ fun CredentialDetailsView(
     val isLoading by credentialPacksViewModel.loading.collectAsState()
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
 
+    val permissionsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        // Check if this was a Bluetooth permission request
+        val isBluetoothRequest = result.keys.containsAll(getPermissions())
+
+        if (isBluetoothRequest) {
+            val bluetoothGranted = getPermissions().all { result[it] == true }
+            credentialViewModel.setBluetoothPermissionsGranted(bluetoothGranted)
+            if (!bluetoothGranted) {
+                // TODO: Show Bluetooth error or fallback
+            }
+        }
+
+        // Check if this was a Camera permission request
+        if (result.containsKey(Manifest.permission.CAMERA)) {
+            val cameraGranted = result[Manifest.permission.CAMERA] == true
+            if (!cameraGranted) {
+                // TODO: Show camera error or fallback
+            }
+        }
+    }
+
     fun back() {
         navController.navigate(Screen.HomeScreen.route) {
+            credentialViewModel.cancel()
             popUpTo(0)
         }
     }
@@ -141,7 +172,13 @@ fun CredentialDetailsView(
             tmpTabs.add(
                 CredentialDetailsViewTabs(
                     { painterResource(id = R.drawable.qrcode) },
-                    { stringResource(id = R.string.details_share) }
+                    { stringResource(id = R.string.details_share_qr) }
+                )
+            )
+            tmpTabs.add(
+                CredentialDetailsViewTabs(
+                    { painterResource(id = R.drawable.wallet) },
+                    { stringResource(id = R.string.details_share_nfc) }
                 )
             )
             tabs = tmpTabs
@@ -218,32 +255,51 @@ fun CredentialDetailsView(
                         .background(ColorBase50),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (page == 0) {  // Details
-                        Column(
-                            Modifier
-                                .padding(horizontal = 20.dp)
-                                .padding(vertical = 16.dp)
-                        ) {
-                            credentialItem?.let {
-                                if (statusList != CredentialStatusList.REVOKED) {
-                                    credentialItem!!.credentialDetails()
-                                } else {
-                                    credentialItem!!.credentialRevokedInfo {
-                                        back()
+                    when (page) {
+                        0 -> {
+                            // Ask for bluetooth and camera permissions
+                            val allPermissions = getPermissions().toMutableList().apply {
+                                add(Manifest.permission.CAMERA)
+                            }.toTypedArray()
+                            permissionsLauncher.launch(allPermissions)
+                            Column(
+                                Modifier
+                                    .padding(horizontal = 20.dp)
+                                    .padding(vertical = 16.dp)
+                            ) {
+                                credentialItem?.let {
+                                    if (statusList != CredentialStatusList.REVOKED) {
+                                        credentialItem!!.CredentialDetails()
+                                    } else {
+                                        credentialItem!!.CredentialRevokedInfo {
+                                            back()
+                                        }
                                     }
                                 }
                             }
                         }
-                    } else if (page == 1) { // Scan to verify
-                        DispatchQRView(
-                            navController,
-                            credentialPackId,
-                            listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
-                            backgroundColor = ColorBase50,
-                            hideCancelButton = true
-                        )
-                    } else if (page == 2) { // Share
-                        GenericCredentialDetailsShareQRCode(credentialPack!!)
+
+                        1 -> {  // Scan to verify
+                            DispatchQRView(
+                                navController,
+                                credentialPackId,
+                                listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
+                                backgroundColor = ColorBase50,
+                                hideCancelButton = true
+                            )
+                        }
+
+                        2 -> { // Share QR
+                            GenericCredentialDetailsShareQRCode(
+                                credentialPack!!.list().firstOrNull()
+                            )
+                        }
+
+                        3 -> { // Share NFC
+                            GenericCredentialDetailsShareNFC(
+                                credentialPack!!.list().firstOrNull()
+                            )
+                        }
                     }
                 }
             }
@@ -309,32 +365,9 @@ fun DetailsViewBottomTabs(
 }
 
 @Composable
-fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
-    val context = LocalContext.current
-    val application = context.applicationContext as Application
+fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
 
-    fun newCredentialViewModel(): CredentialsViewModel {
-        val credentialViewModel = ViewModelProvider.AndroidViewModelFactory(application)
-            .create(CredentialsViewModel::class.java)
-        val parsedCredential: ParsedCredential? =
-            credentialPack.list().firstNotNullOfOrNull { credential ->
-                try {
-                    if (credential.asMsoMdoc() != null) {
-                        return@firstNotNullOfOrNull credential
-                    }
-                } catch (_: Exception) {
-                }
-                null
-            }
-        parsedCredential?.let {
-            credentialViewModel.storeCredential(parsedCredential)
-        }
-        return credentialViewModel
-    }
-
-    val credentialViewModel by remember {
-        mutableStateOf(newCredentialViewModel())
-    }
+    val credentialViewModel: CredentialsViewModel = activityHiltViewModel()
 
     fun cancel() {
         credentialViewModel.cancel()
@@ -355,15 +388,72 @@ fun GenericCredentialDetailsShareQRCode(credentialPack: CredentialPack) {
                 )
                 .padding(8.dp)
         ) {
-            ShareMdocView(
-                credentialViewModel = credentialViewModel,
-                onCancel = {
-                    cancel()
-                }
-            )
+            credential?.asMsoMdoc()?.let {
+                QrShareMdocView(
+                    credentialViewModel = credentialViewModel,
+                    mdoc = it,
+                    onCancel = {
+                        cancel()
+                    }
+                )
+            } ?: run {
+                Text("GenericCredentialDetailsShareQRCode not implemented for non-mDoc credentials")
+                //TODO: this is basically a switch, right now only supports mdoc, add new types later
+            }
         }
         Text(
             text = "Present this QR code to a verifier in order to share data. You will see a consent dialogue.",
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(top = 12.dp),
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 14.sp,
+            color = ColorStone500,
+        )
+    }
+}
+
+@Composable
+fun GenericCredentialDetailsShareNFC(credential: ParsedCredential?) {
+
+    val credentialViewModel: CredentialsViewModel = activityHiltViewModel()
+
+    fun cancel() {
+        credentialViewModel.cancel()
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
+            Modifier
+                .clip(shape = RoundedCornerShape(12.dp))
+                .background(ColorBase1)
+                .border(
+                    width = 1.dp,
+                    color = ColorStone300,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(8.dp)
+        ) {
+            credential?.asMsoMdoc()?.let {
+                NfcShareMdocView(
+                    credentialViewModel = credentialViewModel,
+                    mdoc = it,
+                    onCancel = {
+                        cancel()
+                    }
+                )
+            } ?: run {
+                Text("GenericCredentialDetailsShareNFC not implemented for non-mDoc credentials")
+                //TODO: this is basically a switch, right now only supports mdoc, add new types later
+            }
+        }
+        Text(
+            text = "After tapping your device against the reader, you will see a consent dialogue.",
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .padding(horizontal = 24.dp)

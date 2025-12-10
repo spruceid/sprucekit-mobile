@@ -1,20 +1,16 @@
 package com.spruceid.mobile.sdk
 
+import android.Manifest
 import android.app.Application
 import android.bluetooth.BluetoothManager
 import android.util.Log
+import androidx.annotation.RequiresPermission
 import androidx.lifecycle.AndroidViewModel
-import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.ItemsRequest
-import com.spruceid.mobile.sdk.rs.MdlPresentationSession
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
-import com.spruceid.mobile.sdk.rs.initializeMdlPresentationFromBytes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.security.KeyStore
-import java.security.Signature
-import java.util.UUID
 
 class CredentialsViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -24,14 +20,20 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
     private val _currState = MutableStateFlow(PresentmentState.UNINITIALIZED)
     val currState = _currState.asStateFlow()
 
-    private val _session = MutableStateFlow<MdlPresentationSession?>(null)
-    val session = _session.asStateFlow()
-
     private val _error = MutableStateFlow<Error?>(null)
     val error = _error.asStateFlow()
 
     private val _itemsRequests = MutableStateFlow<List<ItemsRequest>>(listOf())
     val itemsRequest = _itemsRequests.asStateFlow()
+
+    private val _qrCodeUri = MutableStateFlow<String>("")
+    val qrCodeUri = _qrCodeUri.asStateFlow()
+
+    private val _bluetoothPermissionsGranted = MutableStateFlow<Boolean>(false)
+    val bluetoothPermissionsGranted = _bluetoothPermissionsGranted.asStateFlow()
+    fun setBluetoothPermissionsGranted(granted: Boolean) {
+        _bluetoothPermissionsGranted.value = granted
+    }
 
     private val _allowedNamespaces =
         MutableStateFlow<Map<String, Map<String, List<String>>>>(
@@ -47,22 +49,44 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         )
     val allowedNamespaces = _allowedNamespaces.asStateFlow()
 
-    private val _uuid = MutableStateFlow<UUID>(UUID.randomUUID())
+    // Use IsoMdlPresentation instead of managing Transport/Session directly
+    private var presentation: IsoMdlPresentation? = null
 
-    private val _transport = MutableStateFlow<Transport?>(null)
+    // Callback to handle IsoMdlPresentation state changes
+    private val presentationCallback = object : BLESessionStateDelegate() {
+        override fun update(state: Map<String, Any>) {
+            when {
+                state.containsKey("timeout") -> {
+                    _currState.value = PresentmentState.TIMEOUT
+                }
+
+                state.containsKey("engagingQRCode") -> {
+                    _qrCodeUri.value = state["engagingQRCode"] as String
+                    _currState.value = PresentmentState.ENGAGING_QR_CODE
+                }
+
+                state.containsKey("selectNamespaces") -> {
+                    @Suppress("UNCHECKED_CAST")
+                    _itemsRequests.value = state["selectNamespaces"] as List<ItemsRequest>
+                    _currState.value = PresentmentState.SELECT_NAMESPACES
+                }
+
+                state.containsKey("error") -> {
+                    _currState.value = PresentmentState.ERROR
+                    _error.value = Error(state["error"].toString())
+                }
+            }
+        }
+
+        override fun error(error: Exception) {
+            Log.e("CredentialsViewModel", "Presentation error: ${error.message}", error)
+            _currState.value = PresentmentState.ERROR
+            _error.value = Error(error.message ?: "Unknown error")
+        }
+    }
 
     fun storeCredential(credential: ParsedCredential) {
         _credentials.value.add(credential)
-    }
-
-    private fun firstMdoc(): Mdoc {
-        val mdoc = _credentials.value
-            .map { credential -> credential.asMsoMdoc() }
-            .firstOrNull()
-        if (mdoc == null) {
-            throw Exception("no mdoc found")
-        }
-        return mdoc
     }
 
     fun toggleAllowedNamespace(docType: String, specName: String, fieldName: String) {
@@ -102,80 +126,45 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private fun updateRequestData(data: ByteArray) {
-        _itemsRequests.value = _session.value!!.handleRequest(data)
-        val namespaces =
-            _itemsRequests.value.map { itemsRequest -> itemsRequest.namespaces }
-        Log.d(
-            "CredentialsViewModel.updateRequestData",
-            "Updating requestData: \nitemRequests ${_itemsRequests.value.map { itemsRequest -> itemsRequest.docType }} namespaces: $namespaces"
-        )
-        _currState.value = PresentmentState.SELECT_NAMESPACES
-    }
-
-    suspend fun present(bluetoothManager: BluetoothManager) {
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    suspend fun present(bluetoothManager: BluetoothManager, mdoc: Mdoc, presentData: CredentialPresentData) {
         Log.d("CredentialsViewModel.present", "Credentials: ${_credentials.value}")
-        _uuid.value = UUID.randomUUID()
-        val mdoc = this.firstMdoc()
-        _session.value = initializeMdlPresentationFromBytes(mdoc, _uuid.value.toString())
-        _currState.value = PresentmentState.ENGAGING_QR_CODE
-        _transport.value = Transport(bluetoothManager)
-        _transport.value!!
-            .initialize(
-                "Holder",
-                _uuid.value,
-                "BLE",
-                "Central",
-                _session.value!!.getBleIdent(),
-                ::updateRequestData,
-                getApplication<Application>().applicationContext,
-                null
-            )
+
+        // Create IsoMdlPresentation with callback to handle state changes
+        presentation = IsoMdlPresentation(
+            callback = presentationCallback,
+            mdoc = mdoc,
+            keyAlias = mdoc.keyAlias(),
+            bluetoothManager = bluetoothManager,
+            context = getApplication<Application>().applicationContext,
+        )
+
+        // Initialize will trigger the callback with engagingQRCode state
+        presentation?.initialize(presentData)
     }
 
     fun cancel() {
-        _uuid.value = UUID.randomUUID()
-        _session.value = null
+        presentation?.terminate()
+        presentation = null
         _currState.value = PresentmentState.UNINITIALIZED
-        _transport.value = null
     }
 
     fun submitNamespaces(allowedNamespaces: Map<String, Map<String, List<String>>>) {
-        val mdoc = this.firstMdoc()
-        if (allowedNamespaces.isEmpty()) {
-            val e = Error("Select at least one namespace")
+        // Check if any fields are actually selected
+        val hasSelectedFields = allowedNamespaces.values.any { docTypeNamespaces ->
+            docTypeNamespaces.values.any { fields -> fields.isNotEmpty() }
+        }
+
+        if (!hasSelectedFields) {
+            val e = Error("Select at least one attribute to share")
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
             _currState.value = PresentmentState.ERROR
             _error.value = e
             throw e
         }
-        val payload = _session.value!!.generateResponse(
-            allowedNamespaces
-        )
-
-        val ks: KeyStore = KeyStore.getInstance(
-            "AndroidKeyStore"
-        )
-
-        ks.load(
-            null
-        )
-
-        val entry = ks.getEntry(mdoc.keyAlias(), null)
-        if (entry !is KeyStore.PrivateKeyEntry) {
-            throw IllegalStateException("No such private key under the alias <${mdoc.keyAlias()}>")
-        }
 
         try {
-            val derSigner = Signature.getInstance("SHA256withECDSA")
-            derSigner.initSign(entry.privateKey)
-            derSigner.update(payload)
-            val derSignature = derSigner.sign()
-            val signature =
-                CryptoCurveUtils.secp256r1()
-                    .ensureRawFixedWidthSignatureEncoding(bytes = derSignature)!!
-            val response = _session.value!!.submitResponse(signature)
-            _transport.value!!.send(response)
+            presentation?.submitNamespaces(allowedNamespaces)
             _currState.value = PresentmentState.SUCCESS
         } catch (e: Error) {
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())

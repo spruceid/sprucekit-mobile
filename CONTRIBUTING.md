@@ -14,6 +14,9 @@
 - `ios/`
     * `MobileSdk/`: Swift SDK built on top of `MobileSdkRS` (under `rust/`)
     * `Showcase/`: Showcase app, our reference app for this SDK
+- `flutter/`
+    * Flutter plugin providing cross-platform access to the SDK
+    * `example/`: Example Flutter app demonstrating the plugin
 
 ### General Dependencies
 
@@ -107,10 +110,36 @@ This and the Rust layer are tied together with the `Package.swift` at the root o
 
 Run `xcodegen` in `./ios/Showcase` to generate the XCode project.
 
+### Flutter
+
+#### Local development setup
+
+To develop the Flutter plugin against local SDK changes:
+
+1. Build the Rust layer for iOS.
+
+2. Run the example app:
+   ```bash
+   cd flutter/example
+   flutter pub get
+   cd ios && pod install && cd ..
+   flutter run
+   ```
+
+After making changes to Rust code, rebuild and run `pod install` again.
+
+#### Regenerating Pigeon bindings
+
+```bash
+cd flutter
+dart run pigeon --input pigeons/oid4vci.dart
+dart run pigeon --input pigeons/credential_pack.dart
+```
+
 ## Releases
 
 ### SDKs
-Use the [`release` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/release.yml) which is a manually triggered action, and provide the version is the `x.y.z` format.
+Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version is the `x.y.z` format.
 
 ### Showcase Apps
 This is currently done manually and locally.
