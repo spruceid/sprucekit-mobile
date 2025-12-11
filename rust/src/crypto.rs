@@ -96,7 +96,6 @@ pub enum X509CertChainOpts {
 pub fn cose_sign1(
     signer: Arc<dyn SigningKey>,
     payload: Vec<u8>,
-    // x509_cert_pem: Option<Vec<Vec<u8>>>,
     x509_chain_opts: X509CertChainOpts,
 ) -> Result<Vec<u8>> {
     let mut header = coset::HeaderBuilder::new().algorithm(coset::iana::Algorithm::ES256);
