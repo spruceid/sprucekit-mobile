@@ -48,7 +48,9 @@ pub fn extract_extensions(certificate: &Certificate) -> Result<(KeyUsage, CrlDis
         match extension.extn_id {
             KeyUsage::OID => key_usage = Some(&extension.extn_value),
             CrlDistributionPoints::OID => crl_dp = Some(&extension.extn_value),
-            oid if extension.critical => bail!("unexpected critical extension: {oid}"),
+            oid if extension.critical => {
+                bail!("unexpected critical extension: {oid}")
+            }
             oid => {
                 debug!("skipping certificate extension {oid}")
             }

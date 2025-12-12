@@ -2511,7 +2511,7 @@ public protocol CwtProtocol: AnyObject, Sendable {
     
     func verify(crypto: Crypto) async throws 
     
-    func verifySelfSigned(crypto: Crypto) async throws 
+    func verifyWithCerts(crypto: Crypto, trustedCertsPem: [String]) async throws 
     
 }
 open class Cwt: CwtProtocol, @unchecked Sendable {
@@ -2688,13 +2688,13 @@ open func verify(crypto: Crypto)async throws   {
         )
 }
     
-open func verifySelfSigned(crypto: Crypto)async throws   {
+open func verifyWithCerts(crypto: Crypto, trustedCertsPem: [String])async throws   {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_method_cwt_verify_self_signed(
+                uniffi_mobile_sdk_rs_fn_method_cwt_verify_with_certs(
                     self.uniffiCloneHandle(),
-                    FfiConverterTypeCrypto_lower(crypto)
+                    FfiConverterTypeCrypto_lower(crypto),FfiConverterSequenceString.lower(trustedCertsPem)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
@@ -2757,6 +2757,8 @@ public func FfiConverterTypeCwt_lower(_ value: Cwt) -> UInt64 {
 
 public protocol DefaultVerifierProtocol: AnyObject, Sendable {
     
+    func p256Verify(certificateDer: Data, payload: Data, signature: Data)  -> VerificationResult
+    
 }
 open class DefaultVerifier: DefaultVerifierProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -2813,6 +2815,17 @@ public convenience init() {
     
 
     
+open func p256Verify(certificateDer: Data, payload: Data, signature: Data) -> VerificationResult  {
+    return try!  FfiConverterTypeVerificationResult_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_defaultverifier_p256_verify(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(certificateDer),
+        FfiConverterData.lower(payload),
+        FfiConverterData.lower(signature),$0
+    )
+})
+}
+    
 
     
 }
@@ -2842,6 +2855,8 @@ public struct FfiConverterTypeDefaultVerifier: FfiConverter {
         writeInt(&buf, lower(value))
     }
 }
+extension DefaultVerifier: Crypto {}
+
 
 
 #if swift(>=5.8)
@@ -22349,7 +22364,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify() != 48612) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify_self_signed() != 36193) {
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify_with_certs() != 53313) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_defaultverifier_p256_verify() != 62130) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_poll_verification_status() != 35131) {
