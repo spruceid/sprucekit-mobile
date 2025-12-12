@@ -324,13 +324,11 @@ mod tests {
     async fn test_cwt_validate() {
         let bytes = hex::decode(COSE_SIGN_1_HEX).expect("Failed to decode hex string");
 
-        let verifier = DefaultVerifier::new();
-
         let cwt = Cwt::new_from_bytes(bytes.to_vec()).expect("failed to parse cwt");
         let claims = cwt.claims_json().expect("failed to retrieve claims");
         println!("Claims: {claims:?}");
 
-        cwt.verify_with_certs(&verifier, vec![CERT_PEM.to_string()])
+        cwt.verify_with_certs(vec![CERT_PEM.to_string()])
             .await
             .expect("failed to validate cwt");
     }
