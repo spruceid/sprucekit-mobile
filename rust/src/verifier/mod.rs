@@ -333,4 +333,28 @@ mod tests {
             .await
             .expect("failed to validate cwt");
     }
+
+    #[test]
+    fn test_base10_encoding() {
+        // miniz_oxide::deflate::compress_to_vec(input, level)
+
+        let base10_string: String = COSE_SIGN_1_HEX
+            .to_string()
+            .chars()
+            .filter_map(|c| {
+                u8::from_str_radix(&c.to_string(), 16)
+                    .ok()
+                    .map(|byte| byte.to_string())
+            })
+            .collect();
+
+        println!("HEX Encoded: {COSE_SIGN_1_HEX:?}\n\n");
+
+        // assert!(base10_string.len() < COSE_SIGN_1_HEX.len())
+        println!("Base10 Encoding: {base10_string:?}");
+
+        let cwt =
+            Cwt::new_from_base10(format!("9{base10_string}")).expect("failed to parse base10 cwt");
+        let claims = cwt.claims_json().expect("failed to retrieve claims");
+    }
 }
