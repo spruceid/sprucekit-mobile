@@ -35,6 +35,12 @@ pub struct Cwt {
 #[uniffi::export]
 impl Cwt {
     #[uniffi::constructor]
+    pub fn new_from_bytes(payload: Vec<u8>) -> Result<Arc<Self>, CwtError> {
+        let id = Uuid::new_v4();
+        Ok(Self::from_bytes(id, payload)?.into())
+    }
+
+    #[uniffi::constructor]
     pub fn new_from_base10(payload: String) -> Result<Arc<Self>, CwtError> {
         let id = Uuid::new_v4();
         Ok(Self::from_base10(id, payload.as_bytes().to_vec())?.into())
@@ -45,9 +51,20 @@ impl Cwt {
         self.id
     }
 
-    /// The version of the Verifiable Credential Data Model that this credential conforms to.
+    /// Returns the claims as a map of string to CBOR values.
     pub fn claims(&self) -> HashMap<String, CborValue> {
         Self::claims_set_to_hash_map(self.claims.clone())
+    }
+
+    /// Returns the claims as a JSON encoded map
+    pub fn claims_json(&self) -> Result<String, CwtError> {
+        let json_map: HashMap<String, serde_json::Value> =
+            Self::claims_set_to_hash_map(self.claims.clone())
+                .into_iter()
+                .map(|(k, v)| (k, serde_json::Value::from(v)))
+                .collect();
+
+        serde_json::to_string(&json_map).map_err(|e| CwtError::ClaimsRetrieval(e.to_string()))
     }
 
     pub fn r#type(&self) -> CredentialType {
@@ -64,6 +81,10 @@ impl Cwt {
 impl Cwt {
     pub async fn verify(&self, crypto: &dyn Crypto) -> Result<(), CwtError> {
         self.validate(crypto).await
+    }
+
+    pub async fn verify_self_signed(&self, crypto: &dyn Crypto) -> Result<(), CwtError> {
+        self.validate_with_self_signed(crypto, true).await
     }
 
     /// Checks the revocation status of this CWT credential.
@@ -188,6 +209,30 @@ impl Cwt {
 }
 
 impl Cwt {
+    pub fn inner(&self) -> &CoseSign1 {
+        &self.cwt
+    }
+}
+
+impl Cwt {
+    pub(crate) fn from_bytes(id: Uuid, bytes: Vec<u8>) -> Result<Self, CwtError> {
+        let cwt: CoseSign1 =
+            serde_cbor::from_slice(&bytes).map_err(|e| CwtError::CborDecoding(e.to_string()))?;
+
+        let claims = cwt
+            .claims_set()
+            .map_err(|e| CwtError::ClaimsRetrieval(e.to_string()))?
+            .ok_or(CwtError::EmptyPayload)?;
+
+        Ok(Cwt {
+            id,
+            payload: bytes,
+            cwt,
+            claims,
+            key_alias: None,
+        })
+    }
+
     pub(crate) fn from_base10(id: Uuid, payload: Vec<u8>) -> Result<Self, CwtError> {
         let raw_payload = payload.clone();
         let payload =
@@ -217,7 +262,11 @@ impl Cwt {
         })
     }
 
-    async fn validate(&self, crypto: &dyn Crypto) -> Result<(), CwtError> {
+    async fn validate_with_self_signed(
+        &self,
+        crypto: &dyn Crypto,
+        is_self_signed: bool,
+    ) -> Result<(), CwtError> {
         self.validate_claims()?;
 
         let Ok(signer_certificate) = helpers::get_signer_certificate(&self.cwt) else {
@@ -229,6 +278,27 @@ impl Cwt {
                 ));
             }
         };
+
+        // Return early if self signed and no trusted roots have signed the certificate
+        if is_self_signed {
+            // Validate that Signer issued CWT.
+            let verifier = CoseP256Verifier {
+                crypto,
+                certificate_der: signer_certificate
+                    .to_der()
+                    .map_err(|_| CwtError::UnableToEncodeSignerCertificateAsDer)?,
+            };
+
+            return match self.cwt.verify(&verifier, None, None) {
+                VerificationResult::Success => Ok(()),
+                VerificationResult::Failure(e) => {
+                    Err(CwtError::CwtSignatureVerification(e.to_string()))
+                }
+                VerificationResult::Error(e) => {
+                    Err(CwtError::CwtSignatureVerification(e.to_string()))
+                }
+            };
+        }
 
         let trusted_roots = trusted_roots::trusted_roots()
             .map_err(|e| CwtError::LoadRootCertificate(e.to_string()))?;
@@ -255,6 +325,10 @@ impl Cwt {
                 })
             })
                     .map_err(|e|CwtError::Trust(e.to_string()))
+    }
+
+    async fn validate(&self, crypto: &dyn Crypto) -> Result<(), CwtError> {
+        self.validate_with_self_signed(crypto, false).await
     }
 
     fn validate_certificate_chain(

@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use isomdl::{
     cose::sign1::PreparedCoseSign1,
     definitions::{
+        app_attestation::AppleAppAttestData,
         helpers::Tag24,
         traits::ToCbor,
         x509::{x5chain::X5CHAIN_COSE_HEADER_LABEL, X5Chain},
@@ -78,6 +79,14 @@ impl CryptoCurveUtils {
     }
 }
 
+#[derive(uniffi::Enum)]
+pub enum X509CertChainOpts {
+    DER(Vec<Vec<u8>>),
+    // CBOR encoded App Attest Data from Apple App Attest Service.
+    AppleAppAttestData(Vec<u8>),
+    None,
+}
+
 /// This method accepts raw bytes to be signed and included in a
 /// COSE_Sign1 message.
 ///
@@ -87,28 +96,50 @@ impl CryptoCurveUtils {
 pub fn cose_sign1(
     signer: Arc<dyn SigningKey>,
     payload: Vec<u8>,
-    x509_cert_pem: Option<Vec<Vec<u8>>>,
+    x509_chain_opts: X509CertChainOpts,
 ) -> Result<Vec<u8>> {
     let mut header = coset::HeaderBuilder::new().algorithm(coset::iana::Algorithm::ES256);
 
     let mut cose_sign1_builder = coset::CoseSign1Builder::new();
 
-    if let Some(certificates) = x509_cert_pem {
-        let mut x5chain_builder = X5Chain::builder();
+    let mut x5chain_builder = X5Chain::builder();
 
-        for cert in certificates.iter() {
-            x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
-                CryptoError::General(format!(
-                    "Failed to construct x5chain with certificate: {e:?}"
-                ))
-            })?;
+    match x509_chain_opts {
+        X509CertChainOpts::DER(certificates) => {
+            for cert in certificates.iter() {
+                x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
+                    CryptoError::General(format!(
+                        "Failed to construct x5chain with certificate: {e:?}"
+                    ))
+                })?;
+            }
+
+            let x5chain = x5chain_builder
+                .build()
+                .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
+            header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
         }
+        X509CertChainOpts::AppleAppAttestData(bytes) => {
+            let attest_data = AppleAppAttestData::from_cbor_bytes(bytes).map_err(|e| {
+                CryptoError::General(format!("Failed to parse apple attestation data: {e:?}"))
+            })?;
 
-        let x5chain = x5chain_builder
-            .build()
-            .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
+            let certificates = attest_data.attestation_statement.x5c;
 
-        header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
+            for cert in certificates.iter() {
+                x5chain_builder = x5chain_builder.with_der_certificate(cert).map_err(|e| {
+                    CryptoError::General(format!(
+                        "Failed to construct x5chain with certificate: {e:?}"
+                    ))
+                })?;
+            }
+
+            let x5chain = x5chain_builder
+                .build()
+                .map_err(|e| CryptoError::General(format!("Failed to build x5chain: {e:?}")))?;
+            header = header.value(X5CHAIN_COSE_HEADER_LABEL, x5chain.into_cbor());
+        }
+        X509CertChainOpts::None => {}
     }
 
     cose_sign1_builder = cose_sign1_builder

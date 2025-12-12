@@ -1,5 +1,8 @@
+use std::sync::Arc;
+
+use signature::Verifier;
 use uniffi::deps::anyhow::{anyhow, Context};
-use x509_cert::der::{asn1, Encode};
+use x509_cert::der::{asn1, referenced::OwnedToRef, Decode, Encode};
 
 #[uniffi::export(with_foreign)]
 pub trait Crypto: Send + Sync {
@@ -19,6 +22,67 @@ impl Crypto for Box<dyn Crypto> {
         signature: Vec<u8>,
     ) -> VerificationResult {
         Crypto::p256_verify(self.as_ref(), certificate_der, payload, signature)
+    }
+}
+
+#[derive(uniffi::Object)]
+pub struct DefaultVerifier;
+
+#[uniffi::export]
+impl DefaultVerifier {
+    #[uniffi::constructor]
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self)
+    }
+}
+
+impl Crypto for Arc<DefaultVerifier> {
+    fn p256_verify(
+        &self,
+        certificate_der: Vec<u8>,
+        payload: Vec<u8>,
+        signature: Vec<u8>,
+    ) -> VerificationResult {
+        let certificate = match x509_cert::Certificate::from_der(&certificate_der) {
+            Ok(cert) => cert,
+            Err(e) => {
+                return VerificationResult::Failure {
+                    cause: e.to_string(),
+                }
+            }
+        };
+
+        let spki = certificate
+            .tbs_certificate
+            .subject_public_key_info
+            .owned_to_ref();
+
+        let pk: p256::PublicKey = match spki.try_into() {
+            Ok(public_key) => public_key,
+            Err(e) => {
+                return VerificationResult::Failure {
+                    cause: e.to_string(),
+                }
+            }
+        };
+
+        let verifier: p256::ecdsa::VerifyingKey = pk.into();
+
+        let signature = match p256::ecdsa::DerSignature::from_bytes(&signature) {
+            Ok(sig) => sig,
+            Err(e) => {
+                return VerificationResult::Failure {
+                    cause: e.to_string(),
+                }
+            }
+        };
+
+        match verifier.verify(&payload, &signature) {
+            Ok(()) => VerificationResult::Success,
+            Err(e) => VerificationResult::Failure {
+                cause: e.to_string(),
+            },
+        }
     }
 }
 
