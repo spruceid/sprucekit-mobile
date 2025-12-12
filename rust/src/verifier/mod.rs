@@ -242,3 +242,94 @@ pub trait Verifiable: Credential {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use cose_rs::CoseSign1;
+    use signature::Verifier;
+    use x509_cert::{
+        der::{referenced::OwnedToRef, Decode, DecodePem, Encode},
+        Certificate,
+    };
+
+    use super::Crypto;
+    use crate::{
+        credential::cwt::Cwt,
+        verifier::crypto::{CoseP256Verifier, DefaultVerifier, VerificationResult},
+    };
+
+    const COSE_SIGN_1_HEX: &str = "8459023ca201261821815902333082022f308201d5a003020102021439eff029495d90c2df40f72110ca3a9eb1a15d29300a06082a8648ce3d040302306d310b30090603550406130255533111300f06035504080c08436f6c6f7261646f310f300d06035504070c0644656e766572310c300a060355040a0c034f495431133011060355040b0c0a6d79436f6c6f7261646f3117301506035504030c0e6d79636f6c6f7261646f2e676f76301e170d3235313130343231333734355a170d3236313130343231333734355a306d310b30090603550406130255533111300f06035504080c08436f6c6f7261646f310f300d06035504070c0644656e766572310c300a060355040a0c034f495431133011060355040b0c0a6d79436f6c6f7261646f3117301506035504030c0e6d79636f6c6f7261646f2e676f763059301306072a8648ce3d020106082a8648ce3d03010703420004a8f0b55a513875e3c52e495cb3236505a687c154f1fe62b3df6de94ae268877dc691ddda35d27185c6e9c6b7429c6ca9dca42b9f6dd234df59da9293b790c81fa3533051301d0603551d0e04160414a17000cba93b0c5a3c96e6c75ea6d37ca4546ee6301f0603551d23041830168014a17000cba93b0c5a3c96e6c75ea6d37ca4546ee6300f0603551d130101ff040530030101ff300a06082a8648ce3d0403020348003045022100ac29f06a9dd31360aeb042ea64bbe8f67b53c8d1aeaae6de5500e0184d22a44102202f64b6bf690c8fd1ab92d9edd558a173c15d0e14e74f80f158a874e69654505fa058cba601781f68747470733a2f2f6d79636f6c6f7261646f2e73746174652e636f2e75732f02693137303637313832300381686d79636f2d617070041a693f44380a782466386133336365322d343961612d343665322d393330302d3864343738646666303738363a00010000a5686c6173744e616d6564544553546966697273744e616d656554414d4d596363696e693137303637313832306b646174654f6642697274686a31322d30312d3139373874646f63756d656e7444697363696d696e61746f726631313934393958408b2e49a8dd857c674bc335fbd487ecef662f09c48ccce6aee9cddd86a5ee3384362d66a02f2dc69da4f960ea76d6b5279cfe6101333b90d3597ba83867727434";
+
+    const CERT_PEM: &str = include_str!("../../tests/examples/pem_cert.txt");
+
+    struct TestCrypto;
+
+    impl Crypto for TestCrypto {
+        fn p256_verify(
+            &self,
+            certificate_der: Vec<u8>,
+            payload: Vec<u8>,
+            signature: Vec<u8>,
+        ) -> VerificationResult {
+            let certificate = x509_cert::Certificate::from_der(&certificate_der).unwrap();
+            let spki = certificate
+                .tbs_certificate
+                .subject_public_key_info
+                .owned_to_ref();
+            let pk: p256::PublicKey = spki.try_into().unwrap();
+            let verifier: p256::ecdsa::VerifyingKey = pk.into();
+            let signature = p256::ecdsa::DerSignature::from_bytes(&signature).unwrap();
+            match verifier.verify(&payload, &signature) {
+                Ok(()) => VerificationResult::Success,
+                Err(e) => VerificationResult::Failure {
+                    cause: e.to_string(),
+                },
+            }
+        }
+    }
+
+    fn load_verifier<'a>(crypto: &'a TestCrypto, certificate_der: Vec<u8>) -> CoseP256Verifier<'a> {
+        let verifier = CoseP256Verifier {
+            crypto,
+            certificate_der,
+        };
+
+        return verifier;
+    }
+
+    #[test]
+    fn test_cose_sign1_parse() {
+        let test_crypto = TestCrypto;
+
+        let bytes = hex::decode(COSE_SIGN_1_HEX).expect("Failed to decode hex string");
+
+        let cose_sign1: CoseSign1 =
+            serde_cbor::from_slice(&bytes).expect("failed to parse CoseSign1 message");
+
+        println!("CoseSign1: {cose_sign1:?}");
+
+        let claims = cose_sign1.claims_set().expect("Failed to find claims set");
+
+        println!("CWT Claims: {claims:?}");
+
+        let cert = Certificate::from_pem(CERT_PEM.as_bytes()).expect("failed to parse cert");
+        let verifier = load_verifier(&test_crypto, cert.to_der().expect("failed to parse as DER"));
+        let result = cose_sign1.verify(&verifier, None, None);
+
+        println!("Result: {result:?}");
+    }
+
+    #[tokio::test]
+    async fn test_cwt_validate() {
+        let verifier = DefaultVerifier::new();
+        let bytes = hex::decode(COSE_SIGN_1_HEX).expect("Failed to decode hex string");
+
+        let cwt = Cwt::new_from_bytes(bytes.to_vec()).expect("failed to parse cwt");
+        let claims = cwt.claims_json().expect("failed to retrieve claims");
+        println!("Claims: {claims:?}");
+
+        cwt.verify_self_signed(&verifier)
+            .await
+            .expect("failed to validate cwt");
+    }
+}

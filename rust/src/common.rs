@@ -260,6 +260,53 @@ impl From<serde_cbor::Value> for CborValue {
     }
 }
 
+impl From<CborValue> for serde_json::Value {
+    fn from(value: CborValue) -> Self {
+        match value {
+            CborValue::Null => Self::Null,
+            CborValue::Bool(b) => Self::Bool(b),
+            CborValue::Integer(v) => {
+                let int_val = i128::from(v.deref().clone());
+                if let Ok(i64_val) = i64::try_from(int_val) {
+                    Self::Number(serde_json::Number::from(i64_val))
+                } else {
+                    Self::String(int_val.to_string())
+                }
+            }
+            CborValue::Float(v) => {
+                if let Some(num) = serde_json::Number::from_f64(v) {
+                    Self::Number(num)
+                } else {
+                    Self::Null
+                }
+            }
+            CborValue::Bytes(b) => Self::Array(
+                b.into_iter()
+                    .map(|byte| Self::Number(serde_json::Number::from(byte)))
+                    .collect(),
+            ),
+            CborValue::Text(s) => Self::String(s),
+            CborValue::Array(a) => Self::Array(a.into_iter().map(Into::<Self>::into).collect()),
+            CborValue::ItemMap(m) => {
+                let map = m
+                    .into_iter()
+                    .map(|(k, v)| (k, v.into()))
+                    .collect::<serde_json::Map<String, serde_json::Value>>();
+                Self::Object(map)
+            }
+            CborValue::Tag(tag) => {
+                let mut map = serde_json::Map::new();
+                map.insert(
+                    "tag".to_string(),
+                    Self::Number(serde_json::Number::from(tag.id)),
+                );
+                map.insert("value".to_string(), tag.value().into());
+                Self::Object(map)
+            }
+        }
+    }
+}
+
 impl PartialEq for CborValue {
     fn eq(&self, other: &CborValue) -> bool {
         self.cmp(other) == Ordering::Equal
