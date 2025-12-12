@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use signature::Verifier;
 use uniffi::deps::anyhow::{anyhow, Context};
 use x509_cert::der::{asn1, referenced::OwnedToRef, Decode, Encode};
@@ -31,12 +29,13 @@ pub struct DefaultVerifier;
 #[uniffi::export]
 impl DefaultVerifier {
     #[uniffi::constructor]
-    pub fn new() -> Arc<Self> {
-        Arc::new(Self)
+    pub fn new() -> Self {
+        Self
     }
 }
 
-impl Crypto for Arc<DefaultVerifier> {
+#[uniffi::export]
+impl Crypto for DefaultVerifier {
     fn p256_verify(
         &self,
         certificate_der: Vec<u8>,

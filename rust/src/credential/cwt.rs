@@ -13,6 +13,8 @@ use ssi::jwk::JWKResolver;
 use ssi::prelude::AnyJwkMethod;
 use ssi::status::token_status_list::json::JsonStatusList;
 use std::collections::HashMap;
+use x509_cert::der::DecodePem;
+use x509_cert::Certificate;
 
 use std::sync::Arc;
 use time::{Date, OffsetDateTime};
@@ -83,8 +85,13 @@ impl Cwt {
         self.validate(crypto).await
     }
 
-    pub async fn verify_self_signed(&self, crypto: &dyn Crypto) -> Result<(), CwtError> {
-        self.validate_with_self_signed(crypto, true).await
+    // Will verify against a known trusted certificate
+    pub async fn verify_with_certs(
+        &self,
+        crypto: &dyn Crypto,
+        trusted_certs_pem: Vec<String>,
+    ) -> Result<(), CwtError> {
+        self.validate_with_certs(crypto, trusted_certs_pem).await
     }
 
     /// Checks the revocation status of this CWT credential.
@@ -262,10 +269,10 @@ impl Cwt {
         })
     }
 
-    async fn validate_with_self_signed(
+    async fn validate_with_certs(
         &self,
         crypto: &dyn Crypto,
-        is_self_signed: bool,
+        trusted_certs_pem: Vec<String>,
     ) -> Result<(), CwtError> {
         self.validate_claims()?;
 
@@ -279,29 +286,16 @@ impl Cwt {
             }
         };
 
-        // Return early if self signed and no trusted roots have signed the certificate
-        if is_self_signed {
-            // Validate that Signer issued CWT.
-            let verifier = CoseP256Verifier {
-                crypto,
-                certificate_der: signer_certificate
-                    .to_der()
-                    .map_err(|_| CwtError::UnableToEncodeSignerCertificateAsDer)?,
-            };
-
-            return match self.cwt.verify(&verifier, None, None) {
-                VerificationResult::Success => Ok(()),
-                VerificationResult::Failure(e) => {
-                    Err(CwtError::CwtSignatureVerification(e.to_string()))
-                }
-                VerificationResult::Error(e) => {
-                    Err(CwtError::CwtSignatureVerification(e.to_string()))
-                }
-            };
-        }
-
-        let trusted_roots = trusted_roots::trusted_roots()
+        let mut trusted_roots = trusted_roots::trusted_roots()
             .map_err(|e| CwtError::LoadRootCertificate(e.to_string()))?;
+
+        // Allow trusted roots to be provided as an option.
+        for trusted in trusted_certs_pem.iter() {
+            let cert = Certificate::from_pem(trusted)
+                .map_err(|e| CwtError::LoadRootCertificate(e.to_string()))?;
+
+            trusted_roots.push(cert)
+        }
 
         // We want to manually handle the Err to get all errors, so try_fold would not work
         #[allow(clippy::manual_try_fold)]
@@ -328,7 +322,8 @@ impl Cwt {
     }
 
     async fn validate(&self, crypto: &dyn Crypto) -> Result<(), CwtError> {
-        self.validate_with_self_signed(crypto, false).await
+        self.validate_with_certs(crypto, Vec::with_capacity(0))
+            .await
     }
 
     fn validate_certificate_chain(
