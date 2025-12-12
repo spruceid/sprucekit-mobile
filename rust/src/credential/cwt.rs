@@ -1,6 +1,6 @@
 use super::Credential;
 use crate::crypto::KeyAlias;
-use crate::verifier::crypto::{CoseP256Verifier, Crypto};
+use crate::verifier::crypto::{CoseP256Verifier, Crypto, DefaultVerifier};
 use crate::verifier::helpers;
 use crate::{trusted_roots, CborKeyMapper};
 use crate::{CborValue, CredentialType};
@@ -86,12 +86,9 @@ impl Cwt {
     }
 
     // Will verify against a known trusted certificate
-    pub async fn verify_with_certs(
-        &self,
-        crypto: &dyn Crypto,
-        trusted_certs_pem: Vec<String>,
-    ) -> Result<(), CwtError> {
-        self.validate_with_certs(crypto, trusted_certs_pem).await
+    pub async fn verify_with_certs(&self, trusted_certs_pem: Vec<String>) -> Result<(), CwtError> {
+        let crypto = DefaultVerifier::new();
+        self.validate_with_certs(&crypto, trusted_certs_pem).await
     }
 
     /// Checks the revocation status of this CWT credential.

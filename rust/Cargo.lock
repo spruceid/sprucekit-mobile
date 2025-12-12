@@ -3364,7 +3364,7 @@ dependencies = [
 
 [[package]]
 name = "mobile-sdk-rs"
-version = "0.13.6"
+version = "0.13.7"
 dependencies = [
  "anyhow",
  "async-trait",

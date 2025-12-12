@@ -40,7 +40,6 @@ impl DefaultVerifier {
     }
 }
 
-#[uniffi::export]
 impl Crypto for DefaultVerifier {
     fn p256_verify(
         &self,

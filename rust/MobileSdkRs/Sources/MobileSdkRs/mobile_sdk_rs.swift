@@ -2563,7 +2563,7 @@ public protocol CwtProtocol: AnyObject, Sendable {
     
     func verify(crypto: Crypto) async throws 
     
-    func verifyWithCerts(crypto: Crypto, trustedCertsPem: [String]) async throws 
+    func verifyWithCerts(trustedCertsPem: [String]) async throws 
     
 }
 open class Cwt: CwtProtocol, @unchecked Sendable {
@@ -2739,13 +2739,13 @@ open func verify(crypto: Crypto)async throws   {
         )
 }
     
-open func verifyWithCerts(crypto: Crypto, trustedCertsPem: [String])async throws   {
+open func verifyWithCerts(trustedCertsPem: [String])async throws   {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_cwt_verify_with_certs(
                     self.uniffiClonePointer(),
-                    FfiConverterTypeCrypto_lower(crypto),FfiConverterSequenceString.lower(trustedCertsPem)
+                    FfiConverterSequenceString.lower(trustedCertsPem)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
@@ -2816,8 +2816,6 @@ public func FfiConverterTypeCwt_lower(_ value: Cwt) -> UnsafeMutableRawPointer {
 
 public protocol DefaultVerifierProtocol: AnyObject, Sendable {
     
-    func p256Verify(certificateDer: Data, payload: Data, signature: Data)  -> VerificationResult
-    
 }
 open class DefaultVerifier: DefaultVerifierProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -2878,20 +2876,8 @@ public convenience init() {
     
 
     
-open func p256Verify(certificateDer: Data, payload: Data, signature: Data) -> VerificationResult  {
-    return try!  FfiConverterTypeVerificationResult_lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_defaultverifier_p256_verify(self.uniffiClonePointer(),
-        FfiConverterData.lower(certificateDer),
-        FfiConverterData.lower(payload),
-        FfiConverterData.lower(signature),$0
-    )
-})
-}
-    
 
 }
-extension DefaultVerifier: Crypto {}
-
 
 
 #if swift(>=5.8)
@@ -22729,6 +22715,16 @@ private func uniffiForeignFutureFree(handle: UInt64) {
 public func uniffiForeignFutureHandleCountMobileSdkRs() -> Int {
     UNIFFI_FOREIGN_FUTURE_HANDLE_MAP.count
 }
+/**
+ * Converts a base-10 numeric string to a raw byte array.
+ */
+public func base10StringToBytesNum(base10Str: String) -> Data?  {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_base10_string_to_bytes_num(
+        FfiConverterString.lower(base10Str),$0
+    )
+})
+}
 public func buildAnnexCResponse(request: Data, origin: String, selectedMatch: RequestMatch180137, parsedCredentials: [ParsedCredential], approvedResponse: ApprovedResponse180137, keyStore: KeyStore)async throws  -> Data  {
     return
         try  await uniffiRustCallAsync(
@@ -22742,6 +22738,16 @@ public func buildAnnexCResponse(request: Data, origin: String, selectedMatch: Re
             liftFunc: FfiConverterData.lift,
             errorHandler: FfiConverterTypeDcApiError_lift
         )
+}
+/**
+ * Converts a byte array back to a base-10 numeric string.
+ */
+public func bytesToBase10StringNum(bytes: Data) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_bytes_to_base10_string_num(
+        FfiConverterData.lower(bytes),$0
+    )
+})
 }
 public func cborLdEncodeToBytes(credentialStr: String, loader: [String: String]?)async throws  -> Data  {
     return
@@ -23135,7 +23141,13 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_base10_string_to_bytes_num() != 33472) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_build_annex_c_response() != 28694) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_bytes_to_base10_string_num() != 11806) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_cbor_ld_encode_to_bytes() != 12635) {
@@ -23339,10 +23351,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify() != 48612) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify_with_certs() != 53313) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_defaultverifier_p256_verify() != 62130) {
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify_with_certs() != 21911) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_poll_verification_status() != 35131) {

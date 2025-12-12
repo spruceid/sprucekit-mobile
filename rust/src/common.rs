@@ -1,5 +1,6 @@
-use std::{cmp::Ordering, collections::HashMap, ops::Deref, sync::Arc};
+use std::{cmp::Ordering, collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
+use num_bigint::{BigInt, Sign};
 use serde::{Deserialize, Serialize};
 use ssi::{claims::data_integrity::CryptosuiteString, crypto::Algorithm};
 use uniffi::deps::anyhow;
@@ -455,6 +456,32 @@ impl CborKeyMapper {
             _ => None,
         }
     }
+}
+
+#[uniffi::export]
+/// Converts a base-10 numeric string to a raw byte array.
+pub fn base10_string_to_bytes_num(base10_str: String) -> Option<Vec<u8>> {
+    // num-bigint expects a potential sign, but for data encoding, we assume positive numbers.
+    let big_int = match BigInt::from_str(&base10_str) {
+        Ok(num) => num,
+        Err(_) => return None, // Return None if parsing fails
+    };
+
+    // Convert BigInt into a raw byte vector (using big-endian for standard network order)
+    // The to_bytes_be() method returns a tuple (Sign, Vec<u8>).
+    let (_, bytes) = big_int.to_bytes_be();
+
+    Some(bytes)
+}
+
+#[uniffi::export]
+/// Converts a byte array back to a base-10 numeric string.
+pub fn bytes_to_base10_string_num(bytes: Vec<u8>) -> String {
+    // Reconstruct the BigInt from bytes using BigEndian order and positive sign.
+    let big_int = BigInt::from_bytes_be(Sign::Plus, &bytes);
+
+    // Convert the BigInt back to a decimal string representation.
+    big_int.to_string()
 }
 
 #[cfg(test)]
