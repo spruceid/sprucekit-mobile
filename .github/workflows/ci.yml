@@ -61,7 +61,7 @@ jobs:
       #   with:
       #     tool: cargo-swift
       - name: Install static version of cargo-swift
-        run: cargo install cargo-swift@^0.9
+        run: cargo install cargo-swift@^0.10
       - run: brew install swiftlint
       - name: Generate Swift package
         run: cargo swift package -p ios -n MobileSdkRs --target aarch64-apple-ios-sim

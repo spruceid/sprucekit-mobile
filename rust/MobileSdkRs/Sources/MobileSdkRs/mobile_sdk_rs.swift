@@ -2462,9 +2462,14 @@ public func FfiConverterTypeCryptoCurveUtils_lower(_ value: CryptoCurveUtils) ->
 public protocol CwtProtocol: AnyObject, Sendable {
     
     /**
-     * The version of the Verifiable Credential Data Model that this credential conforms to.
+     * Returns the claims as a map of string to CBOR values.
      */
     func claims()  -> [String: CborValue]
+    
+    /**
+     * Returns the claims as a JSON encoded map
+     */
+    func claimsJson() throws  -> String
     
     /**
      * The VdcCollection ID for this credential.
@@ -2505,6 +2510,8 @@ public protocol CwtProtocol: AnyObject, Sendable {
     func type()  -> CredentialType
     
     func verify(crypto: Crypto) async throws 
+    
+    func verifySelfSigned(crypto: Crypto) async throws 
     
 }
 open class Cwt: CwtProtocol, @unchecked Sendable {
@@ -2561,14 +2568,33 @@ public static func newFromBase10(payload: String)throws  -> Cwt  {
 })
 }
     
+public static func newFromBytes(payload: Data)throws  -> Cwt  {
+    return try  FfiConverterTypeCwt_lift(try rustCallWithError(FfiConverterTypeCwtError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_cwt_new_from_bytes(
+        FfiConverterData.lower(payload),$0
+    )
+})
+}
+    
 
     
     /**
-     * The version of the Verifiable Credential Data Model that this credential conforms to.
+     * Returns the claims as a map of string to CBOR values.
      */
 open func claims() -> [String: CborValue]  {
     return try!  FfiConverterDictionaryStringTypeCborValue.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_cwt_claims(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Returns the claims as a JSON encoded map
+     */
+open func claimsJson()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeCwtError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_cwt_claims_json(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -2662,6 +2688,23 @@ open func verify(crypto: Crypto)async throws   {
         )
 }
     
+open func verifySelfSigned(crypto: Crypto)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_cwt_verify_self_signed(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeCrypto_lower(crypto)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeCwtError_lift
+        )
+}
+    
 
     
 }
@@ -2705,6 +2748,114 @@ public func FfiConverterTypeCwt_lift(_ handle: UInt64) throws -> Cwt {
 #endif
 public func FfiConverterTypeCwt_lower(_ value: Cwt) -> UInt64 {
     return FfiConverterTypeCwt.lower(value)
+}
+
+
+
+
+
+
+public protocol DefaultVerifierProtocol: AnyObject, Sendable {
+    
+}
+open class DefaultVerifier: DefaultVerifierProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_defaultverifier(self.handle, $0) }
+    }
+public convenience init() {
+    let handle =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_defaultverifier_new($0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_defaultverifier(handle, $0) }
+    }
+
+    
+
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDefaultVerifier: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = DefaultVerifier
+
+    public static func lift(_ handle: UInt64) throws -> DefaultVerifier {
+        return DefaultVerifier(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: DefaultVerifier) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DefaultVerifier {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: DefaultVerifier, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDefaultVerifier_lift(_ handle: UInt64) throws -> DefaultVerifier {
+    return try FfiConverterTypeDefaultVerifier.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDefaultVerifier_lower(_ value: DefaultVerifier) -> UInt64 {
+    return FfiConverterTypeDefaultVerifier.lower(value)
 }
 
 
@@ -22177,7 +22328,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cryptocurveutils_ensure_raw_fixed_width_signature_encoding() != 55703) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_claims() != 13544) {
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_claims() != 22154) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_claims_json() != 39418) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_id() != 47275) {
@@ -22193,6 +22347,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify() != 48612) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_verify_self_signed() != 36193) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_delegatedverifier_poll_verification_status() != 35131) {
@@ -22706,6 +22863,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_cwt_new_from_base10() != 28565) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_cwt_new_from_bytes() != 58750) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_defaultverifier_new() != 29747) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 15415) {
