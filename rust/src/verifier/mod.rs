@@ -254,6 +254,7 @@ mod tests {
 
     use super::Crypto;
     use crate::{
+        base10_string_to_bytes_num, bytes_to_base10_string_num,
         credential::cwt::Cwt,
         verifier::crypto::{CoseP256Verifier, DefaultVerifier, VerificationResult},
     };
@@ -337,24 +338,13 @@ mod tests {
     #[test]
     fn test_base10_encoding() {
         // miniz_oxide::deflate::compress_to_vec(input, level)
+        let hex_bytes = hex::decode(COSE_SIGN_1_HEX).expect("failed to decode hex bytes");
+        let base10_string = bytes_to_base10_string_num(hex_bytes.clone());
+        let cwt_bytes = base10_string_to_bytes_num(base10_string).unwrap();
 
-        let base10_string: String = COSE_SIGN_1_HEX
-            .to_string()
-            .chars()
-            .filter_map(|c| {
-                u8::from_str_radix(&c.to_string(), 16)
-                    .ok()
-                    .map(|byte| byte.to_string())
-            })
-            .collect();
+        assert_eq!(hex_bytes, cwt_bytes);
 
-        println!("HEX Encoded: {COSE_SIGN_1_HEX:?}\n\n");
-
-        // assert!(base10_string.len() < COSE_SIGN_1_HEX.len())
-        println!("Base10 Encoding: {base10_string:?}");
-
-        let cwt =
-            Cwt::new_from_base10(format!("9{base10_string}")).expect("failed to parse base10 cwt");
-        let claims = cwt.claims_json().expect("failed to retrieve claims");
+        let cwt = Cwt::new_from_bytes(cwt_bytes).expect("failed to parse base10 cwt");
+        cwt.claims_json().expect("failed to retrieve claims");
     }
 }
