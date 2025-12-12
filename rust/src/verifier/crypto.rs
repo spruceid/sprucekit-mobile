@@ -26,6 +26,12 @@ impl Crypto for Box<dyn Crypto> {
 #[derive(uniffi::Object)]
 pub struct DefaultVerifier;
 
+impl Default for DefaultVerifier {
+    fn default() -> Self {
+        Self
+    }
+}
+
 #[uniffi::export]
 impl DefaultVerifier {
     #[uniffi::constructor]
