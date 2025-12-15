@@ -49,7 +49,7 @@ android {
 
     dependencies {
         // SpruceKit Mobile SDK
-        implementation("com.spruceid.mobile.sdk:mobilesdk:0.13.7")
+        implementation("com.spruceid.mobile.sdk:mobilesdk:0.13.8")
         implementation("com.spruceid.mobile.sdk.rs:mobilesdkrs:0.11.0")
 
         // Kotlin Coroutines
