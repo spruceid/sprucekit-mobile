@@ -2,30 +2,21 @@
   "object": {
     "pins": [
       {
-        "package": "CollectionConcurrencyKit",
-        "repositoryURL": "https://github.com/JohnSundell/CollectionConcurrencyKit.git",
+        "package": "RiveRuntime",
+        "repositoryURL": "https://github.com/rive-app/rive-ios",
         "state": {
           "branch": null,
-          "revision": "b4f23e24b5a1bff301efc5e70871083ca029ff95",
-          "version": "0.2.0"
+          "revision": "fa6c4eefcf0e4c887677fb1bff911ffee7862570",
+          "version": "6.1.6"
         }
       },
       {
-        "package": "CryptoSwift",
-        "repositoryURL": "https://github.com/krzyzanowskim/CryptoSwift.git",
+        "package": "SQLite.swift",
+        "repositoryURL": "https://github.com/stephencelis/SQLite.swift.git",
         "state": {
           "branch": null,
-          "revision": "e45a26384239e028ec87fbcc788f513b67e10d8f",
-          "version": "1.9.0"
-        }
-      },
-      {
-        "package": "SourceKitten",
-        "repositoryURL": "https://github.com/jpsim/SourceKitten.git",
-        "state": {
-          "branch": null,
-          "revision": "731ffe6a35344a19bab00cdca1c952d5b4fee4d8",
-          "version": "0.37.2"
+          "revision": "a95fc6df17d108bd99210db5e8a9bac90fe984b8",
+          "version": "0.15.3"
         }
       },
       {
@@ -38,66 +29,12 @@
         }
       },
       {
-        "package": "swift-argument-parser",
-        "repositoryURL": "https://github.com/apple/swift-argument-parser.git",
-        "state": {
-          "branch": null,
-          "revision": "cdd0ef3755280949551dc26dee5de9ddeda89f54",
-          "version": "1.6.2"
-        }
-      },
-      {
         "package": "swift-numerics",
         "repositoryURL": "https://github.com/apple/swift-numerics.git",
         "state": {
           "branch": null,
           "revision": "e0ec0f5f3af6f3e4d5e7a19d2af26b481acb6ba8",
           "version": "1.0.3"
-        }
-      },
-      {
-        "package": "swift-syntax",
-        "repositoryURL": "https://github.com/swiftlang/swift-syntax.git",
-        "state": {
-          "branch": null,
-          "revision": "21b3b45635decd1a0b89968f81b6d9a93128f773",
-          "version": "602.0.0-prerelease-2025-08-11"
-        }
-      },
-      {
-        "package": "SwiftLint",
-        "repositoryURL": "https://github.com/realm/SwiftLint",
-        "state": {
-          "branch": null,
-          "revision": "cc6fbaf355caf9ebe02c1b631a8edaa6df9145c5",
-          "version": "0.61.0"
-        }
-      },
-      {
-        "package": "SwiftyTextTable",
-        "repositoryURL": "https://github.com/scottrhoyt/SwiftyTextTable.git",
-        "state": {
-          "branch": null,
-          "revision": "c6df6cf533d120716bff38f8ff9885e1ce2a4ac3",
-          "version": "0.9.0"
-        }
-      },
-      {
-        "package": "SWXMLHash",
-        "repositoryURL": "https://github.com/drmohundro/SWXMLHash.git",
-        "state": {
-          "branch": null,
-          "revision": "a853604c9e9a83ad9954c7e3d2a565273982471f",
-          "version": "7.0.2"
-        }
-      },
-      {
-        "package": "Yams",
-        "repositoryURL": "https://github.com/jpsim/Yams.git",
-        "state": {
-          "branch": null,
-          "revision": "51b5127c7fb6ffac106ad6d199aaa33c5024895f",
-          "version": "6.2.0"
         }
       }
     ]
