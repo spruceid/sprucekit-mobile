@@ -464,7 +464,9 @@ fun KioskSuccessView(onStartOver: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(30.dp),
+                .statusBarsPadding()
+                .padding(horizontal = 30.dp)
+                .padding(top = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             KioskHeader()
@@ -527,7 +529,9 @@ fun KioskFailureView(onStartOver: () -> Unit) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(30.dp),
+                .statusBarsPadding()
+                .padding(horizontal = 30.dp)
+                .padding(top = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             KioskHeader()
