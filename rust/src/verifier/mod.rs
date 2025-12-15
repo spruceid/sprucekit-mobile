@@ -328,9 +328,13 @@ mod tests {
         let claims = cwt.claims_json().expect("failed to retrieve claims");
         println!("Claims: {claims:?}");
 
-        cwt.verify_with_certs(vec![CERT_PEM.to_string()])
-            .await
-            .expect("failed to validate cwt");
+        match cwt.verify_with_certs(vec![CERT_PEM.to_string()]).await {
+            Ok(()) => {}
+            Err(crate::credential::cwt::CwtError::CwtExpired(_)) => {
+                // NOTE: the example cwt is expired
+            }
+            Err(e) => panic!("{e:?}"),
+        }
     }
 
     #[test]
