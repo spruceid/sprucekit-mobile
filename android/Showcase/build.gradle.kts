@@ -102,4 +102,9 @@ dependencies {
 
     // DC-API dependencies
     implementation("androidx.credentials.registry:registry-provider:1.0.0-alpha01")
+
+    // CameraX dependencies (for custom scanner UI)
+    implementation("androidx.camera:camera-camera2:1.5.2")
+    implementation("androidx.camera:camera-lifecycle:1.5.2")
+    implementation("androidx.camera:camera-view:1.5.2")
 }
