@@ -134,9 +134,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     /* Begin UI dependencies */
     implementation("androidx.compose.material3:material3:1.3.2")
-    implementation("androidx.camera:camera-camera2:1.4.2")
-    implementation("androidx.camera:camera-lifecycle:1.4.2")
-    implementation("androidx.camera:camera-view:1.4.2")
+    api("androidx.camera:camera-camera2:1.4.2")
+    api("androidx.camera:camera-lifecycle:1.4.2")
+    api("androidx.camera:camera-view:1.4.2")
     implementation("com.google.zxing:core:3.5.3")
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
     implementation("androidx.camera:camera-mlkit-vision:1.4.2")
