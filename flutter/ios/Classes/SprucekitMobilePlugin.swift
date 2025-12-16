@@ -20,5 +20,12 @@ public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
         // Initialize OID4VP adapter (needs access to credential pack adapter)
         let oid4vpAdapter = Oid4vpAdapter(credentialPackAdapter: credentialPackAdapter)
         Oid4vpSetup.setUp(binaryMessenger: messenger, api: oid4vpAdapter)
+
+        // Register Scanner Platform View
+        let scannerFactory = ScannerPlatformViewFactory(messenger: messenger)
+        registrar.register(
+            scannerFactory,
+            withId: "com.spruceid.sprucekit_mobile/scanner"
+        )
     }
 }

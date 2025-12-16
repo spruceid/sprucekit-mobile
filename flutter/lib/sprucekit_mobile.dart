@@ -7,3 +7,6 @@ library sprucekit_mobile;
 export 'pigeon/oid4vci.g.dart';
 export 'pigeon/credential_pack.g.dart';
 export 'pigeon/oid4vp.g.dart';
+
+// Platform View widgets
+export 'src/scanner.dart';

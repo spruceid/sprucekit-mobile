@@ -26,6 +26,12 @@ class SprucekitMobilePlugin : FlutterPlugin {
         // Initialize OID4VP adapter (needs access to credential pack adapter)
         oid4vpAdapter = Oid4vpAdapter(context, credentialPackAdapter)
         Oid4vp.setUp(flutterPluginBinding.binaryMessenger, oid4vpAdapter)
+
+        // Register Scanner Platform View
+        flutterPluginBinding.platformViewRegistry.registerViewFactory(
+            "com.spruceid.sprucekit_mobile/scanner",
+            ScannerPlatformViewFactory(flutterPluginBinding.binaryMessenger)
+        )
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
