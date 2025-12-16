@@ -172,6 +172,26 @@ class CredentialPackAdapter: CredentialPack {
         lock.unlock()
         return keys
     }
+
+    // MARK: - Internal methods for other adapters
+
+    /// Get native ParsedCredential objects for use by other adapters
+    func getNativeCredentials(packId: String) -> [SpruceIDMobileSdkRs.ParsedCredential] {
+        lock.lock()
+        let pack = packs[packId]
+        lock.unlock()
+
+        guard let pack = pack else { return [] }
+        return pack.list()
+    }
+
+    /// Get native CredentialPack for use by other adapters
+    func getNativePack(packId: String) -> SpruceIDMobileSdk.CredentialPack? {
+        lock.lock()
+        let pack = packs[packId]
+        lock.unlock()
+        return pack
+    }
 }
 
 // MARK: - Extensions

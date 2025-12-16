@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'demos/credential_pack_demo.dart';
 import 'demos/oid4vci_demo.dart';
+import 'demos/oid4vp_demo.dart';
 
 void main() {
   runApp(const MyApp());
@@ -30,6 +31,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final demos = [
       ('OID4VCI Issuance', Icons.badge, const Oid4vciDemo()),
+      ('OID4VP Presentation', Icons.verified_user, const Oid4vpDemo()),
       ('Credential Pack', Icons.folder, const CredentialPackDemo()),
     ];
 
@@ -37,7 +39,7 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(title: const Text('SpruceKit Mobile Examples')),
       body: ListView.separated(
         itemCount: demos.length,
-        separatorBuilder: (_, _) => const Divider(height: 1),
+        separatorBuilder: (context, index) => const Divider(height: 1),
         itemBuilder: (context, index) {
           final (title, icon, screen) = demos[index];
           return ListTile(

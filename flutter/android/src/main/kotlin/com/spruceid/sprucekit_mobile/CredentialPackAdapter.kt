@@ -148,6 +148,23 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
         return packs.keys.toList()
     }
 
+    // Internal methods for other adapters
+
+    /**
+     * Get native ParsedCredential objects for use by other adapters
+     */
+    fun getNativeCredentials(packId: String): List<ParsedCredential> {
+        val pack = packs[packId] ?: return emptyList()
+        return pack.list()
+    }
+
+    /**
+     * Get native CredentialPack for use by other adapters
+     */
+    fun getNativePack(packId: String): SdkCredentialPack? {
+        return packs[packId]
+    }
+
     /**
      * Extension function to convert ParsedCredential to ParsedCredentialData
      */

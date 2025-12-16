@@ -10,6 +10,7 @@ import io.flutter.embedding.engine.plugins.FlutterPlugin
 class SprucekitMobilePlugin : FlutterPlugin {
     private lateinit var oid4vciAdapter: Oid4vciAdapter
     private lateinit var credentialPackAdapter: CredentialPackAdapter
+    private lateinit var oid4vpAdapter: Oid4vpAdapter
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         val context = flutterPluginBinding.applicationContext
@@ -21,10 +22,15 @@ class SprucekitMobilePlugin : FlutterPlugin {
         // Initialize CredentialPack adapter
         credentialPackAdapter = CredentialPackAdapter(context)
         CredentialPack.setUp(flutterPluginBinding.binaryMessenger, credentialPackAdapter)
+
+        // Initialize OID4VP adapter (needs access to credential pack adapter)
+        oid4vpAdapter = Oid4vpAdapter(context, credentialPackAdapter)
+        Oid4vp.setUp(flutterPluginBinding.binaryMessenger, oid4vpAdapter)
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         Oid4vci.setUp(binding.binaryMessenger, null)
         CredentialPack.setUp(binding.binaryMessenger, null)
+        Oid4vp.setUp(binding.binaryMessenger, null)
     }
 }
