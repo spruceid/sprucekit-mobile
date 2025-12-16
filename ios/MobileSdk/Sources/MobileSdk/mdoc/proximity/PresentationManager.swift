@@ -392,7 +392,7 @@ public class MdocProximityPresentationManager {
         /// The requested items.
         public let items: [ItemsRequest]
         public let readerName: String?
-        private let responder: DelegateWrapper
+        private let responder: DelegateWrapper?
 
         fileprivate init(items: [ItemsRequest], readerName: String?, responder: DelegateWrapper) {
             self.items = items
@@ -400,16 +400,23 @@ public class MdocProximityPresentationManager {
             self.responder = responder
         }
 
+        /// Public init for SwiftUI previews and testing
+        public init(items: [ItemsRequest], readerName: String?) {
+            self.items = items
+            self.readerName = readerName
+            self.responder = nil
+        }
+
         /// Approve the supplied items for sharing with the reader.
         ///
         /// The nested dictionaries are structured as follows: `doctype -> namespace -> element identifier`.
         public consuming func approve(items: [String: [String: [String]]]) {
-            responder.approve(items: items)
+            responder?.approve(items: items)
         }
 
         /// Dismiss the request.
         public consuming func dismiss() {
-            responder.dismissRequest()
+            responder?.dismissRequest()
         }
     }
 
