@@ -1,23 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:sprucekit_mobile/sprucekit_mobile.dart';
-
-/// Decode a potentially base64-encoded JSONPath to readable field name
-String _decodeFieldPath(String path) {
-  try {
-    final decoded = utf8.decode(base64Decode(path));
-    // Extract field name from JSONPath like $['@context'] -> @context
-    final match = RegExp(r"\['([^']+)'\]").firstMatch(decoded);
-    if (match != null) {
-      return match.group(1)!;
-    }
-    return decoded;
-  } catch (_) {
-    // If decoding fails, return original path
-    return path;
-  }
-}
+import '../widgets/selective_disclosure_fields.dart';
 
 /// Demo screen for the OID4VP (credential presentation) flow
 class Oid4vpDemo extends StatefulWidget {
@@ -374,43 +358,19 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
     return Column(
       children: [
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(
-                'Select fields to share:',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              ..._requestedFields.map((field) {
-                final isSelected = _selectedFields.contains(field.path);
-                final canToggle =
-                    credential.selectiveDisclosable && !field.required;
-
-                // Decode field name for display
-                final displayName = _decodeFieldPath(field.name ?? field.path);
-
-                return CheckboxListTile(
-                  value: isSelected || field.required,
-                  onChanged: canToggle
-                      ? (value) {
-                          setState(() {
-                            if (value == true) {
-                              _selectedFields.add(field.path);
-                            } else {
-                              _selectedFields.remove(field.path);
-                            }
-                          });
-                        }
-                      : null,
-                  title: Text(displayName),
-                  subtitle: field.purpose != null ? Text(field.purpose!) : null,
-                  secondary: field.required
-                      ? const Chip(label: Text('Required'))
-                      : null,
-                );
-              }),
-            ],
+          child: SelectiveDisclosureFieldsList(
+            fields: _requestedFields,
+            selectedPaths: _selectedFields,
+            isSelectiveDisclosable: credential.selectiveDisclosable,
+            onFieldToggled: (path, isSelected) {
+              setState(() {
+                if (isSelected) {
+                  _selectedFields.add(path);
+                } else {
+                  _selectedFields.remove(path);
+                }
+              });
+            },
           ),
         ),
         Padding(
