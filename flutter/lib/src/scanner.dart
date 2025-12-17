@@ -45,6 +45,7 @@ class SpruceScanner extends StatefulWidget {
     this.title = 'Scan QR Code',
     this.subtitle = 'Please align within the guides',
     this.isMatch,
+    this.showCancelButton = true,
   });
 
   /// The type of scanner to use.
@@ -65,6 +66,9 @@ class SpruceScanner extends StatefulWidget {
 
   /// Callback when the user cancels scanning.
   final VoidCallback onCancel;
+
+  /// Whether to show the cancel button. Defaults to true.
+  final bool showCancelButton;
 
   @override
   State<SpruceScanner> createState() => _SpruceScannerState();
@@ -116,6 +120,7 @@ class _SpruceScannerState extends State<SpruceScanner> {
       'type': widget.type.name,
       'title': widget.title,
       'subtitle': widget.subtitle,
+      'showCancelButton': widget.showCancelButton,
     };
   }
 

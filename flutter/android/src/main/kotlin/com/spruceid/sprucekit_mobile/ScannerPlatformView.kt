@@ -68,6 +68,7 @@ class ScannerPlatformView(
     private val scannerType: String = creationParams?.get("type") as? String ?: "qrCode"
     private val title: String = creationParams?.get("title") as? String ?: "Scan QR Code"
     private val subtitle: String = creationParams?.get("subtitle") as? String ?: "Please align within the guides"
+    private val showCancelButton: Boolean = creationParams?.get("showCancelButton") as? Boolean ?: true
 
     // Create the lifecycle-aware container
     private val lifecycleOwnerView = ComposeLifecycleOwnerView(context)
@@ -89,6 +90,7 @@ class ScannerPlatformView(
                     scannerType = scannerType,
                     title = title,
                     subtitle = subtitle,
+                    hideCancelButton = !showCancelButton,
                     onRead = { content ->
                         channel.invokeMethod("onRead", content)
                     },
@@ -178,6 +180,7 @@ private fun ScannerContent(
     scannerType: String,
     title: String,
     subtitle: String,
+    hideCancelButton: Boolean,
     onRead: (String) -> Unit,
     onCancel: () -> Unit
 ) {
@@ -186,25 +189,29 @@ private fun ScannerContent(
             title = title,
             subtitle = subtitle,
             onRead = onRead,
-            onCancel = onCancel
+            onCancel = onCancel,
+            hideCancelButton = hideCancelButton
         )
         "pdf417" -> PDF417Scanner(
             title = title,
             subtitle = subtitle,
             onRead = onRead,
-            onCancel = onCancel
+            onCancel = onCancel,
+            hideCancelButton = hideCancelButton
         )
         "mrz" -> MRZScanner(
             title = title,
             subtitle = subtitle,
             onRead = onRead,
-            onCancel = onCancel
+            onCancel = onCancel,
+            hideCancelButton = hideCancelButton
         )
         else -> QRCodeScanner(
             title = title,
             subtitle = subtitle,
             onRead = onRead,
-            onCancel = onCancel
+            onCancel = onCancel,
+            hideCancelButton = hideCancelButton
         )
     }
 }

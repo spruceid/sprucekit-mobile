@@ -32,11 +32,13 @@ class ScannerPlatformViewFactory: NSObject, FlutterPlatformViewFactory {
 
 /// Platform view wrapper for the scanner
 class ScannerPlatformView: NSObject, FlutterPlatformView {
+    private var containerView: UIView
     private var hostingController: UIHostingController<AnyView>?
     private let channel: FlutterMethodChannel
     private let scannerType: String
     private let title: String
     private let subtitle: String
+    private let showCancelButton: Bool
 
     init(
         frame: CGRect,
@@ -44,6 +46,7 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
         messenger: FlutterBinaryMessenger,
         args: [String: Any]?
     ) {
+        self.containerView = UIView(frame: frame)
         self.channel = FlutterMethodChannel(
             name: "com.spruceid.sprucekit_mobile/scanner_\(viewId)",
             binaryMessenger: messenger
@@ -51,6 +54,7 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
         self.scannerType = args?["type"] as? String ?? "qrCode"
         self.title = args?["title"] as? String ?? "Scan QR Code"
         self.subtitle = args?["subtitle"] as? String ?? "Please align within the guides"
+        self.showCancelButton = args?["showCancelButton"] as? Bool ?? true
 
         super.init()
 
@@ -58,7 +62,7 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
     }
 
     func view() -> UIView {
-        return hostingController?.view ?? UIView()
+        return containerView
     }
 
     private func createHostingController() {
@@ -72,6 +76,8 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
 
         let scannerView: AnyView
 
+        let hideCancelButton = !showCancelButton
+
         switch scannerType {
         case "qrCode":
             scannerView = AnyView(
@@ -79,7 +85,8 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
                     title: title,
                     subtitle: subtitle,
                     onRead: onRead,
-                    onCancel: onCancel
+                    onCancel: onCancel,
+                    hideCancelButton: hideCancelButton
                 )
             )
         case "pdf417":
@@ -88,7 +95,8 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
                     title: title,
                     subtitle: subtitle,
                     onRead: onRead,
-                    onCancel: onCancel
+                    onCancel: onCancel,
+                    hideCancelButton: hideCancelButton
                 )
             )
         case "mrz":
@@ -106,12 +114,26 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
                     title: title,
                     subtitle: subtitle,
                     onRead: onRead,
-                    onCancel: onCancel
+                    onCancel: onCancel,
+                    hideCancelButton: hideCancelButton
                 )
             )
         }
 
         hostingController = UIHostingController(rootView: scannerView)
         hostingController?.view.backgroundColor = .clear
+
+        if let hostingView = hostingController?.view {
+            hostingView.translatesAutoresizingMaskIntoConstraints = false
+            containerView.addSubview(hostingView)
+            containerView.clipsToBounds = true
+
+            NSLayoutConstraint.activate([
+                hostingView.topAnchor.constraint(equalTo: containerView.topAnchor),
+                hostingView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+                hostingView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+                hostingView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor)
+            ])
+        }
     }
 }
