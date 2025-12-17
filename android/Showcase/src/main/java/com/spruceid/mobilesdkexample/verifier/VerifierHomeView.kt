@@ -188,6 +188,14 @@ fun VerifierHomeBody(
                     navController.navigate(Screen.VerifyCWTScreen.route)
                 }
             )
+            VerifierListItem(
+                title = "Kiosk - Entry check",
+                description = "Scan the holder's credential to verify and allow entry",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyKioskScreen.route)
+                }
+            )
         }
         items(verificationMethods.value) { verificationMethod ->
             VerifierListItem(
