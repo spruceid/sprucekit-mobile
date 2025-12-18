@@ -403,6 +403,14 @@ impl ActivityLog {
                 let new_arc_entry = Arc::new(new_entry);
                 self.add(new_arc_entry.clone()).await?;
 
+                // Update hidden state in cached entry
+                {
+                    let mut cache = self.cache.lock().await;
+                    if let Some(cached_entry) = cache.get_mut(&entry_id) {
+                        cached_entry.set_hidden(should_hide);
+                    }
+                }
+
                 Ok(new_arc_entry)
             }
             None => Err(ActivityLogError::NotFound(format!(
