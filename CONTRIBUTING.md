@@ -134,6 +134,7 @@ After making changes to Rust code, rebuild and run `pod install` again.
 cd flutter
 dart run pigeon --input pigeons/oid4vci.dart
 dart run pigeon --input pigeons/oid4vp.dart
+dart run pigeon --input pigeons/oid4vp_mdoc.dart
 dart run pigeon --input pigeons/credential_pack.dart
 dart run pigeon --input pigeons/mdl_presentation.dart
 dart run pigeon --input pigeons/spruce_utils.dart

@@ -31,6 +31,10 @@ public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
         mdlPresentationAdapter.setCallback(mdlCallback)
         MdlPresentationSetup.setUp(binaryMessenger: messenger, api: mdlPresentationAdapter)
 
+        // Initialize OID4VP mDoc adapter (ISO 18013-7)
+        let oid4vpMdocAdapter = Oid4vpMdocAdapter(credentialPackAdapter: credentialPackAdapter)
+        Oid4vpMdocSetup.setUp(binaryMessenger: messenger, api: oid4vpMdocAdapter)
+
         // Register Scanner Platform View
         let scannerFactory = ScannerPlatformViewFactory(messenger: messenger)
         registrar.register(
