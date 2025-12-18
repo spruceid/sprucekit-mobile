@@ -1,10 +1,11 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{storage_manager::StorageManagerInterface, Key, Value};
 
 use futures::StreamExt;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize, Serializer};
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 /// Entries are stored at the individual entry-level to
@@ -59,6 +60,8 @@ pub struct ActivityLogFilterOptions {
     interacted_with: Option<String>,
     /// Max items to be returned
     max_items: Option<u32>,
+    /// Use cache
+    use_cache: bool,
 }
 
 impl ActivityLogFilterOptions {
@@ -296,6 +299,7 @@ impl ActivityLogEntry {
 pub struct ActivityLog {
     pub(crate) credential_id: Uuid,
     pub(crate) storage: Arc<dyn StorageManagerInterface>,
+    pub(crate) cache: Mutex<HashMap<Uuid, ActivityLogEntry>>,
 }
 
 #[uniffi::export]
@@ -319,10 +323,16 @@ impl ActivityLog {
         credential_id: Uuid,
         storage: Arc<dyn StorageManagerInterface>,
     ) -> Result<Self, ActivityLogError> {
-        Ok(Self {
+        let log = Self {
             credential_id,
             storage,
-        })
+            cache: Mutex::new(HashMap::new()),
+        };
+
+        // Hydrate the cache of the activity log
+        log.hydrate_cache().await?;
+
+        Ok(log)
     }
 
     /// Adds and saved an activity log entry using the storage manager
@@ -343,6 +353,11 @@ impl ActivityLog {
             .await
             .map_err(|e| ActivityLogError::Storage(e.to_string()))?;
 
+        {
+            let mut cache = self.cache.lock().await;
+            cache.insert(entry.id.clone(), entry.as_ref().to_owned());
+        }
+
         Ok(())
     }
 
@@ -350,6 +365,14 @@ impl ActivityLog {
         &self,
         entry_id: Uuid,
     ) -> Result<Option<Arc<ActivityLogEntry>>, ActivityLogError> {
+        // Search cache first
+        {
+            let cache = self.cache.lock().await;
+            if let Some(entry) = cache.get(&entry_id) {
+                return Ok(Some(Arc::new(entry.to_owned())));
+            }
+        }
+
         let key = ActivityLogEntry::credential_and_entry_id_to_key(self.credential_id, entry_id);
 
         let value = self
@@ -397,6 +420,12 @@ impl ActivityLog {
             .await
             .map_err(|e| ActivityLogError::Storage(e.to_string()))?;
 
+        // Remove the entry from the cache
+        {
+            let mut cache = self.cache.lock().await;
+            cache.remove(&entry_id);
+        }
+
         Ok(())
     }
 
@@ -423,6 +452,12 @@ impl ActivityLog {
                 .map_err(|e| ActivityLogError::Storage(e.to_string()))?;
         }
 
+        // Reset the cache
+        {
+            let mut cache = self.cache.lock().await;
+            cache.clear()
+        }
+
         Ok(())
     }
 
@@ -432,6 +467,22 @@ impl ActivityLog {
         &self,
         filter: Option<ActivityLogFilterOptions>,
     ) -> Result<Vec<Arc<ActivityLogEntry>>, ActivityLogError> {
+        // Return the cached entries if the filter option includes.
+        if let Some(true) = filter.as_ref().map(|f| f.use_cache) {
+            let cache = self.cache.lock().await;
+            return Ok(cache
+                .clone()
+                .values()
+                .enumerate()
+                .filter(|(index, entry)| match filter.as_ref() {
+                    Some(opts) => opts.should_filter_entry(entry, *index),
+                    // Pass through all entries if no filter options are provided
+                    None => true,
+                })
+                .map(|(_, entry)| Arc::new(entry.to_owned()))
+                .collect());
+        }
+
         let entries = self
             .filter_entries(filter)
             .await?
@@ -498,6 +549,30 @@ impl ActivityLog {
         })?;
 
         Ok(data)
+    }
+
+    /// hydrate the activity log cache. Sets the cache to the unfiltered
+    /// activity log entries associated with the credential. This method is
+    /// automatically called on [ActivityLog::load] method.
+    pub async fn hydrate_cache(&self) -> Result<(), ActivityLogError> {
+        let entries = self.filter_entries(None).await?;
+
+        if entries.is_empty() {
+            return Ok(());
+        }
+
+        let mut cache = self.cache.lock().await;
+        *cache = entries.into_iter().map(|e| (e.id, e)).collect();
+
+        return Ok(());
+    }
+
+    /// Clear the activity log cache.
+    pub async fn clear_cache(&self) -> Result<(), ActivityLogError> {
+        let mut cache = self.cache.lock().await;
+        cache.clear();
+
+        Ok(())
     }
 }
 
