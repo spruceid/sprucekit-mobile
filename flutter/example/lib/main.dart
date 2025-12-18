@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'demos/credential_pack_demo.dart';
 import 'demos/oid4vci_demo.dart';
 import 'demos/oid4vp_demo.dart';
+import 'demos/scanner_demo.dart';
 
 void main() {
   runApp(const MyApp());
@@ -33,6 +34,7 @@ class HomeScreen extends StatelessWidget {
       ('OID4VCI Issuance', Icons.badge, const Oid4vciDemo()),
       ('OID4VP Presentation', Icons.verified_user, const Oid4vpDemo()),
       ('Credential Pack', Icons.folder, const CredentialPackDemo()),
+      ('Scanner', Icons.qr_code_scanner, const ScannerDemo()),
     ];
 
     return Scaffold(

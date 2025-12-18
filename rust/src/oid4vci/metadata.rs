@@ -63,7 +63,7 @@ pub fn oid4vci_get_metadata(session: Arc<Oid4vciSession>) -> Result<Oid4vciMetad
     let authorization_servers = session
         .get_metadata()?
         .authorization_servers()
-        .map(|v| v.iter().cloned().map(|v| v.url().to_string()).collect());
+        .map(|v| v.iter().map(|v| v.url().to_string()).collect());
 
     let batch_credential_endpoint = session
         .get_metadata()?
