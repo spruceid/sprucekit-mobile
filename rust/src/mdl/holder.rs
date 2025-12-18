@@ -509,7 +509,7 @@ impl MdlPresentationSession {
     }
 }
 
-#[derive(uniffi::Record, Clone)]
+#[derive(uniffi::Record, Clone, Debug)]
 pub struct ItemsRequest {
     doc_type: String,
     namespaces: HashMap<String, HashMap<String, bool>>,
@@ -583,7 +583,7 @@ mod tests {
 
     use crate::{
         crypto::{KeyAlias, KeyStore, RustTestKeyManager},
-        local_store,
+        local_store, ReaderHandover,
     };
 
     use super::*;
@@ -648,7 +648,7 @@ mod tests {
 
         let (mut reader_session_manager, request, _ble_ident) =
             reader::SessionManager::establish_session(
-                qr_code_uri.clone(),
+                reader::Handover::QR(qr_code_uri),
                 namespaces.clone(),
                 trust_anchor,
             )
@@ -725,7 +725,7 @@ mod tests {
         };
 
         let reader_session_data = crate::reader::establish_session(
-            qr_code_uri,
+            Arc::new(ReaderHandover::new_qr(qr_code_uri)),
             namespaces,
             Some(vec![include_str!(
                 "../../tests/res/mdl/utrecht-certificate.pem"
