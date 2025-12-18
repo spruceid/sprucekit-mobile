@@ -7,6 +7,7 @@ library sprucekit_mobile;
 export 'pigeon/oid4vci.g.dart';
 export 'pigeon/credential_pack.g.dart';
 export 'pigeon/oid4vp.g.dart';
+export 'pigeon/oid4vp_mdoc.g.dart';
 export 'pigeon/mdl_presentation.g.dart';
 export 'pigeon/spruce_utils.g.dart';
 

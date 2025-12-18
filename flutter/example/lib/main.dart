@@ -4,6 +4,7 @@ import 'demos/credential_pack_demo.dart';
 import 'demos/mdl_share_demo.dart';
 import 'demos/oid4vci_demo.dart';
 import 'demos/oid4vp_demo.dart';
+import 'demos/oid4vp_mdoc_demo.dart';
 import 'demos/scanner_demo.dart';
 
 void main() {
@@ -33,7 +34,8 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final demos = [
       ('OID4VCI Issuance', Icons.badge, const Oid4vciDemo()),
-      ('OID4VP Presentation', Icons.verified_user, const Oid4vpDemo()),
+      ('OID4VP', Icons.verified_user, const Oid4vpDemo()),
+      ('OID4VP mDoc', Icons.credit_card, const Oid4vpMdocDemo()),
       ('Share mDL', Icons.share, const MdlShareDemo()),
       ('Credential Pack', Icons.folder, const CredentialPackDemo()),
       ('Scanner', Icons.qr_code_scanner, const ScannerDemo()),

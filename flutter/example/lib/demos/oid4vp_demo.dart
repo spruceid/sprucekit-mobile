@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:permission_handler/permission_handler.dart';
 import 'package:sprucekit_mobile/sprucekit_mobile.dart';
+
 import '../widgets/selective_disclosure_fields.dart';
 
 /// Demo screen for the OID4VP (credential presentation) flow
@@ -14,15 +16,16 @@ class Oid4vpDemo extends StatefulWidget {
 class _Oid4vpDemoState extends State<Oid4vpDemo> {
   final _oid4vp = Oid4vp();
   final _credentialPack = CredentialPack();
-  final _urlController = TextEditingController();
 
   String _status = 'Ready';
   List<PresentableCredentialData> _credentials = [];
   PermissionRequestInfo? _requestInfo;
-  List<RequestedFieldData> _requestedFields = [];
+  List<SelectiveDisclosureFieldData> _requestedFields = [];
   int? _selectedCredentialIndex;
   Set<String> _selectedFields = {};
   bool _isLoading = false;
+  bool _showScanner = false;
+  bool _cameraGranted = false;
   String? _testPackId;
 
   // You would typically get these from your app configuration
@@ -50,10 +53,54 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   };
 
   @override
+  void initState() {
+    super.initState();
+    _checkCameraPermission();
+  }
+
+  @override
   void dispose() {
     _oid4vp.cancel();
-    _urlController.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkCameraPermission() async {
+    final status = await Permission.camera.status;
+    setState(() {
+      _cameraGranted = status.isGranted;
+    });
+  }
+
+  Future<void> _requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    setState(() {
+      _cameraGranted = status.isGranted;
+    });
+  }
+
+  void _openScanner() {
+    setState(() {
+      _showScanner = true;
+    });
+  }
+
+  void _closeScanner() {
+    setState(() {
+      _showScanner = false;
+    });
+  }
+
+  void _handleScannedUrl(String url) {
+    _closeScanner();
+
+    if (!url.startsWith('openid4vp://')) {
+      setState(() {
+        _status = 'Invalid URL. Must start with openid4vp://';
+      });
+      return;
+    }
+
+    _handleAuthorizationUrl(url);
   }
 
   Future<void> _handleAuthorizationUrl(String url) async {
@@ -147,12 +194,16 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
       for (final f in fields) {
         debugPrint('  - name: ${f.name}, path: ${f.path}, id: ${f.id}');
       }
+      // Convert to generic SelectiveDisclosureFieldData
+      final genericFields = fields
+          .map(SelectiveDisclosureFieldData.fromRequestedField)
+          .toList();
       setState(() {
-        _requestedFields = fields;
+        _requestedFields = genericFields;
         // Pre-select required fields
-        _selectedFields = fields
+        _selectedFields = genericFields
             .where((f) => f.required)
-            .map((f) => f.path)
+            .map((f) => f.id)
             .toSet();
       });
     } catch (e) {
@@ -214,6 +265,18 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showScanner) {
+      return Scaffold(
+        body: SpruceScanner(
+          type: ScannerType.qrCode,
+          title: 'Scan Verifier QR',
+          subtitle: 'Scan an openid4vp:// QR code',
+          onRead: _handleScannedUrl,
+          onCancel: _closeScanner,
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('OID4VP Demo'),
@@ -245,11 +308,13 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   }
 
   Widget _buildInitialView() {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _buildCameraPermissionCard(),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -257,47 +322,100 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Status',
+                    'OID4VP Presentation',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  Text(_status),
+                  const Text(
+                    'Scan a QR code from a verifier that contains an '
+                    'openid4vp:// URL to start the presentation flow.\n\n'
+                    'A test AlumniCredential will be used automatically.',
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _cameraGranted
+                        ? _openScanner
+                        : _requestCameraPermission,
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: Text(
+                      _cameraGranted
+                          ? 'Scan QR Code'
+                          : 'Grant Camera Permission',
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'To test OID4VP presentation:\n'
-            '1. Enter an OID4VP URL below (starts with openid4vp://)\n'
-            '2. A test AlumniCredential will be used automatically',
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _urlController,
-            decoration: const InputDecoration(
-              labelText: 'OID4VP URL',
-              hintText: 'openid4vp://...',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: () {
-              final url = _urlController.text.trim();
-              if (url.startsWith('openid4vp://')) {
-                _handleAuthorizationUrl(url);
-              } else {
-                setState(() {
-                  _status = 'Invalid URL. Must start with openid4vp://';
-                });
-              }
-            },
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Process OID4VP Request'),
-          ),
+          _buildStatusCard(),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCameraPermissionCard() {
+    return Card(
+      color: _cameraGranted ? Colors.green.shade50 : Colors.orange.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(
+              _cameraGranted ? Icons.camera_alt : Icons.camera_alt_outlined,
+              color: _cameraGranted
+                  ? Colors.green.shade700
+                  : Colors.orange.shade700,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Camera',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _cameraGranted
+                          ? Colors.green.shade800
+                          : Colors.orange.shade800,
+                    ),
+                  ),
+                  Text(
+                    _cameraGranted ? 'Ready' : 'Permission required',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _cameraGranted
+                          ? Colors.green.shade600
+                          : Colors.orange.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!_cameraGranted)
+              TextButton(
+                onPressed: _requestCameraPermission,
+                child: const Text('Grant'),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Status', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(_status),
+          ],
+        ),
       ),
     );
   }
@@ -353,21 +471,18 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   }
 
   Widget _buildFieldSelector() {
-    final credential = _credentials[_selectedCredentialIndex!];
-
     return Column(
       children: [
         Expanded(
           child: SelectiveDisclosureFieldsList(
             fields: _requestedFields,
-            selectedPaths: _selectedFields,
-            isSelectiveDisclosable: credential.selectiveDisclosable,
-            onFieldToggled: (path, isSelected) {
+            selectedIds: _selectedFields,
+            onFieldToggled: (id, isSelected) {
               setState(() {
                 if (isSelected) {
-                  _selectedFields.add(path);
+                  _selectedFields.add(id);
                 } else {
-                  _selectedFields.remove(path);
+                  _selectedFields.remove(id);
                 }
               });
             },

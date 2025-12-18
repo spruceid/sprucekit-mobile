@@ -19,6 +19,73 @@ String decodeFieldPath(String path) {
   }
 }
 
+/// Generic field data for selective disclosure UI.
+///
+/// This class abstracts the differences between W3C VC fields (RequestedFieldData)
+/// and mDoc fields (RequestedField180137Data) to allow reuse of the UI widget.
+class SelectiveDisclosureFieldData {
+  const SelectiveDisclosureFieldData({
+    required this.id,
+    required this.displayName,
+    this.displayValue,
+    this.purpose,
+    this.required = false,
+    this.selectivelyDisclosable = true,
+    this.intentToRetain = false,
+  });
+
+  /// Unique identifier for the field (used for selection tracking)
+  final String id;
+
+  /// Human-readable name of the field
+  final String displayName;
+
+  /// Human-readable value of the field (if available)
+  final String? displayValue;
+
+  /// Purpose for requesting this field
+  final String? purpose;
+
+  /// Whether the field is required
+  final bool required;
+
+  /// Whether the field can be selectively disclosed
+  final bool selectivelyDisclosable;
+
+  /// Whether the verifier intends to retain this data
+  final bool intentToRetain;
+
+  /// Create from W3C VC RequestedFieldData
+  factory SelectiveDisclosureFieldData.fromRequestedField(
+    RequestedFieldData field,
+  ) {
+    return SelectiveDisclosureFieldData(
+      id: field.path, // Use path as ID for W3C VC
+      displayName: decodeFieldPath(field.name ?? field.path),
+      purpose: field.purpose,
+      required: field.required,
+      selectivelyDisclosable:
+          true, // W3C VC always supports selective disclosure
+      intentToRetain: field.retained,
+    );
+  }
+
+  /// Create from mDoc RequestedField180137Data
+  factory SelectiveDisclosureFieldData.fromMdocField(
+    RequestedField180137Data field,
+  ) {
+    return SelectiveDisclosureFieldData(
+      id: field.id,
+      displayName: field.displayableName,
+      displayValue: field.displayableValue,
+      purpose: field.purpose,
+      required: field.required,
+      selectivelyDisclosable: field.selectivelyDisclosable,
+      intentToRetain: field.intentToRetain,
+    );
+  }
+}
+
 /// A widget that displays a list of fields for selective disclosure.
 ///
 /// This widget allows users to select which fields to share from a credential.
@@ -27,15 +94,14 @@ String decodeFieldPath(String path) {
 /// Example:
 /// ```dart
 /// SelectiveDisclosureFields(
-///   fields: requestedFields,
-///   selectedPaths: selectedFields,
-///   isSelectiveDisclosable: credential.selectiveDisclosable,
-///   onFieldToggled: (path, isSelected) {
+///   fields: requestedFields.map(SelectiveDisclosureFieldData.fromRequestedField).toList(),
+///   selectedIds: selectedFields,
+///   onFieldToggled: (id, isSelected) {
 ///     setState(() {
 ///       if (isSelected) {
-///         selectedFields.add(path);
+///         selectedFields.add(id);
 ///       } else {
-///         selectedFields.remove(path);
+///         selectedFields.remove(id);
 ///       }
 ///     });
 ///   },
@@ -46,25 +112,20 @@ class SelectiveDisclosureFields extends StatelessWidget {
   const SelectiveDisclosureFields({
     super.key,
     required this.fields,
-    required this.selectedPaths,
+    required this.selectedIds,
     required this.onFieldToggled,
-    this.isSelectiveDisclosable = true,
     this.title,
     this.showTitle = true,
   });
 
   /// The list of fields to display.
-  final List<RequestedFieldData> fields;
+  final List<SelectiveDisclosureFieldData> fields;
 
-  /// The set of currently selected field paths.
-  final Set<String> selectedPaths;
-
-  /// Whether the credential supports selective disclosure.
-  /// If false, all fields are shown but cannot be toggled.
-  final bool isSelectiveDisclosable;
+  /// The set of currently selected field IDs.
+  final Set<String> selectedIds;
 
   /// Callback when a field's selection state changes.
-  final void Function(String path, bool isSelected) onFieldToggled;
+  final void Function(String id, bool isSelected) onFieldToggled;
 
   /// Optional custom title. Defaults to 'Select fields to share:'.
   final String? title;
@@ -91,23 +152,56 @@ class SelectiveDisclosureFields extends StatelessWidget {
     );
   }
 
-  Widget _buildFieldTile(BuildContext context, RequestedFieldData field) {
-    final isSelected = selectedPaths.contains(field.path) || field.required;
-    final canToggle = isSelectiveDisclosable && !field.required;
-
-    // Decode field name for display
-    final displayName = decodeFieldPath(field.name ?? field.path);
+  Widget _buildFieldTile(
+    BuildContext context,
+    SelectiveDisclosureFieldData field,
+  ) {
+    final isSelected = selectedIds.contains(field.id) || field.required;
+    final canToggle = field.selectivelyDisclosable && !field.required;
 
     return CheckboxListTile(
       value: isSelected,
       onChanged: canToggle
           ? (value) {
-              onFieldToggled(field.path, value ?? false);
+              onFieldToggled(field.id, value ?? false);
             }
           : null,
-      title: Text(displayName),
-      subtitle: field.purpose != null ? Text(field.purpose!) : null,
+      title: Text(field.displayName),
+      subtitle: _buildSubtitle(field),
       secondary: field.required ? const Chip(label: Text('Required')) : null,
+    );
+  }
+
+  Widget? _buildSubtitle(SelectiveDisclosureFieldData field) {
+    final parts = <Widget>[];
+
+    if (field.displayValue != null) {
+      parts.add(Text(field.displayValue!));
+    }
+
+    if (field.purpose != null) {
+      parts.add(
+        Text(
+          field.purpose!,
+          style: const TextStyle(fontStyle: FontStyle.italic),
+        ),
+      );
+    }
+
+    if (field.intentToRetain) {
+      parts.add(
+        Text(
+          'Verifier will retain',
+          style: TextStyle(color: Colors.orange.shade700, fontSize: 12),
+        ),
+      );
+    }
+
+    if (parts.isEmpty) return null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: parts,
     );
   }
 }
@@ -117,17 +211,15 @@ class SelectiveDisclosureFieldsList extends StatelessWidget {
   const SelectiveDisclosureFieldsList({
     super.key,
     required this.fields,
-    required this.selectedPaths,
+    required this.selectedIds,
     required this.onFieldToggled,
-    this.isSelectiveDisclosable = true,
     this.title,
     this.padding = const EdgeInsets.all(16),
   });
 
-  final List<RequestedFieldData> fields;
-  final Set<String> selectedPaths;
-  final bool isSelectiveDisclosable;
-  final void Function(String path, bool isSelected) onFieldToggled;
+  final List<SelectiveDisclosureFieldData> fields;
+  final Set<String> selectedIds;
+  final void Function(String id, bool isSelected) onFieldToggled;
   final String? title;
   final EdgeInsets padding;
 
@@ -138,8 +230,7 @@ class SelectiveDisclosureFieldsList extends StatelessWidget {
       children: [
         SelectiveDisclosureFields(
           fields: fields,
-          selectedPaths: selectedPaths,
-          isSelectiveDisclosable: isSelectiveDisclosable,
+          selectedIds: selectedIds,
           onFieldToggled: onFieldToggled,
           title: title,
         ),
