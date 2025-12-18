@@ -21,6 +21,16 @@ public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
         let oid4vpAdapter = Oid4vpAdapter(credentialPackAdapter: credentialPackAdapter)
         Oid4vpSetup.setUp(binaryMessenger: messenger, api: oid4vpAdapter)
 
+        // Initialize SpruceUtils adapter (needs access to credential pack adapter)
+        let spruceUtilsAdapter = SpruceUtilsAdapter(credentialPackAdapter: credentialPackAdapter)
+        SpruceUtilsSetup.setUp(binaryMessenger: messenger, api: spruceUtilsAdapter)
+
+        // Initialize mDL Presentation adapter (needs access to credential pack adapter)
+        let mdlPresentationAdapter = MdlPresentationAdapter(credentialPackAdapter: credentialPackAdapter)
+        let mdlCallback = MdlPresentationCallback(binaryMessenger: messenger)
+        mdlPresentationAdapter.setCallback(mdlCallback)
+        MdlPresentationSetup.setUp(binaryMessenger: messenger, api: mdlPresentationAdapter)
+
         // Register Scanner Platform View
         let scannerFactory = ScannerPlatformViewFactory(messenger: messenger)
         registrar.register(

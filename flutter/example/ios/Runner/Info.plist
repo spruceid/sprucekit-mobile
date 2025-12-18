@@ -47,5 +47,9 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is required to scan QR codes and barcodes</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Bluetooth is required to share your mobile driver's license with verifiers</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Bluetooth is required to share your mobile driver's license with verifiers</string>
 </dict>
 </plist>
