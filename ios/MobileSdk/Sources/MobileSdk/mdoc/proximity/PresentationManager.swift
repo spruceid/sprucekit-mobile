@@ -283,7 +283,14 @@ public class MdocProximityPresentationManager {
                 state = .error
                 return
             }
-            inner.connectionState(changedTo: .receivedRequest(request: Request(items: request, responder: self)))
+            let readerName = try? connected.session.readerName()
+            inner.connectionState(changedTo: .receivedRequest(
+                request: Request(
+                    items: request,
+                    readerName: readerName,
+                    responder: self
+                )
+            ))
         }
 
         fileprivate func approve(items: [String: [String: [String]]]) {
@@ -384,23 +391,32 @@ public class MdocProximityPresentationManager {
     public class Request {
         /// The requested items.
         public let items: [ItemsRequest]
-        private let responder: DelegateWrapper
+        public let readerName: String?
+        private let responder: DelegateWrapper?
 
-        fileprivate init(items: [ItemsRequest], responder: DelegateWrapper) {
+        fileprivate init(items: [ItemsRequest], readerName: String?, responder: DelegateWrapper) {
             self.items = items
+            self.readerName = readerName
             self.responder = responder
+        }
+
+        /// Public init for SwiftUI previews and testing
+        public init(items: [ItemsRequest], readerName: String?) {
+            self.items = items
+            self.readerName = readerName
+            self.responder = nil
         }
 
         /// Approve the supplied items for sharing with the reader.
         ///
         /// The nested dictionaries are structured as follows: `doctype -> namespace -> element identifier`.
         public consuming func approve(items: [String: [String: [String]]]) {
-            responder.approve(items: items)
+            responder?.approve(items: items)
         }
 
         /// Dismiss the request.
         public consuming func dismiss() {
-            responder.dismissRequest()
+            responder?.dismissRequest()
         }
     }
 
