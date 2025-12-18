@@ -18,18 +18,24 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use isomdl::cbor;
-use isomdl::definitions::device_engagement::nfc::NegotiatedCarrierInfo as IsoMdlNegotiatedCarrierInfo;
-use isomdl::definitions::session::Handover;
-use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
+    cbor,
     definitions::{
-        device_engagement::{CentralClientMode, DeviceRetrievalMethods},
+        device_engagement::{
+            nfc::NegotiatedCarrierInfo as IsoMdlNegotiatedCarrierInfo, CentralClientMode,
+            DeviceRetrievalMethods,
+        },
         helpers::NonEmptyMap,
-        session, BleOptions, DeviceRetrievalMethod, SessionEstablishment,
+        session::{self, Handover},
+        x509::trust_anchor::TrustAnchorRegistry,
+        BleOptions, DeviceRetrievalMethod, SessionEstablishment,
     },
-    presentation::device::{self, SessionManagerInit},
+    presentation::{
+        authentication::AuthenticationStatus,
+        device::{self, SessionManagerInit},
+    },
 };
+use tracing::warn;
 use uuid::Uuid;
 
 #[derive(uniffi::Object, Debug, Clone)]
@@ -373,6 +379,31 @@ impl MdlPresentationSession {
                     value: format!("Could not process process session establishment: {e:?}"),
                 })?
         };
+
+        if items_requests.items_request.is_empty() {
+            return Err(RequestError::Generic {
+                value: format!(
+                    "Request does not have any items, potentially due to errors: {:?}",
+                    items_requests.errors
+                ),
+            });
+        }
+
+        if !items_requests.errors.is_empty() {
+            for (category, errors) in items_requests.errors {
+                warn!("Errors for {}: {:?}", category, errors);
+            }
+        }
+        match items_requests.reader_authentication {
+            AuthenticationStatus::Unchecked => warn!("Request authentication was unchecked"),
+            AuthenticationStatus::Invalid => {
+                warn!("Request authentication was invalid");
+                // return Err(RequestError::Generic {
+                //     value: "Request failed authentication".into(),
+                // })
+            }
+            AuthenticationStatus::Valid => {}
+        }
 
         let mut in_process = self.in_process.lock().map_err(|_| RequestError::Generic {
             value: "Could not lock mutex".to_string(),
