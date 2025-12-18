@@ -15,6 +15,7 @@ import com.spruceid.mobilesdkexample.verifier.VerifyCwtView
 import com.spruceid.mobilesdkexample.verifier.VerifyDLView
 import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
 import com.spruceid.mobilesdkexample.verifier.VerifyEAView
+import com.spruceid.mobilesdkexample.verifier.VerifyKioskView
 import com.spruceid.mobilesdkexample.verifier.VerifyMDocView
 import com.spruceid.mobilesdkexample.verifier.VerifyVCView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsActivityLogScreen
@@ -78,6 +79,11 @@ fun SetupNavGraph(
                 navController,
                 checkAgeOver18 = true
             )
+        }
+        composable(
+            route = Screen.VerifyKioskScreen.route,
+        ) {
+            VerifyKioskView(navController)
         }
         composable(
             route = Screen.VerifyDelegatedOid4vpScreen.route,

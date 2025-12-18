@@ -106,6 +106,9 @@ public struct ContentView: View {
                     .navigationDestination(for: VerifyCwt.self) { _ in
                         VerifyCwtView(path: $path)
                     }
+                    .navigationDestination(for: VerifyKiosk.self) { _ in
+                        VerifyKioskView(path: $path)
+                    }
                     .navigationDestination(for: VerifyDelegatedOid4vp.self) {
                         verifyDelegatedOid4vpParams in
                         VerifyDelegatedOid4vpView(

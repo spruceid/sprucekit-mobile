@@ -15,7 +15,6 @@ import 'package:pigeon/pigeon.dart';
     dartPackageName: 'sprucekit_mobile',
   ),
 )
-
 /// Result of generating a mock mDL
 sealed class GenerateMockMdlResult {}
 
