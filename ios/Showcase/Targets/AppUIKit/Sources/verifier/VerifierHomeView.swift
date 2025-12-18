@@ -123,6 +123,16 @@ struct VerifierHomeBody: View {
             ).onTapGesture {
                 path.append(VerifyMDoc(checkAgeOver18: true))
             }
+            
+            VerifierListItem(
+                title: "Kiosk - Entry check",
+                description:
+                    "Scan the holder’s credential to verify and allow entry",
+                type: VerifierListItemTagType.SCAN_QR_CODE
+            ).onTapGesture {
+                path.append(VerifyKiosk())
+            }
+
 
             ForEach(verificationMethods, id: \.self.id) { verificationMethod in
                 VerifierListItem(
