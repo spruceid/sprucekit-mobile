@@ -135,6 +135,8 @@ cd flutter
 dart run pigeon --input pigeons/oid4vci.dart
 dart run pigeon --input pigeons/oid4vp.dart
 dart run pigeon --input pigeons/credential_pack.dart
+dart run pigeon --input pigeons/mdl_presentation.dart
+dart run pigeon --input pigeons/spruce_utils.dart
 ```
 
 ## Releases
