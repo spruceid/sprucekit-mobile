@@ -65,39 +65,50 @@ pub struct ActivityLogFilterOptions {
 }
 
 impl ActivityLogFilterOptions {
-    fn should_filter_entry(&self, entry: &ActivityLogEntry, index: usize) -> bool {
+    /// Internal filtering method, returning false when the item should be filtered
+    /// from the activity log, based on the filter options.
+    fn filter(&self, entry: &(usize, &ActivityLogEntry)) -> bool {
+        let (index, entry) = entry;
+
         // Check date range filters
-        if let Some(from_date) = self.from_date {
-            if from_date > entry.timestamp {
-                return false;
-            }
+        if self
+            .from_date
+            .is_some_and(|from_date| from_date > entry.timestamp)
+        {
+            return false;
         }
 
-        if let Some(to_date) = self.to_date {
-            if to_date < entry.timestamp {
-                return false;
-            }
+        if self
+            .to_date
+            .is_some_and(|to_date| to_date < entry.timestamp)
+        {
+            return false;
         }
 
         // Check type filter
-        if let Some(ref filter_type) = self.r#type {
-            if *filter_type != entry.r#type {
-                return false;
-            }
+        if self
+            .r#type
+            .as_ref()
+            .is_some_and(|filter_type| *filter_type != entry.r#type)
+        {
+            return false;
         }
 
         // Check interaction actor filter
-        if let Some(ref actor) = self.interacted_with {
-            if *actor != entry.interaction_with {
-                return false;
-            }
+        if self
+            .interacted_with
+            .as_ref()
+            .is_some_and(|actor| *actor != entry.interaction_with)
+        {
+            return false;
         }
 
         // Check max items limit
-        if let Some(max_items) = self.max_items {
-            if index >= max_items as usize {
-                return false;
-            }
+        if self
+            .max_items
+            .is_some_and(|max_items| *index >= max_items as usize)
+        {
+            return false;
         }
 
         true
@@ -482,11 +493,7 @@ impl ActivityLog {
                 .clone()
                 .values()
                 .enumerate()
-                .filter(|(index, entry)| match filter.as_ref() {
-                    Some(opts) => opts.should_filter_entry(entry, *index),
-                    // Pass through all entries if no filter options are provided
-                    None => true,
-                })
+                .filter(|entry| filter.as_ref().map_or(true, |opts| opts.filter(entry)))
                 .map(|(_, entry)| Arc::new(entry.to_owned()))
                 .sorted_by(|a, b| Ord::cmp(&b.date, &a.date))
                 .collect());
@@ -617,17 +624,13 @@ impl ActivityLog {
             .filter_map(|value| async move { ActivityLogEntry::try_from(value).ok() })
             .collect::<Vec<ActivityLogEntry>>()
             .await
-            .into_iter()
+            .iter()
             .filter(|entry| entry.credential_id == self.credential_id)
             // Sort by the date so the most recent activity is always first
             .sorted_by(|a, b| Ord::cmp(&b.date, &a.date))
             .enumerate()
-            .filter(|(index, entry)| match filter.as_ref() {
-                Some(opts) => opts.should_filter_entry(entry, *index),
-                // Pass through all entries if no filter options are provided
-                None => true,
-            })
-            .map(|(_, entry)| entry)
+            .filter(|entry| filter.as_ref().map_or(true, |opts| opts.filter(entry)))
+            .map(|(_, entry)| entry.to_owned())
             .collect::<Vec<ActivityLogEntry>>();
 
         Ok(entries)
