@@ -493,7 +493,7 @@ impl ActivityLog {
                 .clone()
                 .values()
                 .enumerate()
-                .filter(|entry| filter.as_ref().map_or(true, |opts| opts.filter(entry)))
+                .filter(|entry| filter.as_ref().is_none_or(|opts| opts.filter(entry)))
                 .map(|(_, entry)| Arc::new(entry.to_owned()))
                 .sorted_by(|a, b| Ord::cmp(&b.date, &a.date))
                 .collect());
@@ -627,7 +627,7 @@ impl ActivityLog {
             .iter()
             .filter(|entry| entry.credential_id == self.credential_id)
             .enumerate()
-            .filter(|entry| filter.as_ref().map_or(true, |opts| opts.filter(entry)))
+            .filter(|entry| filter.as_ref().is_none_or(|opts| opts.filter(entry)))
             .map(|(_, entry)| entry.to_owned())
             // Sort by the date so the most recent activity is always first
             .sorted_by(|a, b| Ord::cmp(&b.date, &a.date))
