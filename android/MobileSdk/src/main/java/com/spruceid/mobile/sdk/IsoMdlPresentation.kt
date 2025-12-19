@@ -294,6 +294,8 @@ class IsoMdlPresentation(
         try {
             this.itemsRequests = session!!.handleRequest(data)
             this.callback.update(mapOf(Pair("selectNamespaces", this.itemsRequests)))
+            // Return a callback providing the verifier / reader's common name requesting the data
+            this.callback.update(mapOf(Pair("readerName", session!!.readerName())))
         } catch (e: RequestException) {
             Log.e("IsoMdlPresentation", "Error handling request: ${e.message}", e)
             this.callback.error(e)
