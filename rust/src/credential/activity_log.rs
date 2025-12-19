@@ -67,9 +67,7 @@ pub struct ActivityLogFilterOptions {
 impl ActivityLogFilterOptions {
     /// Internal filtering method, returning false when the item should be filtered
     /// from the activity log, based on the filter options.
-    fn filter(&self, entry: &(usize, &ActivityLogEntry)) -> bool {
-        let (index, entry) = entry;
-
+    fn filter(&self, entry: &ActivityLogEntry) -> bool {
         // Check date range filters
         if self
             .from_date
@@ -99,14 +97,6 @@ impl ActivityLogFilterOptions {
             .interacted_with
             .as_ref()
             .is_some_and(|actor| *actor != entry.interaction_with)
-        {
-            return false;
-        }
-
-        // Check max items limit
-        if self
-            .max_items
-            .is_some_and(|max_items| *index >= max_items as usize)
         {
             return false;
         }
@@ -492,10 +482,15 @@ impl ActivityLog {
             return Ok(cache
                 .clone()
                 .values()
-                .enumerate()
                 .filter(|entry| filter.as_ref().is_none_or(|opts| opts.filter(entry)))
-                .map(|(_, entry)| Arc::new(entry.to_owned()))
                 .sorted_by(|a, b| Ord::cmp(&b.date, &a.date))
+                .take(
+                    filter
+                        .as_ref()
+                        .and_then(|f| f.max_items)
+                        .unwrap_or(u32::MAX) as usize,
+                )
+                .map(|entry| Arc::new(entry.to_owned()))
                 .collect());
         }
 
@@ -626,11 +621,16 @@ impl ActivityLog {
             .await
             .iter()
             .filter(|entry| entry.credential_id == self.credential_id)
-            .enumerate()
             .filter(|entry| filter.as_ref().is_none_or(|opts| opts.filter(entry)))
-            .map(|(_, entry)| entry.to_owned())
+            .map(|entry| entry.to_owned())
             // Sort by the date so the most recent activity is always first
             .sorted_by(|a, b| Ord::cmp(&b.date, &a.date))
+            .take(
+                filter
+                    .as_ref()
+                    .and_then(|f| f.max_items)
+                    .unwrap_or(u32::MAX) as usize,
+            )
             .collect::<Vec<ActivityLogEntry>>();
 
         Ok(entries)
