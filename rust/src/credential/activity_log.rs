@@ -355,7 +355,7 @@ impl ActivityLog {
 
         {
             let mut cache = self.cache.lock().await;
-            cache.insert(entry.id.clone(), entry.as_ref().to_owned());
+            cache.insert(entry.id, entry.as_ref().to_owned());
         }
 
         Ok(())
@@ -572,7 +572,7 @@ impl ActivityLog {
         let mut cache = self.cache.lock().await;
         *cache = entries.into_iter().map(|e| (e.id, e)).collect();
 
-        return Ok(());
+        Ok(())
     }
 
     /// Clear the activity log cache.
