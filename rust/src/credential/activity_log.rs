@@ -96,7 +96,7 @@ impl ActivityLogFilterOptions {
         if self
             .interacted_with
             .as_ref()
-            .is_some_and(|actor| *actor != entry.interaction_with)
+            .is_some_and(|actor| entry.interaction_with.contains(actor))
         {
             return false;
         }
