@@ -488,6 +488,7 @@ impl ActivityLog {
                     None => true,
                 })
                 .map(|(_, entry)| Arc::new(entry.to_owned()))
+                .sorted_by(|a, b| Ord::cmp(&b.date, &a.date))
                 .collect());
         }
 
