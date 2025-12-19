@@ -1,8 +1,10 @@
 package com.spruceid.sprucekit_mobile
 
 import android.content.Context
+import android.util.Base64
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.generateTestMdl
+import com.spruceid.mobile.sdk.rs.ParsedCredential
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -43,6 +45,14 @@ internal class SpruceUtilsAdapter(
                     return@launch
                 }
 
+                // Get the raw credential bytes for storage
+                val parsedCredential = ParsedCredential.newMsoMdoc(mdl)
+                val genericCredential = parsedCredential.intoGenericForm()
+                val rawCredentialBase64 = Base64.encodeToString(
+                    genericCredential.payload,
+                    Base64.NO_WRAP
+                )
+
                 // Add the mDL to the pack
                 val credentials = pack.addMdoc(mdl)
                 val credential = credentials.firstOrNull()
@@ -54,6 +64,7 @@ internal class SpruceUtilsAdapter(
                 callback(Result.success(GenerateMockMdlSuccess(
                     packId = packId,
                     credentialId = credential.id(),
+                    rawCredential = rawCredentialBase64,
                     keyAlias = alias
                 )))
             } catch (e: Exception) {
@@ -63,4 +74,5 @@ internal class SpruceUtilsAdapter(
             }
         }
     }
+
 }

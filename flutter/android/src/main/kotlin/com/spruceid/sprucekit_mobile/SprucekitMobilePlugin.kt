@@ -14,6 +14,7 @@ class SprucekitMobilePlugin : FlutterPlugin {
     private lateinit var spruceUtilsAdapter: SpruceUtilsAdapter
     private lateinit var mdlPresentationAdapter: MdlPresentationAdapter
     private lateinit var oid4vpMdocAdapter: Oid4vpMdocAdapter
+    private lateinit var dcApiAdapter: DcApiAdapter
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         val context = flutterPluginBinding.applicationContext
@@ -44,6 +45,10 @@ class SprucekitMobilePlugin : FlutterPlugin {
         oid4vpMdocAdapter = Oid4vpMdocAdapter(context, credentialPackAdapter)
         Oid4vpMdoc.setUp(flutterPluginBinding.binaryMessenger, oid4vpMdocAdapter)
 
+        // Initialize DC API adapter (needs access to credential pack adapter)
+        dcApiAdapter = DcApiAdapter(context, credentialPackAdapter)
+        DcApi.setUp(flutterPluginBinding.binaryMessenger, dcApiAdapter)
+
         // Register Scanner Platform View
         flutterPluginBinding.platformViewRegistry.registerViewFactory(
             "com.spruceid.sprucekit_mobile/scanner",
@@ -58,5 +63,6 @@ class SprucekitMobilePlugin : FlutterPlugin {
         SpruceUtils.setUp(binding.binaryMessenger, null)
         MdlPresentation.setUp(binding.binaryMessenger, null)
         Oid4vpMdoc.setUp(binding.binaryMessenger, null)
+        DcApi.setUp(binding.binaryMessenger, null)
     }
 }

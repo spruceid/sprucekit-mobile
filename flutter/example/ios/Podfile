@@ -47,6 +47,12 @@ target 'Runner' do
   end
 end
 
+target 'DcApiExtension' do
+  use_frameworks!
+  pod 'SpruceIDMobileSdk', :path => '../../../'
+  pod 'SpruceIDMobileSdkRs', :path => '../../../'
+end
+
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)

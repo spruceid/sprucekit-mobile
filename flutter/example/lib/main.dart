@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'demos/credential_pack_demo.dart';
+import 'demos/dc_api_demo.dart';
 import 'demos/mdl_share_demo.dart';
 import 'demos/oid4vci_demo.dart';
 import 'demos/oid4vp_demo.dart';
@@ -37,6 +38,7 @@ class HomeScreen extends StatelessWidget {
       ('OID4VP', Icons.verified_user, const Oid4vpDemo()),
       ('OID4VP mDoc', Icons.credit_card, const Oid4vpMdocDemo()),
       ('Share mDL', Icons.share, const MdlShareDemo()),
+      ('DC API', Icons.web, const DcApiDemo()),
       ('Credential Pack', Icons.folder, const CredentialPackDemo()),
       ('Scanner', Icons.qr_code_scanner, const ScannerDemo()),
     ];

@@ -16,6 +16,6 @@ object AppModule {
     @Singleton
     @JvmStatic
     fun provideRegistry(application: Application): Registry {
-        return Registry(application, "pinecone.ico")
+        return Registry(application, "icon.ico")
     }
 } 
