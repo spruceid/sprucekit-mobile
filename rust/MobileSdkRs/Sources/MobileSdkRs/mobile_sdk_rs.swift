@@ -611,6 +611,11 @@ public protocol ActivityLogProtocol: AnyObject, Sendable {
     func add(entry: ActivityLogEntry) async throws 
     
     /**
+     * Clear the activity log cache.
+     */
+    func clearCache() async throws 
+    
+    /**
      * Returns a list of activity log entries matching the
      * `credential_id` corresponding to the activity log.
      */
@@ -627,6 +632,13 @@ public protocol ActivityLogProtocol: AnyObject, Sendable {
     func exportEntriesCsv(filter: ActivityLogFilterOptions?) async throws  -> String
     
     func get(entryId: Uuid) async throws  -> ActivityLogEntry?
+    
+    /**
+     * hydrate the activity log cache. Sets the cache to the unfiltered
+     * activity log entries associated with the credential. This method is
+     * automatically called on [ActivityLog::load] method.
+     */
+    func hydrateCache() async throws 
     
     /**
      * Remove an activity log entry given a specific entry ID.
@@ -751,6 +763,26 @@ open func add(entry: ActivityLogEntry)async throws   {
 }
     
     /**
+     * Clear the activity log cache.
+     */
+open func clearCache()async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_clear_cache(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+    /**
      * Returns a list of activity log entries matching the
      * `credential_id` corresponding to the activity log.
      */
@@ -824,6 +856,28 @@ open func get(entryId: Uuid)async throws  -> ActivityLogEntry?  {
             completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterOptionTypeActivityLogEntry.lift,
+            errorHandler: FfiConverterTypeActivityLogError_lift
+        )
+}
+    
+    /**
+     * hydrate the activity log cache. Sets the cache to the unfiltered
+     * activity log entries associated with the credential. This method is
+     * automatically called on [ActivityLog::load] method.
+     */
+open func hydrateCache()async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_activitylog_hydrate_cache(
+                    self.uniffiClonePointer()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
             errorHandler: FfiConverterTypeActivityLogError_lift
         )
 }
@@ -11861,6 +11915,10 @@ public struct ActivityLogFilterOptions {
      * Max items to be returned
      */
     public var maxItems: UInt32?
+    /**
+     * Use cache
+     */
+    public var useCache: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -11879,12 +11937,16 @@ public struct ActivityLogFilterOptions {
          */interactedWith: String?, 
         /**
          * Max items to be returned
-         */maxItems: UInt32?) {
+         */maxItems: UInt32?, 
+        /**
+         * Use cache
+         */useCache: Bool) {
         self.fromDate = fromDate
         self.toDate = toDate
         self.type = type
         self.interactedWith = interactedWith
         self.maxItems = maxItems
+        self.useCache = useCache
     }
 }
 
@@ -11910,6 +11972,9 @@ extension ActivityLogFilterOptions: Equatable, Hashable {
         if lhs.maxItems != rhs.maxItems {
             return false
         }
+        if lhs.useCache != rhs.useCache {
+            return false
+        }
         return true
     }
 
@@ -11919,6 +11984,7 @@ extension ActivityLogFilterOptions: Equatable, Hashable {
         hasher.combine(type)
         hasher.combine(interactedWith)
         hasher.combine(maxItems)
+        hasher.combine(useCache)
     }
 }
 
@@ -11935,7 +12001,8 @@ public struct FfiConverterTypeActivityLogFilterOptions: FfiConverterRustBuffer {
                 toDate: FfiConverterOptionUInt64.read(from: &buf), 
                 type: FfiConverterOptionTypeActivityLogEntryType.read(from: &buf), 
                 interactedWith: FfiConverterOptionString.read(from: &buf), 
-                maxItems: FfiConverterOptionUInt32.read(from: &buf)
+                maxItems: FfiConverterOptionUInt32.read(from: &buf), 
+                useCache: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -11945,6 +12012,7 @@ public struct FfiConverterTypeActivityLogFilterOptions: FfiConverterRustBuffer {
         FfiConverterOptionTypeActivityLogEntryType.write(value.type, into: &buf)
         FfiConverterOptionString.write(value.interactedWith, into: &buf)
         FfiConverterOptionUInt32.write(value.maxItems, into: &buf)
+        FfiConverterBool.write(value.useCache, into: &buf)
     }
 }
 
@@ -23237,6 +23305,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_add() != 13013) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_clear_cache() != 62011) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_entries() != 20975) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -23247,6 +23318,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_get() != 49762) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_activitylog_hydrate_cache() != 43702) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_remove() != 25888) {

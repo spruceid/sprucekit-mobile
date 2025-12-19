@@ -101,7 +101,7 @@ jobs:
         # ignoring Rs because it's automatically generated, and Showcase has many many warnings
 
   android:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-m
     if: github.actor != 'sprucekit-mobile-monorepo[bot]' # not running CI on release commits
     defaults:
       run:
