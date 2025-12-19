@@ -35,6 +35,11 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
                     return
                 }
 
+                // Get the raw credential bytes for storage
+                let parsedCredential = ParsedCredential.newMsoMdoc(mdoc: mdl)
+                let genericCredential = try parsedCredential.intoGenericForm()
+                let rawCredentialBase64 = genericCredential.payload.base64EncodedString()
+
                 // Add the mDL to the pack (async)
                 let credentials = try await pack.addMDoc(mdoc: mdl)
                 guard let credential = credentials.first else {
@@ -42,9 +47,16 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
                     return
                 }
 
+                // Store raw credential for DC API sync
+                self.credentialPackAdapter.storeRawCredential(
+                    credentialId: credential.id(),
+                    rawCredential: rawCredentialBase64
+                )
+
                 completion(.success(GenerateMockMdlSuccess(
                     packId: packId,
                     credentialId: credential.id(),
+                    rawCredential: rawCredentialBase64,
                     keyAlias: alias
                 )))
             } catch {
@@ -52,4 +64,5 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
             }
         }
     }
+
 }
