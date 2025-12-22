@@ -35,6 +35,10 @@ public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
         let oid4vpMdocAdapter = Oid4vpMdocAdapter(credentialPackAdapter: credentialPackAdapter)
         Oid4vpMdocSetup.setUp(binaryMessenger: messenger, api: oid4vpMdocAdapter)
 
+        // Initialize DC API adapter (needs access to credential pack adapter)
+        let dcApiAdapter = DcApiAdapter(credentialPackAdapter: credentialPackAdapter)
+        DcApiSetup.setUp(binaryMessenger: messenger, api: dcApiAdapter)
+
         // Register Scanner Platform View
         let scannerFactory = ScannerPlatformViewFactory(messenger: messenger)
         registrar.register(

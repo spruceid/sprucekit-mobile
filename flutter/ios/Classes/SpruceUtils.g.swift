@@ -144,6 +144,8 @@ struct GenerateMockMdlSuccess: GenerateMockMdlResult {
   var packId: String
   /// The credential ID of the generated mDL
   var credentialId: String
+  /// The raw mSO mDoc as base64 string for storage
+  var rawCredential: String
   /// The key alias used for signing
   var keyAlias: String
 
@@ -152,11 +154,13 @@ struct GenerateMockMdlSuccess: GenerateMockMdlResult {
   static func fromList(_ pigeonVar_list: [Any?]) -> GenerateMockMdlSuccess? {
     let packId = pigeonVar_list[0] as! String
     let credentialId = pigeonVar_list[1] as! String
-    let keyAlias = pigeonVar_list[2] as! String
+    let rawCredential = pigeonVar_list[2] as! String
+    let keyAlias = pigeonVar_list[3] as! String
 
     return GenerateMockMdlSuccess(
       packId: packId,
       credentialId: credentialId,
+      rawCredential: rawCredential,
       keyAlias: keyAlias
     )
   }
@@ -164,6 +168,7 @@ struct GenerateMockMdlSuccess: GenerateMockMdlResult {
     return [
       packId,
       credentialId,
+      rawCredential,
       keyAlias,
     ]
   }
@@ -254,7 +259,7 @@ protocol SpruceUtils {
   /// MdlPresentation.initializeQrPresentation().
   ///
   /// @param keyAlias Optional key alias to use (defaults to "testMdl")
-  /// @return Result with packId, credentialId, and keyAlias, or error
+  /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
   func generateMockMdl(keyAlias: String?, completion: @escaping (Result<GenerateMockMdlResult, Error>) -> Void)
 }
 
@@ -271,7 +276,7 @@ class SpruceUtilsSetup {
     /// MdlPresentation.initializeQrPresentation().
     ///
     /// @param keyAlias Optional key alias to use (defaults to "testMdl")
-    /// @return Result with packId, credentialId, and keyAlias, or error
+    /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
     let generateMockMdlChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateMockMdl\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       generateMockMdlChannel.setMessageHandler { message, reply in

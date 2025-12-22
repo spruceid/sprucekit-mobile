@@ -9,7 +9,26 @@ class CredentialPackAdapter: CredentialPack {
 
     // In-memory store of credential packs
     private var packs: [String: SpruceIDMobileSdk.CredentialPack] = [:]
+    // Store raw credentials for DC API sync (keyed by credentialId)
+    private var rawCredentials: [String: String] = [:]
     private let lock = NSLock()
+
+    // MARK: - Raw Credential Storage (for DC API sync)
+
+    /// Store a raw credential string for later retrieval during DC API sync
+    func storeRawCredential(credentialId: String, rawCredential: String) {
+        lock.lock()
+        rawCredentials[credentialId] = rawCredential
+        lock.unlock()
+    }
+
+    /// Retrieve a stored raw credential string
+    func getRawCredential(credentialId: String) -> String? {
+        lock.lock()
+        let raw = rawCredentials[credentialId]
+        lock.unlock()
+        return raw
+    }
 
     func createPack() throws -> String {
         let pack = SpruceIDMobileSdk.CredentialPack()

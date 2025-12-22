@@ -95,6 +95,8 @@ data class GenerateMockMdlSuccess (
   val packId: String,
   /** The credential ID of the generated mDL */
   val credentialId: String,
+  /** The raw mSO mDoc as base64 string for storage */
+  val rawCredential: String,
   /** The key alias used for signing */
   val keyAlias: String
 ) : GenerateMockMdlResult()
@@ -103,14 +105,16 @@ data class GenerateMockMdlSuccess (
     fun fromList(pigeonVar_list: List<Any?>): GenerateMockMdlSuccess {
       val packId = pigeonVar_list[0] as String
       val credentialId = pigeonVar_list[1] as String
-      val keyAlias = pigeonVar_list[2] as String
-      return GenerateMockMdlSuccess(packId, credentialId, keyAlias)
+      val rawCredential = pigeonVar_list[2] as String
+      val keyAlias = pigeonVar_list[3] as String
+      return GenerateMockMdlSuccess(packId, credentialId, rawCredential, keyAlias)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       packId,
       credentialId,
+      rawCredential,
       keyAlias,
     )
   }
@@ -203,7 +207,7 @@ interface SpruceUtils {
    * MdlPresentation.initializeQrPresentation().
    *
    * @param keyAlias Optional key alias to use (defaults to "testMdl")
-   * @return Result with packId, credentialId, and keyAlias, or error
+   * @return Result with packId, credentialId, rawCredential, and keyAlias, or error
    */
   fun generateMockMdl(keyAlias: String?, callback: (Result<GenerateMockMdlResult>) -> Unit)
 

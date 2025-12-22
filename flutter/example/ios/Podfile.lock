@@ -1,18 +1,21 @@
 PODS:
   - Flutter (1.0.0)
-  - SpruceIDMobileSdk (0.13.3):
-    - SpruceIDMobileSdkRs (~> 0.13.3)
-    - SwiftAlgorithms (~> 1.0.0)
-  - SpruceIDMobileSdkRs (0.13.3):
-    - SpruceIDMobileSdkRsRustFramework (= 0.13.3)
-  - SpruceIDMobileSdkRsRustFramework (0.13.3)
-  - sprucekit_mobile (0.13.3):
+  - permission_handler_apple (9.3.0):
     - Flutter
-    - SpruceIDMobileSdk (~> 0.13.3)
+  - SpruceIDMobileSdk (0.13.11):
+    - SpruceIDMobileSdkRs (~> 0.13.11)
+    - SwiftAlgorithms (~> 1.0.0)
+  - SpruceIDMobileSdkRs (0.13.11):
+    - SpruceIDMobileSdkRsRustFramework (= 0.13.11)
+  - SpruceIDMobileSdkRsRustFramework (0.13.11)
+  - sprucekit_mobile (0.13.11):
+    - Flutter
+    - SpruceIDMobileSdk (~> 0.13.11)
   - SwiftAlgorithms (1.0.0)
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - SpruceIDMobileSdk (from `../../../`)
   - SpruceIDMobileSdkRs (from `../../../`)
   - SpruceIDMobileSdkRsRustFramework (from `../../../`)
@@ -25,6 +28,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  permission_handler_apple:
+    :path: ".symlinks/plugins/permission_handler_apple/ios"
   SpruceIDMobileSdk:
     :path: "../../../"
   SpruceIDMobileSdkRs:
@@ -36,12 +41,13 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  SpruceIDMobileSdk: 39bfb4eb56a9a487087388f5f37a88d746a12e74
-  SpruceIDMobileSdkRs: 69cc58ae9bb2d7175f2c328c86dad744c22cccfc
-  SpruceIDMobileSdkRsRustFramework: 5e1eaa82bef5b26ef7c82f2b5d07e704ced43da2
-  sprucekit_mobile: bb492b44670458cfa887c064ed52cb3d457431ef
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
+  SpruceIDMobileSdk: 1722dc4b12162e7c277d899662c9f3d007080642
+  SpruceIDMobileSdkRs: fe140634fc064ae0523a8e1ea90a32da61638dbe
+  SpruceIDMobileSdkRsRustFramework: 45a57dbd63190fcd716645292d81185e1c7aa365
+  sprucekit_mobile: b57f26f2145bdc84dacf4cedf97473d80cd859df
   SwiftAlgorithms: 38dda4731d19027fdeee1125f973111bf3386b53
 
-PODFILE CHECKSUM: 8d75518193cb1789c7f21e9bebda88058b4d6d67
+PODFILE CHECKSUM: aca402c290c05beb1f7360c86e62625c6c7ed3f6
 
 COCOAPODS: 1.16.2

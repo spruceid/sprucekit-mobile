@@ -35,10 +35,12 @@ import kotlin.io.encoding.ExperimentalEncodingApi
  * @param application the application that is registering credentials for presentation over DC-API.
  * @param iconName the name of an image file in the application's assets directory, to be shown in
  * the wallet selection modal.
+ * @param walletName the name to display for this wallet in the credential selection UI.
  */
 class Registry(
     application: Application,
-    iconName: String
+    iconName: String,
+    private val walletName: String = "SpruceKit Showcase Wallet"
 ) {
     private val icon: ByteArray = loadAsset(application.assets, iconName)
     private val registryManager = RegistryManager.Companion.create(application)
@@ -91,7 +93,7 @@ class Registry(
         val mdocCredentials = JSONObject()
         mdocs.forEach { mdoc ->
             val credJson = JSONObject()
-            credJson.putCommon(mdoc.first, mdoc.second.details(), iconMap)
+            credJson.putCommon(mdoc.first, mdoc.second.details(), iconMap, walletName)
 
             val pathJson = JSONObject()
             mdoc.second.details().forEach { (namespace, elements) ->
@@ -189,7 +191,7 @@ class Registry(
         )
 
         private fun JSONObject.putCommon(
-            id: String, mdocDetails: Map<String, List<Element>>, iconMap: Map<String, RegistryIcon>
+            id: String, mdocDetails: Map<String, List<Element>>, iconMap: Map<String, RegistryIcon>, walletName: String
         ) {
             put(ID, id)
 
@@ -202,7 +204,7 @@ class Registry(
             }
 
             put(TITLE, title)
-            putOpt(SUBTITLE, "SpruceKit Showcase Wallet")
+            putOpt(SUBTITLE, walletName)
             val iconJson = JSONObject().apply {
                 put(START, iconMap[id]!!.iconOffset)
                 put(LENGTH, iconMap[id]!!.iconValue.size)

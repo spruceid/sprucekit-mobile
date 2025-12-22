@@ -26,12 +26,16 @@ class GenerateMockMdlSuccess implements GenerateMockMdlResult {
   /// The credential ID of the generated mDL
   String credentialId;
 
+  /// The raw mSO mDoc as base64 string for storage
+  String rawCredential;
+
   /// The key alias used for signing
   String keyAlias;
 
   GenerateMockMdlSuccess({
     required this.packId,
     required this.credentialId,
+    required this.rawCredential,
     required this.keyAlias,
   });
 }
@@ -53,7 +57,7 @@ abstract class SpruceUtils {
   /// MdlPresentation.initializeQrPresentation().
   ///
   /// @param keyAlias Optional key alias to use (defaults to "testMdl")
-  /// @return Result with packId, credentialId, and keyAlias, or error
+  /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
   @async
   GenerateMockMdlResult generateMockMdl(String? keyAlias);
 }
