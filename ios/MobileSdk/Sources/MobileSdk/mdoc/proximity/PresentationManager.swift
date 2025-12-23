@@ -360,7 +360,7 @@ public class MdocProximityPresentationManager {
     }
 
     /// The session state. This is intended to be used to directly drive the UI.
-    public enum State {
+    public enum State: Equatable {
         /// Preparing the system transport(s) to connect to the reader.
         case initializing
         /// An action must be performed by the app or user to continue.
@@ -388,7 +388,8 @@ public class MdocProximityPresentationManager {
     /// A request for mdoc presentation from a reader.
     ///
     /// Use `approve()` to transmit the response.
-    public class Request {
+    public class Request: Equatable {
+
         /// The requested items.
         public let items: [ItemsRequest]
         public let readerName: String?
@@ -417,6 +418,10 @@ public class MdocProximityPresentationManager {
         /// Dismiss the request.
         public consuming func dismiss() {
             responder?.dismissRequest()
+        }
+
+        public static func == (lhs: Request, rhs: Request) -> Bool {
+            lhs.items == rhs.items && lhs.readerName == rhs.readerName
         }
     }
 
