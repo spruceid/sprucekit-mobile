@@ -30,7 +30,7 @@ public enum TransmissionOption {
 }
 
 /// An action must be performed to continue
-public enum RequiredAction {
+public enum RequiredAction: Equatable {
     /// The device's bluetooth must be turned on to continue.
     case turnOnBluetooth
     /// The user rejected the request to authorize this app to use bluetooth, but they must authorize the app to
