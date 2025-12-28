@@ -1,8 +1,9 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
+use anyhow::{anyhow, Context, Result};
 use isomdl::{
     definitions::{
         device_request,
@@ -16,6 +17,77 @@ use isomdl::{
 };
 use uuid::Uuid;
 
+#[derive(uniffi::Object, Debug)]
+pub struct ReaderApduHandoverDriverInit(pub ReaderApduHandoverDriver, pub Vec<u8>);
+
+#[uniffi::export]
+impl ReaderApduHandoverDriverInit {
+    #[uniffi::constructor]
+    #[allow(clippy::new_without_default)]
+    #[allow(clippy::new_ret_no_self)]
+    /// Create a new APDU handover driver for a reader.
+    ///
+    /// Returns: the driver along with the initial APDU.
+    pub fn new() -> Self {
+        let (driver, apdu) =
+            isomdl::definitions::device_engagement::nfc::ReaderApduHandoverDriver::new();
+        Self(ReaderApduHandoverDriver(Mutex::new(driver)), apdu)
+    }
+}
+
+#[derive(uniffi::Enum)]
+pub enum ReaderApduProgress {
+    InProgress(Vec<u8>),
+    Done(Arc<ReaderHandover>),
+}
+
+#[derive(thiserror::Error, uniffi::Error, Debug, Clone)]
+pub enum ReaderApduHandoverError {
+    #[error("Generic error: {0}")]
+    General(String),
+}
+
+impl From<anyhow::Error> for ReaderApduHandoverError {
+    fn from(value: anyhow::Error) -> Self {
+        Self::General(format!("{value:#?}"))
+    }
+}
+
+#[derive(uniffi::Object, Debug)]
+pub struct ReaderApduHandoverDriver(
+    Mutex<isomdl::definitions::device_engagement::nfc::ReaderApduHandoverDriver>,
+);
+
+#[uniffi::export]
+impl ReaderApduHandoverDriver {
+    pub fn process_rapdu(
+        &self,
+        command: &[u8],
+    ) -> Result<ReaderApduProgress, ReaderApduHandoverError> {
+        if let Ok(mut handover) = self.0.lock() {
+            Ok(
+                match handover
+                    .process_rapdu(command)
+                    .context("response APDU processing failed")?
+                {
+                    isomdl::definitions::device_engagement::nfc::ReaderApduProgress::InProgress(
+                        items,
+                    ) => ReaderApduProgress::InProgress(items),
+                    isomdl::definitions::device_engagement::nfc::ReaderApduProgress::Done(
+                        carrier_info,
+                    ) => ReaderApduProgress::Done(Arc::new(ReaderHandover(reader::Handover::NFC(
+                        carrier_info,
+                    )))),
+                },
+            )
+        } else {
+            Err(anyhow!(
+                "failed to get reference to ReaderApduHandoverDriver in process_rapdu!"
+            ))?
+        }
+    }
+}
+
 #[derive(thiserror::Error, uniffi::Error, Debug)]
 pub enum MDLReaderSessionError {
     #[error("{value}")]
@@ -26,7 +98,7 @@ pub enum MDLReaderSessionError {
 pub struct MDLSessionManager(reader::SessionManager);
 
 /// Connection details for connecting to an mdoc that is using BLE Central Client mode.
-#[derive(uniffi::Record)]
+#[derive(uniffi::Record, Clone, Copy)]
 pub struct CentralClientDetails {
     /// The UUID of the service that the mdoc is listening for.
     pub service_uuid: Uuid,
@@ -40,6 +112,12 @@ pub struct PeripheralServerDetails {
     /// The Bluetooth device address of the peripheral server. If available, this can be used
     /// to more quickly identify the correct device to connect to.
     pub ble_device_address: Option<Vec<u8>>,
+}
+
+#[derive(uniffi::Enum)]
+pub enum BleMode {
+    CentralClient(CentralClientDetails),
+    PeripheralServer(PeripheralServerDetails),
 }
 
 #[uniffi::export]
@@ -62,6 +140,23 @@ impl MDLSessionManager {
             })
             .collect()
     }
+
+    pub fn preferred_ble_mode(&self) -> Option<BleMode> {
+        match self.0.preferred_ble_mode() {
+            None => None,
+            Some(isomdl::definitions::device_engagement::BleMode::CentralClient(d)) => {
+                Some(BleMode::CentralClient(CentralClientDetails {
+                    service_uuid: d.uuid,
+                }))
+            }
+            Some(isomdl::definitions::device_engagement::BleMode::PeripheralServer(d)) => {
+                Some(BleMode::PeripheralServer(PeripheralServerDetails {
+                    service_uuid: d.uuid,
+                    ble_device_address: d.ble_device_address.map(Vec::from),
+                }))
+            }
+        }
+    }
 }
 
 impl std::fmt::Debug for MDLSessionManager {
@@ -74,12 +169,23 @@ impl std::fmt::Debug for MDLSessionManager {
 pub struct MDLReaderSessionData {
     pub state: Arc<MDLSessionManager>,
     pub request: Vec<u8>,
-    ble_ident: Vec<u8>,
+    pub ble_ident: Vec<u8>,
+}
+
+#[derive(uniffi::Object)]
+pub struct ReaderHandover(reader::Handover);
+
+#[uniffi::export]
+impl ReaderHandover {
+    #[uniffi::constructor]
+    pub fn new_qr(qr: String) -> Self {
+        Self(reader::Handover::QR(qr))
+    }
 }
 
 #[uniffi::export]
 pub fn establish_session(
-    uri: String,
+    handover: Arc<ReaderHandover>,
     requested_items: HashMap<String, HashMap<String, bool>>,
     trust_anchor_registry: Option<Vec<String>>,
 ) -> Result<MDLReaderSessionData, MDLReaderSessionError> {
@@ -118,11 +224,10 @@ pub fn establish_session(
     })?;
 
     let (manager, request, ble_ident) =
-        reader::SessionManager::establish_session(uri.to_string(), namespaces, registry).map_err(
-            |e| MDLReaderSessionError::Generic {
+        reader::SessionManager::establish_session(handover.0.clone(), namespaces, registry)
+            .map_err(|e| MDLReaderSessionError::Generic {
                 value: format!("unable to establish session: {e:?}"),
-            },
-        )?;
+            })?;
 
     Ok(MDLReaderSessionData {
         state: Arc::new(MDLSessionManager(manager)),

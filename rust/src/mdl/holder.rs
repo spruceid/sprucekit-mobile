@@ -18,18 +18,24 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use isomdl::cbor;
-use isomdl::definitions::device_engagement::nfc::NegotiatedCarrierInfo as IsoMdlNegotiatedCarrierInfo;
-use isomdl::definitions::session::Handover;
-use isomdl::definitions::x509::trust_anchor::TrustAnchorRegistry;
 use isomdl::{
+    cbor,
     definitions::{
-        device_engagement::{CentralClientMode, DeviceRetrievalMethods},
+        device_engagement::{
+            nfc::NegotiatedCarrierInfo as IsoMdlNegotiatedCarrierInfo, CentralClientMode,
+            DeviceRetrievalMethods,
+        },
         helpers::NonEmptyMap,
-        session, BleOptions, DeviceRetrievalMethod, SessionEstablishment,
+        session::{self, Handover},
+        x509::trust_anchor::TrustAnchorRegistry,
+        BleOptions, DeviceRetrievalMethod, SessionEstablishment,
     },
-    presentation::device::{self, SessionManagerInit},
+    presentation::{
+        authentication::AuthenticationStatus,
+        device::{self, SessionManagerInit},
+    },
 };
+use tracing::warn;
 use uuid::Uuid;
 
 #[derive(uniffi::Object, Debug, Clone)]
@@ -374,6 +380,30 @@ impl MdlPresentationSession {
                 })?
         };
 
+        if items_requests.items_request.is_empty() {
+            return Err(RequestError::Generic {
+                value: format!(
+                    "Request does not have any items, potentially due to errors: {:?}",
+                    items_requests.errors
+                ),
+            });
+        }
+
+        if !items_requests.errors.is_empty() {
+            for (category, errors) in items_requests.errors {
+                warn!("Errors for {}: {:?}", category, errors);
+            }
+        }
+        // Reader authentication doesn't raise errors to avoid breaking changes, but also because
+        // we do not currently ask for a trust list of reader CAs (so verification will always fail)
+        match items_requests.reader_authentication {
+            AuthenticationStatus::Unchecked => warn!("Request authentication was unchecked"),
+            AuthenticationStatus::Invalid => {
+                warn!("Request authentication was invalid");
+            }
+            AuthenticationStatus::Valid => {}
+        }
+
         let mut in_process = self.in_process.lock().map_err(|_| RequestError::Generic {
             value: "Could not lock mutex".to_string(),
         })?;
@@ -509,7 +539,7 @@ impl MdlPresentationSession {
     }
 }
 
-#[derive(uniffi::Record, Clone)]
+#[derive(uniffi::Record, Clone, Debug)]
 pub struct ItemsRequest {
     doc_type: String,
     namespaces: HashMap<String, HashMap<String, bool>>,
@@ -583,7 +613,7 @@ mod tests {
 
     use crate::{
         crypto::{KeyAlias, KeyStore, RustTestKeyManager},
-        local_store,
+        local_store, ReaderHandover,
     };
 
     use super::*;
@@ -648,7 +678,7 @@ mod tests {
 
         let (mut reader_session_manager, request, _ble_ident) =
             reader::SessionManager::establish_session(
-                qr_code_uri.clone(),
+                reader::Handover::QR(qr_code_uri),
                 namespaces.clone(),
                 trust_anchor,
             )
@@ -725,7 +755,7 @@ mod tests {
         };
 
         let reader_session_data = crate::reader::establish_session(
-            qr_code_uri,
+            Arc::new(ReaderHandover::new_qr(qr_code_uri)),
             namespaces,
             Some(vec![include_str!(
                 "../../tests/res/mdl/utrecht-certificate.pem"

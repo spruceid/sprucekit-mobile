@@ -34,7 +34,7 @@ public class MdocProximityReader {
         let session: MdlReaderSessionData
         do {
             session = try establishSession(
-                uri: qrCodePayload,
+                handover: ReaderHandover.newQr(qr: qrCodePayload),
                 requestedItems: requestedItems,
                 trustAnchorRegistry: trustAnchorRegistry
             )

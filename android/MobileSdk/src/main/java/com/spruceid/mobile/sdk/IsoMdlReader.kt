@@ -10,6 +10,7 @@ import com.spruceid.mobile.sdk.rs.MdlReaderResponseData
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseException
 import com.spruceid.mobile.sdk.rs.MdlSessionManager
 import com.spruceid.mobile.sdk.rs.establishSession
+import com.spruceid.mobile.sdk.rs.ReaderHandover
 import java.util.UUID
 
 class IsoMdlReader(
@@ -25,7 +26,7 @@ class IsoMdlReader(
 
     init {
         try {
-            val sessionData = establishSession(uri, requestedItems, trustAnchorRegistry)
+            val sessionData = establishSession(ReaderHandover.newQr(uri), requestedItems, trustAnchorRegistry)
 
             session = sessionData.state
             try {

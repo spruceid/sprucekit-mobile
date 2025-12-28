@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.spruceid.mobile.sdk.RustLogger
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase1
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue300
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue500
@@ -58,6 +59,8 @@ fun HomeView(
             mutableStateOf(HomeTabs.WALLET)
         }
     }
+    RustLogger.enable()
+
 
     Scaffold(
         containerColor = Color.Transparent,

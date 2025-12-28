@@ -298,6 +298,9 @@ class IsoMdlPresentation(
             this.callback.update(mapOf(Pair("readerName", session!!.readerName())))
         } catch (e: RequestException) {
             Log.e("IsoMdlPresentation", "Error handling request: ${e.message}", e)
+            // Close connection on error
+            this.centralTransport?.terminate()
+            this.peripheralTransport?.terminate()
             this.callback.error(e)
         }
     }
