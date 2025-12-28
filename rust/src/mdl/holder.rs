@@ -394,13 +394,12 @@ impl MdlPresentationSession {
                 warn!("Errors for {}: {:?}", category, errors);
             }
         }
+        // Reader authentication doesn't raise errors to avoid breaking changes, but also because
+        // we do not currently ask for a trust list of reader CAs (so verification will always fail)
         match items_requests.reader_authentication {
             AuthenticationStatus::Unchecked => warn!("Request authentication was unchecked"),
             AuthenticationStatus::Invalid => {
                 warn!("Request authentication was invalid");
-                // return Err(RequestError::Generic {
-                //     value: "Request failed authentication".into(),
-                // })
             }
             AuthenticationStatus::Valid => {}
         }
