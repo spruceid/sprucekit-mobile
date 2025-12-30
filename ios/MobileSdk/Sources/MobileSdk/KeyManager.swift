@@ -3,26 +3,58 @@ import Foundation
 import Security
 import SpruceIDMobileSdkRs
 
-public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject, @unchecked
-    Sendable {
+public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObject,
+    @unchecked
+    Sendable
+{
     /// Migrate keys between access groups. For more information see
     /// https://developer.apple.com/documentation/Security/kSecAttrAccessGroup
     public func migrateToAccessGroup(oldAccessGroup: String, newAccessGroup: String) throws {
         let searchAttrs: [String: Any] = [
             kSecClass as String: kSecClassKey,
-            kSecAttrAccessGroup as String: oldAccessGroup
+            kSecAttrAccessGroup as String: oldAccessGroup,
         ]
         let targetAttrs: [String: Any] = [
             kSecAttrAccessGroup as String: newAccessGroup
         ]
         let result = SecItemUpdate(searchAttrs as CFDictionary, targetAttrs as CFDictionary)
         if result != errSecSuccess {
-            let errorMessage = SecCopyErrorMessageString(result, nil) as String? ?? result.description
+            let errorMessage =
+                SecCopyErrorMessageString(result, nil) as String? ?? result.description
             throw KeyManError.internalError("Could not migrate keychain: \(errorMessage)")
         }
     }
 
-    public func getSigningKey(alias: SpruceIDMobileSdkRs.KeyAlias) throws -> any SpruceIDMobileSdkRs.SigningKey {
+    public func updateKeychainGroupForKey(id: String, accessGroup: String) -> Bool {
+        let tag = id.data(using: .utf8)!
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrApplicationTag as String: tag,
+            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+        ]
+
+        let attributes: [String: Any] = [
+            kSecAttrAccessGroup as String: accessGroup
+        ]
+
+        let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+
+        guard status != errSecItemNotFound else {
+            print("updateKeychainGroupForKey: Item not found!")
+            return false
+        }
+
+        guard status == errSecSuccess else {
+            print("updateKeychainGroupForKey: Unhandled error: \(status)!")
+            return false
+        }
+
+        return true
+    }
+
+    public func getSigningKey(alias: SpruceIDMobileSdkRs.KeyAlias) throws -> any SpruceIDMobileSdkRs
+        .SigningKey
+    {
         guard let jwkString = Self.getJwk(id: alias) else {
             throw KeyManError.missing
         }
@@ -44,14 +76,18 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     /**
      * Checks to see if a secret key exists based on the id/alias.
      */
-    public static func keyExists(id: String) -> Bool {
+    public static func keyExists(id: String, accessGroup: String? = nil) -> Bool {
         let tag = id.data(using: .utf8)!
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true
+            kSecReturnRef as String: true,
         ]
+
+        if let accessGroup = accessGroup {
+            query[kSecAttrAccessGroup as String] = accessGroup
+        }
 
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
@@ -61,31 +97,35 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     /**
      * Returns a secret key - based on the id of the key.
      */
-    public static func getSecretKey(id: String) -> SecKey? {
-      let tag = id.data(using: .utf8)!
-      let query: [String: Any] = [
-          kSecClass as String: kSecClassKey,
-          kSecAttrApplicationTag as String: tag,
-          kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-          kSecReturnRef as String: true
-      ]
+    public static func getSecretKey(id: String, accessGroup: String? = nil) -> SecKey? {
+        let tag = id.data(using: .utf8)!
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrApplicationTag as String: tag,
+            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+            kSecReturnRef as String: true,
+        ]
 
-      var item: CFTypeRef?
-      let status = SecItemCopyMatching(query as CFDictionary, &item)
+        if let accessGroup = accessGroup {
+            query[kSecAttrAccessGroup as String] = accessGroup
+        }
 
-      guard status == errSecSuccess else { return nil }
+        var item: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &item)
 
-      // swiftlint:disable force_cast
-      let key = item as! SecKey
-      // swiftlint:enable force_cast
+        guard status == errSecSuccess else { return nil }
 
-      return key
+        // swiftlint:disable force_cast
+        let key = item as! SecKey
+        // swiftlint:enable force_cast
+
+        return key
     }
 
     /**
      * Generates a secp256r1 signing key by id
      */
-    public static func generateSigningKey(id: String) -> Bool {
+    public static func generateSigningKey(id: String, accessGroup: String? = nil) -> Bool {
         let tag = id.data(using: .utf8)!
 
         let access = SecAccessControlCreateWithFlags(
@@ -102,21 +142,26 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             kSecPrivateKeyAttrs as String: [
                 kSecAttrIsPermanent as String: true,
                 kSecAttrApplicationTag as String: tag,
-                kSecAttrAccessControl as String: access
-            ]
+                kSecAttrAccessControl as String: access,
+            ],
         ]
+
+        // Set the access group, if it exists.
+        if let accessGroup = accessGroup {
+            attributes[kSecAttrAccessGroup as String] = accessGroup
+        }
 
         var error: Unmanaged<CFError>?
         SecKeyCreateRandomKey(attributes as CFDictionary, &error)
-      if error != nil { print(error!) }
+        if error != nil { print(error!) }
         return error == nil
     }
 
     /**
      * Returns a JWK for a particular secret key by key id.
      */
-    public static func getJwk(id: String) -> String? {
-        guard let key = getSecretKey(id: id) else { return nil }
+    public static func getJwk(id: String, accessGroup: String? = nil) -> String? {
+        guard let key = getSecretKey(id: id, accessGroup) else { return nil }
 
         guard let publicKey = SecKeyCopyPublicKey(key) else {
             return nil
@@ -139,7 +184,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             "crv": "P-256",
             "alg": "ES256",
             "x": xCoordinate,
-            "y": yCoordinate
+            "y": yCoordinate,
         ]
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [])
@@ -152,8 +197,8 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     /**
      * Returns the public key as a CBOR-encoded COSE key byte array
      */
-    public static func coseKeyEc2P256PubKey(id: String) -> Data? {
-        guard let key = getSecretKey(id: id),
+    public static func coseKeyEc2P256PubKey(id: String, accessGroup: String? = nil) -> Data? {
+        guard let key = getSecretKey(id: id, accessGroup),
             let publicKey = SecKeyCopyPublicKey(key)
         else {
             return nil
@@ -178,8 +223,10 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     /**
      * Signs the provided payload with a ecdsaSignatureMessageX962SHA256 private key.
      */
-    public static func signPayload(id: String, payload: [UInt8]) -> [UInt8]? {
-        guard let key = getSecretKey(id: id) else { return nil }
+    public static func signPayload(id: String, payload: [UInt8], accessGroup: String? = nil)
+        -> [UInt8]?
+    {
+        guard let key = getSecretKey(id: id, accessGroup) else { return nil }
 
         guard let data = CFDataCreate(kCFAllocatorDefault, payload, payload.count) else {
             return nil
@@ -187,13 +234,15 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
         let algorithm: SecKeyAlgorithm = .ecdsaSignatureMessageX962SHA256
         var error: Unmanaged<CFError>?
-        guard let signature = SecKeyCreateSignature(
-            key,
-            algorithm,
-            data,
-            &error
-        ) as Data? else {
-          print(error ?? "no error")
+        guard
+            let signature = SecKeyCreateSignature(
+                key,
+                algorithm,
+                data,
+                &error
+            ) as Data?
+        else {
+            print(error ?? "no error")
             return nil
         }
 
@@ -203,7 +252,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     /**
      * Generates an encryption key with a provided id in the Secure Enclave.
      */
-    public static func generateEncryptionKey(id: String) -> Bool {
+    public static func generateEncryptionKey(id: String, accessGroup: String? = nil) -> Bool {
         let tag = id.data(using: .utf8)!
 
         let access = SecAccessControlCreateWithFlags(
@@ -220,9 +269,14 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             kSecPrivateKeyAttrs as String: [
                 kSecAttrIsPermanent as String: true,
                 kSecAttrApplicationTag as String: tag,
-                kSecAttrAccessControl as String: access
-            ]
+                kSecAttrAccessControl as String: access,
+            ],
         ]
+
+        // Set the access group, if it exists.
+        if let accessGroup = accessGroup {
+            attributes[kSecAttrAccessGroup as String] = accessGroup
+        }
 
         var error: Unmanaged<CFError>?
         SecKeyCreateRandomKey(attributes as CFDictionary, &error)
@@ -233,8 +287,10 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     /**
      * Encrypts payload by a key referenced by key id.
      */
-    public static func encryptPayload(id: String, payload: [UInt8]) -> ([UInt8], [UInt8])? {
-        guard let key = getSecretKey(id: id) else { return nil }
+    public static func encryptPayload(id: String, payload: [UInt8], accessGroup: String? = nil) -> (
+        [UInt8], [UInt8]
+    )? {
+        guard let key = getSecretKey(id: id, accessGroup) else { return nil }
 
         guard let publicKey = SecKeyCopyPublicKey(key) else {
             return nil
@@ -247,12 +303,14 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
         let algorithm: SecKeyAlgorithm = .eciesEncryptionCofactorX963SHA512AESGCM
         var error: Unmanaged<CFError>?
 
-        guard let encrypted = SecKeyCreateEncryptedData(
-            publicKey,
-            algorithm,
-            data,
-            &error
-        ) as Data? else {
+        guard
+            let encrypted = SecKeyCreateEncryptedData(
+                publicKey,
+                algorithm,
+                data,
+                &error
+            ) as Data?
+        else {
             return nil
         }
 
@@ -262,8 +320,10 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     /**
      * Decrypts the provided payload by a key id and initialization vector.
      */
-    public static func decryptPayload(id: String, payload: [UInt8]) -> [UInt8]? {
-        guard let key = getSecretKey(id: id) else { return nil }
+    public static func decryptPayload(id: String, payload: [UInt8], accessGroup: String? = nil)
+        -> [UInt8]?
+    {
+        guard let key = getSecretKey(id: id, accessGroup) else { return nil }
 
         guard let data = CFDataCreate(kCFAllocatorDefault, payload, payload.count) else {
             return nil
@@ -271,12 +331,14 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
         let algorithm: SecKeyAlgorithm = .eciesEncryptionCofactorX963SHA512AESGCM
         var error: Unmanaged<CFError>?
-        guard let decrypted = SecKeyCreateDecryptedData(
-            key,
-            algorithm,
-            data,
-            &error
-        ) as Data? else {
+        guard
+            let decrypted = SecKeyCreateDecryptedData(
+                key,
+                algorithm,
+                data,
+                &error
+            ) as Data?
+        else {
             return nil
         }
 
@@ -287,10 +349,12 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey, @unchecked Sendable {
     private let alias: String
     private let jwkString: String
+    private let accessGroup: String? = nil
 
-    init(alias: String, jwkString: String) {
+    init(alias: String, jwkString: String, accessGroup: String? = nil) {
         self.alias = alias
         self.jwkString = jwkString
+        self.accessGroup = accessGroup
     }
 
     public func jwk() throws -> String {
@@ -298,11 +362,17 @@ public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey, @unchecked Sendable
     }
 
     public func sign(payload: Data) throws -> Data {
-        guard let signature: [UInt8] = KeyManager.signPayload(id: alias, payload: [UInt8](payload)) else {
+        guard
+            let signature: [UInt8] = KeyManager.signPayload(
+                id: alias, payload: [UInt8](payload), accessGroup)
+        else {
             throw KeyManError.signing
         }
-        guard let normalizedSignature: Data =
-               CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(bytes: Data(signature)) else {
+        guard
+            let normalizedSignature: Data =
+                CryptoCurveUtils.secp256r1().ensureRawFixedWidthSignatureEncoding(
+                    bytes: Data(signature))
+        else {
             throw KeyManError.signatureFormat
         }
         return normalizedSignature
