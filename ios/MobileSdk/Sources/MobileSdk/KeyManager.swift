@@ -27,7 +27,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
     public func updateKeychainGroupForKey(id: String, accessGroup: String) -> Bool {
         let tag = id.data(using: .utf8)!
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
@@ -78,7 +78,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
      */
     public static func keyExists(id: String, accessGroup: String? = nil) -> Bool {
         let tag = id.data(using: .utf8)!
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
@@ -99,7 +99,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
      */
     public static func getSecretKey(id: String, accessGroup: String? = nil) -> SecKey? {
         let tag = id.data(using: .utf8)!
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: tag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
@@ -134,7 +134,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             .privateKeyUsage,
             nil)!
 
-        let attributes: [String: Any] = [
+        var attributes: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
             kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
             kSecAttrKeySizeInBits as String: NSNumber(value: 256),
@@ -161,7 +161,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
      * Returns a JWK for a particular secret key by key id.
      */
     public static func getJwk(id: String, accessGroup: String? = nil) -> String? {
-        guard let key = getSecretKey(id: id, accessGroup) else { return nil }
+        guard let key = getSecretKey(id: id, accessGroup: accessGroup) else { return nil }
 
         guard let publicKey = SecKeyCopyPublicKey(key) else {
             return nil
@@ -198,7 +198,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
      * Returns the public key as a CBOR-encoded COSE key byte array
      */
     public static func coseKeyEc2P256PubKey(id: String, accessGroup: String? = nil) -> Data? {
-        guard let key = getSecretKey(id: id, accessGroup),
+        guard let key = getSecretKey(id: id, accessGroup: accessGroup),
             let publicKey = SecKeyCopyPublicKey(key)
         else {
             return nil
@@ -226,7 +226,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     public static func signPayload(id: String, payload: [UInt8], accessGroup: String? = nil)
         -> [UInt8]?
     {
-        guard let key = getSecretKey(id: id, accessGroup) else { return nil }
+        guard let key = getSecretKey(id: id, accessGroup: accessGroup) else { return nil }
 
         guard let data = CFDataCreate(kCFAllocatorDefault, payload, payload.count) else {
             return nil
@@ -261,7 +261,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
             .privateKeyUsage,
             nil)!
 
-        let attributes: [String: Any] = [
+        var attributes: [String: Any] = [
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
             kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
             kSecAttrKeySizeInBits as String: NSNumber(value: 256),
@@ -290,7 +290,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     public static func encryptPayload(id: String, payload: [UInt8], accessGroup: String? = nil) -> (
         [UInt8], [UInt8]
     )? {
-        guard let key = getSecretKey(id: id, accessGroup) else { return nil }
+        guard let key = getSecretKey(id: id, accessGroup: accessGroup) else { return nil }
 
         guard let publicKey = SecKeyCopyPublicKey(key) else {
             return nil
@@ -323,7 +323,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     public static func decryptPayload(id: String, payload: [UInt8], accessGroup: String? = nil)
         -> [UInt8]?
     {
-        guard let key = getSecretKey(id: id, accessGroup) else { return nil }
+        guard let key = getSecretKey(id: id, accessGroup: accessGroup) else { return nil }
 
         guard let data = CFDataCreate(kCFAllocatorDefault, payload, payload.count) else {
             return nil
@@ -349,7 +349,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey, @unchecked Sendable {
     private let alias: String
     private let jwkString: String
-    private let accessGroup: String? = nil
+    private let accessGroup: String?
 
     init(alias: String, jwkString: String, accessGroup: String? = nil) {
         self.alias = alias
@@ -364,7 +364,7 @@ public class P256SigningKey: SpruceIDMobileSdkRs.SigningKey, @unchecked Sendable
     public func sign(payload: Data) throws -> Data {
         guard
             let signature: [UInt8] = KeyManager.signPayload(
-                id: alias, payload: [UInt8](payload), accessGroup)
+                id: alias, payload: [UInt8](payload), accessGroup: accessGroup)
         else {
             throw KeyManError.signing
         }
