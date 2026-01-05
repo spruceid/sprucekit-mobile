@@ -19,7 +19,7 @@ path = "uniffi-bindgen.rs"
 cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", features = [
     "time",
 ] }
-isomdl = { git = "https://github.com/spruceid/isomdl", rev = "1eae8d6" }
+isomdl = { git = "https://github.com/spruceid/isomdl", rev = "6c6f03a" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "081eb4" }
 openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "2b0c8ba" }
 ssi = { version = "0.12", features = ["secp256r1", "secp384r1"] }

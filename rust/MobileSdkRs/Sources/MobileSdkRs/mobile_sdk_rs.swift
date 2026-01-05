@@ -6297,6 +6297,8 @@ public protocol MdlSessionManagerProtocol: AnyObject, Sendable {
     
     func blePeripheralServerDetails()  -> [PeripheralServerDetails]
     
+    func preferredBleMode()  -> BleMode?
+    
 }
 open class MdlSessionManager: MdlSessionManagerProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
@@ -6360,6 +6362,13 @@ open func bleCentralClientDetails() -> [CentralClientDetails]  {
 open func blePeripheralServerDetails() -> [PeripheralServerDetails]  {
     return try!  FfiConverterSequenceTypePeripheralServerDetails.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_mdlsessionmanager_ble_peripheral_server_details(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func preferredBleMode() -> BleMode?  {
+    return try!  FfiConverterOptionTypeBleMode.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdlsessionmanager_preferred_ble_mode(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -8997,6 +9006,375 @@ public func FfiConverterTypePresentableCredential_lift(_ pointer: UnsafeMutableR
 #endif
 public func FfiConverterTypePresentableCredential_lower(_ value: PresentableCredential) -> UnsafeMutableRawPointer {
     return FfiConverterTypePresentableCredential.lower(value)
+}
+
+
+
+
+
+
+public protocol ReaderApduHandoverDriverProtocol: AnyObject, Sendable {
+    
+    func processRapdu(command: Data) throws  -> ReaderApduProgress
+    
+}
+open class ReaderApduHandoverDriver: ReaderApduHandoverDriverProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_readerapduhandoverdriver(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_readerapduhandoverdriver(pointer, $0) }
+    }
+
+    
+
+    
+open func processRapdu(command: Data)throws  -> ReaderApduProgress  {
+    return try  FfiConverterTypeReaderApduProgress_lift(try rustCallWithError(FfiConverterTypeReaderApduHandoverError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_readerapduhandoverdriver_process_rapdu(self.uniffiClonePointer(),
+        FfiConverterData.lower(command),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReaderApduHandoverDriver: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = ReaderApduHandoverDriver
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> ReaderApduHandoverDriver {
+        return ReaderApduHandoverDriver(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: ReaderApduHandoverDriver) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReaderApduHandoverDriver {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: ReaderApduHandoverDriver, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduHandoverDriver_lift(_ pointer: UnsafeMutableRawPointer) throws -> ReaderApduHandoverDriver {
+    return try FfiConverterTypeReaderApduHandoverDriver.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduHandoverDriver_lower(_ value: ReaderApduHandoverDriver) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeReaderApduHandoverDriver.lower(value)
+}
+
+
+
+
+
+
+public protocol ReaderApduHandoverDriverInitProtocol: AnyObject, Sendable {
+    
+}
+open class ReaderApduHandoverDriverInit: ReaderApduHandoverDriverInitProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_readerapduhandoverdriverinit(self.pointer, $0) }
+    }
+    /**
+     * Create a new APDU handover driver for a reader.
+     *
+     * Returns: the driver along with the initial APDU.
+     */
+public convenience init() {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_readerapduhandoverdriverinit_new($0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_readerapduhandoverdriverinit(pointer, $0) }
+    }
+
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReaderApduHandoverDriverInit: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = ReaderApduHandoverDriverInit
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> ReaderApduHandoverDriverInit {
+        return ReaderApduHandoverDriverInit(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: ReaderApduHandoverDriverInit) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReaderApduHandoverDriverInit {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: ReaderApduHandoverDriverInit, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduHandoverDriverInit_lift(_ pointer: UnsafeMutableRawPointer) throws -> ReaderApduHandoverDriverInit {
+    return try FfiConverterTypeReaderApduHandoverDriverInit.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduHandoverDriverInit_lower(_ value: ReaderApduHandoverDriverInit) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeReaderApduHandoverDriverInit.lower(value)
+}
+
+
+
+
+
+
+public protocol ReaderHandoverProtocol: AnyObject, Sendable {
+    
+}
+open class ReaderHandover: ReaderHandoverProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_readerhandover(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_readerhandover(pointer, $0) }
+    }
+
+    
+public static func newQr(qr: String) -> ReaderHandover  {
+    return try!  FfiConverterTypeReaderHandover_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_readerhandover_new_qr(
+        FfiConverterString.lower(qr),$0
+    )
+})
+}
+    
+
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReaderHandover: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = ReaderHandover
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> ReaderHandover {
+        return ReaderHandover(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: ReaderHandover) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReaderHandover {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: ReaderHandover, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderHandover_lift(_ pointer: UnsafeMutableRawPointer) throws -> ReaderHandover {
+    return try FfiConverterTypeReaderHandover.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderHandover_lower(_ value: ReaderHandover) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeReaderHandover.lower(value)
 }
 
 
@@ -14389,6 +14767,79 @@ extension AuthenticationStatus: Equatable, Hashable {}
 
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum BleMode {
+    
+    case centralClient(CentralClientDetails
+    )
+    case peripheralServer(PeripheralServerDetails
+    )
+}
+
+
+#if compiler(>=6)
+extension BleMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBleMode: FfiConverterRustBuffer {
+    typealias SwiftType = BleMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BleMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .centralClient(try FfiConverterTypeCentralClientDetails.read(from: &buf)
+        )
+        
+        case 2: return .peripheralServer(try FfiConverterTypePeripheralServerDetails.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BleMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .centralClient(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeCentralClientDetails.write(v1, into: &buf)
+            
+        
+        case let .peripheralServer(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypePeripheralServerDetails.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBleMode_lift(_ buf: RustBuffer) throws -> BleMode {
+    return try FfiConverterTypeBleMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBleMode_lower(_ value: BleMode) -> RustBuffer {
+    return FfiConverterTypeBleMode.lower(value)
+}
+
+
+extension BleMode: Equatable, Hashable {}
+
+
+
 
 public enum CborLdEncodingError: Swift.Error {
 
@@ -18741,6 +19192,150 @@ extension PresentationError: Foundation.LocalizedError {
 
 
 
+public enum ReaderApduHandoverError: Swift.Error {
+
+    
+    
+    case General(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReaderApduHandoverError: FfiConverterRustBuffer {
+    typealias SwiftType = ReaderApduHandoverError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReaderApduHandoverError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .General(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ReaderApduHandoverError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .General(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduHandoverError_lift(_ buf: RustBuffer) throws -> ReaderApduHandoverError {
+    return try FfiConverterTypeReaderApduHandoverError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduHandoverError_lower(_ value: ReaderApduHandoverError) -> RustBuffer {
+    return FfiConverterTypeReaderApduHandoverError.lower(value)
+}
+
+
+extension ReaderApduHandoverError: Equatable, Hashable {}
+
+
+
+extension ReaderApduHandoverError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum ReaderApduProgress {
+    
+    case inProgress(Data
+    )
+    case done(ReaderHandover
+    )
+}
+
+
+#if compiler(>=6)
+extension ReaderApduProgress: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReaderApduProgress: FfiConverterRustBuffer {
+    typealias SwiftType = ReaderApduProgress
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReaderApduProgress {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .inProgress(try FfiConverterData.read(from: &buf)
+        )
+        
+        case 2: return .done(try FfiConverterTypeReaderHandover.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ReaderApduProgress, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .inProgress(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterData.write(v1, into: &buf)
+            
+        
+        case let .done(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeReaderHandover.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduProgress_lift(_ buf: RustBuffer) throws -> ReaderApduProgress {
+    return try FfiConverterTypeReaderApduProgress.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduProgress_lower(_ value: ReaderApduProgress) -> RustBuffer {
+    return FfiConverterTypeReaderApduProgress.lower(value)
+}
+
+
+
+
+
 public enum RequestError: Swift.Error {
 
     
@@ -21021,6 +21616,30 @@ fileprivate struct FfiConverterOptionTypeActivityLogEntryType: FfiConverterRustB
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeBleMode: FfiConverterRustBuffer {
+    typealias SwiftType = BleMode?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeBleMode.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeBleMode.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]?
 
@@ -22903,10 +23522,10 @@ public func encodeToCborBytes(payload: Data, tagPayload: Bool)throws  -> Data  {
     )
 })
 }
-public func establishSession(uri: String, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?)throws  -> MdlReaderSessionData  {
+public func establishSession(handover: ReaderHandover, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?)throws  -> MdlReaderSessionData  {
     return try  FfiConverterTypeMDLReaderSessionData_lift(try rustCallWithError(FfiConverterTypeMDLReaderSessionError_lift) {
     uniffi_mobile_sdk_rs_fn_func_establish_session(
-        FfiConverterString.lower(uri),
+        FfiConverterTypeReaderHandover_lower(handover),
         FfiConverterDictionaryStringDictionaryStringBool.lower(requestedItems),
         FfiConverterOptionSequenceString.lower(trustAnchorRegistry),$0
     )
@@ -23239,7 +23858,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_encode_to_cbor_bytes() != 25948) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 26937) {
+    if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 48320) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_pop_complete() != 41207) {
@@ -23542,6 +24161,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdlsessionmanager_ble_peripheral_server_details() != 14440) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlsessionmanager_preferred_ble_mode() != 3901) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_generate_response() != 37013) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -23744,6 +24366,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_selective_disclosable() != 24142) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_readerapduhandoverdriver_process_rapdu() != 65181) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_credential_id() != 33906) {
@@ -24062,6 +24687,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_parse_from_credential() != 15018) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_readerapduhandoverdriverinit_new() != 40836) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_readerhandover_new_qr() != 52726) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_saattestationobjectvaluebuilder_new() != 45461) {
