@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = 'SpruceIDMobileSdkRs'
-  spec.version      = '0.13.15'
+  spec.version      = '0.13.16'
   spec.summary      = 'Rust-generated Swift Mobile SDK.'
   spec.description  = <<-DESC
                    Rust layer for the Swift Mobile SDK.
