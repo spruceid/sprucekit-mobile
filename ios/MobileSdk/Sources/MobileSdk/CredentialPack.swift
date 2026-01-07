@@ -150,7 +150,15 @@ public class CredentialPack {
                 let trimmedIsoString = isoDateString.replacingOccurrences(of: "\\.\\d+",
                                                                           with: "",
                                                                           options: .regularExpression)
-                let dateUntil = dateFormatter.date(from: trimmedIsoString)!
+                guard let dateUntil = dateFormatter.date(from: trimmedIsoString) else {
+                    throw CredentialPackError.idService(
+                        reason: NSError(
+                            domain: "CredentialPack",
+                            code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "Failed to parse invalidation date"]
+                        )
+                    )
+                }
                 let registration = MobileDocumentRegistration(
                     mobileDocumentType: "org.iso.18013.5.1.mDL",
                     supportedAuthorityKeyIdentifiers: [],  // TODO

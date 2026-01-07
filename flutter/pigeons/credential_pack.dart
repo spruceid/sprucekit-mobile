@@ -167,12 +167,34 @@ abstract class CredentialPack {
   /// Delete a credential pack
   ///
   /// @param packId The pack identifier
+  /// @param appGroupId Optional App Group ID (iOS) for persistent storage
   /// @return CredentialOperationResult indicating success or error
   @async
-  CredentialOperationResult deletePack(String packId);
+  CredentialOperationResult deletePack(String packId, String? appGroupId);
 
   /// Get all credential pack IDs
   ///
-  /// @return List of pack IDs
+  /// @return List of pack IDs (in-memory only)
   List<String> listPacks();
+
+  /// Save a credential pack to persistent storage
+  ///
+  /// On iOS: Uses StorageManager with App Group for shared storage
+  /// On Android: Uses StorageManager with app-private storage
+  ///
+  /// @param packId The pack identifier
+  /// @param appGroupId Optional App Group ID (iOS only) for shared storage with extensions
+  /// @return CredentialOperationResult indicating success or error
+  @async
+  CredentialOperationResult savePack(String packId, String? appGroupId);
+
+  /// Load all credential packs from persistent storage
+  ///
+  /// On iOS: Uses StorageManager with App Group for shared storage
+  /// On Android: Uses StorageManager with app-private storage
+  ///
+  /// @param appGroupId Optional App Group ID (iOS only) for shared storage with extensions
+  /// @return List of loaded pack IDs
+  @async
+  List<String> loadAllPacks(String? appGroupId);
 }

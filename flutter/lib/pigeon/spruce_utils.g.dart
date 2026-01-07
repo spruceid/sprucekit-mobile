@@ -38,6 +38,7 @@ class GenerateMockMdlSuccess extends GenerateMockMdlResult {
   GenerateMockMdlSuccess({
     required this.packId,
     required this.credentialId,
+    required this.rawCredential,
     required this.keyAlias,
   });
 
@@ -47,6 +48,9 @@ class GenerateMockMdlSuccess extends GenerateMockMdlResult {
   /// The credential ID of the generated mDL
   String credentialId;
 
+  /// The raw mSO mDoc as base64 string for storage
+  String rawCredential;
+
   /// The key alias used for signing
   String keyAlias;
 
@@ -54,6 +58,7 @@ class GenerateMockMdlSuccess extends GenerateMockMdlResult {
     return <Object?>[
       packId,
       credentialId,
+      rawCredential,
       keyAlias,
     ];
   }
@@ -66,7 +71,8 @@ class GenerateMockMdlSuccess extends GenerateMockMdlResult {
     return GenerateMockMdlSuccess(
       packId: result[0]! as String,
       credentialId: result[1]! as String,
-      keyAlias: result[2]! as String,
+      rawCredential: result[2]! as String,
+      keyAlias: result[3]! as String,
     );
   }
 
@@ -183,7 +189,7 @@ class SpruceUtils {
   /// MdlPresentation.initializeQrPresentation().
   ///
   /// @param keyAlias Optional key alias to use (defaults to "testMdl")
-  /// @return Result with packId, credentialId, and keyAlias, or error
+  /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
   Future<GenerateMockMdlResult> generateMockMdl(String? keyAlias) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateMockMdl$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(

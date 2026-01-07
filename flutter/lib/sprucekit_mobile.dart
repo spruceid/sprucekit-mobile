@@ -10,6 +10,7 @@ export 'pigeon/oid4vp.g.dart';
 export 'pigeon/oid4vp_mdoc.g.dart';
 export 'pigeon/mdl_presentation.g.dart';
 export 'pigeon/spruce_utils.g.dart';
+export 'pigeon/dc_api.g.dart';
 
 // Platform View widgets
 export 'src/scanner.dart';

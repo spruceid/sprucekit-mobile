@@ -156,13 +156,34 @@ class CredentialPackAdapter: CredentialPack {
 
     func deletePack(
         packId: String,
+        appGroupId: String?,
         completion: @escaping (Result<CredentialOperationResult, any Error>) -> Void
     ) {
         Task {
-            lock.lock()
-            packs.removeValue(forKey: packId)
-            lock.unlock()
-            completion(.success(CredentialOperationSuccess(unused: nil)))
+            do {
+                // Remove from persistent storage if appGroupId provided
+                if let appGroupId = appGroupId {
+                    let storageManager = StorageManager(appGroupId: appGroupId)
+                    lock.lock()
+                    if let pack = packs[packId] {
+                        lock.unlock()
+                        try await pack.remove(storageManager: storageManager)
+                    } else {
+                        lock.unlock()
+                    }
+                }
+
+                // Remove from in-memory store
+                lock.lock()
+                packs.removeValue(forKey: packId)
+                lock.unlock()
+
+                completion(.success(CredentialOperationSuccess(unused: nil)))
+            } catch {
+                completion(.success(CredentialOperationError(
+                    message: "Failed to delete pack: \(error.localizedDescription)"
+                )))
+            }
         }
     }
 
@@ -171,6 +192,58 @@ class CredentialPackAdapter: CredentialPack {
         let keys = Array(packs.keys)
         lock.unlock()
         return keys
+    }
+
+    func savePack(
+        packId: String,
+        appGroupId: String?,
+        completion: @escaping (Result<CredentialOperationResult, any Error>) -> Void
+    ) {
+        Task {
+            do {
+                lock.lock()
+                guard let pack = packs[packId] else {
+                    lock.unlock()
+                    completion(.success(CredentialOperationError(message: "Pack not found: \(packId)")))
+                    return
+                }
+                lock.unlock()
+
+                let storageManager = StorageManager(appGroupId: appGroupId)
+                try await pack.save(storageManager: storageManager)
+
+                completion(.success(CredentialOperationSuccess(unused: nil)))
+            } catch {
+                completion(.success(CredentialOperationError(
+                    message: "Failed to save pack: \(error.localizedDescription)"
+                )))
+            }
+        }
+    }
+
+    func loadAllPacks(
+        appGroupId: String?,
+        completion: @escaping (Result<[String], any Error>) -> Void
+    ) {
+        Task {
+            do {
+                let storageManager = StorageManager(appGroupId: appGroupId)
+                let loadedPacks = try await SpruceIDMobileSdk.CredentialPack.loadAll(storageManager: storageManager)
+
+                var packIds: [String] = []
+                lock.lock()
+                for pack in loadedPacks {
+                    let packId = pack.id.uuidString
+                    packs[packId] = pack
+                    packIds.append(packId)
+                }
+                lock.unlock()
+
+                completion(.success(packIds))
+            } catch {
+                completion(.success([]))
+            }
+        }
     }
 
     // MARK: - Internal methods for other adapters
@@ -191,6 +264,13 @@ class CredentialPackAdapter: CredentialPack {
         let pack = packs[packId]
         lock.unlock()
         return pack
+    }
+
+    /// Store a native CredentialPack
+    func storePack(packId: String, pack: SpruceIDMobileSdk.CredentialPack) {
+        lock.lock()
+        packs[packId] = pack
+        lock.unlock()
     }
 }
 
