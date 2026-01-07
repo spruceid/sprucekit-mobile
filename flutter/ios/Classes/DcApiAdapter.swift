@@ -8,15 +8,12 @@ import IdentityDocumentServices
 
 /// DC API Adapter for iOS
 ///
-/// Handles syncing credentials to App Group storage and registering
-/// mDoc credentials with iOS IdentityDocumentProvider (iOS 26+)
+/// Handles registering mDoc credentials with iOS IdentityDocumentProvider (iOS 26+)
 class DcApiAdapter: DcApi {
 
     private let credentialPackAdapter: CredentialPackAdapter
     private var registeredCredentials: [String: RegisteredCredentialInfo] = [:]
     private let lock = NSLock()
-
-    private static let SIGN_KEY = "keys/sign/default"
 
     init(credentialPackAdapter: CredentialPackAdapter) {
         self.credentialPackAdapter = credentialPackAdapter
@@ -27,95 +24,11 @@ class DcApiAdapter: DcApi {
         packIds: [String],
         completion: @escaping (Result<DcApiResult, Error>) -> Void
     ) {
-        Task {
-            do {
-                guard let groupURL = FileManager.default.containerURL(
-                    forSecurityApplicationGroupIdentifier: appGroupId
-                ) else {
-                    completion(.success(DcApiError(
-                        message: "Failed to get App Group container URL for: \(appGroupId)"
-                    )))
-                    return
-                }
-
-                // Ensure encryption key exists
-                if !KeyManager.keyExists(id: "keys/encrypt/default") {
-                    KeyManager.generateEncryptionKey(id: "keys/encrypt/default")
-                }
-
-                // Collect all credentials from all packs
-                var credentialsMap: [String: [String: Any]] = [:]
-
-                for packId in packIds {
-                    let credentials = credentialPackAdapter.getNativeCredentials(packId: packId)
-                    for credential in credentials {
-                        let credId = credential.id()
-
-                        // Store credential in appropriate format
-                        if let jwtVc = credential.asJwtVc() {
-                            credentialsMap[credId] = [
-                                "data": [
-                                    "jwt": jwtVc.credentialAsJsonEncodedUtf8String()
-                                ]
-                            ]
-                        } else if let jsonVc = credential.asJsonVc() {
-                            credentialsMap[credId] = [
-                                "data": [
-                                    "verifiableCredential": jsonVc.credentialAsJsonEncodedUtf8String()
-                                ]
-                            ]
-                        } else if credential.asMsoMdoc() != nil {
-                            // For mDoc, use the stored raw credential
-                            if let rawCredential = credentialPackAdapter.getRawCredential(credentialId: credId) {
-                                credentialsMap[credId] = [
-                                    "data": [
-                                        "mso_mdoc": rawCredential
-                                    ]
-                                ]
-                            }
-                        }
-                    }
-                }
-
-                // Serialize to JSON
-                let jsonData = try JSONSerialization.data(
-                    withJSONObject: credentialsMap,
-                    options: []
-                )
-
-                // Encrypt the data
-                guard let (_, encrypted) = KeyManager.encryptPayload(
-                    id: "keys/encrypt/default",
-                    payload: [UInt8](jsonData)
-                ) else {
-                    completion(.success(DcApiError(
-                        message: "Failed to encrypt credential data"
-                    )))
-                    return
-                }
-
-                // Use encrypted data directly (ECIES encryption is self-contained)
-                let encryptedData = Data(encrypted)
-
-                // Create signed payload format: header.payload
-                let header = "dcapi"
-                let payload = encryptedData.base64EncodedUrlSafe
-                let content = "\(header).\(payload)"
-
-                // Write to App Group
-                let filePath = groupURL.appendingPathComponent("credentials.encrypted")
-                try content.write(to: filePath, atomically: true, encoding: .utf8)
-
-                completion(.success(DcApiSuccess(
-                    message: "Synced \(credentialsMap.count) credentials to App Group"
-                )))
-
-            } catch {
-                completion(.success(DcApiError(
-                    message: "Failed to sync credentials: \(error.localizedDescription)"
-                )))
-            }
-        }
+        // Not needed on iOS - credentials are loaded directly via CredentialPack.loadAll()
+        // from the App Group StorageManager by the Extension
+        completion(.success(DcApiSuccess(
+            message: "Sync not needed on iOS (Extension uses StorageManager directly)"
+        )))
     }
 
     func registerCredentials(
@@ -244,14 +157,3 @@ class DcApiAdapter: DcApi {
     }
 }
 
-// MARK: - Data Extensions
-
-extension Data {
-    var base64EncodedUrlSafe: String {
-        let string = self.base64EncodedString()
-        return string
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
-    }
-}

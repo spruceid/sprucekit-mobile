@@ -47,12 +47,6 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
                     return
                 }
 
-                // Store raw credential for DC API sync
-                self.credentialPackAdapter.storeRawCredential(
-                    credentialId: credential.id(),
-                    rawCredential: rawCredentialBase64
-                )
-
                 completion(.success(GenerateMockMdlSuccess(
                     packId: packId,
                     credentialId: credential.id(),
