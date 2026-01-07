@@ -10,6 +10,7 @@ const String _appGroupId = 'group.com.spruceid.sprucekit.flutterexampleapp';
 /// This demo shows how to prepare credentials for the DC API:
 /// 1. Generate a mock mDL credential (automatically registers with iOS ID Provider)
 /// 2. Save to persistent storage (App Group on iOS)
+/// 3. Register with DC API (Android only)
 ///
 /// Once registered, websites can request credentials via the browser's
 /// Digital Credentials API. The request is handled by a native App Extension
@@ -141,6 +142,25 @@ class _DcApiDemoState extends State<DcApiDemo> {
       }
 
       setState(() {
+        _status = 'Registering with DC API...';
+      });
+
+      // Step 3: Register with DC API
+      final allPackIds = _packs.map((p) => p.packId).toList();
+      final registerResult = await _dcApi.registerCredentials(
+        allPackIds,
+        'SpruceKit Flutter Example',
+      );
+
+      if (registerResult is DcApiError) {
+        setState(() {
+          _status = 'Registration error: ${registerResult.message}';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      setState(() {
         _status = 'mDL created and registered!';
         _isLoading = false;
       });
@@ -159,6 +179,14 @@ class _DcApiDemoState extends State<DcApiDemo> {
     });
 
     try {
+      // Step 1: Unregister credential from iOS ID Provider
+      final credentials = await _credentialPack.listCredentials(packId);
+      final credentialIds = credentials.map((c) => c.id).toList();
+      if (credentialIds.isNotEmpty) {
+        await _dcApi.unregisterCredentials(credentialIds);
+      }
+
+      // Step 2: Delete the pack from storage
       final result = await _credentialPack.deletePack(packId, _appGroupId);
       if (result is CredentialOperationError) {
         setState(() {
@@ -169,6 +197,16 @@ class _DcApiDemoState extends State<DcApiDemo> {
       }
 
       _packs.removeWhere((p) => p.packId == packId);
+
+      // Step 3: Re-register remaining packs with DC API
+      // This updates Android's CredentialManager registry with the current list
+      final remainingPackIds = _packs.map((p) => p.packId).toList();
+      if (remainingPackIds.isNotEmpty) {
+        setState(() {
+          _status = 'Updating registry...';
+        });
+        await _dcApi.registerCredentials(remainingPackIds, 'SpruceKit Flutter Example');
+      }
 
       setState(() {
         _status = 'Pack deleted';
