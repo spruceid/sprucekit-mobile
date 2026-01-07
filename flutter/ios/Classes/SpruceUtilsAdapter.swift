@@ -40,7 +40,7 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
                 let genericCredential = try parsedCredential.intoGenericForm()
                 let rawCredentialBase64 = genericCredential.payload.base64EncodedString()
 
-                // Add the mDL to the pack (async)
+                // Add the mDL to the pack (also registers with ID Provider on iOS 26+)
                 let credentials = try await pack.addMDoc(mdoc: mdl)
                 guard let credential = credentials.first else {
                     completion(.success(GenerateMockMdlError(message: "Failed to add mDL to pack")))

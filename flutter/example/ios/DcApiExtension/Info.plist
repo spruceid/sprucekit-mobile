@@ -25,5 +25,7 @@
 	</dict>
 	<key>storageAppGroup</key>
 	<string>group.com.spruceid.sprucekit.flutterexampleapp</string>
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
 </dict>
 </plist>

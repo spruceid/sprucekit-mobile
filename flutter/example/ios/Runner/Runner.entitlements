@@ -12,7 +12,7 @@
 	</array>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)com.spruceid.sprucekit.flutterexampleapp</string>
+		<string>$(AppIdentifierPrefix)keychain.com.spruceid.sprucekit.flutterexampleapp</string>
 	</array>
 </dict>
 </plist>

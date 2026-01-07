@@ -14,13 +14,11 @@ import Foundation
 
 // MARK: - Configuration
 
-/// App Group ID - must match the one used in the main Flutter app
-/// Change this to match your app's App Group ID
-private let appGroupId = "group.com.spruceid.sprucekit.flutterexampleapp"
-
-/// Key identifiers for KeyManager
-private let encryptKeyId = "keys/encrypt/default"
-private let signKeyId = "keys/sign/default"
+/// Get App Group ID from Info.plist (storageAppGroup key)
+/// This must match the App Group ID configured in entitlements
+private var appGroupId: String? {
+    Bundle.main.object(forInfoDictionaryKey: "storageAppGroup") as? String
+}
 
 // MARK: - State
 
@@ -54,14 +52,16 @@ public struct DocumentProviderExtensionView: View {
             case .selectCredential(let matches):
                 CredentialSelectorView(matches: matches) { selected in
                     if let origin = context.requestingWebsiteOrigin {
-                        do {
-                            let credentials = try loadCredentials()
-                            state = .selectFields(selected, credentials, origin)
-                        } catch {
-                            state = .error(
-                                title: "Failed to load credentials",
-                                details: error.localizedDescription
-                            )
+                        Task {
+                            do {
+                                let credentials = try await loadCredentialsAsync()
+                                state = .selectFields(selected, credentials, origin)
+                            } catch {
+                                state = .error(
+                                    title: "Failed to load credentials",
+                                    details: error.localizedDescription
+                                )
+                            }
                         }
                     }
                 } onCancel: {
@@ -97,8 +97,8 @@ public struct DocumentProviderExtensionView: View {
 
     private func loadAndMatchCredentials() async {
         do {
-            // Load credentials from App Group
-            let credentials = try loadCredentials()
+            // Load credentials from StorageManager (App Group)
+            let credentials = try await loadCredentialsAsync()
 
             // Convert iOS request to SDK format
             let presentmentRequests = context.request.presentmentRequests.map { presentmentRequest in
@@ -178,106 +178,18 @@ public struct DocumentProviderExtensionView: View {
 
 // MARK: - Credential Loading
 
-/// Loads credentials from App Group shared storage
-private func loadCredentials() throws -> [ParsedCredential] {
-    guard let groupPath = FileManager.default.containerURL(
-        forSecurityApplicationGroupIdentifier: appGroupId
-    ) else {
-        throw DcApiError.appGroupNotFound
+/// Loads credentials from StorageManager using App Group
+private func loadCredentialsAsync() async throws -> [ParsedCredential] {
+    guard let groupId = appGroupId else {
+        return []
     }
 
-    let fullPath = groupPath.appendingPathComponent("credentials.encrypted")
-    let path = fullPath.path
+    let storageManager = StorageManager(appGroupId: groupId)
+    let credentialPacks = try await CredentialPack.loadAll(storageManager: storageManager)
 
-    guard FileManager.default.fileExists(atPath: path) else {
-        throw DcApiError.noCredentialsFile
-    }
-
-    let value = try String(contentsOfFile: path, encoding: .utf8)
-    let decoded = value.split(separator: ".").map(String.init)
-
-    guard decoded.count == 2 else {
-        throw DcApiError.invalidFileFormat
-    }
-
-    guard let encryptedData = Data(base64EncodedURLSafe: decoded[1]) else {
-        throw DcApiError.base64DecodeFailed
-    }
-
-    let encrypted = [UInt8](encryptedData)
-    guard let decrypted = KeyManager.decryptPayload(id: encryptKeyId, payload: encrypted) else {
-        throw DcApiError.decryptionFailed
-    }
-
-    // Parse the credential pack JSON
-    let json = try JSONDecoder().decode(GenericJSON.self, from: Data(decrypted))
-
-    guard let map = json.dictValue else {
-        throw DcApiError.invalidDataFormat
-    }
-
-    return map.keys.flatMap { key -> [ParsedCredential] in
-        var credentials: [ParsedCredential] = []
-
-        // Try to parse mso_mdoc credential
-        if case .string(let msoMdoc) = map[key]?.queryKeyPath(["data", "mso_mdoc"]) {
-            do {
-                let credential = try ParsedCredential.newFromStringWithFormat(
-                    format: "mso_mdoc",
-                    credential: msoMdoc,
-                    keyAlias: signKeyId
-                )
-                credentials.append(credential)
-            } catch {
-                print("[DC API Extension] Failed to parse mso_mdoc: \(error)")
-            }
-        }
-
-        // Try to parse jwt_vc_json credential
-        if case .string(let jwt) = map[key]?.queryKeyPath(["data", "jwt"]) {
-            do {
-                let credential = try ParsedCredential.newFromStringWithFormat(
-                    format: "jwt_vc_json",
-                    credential: jwt,
-                    keyAlias: signKeyId
-                )
-                credentials.append(credential)
-            } catch {
-                print("[DC API Extension] Failed to parse jwt: \(error)")
-            }
-        }
-
-        return credentials
-    }
+    return credentialPacks.flatMap { $0.list() }
 }
 
-// MARK: - Errors
-
-enum DcApiError: LocalizedError {
-    case appGroupNotFound
-    case noCredentialsFile
-    case invalidFileFormat
-    case base64DecodeFailed
-    case decryptionFailed
-    case invalidDataFormat
-
-    var errorDescription: String? {
-        switch self {
-        case .appGroupNotFound:
-            return "App Group container not found. Ensure App Groups are properly configured."
-        case .noCredentialsFile:
-            return "No credentials file found. Sync credentials from the main app first."
-        case .invalidFileFormat:
-            return "Invalid credentials file format."
-        case .base64DecodeFailed:
-            return "Failed to decode Base64 data."
-        case .decryptionFailed:
-            return "Failed to decrypt credentials. Ensure KeyManager is properly set up."
-        case .invalidDataFormat:
-            return "Invalid credential data format."
-        }
-    }
-}
 
 // MARK: - Helper Views
 
@@ -569,27 +481,6 @@ struct FieldRow: View {
                 onToggle()
             }
         }
-    }
-}
-
-// MARK: - Extensions
-
-extension Data {
-    /// Decodes URL-safe Base64 string
-    init?(base64EncodedURLSafe string: String, options: Base64DecodingOptions = []) {
-        let standardBase64 = string
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-
-        self.init(base64Encoded: standardBase64, options: options)
-    }
-
-    /// Encodes to URL-safe Base64 string
-    var base64EncodedURLSafe: String {
-        base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
     }
 }
 

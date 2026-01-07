@@ -49,8 +49,10 @@ end
 
 target 'DcApiExtension' do
   use_frameworks!
-  pod 'SpruceIDMobileSdk', :path => '../../../'
+  pod 'SpruceIDMobileSdkRsRustFramework', :path => '../../../'
   pod 'SpruceIDMobileSdkRs', :path => '../../../'
+  pod 'SpruceIDMobileSdk', :path => '../../../'
+  pod 'SwiftAlgorithms', '~> 1.0.0'
 end
 
 post_install do |installer|
@@ -64,6 +66,29 @@ post_install do |installer|
         'PERMISSION_CAMERA=1',
         'PERMISSION_BLUETOOTH=1',
       ]
+    end
+  end
+
+  # Add Embed Pods Frameworks script phase for DcApiExtension
+  # This is needed because extensions with use_frameworks! need frameworks embedded
+  main_project = installer.aggregate_targets.map(&:user_project).first
+  if main_project
+    main_project.targets.each do |target|
+      if target.name == 'DcApiExtension'
+        # Disable user script sandboxing so CocoaPods scripts can run
+        target.build_configurations.each do |config|
+          config.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+        end
+
+        # Check if script phase already exists
+        phase_name = '[CP] Embed Pods Frameworks'
+        unless target.shell_script_build_phases.any? { |phase| phase.name == phase_name }
+          phase = target.new_shell_script_build_phase(phase_name)
+          phase.shell_script = "\"${PODS_ROOT}/Target Support Files/Pods-DcApiExtension/Pods-DcApiExtension-frameworks.sh\"\n"
+          phase.show_env_vars_in_log = '0'
+        end
+        main_project.save
+      end
     end
   end
 end

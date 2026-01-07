@@ -20,6 +20,7 @@ DEPENDENCIES:
   - SpruceIDMobileSdkRs (from `../../../`)
   - SpruceIDMobileSdkRsRustFramework (from `../../../`)
   - sprucekit_mobile (from `.symlinks/plugins/sprucekit_mobile/ios`)
+  - SwiftAlgorithms (~> 1.0.0)
 
 SPEC REPOS:
   trunk:
@@ -48,6 +49,6 @@ SPEC CHECKSUMS:
   sprucekit_mobile: b57f26f2145bdc84dacf4cedf97473d80cd859df
   SwiftAlgorithms: 38dda4731d19027fdeee1125f973111bf3386b53
 
-PODFILE CHECKSUM: aca402c290c05beb1f7360c86e62625c6c7ed3f6
+PODFILE CHECKSUM: b69b363296c914f73d8c30eef22e70abce1812bc
 
 COCOAPODS: 1.16.2

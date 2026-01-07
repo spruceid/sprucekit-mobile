@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:sprucekit_mobile/sprucekit_mobile.dart';
 
+/// App Group ID for sharing credentials with the iOS DC API extension
+/// Must match the App Group ID in Runner.entitlements and DcApiExtension.entitlements
+const String _appGroupId = 'group.com.spruceid.sprucekit.flutterexampleapp';
+
 /// Demo screen for the Digital Credentials API integration
 ///
 /// This demo shows how to prepare credentials for the DC API:
-/// 1. Generate a mock mDL credential
-/// 2. Sync credentials to App Group (for iOS Extension access)
-/// 3. Register credentials with the platform's identity provider
+/// 1. Generate a mock mDL credential (automatically registers with iOS ID Provider)
+/// 2. Save to persistent storage (App Group on iOS)
 ///
 /// Once registered, websites can request credentials via the browser's
 /// Digital Credentials API. The request is handled by a native App Extension
@@ -21,25 +24,68 @@ class DcApiDemo extends StatefulWidget {
 class _DcApiDemoState extends State<DcApiDemo> {
   final _dcApi = DcApi();
   final _spruceUtils = SpruceUtils();
+  final _credentialPack = CredentialPack();
 
   String _status = 'Ready';
   bool _isSupported = false;
   bool _isLoading = false;
-  bool _hasMdl = false;
-  bool _isSynced = false;
-  bool _isRegistered = false;
 
-  String? _packId;
-  String? _credentialId;
-
-  // App Group ID - must match the one configured in iOS
-  // Change this to match your app's App Group ID
-  static const _appGroupId = 'group.com.spruceid.sprucekit.flutterexampleapp';
+  // Track all packs and their states
+  List<_PackInfo> _packs = [];
 
   @override
   void initState() {
     super.initState();
-    _checkSupport();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    await _checkSupport();
+    await _loadPersistedPacks();
+  }
+
+  Future<void> _loadPersistedPacks() async {
+    setState(() {
+      _isLoading = true;
+      _status = 'Loading saved credentials...';
+    });
+
+    try {
+      // Load all packs from StorageManager (uses App Group on iOS)
+      final packIds = await _credentialPack.loadAllPacks(_appGroupId);
+
+      if (packIds.isNotEmpty) {
+        // Get credential info for each pack
+        final loadedPacks = <_PackInfo>[];
+        for (final packId in packIds) {
+          final credentials = await _credentialPack.listCredentials(packId);
+          final hasMdl = credentials.any((c) => c.format == CredentialFormat.msoMdoc);
+          loadedPacks.add(_PackInfo(
+            packId: packId,
+            credentialCount: credentials.length,
+            hasMdl: hasMdl,
+            isRegistered: true, // Assume registered if persisted
+          ));
+        }
+
+        setState(() {
+          _packs = loadedPacks;
+          _status = 'Loaded ${packIds.length} saved credential pack(s)';
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _status = 'Ready';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load persisted packs: $e');
+      setState(() {
+        _status = 'Ready';
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _checkSupport() async {
@@ -49,29 +95,55 @@ class _DcApiDemoState extends State<DcApiDemo> {
     });
   }
 
-  Future<void> _generateMockMdl() async {
+  Future<void> _generateAndRegisterMockMdl() async {
     setState(() {
       _isLoading = true;
       _status = 'Generating mock mDL...';
     });
 
     try {
-      final result = await _spruceUtils.generateMockMdl('dc_api_test_mdl');
+      // Step 1: Generate mock mDL
+      final keyAlias = 'dc_api_test_mdl_${DateTime.now().millisecondsSinceEpoch}';
+      final result = await _spruceUtils.generateMockMdl(keyAlias);
 
-      if (result is GenerateMockMdlSuccess) {
-        setState(() {
-          _packId = result.packId;
-          _credentialId = result.credentialId;
-          _hasMdl = true;
-          _status = 'Mock mDL generated successfully';
-          _isLoading = false;
-        });
-      } else if (result is GenerateMockMdlError) {
+      if (result is GenerateMockMdlError) {
         setState(() {
           _status = 'Error: ${result.message}';
           _isLoading = false;
         });
+        return;
       }
+
+      final success = result as GenerateMockMdlSuccess;
+      final packId = success.packId;
+
+      // Add to our list (already registered via addMDoc)
+      final newPack = _PackInfo(
+        packId: packId,
+        credentialCount: 1,
+        hasMdl: true,
+        isRegistered: true,
+      );
+      _packs.add(newPack);
+
+      setState(() {
+        _status = 'Saving to storage...';
+      });
+
+      // Step 2: Save pack to StorageManager (uses App Group on iOS)
+      final saveResult = await _credentialPack.savePack(packId, _appGroupId);
+      if (saveResult is CredentialOperationError) {
+        setState(() {
+          _status = 'Save error: ${saveResult.message}';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _status = 'mDL created and registered!';
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _status = 'Error: $e';
@@ -80,79 +152,34 @@ class _DcApiDemoState extends State<DcApiDemo> {
     }
   }
 
-  Future<void> _syncToAppGroup() async {
-    if (_packId == null) return;
-
+  Future<void> _deletePack(String packId) async {
     setState(() {
       _isLoading = true;
-      _status = 'Syncing to App Group...';
+      _status = 'Deleting pack...';
     });
 
     try {
-      final result = await _dcApi.syncCredentialsToAppGroup(_appGroupId, [
-        _packId!,
-      ]);
-
-      if (result is DcApiSuccess) {
+      final result = await _credentialPack.deletePack(packId, _appGroupId);
+      if (result is CredentialOperationError) {
         setState(() {
-          _isSynced = true;
-          _status = result.message ?? 'Synced successfully';
+          _status = 'Delete error: ${result.message}';
           _isLoading = false;
         });
-      } else if (result is DcApiError) {
-        setState(() {
-          _status = 'Error: ${result.message}';
-          _isLoading = false;
-        });
+        return;
       }
+
+      _packs.removeWhere((p) => p.packId == packId);
+
+      setState(() {
+        _status = 'Pack deleted';
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _status = 'Error: $e';
         _isLoading = false;
       });
     }
-  }
-
-  Future<void> _registerCredentials() async {
-    if (_packId == null) return;
-
-    setState(() {
-      _isLoading = true;
-      _status = 'Registering with platform...';
-    });
-
-    try {
-      final result = await _dcApi.registerCredentials([_packId!], 'SpruceKit Example');
-
-      if (result is DcApiSuccess) {
-        setState(() {
-          _isRegistered = true;
-          _status = result.message ?? 'Registered successfully';
-          _isLoading = false;
-        });
-      } else if (result is DcApiError) {
-        setState(() {
-          _status = 'Error: ${result.message}';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _status = 'Error: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  void _reset() {
-    setState(() {
-      _hasMdl = false;
-      _isSynced = false;
-      _isRegistered = false;
-      _packId = null;
-      _credentialId = null;
-      _status = 'Ready';
-    });
   }
 
   @override
@@ -160,14 +187,6 @@ class _DcApiDemoState extends State<DcApiDemo> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('DC API Demo'),
-        actions: [
-          if (_hasMdl)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _reset,
-              tooltip: 'Reset',
-            ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -178,10 +197,12 @@ class _DcApiDemoState extends State<DcApiDemo> {
                 children: [
                   _buildSupportCard(),
                   const SizedBox(height: 16),
-                  _buildStepsCard(),
+                  _buildActionsCard(),
                   const SizedBox(height: 16),
                   _buildStatusCard(),
-                  if (_isRegistered) ...[
+                  const SizedBox(height: 16),
+                  _buildPacksCard(),
+                  if (_packs.any((p) => p.isRegistered)) ...[
                     const SizedBox(height: 16),
                     _buildReadyCard(),
                   ],
@@ -239,97 +260,29 @@ class _DcApiDemoState extends State<DcApiDemo> {
     );
   }
 
-  Widget _buildStepsCard() {
+  Widget _buildActionsCard() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Setup Steps', style: Theme.of(context).textTheme.titleMedium),
+            Text('Actions', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
-
-            // Step 1: Generate mDL
-            _buildStepTile(
-              step: 1,
-              title: 'Generate Test mDL',
-              subtitle: 'Create a mock mobile driver\'s license',
-              isCompleted: _hasMdl,
-              isEnabled: !_hasMdl,
-              onTap: _generateMockMdl,
-            ),
-
-            // Step 2: Sync to App Group
-            _buildStepTile(
-              step: 2,
-              title: 'Sync to App Group',
-              subtitle: 'Make credentials accessible to DC API Extension',
-              isCompleted: _isSynced,
-              isEnabled: _hasMdl && !_isSynced,
-              onTap: _syncToAppGroup,
-            ),
-
-            // Step 3: Register
-            _buildStepTile(
-              step: 3,
-              title: 'Register with Platform',
-              subtitle:
-                  'Register credentials with iOS/Android identity provider',
-              isCompleted: _isRegistered,
-              isEnabled: _isSynced && !_isRegistered,
-              onTap: _registerCredentials,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: _generateAndRegisterMockMdl,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Generate & Register mDL'),
+                ),
+              ],
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildStepTile({
-    required int step,
-    required String title,
-    required String subtitle,
-    required bool isCompleted,
-    required bool isEnabled,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: isCompleted
-            ? Colors.green
-            : isEnabled
-            ? Theme.of(context).colorScheme.primary
-            : Colors.grey.shade300,
-        child: isCompleted
-            ? const Icon(Icons.check, color: Colors.white)
-            : Text(
-                '$step',
-                style: TextStyle(
-                  color: isEnabled ? Colors.white : Colors.grey.shade600,
-                ),
-              ),
-      ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: isEnabled ? FontWeight.bold : FontWeight.normal,
-          color: isCompleted
-              ? Colors.grey
-              : isEnabled
-              ? null
-              : Colors.grey,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(color: isCompleted || !isEnabled ? Colors.grey : null),
-      ),
-      trailing: isCompleted
-          ? null
-          : ElevatedButton(
-              onPressed: isEnabled ? onTap : null,
-              child: const Text('Run'),
-            ),
     );
   }
 
@@ -343,20 +296,122 @@ class _DcApiDemoState extends State<DcApiDemo> {
             Text('Status', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(_status),
-            if (_credentialId != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Credential ID: ${_credentialId!.substring(0, 8)}...',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
+  Widget _buildPacksCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Credential Packs (${_packs.length})',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                if (_packs.isNotEmpty)
+                  Text(
+                    '${_packs.where((p) => p.isRegistered).length} registered',
+                    style: TextStyle(
+                      color: Colors.green.shade700,
+                      fontSize: 12,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (_packs.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(
+                  child: Text(
+                    'No credential packs yet.\nTap "Generate mDL" to create one.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _packs.length,
+                separatorBuilder: (context, index) => const Divider(),
+                itemBuilder: (context, index) {
+                  final pack = _packs[index];
+                  return _buildPackTile(pack);
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPackTile(_PackInfo pack) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+        backgroundColor: pack.isRegistered
+            ? Colors.green.shade100
+            : Colors.grey.shade100,
+        child: Icon(
+          pack.hasMdl ? Icons.badge : Icons.credit_card,
+          color: pack.isRegistered
+              ? Colors.green.shade700
+              : Colors.grey.shade700,
+        ),
+      ),
+      title: Text(
+        pack.hasMdl ? 'Mobile Driver\'s License' : 'Credential Pack',
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ID: ${pack.packId.substring(0, 8)}...',
+            style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: pack.isRegistered
+                  ? Colors.green.shade100
+                  : Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              pack.isRegistered ? 'Registered' : 'Pending',
+              style: TextStyle(
+                fontSize: 10,
+                color: pack.isRegistered
+                    ? Colors.green.shade700
+                    : Colors.grey.shade700,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+      trailing: IconButton(
+        icon: const Icon(Icons.delete_outline, color: Colors.red),
+        onPressed: () => _deletePack(pack.packId),
+        tooltip: 'Delete pack',
+      ),
+    );
+  }
+
   Widget _buildReadyCard() {
+    final registeredCount = _packs.where((p) => p.isRegistered).length;
     return Card(
       color: Colors.green.shade50,
       child: Padding(
@@ -380,8 +435,8 @@ class _DcApiDemoState extends State<DcApiDemo> {
             ),
             const SizedBox(height: 12),
             Text(
-              'Your mDL is now registered and ready to be presented via the '
-              'Digital Credentials API.\n\n'
+              '$registeredCount credential(s) registered and ready to be presented '
+              'via the Digital Credentials API.\n\n'
               'To test:\n'
               '1. Open Safari (iOS) or Chrome (Android)\n'
               '2. Visit a website that supports DC API credential requests\n'
@@ -393,4 +448,19 @@ class _DcApiDemoState extends State<DcApiDemo> {
       ),
     );
   }
+}
+
+/// Information about a credential pack
+class _PackInfo {
+  final String packId;
+  final int credentialCount;
+  final bool hasMdl;
+  bool isRegistered;
+
+  _PackInfo({
+    required this.packId,
+    required this.credentialCount,
+    required this.hasMdl,
+    this.isRegistered = false,
+  });
 }

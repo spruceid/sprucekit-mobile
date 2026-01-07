@@ -131,69 +131,43 @@ class DcApiAdapter: DcApi {
                 var errors: [String] = []
 
                 for packId in packIds {
-                    let credentials = credentialPackAdapter.getNativeCredentials(packId: packId)
-                    for credential in credentials {
-                        guard let mdoc = credential.asMsoMdoc() else {
-                            continue
-                        }
+                    // Get the native CredentialPack and use SDK's registration method
+                    guard let credentialPack = credentialPackAdapter.getNativePack(packId: packId) else {
+                        errors.append("CredentialPack not found for packId: \(packId)")
+                        continue
+                    }
 
-                        // Only register mDL documents
-                        guard mdoc.doctype() == "org.iso.18013.5.1.mDL" else {
-                            continue
-                        }
+                    // Count mDL credentials before registration
+                    let credentials = credentialPack.list()
+                    let mdlCredentials = credentials.filter { credential in
+                        credential.asMsoMdoc()?.doctype() == "org.iso.18013.5.1.mDL"
+                    }
+                    let mdlCount = mdlCredentials.count
 
-                        let credentialId = credential.id()
-                        let docType = mdoc.doctype()
+                    if mdlCount == 0 {
+                        continue
+                    }
 
-                        // Try to register directly with IdentityDocumentProvider
-                        if #available(iOS 26.0, *) {
-                            #if canImport(IdentityDocumentServices)
-                            do {
-                                let store = IdentityDocumentProviderRegistrationStore()
+                    // Use SDK's method which handles notAuthorized gracefully
+                    do {
+                        try await credentialPack.registerUnregisteredIDProviderDocuments()
+                        registeredCount += mdlCount
 
-                                // Parse invalidation date
-                                let dateFormatter = ISO8601DateFormatter()
-                                let isoDateString = try mdoc.invalidationDate()
-                                let trimmedIsoString = isoDateString.replacingOccurrences(
-                                    of: "\\.\\d+",
-                                    with: "",
-                                    options: .regularExpression
-                                )
-                                guard let dateUntil = dateFormatter.date(from: trimmedIsoString) else {
-                                    errors.append("Failed to parse invalidation date")
-                                    continue
-                                }
-
-                                let registration = MobileDocumentRegistration(
-                                    mobileDocumentType: "org.iso.18013.5.1.mDL",
-                                    supportedAuthorityKeyIdentifiers: [],
-                                    documentIdentifier: credentialId,
-                                    invalidationDate: dateUntil
-                                )
-
-                                try await store.addRegistration(registration)
-                                print("[DC API] Successfully registered credential: \(credentialId)")
-                                registeredCount += 1
-
+                        // Track registered credentials
+                        for credential in credentials {
+                            if let mdoc = credential.asMsoMdoc(), mdoc.doctype() == "org.iso.18013.5.1.mDL" {
                                 lock.lock()
-                                registeredCredentials[credentialId] = RegisteredCredentialInfo(
-                                    credentialId: credentialId,
-                                    docType: docType,
+                                registeredCredentials[credential.id()] = RegisteredCredentialInfo(
+                                    credentialId: credential.id(),
+                                    docType: mdoc.doctype(),
                                     isRegistered: true
                                 )
                                 lock.unlock()
-
-                            } catch {
-                                let errorMsg = "Registration failed: \(error.localizedDescription)"
-                                print("[DC API] \(errorMsg)")
-                                errors.append(errorMsg)
                             }
-                            #else
-                            errors.append("IdentityDocumentServices not available")
-                            #endif
-                        } else {
-                            errors.append("iOS 26+ required for DC API")
                         }
+                    } catch {
+                        let errorMsg = "Registration failed: \(error)"
+                        errors.append(errorMsg)
                     }
                 }
 
