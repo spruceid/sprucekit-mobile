@@ -60,13 +60,17 @@ class _DcApiDemoState extends State<DcApiDemo> {
         final loadedPacks = <_PackInfo>[];
         for (final packId in packIds) {
           final credentials = await _credentialPack.listCredentials(packId);
-          final hasMdl = credentials.any((c) => c.format == CredentialFormat.msoMdoc);
-          loadedPacks.add(_PackInfo(
-            packId: packId,
-            credentialCount: credentials.length,
-            hasMdl: hasMdl,
-            isRegistered: true, // Assume registered if persisted
-          ));
+          final hasMdl = credentials.any(
+            (c) => c.format == CredentialFormat.msoMdoc,
+          );
+          loadedPacks.add(
+            _PackInfo(
+              packId: packId,
+              credentialCount: credentials.length,
+              hasMdl: hasMdl,
+              isRegistered: true, // Assume registered if persisted
+            ),
+          );
         }
 
         setState(() {
@@ -104,7 +108,8 @@ class _DcApiDemoState extends State<DcApiDemo> {
 
     try {
       // Step 1: Generate mock mDL
-      final keyAlias = 'dc_api_test_mdl_${DateTime.now().millisecondsSinceEpoch}';
+      final keyAlias =
+          'dc_api_test_mdl_${DateTime.now().millisecondsSinceEpoch}';
       final result = await _spruceUtils.generateMockMdl(keyAlias);
 
       if (result is GenerateMockMdlError) {
@@ -205,7 +210,10 @@ class _DcApiDemoState extends State<DcApiDemo> {
         setState(() {
           _status = 'Updating registry...';
         });
-        await _dcApi.registerCredentials(remainingPackIds, 'SpruceKit Flutter Example');
+        await _dcApi.registerCredentials(
+          remainingPackIds,
+          'SpruceKit Flutter Example',
+        );
       }
 
       setState(() {
@@ -223,9 +231,7 @@ class _DcApiDemoState extends State<DcApiDemo> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('DC API Demo'),
-      ),
+      appBar: AppBar(title: const Text('DC API Demo')),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
