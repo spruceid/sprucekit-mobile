@@ -5,7 +5,11 @@ use std::{
 
 use base64::prelude::*;
 use isomdl::{
-    definitions::{helpers::Tag24, issuer_signed::CredentialData, IssuerSigned, Mso},
+    definitions::{
+        helpers::Tag24,
+        issuer_signed_dehydrated::{IssuerSignedDehydrated, NameSpacedData},
+        IssuerSigned, Mso,
+    },
     presentation::{device::Document, Stringify},
 };
 use time::format_description::well_known::Iso8601;
@@ -63,22 +67,22 @@ impl Mdoc {
     /// Provisioned data represents the element values in the issuer signed namespaces.
     /// If provisioned data exists, it will update the issuer signed namespace values
     /// with the provisioned data.
-    pub fn new_from_cbor_encoded_issuer_signed(
-        cbor_encoded_issuer_signed: Vec<u8>,
-        credential_data: Option<Vec<u8>>,
+    pub fn new_from_cbor_encoded_issuer_signed_dehydrated(
+        cbor_encoded_issuer_signed_dehydrated: Vec<u8>,
+        namespaced_data: Vec<u8>,
         key_alias: KeyAlias,
     ) -> Result<Arc<Self>, MdocInitError> {
-        let mut issuer_signed: IssuerSigned = isomdl::cbor::from_slice(&cbor_encoded_issuer_signed)
-            .map_err(|_| MdocInitError::IssuerSignedCborDecoding)?;
+        let issuer_signed_dehdrated: IssuerSignedDehydrated =
+            isomdl::cbor::from_slice(&cbor_encoded_issuer_signed_dehydrated)
+                .map_err(|_| MdocInitError::IssuerSignedCborDecoding)?;
 
-        if let Some(data) = credential_data {
-            let cedential_data: CredentialData = isomdl::cbor::from_slice(&data)
-                .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
+        let namespace_data: NameSpacedData = isomdl::cbor::from_slice(&namespaced_data)
+            .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
 
-            issuer_signed = issuer_signed
-                .populate_namespace_values(&cedential_data.provisioned_data)
-                .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
-        }
+        let issuer_signed = issuer_signed_dehdrated
+            .combine_namespaced_data(&namespace_data)
+            .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
+
         Self::new_from_issuer_signed(key_alias, issuer_signed)
     }
 
@@ -368,9 +372,9 @@ mod tests {
             .decode(B64_PROVISIONED_DATA)
             .expect("failed to decode b64 provisioned data");
 
-        let mdoc = Mdoc::new_from_cbor_encoded_issuer_signed(
+        let mdoc = Mdoc::new_from_cbor_encoded_issuer_signed_dehydrated(
             decoded_auth_data,
-            Some(decoded_provisioned_data),
+            decoded_provisioned_data,
             KeyAlias("default".into()),
         )
         .expect("failed to create mdoc");
