@@ -6788,6 +6788,23 @@ public static func newFromBase64urlEncodedIssuerSigned(base64urlEncodedIssuerSig
 })
 }
     
+    /**
+     * Construct a new MDoc from IssuerSigned CBOR bytes.
+     *
+     * Provisioned data represents the element values in the issuer signed namespaces.
+     * If provisioned data exists, it will update the issuer signed namespace values
+     * with the provisioned data.
+     */
+public static func newFromCborEncodedIssuerSignedDehydrated(cborEncodedIssuerSignedDehydrated: Data, namespacedData: Data, keyAlias: KeyAlias)throws  -> Mdoc  {
+    return try  FfiConverterTypeMdoc_lift(try rustCallWithError(FfiConverterTypeMdocInitError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_mdoc_new_from_cbor_encoded_issuer_signed_dehydrated(
+        FfiConverterData.lower(cborEncodedIssuerSignedDehydrated),
+        FfiConverterData.lower(namespacedData),
+        FfiConverterTypeKeyAlias_lower(keyAlias),$0
+    )
+})
+}
+    
 
     
 open func activityLog(storage: StorageManagerInterface)async throws  -> ActivityLog  {
@@ -17717,6 +17734,9 @@ public enum MdocInitError: Swift.Error {
     )
     case IssuerSignedBase64UrlDecoding
     case IssuerSignedCborDecoding
+    case ProvisionedDataCborDecoding(String
+    )
+    case ProvisionedDataPopulation
     case IssuerAuthPayloadMissing
     case IssuerAuthPayloadDecoding
     case KeyAliasMissing
@@ -17743,11 +17763,15 @@ public struct FfiConverterTypeMdocInitError: FfiConverterRustBuffer {
             )
         case 2: return .IssuerSignedBase64UrlDecoding
         case 3: return .IssuerSignedCborDecoding
-        case 4: return .IssuerAuthPayloadMissing
-        case 5: return .IssuerAuthPayloadDecoding
-        case 6: return .KeyAliasMissing
-        case 7: return .NamespacesMissing
-        case 8: return .DocumentUtf8Decoding
+        case 4: return .ProvisionedDataCborDecoding(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .ProvisionedDataPopulation
+        case 6: return .IssuerAuthPayloadMissing
+        case 7: return .IssuerAuthPayloadDecoding
+        case 8: return .KeyAliasMissing
+        case 9: return .NamespacesMissing
+        case 10: return .DocumentUtf8Decoding
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -17773,24 +17797,33 @@ public struct FfiConverterTypeMdocInitError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(3))
         
         
-        case .IssuerAuthPayloadMissing:
+        case let .ProvisionedDataCborDecoding(v1):
             writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
         
-        
-        case .IssuerAuthPayloadDecoding:
+        case .ProvisionedDataPopulation:
             writeInt(&buf, Int32(5))
         
         
-        case .KeyAliasMissing:
+        case .IssuerAuthPayloadMissing:
             writeInt(&buf, Int32(6))
         
         
-        case .NamespacesMissing:
+        case .IssuerAuthPayloadDecoding:
             writeInt(&buf, Int32(7))
         
         
-        case .DocumentUtf8Decoding:
+        case .KeyAliasMissing:
             writeInt(&buf, Int32(8))
+        
+        
+        case .NamespacesMissing:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .DocumentUtf8Decoding:
+            writeInt(&buf, Int32(10))
         
         }
     }
@@ -24633,6 +24666,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_base64url_encoded_issuer_signed() != 17520) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_cbor_encoded_issuer_signed_dehydrated() != 46552) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_mobileidcapabilitydescriptorbuilder_new() != 3324) {
