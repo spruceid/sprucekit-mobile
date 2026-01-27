@@ -352,10 +352,7 @@ fn to_json_for_display(value: &ciborium::Value) -> Option<serde_json::Value> {
 
 #[cfg(test)]
 mod tests {
-    use base64::{
-        prelude::{BASE64_STANDARD, BASE64_URL_SAFE, BASE64_URL_SAFE_NO_PAD},
-        Engine,
-    };
+    use base64::{prelude::BASE64_STANDARD, Engine};
 
     use crate::{credential::mdoc::Mdoc, crypto::KeyAlias};
 
