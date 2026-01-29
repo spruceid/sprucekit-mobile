@@ -8,6 +8,7 @@ use isomdl::{
     cbor,
     definitions::{
         helpers::{NonEmptyMap, NonEmptyVec, Tag24},
+        issuer_signed_dehydrated::{IssuerSignedDehydrated, NameSpacedData},
         IssuerSigned, IssuerSignedItem, Mso,
     },
     presentation::{device::Document, Stringify},
@@ -71,6 +72,31 @@ impl Mdoc {
                 .map_err(|_| MdocInitError::IssuerSignedBase64UrlDecoding)?,
         )
         .map_err(|_| MdocInitError::IssuerSignedCborDecoding)?;
+        Self::new_from_issuer_signed(key_alias, issuer_signed)
+    }
+
+    #[uniffi::constructor]
+    /// Construct a new MDoc from IssuerSigned CBOR bytes.
+    ///
+    /// Provisioned data represents the element values in the issuer signed namespaces.
+    /// If provisioned data exists, it will update the issuer signed namespace values
+    /// with the provisioned data.
+    pub fn new_from_cbor_encoded_issuer_signed_dehydrated(
+        cbor_encoded_issuer_signed_dehydrated: Vec<u8>,
+        namespaced_data: Vec<u8>,
+        key_alias: KeyAlias,
+    ) -> Result<Arc<Self>, MdocInitError> {
+        let issuer_signed_dehdrated: IssuerSignedDehydrated =
+            isomdl::cbor::from_slice(&cbor_encoded_issuer_signed_dehydrated)
+                .map_err(|_| MdocInitError::IssuerSignedCborDecoding)?;
+
+        let namespace_data: NameSpacedData = isomdl::cbor::from_slice(&namespaced_data)
+            .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
+
+        let issuer_signed = issuer_signed_dehdrated
+            .combine_namespaced_data(&namespace_data)
+            .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
+
         Self::new_from_issuer_signed(key_alias, issuer_signed)
     }
 
@@ -423,6 +449,10 @@ pub enum MdocInitError {
     IssuerSignedBase64UrlDecoding,
     #[error("failed to decode IssuerSigned from CBOR")]
     IssuerSignedCborDecoding,
+    #[error("failed to decode ProvisionedData from CBOR: {0}")]
+    ProvisionedDataCborDecoding(String),
+    #[error("failed to populate ProvisionedData")]
+    ProvisionedDataPopulation,
     #[error("IssuerAuth CoseSign1 has no payload")]
     IssuerAuthPayloadMissing,
     #[error("failed to decode IssuerAuth CoseSign1 payload as an MSO")]
@@ -501,5 +531,35 @@ fn to_json_for_display(value: &ciborium::Value) -> Option<serde_json::Value> {
             tracing::warn!("unsupported value type: {:?}", value);
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use base64::{prelude::BASE64_STANDARD, Engine};
+
+    use crate::{credential::mdoc::Mdoc, crypto::KeyAlias};
+
+    #[test]
+    fn test_cbor_auth_data_parsing() {
+        const B64_AUTH_DATA: &str = include_str!("../../tests/examples/auth_data.txt");
+        const B64_PROVISIONED_DATA: &str = include_str!("../../tests/examples/provision_data.txt");
+
+        let decoded_auth_data = BASE64_STANDARD
+            .decode(B64_AUTH_DATA)
+            .expect("failed to decode b64 auth data");
+
+        let decoded_provisioned_data = BASE64_STANDARD
+            .decode(B64_PROVISIONED_DATA)
+            .expect("failed to decode b64 provisioned data");
+
+        let mdoc = Mdoc::new_from_cbor_encoded_issuer_signed_dehydrated(
+            decoded_auth_data,
+            decoded_provisioned_data,
+            KeyAlias("default".into()),
+        )
+        .expect("failed to create mdoc");
+
+        println!("Mdoc: {mdoc:?}")
     }
 }
