@@ -15,7 +15,6 @@ use crate::{
         error::OID4VPError,
         permission_request::RequestedField,
         presentation::{CredentialPresentation, PresentationError, PresentationOptions},
-        ResponseOptions,
     },
     CredentialType,
 };
@@ -24,7 +23,7 @@ use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
 use openid4vp::core::{
-    presentation_definition::PresentationDefinition, presentation_submission::DescriptorMap,
+    dcql_query::{DcqlCredentialQuery, DcqlQuery},
     response::parameters::VpTokenItem,
 };
 use serde::{Deserialize, Serialize};
@@ -66,11 +65,9 @@ pub struct ParsedCredential {
 #[derive(Debug, Clone, uniffi::Object)]
 pub struct PresentableCredential {
     pub(crate) inner: ParsedCredentialInner,
-    pub(crate) limit_disclosure: bool,
     pub(crate) selected_fields: Option<Vec<String>>,
-    // This is the ID of the input descriptor that matches
-    // the credential being presented.
-    pub(crate) input_descriptor_id: String,
+    /// The ID of the credential query (from DCQL) that matches the credential being presented.
+    pub(crate) credential_query_id: String,
 }
 
 /// A credential that has been parsed as a known variant.
@@ -107,6 +104,11 @@ impl PresentableCredential {
             ParsedCredentialInner::LdpVc(_) => false,
             ParsedCredentialInner::Cwt(_) => false,
         }
+    }
+
+    /// Return true if the credential is an mdoc (mso_mdoc format).
+    pub fn is_mdoc(&self) -> bool {
+        matches!(&self.inner, ParsedCredentialInner::MsoMdoc(_))
     }
 }
 
@@ -406,13 +408,17 @@ impl PresentableCredential {
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
                 sd_jwt
-                    .as_vp_token_item(options, self.selected_fields.clone(), self.limit_disclosure)
+                    .as_vp_token_item(options, self.selected_fields.clone())
                     .await
             }
             ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
-                vc.as_vp_token_item(options, None, false).await
+                vc.as_vp_token_item(options, None).await
             }
-            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options, None, false).await,
+            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options, None).await,
+            ParsedCredentialInner::MsoMdoc(mdoc) => {
+                mdoc.as_vp_token_item(options, self.selected_fields.clone())
+                    .await
+            }
             _ => Err(CredentialEncodingError::VpToken(format!(
                 "Credential encoding for VP Token is not implemented for {:?}.",
                 self.inner,
@@ -420,72 +426,51 @@ impl PresentableCredential {
             .into()),
         }
     }
-
-    /// Return the descriptor map with the associated format type of the inner credential.
-    pub fn create_descriptor_map(
-        self: &Arc<Self>,
-        options: ResponseOptions,
-        input_descriptor_id: impl Into<String>,
-        index: Option<usize>,
-    ) -> Result<DescriptorMap, OID4VPError> {
-        match &self.inner {
-            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
-                sd_jwt.create_descriptor_map(options, input_descriptor_id, index)
-            }
-            ParsedCredentialInner::JwtVcJson(vc) => {
-                vc.create_descriptor_map(options, input_descriptor_id, index)
-            }
-            ParsedCredentialInner::JwtVcJsonLd(vc) => {
-                vc.create_descriptor_map(options, input_descriptor_id, index)
-            }
-            ParsedCredentialInner::LdpVc(vc) => {
-                vc.create_descriptor_map(options, input_descriptor_id, index)
-            }
-            ParsedCredentialInner::MsoMdoc(_mdoc) => {
-                unimplemented!("Mdoc create descriptor map not implemented")
-            }
-            ParsedCredentialInner::Cwt(_cwt) => {
-                unimplemented!("Cwt create descriptor map not implemented")
-            }
-        }
-    }
 }
 
 // Internal Parsed Credential methods
 impl ParsedCredential {
-    /// Check if the credential satisfies a presentation definition.
-    pub fn satisfies_presentation_definition(&self, definition: &PresentationDefinition) -> bool {
+    /// Check if the credential satisfies a DCQL credential query.
+    pub fn satisfies_dcql_query(&self, credential_query: &DcqlCredentialQuery) -> bool {
         match &self.inner {
-            ParsedCredentialInner::JwtVcJson(vc) => {
-                vc.satisfies_presentation_definition(definition)
-            }
-            ParsedCredentialInner::JwtVcJsonLd(vc) => {
-                vc.satisfies_presentation_definition(definition)
-            }
-            ParsedCredentialInner::LdpVc(vc) => vc.satisfies_presentation_definition(definition),
+            ParsedCredentialInner::JwtVcJson(vc) => vc.satisfies_dcql_query(credential_query),
+            ParsedCredentialInner::JwtVcJsonLd(vc) => vc.satisfies_dcql_query(credential_query),
+            ParsedCredentialInner::LdpVc(vc) => vc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
-                sd_jwt.satisfies_presentation_definition(definition)
+                sd_jwt.satisfies_dcql_query(credential_query)
             }
-            ParsedCredentialInner::MsoMdoc(_mdoc) => false,
+            ParsedCredentialInner::MsoMdoc(mdoc) => mdoc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::Cwt(_cwt) => false,
         }
     }
 
-    /// Return the requested fields for the credential, accordinging to the presentation definition.
-    pub fn requested_fields(
+    /// Return the requested fields for the credential, according to the DCQL query.
+    pub fn requested_fields_dcql(
         &self,
-        definition: &PresentationDefinition,
+        dcql_query: &DcqlQuery,
+        credential_query_id: &str,
     ) -> Vec<Arc<RequestedField>> {
+        // Find the credential query that matches the ID
+        let credential_query = dcql_query
+            .credentials()
+            .iter()
+            .find(|q| q.id() == credential_query_id);
+
+        let Some(credential_query) = credential_query else {
+            return vec![];
+        };
+
         match &self.inner {
-            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => sd_jwt.requested_fields(definition),
-            ParsedCredentialInner::JwtVcJson(vc) => vc.requested_fields(definition),
-            ParsedCredentialInner::JwtVcJsonLd(vc) => vc.requested_fields(definition),
-            ParsedCredentialInner::LdpVc(vc) => vc.requested_fields(definition),
-            ParsedCredentialInner::Cwt(_cwt) => {
-                unimplemented!("Cwt requested fields not implemented")
+            ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+                sd_jwt.requested_fields_dcql(credential_query)
             }
-            ParsedCredentialInner::MsoMdoc(_mdoc) => {
-                unimplemented!("Mdoc requested fields not implemented")
+            ParsedCredentialInner::JwtVcJson(vc) => vc.requested_fields_dcql(credential_query),
+            ParsedCredentialInner::JwtVcJsonLd(vc) => vc.requested_fields_dcql(credential_query),
+            ParsedCredentialInner::LdpVc(vc) => vc.requested_fields_dcql(credential_query),
+            ParsedCredentialInner::MsoMdoc(mdoc) => mdoc.requested_fields_dcql(credential_query),
+            ParsedCredentialInner::Cwt(_cwt) => {
+                log::warn!("Cwt requested fields not implemented");
+                vec![]
             }
         }
     }

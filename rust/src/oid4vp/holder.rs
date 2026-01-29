@@ -2,6 +2,7 @@ use super::error::OID4VPError;
 use super::permission_request::*;
 use super::presentation::PresentationSigner;
 use crate::credential::*;
+use crate::crypto::KeyStore;
 use crate::vdc_collection::VdcCollection;
 
 use std::collections::HashMap;
@@ -11,13 +12,15 @@ use anyhow::Context;
 use futures::StreamExt;
 use openid4vp::core::authorization_request::parameters::ClientIdScheme;
 use openid4vp::core::credential_format::{ClaimFormatDesignation, ClaimFormatPayload};
-use openid4vp::core::input_descriptor::ConstraintsLimitDisclosure;
-use openid4vp::core::presentation_definition::PresentationDefinition;
+use openid4vp::core::dcql_query::DcqlQuery;
 use openid4vp::{
     core::{
         authorization_request::{
             parameters::ResponseMode,
-            verification::{did::verify_with_resolver, RequestVerifier},
+            verification::{
+                did::verify_with_resolver, verifier::P256Verifier, x509_hash, x509_san,
+                RequestVerifier,
+            },
             AuthorizationRequestObject,
         },
         metadata::WalletMetadata,
@@ -63,7 +66,7 @@ match req {
 /// The Holder is typically the subject of the credentials, but not always.
 /// The Holder has the ability to generate Verifiable Presentations from
 /// these credentials and share them with Verifiers.
-#[derive(Debug, uniffi::Object)]
+#[derive(uniffi::Object)]
 pub struct Holder {
     /// An atomic reference to the VDC collection.
     pub(crate) vdc_collection: Option<Arc<VdcCollection>>,
@@ -85,6 +88,21 @@ pub struct Holder {
 
     /// Optional context map for resolving specific contexts
     pub(crate) context_map: Option<HashMap<String, String>>,
+
+    /// Optional KeyStore for mdoc credential signing
+    pub(crate) keystore: Option<Arc<dyn KeyStore>>,
+}
+
+impl std::fmt::Debug for Holder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Holder")
+            .field("vdc_collection", &self.vdc_collection)
+            .field("metadata", &self.metadata)
+            .field("trusted_dids", &self.trusted_dids)
+            .field("provided_credentials", &self.provided_credentials)
+            .field("keystore", &self.keystore.as_ref().map(|_| "KeyStore"))
+            .finish()
+    }
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -96,6 +114,7 @@ impl Holder {
         trusted_dids: Vec<String>,
         signer: Box<dyn PresentationSigner>,
         context_map: Option<HashMap<String, String>>,
+        keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, OID4VPError> {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
@@ -108,6 +127,7 @@ impl Holder {
             provided_credentials: None,
             signer: Arc::new(signer),
             context_map,
+            keystore,
         }))
     }
 
@@ -122,6 +142,7 @@ impl Holder {
         trusted_dids: Vec<String>,
         signer: Box<dyn PresentationSigner>,
         context_map: Option<HashMap<String, String>>,
+        keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, OID4VPError> {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
@@ -134,6 +155,7 @@ impl Holder {
             provided_credentials: Some(provided_credentials),
             signer: Arc::new(signer),
             context_map,
+            keystore,
         }))
     }
 
@@ -192,43 +214,51 @@ impl Holder {
         // Insert support for the VCDM2 SD JWT format.
         metadata.vp_formats_supported_mut().0.insert(
             ClaimFormatDesignation::Other("vcdm2_sd_jwt".into()),
-            ClaimFormatPayload::AlgValuesSupported(vec!["ES256".into()]),
+            ClaimFormatPayload::AlgValues(vec!["ES256".into()]),
         );
 
         // Insert support for the JSON-LD format.
+        // Per OID4VP v1.0 Section B.1.3.2.1, ldp_vc covers both credentials and presentations.
         metadata.vp_formats_supported_mut().0.insert(
-            ClaimFormatDesignation::LdpVp,
-            ClaimFormatPayload::ProofType(vec!["ecdsa-rdfc-2019".into()]),
+            ClaimFormatDesignation::LdpVc,
+            ClaimFormatPayload::ProofTypeValues(vec!["ecdsa-rdfc-2019".into()]),
         );
 
-        // Insert support for JwtVpJson format.
+        // Insert support for JWT VC format.
+        // Per OID4VP v1.0 Section B.1.3.1.1, jwt_vc_json covers both credentials and presentations.
         metadata.vp_formats_supported_mut().0.insert(
-            ClaimFormatDesignation::JwtVpJson,
-            ClaimFormatPayload::AlgValuesSupported(vec!["ES256".into()]),
+            ClaimFormatDesignation::JwtVcJson,
+            ClaimFormatPayload::AlgValues(vec!["ES256".into()]),
         );
 
         metadata
-            // Insert support for the DID client ID scheme.
-            .add_client_id_schemes_supported(&[
-                ClientIdScheme(ClientIdScheme::DID.to_string()),
+            // Insert support for client ID prefixes.
+            .add_client_id_prefixes_supported(&[
+                ClientIdScheme(ClientIdScheme::DECENTRALIZED_IDENTIFIER.to_string()),
                 ClientIdScheme(ClientIdScheme::REDIRECT_URI.to_string()),
+                ClientIdScheme(ClientIdScheme::X509_SAN_DNS.to_string()),
+                ClientIdScheme(ClientIdScheme::X509_HASH.to_string()),
             ])
             .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
 
         metadata
-            // Allow unencoded requested.
+            // Allow unencoded requests and ES256-signed requests (for x509_san_dns).
             .add_request_object_signing_alg_values_supported(ssi::jwk::Algorithm::None)
+            .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
+
+        metadata
+            .add_request_object_signing_alg_values_supported(ssi::jwk::Algorithm::ES256)
             .map_err(|e| OID4VPError::MetadataInitialization(format!("{e:?}")))?;
 
         Ok(metadata)
     }
 
-    /// This will return all the credentials that match the presentation definition.
-    async fn search_credentials_vs_presentation_definition(
+    /// This will return all the credentials that match the DCQL query.
+    async fn search_credentials_vs_dcql_query(
         &self,
-        definition: &mut PresentationDefinition,
-    ) -> Result<Vec<Arc<ParsedCredential>>, OID4VPError> {
-        let credentials = match &self.provided_credentials {
+        dcql_query: &DcqlQuery,
+    ) -> Result<Vec<(String, Arc<ParsedCredential>)>, OID4VPError> {
+        let all_credentials = match &self.provided_credentials {
             // Use a pre-selected list of credentials if provided.
             Some(credentials) => credentials.to_owned(),
             None => match &self.vdc_collection {
@@ -247,17 +277,20 @@ impl Holder {
                         .await
                 }
             },
-        }
-        .into_iter()
-        .filter_map(
-            |cred| match cred.satisfies_presentation_definition(definition) {
-                true => Some(cred),
-                false => None,
-            },
-        )
-        .collect::<Vec<Arc<ParsedCredential>>>();
+        };
 
-        Ok(credentials)
+        // Match credentials against each credential query in the DCQL query
+        let mut matched_credentials: Vec<(String, Arc<ParsedCredential>)> = Vec::new();
+
+        for cred_query in dcql_query.credentials() {
+            for cred in &all_credentials {
+                if cred.satisfies_dcql_query(cred_query) {
+                    matched_credentials.push((cred_query.id().to_string(), cred.clone()));
+                }
+            }
+        }
+
+        Ok(matched_credentials)
     }
 
     // Internal method for returning the `PermissionRequest` for an oid4vp request.
@@ -265,77 +298,42 @@ impl Holder {
         &self,
         request: AuthorizationRequestObject,
     ) -> Result<Arc<PermissionRequest>, OID4VPError> {
-        // Resolve the presentation definition.
-        let mut presentation_definition = request
-            .resolve_presentation_definition(self.http_client())
-            .await
-            .map_err(|e| OID4VPError::PresentationDefinitionResolution(format!("{e:?}")))?
-            .context("request object does not contain a presentation definition")
-            .map_err(|e| OID4VPError::PresentationDefinitionResolution(format!("{e:?}")))?
-            .into_parsed();
+        // Resolve the DCQL query from the request.
+        let dcql_query = request
+            .dcql_query()
+            .ok_or_else(|| {
+                OID4VPError::DcqlQueryResolution(
+                    "request object does not contain a dcql_query".into(),
+                )
+            })?
+            .map_err(|e| OID4VPError::DcqlQueryResolution(format!("{e:?}")))?;
 
-        let credentials = self
-            .search_credentials_vs_presentation_definition(&mut presentation_definition)
-            .await?;
+        let matched_credentials = self.search_credentials_vs_dcql_query(&dcql_query).await?;
 
-        if credentials.is_empty() {
+        if matched_credentials.is_empty() {
             return Err(OID4VPError::PermissionRequest(
                 PermissionRequestError::NoCredentialsFound,
             ));
         }
 
-        // TODO: Add full support for limit_disclosure, probably this should be thrown at OID4VP
-        if presentation_definition
-            .input_descriptors()
-            .iter()
-            .any(|id| {
-                id.constraints
-                    .limit_disclosure()
-                    .is_some_and(|ld| matches!(ld, ConstraintsLimitDisclosure::Required))
-            })
-        {
-            log::debug!("Limit disclosure required for input descriptor.");
-
-            return Err(OID4VPError::LimitDisclosure(
-                "Limit disclosure required for input descriptor.".to_string(),
-            ));
-        }
-
-        let credentials = credentials
+        let credentials = matched_credentials
             .into_iter()
-            .map(|c| {
-                let input_descriptor_id = presentation_definition
-                    .input_descriptors()
-                    .iter()
-                    .find(|_| !c.requested_fields(&presentation_definition).is_empty())
-                    .map(|descriptor| descriptor.id.clone())
-                    // SAFETY: the credential will always match at least one input descriptor
-                    // at this point.
-                    .unwrap();
-
+            .map(|(credential_query_id, c)| {
                 Arc::new(PresentableCredential {
                     inner: c.inner.clone(),
-                    limit_disclosure: presentation_definition.input_descriptors().iter().any(
-                        |descriptor| {
-                            !c.requested_fields(&presentation_definition).is_empty()
-                                && matches!(
-                                    descriptor.constraints.limit_disclosure(),
-                                    Some(ConstraintsLimitDisclosure::Required)
-                                )
-                        },
-                    ),
                     selected_fields: None,
-                    input_descriptor_id,
+                    credential_query_id,
                 })
             })
             .collect::<Vec<_>>();
 
         Ok(PermissionRequest::new(
-            presentation_definition.clone(),
-            credentials.clone(),
+            dcql_query,
+            credentials,
             request,
             self.signer.clone(),
             self.context_map.clone(),
+            self.keystore.clone(),
         ))
     }
 }
@@ -343,15 +341,16 @@ impl Holder {
 #[async_trait::async_trait]
 impl RequestVerifier for Holder {
     /// Performs verification on Authorization Request Objects
-    /// when `client_id_scheme` is `did`.
-    async fn did(
+    /// when `client_id_scheme` is `decentralized_identifier`.
+    async fn decentralized_identifier(
         &self,
         decoded_request: &AuthorizationRequestObject,
         request_jwt: Option<String>,
     ) -> anyhow::Result<()> {
-        log::debug!("Verifying DID request.");
+        log::debug!("Verifying decentralized_identifier request.");
 
-        let request_jwt = request_jwt.context("request JWT is required for did verification")?;
+        let request_jwt = request_jwt
+            .context("request JWT is required for decentralized_identifier verification")?;
 
         let resolver: VerificationMethodDIDResolver<DIDWeb, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDWeb);
@@ -381,7 +380,8 @@ impl RequestVerifier for Holder {
     ) -> anyhow::Result<()> {
         log::debug!("Verifying redirect_uri request.");
 
-        let request_jwt = request_jwt.context("request JWT is required for did verification")?;
+        let request_jwt =
+            request_jwt.context("request JWT is required for redirect_uri verification")?;
 
         let resolver: VerificationMethodDIDResolver<DIDKey, AnyJwkMethod> =
             VerificationMethodDIDResolver::new(DIDKey);
@@ -399,6 +399,42 @@ impl RequestVerifier for Holder {
             &resolver,
         )
         .await?;
+
+        Ok(())
+    }
+
+    /// Performs verification on Authorization Request Objects when `client_id_scheme` is `x509_san_dns`.
+    async fn x509_san_dns(
+        &self,
+        decoded_request: &AuthorizationRequestObject,
+        request_jwt: Option<String>,
+    ) -> anyhow::Result<()> {
+        log::debug!("Verifying x509_san_dns request.");
+
+        let request_jwt =
+            request_jwt.context("request JWT is required for x509_san_dns verification")?;
+
+        // Use the x509_san validation with P256 verifier
+        // Note: trusted_roots is None for now, meaning we don't verify the certificate chain
+        x509_san::validate::<P256Verifier>(&self.metadata, decoded_request, request_jwt, None)?;
+
+        Ok(())
+    }
+
+    /// Performs verification on Authorization Request Objects when `client_id_scheme` is `x509_hash`.
+    async fn x509_hash(
+        &self,
+        decoded_request: &AuthorizationRequestObject,
+        request_jwt: Option<String>,
+    ) -> anyhow::Result<()> {
+        log::debug!("Verifying x509_hash request.");
+
+        let request_jwt =
+            request_jwt.context("request JWT is required for x509_hash verification")?;
+
+        // Use the x509_hash validation with P256 verifier
+        // Note: trusted_roots is None for now, meaning we don't verify the certificate chain
+        x509_hash::validate::<P256Verifier>(&self.metadata, decoded_request, request_jwt, None)?;
 
         Ok(())
     }
@@ -537,6 +573,7 @@ pub(crate) mod tests {
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(key_signer),
             None,
+            None,
         )
         .await?;
 
@@ -552,12 +589,20 @@ pub(crate) mod tests {
             assert!(!requested_fields.is_empty());
         }
 
+        // Get the first credential query ID from the DCQL query
+        let credential_query_id = permission_request
+            .dcql_query()
+            .credentials()
+            .first()
+            .map(|c: &openid4vp::core::dcql_query::DcqlCredentialQuery| c.id().to_string())
+            .unwrap_or_default();
+
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
         let response = permission_request
             .create_permission_response(
                 parsed_credentials,
                 vec![credential
-                    .requested_fields(&permission_request.definition)
+                    .requested_fields_dcql(permission_request.dcql_query(), &credential_query_id)
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
@@ -602,6 +647,7 @@ pub(crate) mod tests {
             vec![],
             Box::new(key_signer),
             Some(context),
+            None,
         )
         .await
         .expect("Failed to create oid4vp holder");
@@ -613,11 +659,19 @@ pub(crate) mod tests {
 
         let credentials = permission_request.credentials();
 
+        // Get the first credential query ID from the DCQL query
+        let credential_query_id = permission_request
+            .dcql_query()
+            .credentials()
+            .first()
+            .map(|c: &openid4vp::core::dcql_query::DcqlCredentialQuery| c.id().to_string())
+            .unwrap_or_default();
+
         let response = permission_request
             .create_permission_response(
                 credentials,
                 vec![credential
-                    .requested_fields(&permission_request.definition)
+                    .requested_fields_dcql(permission_request.dcql_query(), &credential_query_id)
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
@@ -648,6 +702,7 @@ pub(crate) mod tests {
             vec![],
             Box::new(key_signer),
             Some(default_ld_json_context()),
+            None,
         )
         .await?;
 
@@ -658,9 +713,9 @@ pub(crate) mod tests {
             .await?;
 
         println!(
-            "Presentation Definition: {}",
-            serde_json::to_string_pretty(&permission_request.definition)
-                .expect("failed to serialize definition")
+            "DCQL Query: {}",
+            serde_json::to_string_pretty(&permission_request.dcql_query())
+                .expect("failed to serialize DCQL query")
         );
 
         let credentials = permission_request.credentials();
@@ -721,6 +776,7 @@ pub(crate) mod tests {
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(key_signer),
             None,
+            None,
         )
         .await?;
 
@@ -736,12 +792,20 @@ pub(crate) mod tests {
             assert!(!requested_fields.is_empty());
         }
 
+        // Get the first credential query ID from the DCQL query
+        let credential_query_id = permission_request
+            .dcql_query()
+            .credentials()
+            .first()
+            .map(|c: &openid4vp::core::dcql_query::DcqlCredentialQuery| c.id().to_string())
+            .unwrap_or_default();
+
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
         let response = permission_request
             .create_permission_response(
                 parsed_credentials,
                 vec![credential
-                    .requested_fields(&permission_request.definition)
+                    .requested_fields_dcql(permission_request.dcql_query(), &credential_query_id)
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],
@@ -789,6 +853,7 @@ pub(crate) mod tests {
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(signer),
             Some(default_ld_json_context()),
+            None,
         )
         .await?;
 
@@ -804,12 +869,20 @@ pub(crate) mod tests {
             assert!(!requested_fields.is_empty());
         }
 
+        // Get the first credential query ID from the DCQL query
+        let credential_query_id = permission_request
+            .dcql_query()
+            .credentials()
+            .first()
+            .map(|c: &openid4vp::core::dcql_query::DcqlCredentialQuery| c.id().to_string())
+            .unwrap_or_default();
+
         // NOTE: passing `parsed_credentials` as `selected_credentials`.
         let response = permission_request
             .create_permission_response(
                 parsed_credentials,
                 vec![credential
-                    .requested_fields(&permission_request.definition)
+                    .requested_fields_dcql(permission_request.dcql_query(), &credential_query_id)
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],

@@ -12,8 +12,8 @@ pub enum OID4VPError {
     UnexpectedUniFFICallbackError(String),
     #[error("Failed to validate the OID4VP Request: {0}")]
     RequestValidation(String),
-    #[error("Failed to resolve the presentation definition: {0}")]
-    PresentationDefinitionResolution(String),
+    #[error("Failed to resolve the DCQL query: {0}")]
+    DcqlQueryResolution(String),
     #[error("Failed to create verifiable presentation token: {0}")]
     Token(String),
     #[error("Unsupported Response Mode for OID4VP Request: {0}")]
@@ -66,8 +66,6 @@ pub enum OID4VPError {
     JsonPathResolve(String),
     #[error("Unable to convert JsonPath: {0} to JsonPointer")]
     JsonPathToPointer(String),
-    #[error("Limit disclosure: {0}")]
-    LimitDisclosure(String),
     #[error("Empty Credential Subject. Failed to convert `Object` to `NonEmptyObject`: {0}")]
     EmptyCredentialSubject(String),
     #[error("Invalid fields selected for selective disclosure")]

@@ -19,7 +19,7 @@ pub fn find_match(query: &DcqlCredentialQuery, credential: &Mdoc) -> Result<Requ
 
     if let Some(doc_type) = query
         .meta()
-        .and_then(|meta| meta.get("doctype_value"))
+        .get("doctype_value")
         .and_then(|value| value.as_str())
     {
         if doc_type != mdoc.mso.doc_type {

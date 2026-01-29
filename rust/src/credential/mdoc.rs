@@ -5,15 +5,32 @@ use std::{
 
 use base64::prelude::*;
 use isomdl::{
-    definitions::{helpers::Tag24, IssuerSigned, Mso},
+    cbor,
+    definitions::{
+        helpers::{NonEmptyMap, NonEmptyVec, Tag24},
+        IssuerSigned, IssuerSignedItem, Mso,
+    },
     presentation::{device::Document, Stringify},
+};
+use openid4vp::core::{
+    credential_format::ClaimFormatDesignation, dcql_query::DcqlCredentialQuery,
+    iso_18013_7::get_encryption_jwk_thumbprint, response::parameters::VpTokenItem,
 };
 use time::format_description::well_known::Iso8601;
 use uuid::Uuid;
 
 use crate::{
-    credential::activity_log::{self, ActivityLog},
+    credential::{
+        activity_log::{self, ActivityLog},
+        CredentialEncodingError,
+    },
     crypto::KeyAlias,
+    oid4vp::{
+        error::OID4VPError,
+        iso_18013_7::prepare_response::{build_device_response, handover_from_request},
+        permission_request::RequestedField,
+        presentation::PresentationOptions,
+    },
     storage_manager::StorageManagerInterface,
     CredentialType,
 };
@@ -153,6 +170,176 @@ impl Mdoc {
 
     pub(crate) fn new_from_parts(inner: Document, key_alias: KeyAlias) -> Self {
         Self { inner, key_alias }
+    }
+
+    /// Check if the mdoc satisfies a DCQL credential query.
+    /// Used for OID4VP 1.0 flow with mso_mdoc format.
+    pub fn satisfies_dcql_query(&self, credential_query: &DcqlCredentialQuery) -> bool {
+        if *credential_query.format() != ClaimFormatDesignation::MsoMDoc {
+            return false;
+        }
+
+        // Check if doctype matches (if specified in meta)
+        let meta = credential_query.meta();
+        if let Some(doctype_value) = meta.get("doctype_value") {
+            if let Some(expected_doctype) = doctype_value.as_str() {
+                if self.doctype() != expected_doctype {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+
+    /// Return the requested fields for the credential, according to the DCQL credential query.
+    /// Used for OID4VP 1.0 flow with mso_mdoc format.
+    pub fn requested_fields_dcql(
+        &self,
+        credential_query: &DcqlCredentialQuery,
+    ) -> Vec<Arc<RequestedField>> {
+        log::debug!(
+            "mdoc requested_fields_dcql - credential_query id: {}, format: {:?}, claims present: {}",
+            credential_query.id(),
+            credential_query.format(),
+            credential_query.claims().is_some()
+        );
+
+        let Some(claims) = credential_query.claims() else {
+            log::debug!(
+                "mdoc requested_fields_dcql - no claims in credential_query, returning empty"
+            );
+            return vec![];
+        };
+
+        log::debug!("mdoc requested_fields_dcql - found {} claims", claims.len());
+
+        claims
+            .iter()
+            .map(|claim| {
+                let path: Vec<String> = claim
+                    .path()
+                    .iter()
+                    .filter_map(|p| match p {
+                        openid4vp::core::dcql_query::DcqlCredentialClaimsQueryPath::String(s) => {
+                            Some(s.clone())
+                        }
+                        openid4vp::core::dcql_query::DcqlCredentialClaimsQueryPath::Integer(i) => {
+                            Some(i.to_string())
+                        }
+                        openid4vp::core::dcql_query::DcqlCredentialClaimsQueryPath::Null => None,
+                    })
+                    .collect();
+
+                let name = path.last().cloned();
+
+                Arc::new(RequestedField::from_dcql_claims_with_name(
+                    credential_query.id().to_string(),
+                    path,
+                    vec![],
+                    name,
+                ))
+            })
+            .collect()
+    }
+
+    /// Generate a VP Token item for OID4VP presentation.
+    /// This creates a DeviceResponse with the selected fields and signs it.
+    pub async fn as_vp_token_item<'a>(
+        &self,
+        options: &'a PresentationOptions<'a>,
+        selected_fields: Option<Vec<String>>,
+    ) -> Result<VpTokenItem, OID4VPError> {
+        let keystore = options.keystore.clone().ok_or_else(|| {
+            OID4VPError::CredentialEncoding(CredentialEncodingError::VpToken(
+                "KeyStore is required for mdoc presentation".into(),
+            ))
+        })?;
+
+        let mdoc = self.document();
+
+        // Build the revealed namespaces based on selected fields
+        let mut revealed_namespaces: BTreeMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>> =
+            BTreeMap::new();
+
+        // If selected_fields is None, reveal all fields
+        // If selected_fields is Some, only reveal those fields
+        for (namespace, elements) in mdoc.namespaces.clone().into_inner() {
+            for element in elements.into_inner().into_values() {
+                let element_id = element.as_ref().element_identifier.clone();
+
+                // Check if this field should be included
+                let should_include = match &selected_fields {
+                    None => true, // No selection means include all
+                    Some(fields) => {
+                        // Field path format is "namespace,element_id" base64 encoded
+                        // Check if any selected field matches
+                        fields.iter().any(|f| {
+                            // Decode the path and check
+                            let parts: Vec<&str> = f.split(',').collect();
+                            if parts.len() >= 2 {
+                                // Decode base64
+                                let decoded_namespace = base64::engine::general_purpose::URL_SAFE
+                                    .decode(parts[0])
+                                    .ok()
+                                    .and_then(|b| String::from_utf8(b).ok());
+                                let decoded_element = base64::engine::general_purpose::URL_SAFE
+                                    .decode(parts[1])
+                                    .ok()
+                                    .and_then(|b| String::from_utf8(b).ok());
+
+                                decoded_namespace.as_deref() == Some(&namespace)
+                                    && decoded_element.as_deref() == Some(&element_id)
+                            } else {
+                                false
+                            }
+                        })
+                    }
+                };
+
+                if should_include {
+                    log::debug!("Including mdoc field: {}.{}", namespace, element_id);
+                    if let Some(items) = revealed_namespaces.get_mut(&namespace) {
+                        items.push(element);
+                    } else {
+                        revealed_namespaces.insert(namespace.clone(), NonEmptyVec::new(element));
+                    }
+                }
+            }
+        }
+
+        let revealed_namespaces: NonEmptyMap<String, NonEmptyVec<Tag24<IssuerSignedItem>>> =
+            NonEmptyMap::maybe_new(revealed_namespaces).ok_or_else(|| {
+                OID4VPError::CredentialEncoding(CredentialEncodingError::VpToken(
+                    "No fields selected for mdoc presentation".into(),
+                ))
+            })?;
+
+        // Create Handover per OID4VP 1.0 §B.2.6.1 (Invocation via Redirects)
+        let jwk_thumbprint = get_encryption_jwk_thumbprint(options.request);
+        let handover =
+            handover_from_request(options.request, jwk_thumbprint.as_ref()).map_err(|e| {
+                CredentialEncodingError::VpToken(format!("Failed to create Handover: {e}"))
+            })?;
+
+        // Build and sign the DeviceResponse
+        let device_response =
+            build_device_response(keystore, self, revealed_namespaces, None, handover).map_err(
+                |e| {
+                    CredentialEncodingError::VpToken(format!(
+                        "Failed to build device response: {e}"
+                    ))
+                },
+            )?;
+
+        // Encode as base64url
+        let device_response_bytes = cbor::to_vec(&device_response).map_err(|e| {
+            CredentialEncodingError::VpToken(format!("Failed to encode device response: {e}"))
+        })?;
+
+        let device_response_b64 = BASE64_URL_SAFE_NO_PAD.encode(&device_response_bytes);
+
+        Ok(VpTokenItem::from(device_response_b64))
     }
 
     fn new_from_issuer_signed(

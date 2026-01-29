@@ -161,6 +161,7 @@ mod tests {
             trusted_dids,
             Box::new(key_signer),
             None,
+            None,
         )
         .await
         .expect("failed to create oid4vp holder");
@@ -174,11 +175,19 @@ mod tests {
             .await
             .expect("authorization request failed");
 
+        // Get the first credential query ID from the DCQL query
+        let credential_query_id = request
+            .dcql_query()
+            .credentials()
+            .first()
+            .map(|c: &openid4vp::core::dcql_query::DcqlCredentialQuery| c.id().to_string())
+            .unwrap_or_default();
+
         let response = request
             .create_permission_response(
                 request.credentials(),
                 vec![credential
-                    .requested_fields(&request.definition)
+                    .requested_fields_dcql(request.dcql_query(), &credential_query_id)
                     .iter()
                     .map(|rf| rf.path())
                     .collect()],

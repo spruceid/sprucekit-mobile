@@ -1,56 +1,39 @@
 use anyhow::{bail, Context, Result};
 use base64::prelude::*;
 use isomdl::{cbor, definitions::DeviceResponse};
-use josekit::{
-    jwe::{alg::ecdh_es::EcdhEsJweEncrypter, JweHeader},
-    jwk::Jwk,
-    jwt::{encode_with_encrypter, JwtPayload},
+use openid4vp::core::{
+    authorization_request::AuthorizationRequestObject,
+    dcql_query::DcqlQuery,
+    jwe::{find_encryption_jwk, JweBuilder, DEFAULT_ENC},
+    object::ParsingErrorContext,
+    response::{parameters::State, AuthorizationResponse, JwtAuthorizationResponse},
 };
-use openid4vp::{
-    core::{
-        authorization_request::{parameters::ClientMetadata, AuthorizationRequestObject},
-        credential_format::ClaimFormatDesignation::MsoMDoc,
-        object::ParsingErrorContext,
-        presentation_definition::PresentationDefinition,
-        presentation_submission::{DescriptorMap, PresentationSubmission},
-        response::{parameters::State, AuthorizationResponse, JwtAuthorizationResponse},
-    },
-    JsonPath,
-};
-use p256::NistP256;
 use serde_json::{json, Value as Json};
-use uuid::Uuid;
 
-const SUPPORTED_ALG: &str = "ECDH-ES";
-const SUPPORTED_ENC: &str = "A256GCM";
-
+/// Build an encrypted authorization response for mdoc presentations.
+///
+/// Per OID4VP 1.0 §8.3.1, the response is encrypted using the verifier's public key
+/// and sent via HTTP POST with the `response` parameter containing the JWE.
 pub fn build_response(
     request: &AuthorizationRequestObject,
-    presentation_definition: &PresentationDefinition,
+    dcql_query: &DcqlQuery,
     device_response: DeviceResponse,
-    mdoc_generated_nonce: String,
 ) -> Result<AuthorizationResponse> {
-    let descriptor_map = DescriptorMap {
-        id: "org.iso.18013.5.1.mDL".to_string(),
-        format: MsoMDoc,
-        path: JsonPath::default(),
-        path_nested: None,
-    };
-    let presentation_submission = PresentationSubmission::new(
-        Uuid::new_v4(),
-        presentation_definition.id().clone(),
-        vec![descriptor_map],
-    );
-
     let device_response = BASE64_URL_SAFE_NO_PAD.encode(
         cbor::to_vec(&device_response).context("failed to encode device response as CBOR")?,
     );
 
-    let apu = &mdoc_generated_nonce;
-    let apv = request.nonce().as_str();
-    let vp_token = Json::String(device_response);
+    let credential_query_id = dcql_query
+        .credentials()
+        .first()
+        .map(|c| c.id().to_string())
+        .unwrap_or_else(|| "mDL".to_string());
 
-    let jwe = build_jwe_18013_7_annex_b(request, vp_token, &presentation_submission, apu, apv)?;
+    let vp_token = json!({
+        credential_query_id: [device_response]
+    });
+
+    let jwe = build_jwe(request, vp_token)?;
 
     let authorization_response =
         AuthorizationResponse::Jwt(JwtAuthorizationResponse { response: jwe });
@@ -58,79 +41,66 @@ pub fn build_response(
     Ok(authorization_response)
 }
 
-fn build_jwe_18013_7_annex_b(
-    request: &AuthorizationRequestObject,
-    vp_token: Json,
-    presentation_submission: &PresentationSubmission,
-    apu: &str,
-    apv: &str,
-) -> Result<String> {
+/// Build a JWE-encrypted response per OID4VP 1.0 §8.3.
+fn build_jwe(request: &AuthorizationRequestObject, vp_token: Json) -> Result<String> {
     let client_metadata = request
         .client_metadata()
         .context("failed to resolve client_metadata")?;
 
-    let alg = client_metadata
-        .authorization_encrypted_response_alg()
-        .parsing_error()?
-        .0;
-    if alg != SUPPORTED_ALG {
+    // Per OID4VP v1.0 §8.3, alg comes from the JWK's `alg` field
+    let jwks = client_metadata.jwks().parsing_error()?;
+    let keys: Vec<_> = jwks.keys.iter().collect();
+    let jwk_info = find_encryption_jwk(keys.into_iter())
+        .context("no suitable encryption key found in client metadata")?;
+
+    let alg = &jwk_info.alg;
+    if alg != "ECDH-ES" {
         bail!("unsupported encryption alg: {alg}")
     }
 
+    // Per OID4VP v1.0 §8.3, enc comes from encrypted_response_enc_values_supported (default: A128GCM)
     let enc = client_metadata
-        .authorization_encrypted_response_enc()
+        .encrypted_response_enc_values_supported()
         .parsing_error()?
-        .0;
-    if enc != SUPPORTED_ENC {
+        .0
+        .first()
+        .cloned()
+        .unwrap_or_else(|| DEFAULT_ENC.to_string());
+    if enc != DEFAULT_ENC {
         bail!("unsupported encryption scheme: {enc}")
     }
 
-    let mut jwe_payload = JwtPayload::new();
-    jwe_payload.set_claim("vp_token", Some(vp_token))?;
-    jwe_payload.set_claim(
-        "presentation_submission",
-        Some(json!(presentation_submission)),
-    )?;
+    // Build the payload with vp_token and optional state
+    let mut payload = json!({
+        "vp_token": vp_token
+    });
 
     if let Some(state) = get_state_from_request(request)? {
-        jwe_payload.set_claim("state", Some(json!(state)))?;
+        payload["state"] = json!(state);
     }
 
     tracing::debug!(
         "JWE payload:\n{}",
-        serde_json::to_string_pretty(jwe_payload.as_ref()).unwrap()
+        serde_json::to_string_pretty(&payload).unwrap()
     );
 
-    let jwk = get_jwk_from_client_metadata(&client_metadata)?;
-    let jwe = build_jwe(&jwk, &jwe_payload, &alg, &enc, apu, apv)?;
-    tracing::debug!("JWE: {jwe}");
+    let jwk_json: Json = serde_json::to_value(&jwk_info.jwk).context("failed to serialize JWK")?;
 
-    Ok(jwe)
-}
+    let mut builder = JweBuilder::new()
+        .payload(payload)
+        .recipient_key_json(&jwk_json)
+        .context("invalid recipient JWK")?
+        .alg(alg)
+        .enc(&enc);
 
-pub fn build_jwe(
-    jwk: &Jwk,
-    payload: &JwtPayload,
-    alg: &str,
-    enc: &str,
-    apu: &str,
-    apv: &str,
-) -> Result<String> {
-    let mut jwe_header = JweHeader::new();
-
-    jwe_header.set_token_type("JWT");
-    jwe_header.set_content_encryption(enc);
-    jwe_header.set_algorithm(alg);
-    jwe_header.set_agreement_partyuinfo(apu);
-    jwe_header.set_agreement_partyvinfo(apv);
-
-    if let Some(kid) = jwk.key_id() {
-        jwe_header.set_key_id(kid);
+    if let Some(kid) = &jwk_info.kid {
+        builder = builder.kid(kid);
     }
 
-    let encrypter: EcdhEsJweEncrypter<NistP256> = josekit::jwe::ECDH_ES.encrypter_from_jwk(jwk)?;
+    let jwe = builder.build().context("failed to build JWE")?;
 
-    let jwe = encode_with_encrypter(payload, &jwe_header, &encrypter)?;
+    tracing::debug!("JWE: {jwe}");
+
     Ok(jwe)
 }
 
@@ -139,35 +109,4 @@ pub fn get_state_from_request(request: &AuthorizationRequestObject) -> Result<Op
         .get::<State>()
         .map(|state| Ok(state.parsing_error()?.0))
         .transpose()
-}
-
-pub fn get_jwk_from_client_metadata(client_metadata: &ClientMetadata) -> Result<Jwk> {
-    client_metadata
-        .jwks()
-        .parsing_error()?
-        .keys
-        .into_iter()
-        .filter_map(|jwk| {
-            let jwk = serde_json::from_value::<Jwk>(Json::Object(jwk));
-            match jwk {
-                Ok(jwk) => Some(jwk),
-                Err(e) => {
-                    tracing::warn!("unable to parse a JWK in keyset: {e}");
-                    None
-                }
-            }
-        })
-        .find(|jwk| {
-            let Some(crv) = jwk.curve() else {
-                tracing::warn!("jwk in keyset was missing 'crv'");
-                return false;
-            };
-            if let Some(use_) = jwk.key_use() {
-                crv == "P-256" && use_ == "enc"
-            } else {
-                tracing::warn!("jwk in keyset was missing 'use'");
-                crv == "P-256"
-            }
-        })
-        .context("no 'P-256' keys for use 'enc' found in JWK keyset")
 }

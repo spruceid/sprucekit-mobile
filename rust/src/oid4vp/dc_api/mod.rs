@@ -17,17 +17,16 @@ use openid4vp::{
             AuthorizationRequest, AuthorizationRequestObject,
         },
         dcql_query::DcqlQuery,
+        iso_18013_7::DcApiHandover,
         metadata::WalletMetadata,
         object::ParsingErrorContext,
         util::ReqwestClient,
     },
-    verifier::client::X509SanVariant,
     wallet::Wallet,
 };
-use prepare_response::{vp_token, Handover};
+use prepare_response::vp_token;
 use requested_values::find_match;
 use serde_json::json;
-use ssi::{claims::JwsBuf, jwk::Algorithm};
 
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
 
@@ -42,10 +41,8 @@ pub struct InProgressRequestDcApi {
     mdoc: Arc<Mdoc>,
     origin: String,
     responder: Responder,
-    request: AuthorizationRequest,
     request_object: AuthorizationRequestObject,
     request_match: RequestMatch180137,
-    wallet_activity: WalletActivity,
 }
 
 struct WalletActivity {
@@ -75,37 +72,10 @@ impl WalletActivity {
         }
         Ok(())
     }
-
-    async fn effective_client_id(&self, request: &AuthorizationRequest) -> Result<String> {
-        let (aro, jws) = request.resolve_request(self.http_client()).await?;
-        if let Some(jws) = jws {
-            let jws = JwsBuf::new(jws).context("failed to decode JWS")?;
-            let jwt = jws.into_decoded().context("failed to decode JWT")?;
-            if jwt.header().algorithm == Algorithm::None {
-                return Ok(format!("web-origin:{}", self.origin));
-            }
-        } else {
-            return Ok(format!("web-origin:{}", self.origin));
-        }
-
-        Ok(aro
-            .client_id()
-            .context("signed request missing client_id")?
-            .0
-            .clone())
-    }
 }
 
 #[async_trait]
 impl RequestVerifier for WalletActivity {
-    async fn none(
-        &self,
-        _decoded_request: &AuthorizationRequestObject,
-        _request_jwt: Option<String>,
-    ) -> Result<()> {
-        Ok(())
-    }
-
     async fn x509_san_dns(
         &self,
         decoded_request: &AuthorizationRequestObject,
@@ -115,37 +85,13 @@ impl RequestVerifier for WalletActivity {
             request_jwt.context("request JWT is required for x509_san_dns verification")?;
         self.check_expected_origins(decoded_request)?;
         // TODO: Add trusted roots and implement chain verification in openid4vp.
-        x509_san::validate::<P256Verifier>(
-            X509SanVariant::Dns,
-            self.metadata(),
-            decoded_request,
-            request_jwt,
-            None,
-        )
-    }
-
-    async fn x509_san_uri(
-        &self,
-        decoded_request: &AuthorizationRequestObject,
-        request_jwt: Option<String>,
-    ) -> Result<()> {
-        let request_jwt =
-            request_jwt.context("request JWT is required for x509_san_uri verification")?;
-        self.check_expected_origins(decoded_request)?;
-        // TODO: Add trusted roots and implement chain verification in openid4vp.
-        x509_san::validate::<P256Verifier>(
-            X509SanVariant::Uri,
-            self.metadata(),
-            decoded_request,
-            request_jwt,
-            None,
-        )
+        x509_san::validate::<P256Verifier>(self.metadata(), decoded_request, request_jwt, None)
     }
 }
 
 /// Handle a DC API request.
 ///
-/// Supports OpenID4VP Draft 24 using DCQL for mDL only.
+/// Supports OpenID4VP v1.0 using DCQL for mDL only.
 #[uniffi::export(async_runtime = "tokio")]
 pub async fn handle_dc_api_request(
     dcql_credential_id: String,
@@ -196,10 +142,8 @@ pub async fn handle_dc_api_request(
         mdoc,
         origin,
         responder,
-        request,
         request_object,
         request_match,
-        wallet_activity,
     })
 }
 
@@ -221,16 +165,16 @@ impl InProgressRequestDcApi {
         keystore: Arc<dyn KeyStore>,
         approved_fields: Vec<FieldId180137>,
     ) -> Result<String, DcApiError> {
-        let handover = Handover::new(
-            self.origin.clone(),
-            self.wallet_activity
-                .effective_client_id(&self.request)
-                .await
-                .context("failed to determine the effective client id")
-                .map_err(DcApiError::invalid_request)?,
-            self.request_object.nonce().to_string(),
+        // Per OID4VP v1.0 §B.2.6.2, the DC API Handover uses [origin, nonce, jwkThumbprint].
+        // jwkThumbprint is the SHA-256 thumbprint of the verifier's encryption key,
+        // or null if the response is not encrypted.
+        let jwk_thumbprint = self.responder.jwk_thumbprint();
+        let handover = DcApiHandover::new(
+            &self.origin,
+            self.request_object.nonce(),
+            jwk_thumbprint.as_ref().map(|t| t.as_slice()),
         )
-        .context("failed to create a handover")
+        .context("failed to create a DC API handover")
         .map_err(DcApiError::internal_error)?;
 
         let device_response = prepare_response(
@@ -301,15 +245,15 @@ fn default_metadata() -> WalletMetadata {
         "vp_formats_supported": {
             "mso_mdoc": {}
         },
-        "client_id_schemes_supported": [
-            "x509_san_dns",
-            "x509_san_uri"
+        "client_id_prefixes_supported": [
+            "x509_san_dns"
         ],
         "authorization_encryption_alg_values_supported": [
             "ECDH-ES"
         ],
         "authorization_encryption_enc_values_supported": [
-            "A128GCM"
+            "A128GCM",
+            "A256GCM"
         ],
         // Missing from the default wallet metadata in the specification, but necessary to support signed authorization requests.
         "request_object_signing_alg_values_supported": ["ES256"]

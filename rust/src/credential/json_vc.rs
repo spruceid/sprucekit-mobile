@@ -7,19 +7,14 @@ use crate::{
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
-        ResponseOptions,
     },
     CredentialType,
 };
 
 use std::sync::Arc;
 
-use openid4vp::{
-    core::{
-        credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
-        response::parameters::VpTokenItem,
-    },
-    JsonPath,
+use openid4vp::core::{
+    credential_format::ClaimFormatDesignation, response::parameters::VpTokenItem,
 };
 use serde_json::Value as Json;
 use ssi::status::bitstring_status_list::BitstringStatusListEntry;
@@ -195,32 +190,14 @@ impl CredentialPresentation for JsonVc {
     }
 
     fn presentation_format(&self) -> Self::PresentationFormat {
-        ClaimFormatDesignation::LdpVp
+        // Per OID4VP v1.0 Section B.1.3.2.1:
+        // "The Credential Format Identifier is `ldp_vc` to request a W3C Verifiable
+        // Credential... or a Verifiable Presentation of such a Credential."
+        ClaimFormatDesignation::LdpVc
     }
 
     fn credential_format(&self) -> Self::CredentialFormat {
         ClaimFormatDesignation::LdpVc
-    }
-
-    fn create_descriptor_map(
-        &self,
-        _options: ResponseOptions,
-        input_descriptor_id: impl Into<String>,
-        index: Option<usize>,
-    ) -> Result<DescriptorMap, OID4VPError> {
-        let path = match index {
-            Some(idx) => format!("$.verifiableCredential[{idx}]"),
-            None => "$.verifiableCredential".into(),
-        }
-        .parse()
-        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
-
-        let id = input_descriptor_id.into();
-
-        Ok(
-            DescriptorMap::new(id.clone(), self.presentation_format(), JsonPath::default())
-                .set_path_nested(DescriptorMap::new(id, self.credential_format(), path)),
-        )
     }
 
     /// Return the credential as a VpToken
@@ -228,13 +205,12 @@ impl CredentialPresentation for JsonVc {
         &self,
         options: &'a PresentationOptions<'a>,
         _selected_fields: Option<Vec<String>>,
-        _limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError> {
         let id = UriBuf::new(format!("urn:uuid:{}", Uuid::new_v4()).as_bytes().to_vec())
             .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing ID: {e:?}")))?;
 
         // Check the signer supports the requested vp format crypto suite.
-        options.supports_security_method(ClaimFormatDesignation::LdpVp)?;
+        options.supports_security_method(ClaimFormatDesignation::LdpVc)?;
 
         let unsigned_presentation = match self.parsed.clone() {
             AnyJsonCredential::V1(cred_v1) => {

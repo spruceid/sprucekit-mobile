@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use base64::prelude::*;
 use build_response::build_response;
 use openid4vp::{
     core::{
@@ -18,16 +17,17 @@ use openid4vp::{
             verification::{verifier::P256Verifier, RequestVerifier},
             AuthorizationRequestObject,
         },
+        dcql_query::DcqlQuery,
+        iso_18013_7::get_encryption_jwk_thumbprint,
         metadata::WalletMetadata,
-        presentation_definition::PresentationDefinition,
+        object::ParsingErrorContext,
         util::ReqwestClient,
     },
     wallet::Wallet as OpenID4VPWallet,
 };
-use prepare_response::{prepare_response, Handover};
+use prepare_response::{handover_from_request, prepare_response};
 use requested_values::{parse_request, FieldId180137, RequestMatch180137};
 use serde_json::json;
-use ssi::crypto::rand::{thread_rng, Rng};
 use url::Url;
 use uuid::Uuid;
 
@@ -47,7 +47,7 @@ pub struct OID4VP180137 {
 #[derive(uniffi::Object)]
 pub struct InProgressRequest180137 {
     pub request: AuthorizationRequestObject,
-    pub presentation_definition: PresentationDefinition,
+    pub dcql_query: DcqlQuery,
     pub request_matches: Vec<Arc<RequestMatch180137>>,
     pub handler: OID4VP180137,
 }
@@ -130,21 +130,17 @@ impl OID4VP180137 {
             bail!("cannot respond to {} with a JWE", request.response_mode())
         }
 
-        let presentation_definition = request
-            .resolve_presentation_definition(self.http_client())
-            .await
-            .context("failed to resolve the presentation definition")?
-            .context("request object does not contain a presentation definition")?
-            .into_parsed();
+        let dcql_query: DcqlQuery = request
+            .get()
+            .parsing_error()
+            .context("failed to get DCQL query from request")?;
 
-        let request_matches = parse_request(
-            &presentation_definition,
-            self.credentials.iter().map(|c| c.as_ref()),
-        );
+        let request_matches =
+            parse_request(&dcql_query, self.credentials.iter().map(|c| c.as_ref()));
 
         Ok(InProgressRequest180137 {
             request,
-            presentation_definition,
+            dcql_query,
             request_matches,
             handler: self.clone(),
         })
@@ -199,9 +195,10 @@ impl InProgressRequest180137 {
             .for_each(|field| log::warn!("required field '{}' was not approved, this may result in an error from the verifier", field.displayable_name));
 
         let field_map = request_match.field_map.clone();
-        let mdoc_generated_nonce = generate_nonce();
 
-        let handover = Handover::new(&self.request, mdoc_generated_nonce.clone())
+        let jwk_thumbprint: Option<[u8; 32]> = get_encryption_jwk_thumbprint(&self.request);
+
+        let handover = handover_from_request(&self.request, jwk_thumbprint.as_ref())
             .context("failed to generate handover")?;
         let device_response = prepare_response(
             self.handler.keystore.clone(),
@@ -212,12 +209,7 @@ impl InProgressRequest180137 {
             handover,
         )?;
 
-        let response = build_response(
-            &self.request,
-            &self.presentation_definition,
-            device_response,
-            mdoc_generated_nonce,
-        )?;
+        let response = build_response(&self.request, &self.dcql_query, device_response)?;
 
         self.handler
             .submit_response(self.request.clone(), response)
@@ -247,18 +239,12 @@ impl RequestVerifier for OID4VP180137 {
         let request_jwt =
             request_jwt.context("request JWT is required for x509_san_dns verification")?;
         openid4vp::core::authorization_request::verification::x509_san::validate::<P256Verifier>(
-            openid4vp::verifier::client::X509SanVariant::Dns,
             &self.metadata,
             decoded_request,
             request_jwt,
             None,
         )
     }
-}
-
-pub fn generate_nonce() -> String {
-    let nonce_bytes = thread_rng().gen::<[u8; 16]>();
-    BASE64_URL_SAFE_NO_PAD.encode(nonce_bytes)
 }
 
 fn default_metadata() -> WalletMetadata {
@@ -271,13 +257,14 @@ fn default_metadata() -> WalletMetadata {
         "vp_formats_supported": {
             "mso_mdoc": {}
         },
-        "client_id_schemes_supported": [
+        "client_id_prefixes_supported": [
             "x509_san_dns"
         ],
         "authorization_encryption_alg_values_supported": [
             "ECDH-ES"
         ],
         "authorization_encryption_enc_values_supported": [
+            "A128GCM",
             "A256GCM"
         ],
         // Missing from the default wallet metadata in the specification, but necessary to support signed authorization requests.
