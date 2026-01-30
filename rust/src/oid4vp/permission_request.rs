@@ -468,10 +468,13 @@ impl PermissionRequest {
                         .collect();
 
                     // Collect all credentials that match any of these query IDs
+                    // Use a seen set to deduplicate by credential ID (same credential may match multiple queries)
+                    let mut seen_ids = std::collections::HashSet::new();
                     let credentials: Vec<Arc<PresentableCredential>> = credential_query_ids
                         .iter()
                         .filter_map(|query_id| creds_by_query.get(query_id))
                         .flatten()
+                        .filter(|cred| seen_ids.insert(cred.as_parsed_credential().id()))
                         .cloned()
                         .collect();
 
