@@ -4,7 +4,7 @@ use crate::{
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
-        PresentationError, ResponseOptions,
+        PresentationError,
     },
     CredentialType,
 };
@@ -13,8 +13,7 @@ use std::sync::Arc;
 
 use base64::prelude::*;
 use openid4vp::core::{
-    credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
-    response::parameters::VpTokenItem,
+    credential_format::ClaimFormatDesignation, response::parameters::VpTokenItem,
 };
 use ssi::{
     claims::{
@@ -184,7 +183,10 @@ impl CredentialPresentation for JwtVc {
     }
 
     fn presentation_format(&self) -> Self::PresentationFormat {
-        ClaimFormatDesignation::JwtVpJson
+        // Per OID4VP v1.0 Section B.1.3.1.1:
+        // "The Credential Format Identifier is `jwt_vc_json` to request a W3C Verifiable
+        // Credential... or a Verifiable Presentation of such a Credential."
+        ClaimFormatDesignation::JwtVcJson
     }
 
     fn credential_format(&self) -> Self::CredentialFormat {
@@ -196,7 +198,6 @@ impl CredentialPresentation for JwtVc {
         &self,
         options: &'a PresentationOptions<'a>,
         _selected_fields: Option<Vec<String>>,
-        _limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError> {
         let vm = options.verification_method_id().await?.to_string();
         let holder_id = options.signer.did();
@@ -293,40 +294,6 @@ impl CredentialPresentation for JwtVc {
         Ok(VpTokenItem::String(format!(
             "{unsigned_vp_token_jwt}.{signature_b64}"
         )))
-    }
-
-    fn create_descriptor_map(
-        &self,
-        options: ResponseOptions,
-        input_descriptor_id: impl Into<String>,
-        index: Option<usize>,
-    ) -> Result<DescriptorMap, OID4VPError> {
-        let id = input_descriptor_id.into();
-        let vp_path = if options.remove_vp_path_prefix {
-            "$"
-        } else {
-            "$.vp"
-        }
-        .parse()
-        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
-
-        let cred_path = match index {
-            Some(idx) => format!("$.verifiableCredential[{idx}]"),
-            None => {
-                if options.force_array_serialization {
-                    "$.verifiableCredential[0]".into()
-                } else {
-                    "$.verifiableCredential".into()
-                }
-            }
-        }
-        .parse()
-        .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?;
-
-        Ok(
-            DescriptorMap::new(id.clone(), self.presentation_format(), vp_path)
-                .set_path_nested(DescriptorMap::new(id, self.credential_format(), cred_path)),
-        )
     }
 }
 

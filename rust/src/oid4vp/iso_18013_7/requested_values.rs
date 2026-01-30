@@ -5,11 +5,9 @@ use ciborium::Value as Cbor;
 use isomdl::definitions::{
     device_request::NameSpace, helpers::NonEmptyMap, issuer_signed::IssuerSignedItemBytes,
 };
-use openid4vp::core::{
-    input_descriptor::InputDescriptor, presentation_definition::PresentationDefinition,
-};
+use itertools::Itertools;
+use openid4vp::core::dcql_query::{DcqlCredentialClaimsQueryPath, DcqlCredentialQuery, DcqlQuery};
 use serde::{Deserialize, Serialize};
-use serde_json::Value as Json;
 use uuid::Uuid;
 
 use crate::credential::mdoc::Mdoc;
@@ -52,31 +50,28 @@ impl RequestMatch180137 {
     }
 }
 
-pub fn parse_request<'l, C>(
-    presentation_definition: &PresentationDefinition,
-    credentials: C,
-) -> Vec<Arc<RequestMatch180137>>
+pub fn parse_request<'l, C>(dcql_query: &DcqlQuery, credentials: C) -> Vec<Arc<RequestMatch180137>>
 where
     C: Iterator<Item = &'l Mdoc>,
 {
-    tracing::debug!("processing request: {:#?}", presentation_definition);
+    tracing::debug!("processing request: {:#?}", dcql_query);
 
-    let input_descriptors = presentation_definition.input_descriptors().as_slice();
-    let input_descriptor = match input_descriptors {
+    let credential_queries = dcql_query.credentials();
+    let credential_query = match credential_queries {
         [] => {
-            tracing::warn!("presentation contained no input descriptors");
+            tracing::warn!("DCQL query contained no credential queries");
             return vec![];
         }
-        [input_descriptor] => input_descriptor,
-        [input_descriptor, ..] => {
-            tracing::warn!("only handling the first request");
-            input_descriptor
+        [credential_query] => credential_query,
+        [credential_query, ..] => {
+            tracing::warn!("only handling the first credential query");
+            credential_query
         }
     };
 
     credentials
         .filter_map(
-            |credential| match find_match(input_descriptor, credential) {
+            |credential| match find_match(credential_query, credential) {
                 Ok(m) => Some(Arc::new(m)),
                 Err(e) => {
                     tracing::info!("credential did not match: {e}");
@@ -87,133 +82,120 @@ where
         .collect()
 }
 
-fn find_match(input_descriptor: &InputDescriptor, credential: &Mdoc) -> Result<RequestMatch180137> {
+/// Find the match between a DCQL credential query and a credential.
+pub fn find_match(
+    credential_query: &DcqlCredentialQuery,
+    credential: &Mdoc,
+) -> Result<RequestMatch180137> {
     let mdoc = credential.document();
 
-    if mdoc.mso.doc_type != input_descriptor.id {
-        bail!("the request was not for an mDL: {}", input_descriptor.id)
+    // Check doctype if specified in meta
+    if let Some(doc_type) = credential_query
+        .meta()
+        .get("doctype_value")
+        .and_then(|value| value.as_str())
+    {
+        if doc_type != mdoc.mso.doc_type {
+            bail!("the request was not for an mDL: {}", doc_type)
+        }
     }
 
     let mut age_over_mapping = calculate_age_over_mapping(&mdoc.namespaces);
 
     let mut field_map = FieldMap::new();
 
-    let elements_json = Json::Object(
-        mdoc.namespaces
-            .iter()
-            .map(|(namespace, elements)| {
-                (
-                    namespace.clone(),
-                    Json::Object(
-                        elements
-                            .iter()
-                            .flat_map(|(element_identifier, element_value)| {
-                                let reference = Uuid::new_v4().to_string();
-                                field_map.insert(
-                                    FieldId180137(reference.clone()),
-                                    (namespace.clone(), element_value.clone()),
-                                );
-                                [(element_identifier.clone(), Json::String(reference.clone()))]
-                                    .into_iter()
-                                    .chain(
-                                        // If there are other age attestations that this element
-                                        // should respond to, insert virtual elements for each
-                                        // of those mappings.
-                                        if namespace == "org.iso.18013.5.1" {
-                                            age_over_mapping.remove(element_identifier)
-                                        } else {
-                                            None
-                                        }
-                                        .into_iter()
-                                        .flat_map(|virtual_element_ids| {
-                                            virtual_element_ids.into_iter()
-                                        })
-                                        .map(
-                                            move |virtual_element_id| {
-                                                (
-                                                    virtual_element_id,
-                                                    Json::String(reference.clone()),
-                                                )
-                                            },
-                                        ),
-                                    )
-                            })
-                            .collect(),
-                    ),
-                )
-            })
-            .collect(),
-    );
+    let elements_map: BTreeMap<String, BTreeMap<String, FieldId180137>> = mdoc
+        .namespaces
+        .iter()
+        .map(|(namespace, elements)| {
+            (
+                namespace.clone(),
+                elements
+                    .iter()
+                    .flat_map(|(element_identifier, element_value)| {
+                        let field_id = FieldId180137(Uuid::new_v4().to_string());
+                        field_map
+                            .insert(field_id.clone(), (namespace.clone(), element_value.clone()));
+                        [(element_identifier.clone(), field_id.clone())]
+                            .into_iter()
+                            .chain(
+                                // If there are other age attestations that this element
+                                // should respond to, insert virtual elements for each
+                                // of those mappings.
+                                if namespace == "org.iso.18013.5.1" {
+                                    age_over_mapping.remove(element_identifier)
+                                } else {
+                                    None
+                                }
+                                .into_iter()
+                                .flat_map(|virtual_element_ids| virtual_element_ids.into_iter())
+                                .map(move |virtual_element_id| {
+                                    (virtual_element_id, field_id.clone())
+                                }),
+                            )
+                    })
+                    .collect(),
+            )
+        })
+        .collect();
 
     let mut requested_fields = BTreeMap::new();
     let mut missing_fields = BTreeMap::new();
 
-    let elements_json_ref = &elements_json;
+    'fields: for field in credential_query
+        .claims()
+        .into_iter()
+        .flat_map(|queries| queries.iter())
+    {
+        let Some(DcqlCredentialClaimsQueryPath::String(namespace)) = field.path().first() else {
+            tracing::warn!(
+                "no valid namespace provided in query: {:?}",
+                field.path().first()
+            );
+            continue 'fields;
+        };
+        let Some(DcqlCredentialClaimsQueryPath::String(element_identifier)) = field.path().get(1)
+        else {
+            tracing::warn!(
+                "no valid element identifier provided in query: {:?}",
+                field.path().get(1)
+            );
+            continue 'fields;
+        };
+        let Some(field_id) = elements_map
+            .get(namespace)
+            .and_then(|elements| elements.get(element_identifier))
+        else {
+            missing_fields.insert(namespace.clone(), element_identifier.clone());
+            continue 'fields;
+        };
+        let displayable_value = field_map
+            .get(field_id)
+            .and_then(|value| cbor_to_string(&value.1.as_ref().element_value));
 
-    'fields: for field in input_descriptor.constraints.fields().iter() {
-        match field
-            .path
-            .iter()
-            .flat_map(|json_path| json_path.query_located(elements_json_ref).into_iter())
-            .next()
-        {
-            Some(node) => {
-                let Json::String(reference) = node.node() else {
-                    bail!("unexpected type {:?}", node.node())
+        // Snake case to sentence case.
+        let displayable_name = element_identifier
+            .split("_")
+            .map(|s| {
+                let Some(first_letter) = s.chars().next() else {
+                    return s.to_string();
                 };
+                format!("{}{}", first_letter.to_uppercase(), &s[1..])
+            })
+            .join(" ");
 
-                // Deduplicating, for example if there are duplicate requests, or multiple age attestation
-                // requests that are serviced by the same response.
-                if requested_fields.contains_key(reference) {
-                    continue 'fields;
-                }
-
-                let field_id = FieldId180137(reference.clone());
-
-                // Find the last "name" in the JSON path expression. This is probably the best name for the requested field.
-                let found_name = node
-                    .location()
-                    .iter()
-                    .filter_map(|element| element.as_name())
-                    .next_back();
-
-                let displayable_name = match found_name {
-                    Some(name) => name.to_string(),
-                    None => {
-                        if node.location().is_empty() {
-                            "Everything".to_string()
-                        } else {
-                            node.location().to_json_pointer()
-                        }
-                    }
-                };
-
-                let displayable_value = field_map
-                    .get(&field_id)
-                    .and_then(|value| cbor_to_string(&value.1.as_ref().element_value));
-
-                requested_fields.insert(
-                    reference.clone(),
-                    RequestedField180137 {
-                        id: field_id,
-                        displayable_name,
-                        displayable_value,
-                        selectively_disclosable: true,
-                        intent_to_retain: field.intent_to_retain,
-                        required: field.is_required(),
-                        purpose: field.purpose.clone(),
-                    },
-                );
-            }
-            None => {
-                let json_path = field.path.as_ref()[0].to_string();
-                if let Some((namespace, element_identifier)) = split_json_path(&json_path) {
-                    missing_fields.insert(namespace, element_identifier);
-                } else {
-                    tracing::warn!("invalid JSON path expression: {json_path}")
-                }
-            }
-        }
+        requested_fields.insert(
+            field_id.0.clone(),
+            RequestedField180137 {
+                id: field_id.clone(),
+                displayable_name,
+                displayable_value,
+                selectively_disclosable: true,
+                intent_to_retain: field.intent_to_retain().unwrap_or(false),
+                required: true,
+                purpose: None,
+            },
+        );
     }
 
     let mut seen_age_over_attestations = 0;
@@ -237,18 +219,6 @@ fn find_match(input_descriptor: &InputDescriptor, credential: &Mdoc) -> Result<R
         requested_fields,
         missing_fields,
     })
-}
-
-fn split_json_path(json_path: &str) -> Option<(String, String)> {
-    // Find the namespace between "$['" and "']['"".
-    let (namespace, rest) = json_path.strip_prefix("$['")?.split_once("']['")?;
-    // Find the element identifier up to "']".
-    let (element_id, "") = rest.split_once("']")? else {
-        // Unexpected trailing characters.
-        return None;
-    };
-
-    Some((namespace.to_string(), element_id.to_string()))
 }
 
 pub fn cbor_to_string(cbor: &Cbor) -> Option<String> {
@@ -400,9 +370,9 @@ fn reverse_mapping(age_over_x_elements: Vec<(u8, bool)>) -> BTreeMap<u8, u8> {
 
 #[cfg(test)]
 mod test {
-    use std::{fs::File, sync::Arc};
+    use std::sync::Arc;
 
-    use openid4vp::core::presentation_definition::PresentationDefinition;
+    use openid4vp::core::dcql_query::DcqlQuery;
     use rstest::rstest;
 
     use crate::crypto::{KeyAlias, RustTestKeyManager};
@@ -410,13 +380,10 @@ mod test {
     use super::{parse_request, reverse_mapping};
 
     #[rstest]
-    #[case::valid("tests/examples/18013_7_presentation_definition.json", 0)]
-    #[case::missing("tests/examples/18013_7_presentation_definition_age_over_25.json", 1)]
+    #[case::valid("tests/examples/18013_7_dcql_query.json", 0)]
+    #[case::missing("tests/examples/18013_7_dcql_query_age_over_25.json", 1)]
     #[tokio::test]
-    async fn mdl_matches_presentation_definition(
-        #[case] filepath: &str,
-        #[case] missing_fields: usize,
-    ) {
+    async fn mdl_matches_dcql_query(#[case] filepath: &str, #[case] missing_fields: usize) {
         let key_manager = Arc::new(RustTestKeyManager::default());
         let key_alias = KeyAlias("".to_string());
 
@@ -428,10 +395,10 @@ mod test {
         let credentials =
             vec![crate::mdl::util::generate_test_mdl(key_manager, key_alias).unwrap()];
 
-        let presentation_definition: PresentationDefinition =
-            serde_json::from_reader(File::open(filepath).unwrap()).unwrap();
+        let dcql_query: DcqlQuery =
+            serde_json::from_reader(std::fs::File::open(filepath).unwrap()).unwrap();
 
-        let request = parse_request(&presentation_definition, credentials.iter());
+        let request = parse_request(&dcql_query, credentials.iter());
 
         assert_eq!(request.len(), 1);
 
@@ -455,19 +422,5 @@ mod test {
                 60..=99 => assert_eq!(response, 60),
                 _ => panic!("unexpected value"),
             })
-    }
-
-    #[rstest]
-    #[case::valid("$['namespace']['element_id']", true)]
-    #[case::invalid("$.namespace.element_id", false)]
-    #[case::trailing("$['namespace']['element_id']['extra']", false)]
-    fn json_path_splitting(#[case] path: &str, #[case] is_some: bool) {
-        let Some((namespace, element_id)) = super::split_json_path(path) else {
-            assert!(!is_some);
-            return;
-        };
-
-        assert_eq!(namespace, "namespace");
-        assert_eq!(element_id, "element_id");
     }
 }

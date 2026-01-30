@@ -195,7 +195,8 @@ fun HandleOID4VPView(
                             credentials,
                             trustedDids,
                             signer,
-                            getVCPlaygroundOID4VCIContext(ctx)
+                            getVCPlaygroundOID4VCIContext(ctx),
+                            KeyManager()
                         )
                     val newurl = url.replace("authorize", "")
                     val tempPermissionRequest = holder!!.authorizationRequest(newurl)
@@ -263,7 +264,7 @@ fun HandleOID4VPView(
                             permissionRequest!!.createPermissionResponse(
                                 lSelectedCredentials.value,
                                 it,
-                                ResponseOptions(false, false, false)
+                                ResponseOptions(false)
                             )
                         holder!!.submitPermissionResponse(permissionResponse!!)
                         val credentialPack =
