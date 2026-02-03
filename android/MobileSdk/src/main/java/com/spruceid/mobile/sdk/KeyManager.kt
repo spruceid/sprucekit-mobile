@@ -7,10 +7,12 @@ import android.util.Base64
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
+import com.spruceid.mobile.sdk.rs.Jwk
 import com.spruceid.mobile.sdk.rs.KeyAlias
 import com.spruceid.mobile.sdk.rs.KeyStore as SpruceKitKeyStore
 import com.spruceid.mobile.sdk.rs.SigningKey
 import com.spruceid.mobile.sdk.rs.coseKeyEc2P256PublicKey
+import com.spruceid.mobile.sdk.rs.jwkFromPublicP256
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.Signature
@@ -160,31 +162,35 @@ class KeyManager : SpruceKitKeyStore {
     /**
      * Returns a JWK for a particular secret key by key id.
      * @property id of the secret key.
-     * @return the JWK as a string.
+     * @return the JWK.
      */
-    fun getJwk(id: String): String? {
+    fun getJwk(id: String): Jwk? {
         val ks = getKeyStore()
         val key = ks.getEntry(id, null)
 
         if (key is KeyStore.PrivateKeyEntry) {
             if (key.certificate.publicKey is ECPublicKey) {
                 val ecPublicKey = key.certificate.publicKey as ECPublicKey
-                val x =
-                    Base64.encodeToString(
-                        clampOrFill(ecPublicKey.w.affineX.toByteArray()),
-                        Base64.URL_SAFE xor Base64.NO_PADDING xor Base64.NO_WRAP
-                    )
-                val y =
-                    Base64.encodeToString(
-                        clampOrFill(ecPublicKey.w.affineY.toByteArray()),
-                        Base64.URL_SAFE xor Base64.NO_PADDING xor Base64.NO_WRAP
-                    )
-
-                return """{"kty":"EC","crv":"P-256","alg":"ES256","x":"$x","y":"$y"}"""
+                val x = clampOrFill(ecPublicKey.w.affineX.toByteArray())
+                val y = clampOrFill(ecPublicKey.w.affineY.toByteArray())
+                return jwkFromPublicP256(x, y)
             }
         }
 
         return null
+    }
+
+    /**
+     * Returns the given public key as a JWK. Generates a new key if it doesn't exist.
+     * @property id of the key pair.
+     * @return the JWK.
+     */
+    fun getOrInsertJwk(id: String): Jwk {
+        if (!keyExists(id)) {
+            generateSigningKey(id)
+        }
+
+        return getJwk(id)!!
     }
 
     /**
@@ -238,7 +244,7 @@ class KeyManager : SpruceKitKeyStore {
      * Signs the provided payload with a SHA256withECDSA private key.
      * @property id of the secret key.
      * @property payload to be signed.
-     * @return the signed payload.
+     * @return DER-encoded signature
      */
     fun signPayload(id: String, payload: ByteArray): ByteArray? {
         val ks = getKeyStore()
@@ -250,6 +256,8 @@ class KeyManager : SpruceKitKeyStore {
 
         return Signature.getInstance("SHA256withECDSA").run {
             initSign(entry.privateKey)
+            val b = Base64.encodeToString(payload, Base64.DEFAULT)
+            Log.i("KeyManager", "Signing: $b")
             update(payload)
             sign()
         }
@@ -402,7 +410,7 @@ class KeyManager : SpruceKitKeyStore {
 
     override fun getSigningKey(alias: KeyAlias): SigningKey {
         val jwk = this.getJwk(alias) ?: throw Error("key not found")
-        return P256SigningKey(alias, jwk)
+        return P256SigningKey(alias, jwk.toString())
     }
 }
 

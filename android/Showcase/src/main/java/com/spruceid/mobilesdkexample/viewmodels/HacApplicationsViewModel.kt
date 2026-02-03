@@ -125,7 +125,7 @@ class HacApplicationsViewModel @Inject constructor(
         if (!keyManager.keyExists(keyId)) {
             keyManager.generateSigningKey(keyId)
         }
-        return keyManager.getJwk(keyId)
+        return keyManager.getJwk(keyId)?.toString()
     }
 
     private suspend fun getNonce(): String? {

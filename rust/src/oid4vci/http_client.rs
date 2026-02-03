@@ -1,11 +1,10 @@
 use std::{collections::HashMap, future::Future, pin::Pin, str::FromStr, sync::Arc};
 
 use async_trait::async_trait;
-use either::Either;
 use oid4vci::oauth2::{
     http::{HeaderMap, Method, Request, Response, StatusCode, Uri},
-    AsyncHttpClient as ExtAsyncHttpClient, HttpRequest as ExtHttpRequest,
-    HttpResponse as ExtHttpResponse, SyncHttpClient as ExtSyncHttpClient,
+    HttpRequest as ExtHttpRequest, HttpResponse as ExtHttpResponse,
+    SyncHttpClient as ExtSyncHttpClient,
 };
 
 #[derive(thiserror::Error, uniffi::Error, Debug)]
@@ -133,12 +132,12 @@ pub trait SyncHttpClient: Send + Sync {
     fn http_client(&self, request: HttpRequest) -> Result<HttpResponse, HttpClientError>;
 }
 
-impl ExtSyncHttpClient for IArc<dyn SyncHttpClient> {
+impl ExtSyncHttpClient for dyn SyncHttpClient {
     type Error = HttpClientError;
 
     fn call(&self, request: ExtHttpRequest) -> Result<ExtHttpResponse, Self::Error> {
         let request: HttpRequest = request.try_into()?;
-        let response: HttpResponse = self.0.http_client(request)?;
+        let response: HttpResponse = self.http_client(request)?;
         let response: ExtHttpResponse = response.try_into()?;
         Ok::<_, HttpClientError>(response)
     }
@@ -150,7 +149,9 @@ pub trait AsyncHttpClient: Send + Sync {
     async fn http_client(&self, request: HttpRequest) -> Result<HttpResponse, HttpClientError>;
 }
 
-impl<'c> ExtAsyncHttpClient<'c> for IArc<dyn AsyncHttpClient + '_> {
+pub struct Oid4vciHttpClient(pub Arc<dyn AsyncHttpClient>);
+
+impl<'c> oid4vci::oauth2::AsyncHttpClient<'c> for Oid4vciHttpClient {
     type Error = HttpClientError;
     type Future =
         Pin<Box<dyn Future<Output = Result<ExtHttpResponse, HttpClientError>> + Send + 'c>>;
@@ -162,55 +163,6 @@ impl<'c> ExtAsyncHttpClient<'c> for IArc<dyn AsyncHttpClient + '_> {
             let response: ExtHttpResponse = response.try_into()?;
             Ok::<_, HttpClientError>(response)
         })
-    }
-}
-
-#[derive(uniffi::Object)]
-/// Http client wrapper type that could either be a synchronous or asynchronous
-/// external (Kotlin, Swift, etc) client implementation, receveid as a dynamic
-/// trait implementation reference (`Arc<dyn (As|S)yncHttpClient`).
-///
-/// `Arc` is wrapped with `IArc` to facilitate trait implementation from
-/// `openidconnect` library used by request builders and client on `oid4vci-rs`.
-pub struct IHttpClient(pub(crate) Either<IArc<dyn SyncHttpClient>, IArc<dyn AsyncHttpClient>>);
-
-impl From<Arc<dyn SyncHttpClient>> for IHttpClient {
-    fn from(value: Arc<dyn SyncHttpClient>) -> Self {
-        Self(Either::Left(IArc::<_>(value)))
-    }
-}
-
-impl From<Arc<dyn AsyncHttpClient>> for IHttpClient {
-    fn from(value: Arc<dyn AsyncHttpClient>) -> Self {
-        Self(Either::Right(IArc::<_>(value)))
-    }
-}
-
-impl IHttpClient {
-    pub async fn call(&self, request: ExtHttpRequest) -> Result<ExtHttpResponse, HttpClientError> {
-        match &self.0 {
-            Either::Left(sync_client) => sync_client.call(request),
-            Either::Right(async_client) => async_client.call(request).await,
-        }
-    }
-}
-
-/// Internal Arc Wrapper to be able to impl traits for it
-/// Examples include:
-///  - `openidconnect::(As|S)yncHttpClient` for `uniffi`'s foreign trait
-///    objects `Arc<dyn (As|S)yncHttpClient>` received from external languages.
-pub(crate) struct IArc<T: ?Sized>(Arc<T>);
-
-#[uniffi::export]
-impl IHttpClient {
-    #[uniffi::constructor(name = "new_sync")]
-    fn new_sync(client_impl: Arc<dyn SyncHttpClient>) -> Arc<Self> {
-        Arc::new(client_impl.into())
-    }
-
-    #[uniffi::constructor(name = "new_async")]
-    fn new_async(client_impl: Arc<dyn AsyncHttpClient>) -> Arc<Self> {
-        Arc::new(client_impl.into())
     }
 }
 

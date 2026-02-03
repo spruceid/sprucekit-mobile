@@ -440,20 +440,6 @@ pub(crate) mod tests {
         pub(crate) jwk: JWK,
     }
 
-    impl KeySigner {
-        pub async fn sign_jwt(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
-            let sig = self
-                .jwk
-                .sign_bytes(&payload)
-                .await
-                .expect("failed to sign Jws Payload");
-
-            p256::ecdsa::Signature::from_slice(&sig)
-                .map(|sig| sig.to_der().as_bytes().to_vec())
-                .map_err(|e| PresentationError::Signing(format!("{e:?}")))
-        }
-    }
-
     #[async_trait::async_trait]
     impl PresentationSigner for KeySigner {
         async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
