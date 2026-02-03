@@ -358,7 +358,8 @@ mod tests {
     #[test]
     fn test_cbor_auth_data_parsing() {
         const B64_AUTH_DATA: &str = include_str!("../../../tests/examples/auth_data.txt");
-        const B64_PROVISIONED_DATA: &str = include_str!("../../../tests/examples/provision_data.txt");
+        const B64_PROVISIONED_DATA: &str =
+            include_str!("../../../tests/examples/provision_data.txt");
 
         let decoded_auth_data = BASE64_STANDARD
             .decode(B64_AUTH_DATA)
