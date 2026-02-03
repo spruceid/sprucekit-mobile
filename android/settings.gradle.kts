@@ -11,6 +11,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // AndroidX Credential snapshots - needed for WASI support in WASM matchers
+        maven(url="https://androidx.dev/snapshots/builds/14144115/artifacts/repository")
     }
 }
 
