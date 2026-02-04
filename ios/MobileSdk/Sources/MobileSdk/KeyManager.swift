@@ -176,7 +176,7 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
         return jwkFromPublicP256(x: xDataRaw, y: yDataRaw)
     }
-        
+
     /**
      * Returns the public key of the given key pair as a JWK.
      *
