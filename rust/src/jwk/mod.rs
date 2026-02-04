@@ -75,33 +75,3 @@ impl From<ssi::JWK> for Jwk {
         Self(RwLock::new(value))
     }
 }
-
-// #[derive(thiserror::Error, uniffi::Error, Debug)]
-// #[uniffi(flat_error)]
-// pub enum JwkResolutionError {
-//     // ...
-// }
-
-// impl From<JwkResolutionError> for ssi::claims::ProofValidationError {
-//     fn from(value: JwkResolutionError) -> Self {
-//         todo!()
-//     }
-// }
-
-// #[uniffi::export]
-// #[async_trait::async_trait]
-// pub trait FfiJwkResolver: 'static + Send + Sync {
-//     async fn fetch_public_jwk(&self, key_id: Option<String>) -> Result<Jwk, JwkResolutionError>;
-// }
-
-// impl JWKResolver for dyn '_ + FfiJwkResolver {
-//     async fn fetch_public_jwk(
-//         &self,
-//         key_id: Option<&str>,
-//     ) -> Result<Cow<ssi::JWK>, ssi::claims::ProofValidationError> {
-//         FfiJwkResolver::fetch_public_jwk(self, key_id.map(ToOwned::to_owned))
-//             .await
-//             .map(|jwk| Cow::Owned(jwk.into()))
-//             .map_err(Into::into)
-//     }
-// }
