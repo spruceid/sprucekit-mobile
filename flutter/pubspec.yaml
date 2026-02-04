@@ -1,6 +1,6 @@
 name: sprucekit_mobile
 description: "Flutter plugin for SpruceKit Mobile SDK"
-version: 0.13.16
+version: 0.13.17
 homepage: https://github.com/spruceid/sprucekit-mobile
 
 environment:
