@@ -13,9 +13,6 @@ pub enum PresentationBuilderError {
     #[error("SerializationError: {_0}")]
     SerializationError(#[from] serde_json::Error),
 
-    #[error("ConversionError: {_0}")]
-    ConversionError(#[from] oid4vci::proof_of_possession::ConversionError),
-
     #[error("InvalidIri: {_0}")]
     IriBufError(#[from] ssi::json_ld::iref::InvalidIri<std::string::String>),
 

@@ -24,6 +24,12 @@ pub enum CryptoError {
     General(String),
 }
 
+impl CryptoError {
+    fn general(e: impl ToString) -> Self {
+        Self::General(e.to_string())
+    }
+}
+
 impl From<anyhow::Error> for CryptoError {
     fn from(value: anyhow::Error) -> Self {
         Self::General(format!("{value:#}"))
@@ -198,6 +204,14 @@ pub fn encode_to_cbor_bytes(payload: Vec<u8>, tag_payload: bool) -> Result<Vec<u
         isomdl::cbor::to_vec(&payload)
             .map_err(|e| CryptoError::General(format!("Failed to encode payload as CBOR: {e:?}")))
     }
+}
+
+/// Decodes a DER-encoded signature.
+#[uniffi::export]
+pub fn decode_der_signature(signature_der: &[u8]) -> Result<Vec<u8>> {
+    p256::ecdsa::Signature::from_der(signature_der)
+        .map(|s| s.to_vec())
+        .map_err(CryptoError::general)
 }
 
 #[cfg(test)]

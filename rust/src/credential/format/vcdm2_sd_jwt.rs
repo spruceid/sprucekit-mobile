@@ -1,11 +1,12 @@
-use super::{
-    status::StatusListError,
-    status_20240406::{
-        BitStringStatusListResolver20240406 as BitStringStatusListResolver, Status20240406,
-    },
-    Credential, CredentialFormat, ParsedCredential, ParsedCredentialInner,
-};
 use crate::{
+    credential::{
+        status::StatusListError,
+        status_20240406::{
+            BitStringStatusListResolver20240406 as BitStringStatusListResolver, Status20240406,
+        },
+        Credential, CredentialEncodingError, CredentialFormat, ParsedCredential,
+        ParsedCredentialInner,
+    },
     crypto::KeyAlias,
     oid4vp::{
         error::OID4VPError,
@@ -39,6 +40,8 @@ use ssi::{
 };
 use url::Url;
 use uuid::Uuid;
+
+pub const SPRUCE_FORMAT_VC_SD_JWT: &str = "spruce-vc+sd-jwt";
 
 #[derive(Debug, uniffi::Object)]
 pub struct VCDM2SdJwt {
@@ -177,9 +180,9 @@ impl CredentialPresentation for VCDM2SdJwt {
     ) -> Result<VpTokenItem, OID4VPError> {
         let compact: &str = self.inner.as_ref();
         let vp_token = if let Some(selected_fields) = selected_fields {
-            let json = self.revealed_claims_as_json().map_err(|e| {
-                OID4VPError::CredentialEncoding(super::CredentialEncodingError::SdJwt(e))
-            })?;
+            let json = self
+                .revealed_claims_as_json()
+                .map_err(|e| OID4VPError::CredentialEncoding(CredentialEncodingError::SdJwt(e)))?;
 
             let selected_fields_pointers = selected_fields
                 .into_iter()
@@ -456,7 +459,7 @@ pub(crate) mod tests {
     #[test]
     fn test_decode_static() {
         // Example SD-JWT input (you should replace this with a real SD-JWT string for a proper test)
-        let sd_jwt_input = include_str!("../../tests/examples/sd_vc.jwt");
+        let sd_jwt_input = include_str!("../../../tests/examples/sd_vc.jwt");
 
         // Call the function with the SD-JWT input
         let output =

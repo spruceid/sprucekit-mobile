@@ -1,8 +1,8 @@
-use super::{
-    status::{BitStringStatusListResolver, Status, StatusListError},
-    Credential, CredentialEncodingError, CredentialFormat, VcdmVersion,
-};
 use crate::{
+    credential::{
+        status::{BitStringStatusListResolver, Status, StatusListError},
+        Credential, CredentialEncodingError, CredentialFormat, VcdmVersion,
+    },
     crypto::KeyAlias,
     oid4vp::{
         error::OID4VPError,
