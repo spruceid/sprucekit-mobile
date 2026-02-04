@@ -53,10 +53,10 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
 
     public func getSigningKey(alias: SpruceIDMobileSdkRs.KeyAlias) throws -> any SpruceIDMobileSdkRs
         .SigningKey {
-        guard let jwkString = Self.getJwk(id: alias) else {
+        guard let jwk = Self.getJwk(id: alias) else {
             throw KeyManError.missing
         }
-        return P256SigningKey(alias: alias, jwkString: jwkString)
+            return P256SigningKey(alias: alias, jwkString: jwk.description)
     }
 
     /**
@@ -156,9 +156,9 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
     }
 
     /**
-     * Returns a JWK for a particular secret key by key id.
+     * Returns a JWK for a particular sec
      */
-    public static func getJwk(id: String, accessGroup: String? = nil) -> String? {
+    public static func getJwk(id: String, accessGroup: String? = nil) -> Jwk? {
         guard let key = getSecretKey(id: id, accessGroup: accessGroup) else { return nil }
 
         guard let publicKey = SecKeyCopyPublicKey(key) else {
@@ -174,22 +174,20 @@ public class KeyManager: NSObject, SpruceIDMobileSdkRs.KeyStore, ObservableObjec
         let xDataRaw: Data = fullData.subdata(in: 0..<32)
         let yDataRaw: Data = fullData.subdata(in: 32..<64)
 
-        let xCoordinate = xDataRaw.base64EncodedUrlSafe
-        let yCoordinate = yDataRaw.base64EncodedUrlSafe
+        return jwkFromPublicP256(x: xDataRaw, y: yDataRaw)
+    }
 
-        let jsonObject: [String: Any] = [
-            "kty": "EC",
-            "crv": "P-256",
-            "alg": "ES256",
-            "x": xCoordinate,
-            "y": yCoordinate
-        ]
+    /**
+     * Returns the public key of the given key pair as a JWK.
+     *
+     * Creates the key if it doesn't exist.
+     */
+    public static func getOrInsertJwk(id: String) -> Jwk {
+        if !KeyManager.keyExists(id: id) {
+            _ = KeyManager.generateSigningKey(id: id)
+        }
 
-        guard let jsonData = try? JSONSerialization.data(withJSONObject: jsonObject, options: [])
-        else { return nil }
-        let jsonString = String(data: jsonData, encoding: String.Encoding.ascii)!
-
-        return jsonString
+        return KeyManager.getJwk(id: id)!
     }
 
     /**

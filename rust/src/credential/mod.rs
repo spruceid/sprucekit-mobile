@@ -1,12 +1,3 @@
-pub mod activity_log;
-pub mod cwt;
-pub mod json_vc;
-pub mod jwt_vc;
-pub mod mdoc;
-pub mod status;
-pub mod status_20240406;
-pub mod vcdm2_sd_jwt;
-
 use std::sync::Arc;
 
 use crate::{
@@ -32,6 +23,17 @@ use status::BitStringStatusListResolver;
 use status_20240406::BitStringStatusListResolver20240406;
 use uuid::Uuid;
 use vcdm2_sd_jwt::{SdJwtError, VCDM2SdJwt};
+
+pub mod activity_log;
+mod format;
+mod raw;
+pub mod status;
+pub mod status_20240406;
+mod verification;
+
+pub use format::*;
+pub use raw::*;
+pub use verification::*;
 
 /// An unparsed credential, retrieved from storage.
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]

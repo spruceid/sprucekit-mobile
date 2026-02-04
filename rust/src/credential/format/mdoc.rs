@@ -17,12 +17,11 @@ use uuid::Uuid;
 
 use crate::{
     credential::activity_log::{self, ActivityLog},
+    credential::{Credential, CredentialFormat},
     crypto::KeyAlias,
     storage_manager::StorageManagerInterface,
     CredentialType,
 };
-
-use super::{Credential, CredentialFormat};
 
 uniffi::custom_newtype!(Namespace, String);
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -358,8 +357,9 @@ mod tests {
 
     #[test]
     fn test_cbor_auth_data_parsing() {
-        const B64_AUTH_DATA: &str = include_str!("../../tests/examples/auth_data.txt");
-        const B64_PROVISIONED_DATA: &str = include_str!("../../tests/examples/provision_data.txt");
+        const B64_AUTH_DATA: &str = include_str!("../../../tests/examples/auth_data.txt");
+        const B64_PROVISIONED_DATA: &str =
+            include_str!("../../../tests/examples/provision_data.txt");
 
         let decoded_auth_data = BASE64_STANDARD
             .decode(B64_AUTH_DATA)

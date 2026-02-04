@@ -28,7 +28,7 @@ class Signer: PresentationSigner {
             throw Oid4vpSignerError.illegalArgumentException(
                 reason: "Invalid kid")
         } else {
-            self._jwk = jwk!
+            self._jwk = jwk!.description
         }
     }
 

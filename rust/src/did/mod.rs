@@ -1,8 +1,57 @@
+use std::{fmt, sync::Arc};
+
 use ssi::dids::{document::DIDVerificationMethod, DIDBuf, DIDResolver};
 
 pub use error::*;
 
+use crate::jwk::Jwk;
+
 mod error;
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, uniffi::Object)]
+#[uniffi::export(Display, Eq)]
+pub struct Did(ssi::dids::DIDBuf);
+
+impl fmt::Display for Did {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<ssi::dids::DIDBuf> for Did {
+    fn from(value: ssi::dids::DIDBuf) -> Self {
+        Self(value)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, uniffi::Object)]
+#[uniffi::export(Display, Eq)]
+pub struct DidUrl(ssi::dids::DIDURLBuf);
+
+#[uniffi::export]
+impl DidUrl {
+    pub fn did(&self) -> Arc<Did> {
+        Arc::new(self.0.did().to_owned().into())
+    }
+}
+
+impl fmt::Display for DidUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<ssi::dids::DIDURLBuf> for DidUrl {
+    fn from(value: ssi::dids::DIDURLBuf) -> Self {
+        Self(value)
+    }
+}
+
+/// Generates a `did:jwk` DID URL form a JWK.
+#[uniffi::export]
+pub fn generate_did_jwk_url(jwk: Arc<Jwk>) -> Arc<DidUrl> {
+    Arc::new(ssi::dids::DIDJWK::generate_url(&jwk.0.blocking_read()).into())
+}
 
 #[derive(Debug, uniffi::Enum)]
 pub enum DidMethod {
