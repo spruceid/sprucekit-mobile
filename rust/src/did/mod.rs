@@ -50,7 +50,7 @@ impl From<ssi::dids::DIDURLBuf> for DidUrl {
 /// Generates a `did:jwk` DID URL form a JWK.
 #[uniffi::export]
 pub fn generate_did_jwk_url(jwk: Arc<Jwk>) -> Arc<DidUrl> {
-    Arc::new(ssi::dids::DIDJWK::generate_url(&*jwk.0.blocking_read()).into())
+    Arc::new(ssi::dids::DIDJWK::generate_url(&jwk.0.blocking_read()).into())
 }
 
 #[derive(Debug, uniffi::Enum)]

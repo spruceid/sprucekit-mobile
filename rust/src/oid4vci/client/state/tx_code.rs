@@ -10,7 +10,7 @@ pub struct TxCodeRequired {
 }
 
 impl TxCodeRequired {
-    pub async fn proceed<'c>(
+    pub async fn proceed(
         self,
         http_client: Arc<dyn AsyncHttpClient>,
         tx_code: &str,

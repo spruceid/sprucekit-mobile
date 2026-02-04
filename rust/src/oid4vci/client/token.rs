@@ -23,7 +23,6 @@ impl CredentialToken {
         self.0
             .get_nonce_async(&Oid4vciHttpClient(http_client))
             .await
-            .map(Into::into)
             .map_err(Into::into)
     }
 }

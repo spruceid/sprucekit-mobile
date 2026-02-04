@@ -209,7 +209,7 @@ pub fn encode_to_cbor_bytes(payload: Vec<u8>, tag_payload: bool) -> Result<Vec<u
 /// Decodes a DER-encoded signature.
 #[uniffi::export]
 pub fn decode_der_signature(signature_der: &[u8]) -> Result<Vec<u8>> {
-    p256::ecdsa::Signature::from_der(&signature_der)
+    p256::ecdsa::Signature::from_der(signature_der)
         .map(|s| s.to_vec())
         .map_err(CryptoError::general)
 }
