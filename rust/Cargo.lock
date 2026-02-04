@@ -3640,7 +3640,7 @@ dependencies = [
 [[package]]
 name = "oid4vci"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/oid4vci-rs?rev=3732a69#3732a69aad8aa6784496ecc16bb3d69171644530"
+source = "git+https://github.com/spruceid/oid4vci-rs?rev=e64ae8d#e64ae8d45039dba15a3e2edc053249457b6e2eee"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
