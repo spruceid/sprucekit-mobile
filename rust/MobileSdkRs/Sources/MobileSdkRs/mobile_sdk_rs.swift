@@ -3599,11 +3599,11 @@ open class Holder: HolderProtocol, @unchecked Sendable {
     /**
      * Uses VDC collection to retrieve the credentials for a given presentation definition.
      */
-public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?)async throws  {
+public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  {
     let pointer =
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_holder_new(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap)
+                uniffi_mobile_sdk_rs_fn_constructor_holder_new(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
@@ -3633,11 +3633,11 @@ public convenience init(vdcCollection: VdcCollection, trustedDids: [String], sig
      * This constructor will use the provided credentials for the presentation,
      * instead of searching for credentials in the VDC collection.
      */
-public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?)async throws  -> Holder  {
+public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> Holder  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap)
+                uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
@@ -8516,18 +8516,44 @@ public protocol PermissionRequestProtocol: AnyObject, Sendable {
     
     /**
      * Construct a new permission response for the given credential.
-     *
-     * NOTE: `should_strip_quotes` is a non-normative setting to determine
-     * the behavior of removing extra quotations around a JSON
-     * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
      */
     func createPermissionResponse(selectedCredentials: [PresentableCredential], selectedFields: [[String]], responseOptions: ResponseOptions) async throws  -> PermissionResponse
     
     /**
+     * Return the list of credential query IDs from the DCQL query.
+     *
+     * This is useful for understanding how many distinct credential types
+     * are being requested by the verifier.
+     */
+    func credentialQueryIds()  -> [String]
+    
+    /**
+     * Return credential requirements that the user must satisfy.
+     *
+     * This method respects the DCQL query's `credential_sets` if present,
+     * grouping credential queries that are alternatives (OR relationship)
+     * into a single requirement.
+     *
+     * If `credential_sets` is absent, each credential query becomes its own requirement.
+     *
+     * The user should select ONE credential per requirement to satisfy the presentation.
+     */
+    func credentialRequirements()  -> [CredentialRequirement]
+    
+    /**
      * Return the filtered list of credentials that matched
-     * the presentation definition.
+     * the DCQL query.
      */
     func credentials()  -> [PresentableCredential]
+    
+    /**
+     * Return credentials grouped by their credential_query_id.
+     *
+     * This method returns a list of `CredentialQueryGroup` structs, each containing
+     * a credential_query_id and the list of credentials that match that query.
+     * The groups are ordered according to the DCQL query's credential order.
+     */
+    func credentialsGroupedByQuery()  -> [CredentialQueryGroup]
     
     /**
      * Return the domain name of the redirect URI.
@@ -8539,30 +8565,25 @@ public protocol PermissionRequestProtocol: AnyObject, Sendable {
     func domain()  -> String?
     
     /**
-     * Returns boolean whether the presentation definition
+     * Returns boolean whether the DCQL query
      * matches multiple credentials of the same type that
      * can satisfy the request.
      */
     func isMultiCredentialMatching()  -> Bool
     
     /**
-     * Return whether the presentation definition is requesting
+     * Return whether the DCQL query is requesting
      * multiple credentials to satisfy the presentation.
      *
-     * Will return true IFF multiple input descriptors exist
-     * in the presentation definition.
-     *
-     * NOTE: Based on the oid4vp specification that each input descriptor
-     * corresponds to a single credential type.
-     *
-     * In cases where multiple credentials are requested, for example,
-     * an mDL and a vehicle title, each input descriptor would match
-     * only one credential type.
+     * Will return true IFF multiple credential queries exist
+     * in the DCQL query.
      */
     func isMultiCredentialSelection()  -> Bool
     
     /**
      * Return the purpose of the presentation request.
+     * Note: In OID4VP v1.0, the purpose field is not part of the DCQL credential set query.
+     * This method is kept for API compatibility but always returns None.
      */
     func purpose()  -> String?
     
@@ -8641,10 +8662,6 @@ open func clientId() -> String?  {
     
     /**
      * Construct a new permission response for the given credential.
-     *
-     * NOTE: `should_strip_quotes` is a non-normative setting to determine
-     * the behavior of removing extra quotations around a JSON
-     * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
      */
 open func createPermissionResponse(selectedCredentials: [PresentableCredential], selectedFields: [[String]], responseOptions: ResponseOptions)async throws  -> PermissionResponse  {
     return
@@ -8664,12 +8681,57 @@ open func createPermissionResponse(selectedCredentials: [PresentableCredential],
 }
     
     /**
+     * Return the list of credential query IDs from the DCQL query.
+     *
+     * This is useful for understanding how many distinct credential types
+     * are being requested by the verifier.
+     */
+open func credentialQueryIds() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_permissionrequest_credential_query_ids(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return credential requirements that the user must satisfy.
+     *
+     * This method respects the DCQL query's `credential_sets` if present,
+     * grouping credential queries that are alternatives (OR relationship)
+     * into a single requirement.
+     *
+     * If `credential_sets` is absent, each credential query becomes its own requirement.
+     *
+     * The user should select ONE credential per requirement to satisfy the presentation.
+     */
+open func credentialRequirements() -> [CredentialRequirement]  {
+    return try!  FfiConverterSequenceTypeCredentialRequirement.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_permissionrequest_credential_requirements(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
      * Return the filtered list of credentials that matched
-     * the presentation definition.
+     * the DCQL query.
      */
 open func credentials() -> [PresentableCredential]  {
     return try!  FfiConverterSequenceTypePresentableCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_permissionrequest_credentials(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return credentials grouped by their credential_query_id.
+     *
+     * This method returns a list of `CredentialQueryGroup` structs, each containing
+     * a credential_query_id and the list of credentials that match that query.
+     * The groups are ordered according to the DCQL query's credential order.
+     */
+open func credentialsGroupedByQuery() -> [CredentialQueryGroup]  {
+    return try!  FfiConverterSequenceTypeCredentialQueryGroup.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_permissionrequest_credentials_grouped_by_query(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -8689,7 +8751,7 @@ open func domain() -> String?  {
 }
     
     /**
-     * Returns boolean whether the presentation definition
+     * Returns boolean whether the DCQL query
      * matches multiple credentials of the same type that
      * can satisfy the request.
      */
@@ -8701,18 +8763,11 @@ open func isMultiCredentialMatching() -> Bool  {
 }
     
     /**
-     * Return whether the presentation definition is requesting
+     * Return whether the DCQL query is requesting
      * multiple credentials to satisfy the presentation.
      *
-     * Will return true IFF multiple input descriptors exist
-     * in the presentation definition.
-     *
-     * NOTE: Based on the oid4vp specification that each input descriptor
-     * corresponds to a single credential type.
-     *
-     * In cases where multiple credentials are requested, for example,
-     * an mDL and a vehicle title, each input descriptor would match
-     * only one credential type.
+     * Will return true IFF multiple credential queries exist
+     * in the DCQL query.
      */
 open func isMultiCredentialSelection() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
@@ -8723,6 +8778,8 @@ open func isMultiCredentialSelection() -> Bool  {
     
     /**
      * Return the purpose of the presentation request.
+     * Note: In OID4VP v1.0, the purpose field is not part of the DCQL credential set query.
+     * This method is kept for API compatibility but always returns None.
      */
 open func purpose() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
@@ -8978,6 +9035,11 @@ public protocol PresentableCredentialProtocol: AnyObject, Sendable {
     func asParsedCredential()  -> ParsedCredential
     
     /**
+     * Return true if the credential is an mdoc (mso_mdoc format).
+     */
+    func isMdoc()  -> Bool
+    
+    /**
      * Return if the credential supports selective disclosure
      * For now only SdJwts are supported
      */
@@ -9045,6 +9107,16 @@ open class PresentableCredential: PresentableCredentialProtocol, @unchecked Send
 open func asParsedCredential() -> ParsedCredential  {
     return try!  FfiConverterTypeParsedCredential_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_presentablecredential_as_parsed_credential(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return true if the credential is an mdoc (mso_mdoc format).
+     */
+open func isMdoc() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_presentablecredential_is_mdoc(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -9627,14 +9699,14 @@ public func FfiConverterTypeRequestMatch180137_lower(_ value: RequestMatch180137
 public protocol RequestedFieldProtocol: AnyObject, Sendable {
     
     /**
+     * Return the credential query id the requested field belongs to
+     */
+    func credentialQueryId()  -> String
+    
+    /**
      * Return the unique ID for the request field.
      */
     func id()  -> Uuid
-    
-    /**
-     * Return the input descriptor id the requested field belongs to
-     */
-    func inputDescriptorId()  -> String
     
     /**
      * Return the field name
@@ -9720,21 +9792,21 @@ open class RequestedField: RequestedFieldProtocol, @unchecked Sendable {
 
     
     /**
-     * Return the unique ID for the request field.
+     * Return the credential query id the requested field belongs to
      */
-open func id() -> Uuid  {
-    return try!  FfiConverterTypeUuid_lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_requestedfield_id(self.uniffiClonePointer(),$0
+open func credentialQueryId() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestedfield_credential_query_id(self.uniffiClonePointer(),$0
     )
 })
 }
     
     /**
-     * Return the input descriptor id the requested field belongs to
+     * Return the unique ID for the request field.
      */
-open func inputDescriptorId() -> String  {
-    return try!  FfiConverterString.lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_requestedfield_input_descriptor_id(self.uniffiClonePointer(),$0
+open func id() -> Uuid  {
+    return try!  FfiConverterTypeUuid_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestedfield_id(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -13287,6 +13359,174 @@ public func FfiConverterTypeCredentialInfo_lower(_ value: CredentialInfo) -> Rus
 }
 
 
+/**
+ * A group of credentials that match a specific credential query.
+ *
+ * This struct is used to group credentials by their credential_query_id,
+ * allowing the UI to display credentials in sections based on what the
+ * verifier is requesting.
+ */
+public struct CredentialQueryGroup {
+    /**
+     * The credential query ID from the DCQL query.
+     */
+    public var credentialQueryId: String
+    /**
+     * The list of credentials that match this credential query.
+     */
+    public var credentials: [PresentableCredential]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The credential query ID from the DCQL query.
+         */credentialQueryId: String, 
+        /**
+         * The list of credentials that match this credential query.
+         */credentials: [PresentableCredential]) {
+        self.credentialQueryId = credentialQueryId
+        self.credentials = credentials
+    }
+}
+
+#if compiler(>=6)
+extension CredentialQueryGroup: Sendable {}
+#endif
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCredentialQueryGroup: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CredentialQueryGroup {
+        return
+            try CredentialQueryGroup(
+                credentialQueryId: FfiConverterString.read(from: &buf), 
+                credentials: FfiConverterSequenceTypePresentableCredential.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CredentialQueryGroup, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.credentialQueryId, into: &buf)
+        FfiConverterSequenceTypePresentableCredential.write(value.credentials, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCredentialQueryGroup_lift(_ buf: RustBuffer) throws -> CredentialQueryGroup {
+    return try FfiConverterTypeCredentialQueryGroup.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCredentialQueryGroup_lower(_ value: CredentialQueryGroup) -> RustBuffer {
+    return FfiConverterTypeCredentialQueryGroup.lower(value)
+}
+
+
+/**
+ * A requirement that the user must satisfy by selecting credentials.
+ *
+ * When `credential_sets` is present in the DCQL query, each credential_set
+ * becomes a requirement. When absent, each credential_query is a requirement.
+ *
+ * Within a requirement, multiple credential queries may be alternatives (OR),
+ * meaning the user only needs to select ONE credential to satisfy the requirement.
+ */
+public struct CredentialRequirement {
+    /**
+     * A display-friendly name for this requirement section.
+     * Derived from the credential query IDs.
+     */
+    public var displayName: String
+    /**
+     * Whether this requirement is mandatory.
+     */
+    public var required: Bool
+    /**
+     * The credential query IDs that can satisfy this requirement (OR relationship).
+     */
+    public var credentialQueryIds: [String]
+    /**
+     * All credentials that can satisfy this requirement.
+     * User should select ONE credential from this list.
+     */
+    public var credentials: [PresentableCredential]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * A display-friendly name for this requirement section.
+         * Derived from the credential query IDs.
+         */displayName: String, 
+        /**
+         * Whether this requirement is mandatory.
+         */required: Bool, 
+        /**
+         * The credential query IDs that can satisfy this requirement (OR relationship).
+         */credentialQueryIds: [String], 
+        /**
+         * All credentials that can satisfy this requirement.
+         * User should select ONE credential from this list.
+         */credentials: [PresentableCredential]) {
+        self.displayName = displayName
+        self.required = required
+        self.credentialQueryIds = credentialQueryIds
+        self.credentials = credentials
+    }
+}
+
+#if compiler(>=6)
+extension CredentialRequirement: Sendable {}
+#endif
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCredentialRequirement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CredentialRequirement {
+        return
+            try CredentialRequirement(
+                displayName: FfiConverterString.read(from: &buf), 
+                required: FfiConverterBool.read(from: &buf), 
+                credentialQueryIds: FfiConverterSequenceString.read(from: &buf), 
+                credentials: FfiConverterSequenceTypePresentableCredential.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CredentialRequirement, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.displayName, into: &buf)
+        FfiConverterBool.write(value.required, into: &buf)
+        FfiConverterSequenceString.write(value.credentialQueryIds, into: &buf)
+        FfiConverterSequenceTypePresentableCredential.write(value.credentials, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCredentialRequirement_lift(_ buf: RustBuffer) throws -> CredentialRequirement {
+    return try FfiConverterTypeCredentialRequirement.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCredentialRequirement_lower(_ value: CredentialRequirement) -> RustBuffer {
+    return FfiConverterTypeCredentialRequirement.lower(value)
+}
+
+
 public struct DeferredCredentialResponse {
     public var transactionId: String
     public var interval: UInt64
@@ -14562,17 +14802,11 @@ public func FfiConverterTypeRequestedField180137_lower(_ value: RequestedField18
 
 
 /**
- * Non-normative response options used to provide configurable interface
+ * Response options used to provide configurable interface
  * for handling variations in the processing of the verifiable presentation
- * payloads in various external verifiers.
+ * payloads.
  */
 public struct ResponseOptions {
-    /**
-     * This is an non-normative setting to determine
-     * the behavior of removing extra quotations around a JSON
-     * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
-     */
-    public var shouldStripQuotes: Bool
     /**
      * Boolean option of whether to use `array_or_value` serialization options
      * for the verifiable presentation.
@@ -14580,28 +14814,12 @@ public struct ResponseOptions {
      * This is provided as an option to force serializing a single verifiable
      * credential as a member of an array, versus as a singular option, per
      * implementation.
-     *
-     * NOTE: This may be removed in the future as the oid4vp specification becomes
-     * more solidified around `vp_token` presentation.
-     *
-     * These options are provided as configurable parameters to maintain backwards
-     * compatibility with verifier implementation versions.
      */
     public var forceArraySerialization: Bool
-    /**
-     * Remove the `$.vp` path prefix for the descriptor map for the verifiable credential.
-     * This is non-normative option, e.g. `$.vp` -> `$`
-     */
-    public var removeVpPathPrefix: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        /**
-         * This is an non-normative setting to determine
-         * the behavior of removing extra quotations around a JSON
-         * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
-         */shouldStripQuotes: Bool, 
         /**
          * Boolean option of whether to use `array_or_value` serialization options
          * for the verifiable presentation.
@@ -14609,20 +14827,8 @@ public struct ResponseOptions {
          * This is provided as an option to force serializing a single verifiable
          * credential as a member of an array, versus as a singular option, per
          * implementation.
-         *
-         * NOTE: This may be removed in the future as the oid4vp specification becomes
-         * more solidified around `vp_token` presentation.
-         *
-         * These options are provided as configurable parameters to maintain backwards
-         * compatibility with verifier implementation versions.
-         */forceArraySerialization: Bool, 
-        /**
-         * Remove the `$.vp` path prefix for the descriptor map for the verifiable credential.
-         * This is non-normative option, e.g. `$.vp` -> `$`
-         */removeVpPathPrefix: Bool) {
-        self.shouldStripQuotes = shouldStripQuotes
+         */forceArraySerialization: Bool) {
         self.forceArraySerialization = forceArraySerialization
-        self.removeVpPathPrefix = removeVpPathPrefix
     }
 }
 
@@ -14633,22 +14839,14 @@ extension ResponseOptions: Sendable {}
 
 extension ResponseOptions: Equatable, Hashable {
     public static func ==(lhs: ResponseOptions, rhs: ResponseOptions) -> Bool {
-        if lhs.shouldStripQuotes != rhs.shouldStripQuotes {
-            return false
-        }
         if lhs.forceArraySerialization != rhs.forceArraySerialization {
-            return false
-        }
-        if lhs.removeVpPathPrefix != rhs.removeVpPathPrefix {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(shouldStripQuotes)
         hasher.combine(forceArraySerialization)
-        hasher.combine(removeVpPathPrefix)
     }
 }
 
@@ -14661,16 +14859,12 @@ public struct FfiConverterTypeResponseOptions: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ResponseOptions {
         return
             try ResponseOptions(
-                shouldStripQuotes: FfiConverterBool.read(from: &buf), 
-                forceArraySerialization: FfiConverterBool.read(from: &buf), 
-                removeVpPathPrefix: FfiConverterBool.read(from: &buf)
+                forceArraySerialization: FfiConverterBool.read(from: &buf)
         )
     }
 
     public static func write(_ value: ResponseOptions, into buf: inout [UInt8]) {
-        FfiConverterBool.write(value.shouldStripQuotes, into: &buf)
         FfiConverterBool.write(value.forceArraySerialization, into: &buf)
-        FfiConverterBool.write(value.removeVpPathPrefix, into: &buf)
     }
 }
 
@@ -19456,7 +19650,7 @@ public enum Oid4vpError: Swift.Error {
     )
     case RequestValidation(String
     )
-    case PresentationDefinitionResolution(String
+    case DcqlQueryResolution(String
     )
     case Token(String
     )
@@ -19506,8 +19700,6 @@ public enum Oid4vpError: Swift.Error {
     )
     case JsonPathToPointer(String
     )
-    case LimitDisclosure(String
-    )
     case EmptyCredentialSubject(String
     )
     case SelectiveDisclosureInvalidFields
@@ -19536,7 +19728,7 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
         case 2: return .RequestValidation(
             try FfiConverterString.read(from: &buf)
             )
-        case 3: return .PresentationDefinitionResolution(
+        case 3: return .DcqlQueryResolution(
             try FfiConverterString.read(from: &buf)
             )
         case 4: return .Token(
@@ -19609,15 +19801,12 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
         case 29: return .JsonPathToPointer(
             try FfiConverterString.read(from: &buf)
             )
-        case 30: return .LimitDisclosure(
+        case 30: return .EmptyCredentialSubject(
             try FfiConverterString.read(from: &buf)
             )
-        case 31: return .EmptyCredentialSubject(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 32: return .SelectiveDisclosureInvalidFields
-        case 33: return .SelectiveDisclosureEmptySelection
-        case 34: return .Debug(
+        case 31: return .SelectiveDisclosureInvalidFields
+        case 32: return .SelectiveDisclosureEmptySelection
+        case 33: return .Debug(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -19642,7 +19831,7 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .PresentationDefinitionResolution(v1):
+        case let .DcqlQueryResolution(v1):
             writeInt(&buf, Int32(3))
             FfiConverterString.write(v1, into: &buf)
             
@@ -19773,26 +19962,21 @@ public struct FfiConverterTypeOID4VPError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .LimitDisclosure(v1):
+        case let .EmptyCredentialSubject(v1):
             writeInt(&buf, Int32(30))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .EmptyCredentialSubject(v1):
-            writeInt(&buf, Int32(31))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
         case .SelectiveDisclosureInvalidFields:
-            writeInt(&buf, Int32(32))
+            writeInt(&buf, Int32(31))
         
         
         case .SelectiveDisclosureEmptySelection:
-            writeInt(&buf, Int32(33))
+            writeInt(&buf, Int32(32))
         
         
         case let .Debug(v1):
-            writeInt(&buf, Int32(34))
+            writeInt(&buf, Int32(33))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -20123,18 +20307,18 @@ public enum PermissionRequestError: Swift.Error {
      */
     case PermissionDenied
     /**
-     * No credentials found matching the presentation definition.
+     * No credentials found matching the DCQL query.
      */
     case NoCredentialsFound
     /**
-     * Credential not found for input descriptor id.
+     * Credential not found for credential query id.
      */
     case CredentialNotFound(String
     )
     /**
-     * Input descriptor not found for input descriptor id.
+     * Credential query not found for credential query id.
      */
-    case InputDescriptorNotFound(String
+    case CredentialQueryNotFound(String
     )
     /**
      * Invalid selected credential for requested field. Selected
@@ -20157,7 +20341,6 @@ public enum PermissionRequestError: Swift.Error {
     )
     case VerificationMethod(String
     )
-    case LimitDisclosure
     case Presentation(PresentationError
     )
 }
@@ -20181,7 +20364,7 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
         case 3: return .CredentialNotFound(
             try FfiConverterString.read(from: &buf)
             )
-        case 4: return .InputDescriptorNotFound(
+        case 4: return .CredentialQueryNotFound(
             try FfiConverterString.read(from: &buf)
             )
         case 5: return .InvalidSelectedCredential(
@@ -20203,8 +20386,7 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
         case 10: return .VerificationMethod(
             try FfiConverterString.read(from: &buf)
             )
-        case 11: return .LimitDisclosure
-        case 12: return .Presentation(
+        case 11: return .Presentation(
             try FfiConverterTypePresentationError.read(from: &buf)
             )
 
@@ -20232,7 +20414,7 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .InputDescriptorNotFound(v1):
+        case let .CredentialQueryNotFound(v1):
             writeInt(&buf, Int32(4))
             FfiConverterString.write(v1, into: &buf)
             
@@ -20268,12 +20450,8 @@ public struct FfiConverterTypePermissionRequestError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case .LimitDisclosure:
-            writeInt(&buf, Int32(11))
-        
-        
         case let .Presentation(v1):
-            writeInt(&buf, Int32(12))
+            writeInt(&buf, Int32(11))
             FfiConverterTypePresentationError.write(v1, into: &buf)
             
         }
@@ -22396,10 +22574,11 @@ public protocol PresentationSigner: AnyObject, Sendable {
      * Data Integrity Cryptographic Suite of the Signer.
      *
      * This corresponds to the `proof_type` in the
-     * authorization request corresponding to the
-     * format of the verifiable presentation, e.g,
-     * `ldp_vp`, `jwt_vp`.
+     * authorization request's `vp_formats_supported` for the
+     * credential format (e.g., `ldp_vc`, `jwt_vc_json`).
      *
+     * Per OID4VP v1.0, these format identifiers cover both
+     * credentials and presentations.
      *
      * E.g., JsonWebSignature2020, ecdsa-rdfc-2019
      */
@@ -22878,6 +23057,30 @@ fileprivate struct FfiConverterOptionTypeJwtVc: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeJwtVc.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeKeyStore: FfiConverterRustBuffer {
+    typealias SwiftType = KeyStore?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeKeyStore.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeKeyStore.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -23636,6 +23839,56 @@ fileprivate struct FfiConverterSequenceTypeCentralClientDetails: FfiConverterRus
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCentralClientDetails.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCredentialQueryGroup: FfiConverterRustBuffer {
+    typealias SwiftType = [CredentialQueryGroup]
+
+    public static func write(_ value: [CredentialQueryGroup], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCredentialQueryGroup.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CredentialQueryGroup] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CredentialQueryGroup]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCredentialQueryGroup.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCredentialRequirement: FfiConverterRustBuffer {
+    typealias SwiftType = [CredentialRequirement]
+
+    public static func write(_ value: [CredentialRequirement], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCredentialRequirement.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CredentialRequirement] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CredentialRequirement]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCredentialRequirement.read(from: &buf))
         }
         return seq
     }
@@ -25197,7 +25450,7 @@ public func generateTestMdlWithData(keyManager: KeyStore, keyAlias: KeyAlias, da
 /**
  * Handle a DC API request.
  *
- * Supports OpenID4VP Draft 24 using DCQL for mDL only.
+ * Supports OpenID4VP v1.0 using DCQL for mDL only.
  */
 public func handleDcApiRequest(dcqlCredentialId: String, mdoc: Mdoc, origin: String, requestJson: String)async throws  -> InProgressRequestDcApi  {
     return
@@ -25456,7 +25709,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl_with_data() != 41103) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_handle_dc_api_request() != 11589) {
+    if (uniffi_mobile_sdk_rs_checksum_func_handle_dc_api_request() != 55079) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
@@ -25906,22 +26159,31 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_client_id() != 37346) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 13542) {
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 25104) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credentials() != 19351) {
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credential_query_ids() != 22106) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credential_requirements() != 28015) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credentials() != 29620) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credentials_grouped_by_query() != 63997) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_domain() != 60512) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_is_multi_credential_matching() != 46216) {
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_is_multi_credential_matching() != 64164) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_is_multi_credential_selection() != 28994) {
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_is_multi_credential_selection() != 55456) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_purpose() != 28780) {
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_purpose() != 21818) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_requested_fields() != 61931) {
@@ -25936,6 +26198,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_as_parsed_credential() != 56853) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_is_mdoc() != 17013) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_selective_disclosable() != 24142) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -25948,10 +26213,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_requested_fields() != 52220) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_id() != 35305) {
+    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_credential_query_id() != 39308) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_input_descriptor_id() != 9742) {
+    if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_id() != 35305) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestedfield_name() != 19474) {
@@ -26164,10 +26429,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_didmethodutils_new() != 22235) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 64916) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 27591) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 28515) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 12112) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequest_new() != 7957) {
@@ -26299,7 +26564,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_did() != 14569) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_cryptosuite() != 63070) {
+    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_cryptosuite() != 55710) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_jwk() != 12828) {

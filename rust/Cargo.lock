@@ -3685,12 +3685,14 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 [[package]]
 name = "openid4vp"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=2446e70#2446e70191b413cfe776a2115af1b0c24e2e1c76"
+source = "git+https://github.com/spruceid/openid4vp?rev=6127287#61272877f12260c27956cd593ace8c0793cb3aa6"
 dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.21.7",
+ "ciborium",
  "http 1.4.0",
+ "josekit",
  "json-syntax",
  "jsonschema",
  "openid4vp-frontend",
@@ -3698,9 +3700,11 @@ dependencies = [
  "rand 0.8.5",
  "reqwest 0.12.28",
  "serde",
+ "serde_bytes",
  "serde_json",
  "serde_json_path",
  "serde_urlencoded",
+ "sha2 0.10.9",
  "ssi",
  "thiserror 1.0.69",
  "tokio",
@@ -3713,7 +3717,7 @@ dependencies = [
 [[package]]
 name = "openid4vp-frontend"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/openid4vp?rev=2446e70#2446e70191b413cfe776a2115af1b0c24e2e1c76"
+source = "git+https://github.com/spruceid/openid4vp?rev=6127287#61272877f12260c27956cd593ace8c0793cb3aa6"
 dependencies = [
  "serde",
  "serde_json",

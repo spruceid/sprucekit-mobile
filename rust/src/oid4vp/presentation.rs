@@ -6,8 +6,7 @@ use std::{collections::HashMap, ops::Deref, str::FromStr, sync::Arc};
 
 use openid4vp::core::{
     authorization_request::AuthorizationRequestObject, credential_format::ClaimFormatDesignation,
-    presentation_definition::PresentationDefinition, presentation_submission::DescriptorMap,
-    response::parameters::VpTokenItem,
+    dcql_query::DcqlCredentialQuery, response::parameters::VpTokenItem,
 };
 use serde::Serialize;
 use ssi::{
@@ -45,8 +44,6 @@ pub enum PresentationError {
 /// each credential format must implement.
 pub trait CredentialPresentation {
     /// Presentation format is the expected format of the presentation.
-    ///
-    /// For example, JwtVp, LdpVp, etc.
     type PresentationFormat: Into<ClaimFormatDesignation> + std::fmt::Debug;
 
     /// Credential format is the format of the credential itself.
@@ -64,81 +61,63 @@ pub trait CredentialPresentation {
     /// Return the credential
     fn credential(&self) -> &Self::Credential;
 
-    /// Method to check whether a credential satisfies a given
-    /// reference to a presentation definition.
-    fn satisfies_presentation_definition(
-        &self,
-        presentation_definition: &PresentationDefinition,
-    ) -> bool {
-        // If the credential does not match the definition requested format,
-        // then return false.
-        if !presentation_definition.format().is_empty()
-            && !presentation_definition.contains_format(self.credential_format())
-            && !presentation_definition.contains_format(self.presentation_format())
-        {
-            log::debug!(
-                "Credential does not match the presentation definition requested format: {:?}.",
-                presentation_definition.format()
-            );
+    /// Method to check whether a credential satisfies a DCQL credential query.
+    fn satisfies_dcql_query(&self, credential_query: &DcqlCredentialQuery) -> bool {
+        // Check if the credential format matches the query format
+        let query_format = credential_query.format();
+        let cred_format: ClaimFormatDesignation = self.credential_format().into();
+        let pres_format: ClaimFormatDesignation = self.presentation_format().into();
 
+        if *query_format != cred_format && *query_format != pres_format {
+            log::debug!(
+                "Credential format {:?} does not match DCQL query format {:?}.",
+                cred_format,
+                query_format
+            );
             return false;
         }
 
-        let Ok(json) = serde_json::to_value(self.credential()) else {
-            // NOTE: Instead of erroring here, we return false, which will
-            // indicate that the credential does not satisfy the presentation
-            // and the verifier can continue to the next credential.
-            //
-            // Still, we log an `error` here to alert that we were unable to serialize
-            // the value to JSON, which for the implementation of this trait should
-            // be a rare occurrence (ideally, never).
-            log::error!(
-                "Failed to serialize credential format, {:?}, into JSON.",
-                self.credential_format()
-            );
-            return false;
-        };
-
-        // Check the JSON-encoded credential against the definition.
-        presentation_definition.is_credential_match(&json)
+        // For now, if the format matches, we consider it a match.
+        // More sophisticated matching (e.g., checking meta.vct_values) can be added later.
+        true
     }
 
     /// Return the requested fields from the credential matching
-    /// the presentation definition.
-    fn requested_fields(
+    /// the DCQL credential query.
+    fn requested_fields_dcql(
         &self,
-        presentation_definition: &PresentationDefinition,
+        credential_query: &DcqlCredentialQuery,
     ) -> Vec<Arc<RequestedField>> {
-        // Default implementation
-        let Ok(json) = serde_json::to_value(self.credential()) else {
-            // NOTE: if we cannot convert the credential to a JSON value, then we cannot
-            // check the presentation definition, so we return false to allow for
-            // the holder to continue to the next credential.
-            log::error!(
-                "credential could not be converted to JSON: {:?}",
-                self.credential_format()
-            );
-            return Vec::new();
+        // Default implementation. Extract claims from DCQL query
+        let Some(claims) = credential_query.claims() else {
+            return vec![];
         };
 
-        presentation_definition
-            .requested_fields(&json)
-            .into_iter()
-            .map(Into::into)
-            .map(Arc::new)
+        claims
+            .iter()
+            .map(|claim| {
+                let path: Vec<String> = claim
+                    .path()
+                    .iter()
+                    .filter_map(|p| match p {
+                        openid4vp::core::dcql_query::DcqlCredentialClaimsQueryPath::String(s) => {
+                            Some(s.clone())
+                        }
+                        openid4vp::core::dcql_query::DcqlCredentialClaimsQueryPath::Integer(i) => {
+                            Some(i.to_string())
+                        }
+                        openid4vp::core::dcql_query::DcqlCredentialClaimsQueryPath::Null => None,
+                    })
+                    .collect();
+
+                Arc::new(RequestedField::from_dcql_claims(
+                    credential_query.id().to_string(),
+                    path,
+                    vec![], // raw_fields would need actual credential parsing
+                ))
+            })
             .collect()
     }
-
-    /// Create a descriptor map for the credential,
-    /// provided an input descriptor id and an index
-    /// of where the credential is located in the
-    /// presentation submission.
-    fn create_descriptor_map(
-        &self,
-        options: ResponseOptions,
-        input_descriptor_id: impl Into<String>,
-        index: Option<usize>,
-    ) -> Result<DescriptorMap, OID4VPError>;
 
     /// Return the credential as a verifiable presentation token item.
     #[allow(async_fn_in_trait)]
@@ -146,7 +125,6 @@ pub trait CredentialPresentation {
         &self,
         options: &'a PresentationOptions<'a>,
         selected_fields: Option<Vec<String>>,
-        limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError>;
 }
 
@@ -183,10 +161,11 @@ pub trait PresentationSigner: Send + Sync + std::fmt::Debug {
     /// Data Integrity Cryptographic Suite of the Signer.
     ///
     /// This corresponds to the `proof_type` in the
-    /// authorization request corresponding to the
-    /// format of the verifiable presentation, e.g,
-    /// `ldp_vp`, `jwt_vp`.
+    /// authorization request's `vp_formats_supported` for the
+    /// credential format (e.g., `ldp_vc`, `jwt_vc_json`).
     ///
+    /// Per OID4VP v1.0, these format identifiers cover both
+    /// credentials and presentations.
     ///
     /// E.g., JsonWebSignature2020, ecdsa-rdfc-2019
     fn cryptosuite(&self) -> CryptosuiteString;
@@ -200,7 +179,7 @@ pub trait PresentationSigner: Send + Sync + std::fmt::Debug {
 ///
 /// PresentationOptions provides a means to pass metadata about the verifiable presentation
 /// claims in the `vp_token` parameter.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PresentationOptions<'a> {
     /// Borrowed reference to the authorization request object.
     pub(crate) request: &'a AuthorizationRequestObject,
@@ -209,6 +188,19 @@ pub struct PresentationOptions<'a> {
     /// Optional context map for the presentation.
     pub(crate) context_map: Option<HashMap<String, String>>,
     pub(crate) response_options: &'a ResponseOptions,
+    /// Optional KeyStore for mdoc credential signing
+    pub(crate) keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
+}
+
+impl std::fmt::Debug for PresentationOptions<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PresentationOptions")
+            .field("request", &self.request)
+            .field("context_map", &self.context_map)
+            .field("response_options", &self.response_options)
+            .field("keystore", &self.keystore.as_ref().map(|_| "KeyStore"))
+            .finish()
+    }
 }
 
 impl MessageSigner<WithProtocol<ssi::crypto::Algorithm, AnyProtocol>> for PresentationOptions<'_> {
@@ -324,6 +316,22 @@ impl PresentationOptions<'_> {
             .request
             .vp_formats()
             .map_err(|e| PresentationError::CryptographicSuite(format!("{e:?}")))?;
+
+        // vp_formats_supported is only required when the wallet cannot
+        // obtain this info through other means (e.g., OpenID Federation, prior
+        // registration). When empty, we assume the verifier accepts the wallet's
+        // cryptosuite since they didn't specify restrictions.
+        //
+        // - https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-5.1
+        // - http://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-11.1
+        if vp_formats.0.is_empty() {
+            log::warn!(
+                "vp_formats is empty in authorization request. Skipping security method validation for format {:?} with suite {:?}",
+                format,
+                suite
+            );
+            return Ok(());
+        }
 
         if !vp_formats.supports_security_method(&format, &suite.to_string()) {
             let err_msg = format!("Cryptographic Suite not supported for this request format: {format:?} and suite: {suite:?}. Supported Cryptographic Suites: {vp_formats:?}");

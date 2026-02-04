@@ -54,6 +54,7 @@ pub async fn test_vc_playground_oid4vp() {
         trusted_dids,
         Box::new(signer),
         Some(default_ld_json_context()),
+        None,
     )
     .await
     .expect("Failed to create holder");
@@ -73,11 +74,19 @@ pub async fn test_vc_playground_oid4vp() {
     }
 
     // NOTE: passing `parsed_credentials` as `selected_credentials`.
+    // Get the first credential query ID from the DCQL query
+    let credential_query_id = permission_request
+        .dcql_query()
+        .credentials()
+        .first()
+        .map(|c: &openid4vp::core::dcql_query::DcqlCredentialQuery| c.id().to_string())
+        .unwrap_or_default();
+
     let response = permission_request
         .create_permission_response(
             parsed_credentials,
             vec![credential
-                .requested_fields(&permission_request.definition)
+                .requested_fields_dcql(permission_request.dcql_query(), &credential_query_id)
                 .iter()
                 .map(|rf| rf.path())
                 .collect()],

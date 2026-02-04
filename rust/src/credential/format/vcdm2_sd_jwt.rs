@@ -11,7 +11,6 @@ use crate::{
     oid4vp::{
         error::OID4VPError,
         presentation::{CredentialPresentation, PresentationOptions},
-        ResponseOptions,
     },
     CredentialType,
 };
@@ -22,10 +21,7 @@ use std::sync::Arc;
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use futures::stream::{self, StreamExt};
 use openid4vp::{
-    core::{
-        credential_format::ClaimFormatDesignation, presentation_submission::DescriptorMap,
-        response::parameters::VpTokenItem,
-    },
+    core::{credential_format::ClaimFormatDesignation, response::parameters::VpTokenItem},
     JsonPath,
 };
 use reqwest::StatusCode;
@@ -181,14 +177,7 @@ impl CredentialPresentation for VCDM2SdJwt {
         &self,
         _options: &'a PresentationOptions<'a>,
         selected_fields: Option<Vec<String>>,
-        limit_disclosure: bool,
     ) -> Result<VpTokenItem, OID4VPError> {
-        if limit_disclosure {
-            return Err(OID4VPError::LimitDisclosure(
-                "Limit disclosure is required but is not supported.".to_string(),
-            ));
-        }
-
         let compact: &str = self.inner.as_ref();
         let vp_token = if let Some(selected_fields) = selected_fields {
             let json = self
@@ -243,26 +232,6 @@ impl CredentialPresentation for VCDM2SdJwt {
         };
 
         Ok(VpTokenItem::String(vp_token))
-    }
-
-    fn create_descriptor_map(
-        &self,
-        _options: ResponseOptions,
-        input_descriptor_id: impl Into<String>,
-        index: Option<usize>,
-    ) -> Result<DescriptorMap, OID4VPError> {
-        let path = match index {
-            None => JsonPath::default(),
-            Some(i) => format!("$[{i}]")
-                .parse()
-                .map_err(|e| OID4VPError::JsonPathParse(format!("{e:?}")))?,
-        };
-
-        Ok(DescriptorMap::new(
-            input_descriptor_id,
-            self.credential_format(),
-            path,
-        ))
     }
 }
 

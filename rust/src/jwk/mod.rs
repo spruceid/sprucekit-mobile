@@ -61,13 +61,14 @@ impl Hash for Jwk {
 
 #[uniffi::export]
 pub fn jwk_from_public_p256(x: Vec<u8>, y: Vec<u8>) -> Jwk {
-    ssi::JWK::from(ssi::jwk::Params::EC(ssi::jwk::ECParams {
+    let mut jwk = ssi::JWK::from(ssi::jwk::Params::EC(ssi::jwk::ECParams {
         curve: Some("P-256".to_owned()),
         x_coordinate: Some(ssi::jwk::Base64urlUInt(x)),
         y_coordinate: Some(ssi::jwk::Base64urlUInt(y)),
         ecc_private_key: None,
-    }))
-    .into()
+    }));
+    jwk.algorithm = Some(ssi::jwk::Algorithm::ES256);
+    jwk.into()
 }
 
 impl From<ssi::JWK> for Jwk {
