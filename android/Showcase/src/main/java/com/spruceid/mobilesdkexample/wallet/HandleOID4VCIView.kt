@@ -1,6 +1,7 @@
 package com.spruceid.mobilesdkexample.wallet
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -11,14 +12,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.sdk.Oid4vciAsyncHttpClient
 import com.spruceid.mobile.sdk.rs.AsyncHttpClient
+import com.spruceid.mobile.sdk.rs.CredentialResponse
+import com.spruceid.mobile.sdk.rs.CredentialTokenState
 import com.spruceid.mobile.sdk.rs.DidMethod
+import com.spruceid.mobile.sdk.rs.DidMethodUtils
 import com.spruceid.mobile.sdk.rs.HttpRequest
 import com.spruceid.mobile.sdk.rs.HttpResponse
-import com.spruceid.mobile.sdk.rs.Oid4vci
-import com.spruceid.mobile.sdk.rs.Oid4vciExchangeOptions
-import com.spruceid.mobile.sdk.rs.generatePopComplete
-import com.spruceid.mobile.sdk.rs.generatePopPrepare
+import com.spruceid.mobile.sdk.rs.JwsSigner
+import com.spruceid.mobile.sdk.rs.JwsSignerInfo
+import com.spruceid.mobile.sdk.rs.Oid4vciClient
+import com.spruceid.mobile.sdk.rs.Proofs
+import com.spruceid.mobile.sdk.rs.createJwtProof
+import com.spruceid.mobile.sdk.rs.decodeDerSignature
+import com.spruceid.mobile.sdk.rs.generateDidJwkUrl
+import com.spruceid.mobile.sdk.rs.verifyRawCredential
 import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
@@ -29,7 +38,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.readBytes
+import io.ktor.client.statement.readRawBytes
 import io.ktor.http.HttpMethod
 import io.ktor.util.toMap
 import kotlinx.coroutines.launch
@@ -49,96 +58,111 @@ fun HandleOID4VCIView(
 
     LaunchedEffect(Unit) {
         loading = true
-        val client = HttpClient(CIO)
-        val oid4vciSession =
-            Oid4vci.newWithAsyncClient(
-                client =
-                    object : AsyncHttpClient {
-                        override suspend fun httpClient(
-                            request: HttpRequest
-                        ): HttpResponse {
-                            val res =
-                                client.request(request.url) {
-                                    method = HttpMethod(request.method)
-                                    for ((k, v) in request.headers) {
-                                        headers[k] = v
-                                    }
-                                    setBody(request.body)
-                                }
 
-                            return HttpResponse(
-                                statusCode = res.status.value.toUShort(),
-                                headers =
-                                    res.headers.toMap().mapValues {
-                                        it.value.joinToString()
-                                    },
-                                body = res.readBytes()
-                            )
+        // Setup HTTP client.
+        val rawHttpClient = HttpClient(CIO);
+        val httpClient = object : AsyncHttpClient {
+            override suspend fun httpClient(
+                request: HttpRequest
+            ): HttpResponse {
+                val res =
+                    rawHttpClient.request(request.url) {
+                        method = HttpMethod(request.method)
+                        for ((k, v) in request.headers) {
+                            headers[k] = v
                         }
+                        setBody(request.body)
                     }
-            )
 
-        val fullUrl = "openid-credential-offer://$url"
-        try {
-            oid4vciSession.initiateWithOffer(
-                credentialOffer = fullUrl,
-                clientId = "skit-demo-wallet",
-                redirectUrl = "https://spruceid.com"
-            )
+                return HttpResponse(
+                    statusCode = res.status.value.toUShort(),
+                    headers =
+                        res.headers.toMap().mapValues {
+                            it.value.joinToString()
+                        },
+                    body = res.readRawBytes()
+                )
+            }
+        }
 
-            val nonce = oid4vciSession.exchangeToken()
+        // Setup signer.
+        val keyManager = KeyManager()
+        val jwk = keyManager.getOrInsertJwk(DEFAULT_SIGNING_KEY_ID)
+        val didUrl = generateDidJwkUrl(jwk)
+        jwk.setKid(didUrl.toString())
 
-            val metadata = oid4vciSession.getMetadata()
+        val jwk2 = keyManager.getJwk(DEFAULT_SIGNING_KEY_ID)!!
 
-            val keyManager = KeyManager()
+        Log.i("OID4VCI", "JWK = $jwk")
 
-            if (!keyManager.keyExists(DEFAULT_SIGNING_KEY_ID)) {
-                keyManager.generateSigningKey(DEFAULT_SIGNING_KEY_ID)
+        val signer = object : JwsSigner {
+            override suspend fun fetchInfo(): JwsSignerInfo {
+                return jwk.fetchInfo()
             }
 
-            val jwk = keyManager.getJwk(id = DEFAULT_SIGNING_KEY_ID)
+            override suspend fun signBytes(signingBytes: ByteArray): ByteArray {
+                return decodeDerSignature(keyManager.signPayload(DEFAULT_SIGNING_KEY_ID, signingBytes)!!)
+            }
+        }
 
-            val signingInput =
-                jwk?.let {
-                    generatePopPrepare(
-                        audience = metadata.issuer(),
-                        nonce = nonce,
-                        didMethod = DidMethod.JWK,
-                        publicJwk = jwk,
-                        durationInSecs = null
-                    )
-                }
+        val clientId = didUrl.did().toString()
+        val oid4vciClient = Oid4vciClient(clientId)
 
-            val signature =
-                signingInput?.let {
-                    keyManager.signPayload(
-                        id = DEFAULT_SIGNING_KEY_ID,
-                        payload = signingInput
-                    )
-                }
+        try {
+            val offerUrl = if (url.startsWith("openid-credential-offer://")) {
+                url
+            } else {
+                "openid-credential-offer://$url"
+            }
 
-            val pop =
-                signingInput?.let {
-                    signature?.let {
-                        generatePopComplete(
-                            signingInput = signingInput,
-                            signatureDer = signature,
-                        )
+            Log.i("OID4VCI", "Resolving credential offer URL: $offerUrl")
+            val credentialOffer = oid4vciClient.resolveOfferUrl(httpClient, offerUrl)
+            val credentialIssuer = credentialOffer.credentialIssuer()
+            Log.i("OID4VCI", "Credential Offer resolver, with issuer: $credentialIssuer")
+
+            when (val state = oid4vciClient.acceptOffer(httpClient, credentialOffer)) {
+                is CredentialTokenState.Ready -> {
+                    Log.i("OID4VCI", "Credential ready to be exchanged")
+                    val credentialToken = state.v1
+                    val credentialId = credentialToken.defaultCredentialId()
+
+                    Log.i("OID4VCI", "Credential id: $credentialId")
+
+                    // Generate Proof of Possession.
+                    Log.i("OID4VCI", "Generating PoP...")
+                    val nonce = credentialToken.getNonce(httpClient)
+                    Log.i("OID4VCI", "Nonce: $nonce")
+                    Log.i("OID4VCI", "Signing...")
+                    val jwt = createJwtProof(clientId, credentialIssuer, null, nonce, signer)
+                    Log.i("OID4VCI", "PoP JWT = $jwt")
+                    val proofs = Proofs.Jwt(listOf(jwt));
+
+                    // Exchange token against credential.
+                    Log.i("OID4VCI", "Exchanging Credential...")
+                    val response = oid4vciClient.exchangeCredential(httpClient, credentialToken, credentialId, proofs)
+
+                    when (response) {
+                        is CredentialResponse.Deferred -> {
+                            err = "Deferred credentials not supported"
+                        }
+
+                        is CredentialResponse.Immediate -> {
+                            Log.i("OID4VCI", "Credential exchanged!")
+
+                            val rawCredential = checkNotNull(response.v1.credentials.first()) { "Missing Credential" }
+
+                            credential = rawCredential.payload.toString(Charsets.UTF_8)
+                        }
                     }
                 }
 
-            oid4vciSession.setContextMap(getVCPlaygroundOID4VCIContext(ctx = ctx))
-
-            val credentials =
-                pop?.let {
-                    oid4vciSession.exchangeCredential(
-                        proofsOfPossession = listOf(pop),
-                        options = Oid4vciExchangeOptions(false),
-                    )
+                is CredentialTokenState.RequiresTxCode -> {
+                    err = "Transaction Code not supported"
                 }
 
-            credentials?.forEach { cred ->
-                cred.payload.toString(Charsets.UTF_8).let { credential = it }
+                is CredentialTokenState.RequiresAuthorizationCode -> {
+                    err = "Authorization Code Grant not supported"
+                }
             }
         } catch (e: Exception) {
             err = e.localizedMessage

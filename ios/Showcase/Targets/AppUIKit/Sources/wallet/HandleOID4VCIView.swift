@@ -26,64 +26,64 @@ struct HandleOID4VCIView: View {
 
     func getCredential(credentialOffer: String) {
         loading = true
-        let client = Oid4vciAsyncHttpClient()
-        let oid4vciSession = Oid4vci.newWithAsyncClient(client: client)
+        
+        // Setup HTTP client.
+        let httpClient = Oid4vciAsyncHttpClient()
+        
+        // Setup signer.
+        let jwk = KeyManager.getOrInsertJwk(id: DEFAULT_SIGNING_KEY_ID)
+        let didUrl = generateDidJwkUrl(jwk: jwk)
+        jwk.setKid(kid: didUrl.description)
+        let signer = KeyManagerJwkSigner(id: DEFAULT_SIGNING_KEY_ID, jwk: jwk)
+        
+        let clientId = didUrl.did().description
+        let oid4vciClient = Oid4vciClient(clientId: clientId)
+
         Task {
             do {
-                try await oid4vciSession.initiateWithOffer(
-                    credentialOffer: credentialOffer,
-                    clientId: "skit-demo-wallet",
-                    redirectUrl: "https://spruceid.com"
-                )
-
-                let nonce = try await oid4vciSession.exchangeToken()
-
-                let metadata = try oid4vciSession.getMetadata()
-
-                if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
-                    _ = KeyManager.generateSigningKey(
-                        id: DEFAULT_SIGNING_KEY_ID
-                    )
+                let offerUrl = if url.starts(with: "openid-credential-offer://") {
+                    url
+                } else {
+                    "openid-credential-offer://\(url)"
                 }
-
-                let jwk = KeyManager.getJwk(id: DEFAULT_SIGNING_KEY_ID)
-
-                let signingInput =
-                    try await SpruceIDMobileSdkRs.generatePopPrepare(
-                        audience: metadata.issuer(),
-                        nonce: nonce,
-                        didMethod: .jwk,
-                        publicJwk: jwk!,
-                        durationInSecs: nil
-                    )
-
-                let signature = KeyManager.signPayload(
-                    id: DEFAULT_SIGNING_KEY_ID,
-                    payload: [UInt8](signingInput)
-                )
-
-                let pop = try SpruceIDMobileSdkRs.generatePopComplete(
-                    signingInput: signingInput,
-                    signatureDer: Data(signature!)
-                )
-
-                try oid4vciSession.setContextMap(
-                    values: getVCPlaygroundOID4VCIContext()
-                )
-
-                self.credentialPack = CredentialPack()
-                let credentials = try await oid4vciSession.exchangeCredential(
-                    proofsOfPossession: [pop],
-                    options: Oid4vciExchangeOptions(verifyAfterExchange: false)
-                )
-
-                credentials.forEach {
-                    let cred = String(decoding: Data($0.payload), as: UTF8.self)
-                    self.credential = cred
+                
+                let credentialOffer = try await oid4vciClient.resolveOfferUrl(httpClient: httpClient, credentialOfferUrl: offerUrl)
+                let credentialIssuer = credentialOffer.credentialIssuer()
+                
+                let state = try await oid4vciClient.acceptOffer(httpClient: httpClient, credentialOffer: credentialOffer)
+                
+                switch state {
+                case .requiresAuthorizationCode(_):
+                    err = "Authorization Code Grant not supported"
+                case .requiresTxCode(_):
+                    err = "Transaction Code not supported"
+                case .ready(let credentialToken):
+                    let credentialId = try credentialToken.defaultCredentialId()
+                
+                    // Generate Proof of Possession.
+                    let nonce = try await credentialToken.getNonce(httpClient: httpClient)
+                    let jwt = try await createJwtProof(issuer: clientId, audience: credentialIssuer, expireInSecs: nil, nonce: nonce, signer: signer)
+                    let proofs = Proofs.jwt([jwt])
+                
+                    // Exchange token against credential.
+                    let response = try await oid4vciClient.exchangeCredential(httpClient: httpClient, token: credentialToken, credential: credentialId, proofs: proofs)
+                    
+                    switch response {
+                    case .deferred(_):
+                        err = "Deferred credentials not supported"
+                    case .immediate(let response):
+                        guard let rawCredential = response.credentials.first else {
+                            throw NSError(domain: "OID4VCI", code: 0, userInfo: [
+                                "CredentialOfferUrl": offerUrl,
+                                "CredentialIssuer": credentialIssuer
+                            ])
+                        }
+                        
+                        credential = String(decoding: Data(rawCredential.payload), as: UTF8.self)
+                        
+                        onSuccess?()
+                    }
                 }
-
-                onSuccess?()
-
             } catch {
                 err = error.localizedDescription
                 print(error)
@@ -116,6 +116,27 @@ struct HandleOID4VCIView: View {
         }.onAppear(perform: {
             getCredential(credentialOffer: url)
         })
+    }
+}
+
+class KeyManagerJwkSigner: JwsSigner, @unchecked Sendable {
+    let id: String
+    let jwk: Jwk
+    
+    init(id: String, jwk: Jwk) {
+        self.id = id
+        self.jwk = jwk
+    }
+    
+    func fetchInfo() async throws -> JwsSignerInfo {
+        return try await jwk.fetchInfo()
+    }
+    
+    func signBytes(signingBytes: Data) async throws -> Data {
+        return try decodeDerSignature(signatureDer: Data(KeyManager.signPayload(
+            id: DEFAULT_SIGNING_KEY_ID,
+            payload: [UInt8](signingBytes)
+        )!))
     }
 }
 

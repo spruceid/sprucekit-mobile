@@ -1,4 +1,4 @@
-use super::Credential;
+use crate::credential::Credential;
 use crate::crypto::KeyAlias;
 use crate::verifier::crypto::{CoseP256Verifier, Crypto, DefaultVerifier};
 use crate::verifier::helpers;

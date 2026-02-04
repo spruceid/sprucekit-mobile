@@ -1,5 +1,5 @@
-use super::{Credential, CredentialEncodingError, CredentialFormat, VcdmVersion};
 use crate::{
+    credential::{Credential, CredentialEncodingError, CredentialFormat, VcdmVersion},
     crypto::KeyAlias,
     oid4vp::{
         error::OID4VPError,

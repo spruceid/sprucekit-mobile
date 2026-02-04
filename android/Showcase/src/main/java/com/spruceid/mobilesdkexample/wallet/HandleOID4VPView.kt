@@ -95,7 +95,7 @@ class Signer(keyId: String?) : PresentationSigner {
         if (!keyManager.keyExists(this.keyId)) {
             keyManager.generateSigningKey(id = this.keyId)
         }
-        this.jwk = keyManager.getJwk(this.keyId) ?: throw IllegalArgumentException("Invalid kid")
+        this.jwk = keyManager.getJwk(this.keyId)?.toString() ?: throw IllegalArgumentException("Invalid kid")
     }
 
     override suspend fun sign(payload: ByteArray): ByteArray {

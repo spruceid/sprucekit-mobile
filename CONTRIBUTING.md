@@ -35,8 +35,8 @@ rustup target install \
 ```
 - `cargo-ndk`
     - `cargo install cargo-ndk` (or use `cargo binstall` for a faster install)
-- `cargo-swift`
-    - `cargo install --git https://github.com/antoniusnaumann/cargo-swift`
+- `cargo-swift` 0.9
+    - `cargo install cargo-swift@0.9.0`
 
 ### Android
 
