@@ -2,26 +2,20 @@ package com.spruceid.mobile.sdk.dcapi
 
 import android.app.Application
 import android.content.res.AssetManager
-import android.os.Build
+import android.graphics.BitmapFactory
 import android.util.Log
-import androidx.compose.ui.text.capitalize
-import androidx.compose.ui.text.intl.Locale
-import androidx.credentials.DigitalCredential
 import androidx.credentials.ExperimentalDigitalCredentialApi
-import androidx.credentials.registry.provider.RegisterCredentialsRequest
+import androidx.credentials.registry.digitalcredentials.mdoc.MdocEntry
+import androidx.credentials.registry.digitalcredentials.mdoc.MdocField
+import androidx.credentials.registry.digitalcredentials.openid4vp.OpenId4VpRegistry
 import androidx.credentials.registry.provider.RegistryManager
+import androidx.credentials.registry.provider.digitalcredentials.DigitalCredentialRegistry
+import androidx.credentials.registry.provider.digitalcredentials.VerificationEntryDisplayProperties
+import androidx.credentials.registry.provider.digitalcredentials.VerificationFieldDisplayProperties
 import com.spruceid.mobile.sdk.CredentialPack
-import com.spruceid.mobile.sdk.rs.Element
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
-import org.json.JSONArray
-import org.json.JSONObject
-import org.json.JSONTokener
-import java.io.ByteArrayOutputStream
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.UUID
-import kotlin.io.encoding.ExperimentalEncodingApi
 
 /**
  * The credential registry for wallet selection over Digital Credentials API.
@@ -48,168 +42,129 @@ class Registry(
 
     @OptIn(ExperimentalDigitalCredentialApi::class)
     suspend fun register(credentialPacks: List<CredentialPack>) {
-        val mdocs = toMdocStream(credentialPacks);
-        val database = toRegistryDatabase(mdocs);
+        val mdocs = toMdocStream(credentialPacks)
+        val credentialEntries = mdocs.map { (comboId, mdoc) -> createMdocEntry(comboId, mdoc) }
+
+        val registry = OpenId4VpRegistry(
+            credentialEntries = credentialEntries,
+            inlineIssuanceEntries = emptyList(),
+            id = REGISTRY_ID
+        )
 
         try {
-            // Register for OID4VP v1.0 protocols
-            registryManager.registerCredentials(request = object : RegisterCredentialsRequest(
-                DigitalCredential.Companion.TYPE_DIGITAL_CREDENTIAL, "openid4vp-v1-unsigned", database, matcher
-            ) {})
-
-            registryManager.registerCredentials(request = object : RegisterCredentialsRequest(
-                DigitalCredential.Companion.TYPE_DIGITAL_CREDENTIAL, "openid4vp-v1-signed", database, matcher
+            registryManager.registerCredentials(object : DigitalCredentialRegistry(
+                id = registry.id,
+                credentials = registry.credentials,
+                matcher = matcher
             ) {})
         } catch (e: Exception) {
-            Log.e(TAG, "failed to register credentials $e")
+            Log.e(TAG, "Failed to register credentials: $e")
         }
     }
 
+    private fun createMdocEntry(comboId: String, mdoc: Mdoc): MdocEntry {
+        val iconBitmap = BitmapFactory.decodeByteArray(icon, 0, icon.size)
 
-    @OptIn(ExperimentalEncodingApi::class)
-    private fun toRegistryDatabase(mdocs: List<Pair<String, Mdoc>>): ByteArray {
-        val out = ByteArrayOutputStream()
+        // Get the display name from the credential
+        val givenName = mdoc.details()["org.iso.18013.5.1"]
+            ?.firstOrNull { it.identifier == "given_name" }
+            ?.value?.replace("\"", "")
+        val title = if (givenName != null) "Driver's License ($givenName)" else "Driver's License"
 
-        val iconMap: Map<String, RegistryIcon> = mdocs.associate {
-            Pair(
-                it.first, RegistryIcon(icon)
-            )
-        }
-        // Write the offset to the json
-        val jsonOffset = 4 + iconMap.values.sumOf { it.iconValue.size }
-        val buffer = ByteBuffer.allocate(4)
-        buffer.order(ByteOrder.LITTLE_ENDIAN)
-        buffer.putInt(jsonOffset)
-        out.write(buffer.array())
+        // Build the list of MdocFields
+        val fields = mutableListOf<MdocField>()
+        mdoc.details().forEach { (namespace, elements) ->
+            elements.forEach { element ->
+                val displayName = element.identifier.split('_')
+                    .joinToString(" ") { s -> s.replaceFirstChar { it.uppercaseChar() } }
 
-        // Write the icons
-        var currIconOffset = 4
-        iconMap.values.forEach {
-            it.iconOffset = currIconOffset
-            out.write(it.iconValue)
-            currIconOffset += it.iconValue.size
-        }
-
-        val mdocCredentials = JSONObject()
-        mdocs.forEach { mdoc ->
-            val credJson = JSONObject()
-            credJson.putCommon(mdoc.first, mdoc.second.details(), iconMap, walletName)
-
-            val pathJson = JSONObject()
-            mdoc.second.details().forEach { (namespace, elements) ->
-                val namespaceJson = JSONObject()
-                elements.forEach { (element, value) ->
-                    Log.d(TAG, "Registering claim: $element")
-                    val namespaceDataJson = JSONObject()
-                    namespaceDataJson.put(
-                        DISPLAY,
-                        element.split('_')
-                            .joinToString(" ", transform = { s -> s.capitalize(Locale.Companion.current) })
-                    )
-                    val parsedValue = JSONTokener(value).nextValue()
-                    namespaceDataJson.putOpt(VALUE, parsedValue)
-                    namespaceJson.put(element, namespaceDataJson)
+                // For large binary fields, register with placeholder value so matcher knows field exists
+                val fieldValue = if (EXCLUDED_ELEMENTS.contains(element.identifier)) {
+                    "[binary data]"
+                } else {
+                    element.value
                 }
-                pathJson.put(namespace, namespaceJson)
-            }
-            credJson.put(PATHS, pathJson)
 
-            if (Build.VERSION.SDK_INT >= 33) {
-                mdocCredentials.append(mdoc.second.doctype(), credJson)
-            } else {
-                when (val current = mdocCredentials.opt(mdoc.second.doctype())) {
-                    is JSONArray -> {
-                        mdocCredentials.put(mdoc.second.doctype(), current.put(credJson))
-                    }
-
-                    null -> {
-                        mdocCredentials.put(
-                            mdoc.second.doctype(), JSONArray().put(credJson)
+                fields.add(
+                    MdocField(
+                        namespace = namespace,
+                        identifier = element.identifier,
+                        fieldValue = fieldValue,
+                        fieldDisplayPropertySet = setOf(
+                            VerificationFieldDisplayProperties(displayName = displayName)
                         )
-                    }
-
-                    else -> throw IllegalStateException(
-                        "Unexpected namespaced data that's" + " not a JSONArray. Instead it is ${current::class.java}"
                     )
-                }
+                )
             }
         }
-        val registryCredentials = JSONObject()
-        registryCredentials.put("mso_mdoc", mdocCredentials)
-        val registryJson = JSONObject()
-        registryJson.put(CREDENTIALS, registryCredentials)
-        out.write(registryJson.toString().toByteArray())
-        Log.d(TAG, "Registry: $registryJson")
-        return out.toByteArray()
+
+        return MdocEntry(
+            docType = mdoc.doctype(),
+            fields = fields,
+            entryDisplayPropertySet = setOf(
+                VerificationEntryDisplayProperties(
+                    title = title,
+                    subtitle = walletName,
+                    icon = iconBitmap
+                )
+            ),
+            id = comboId
+        )
     }
 
     companion object {
         private const val TAG = "dcapi.Registry"
+        private const val REGISTRY_ID = "openid4vp"
 
-        // Wasm database json keys
-        private const val CREDENTIALS = "credentials"
-        private const val ID = "id"
-        private const val TITLE = "title"
-        private const val SUBTITLE = "subtitle"
-        private const val ICON = "icon"
-        private const val START = "start"
-        private const val LENGTH = "length"
-        private const val PATHS = "paths"
-        private const val VALUE = "value"
-        private const val DISPLAY = "display"
+        // Large binary elements to exclude from registry to avoid TransactionTooLargeException
+        private val EXCLUDED_ELEMENTS = setOf(
+            "portrait",
+            "signature_usual_mark",
+            "biometric_template_face",
+            "biometric_template_finger",
+            "biometric_template_signature_sign"
+        )
 
         private fun loadAsset(assets: AssetManager, name: String): ByteArray {
-            val stream = assets.open(name);
+            val stream = assets.open(name)
             val data = ByteArray(stream.available())
             stream.read(data)
             stream.close()
             return data
         }
 
-        private fun toMdocStream(credentialPacks: List<CredentialPack>) =
-            credentialPacks.flatMap { pack ->
-                pack.list()
-                    .mapNotNull { credential -> credentialToComboIdPlusMdoc(pack.id(), credential) }
+        private fun toMdocStream(credentialPacks: List<CredentialPack>): List<Pair<String, Mdoc>> {
+            return credentialPacks.flatMap { pack ->
+                pack.list().mapNotNull { credential ->
+                    credentialToComboIdPlusMdoc(pack.id(), credential)
+                }
             }
+        }
 
         private fun credentialToComboIdPlusMdoc(
             packId: UUID, credential: ParsedCredential
         ): Pair<String, Mdoc>? {
             val mdoc = credential.asMsoMdoc() ?: return null
-            return Pair("$packId" + "~" + mdoc.id(), mdoc)
+            // Create a short ID (< 64 chars) by using shortened UUIDs
+            val shortPackId = packId.toString().take(8)
+            val shortMdocId = mdoc.id().toString().take(8)
+            val shortComboId = "$shortPackId~$shortMdocId"
+            // Store the full mapping for later lookup
+            comboIdMap[shortComboId] = Pair(packId.toString(), mdoc.id().toString())
+            return Pair(shortComboId, mdoc)
         }
 
-        fun idsFromComboId(it: String): Pair<String, String> {
-            val parts = it.split("~", limit = 2)
+        // Maps short combo IDs to full pack and credential IDs
+        private val comboIdMap = mutableMapOf<String, Pair<String, String>>()
+
+        fun idsFromComboId(shortId: String): Pair<String, String> {
+            // First check if it's a short ID in our map
+            comboIdMap[shortId]?.let { return it }
+            // Fallback to parsing full IDs (for backwards compatibility)
+            val parts = shortId.split("~", limit = 2)
             val packId = parts[0]
             val mdocId = parts[1]
             return Pair(packId, mdocId)
-        }
-
-        class RegistryIcon(
-            val iconValue: ByteArray, var iconOffset: Int = 0
-        )
-
-        private fun JSONObject.putCommon(
-            id: String, mdocDetails: Map<String, List<Element>>, iconMap: Map<String, RegistryIcon>, walletName: String
-        ) {
-            put(ID, id)
-
-            val name =
-                mdocDetails["org.iso.18013.5.1"]?.first { element -> element.identifier == "given_name" }?.value?.filterNot { c -> c == '"' }
-            val title = if (name != null) {
-                "Driver's License ($name)"
-            } else {
-                "Driver's License"
-            }
-
-            put(TITLE, title)
-            putOpt(SUBTITLE, walletName)
-            val iconJson = JSONObject().apply {
-                put(START, iconMap[id]!!.iconOffset)
-                put(LENGTH, iconMap[id]!!.iconValue.size)
-            }
-            put(ICON, iconJson)
         }
 
         const val defaultTrustedApps: String = """
