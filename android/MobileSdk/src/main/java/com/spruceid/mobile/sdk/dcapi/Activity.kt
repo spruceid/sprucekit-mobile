@@ -213,11 +213,11 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             }
         }.map { option -> option.requestJson }
             .flatMap { requestJson -> parseOid4vpRequestJson(requestJson) }
-            .map { (openid4vp_request, extractedDcqlCredId) ->
-                Log.d(TAG, "openid4vp request: ${JSONObject(openid4vp_request)}")
+            .map { parsed ->
+                Log.d(TAG, "openid4vp request: ${JSONObject(parsed.requestData)}")
                 // Use the extracted dcql_cred_id if we don't have one from the entry metadata
-                val effectiveDcqlCredId = if (dcqlCredId.isEmpty() && extractedDcqlCredId != null) {
-                    extractedDcqlCredId
+                val effectiveDcqlCredId = if (dcqlCredId.isEmpty() && parsed.dcqlCredId != null) {
+                    parsed.dcqlCredId
                 } else {
                     dcqlCredId
                 }
@@ -225,8 +225,9 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
                     credentialPackId,
                     credentialId,
                     origin,
-                    openid4vp_request,
-                    effectiveDcqlCredId
+                    parsed.requestData,
+                    effectiveDcqlCredId,
+                    parsed.protocol
                 )
             }
 
@@ -317,7 +318,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             // OpenID4VP response wasn't a JSON object, so is a JWE and can be inserted directly.
             data = JSONObject().put("response", openid4vpResponse)
         }
-        val response = JSONObject().put("protocol", "openid4vp").put("data", data).toString()
+        val response = JSONObject().put("protocol", request.protocol).put("data", data).toString()
 
         Log.d(TAG, "Legacy: $data")
         Log.d(TAG, "Modern: $response")
@@ -350,7 +351,8 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         val credentialId: String,
         val origin: String,
         val oid4vpRequestJson: String,
-        val dcqlCredId: String
+        val dcqlCredId: String,
+        val protocol: String
     )
 
     private sealed class ConsentOutcome {
@@ -391,10 +393,18 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         )
 
         /**
-         * Parse OID4VP request JSON and extract request data.
-         * Returns pairs of (request_json, dcql_credential_id) where dcql_credential_id may be null.
+         * Parsed OID4VP request data from DC API.
          */
-        private fun parseOid4vpRequestJson(requestJson: String): List<Pair<String, String?>> {
+        private data class ParsedOid4vpRequest(
+            val requestData: String,
+            val dcqlCredId: String?,
+            val protocol: String
+        )
+
+        /**
+         * Parse OID4VP request JSON and extract request data.
+         */
+        private fun parseOid4vpRequestJson(requestJson: String): List<ParsedOid4vpRequest> {
             try {
                 val request = JSONObject(requestJson)
                 Log.d(TAG, "request: $request")
@@ -414,7 +424,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
                             }
                             if (requestData != null) {
                                 val dcqlCredId = extractDcqlCredentialId(requestData)
-                                Pair(requestData, dcqlCredId)
+                                ParsedOid4vpRequest(requestData, dcqlCredId, protocol)
                             } else {
                                 null
                             }

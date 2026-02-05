@@ -18,6 +18,20 @@ import com.spruceid.mobile.sdk.rs.ParsedCredential
 import java.util.UUID
 
 /**
+ * OID4VP v1.0 protocol identifiers per spec (Appendix A.1).
+ *
+ * Each protocol type determines how the Verifier authenticates:
+ * - UNSIGNED: No cryptographic signature, relies on browser origin verification
+ * - SIGNED: Request wrapped in JWS Compact Serialization (single signature)
+ * - MULTISIGNED: Request wrapped in JWS JSON Serialization (multiple signatures)
+ */
+enum class Oid4vpProtocol(val id: String) {
+    UNSIGNED("openid4vp-v1-unsigned"),
+    SIGNED("openid4vp-v1-signed"),
+    // TODO: MULTISIGNED("openid4vp-v1-multisigned")
+}
+
+/**
  * The credential registry for wallet selection over Digital Credentials API.
  *
  * This class should be instantiated once by the application, and kept up-to-date by calling
@@ -39,26 +53,56 @@ class Registry(
     private val icon: ByteArray = loadAsset(application.assets, iconName)
     private val matcher: ByteArray = loadAsset(application.assets, matcherName)
     private val registryManager = RegistryManager.Companion.create(application)
+    private var legacyRegistriesCleared = false
 
     @OptIn(ExperimentalDigitalCredentialApi::class)
     suspend fun register(credentialPacks: List<CredentialPack>) {
+        // Clear legacy registries on first registration
+        if (!legacyRegistriesCleared) {
+            clearLegacyRegistries()
+            legacyRegistriesCleared = true
+        }
+
         val mdocs = toMdocStream(credentialPacks)
         val credentialEntries = mdocs.map { (comboId, mdoc) -> createMdocEntry(comboId, mdoc) }
 
-        val registry = OpenId4VpRegistry(
-            credentialEntries = credentialEntries,
-            inlineIssuanceEntries = emptyList(),
-            id = REGISTRY_ID
-        )
+        // Register credentials with all supported protocol types
+        for (protocol in SUPPORTED_PROTOCOLS) {
+            val registry = OpenId4VpRegistry(
+                credentialEntries = credentialEntries,
+                inlineIssuanceEntries = emptyList(),
+                id = protocol.id
+            )
 
-        try {
-            registryManager.registerCredentials(object : DigitalCredentialRegistry(
-                id = registry.id,
-                credentials = registry.credentials,
-                matcher = matcher
-            ) {})
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to register credentials: $e")
+            try {
+                registryManager.registerCredentials(object : DigitalCredentialRegistry(
+                    id = registry.id,
+                    credentials = registry.credentials,
+                    matcher = matcher
+                ) {})
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to register credentials for ${protocol.name}: $e")
+            }
+        }
+    }
+
+    @OptIn(ExperimentalDigitalCredentialApi::class)
+    private suspend fun clearLegacyRegistries() {
+        for (legacyId in LEGACY_REGISTRY_IDS) {
+            try {
+                val emptyRegistry = OpenId4VpRegistry(
+                    credentialEntries = emptyList(),
+                    inlineIssuanceEntries = emptyList(),
+                    id = legacyId
+                )
+                registryManager.registerCredentials(object : DigitalCredentialRegistry(
+                    id = emptyRegistry.id,
+                    credentials = emptyRegistry.credentials,
+                    matcher = matcher
+                ) {})
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to clear legacy registry $legacyId: $e")
+            }
         }
     }
 
@@ -114,7 +158,18 @@ class Registry(
 
     companion object {
         private const val TAG = "dcapi.Registry"
-        private const val REGISTRY_ID = "openid4vp"
+
+        // Protocols to register credentials with (supports both unsigned and signed requests)
+        private val SUPPORTED_PROTOCOLS = listOf(
+            Oid4vpProtocol.UNSIGNED,
+            Oid4vpProtocol.SIGNED
+        )
+
+        // Legacy registry IDs that need to be cleared on first registration
+        private val LEGACY_REGISTRY_IDS = listOf(
+            "openid4vp",
+            "openid4vp1.0"
+        )
 
         // Large binary elements to exclude from registry to avoid TransactionTooLargeException
         private val EXCLUDED_ELEMENTS = setOf(
