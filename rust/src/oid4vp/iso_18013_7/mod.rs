@@ -14,7 +14,7 @@ use openid4vp::{
     core::{
         authorization_request::{
             parameters::ResponseMode,
-            verification::{verifier::P256Verifier, RequestVerifier},
+            verification::{verifier::P256Verifier, x509_hash, RequestVerifier},
             AuthorizationRequestObject,
         },
         dcql_query::DcqlQuery,
@@ -245,6 +245,20 @@ impl RequestVerifier for OID4VP180137 {
             None,
         )
     }
+
+    async fn x509_hash(
+        &self,
+        decoded_request: &AuthorizationRequestObject,
+        request_jwt: Option<String>,
+    ) -> Result<()> {
+        log::debug!("Verifying x509_hash request.");
+        let request_jwt =
+            request_jwt.context("request JWT is required for x509_hash verification")?;
+        // Not checking the origin like it's done for DC API as this is a redirect
+        // Use the x509_hash validation with P256 verifier
+        // Note: trusted_roots is None for now, meaning we don't verify the certificate chain
+        x509_hash::validate::<P256Verifier>(self.metadata(), decoded_request, request_jwt, None)
+    }
 }
 
 fn default_metadata() -> WalletMetadata {
@@ -258,7 +272,8 @@ fn default_metadata() -> WalletMetadata {
             "mso_mdoc": {}
         },
         "client_id_prefixes_supported": [
-            "x509_san_dns"
+            "x509_san_dns",
+            "x509_hash"
         ],
         "authorization_encryption_alg_values_supported": [
             "ECDH-ES"
