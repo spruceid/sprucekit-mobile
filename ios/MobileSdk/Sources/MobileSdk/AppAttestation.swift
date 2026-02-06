@@ -69,10 +69,14 @@ public class AppAttestation {
         guard service.isSupported else {
             throw AttestationError.attestationNotSupported
         }
-
-        guard let clientData = nonce.data(using: .utf8) else {
+ 
+        let clientData: Data = if let base64Data = Data(base64Encoded: nonce) {
+            base64Data
+        } else if let utf8Data = nonce.data(using: .utf8) {
+            utf8Data
+        } else {
             throw AttestationError.encodingError(
-                "failed to convert nonce to utf8 bytes"
+                "failed to convert nonce to base64 or utf8 bytes"
             )
         }
 
