@@ -13,7 +13,7 @@ use openid4vp::{
     core::{
         authorization_request::{
             parameters::ExpectedOrigins,
-            verification::{verifier::P256Verifier, x509_san, RequestVerifier},
+            verification::{verifier::P256Verifier, x509_hash, x509_san, RequestVerifier},
             AuthorizationRequest, AuthorizationRequestObject,
         },
         dcql_query::DcqlQuery,
@@ -86,6 +86,20 @@ impl RequestVerifier for WalletActivity {
         self.check_expected_origins(decoded_request)?;
         // TODO: Add trusted roots and implement chain verification in openid4vp.
         x509_san::validate::<P256Verifier>(self.metadata(), decoded_request, request_jwt, None)
+    }
+
+    async fn x509_hash(
+        &self,
+        decoded_request: &AuthorizationRequestObject,
+        request_jwt: Option<String>,
+    ) -> Result<()> {
+        log::debug!("Verifying x509_hash request.");
+        let request_jwt =
+            request_jwt.context("request JWT is required for x509_hash verification")?;
+        self.check_expected_origins(decoded_request)?;
+        // Use the x509_hash validation with P256 verifier
+        // Note: trusted_roots is None for now, meaning we don't verify the certificate chain
+        x509_hash::validate::<P256Verifier>(self.metadata(), decoded_request, request_jwt, None)
     }
 }
 
@@ -246,7 +260,8 @@ fn default_metadata() -> WalletMetadata {
             "mso_mdoc": {}
         },
         "client_id_prefixes_supported": [
-            "x509_san_dns"
+            "x509_san_dns",
+            "x509_hash"
         ],
         "authorization_encryption_alg_values_supported": [
             "ECDH-ES"

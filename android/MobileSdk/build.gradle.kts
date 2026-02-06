@@ -151,13 +151,17 @@ dependencies {
     androidTestImplementation("com.android.support.test.espresso:espresso-core:3.0.2")
 
     // DC-API dependencies
-    val androidxCredentialsVersion = "1.0.0-alpha01"
-    implementation("androidx.credentials:credentials:1.5.0")
-    implementation("androidx.credentials.registry:registry-digitalcredentials-preview:$androidxCredentialsVersion")
-    implementation("androidx.credentials.registry:registry-digitalcredentials-mdoc:$androidxCredentialsVersion")
-    implementation("androidx.credentials.registry:registry-provider:$androidxCredentialsVersion")
-    implementation("androidx.credentials.registry:registry-provider-play-services:$androidxCredentialsVersion")
-    implementation("com.google.android.gms:play-services-identity-credentials:16.0.0-alpha08")
+    // SNAPSHOT versions for OID4VP 1.0 support (SelectedCredentialSet)
+    val androidxCredentialsVersion = "1.6.0-SNAPSHOT"
+    val androidxRegistryVersion = "1.0.0-SNAPSHOT"
+    implementation("androidx.credentials:credentials:$androidxCredentialsVersion")
+    implementation("androidx.credentials:credentials-play-services-auth:$androidxCredentialsVersion")
+    implementation("androidx.credentials.registry:registry-digitalcredentials-mdoc:$androidxRegistryVersion")
+    implementation("androidx.credentials.registry:registry-digitalcredentials-sdjwtvc:$androidxRegistryVersion")
+    implementation("androidx.credentials.registry:registry-digitalcredentials-openid:$androidxRegistryVersion")
+    implementation("androidx.credentials.registry:registry-provider:$androidxRegistryVersion")
+    implementation("androidx.credentials.registry:registry-provider-play-services:$androidxRegistryVersion")
+    implementation("com.google.android.gms:play-services-identity-credentials:16.0.0-alpha06")
 }
 
 configurations.all {

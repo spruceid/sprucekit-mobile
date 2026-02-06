@@ -55,6 +55,7 @@ class CredentialPacksViewModel @Inject constructor(
             onDeleteCredentialPack?.invoke(credentialPack)
         }
         _credentialPacks.value = emptyList()
+        dcApiRegistry.register(emptyList())
     }
 
     suspend fun deleteCredentialPack(credentialPack: CredentialPack) {
@@ -62,6 +63,7 @@ class CredentialPacksViewModel @Inject constructor(
         val tmpCredentialPacksList = _credentialPacks.value.toMutableStateList()
         tmpCredentialPacksList.remove(credentialPack)
         _credentialPacks.value = tmpCredentialPacksList
+        dcApiRegistry.register(_credentialPacks.value)
     }
 
     fun getById(credentialPackId: String): CredentialPack? {

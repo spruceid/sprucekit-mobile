@@ -22,7 +22,7 @@ import androidx.credentials.GetCredentialResponse
 import androidx.credentials.GetDigitalCredentialOption
 import androidx.credentials.exceptions.GetCredentialUnknownException
 import androidx.credentials.provider.PendingIntentHandler
-import androidx.credentials.registry.provider.selectedEntryId
+import androidx.credentials.registry.provider.selectedCredentialSet
 import androidx.fragment.app.FragmentActivity;
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.identitycredentials.Credential
@@ -162,21 +162,41 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
     private fun processIntent(): List<OpenID4VPRequest> {
         val request = PendingIntentHandler.retrieveProviderGetCredentialRequest(intent)
             ?: throw Exception("missing request")
-        val selectedEntryId = request.selectedEntryId ?: throw Exception("missing selectedEntryId")
-        Log.d(TAG, "entryId: $selectedEntryId")
 
-        val dcqlCredId: String
-        val credentialPackId: String
-        val credentialId: String
-        try {
-            val selectedEntryIdJson = JSONObject(selectedEntryId)
-            dcqlCredId = selectedEntryIdJson.getString("dcql_cred_id")
-            val comboId = Registry.idsFromComboId(selectedEntryIdJson.getString("id"))
-            credentialPackId = comboId.first
-            credentialId = comboId.second
-        } catch (e: Exception) {
-            throw Exception("unexpected format of entryId", e)
+        val selectedCredentialSet = request.selectedCredentialSet
+            ?: throw Exception("selectedCredentialSet not available")
+
+        Log.d(TAG, "credentialSetId: ${selectedCredentialSet.credentialSetId}")
+
+        val credentials = selectedCredentialSet.credentials
+        if (credentials.isEmpty()) {
+            throw Exception("selectedCredentialSet has no credentials")
         }
+
+        // Use the first credential (for now we support single credential selection)
+        val selectedCred = credentials.first()
+        Log.d(TAG, "credentialId: ${selectedCred.credentialId}")
+        Log.d(TAG, "metadata: ${selectedCred.metadata}")
+
+        // credentialId is our combo ID (packId~credId)
+        val comboId = Registry.idsFromComboId(selectedCred.credentialId)
+        val credentialPackId = comboId.first
+        val credentialId = comboId.second
+
+        // Extract dcql_cred_id from metadata
+        val metadata = selectedCred.metadata
+        var dcqlCredId = if (metadata != null) {
+            try {
+                val metadataJson = JSONObject(metadata)
+                metadataJson.optString("dcql_cred_id", "")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to parse metadata as JSON: $metadata")
+                ""
+            }
+        } else {
+            ""
+        }
+        Log.d(TAG, "dcqlCredId from metadata: $dcqlCredId")
 
         // TODO: Support requests originating from apps.
         val origin =
@@ -193,14 +213,21 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             }
         }.map { option -> option.requestJson }
             .flatMap { requestJson -> parseOid4vpRequestJson(requestJson) }
-            .map { openid4vp_request ->
-                Log.d(TAG, "openid4vp request: ${JSONObject(openid4vp_request)}")
+            .map { parsed ->
+                Log.d(TAG, "openid4vp request: ${JSONObject(parsed.requestData)}")
+                // Use the extracted dcql_cred_id if we don't have one from the entry metadata
+                val effectiveDcqlCredId = if (dcqlCredId.isEmpty() && parsed.dcqlCredId != null) {
+                    parsed.dcqlCredId
+                } else {
+                    dcqlCredId
+                }
                 OpenID4VPRequest(
                     credentialPackId,
                     credentialId,
                     origin,
-                    openid4vp_request,
-                    dcqlCredId
+                    parsed.requestData,
+                    effectiveDcqlCredId,
+                    parsed.protocol
                 )
             }
 
@@ -208,9 +235,25 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
 
     @OptIn(ExperimentalDigitalCredentialApi::class)
     private suspend fun respond(request: OpenID4VPRequest) {
-        val pack = CredentialPack.loadPacks(storageManager)
-            .firstOrNull { it.id().toString() == request.credentialPackId }
+        Log.i(TAG, "  Looking for packId: ${request.credentialPackId}")
+        Log.i(TAG, "  Looking for credentialId: ${request.credentialId}")
+
+        val allPacks = CredentialPack.loadPacks(storageManager)
+        Log.i(TAG, "  Found ${allPacks.size} packs in storage:")
+        allPacks.forEach { p ->
+            Log.i(TAG, "    Pack ID: ${p.id()}")
+            p.list().forEach { c ->
+                val m = c.asMsoMdoc()
+                val adminNum = m?.details()?.get("org.iso.18013.5.1")?.find { it.identifier == "administrative_number" }?.value
+                Log.i(TAG, "      Cred ID: ${c.id()}, admin_num: $adminNum")
+            }
+        }
+
+        val pack = allPacks.firstOrNull { it.id().toString() == request.credentialPackId }
+        Log.i(TAG, "  Pack found: ${pack != null}")
+
         val credential = pack?.getCredentialById(request.credentialId)
+
         val mdoc = credential?.asMsoMdoc() ?: throw Exception("selected credential not found")
 
         val responder =
@@ -275,7 +318,7 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             // OpenID4VP response wasn't a JSON object, so is a JWE and can be inserted directly.
             data = JSONObject().put("response", openid4vpResponse)
         }
-        val response = JSONObject().put("protocol", "openid4vp").put("data", data).toString()
+        val response = JSONObject().put("protocol", request.protocol).put("data", data).toString()
 
         Log.d(TAG, "Legacy: $data")
         Log.d(TAG, "Modern: $response")
@@ -308,7 +351,8 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
         val credentialId: String,
         val origin: String,
         val oid4vpRequestJson: String,
-        val dcqlCredId: String
+        val dcqlCredId: String,
+        val protocol: String
     )
 
     private sealed class ConsentOutcome {
@@ -342,31 +386,50 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
     }
 
     companion object {
-        private fun parseOid4vpRequestJson(requestJson: String): List<String> {
+        // Supported OpenID4VP v1.0 protocols
+        private val SUPPORTED_PROTOCOLS = setOf(
+            "openid4vp-v1-unsigned",    // v1.0 unsigned
+            "openid4vp-v1-signed"       // v1.0 signed
+        )
+
+        /**
+         * Parsed OID4VP request data from DC API.
+         */
+        private data class ParsedOid4vpRequest(
+            val requestData: String,
+            val dcqlCredId: String?,
+            val protocol: String
+        )
+
+        /**
+         * Parse OID4VP request JSON and extract request data.
+         */
+        private fun parseOid4vpRequestJson(requestJson: String): List<ParsedOid4vpRequest> {
             try {
                 val request = JSONObject(requestJson)
-                Log.d(TAG, "request: $request");
-
-                // Providers is legacy, can be removed eventually in favour of requests.
-                val providers = request.optJSONArray("providers")
-
-                if (providers != null) {
-                    return List(providers.length()) { providers[it] as JSONObject }.mapNotNull {
-                        if (it.getString("protocol") == "openid4vp") {
-                            it.getString("request")
-                        } else {
-                            null
-                        }
-                    }
-                }
+                Log.d(TAG, "request: $request")
 
                 val requests = request.optJSONArray("requests")
 
                 if (requests != null) {
                     return List(requests.length()) { requests[it] as JSONObject }.mapNotNull {
-                        if (it.getString("protocol") == "openid4vp") {
-                            it.getString("data")
+                        val protocol = it.getString("protocol")
+                        if (protocol in SUPPORTED_PROTOCOLS) {
+                            // For v1.0, data might be a JSON object or string
+                            val data = it.opt("data")
+                            val requestData = when (data) {
+                                is String -> data
+                                is JSONObject -> data.toString()
+                                else -> null
+                            }
+                            if (requestData != null) {
+                                val dcqlCredId = extractDcqlCredentialId(requestData)
+                                ParsedOid4vpRequest(requestData, dcqlCredId, protocol)
+                            } else {
+                                null
+                            }
                         } else {
+                            Log.d(TAG, "unsupported protocol: $protocol")
                             null
                         }
                     }
@@ -377,6 +440,26 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
             } catch (e: Exception) {
                 Log.e(TAG, "an error occurred while parsing the DC-API request", e)
                 return emptyList()
+            }
+        }
+
+        /**
+         * Extract the first credential ID from a DCQL query in the request.
+         * The DCQL query structure is: { "dcql_query": { "credentials": [{ "id": "..." }] } }
+         */
+        private fun extractDcqlCredentialId(requestData: String): String? {
+            return try {
+                val json = JSONObject(requestData)
+                val dcqlQuery = json.optJSONObject("dcql_query") ?: return null
+                val credentials = dcqlQuery.optJSONArray("credentials") ?: return null
+                if (credentials.length() > 0) {
+                    credentials.getJSONObject(0).optString("id", null)
+                } else {
+                    null
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "could not extract dcql_credential_id: ${e.message}")
+                null
             }
         }
 
