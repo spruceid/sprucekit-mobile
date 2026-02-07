@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name             = 'SpruceIDMobileSdk'
-  spec.version          = '0.13.17'
+  spec.version          = '0.13.18'
   spec.summary          = 'SpruceID Mobile SDK for iOS'
   spec.description      = <<-DESC
                    SpruceID Swift Mobile SDK for credential management, OID4VCI issuance, and verifiable credentials.
@@ -20,7 +20,7 @@ Pod::Spec.new do |spec|
   spec.source_files     = 'ios/MobileSdk/Sources/MobileSdk/**/*.swift'
 
   spec.static_framework = true
-  spec.dependency 'SpruceIDMobileSdkRs', '~> 0.13.17'
+  spec.dependency 'SpruceIDMobileSdkRs', '~> 0.13.18'
   spec.dependency 'SwiftAlgorithms', '~> 1.0.0'
   spec.frameworks = 'Foundation', 'CoreBluetooth', 'CryptoKit'
 end
