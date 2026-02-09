@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'sprucekit_mobile'
-  s.version          = '0.13.18'
+  s.version          = '0.13.19'
   s.summary          = 'Flutter plugin for SpruceKit Mobile SDK'
   s.description      = <<-DESC
 Flutter plugin providing access to SpruceKit Mobile SDK functionality
@@ -16,7 +16,7 @@ for credential issuance (OID4VCI) and credential management.
   s.source_files = 'Classes/*.swift'
 
   s.dependency 'Flutter'
-  s.dependency 'SpruceIDMobileSdk', '~> 0.13.18'
+  s.dependency 'SpruceIDMobileSdk', '~> 0.13.19'
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
