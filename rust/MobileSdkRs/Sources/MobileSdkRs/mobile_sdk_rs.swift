@@ -7191,6 +7191,24 @@ public static func fromCborEncodedDocument(cborEncodedDocument: Data, keyAlias: 
 }
     
     /**
+     * Construct a new MDoc from IssuerSigned CBOR bytes.
+     *
+     * Provisioned data represents the element values in the issuer signed namespaces.
+     * If provisioned data exists, it will update the issuer signed namespace values
+     * with the provisioned data.
+     */
+public static func fromCborEncodedIssuerSignedDehydratedWithId(id: Uuid, cborEncodedIssuerSignedDehydrated: Data, namespacedData: Data, keyAlias: KeyAlias)throws  -> Mdoc  {
+    return try  FfiConverterTypeMdoc_lift(try rustCallWithError(FfiConverterTypeMdocInitError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_mdoc_from_cbor_encoded_issuer_signed_dehydrated_with_id(
+        FfiConverterTypeUuid_lower(id),
+        FfiConverterData.lower(cborEncodedIssuerSignedDehydrated),
+        FfiConverterData.lower(namespacedData),
+        FfiConverterTypeKeyAlias_lower(keyAlias),$0
+    )
+})
+}
+    
+    /**
      * Compatibility feature: construct an MDoc from a
      * [stringified spruceid/isomdl `Document`](https://github.com/spruceid/isomdl/blob/main/src/presentation/mod.rs#L100)
      */
@@ -26475,6 +26493,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_from_cbor_encoded_document() != 32979) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_from_cbor_encoded_issuer_signed_dehydrated_with_id() != 49071) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_from_stringified_document() != 58042) {
