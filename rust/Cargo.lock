@@ -2624,7 +2624,7 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/isomdl?rev=4d1c531#4d1c531baa797d9fb0b3463a0f2e1a044f9c9ada"
+source = "git+https://github.com/spruceid/isomdl?rev=17b6354#17b63542711754bda519ee59456ee888e6bdcb00"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2646,7 +2646,7 @@ dependencies = [
  "hex-literal",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=4d1c531)",
+ "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=17b6354)",
  "ndef-rs",
  "p256",
  "p384",
@@ -2673,7 +2673,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=4d1c531#4d1c531baa797d9fb0b3463a0f2e1a044f9c9ada"
+source = "git+https://github.com/spruceid/isomdl?rev=17b6354#17b63542711754bda519ee59456ee888e6bdcb00"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2765,8 +2765,7 @@ dependencies = [
 [[package]]
 name = "json-ld"
 version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5c23bd3696fabd231e88dc57a893455af22509aae15578f94ce47b9c821e705"
+source = "git+https://github.com/timothee-haudebourg/json-ld.git?rev=13e7491#13e749166d68ca34a9aa8322b089eac7285b3b6b"
 dependencies = [
  "contextual",
  "futures",
@@ -2786,8 +2785,7 @@ dependencies = [
 [[package]]
 name = "json-ld-compaction"
 version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ad3ab3dfb6249b1e53359c06c2c3c554d3704b64c9d17cb9eaa624248b6161cf"
+source = "git+https://github.com/timothee-haudebourg/json-ld.git?rev=13e7491#13e749166d68ca34a9aa8322b089eac7285b3b6b"
 dependencies = [
  "contextual",
  "educe 0.4.23",
@@ -2808,8 +2806,7 @@ dependencies = [
 [[package]]
 name = "json-ld-context-processing"
 version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dac28ce9f01c5bb4f54804817e15c0f94697aaca8e42a4ca56913297b2b4e1e"
+source = "git+https://github.com/timothee-haudebourg/json-ld.git?rev=13e7491#13e749166d68ca34a9aa8322b089eac7285b3b6b"
 dependencies = [
  "contextual",
  "futures",
@@ -2825,8 +2822,7 @@ dependencies = [
 [[package]]
 name = "json-ld-core"
 version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0b91506169548cf5636661a5911bfeb65468a3f14801514583c113b6592c366"
+source = "git+https://github.com/timothee-haudebourg/json-ld.git?rev=13e7491#13e749166d68ca34a9aa8322b089eac7285b3b6b"
 dependencies = [
  "bytes",
  "contextual",
@@ -2858,8 +2854,7 @@ dependencies = [
 [[package]]
 name = "json-ld-expansion"
 version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff5d4c0d8331a9d15ab34bd8cd7c11b6512f07e7e0a7f5a63350c2632635bf0b"
+source = "git+https://github.com/timothee-haudebourg/json-ld.git?rev=13e7491#13e749166d68ca34a9aa8322b089eac7285b3b6b"
 dependencies = [
  "contextual",
  "educe 0.4.23",
@@ -2879,8 +2874,7 @@ dependencies = [
 [[package]]
 name = "json-ld-serialization"
 version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "344f0a6042745d76a358b808878ae0d125a472de30b3eabc9eb82c6cf7f0c23e"
+source = "git+https://github.com/timothee-haudebourg/json-ld.git?rev=13e7491#13e749166d68ca34a9aa8322b089eac7285b3b6b"
 dependencies = [
  "indexmap 2.12.1",
  "iref",
@@ -2895,8 +2889,7 @@ dependencies = [
 [[package]]
 name = "json-ld-syntax"
 version = "0.21.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbff6d43084d4c04c3ffbdcd8031dd187c4a8c6f43d5c5585be230949c573747"
+source = "git+https://github.com/timothee-haudebourg/json-ld.git?rev=13e7491#13e749166d68ca34a9aa8322b089eac7285b3b6b"
 dependencies = [
  "contextual",
  "decoded-char",
