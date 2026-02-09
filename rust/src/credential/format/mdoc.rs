@@ -84,18 +84,32 @@ impl Mdoc {
         namespaced_data: Vec<u8>,
         key_alias: KeyAlias,
     ) -> Result<Arc<Self>, MdocInitError> {
-        let issuer_signed_dehdrated: IssuerSignedDehydrated =
-            isomdl::cbor::from_slice(&cbor_encoded_issuer_signed_dehydrated)
-                .map_err(|_| MdocInitError::IssuerSignedCborDecoding)?;
+        Self::new_from_cbor_encoded_issuer_signed_dehydrated_with_id(
+            Uuid::new_v4(),
+            cbor_encoded_issuer_signed_dehydrated,
+            namespaced_data,
+            key_alias,
+        )
+    }
 
-        let namespace_data: NameSpacedData = isomdl::cbor::from_slice(&namespaced_data)
-            .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
-
-        let issuer_signed = issuer_signed_dehdrated
-            .combine_namespaced_data(&namespace_data)
-            .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
-
-        Self::new_from_issuer_signed(key_alias, issuer_signed)
+    #[uniffi::constructor]
+    /// Construct a new MDoc from IssuerSigned CBOR bytes.
+    ///
+    /// Provisioned data represents the element values in the issuer signed namespaces.
+    /// If provisioned data exists, it will update the issuer signed namespace values
+    /// with the provisioned data.
+    pub fn from_cbor_encoded_issuer_signed_dehydrated_with_id(
+        id: Uuid,
+        cbor_encoded_issuer_signed_dehydrated: Vec<u8>,
+        namespaced_data: Vec<u8>,
+        key_alias: KeyAlias,
+    ) -> Result<Arc<Self>, MdocInitError> {
+        Self::new_from_cbor_encoded_issuer_signed_dehydrated_with_id(
+            id,
+            cbor_encoded_issuer_signed_dehydrated,
+            namespaced_data,
+            key_alias,
+        )
     }
 
     #[uniffi::constructor]
@@ -368,6 +382,14 @@ impl Mdoc {
 
     fn new_from_issuer_signed(
         key_alias: KeyAlias,
+        issuer_signed: IssuerSigned,
+    ) -> Result<Arc<Self>, MdocInitError> {
+        Self::new_from_issuer_signed_with_id(Uuid::new_v4(), key_alias, issuer_signed)
+    }
+
+    fn new_from_issuer_signed_with_id(
+        id: Uuid,
+        key_alias: KeyAlias,
         IssuerSigned {
             namespaces,
             issuer_auth,
@@ -404,12 +426,32 @@ impl Mdoc {
         Ok(Arc::new(Self {
             key_alias,
             inner: Document {
-                id: Uuid::new_v4(),
+                id,
                 issuer_auth,
                 namespaces,
                 mso: mso.into_inner(),
             },
         }))
+    }
+
+    fn new_from_cbor_encoded_issuer_signed_dehydrated_with_id(
+        id: Uuid,
+        cbor_encoded_issuer_signed_dehydrated: Vec<u8>,
+        namespaced_data: Vec<u8>,
+        key_alias: KeyAlias,
+    ) -> Result<Arc<Self>, MdocInitError> {
+        let issuer_signed_dehdrated: IssuerSignedDehydrated =
+            isomdl::cbor::from_slice(&cbor_encoded_issuer_signed_dehydrated)
+                .map_err(|_| MdocInitError::IssuerSignedCborDecoding)?;
+
+        let namespace_data: NameSpacedData = isomdl::cbor::from_slice(&namespaced_data)
+            .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
+
+        let issuer_signed = issuer_signed_dehdrated
+            .combine_namespaced_data(&namespace_data)
+            .map_err(|e| MdocInitError::ProvisionedDataCborDecoding(e.to_string()))?;
+
+        Self::new_from_issuer_signed_with_id(id, key_alias, issuer_signed)
     }
 }
 
@@ -536,14 +578,17 @@ fn to_json_for_display(value: &ciborium::Value) -> Option<serde_json::Value> {
 mod tests {
     use base64::{prelude::BASE64_STANDARD, Engine};
 
-    use crate::{credential::mdoc::Mdoc, crypto::KeyAlias};
+    use crate::{
+        credential::{mdoc::Mdoc, Credential, CredentialFormat},
+        crypto::KeyAlias,
+        CredentialType,
+    };
+
+    const B64_AUTH_DATA: &str = include_str!("../../../tests/examples/auth_data.txt");
+    const B64_PROVISIONED_DATA: &str = include_str!("../../../tests/examples/provision_data.txt");
 
     #[test]
     fn test_cbor_auth_data_parsing() {
-        const B64_AUTH_DATA: &str = include_str!("../../../tests/examples/auth_data.txt");
-        const B64_PROVISIONED_DATA: &str =
-            include_str!("../../../tests/examples/provision_data.txt");
-
         let decoded_auth_data = BASE64_STANDARD
             .decode(B64_AUTH_DATA)
             .expect("failed to decode b64 auth data");
@@ -560,5 +605,128 @@ mod tests {
         .expect("failed to create mdoc");
 
         println!("Mdoc: {mdoc:?}")
+    }
+
+    /// Test that mdoc element values are preserved through storage roundtrip.
+    ///
+    /// This test verifies that when an mdoc is created from dehydrated issuer signed data,
+    /// converted to a Credential for storage, serialized with CBOR, deserialized, and
+    /// converted back to an Mdoc, all element values are preserved.
+    #[test]
+    fn test_cbor_auth_data_storage_roundtrip() {
+        let decoded_auth_data = BASE64_STANDARD
+            .decode(B64_AUTH_DATA)
+            .expect("failed to decode b64 auth data");
+
+        let decoded_provisioned_data = BASE64_STANDARD
+            .decode(B64_PROVISIONED_DATA)
+            .expect("failed to decode b64 provisioned data");
+
+        let mdoc = Mdoc::new_from_cbor_encoded_issuer_signed_dehydrated(
+            decoded_auth_data,
+            decoded_provisioned_data,
+            KeyAlias("default".into()),
+        )
+        .expect("failed to create mdoc");
+
+        let details_before = mdoc.details();
+        assert!(
+            !details_before.is_empty(),
+            "mdoc should have namespaces before storage"
+        );
+
+        // Verify element values are present before storage.
+        for (namespace, elements) in &details_before {
+            for element in elements {
+                assert!(
+                    element.value.is_some(),
+                    "element '{}' in namespace '{}' should have a value before storage",
+                    element.identifier,
+                    namespace.0
+                );
+                assert_ne!(
+                    element.value.as_deref(),
+                    Some("null"),
+                    "element '{}' in namespace '{}' should not be null before storage",
+                    element.identifier,
+                    namespace.0
+                );
+            }
+        }
+
+        // Convert to Credential (storage format).
+        let credential: Credential = mdoc
+            .clone()
+            .try_into()
+            .expect("failed to convert mdoc to credential");
+
+        assert_eq!(credential.format, CredentialFormat::MsoMdoc);
+        assert_eq!(credential.r#type, CredentialType(mdoc.doctype()));
+
+        // Step 1: Test that the payload alone roundtrips correctly.
+        let payload_before = credential.payload.clone();
+        let mdoc_from_payload: std::sync::Arc<Mdoc> =
+            Mdoc::from_cbor_encoded_document(payload_before.clone(), KeyAlias("default".into()))
+                .expect("failed to create mdoc from payload");
+
+        let details_from_payload = mdoc_from_payload.details();
+        for (namespace, elements) in &details_from_payload {
+            for element in elements {
+                assert_ne!(
+                    element.value.as_deref(),
+                    Some("null"),
+                    "element '{}' in namespace '{}' should not be null after payload-only roundtrip",
+                    element.identifier,
+                    namespace.0
+                );
+            }
+        }
+
+        // Step 2: Simulate storage roundtrip using ciborium (same as VdcCollection).
+        let mut serialized = Vec::new();
+        ciborium::into_writer(&credential, &mut serialized)
+            .expect("failed to serialize credential");
+
+        let deserialized: Credential = ciborium::from_reader(std::io::Cursor::new(&serialized))
+            .expect("failed to deserialize credential");
+
+        // Check if the payload bytes are preserved.
+        assert_eq!(
+            payload_before, deserialized.payload,
+            "payload bytes should be identical after ciborium roundtrip"
+        );
+
+        // Convert back to Mdoc.
+        let restored_mdoc: std::sync::Arc<Mdoc> = deserialized
+            .try_into()
+            .expect("failed to convert credential back to mdoc");
+
+        let details_after = restored_mdoc.details();
+
+        // Verify namespaces are preserved.
+        assert_eq!(
+            details_before.len(),
+            details_after.len(),
+            "namespace count should be preserved after storage roundtrip"
+        );
+
+        // Verify element values are still present after storage.
+        for (namespace, elements) in &details_after {
+            for element in elements {
+                assert!(
+                    element.value.is_some(),
+                    "element '{}' in namespace '{}' should have a value after storage roundtrip",
+                    element.identifier,
+                    namespace.0
+                );
+                assert_ne!(
+                    element.value.as_deref(),
+                    Some("null"),
+                    "element '{}' in namespace '{}' should not be null after storage roundtrip",
+                    element.identifier,
+                    namespace.0
+                );
+            }
+        }
     }
 }
