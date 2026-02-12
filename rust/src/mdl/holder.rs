@@ -665,8 +665,7 @@ mod tests {
         .try_into()
         .unwrap();
         let trust_anchor = TrustAnchorRegistry::from_pem_certificates(vec![PemTrustAnchor {
-            certificate_pem: include_str!("../../tests/res/mdl/utrecht-certificate.pem")
-                .to_string(),
+            certificate_pem: include_str!("../../tests/res/mdl/iaca-certificate.pem").to_string(),
             purpose: TrustPurpose::Iaca,
         }])
         .unwrap();
@@ -762,7 +761,7 @@ mod tests {
             Arc::new(ReaderHandover::new_qr(qr_code_uri)),
             namespaces,
             Some(vec![include_str!(
-                "../../tests/res/mdl/utrecht-certificate.pem"
+                "../../tests/res/mdl/iaca-certificate.pem"
             )
             .to_string()]),
         )
