@@ -7,9 +7,8 @@ use std::sync::LazyLock;
 
 /// Shared tokio runtime for blocking on async isomdl functions (e.g. CRL checks)
 /// at the UniFFI boundary, avoiding async propagation to foreign callers.
-static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
-    tokio::runtime::Runtime::new().expect("Failed to create tokio runtime")
-});
+static RUNTIME: LazyLock<tokio::runtime::Runtime> =
+    LazyLock::new(|| tokio::runtime::Runtime::new().expect("Failed to create tokio runtime"));
 
 /// Run a future to completion, handling the case where we may already be
 /// inside a tokio runtime (e.g. in tests). When called from outside a runtime
