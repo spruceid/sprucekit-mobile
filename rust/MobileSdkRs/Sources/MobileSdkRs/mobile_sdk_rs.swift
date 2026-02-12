@@ -6889,7 +6889,7 @@ public protocol MdlPresentationSessionProtocol: AnyObject, Sendable {
      * technology. Returns a Vector of information items requested by the reader, or an
      * error.
      */
-    func handleRequest(request: Data) throws  -> [ItemsRequest]
+    func handleRequest(request: Data) async throws  -> [ItemsRequest]
     
     /**
      * Return the Reader common name, if available from the session
@@ -7005,12 +7005,21 @@ open func getQrHandover()throws  -> String  {
      * technology. Returns a Vector of information items requested by the reader, or an
      * error.
      */
-open func handleRequest(request: Data)throws  -> [ItemsRequest]  {
-    return try  FfiConverterSequenceTypeItemsRequest.lift(try rustCallWithError(FfiConverterTypeRequestError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_handle_request(self.uniffiClonePointer(),
-        FfiConverterData.lower(request),$0
-    )
-})
+open func handleRequest(request: Data)async throws  -> [ItemsRequest]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_mdlpresentationsession_handle_request(
+                    self.uniffiClonePointer(),
+                    FfiConverterData.lower(request)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeItemsRequest.lift,
+            errorHandler: FfiConverterTypeRequestError_lift
+        )
 }
     
     /**
@@ -25484,13 +25493,19 @@ public func handleDcApiRequest(dcqlCredentialId: String, mdoc: Mdoc, origin: Str
             errorHandler: FfiConverterTypeDcApiError_lift
         )
 }
-public func handleResponse(state: MdlSessionManager, response: Data)throws  -> MdlReaderResponseData  {
-    return try  FfiConverterTypeMDLReaderResponseData_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
-    uniffi_mobile_sdk_rs_fn_func_handle_response(
-        FfiConverterTypeMDLSessionManager_lower(state),
-        FfiConverterData.lower(response),$0
-    )
-})
+public func handleResponse(state: MdlSessionManager, response: Data)async throws  -> MdlReaderResponseData  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_handle_response(FfiConverterTypeMDLSessionManager_lower(state),FfiConverterData.lower(response)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeMDLReaderResponseData_lift,
+            errorHandler: FfiConverterTypeMDLReaderResponseError_lift
+        )
 }
 /**
  * Begin the mDL presentation process for the holder when the desired
@@ -25730,7 +25745,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_handle_dc_api_request() != 55079) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 43961) {
+    if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 53662) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 4626) {
@@ -26048,7 +26063,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_get_qr_handover() != 50505) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_handle_request() != 21650) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_handle_request() != 43384) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlpresentationsession_reader_name() != 65172) {
