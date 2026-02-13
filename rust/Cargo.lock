@@ -826,15 +826,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clap-stdin"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6843ca418f46b4658e03825cb100092697f6b7f94a122281c408cb39f4562f25"
-dependencies = [
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "clap_builder"
 version = "4.5.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2076,12 +2067,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
-name = "hex-literal"
-version = "0.3.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ebdb29d2ea9ed0083cd8cece49bbd968021bd99b0849edb4a9a7ee0fdf6a4e0"
-
-[[package]]
 name = "hex_fmt"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2589,17 +2574,16 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/isomdl?rev=930d8c2#930d8c2a426db3b63f64cf70c594cbcbb836da80"
+source = "git+https://github.com/spruceid/isomdl?rev=848c26b#848c26bc034383bd154779853d7e4757dfdc362f"
 dependencies = [
  "aes",
  "aes-gcm",
  "anyhow",
  "asn1-rs",
  "async-signature",
+ "async-trait",
  "base64 0.13.1",
  "ciborium",
- "clap",
- "clap-stdin",
  "const-oid 0.9.6",
  "coset",
  "der 0.7.10",
@@ -2608,7 +2592,6 @@ dependencies = [
  "elliptic-curve",
  "generic-array",
  "hex",
- "hex-literal",
  "hkdf",
  "hmac",
  "isomdl-macros",
@@ -2632,13 +2615,12 @@ dependencies = [
  "tracing",
  "uuid",
  "x509-cert",
- "zeroize",
 ]
 
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=930d8c2#930d8c2a426db3b63f64cf70c594cbcbb836da80"
+source = "git+https://github.com/spruceid/isomdl?rev=848c26b#848c26bc034383bd154779853d7e4757dfdc362f"
 dependencies = [
  "proc-macro2",
  "quote",
