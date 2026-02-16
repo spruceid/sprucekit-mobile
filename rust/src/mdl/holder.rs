@@ -365,19 +365,23 @@ impl MdlPresentationSession {
                 .map_err(|e| RequestError::Generic {
                     value: format!("Could not deserialize request: {e:?}"),
                 })?;
-            self.engaged
+            let engaged = self
+                .engaged
                 .lock()
                 .map_err(|_| RequestError::Generic {
                     value: "Could not lock mutex".to_string(),
                 })?
-                .clone()
-                .process_session_establishment(
-                    session_establishment,
-                    TrustAnchorRegistry::default(),
-                )
-                .map_err(|e| RequestError::Generic {
-                    value: format!("Could not process process session establishment: {e:?}"),
-                })?
+                .clone();
+            // blocking to avoid turning all functions async as revocation checks are currently unused due
+            // to `()`
+            super::block_on(engaged.process_session_establishment(
+                session_establishment,
+                TrustAnchorRegistry::default(),
+                &(),
+            ))
+            .map_err(|e| RequestError::Generic {
+                value: format!("Could not process process session establishment: {e:?}"),
+            })?
         };
 
         if items_requests.items_request.is_empty() {
@@ -618,7 +622,7 @@ mod tests {
 
     use super::*;
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(tokio::test(flavor = "multi_thread"))]
     async fn end_to_end_ble_presentment_holder() {
         let key_alias = KeyAlias(Uuid::new_v4().to_string());
         let key_manager = Arc::new(RustTestKeyManager::default());
@@ -661,8 +665,7 @@ mod tests {
         .try_into()
         .unwrap();
         let trust_anchor = TrustAnchorRegistry::from_pem_certificates(vec![PemTrustAnchor {
-            certificate_pem: include_str!("../../tests/res/mdl/utrecht-certificate.pem")
-                .to_string(),
+            certificate_pem: include_str!("../../tests/res/mdl/iaca-certificate.pem").to_string(),
             purpose: TrustPurpose::Iaca,
         }])
         .unwrap();
@@ -701,12 +704,12 @@ mod tests {
         let key = key_manager.get_signing_key(key_alias).unwrap();
         let signature = key.sign(signing_payload).unwrap();
         let response = presentation_session.submit_response(signature).unwrap();
-        let res = reader_session_manager.handle_response(&response);
+        let res = reader_session_manager.handle_response(&response, &()).await;
         vdc_collection.delete(mdl.id).await.unwrap();
         assert_eq!(res.errors, BTreeMap::new());
     }
 
-    #[test_log::test(tokio::test)]
+    #[test_log::test(tokio::test(flavor = "multi_thread"))]
     async fn end_to_end_ble_presentment_holder_reader() {
         let key_alias = KeyAlias(Uuid::new_v4().to_string());
         let key_manager = Arc::new(RustTestKeyManager::default());
@@ -758,7 +761,7 @@ mod tests {
             Arc::new(ReaderHandover::new_qr(qr_code_uri)),
             namespaces,
             Some(vec![include_str!(
-                "../../tests/res/mdl/utrecht-certificate.pem"
+                "../../tests/res/mdl/iaca-certificate.pem"
             )
             .to_string()]),
         )

@@ -374,7 +374,9 @@ pub fn handle_response(
     response: Vec<u8>,
 ) -> Result<MDLReaderResponseData, MDLReaderResponseError> {
     let mut state = state.0.clone();
-    let validated_response = state.handle_response(&response);
+    // blocking to avoid turning all functions async as revocation checks are currently unused due
+    // to `()`
+    let validated_response = super::block_on(state.handle_response(&response, &()));
     let errors = if !validated_response.errors.is_empty() {
         Some(
             serde_json::to_string(&validated_response.errors).map_err(|e| {

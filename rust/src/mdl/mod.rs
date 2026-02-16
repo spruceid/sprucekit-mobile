@@ -3,6 +3,24 @@ pub mod mcd;
 pub mod reader;
 pub mod util;
 
+use std::sync::LazyLock;
+
+/// Shared tokio runtime for blocking on async isomdl functions (e.g. CRL checks)
+/// at the UniFFI boundary, avoiding async propagation to foreign callers.
+static RUNTIME: LazyLock<tokio::runtime::Runtime> =
+    LazyLock::new(|| tokio::runtime::Runtime::new().expect("Failed to create tokio runtime"));
+
+/// Run a future to completion, handling the case where we may already be
+/// inside a tokio runtime (e.g. in tests). When called from outside a runtime
+/// (the normal UniFFI path), uses the dedicated [`RUNTIME`]. When called from
+/// within a runtime, uses `block_in_place` so the scheduler can make progress.
+pub(crate) fn block_on<F: std::future::Future>(f: F) -> F::Output {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => tokio::task::block_in_place(|| handle.block_on(f)),
+        Err(_) => RUNTIME.block_on(f),
+    }
+}
+
 use ssi::{
     claims::vc::v1::{data_integrity::any_credential_from_json_str, ToJwtClaims},
     dids::{AnyDidMethod, DIDResolver},

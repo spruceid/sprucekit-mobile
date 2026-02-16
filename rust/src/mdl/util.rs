@@ -266,10 +266,10 @@ fn prepare_mdoc(
 }
 
 fn setup_certificate_chain() -> Result<(Certificate, p256::ecdsa::SigningKey)> {
-    let iaca_cert_pem = include_str!("../../tests/res/mdl/utrecht-certificate.pem");
+    let iaca_cert_pem = include_str!("../../tests/res/mdl/iaca-certificate.pem");
     let iaca_cert = Certificate::from_pem(iaca_cert_pem)?;
     let iaca_name: Name = iaca_cert.tbs_certificate.subject;
-    let key_pem = include_str!("../../tests/res/mdl/utrecht-key.pem");
+    let key_pem = include_str!("../../tests/res/mdl/iaca-key.pem");
     let iaca_key = p256::ecdsa::SigningKey::from_pkcs8_pem(key_pem)?;
 
     let ds_key = p256::ecdsa::SigningKey::random(&mut rand::thread_rng());
