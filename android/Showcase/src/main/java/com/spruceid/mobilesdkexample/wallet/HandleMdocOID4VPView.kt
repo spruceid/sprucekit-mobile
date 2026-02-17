@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.navDeepLink
+import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.ApprovedResponse180137
 import com.spruceid.mobile.sdk.rs.FieldId180137
@@ -69,6 +70,7 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.utils.mdocDisplayName
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -187,7 +189,8 @@ fun HandleMdocOID4VPView(
 
         MdocOID4VPState.SelectCredential ->
             MdocSelector(
-                request!!.matches(),
+                matches = request!!.matches(),
+                credentialPacks = credentialPacks,
                 onContinue = { match ->
                     selectedMatch = match
                     state = MdocOID4VPState.SelectiveDisclosure
@@ -392,6 +395,7 @@ fun MdocFieldSelectorItem(
 @Composable
 fun MdocSelector(
     matches: List<RequestMatch180137>,
+    credentialPacks: List<CredentialPack>,
     onContinue: (RequestMatch180137) -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -403,6 +407,17 @@ fun MdocSelector(
 
     fun removeCredential() {
         selectedCredential = null
+    }
+
+    fun doctypeForCredential(credentialId: String): String? {
+        for (pack in credentialPacks) {
+            val cred = pack.getCredentialById(credentialId)
+            val mdoc = cred?.asMsoMdoc()
+            if (mdoc != null) {
+                return mdoc.doctype()
+            }
+        }
+        return null
     }
 
     Column(
@@ -430,8 +445,10 @@ fun MdocSelector(
                 .weight(weight = 1f, fill = false)
         ) {
             matches.forEach { match ->
+                val doctype = doctypeForCredential(match.credentialId().toString())
                 MdocSelectorItem(
-                    match,
+                    match = match,
+                    doctype = doctype,
                     isSelected = selectedCredential?.credentialId() == match.credentialId(),
                     selectCredential = { selectCredential(match) },
                     removeCredential = { removeCredential() }
@@ -503,6 +520,7 @@ fun MdocSelector(
 @Composable
 fun MdocSelectorItem(
     match: RequestMatch180137,
+    doctype: String?,
     isSelected: Boolean,
     selectCredential: () -> Unit,
     removeCredential: () -> Unit
@@ -542,7 +560,7 @@ fun MdocSelectorItem(
                 )
             )
             Text(
-                text = "Mobile Drivers License",
+                text = mdocDisplayName(doctype ?: ""),
                 fontFamily = Inter,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,

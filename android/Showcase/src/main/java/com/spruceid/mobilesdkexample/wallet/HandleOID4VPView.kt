@@ -75,6 +75,7 @@ import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
+import com.spruceid.mobilesdkexample.utils.mdocDisplayName
 import com.spruceid.mobilesdkexample.utils.removeUnderscores
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.utils.trustedDids
@@ -579,11 +580,10 @@ fun CredentialSelector(
         } catch (_: Exception) {
         }
 
-        // For mdocs, use the doctype as the title (e.g., "org.iso.18013.5.1.mDL" -> "mDL")
+        // For mdocs, use mdocDisplayName for proper display
         try {
             credential.asParsedCredential().asMsoMdoc()?.let { mdoc ->
-                val doctype = mdoc.doctype()
-                return doctype.split(".").lastOrNull() ?: doctype
+                return mdocDisplayName(mdoc.doctype())
             }
         } catch (_: Exception) {
         }
