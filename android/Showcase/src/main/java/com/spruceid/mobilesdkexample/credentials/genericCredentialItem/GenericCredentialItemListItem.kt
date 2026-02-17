@@ -40,6 +40,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.mdocDisplayName
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import org.json.JSONObject
@@ -91,9 +92,11 @@ fun GenericCredentialListItemDescriptionFormatter(
             ) {
                 it.second
             } else if (mdoc != null) {
-                // Assume mDL.
                 val details = mdoc.jsonEncodedDetailsAll()
-                it.second.put("issuer", details.get("issuing_authority"))
+                val issuer = details.opt("issuing_authority")
+                if (issuer != null && issuer.toString().isNotBlank()) {
+                    it.second.put("issuer", issuer)
+                }
                 it.second
             } else {
                 null
@@ -235,8 +238,7 @@ fun GenericCredentialListItem(
                     ) {
                         it.second
                     } else if (mdoc != null) {
-                        // Assume mDL.
-                        it.second.put("name", "Mobile Drivers License")
+                        it.second.put("name", mdocDisplayName(mdoc.doctype()))
                         it.second
                     } else {
                         null

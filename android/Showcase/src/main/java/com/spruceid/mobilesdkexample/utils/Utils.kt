@@ -274,10 +274,11 @@ fun getCredentialIdTitleAndIssuer(
             ) {
                 claim
             } else if (mdoc != null) {
-                // Assume mDL.
-                val issuer = claim.value.get("issuing_authority")
-                claim.value.put("issuer", issuer)
-                val title = "Mobile Drivers License"
+                val issuer = claim.value.opt("issuing_authority")
+                if (issuer != null && issuer.toString().isNotBlank()) {
+                    claim.value.put("issuer", issuer)
+                }
+                val title = mdocDisplayName(mdoc.doctype())
                 claim.value.put("name", title)
                 claim
             } else {
@@ -285,12 +286,15 @@ fun getCredentialIdTitleAndIssuer(
             }
         }
     }
-    // Assume mDL.
+    // Mdoc
     if (credential?.asMsoMdoc() != null || cred.equals(null)) {
         cred = claims.entries.firstNotNullOf { claim ->
-            val issuer = claim.value.get("issuing_authority")
-            claim.value.put("issuer", issuer)
-            val title = "Mobile Drivers License"
+            val mdoc = credentialPack.getCredentialById(claim.key)?.asMsoMdoc()
+            val issuer = claim.value.opt("issuing_authority")
+            if (issuer != null && issuer.toString().isNotBlank()) {
+                claim.value.put("issuer", issuer)
+            }
+            val title = mdoc?.let { mdocDisplayName(it.doctype()) } ?: ""
             claim.value.put("name", title)
             claim
         }
@@ -355,4 +359,59 @@ fun credentialPackHasMdoc(credentialPack: CredentialPack): Boolean {
         }
     }
     return false
+}
+
+// MARK: - Mdoc Display Name Mapping
+
+/** Known mdoc doctype to display name mappings. */
+private val mdocDoctypeDisplayNames = mapOf(
+    "org.iso.18013.5.1.mDL" to "Mobile Driver's License",
+    "org.iso.23220.photoID.1" to "Photo ID",
+    "org.iso.7367.1.mVRC" to "Mobile Vehicle Registration Certificate",
+    "eu.europa.ec.eudi.pid.1" to "EU Personal ID",
+    "eu.europa.ec.av.1" to "Age Verification",
+    "eu.europa.ec.eudi.msisdn.1" to "Phone Number ID",
+    "eu.europa.ec.eudi.hiid.1" to "Health Insurance ID",
+    "eu.europa.ec.eudi.taxid.1" to "Tax ID",
+    "eu.europa.ec.eudi.cor.1" to "Certificate of Residence",
+)
+
+/**
+ * Returns a human-readable display name for the given mdoc doctype.
+ * Falls back to generating a readable name from the doctype string if unknown.
+ */
+fun mdocDisplayName(doctype: String): String {
+    return mdocDoctypeDisplayNames[doctype] ?: humanizeDoctype(doctype)
+}
+
+/**
+ * Generates a human-readable name from an unknown doctype.
+ * Example: "eu.europa.ec.eudi.hiid.1" -> "Hiid"
+ */
+private fun humanizeDoctype(doctype: String): String {
+    val components = doctype.split(".")
+    if (components.size < 2) return doctype
+
+    // Get the second-to-last component (skip version number)
+    val meaningfulComponent = if (components.last().all { it.isDigit() }) {
+        components[components.size - 2]
+    } else {
+        components.last()
+    }
+
+    return meaningfulComponent
+        .replace("_", " ")
+        .split(" ")
+        .joinToString(" ") { word ->
+            word.replaceFirstChar { it.uppercaseChar() }.drop(1).lowercase() +
+                word.firstOrNull()?.uppercaseChar()?.toString().orEmpty()
+        }.let {
+            // Fix: properly capitalize first letter of each word
+            meaningfulComponent
+                .replace("_", " ")
+                .split(" ")
+                .joinToString(" ") { word ->
+                    word.lowercase().replaceFirstChar { it.uppercaseChar() }
+                }
+        }
 }
