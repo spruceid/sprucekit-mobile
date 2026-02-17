@@ -35,10 +35,12 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.ErrorToast
 import com.spruceid.mobilesdkexample.utils.SimpleAlertDialog
 import com.spruceid.mobilesdkexample.utils.WarningToast
+import com.spruceid.mobilesdkexample.utils.mdocDisplayName
 
 @Composable
 fun VerifierMDocResultView(
     result: Map<String, Map<String, MDocItem>>,
+    docTypes: List<String>,
     issuerAuthenticationStatus: AuthenticationStatus,
     deviceAuthenticationStatus: AuthenticationStatus,
     responseProcessingErrors: String? = null,
@@ -46,13 +48,21 @@ fun VerifierMDocResultView(
     logVerification: (String, String, String) -> Unit,
 ) {
     val mdoc by remember { mutableStateOf(convertToJson(result)) }
-    val title = "Mobile Drivers License"
+    val title = mdocDisplayName(docTypes.firstOrNull() ?: "")
     var issuer by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        try {
-            issuer = mdoc.getJSONObject("org.iso.18013.5.1").getString("issuing_authority")
-        } catch (_: Exception) {
+        // Try to find issuing_authority from any namespace
+        for (key in mdoc.keys()) {
+            try {
+                val namespace = mdoc.getJSONObject(key)
+                val authority = namespace.optString("issuing_authority", "")
+                if (authority.isNotBlank()) {
+                    issuer = authority
+                    break
+                }
+            } catch (_: Exception) {
+            }
         }
         // @TODO: Log verification with real status
         logVerification(title, issuer ?: "", "VALID")

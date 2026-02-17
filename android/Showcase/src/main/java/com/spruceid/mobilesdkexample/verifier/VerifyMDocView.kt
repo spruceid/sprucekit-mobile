@@ -159,6 +159,7 @@ fun VerifyMDocView(
     }
 
     var result by remember { mutableStateOf<Map<String, Map<String, MDocItem>>?>(null) }
+    var docTypes by remember { mutableStateOf<List<String>>(emptyList()) }
     var issuerAuthenticationStatus by remember { mutableStateOf<AuthenticationStatus?>(null) }
     var deviceAuthenticationStatus by remember { mutableStateOf<AuthenticationStatus?>(null) }
     var responseProcessingErrors by remember { mutableStateOf<String?>(null) }
@@ -214,6 +215,7 @@ fun VerifyMDocView(
                 val response = reader?.handleMdlReaderResponseData(state["mdl"] as ByteArray)
                 if (response != null) {
                     result = response.verifiedResponse
+                    docTypes = response.docTypes
                     issuerAuthenticationStatus = response.issuerAuthentication
                     deviceAuthenticationStatus = response.deviceAuthentication
                     responseProcessingErrors = response.errors
@@ -326,9 +328,10 @@ fun VerifyMDocView(
         State.TRANSMITTING -> LoadingView("Verifying...", "Cancel", ::back)
         State.DONE -> VerifierMDocResultView(
             result = result!!,
-            issuerAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
-            deviceAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
-            responseProcessingErrors,
+            docTypes = docTypes,
+            issuerAuthenticationStatus = issuerAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
+            deviceAuthenticationStatus = deviceAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
+            responseProcessingErrors = responseProcessingErrors,
             onClose = ::back,
             logVerification = { title, issuer, status ->
                 scope.launch {

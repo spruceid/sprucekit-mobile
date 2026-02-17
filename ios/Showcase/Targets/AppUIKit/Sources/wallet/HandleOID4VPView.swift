@@ -528,12 +528,7 @@ struct CredentialSelector: View {
             }
             return title
         } else if let mdoc = credential.asParsedCredential().asMsoMdoc() {
-            // For mdocs, use the doctype as the title (e.g., "org.iso.18013.5.1.mDL" -> "mDL")
-            let doctype = mdoc.doctype()
-            if let lastComponent = doctype.split(separator: ".").last {
-                return String(lastComponent)
-            }
-            return doctype
+            return mdocDisplayName(for: mdoc.doctype())
         } else {
             return ""
         }

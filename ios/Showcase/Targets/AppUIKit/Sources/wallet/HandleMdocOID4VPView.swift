@@ -111,6 +111,7 @@ struct HandleMdocOID4VPView: View {
         case .selectCredential:
             MdocSelector(
                 matches: request!.matches(),
+                credentialPacks: credentialPacks,
                 onContinue: { match in
                     selectedMatch = match
                     state = .selectiveDisclosure
@@ -287,6 +288,7 @@ struct MdocFieldSelectorItem: View {
 
 struct MdocSelector: View {
     let matches: [RequestMatch180137]
+    let credentialPacks: [CredentialPack]
     let onContinue: (RequestMatch180137) -> Void
     let onCancel: () -> Void
 
@@ -308,6 +310,17 @@ struct MdocSelector: View {
         }
     }
 
+    /// Find the doctype for a credential by its ID
+    func doctypeForCredential(_ credentialId: Uuid) -> String? {
+        for pack in credentialPacks {
+            if let cred = pack.get(credentialId: credentialId),
+               let mdoc = cred.asMsoMdoc() {
+                return mdoc.doctype()
+            }
+        }
+        return nil
+    }
+
     var body: some View {
         VStack {
             Text("Select the credential to share")
@@ -315,11 +328,12 @@ struct MdocSelector: View {
                 .foregroundStyle(Color("ColorStone950"))
             ScrollView {
                 ForEach(0..<matches.count, id: \.self) { idx in
-
                     let match = matches[idx]
+                    let doctype = doctypeForCredential(match.credentialId())
 
                     MdocSelectorItem(
                         match: match,
+                        doctype: doctype,
                         isChecked: toggleBinding(for: match)
                     )
                 }
@@ -368,6 +382,7 @@ struct MdocSelector: View {
 
 struct MdocSelectorItem: View {
     let match: RequestMatch180137
+    let doctype: String?
     @Binding var isChecked: Bool
 
     @State var expanded = false
@@ -375,9 +390,11 @@ struct MdocSelectorItem: View {
 
     init(
         match: RequestMatch180137,
+        doctype: String?,
         isChecked: Binding<Bool>
     ) {
         self.match = match
+        self.doctype = doctype
         self.requestedFields = match.requestedFields().map { field in
             field.displayableName
         }
@@ -388,7 +405,7 @@ struct MdocSelectorItem: View {
         VStack {
             HStack {
                 Toggle(isOn: $isChecked) {
-                    Text("Mobile Drivers License")
+                    Text(mdocDisplayName(for: doctype ?? ""))
                         .font(
                             .customFont(
                                 font: .inter, style: .semiBold, size: .h3)

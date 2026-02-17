@@ -56,13 +56,15 @@ public struct DocumentProviderExtensionView: View {
                                 return Iosiso18013MobileDocumentRequestPresentmentRequest(documentRequestSets: requestSets, isMandatory: presentmentRequest.isMandatory)
                             })
                             let document_request = Iosiso18013MobileDocumentRequest(presentmentRequests: presentmentRequests);
-                            let credentials = try await CredentialPackObservable(appGroupId: appGroupId).loadAndUpdateAll().flatMap({pack in
+                            let credentialPacks = try await CredentialPackObservable(appGroupId: appGroupId).loadAndUpdateAll()
+                            let credentials = credentialPacks.flatMap({pack in
                                 pack.list()
                             })
                             let matches = document_request.toMatches(parsedCredentials: credentials)
                             let origin = context.requestingWebsiteOrigin!
                             initLoad = MdocSelector(
                                 matches: matches,
+                                credentialPacks: credentialPacks,
                                 onContinue: { match in
                                     state = .selectiveDisclosure(match, credentials, origin)
                                 },

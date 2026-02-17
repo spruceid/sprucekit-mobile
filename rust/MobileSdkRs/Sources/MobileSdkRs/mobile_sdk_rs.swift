@@ -14400,6 +14400,10 @@ public struct MdlReaderResponseData {
      */
     public var verifiedResponse: [String: [String: MDocItem]]
     /**
+     * Document types (doctypes) from the presented credentials.
+     */
+    public var docTypes: [String]
+    /**
      * Outcome of issuer authentication.
      */
     public var issuerAuthentication: AuthenticationStatus
@@ -14419,6 +14423,9 @@ public struct MdlReaderResponseData {
          * Contains the namespaces for the mDL directly, without top-level doc types
          */verifiedResponse: [String: [String: MDocItem]], 
         /**
+         * Document types (doctypes) from the presented credentials.
+         */docTypes: [String], 
+        /**
          * Outcome of issuer authentication.
          */issuerAuthentication: AuthenticationStatus, 
         /**
@@ -14429,6 +14436,7 @@ public struct MdlReaderResponseData {
          */errors: String?) {
         self.state = state
         self.verifiedResponse = verifiedResponse
+        self.docTypes = docTypes
         self.issuerAuthentication = issuerAuthentication
         self.deviceAuthentication = deviceAuthentication
         self.errors = errors
@@ -14450,6 +14458,7 @@ public struct FfiConverterTypeMDLReaderResponseData: FfiConverterRustBuffer {
             try MdlReaderResponseData(
                 state: FfiConverterTypeMDLSessionManager.read(from: &buf), 
                 verifiedResponse: FfiConverterDictionaryStringDictionaryStringTypeMDocItem.read(from: &buf), 
+                docTypes: FfiConverterSequenceString.read(from: &buf), 
                 issuerAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
                 deviceAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
                 errors: FfiConverterOptionString.read(from: &buf)
@@ -14459,6 +14468,7 @@ public struct FfiConverterTypeMDLReaderResponseData: FfiConverterRustBuffer {
     public static func write(_ value: MdlReaderResponseData, into buf: inout [UInt8]) {
         FfiConverterTypeMDLSessionManager.write(value.state, into: &buf)
         FfiConverterDictionaryStringDictionaryStringTypeMDocItem.write(value.verifiedResponse, into: &buf)
+        FfiConverterSequenceString.write(value.docTypes, into: &buf)
         FfiConverterTypeAuthenticationStatus.write(value.issuerAuthentication, into: &buf)
         FfiConverterTypeAuthenticationStatus.write(value.deviceAuthentication, into: &buf)
         FfiConverterOptionString.write(value.errors, into: &buf)
