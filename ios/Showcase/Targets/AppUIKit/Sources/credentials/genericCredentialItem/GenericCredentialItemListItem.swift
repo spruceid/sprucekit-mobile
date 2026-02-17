@@ -32,13 +32,13 @@ struct GenericCredentialItemListItem: View {
                                     || credential?.asCwt() != nil
 
                             }).map {
-                                // Assume mDL.
-                                if credentialPack.get(
+                                // Use doctype-based display name for mdocs
+                                if let mdoc = credentialPack.get(
                                     credentialId: $0.key
-                                )?.asMsoMdoc() != nil {
+                                )?.asMsoMdoc() {
                                     var newValue = $0.value
                                     newValue["name"] = GenericJSON.string(
-                                        "Mobile Drivers License"
+                                        mdocDisplayName(for: mdoc.doctype())
                                     )
                                     return newValue
                                 }
@@ -106,13 +106,13 @@ struct GenericCredentialItemListItem: View {
                                     || credential?.asSdJwt() != nil
                                     || credential?.asMsoMdoc() != nil
                             }).map {
-                                // Assume mDL.
-                                if credentialPack.get(
+                                // Use doctype-based display name for mdocs
+                                if let mdoc = credentialPack.get(
                                     credentialId: $0.key
-                                )?.asMsoMdoc() != nil {
+                                )?.asMsoMdoc() {
                                     var newValue = $0.value
                                     newValue["name"] = GenericJSON.string(
-                                        "Mobile Drivers License"
+                                        mdocDisplayName(for: mdoc.doctype())
                                     )
                                     return newValue
                                 }
@@ -232,14 +232,17 @@ func genericCredentialListItemDescriptionFormatter(
                 || credential?.asMsoMdoc() != nil
 
         }).map {
-            // Assume mDL.
             let mdoc = credentialPack.get(
                 credentialId: $0.key
             )?.asMsoMdoc()
             if mdoc != nil {
                 let details = mdoc?.jsonEncodedDetails()
                 var newValue = $0.value
-                newValue["issuer"] = details?["issuing_authority"]
+                // Only set issuer if issuing_authority exists and has a valid value
+                if let issuingAuthority = details?["issuing_authority"],
+                   !issuingAuthority.toString().isEmpty {
+                    newValue["issuer"] = issuingAuthority
+                }
                 return newValue
             }
             return $0.value

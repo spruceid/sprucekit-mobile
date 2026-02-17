@@ -208,6 +208,7 @@ public struct MDocReaderView: View {
             case .receivedResponse(let r):
                 VerifierMdocResultView(
                     result: r.data.verifiedResponse,
+                    docTypes: r.data.docTypes,
                     issuerAuthenticationStatus: r.data
                         .issuerAuthentication,
                     deviceAuthenticationStatus: r.data

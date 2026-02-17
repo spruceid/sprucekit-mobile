@@ -4,6 +4,7 @@ import SwiftUI
 
 struct VerifierMdocResultView: View {
     var result: [String: [String: MDocItem]]
+    let docTypes: [String]
     let issuerAuthenticationStatus: AuthenticationStatus
     let deviceAuthenticationStatus: AuthenticationStatus
     let responseProcessingErrors: String?
@@ -11,13 +12,14 @@ struct VerifierMdocResultView: View {
     var logVerification: (String, String, String) -> Void
 
     let mdoc: [String: GenericJSON]
-    let title = "Mobile Drivers License"
+    let title: String
     var issuer: String
 
     @State var showResponseProcessingErrors = false
 
     init(
         result: [String: [String: MDocItem]],
+        docTypes: [String],
         issuerAuthenticationStatus: AuthenticationStatus,
         deviceAuthenticationStatus: AuthenticationStatus,
         responseProcessingErrors: String?,
@@ -25,6 +27,7 @@ struct VerifierMdocResultView: View {
         logVerification: @escaping (String, String, String) -> Void
     ) {
         self.result = result
+        self.docTypes = docTypes
         self.issuerAuthenticationStatus = issuerAuthenticationStatus
         self.deviceAuthenticationStatus = deviceAuthenticationStatus
         self.responseProcessingErrors = responseProcessingErrors
@@ -32,7 +35,17 @@ struct VerifierMdocResultView: View {
         self.logVerification = logVerification
         let mdoc = convertToGenericJSON(map: result)
         self.mdoc = mdoc.dictValue ?? [:]
-        self.issuer = mdoc["org.iso.18013.5.1"]?.dictValue?["issuing_authority"]?.toString() ?? ""
+        self.title = mdocDisplayName(for: docTypes.first ?? "")
+        // Try to find issuing_authority from any namespace
+        var foundIssuer = ""
+        for (_, namespaceValue) in self.mdoc {
+            if let authority = namespaceValue.dictValue?["issuing_authority"]?.toString(),
+               !authority.isEmpty {
+                foundIssuer = authority
+                break
+            }
+        }
+        self.issuer = foundIssuer
         // @TODO: Log verification with real status
         logVerification(title, issuer, "VALID")
     }

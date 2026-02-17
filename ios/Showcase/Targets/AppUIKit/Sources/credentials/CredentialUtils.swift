@@ -145,7 +145,7 @@ func getCredentialIdTitleAndIssuer(
         })
     }
     // Mdoc
-    if credential?.asMsoMdoc() != nil || cred == nil{
+    if credential?.asMsoMdoc() != nil || cred == nil {
         cred =
             claims
             .first(where: {
@@ -153,9 +153,16 @@ func getCredentialIdTitleAndIssuer(
                     != nil
             }).map { claim in
                 var tmpClaim = claim
-                tmpClaim.value["issuer"] = claim.value["issuing_authority"]
-                tmpClaim.value["name"] = GenericJSON.string(
-                    "Mobile Drivers License")
+                // Only set issuer if issuing_authority exists and has a valid value
+                if let issuingAuthority = claim.value["issuing_authority"],
+                   !issuingAuthority.toString().isEmpty {
+                    tmpClaim.value["issuer"] = issuingAuthority
+                }
+                // Use doctype-based display name
+                if let mdoc = credentialPack.get(credentialId: claim.key)?.asMsoMdoc() {
+                    tmpClaim.value["name"] = GenericJSON.string(
+                        mdocDisplayName(for: mdoc.doctype()))
+                }
                 return tmpClaim
             }
     }
@@ -187,4 +194,49 @@ func getCredentialIdTitleAndIssuer(
     }
 
     return (credentialKey, title ?? "", issuer)
+}
+
+// MARK: - Mdoc Display Name Mapping
+
+/// Known mdoc doctype to display name mappings.
+private let mdocDoctypeDisplayNames: [String: String] = [
+    "org.iso.18013.5.1.mDL": "Mobile Driver's License",
+    "org.iso.23220.photoID.1": "Photo ID",
+    "org.iso.7367.1.mVRC": "Mobile Vehicle Registration Certificate",
+    "eu.europa.ec.eudi.pid.1": "EU Personal ID",
+    "eu.europa.ec.av.1": "Age Verification",
+    "eu.europa.ec.eudi.msisdn.1": "Phone Number ID",
+    "eu.europa.ec.eudi.hiid.1": "Health Insurance ID",
+    "eu.europa.ec.eudi.taxid.1": "Tax ID",
+    "eu.europa.ec.eudi.cor.1": "Certificate of Residence",
+]
+
+/// Returns a human-readable display name for the given mdoc doctype.
+/// Falls back to generating a readable name from the doctype string if unknown.
+func mdocDisplayName(for doctype: String) -> String {
+    if let knownName = mdocDoctypeDisplayNames[doctype] {
+        return knownName
+    }
+    return humanizeDoctype(doctype)
+}
+
+/// Generates a human-readable name from an unknown doctype.
+/// Example: "eu.europa.ec.eudi.hiid.1" -> "Hiid"
+private func humanizeDoctype(_ doctype: String) -> String {
+    let components = doctype.split(separator: ".")
+    guard components.count >= 2 else { return doctype }
+
+    // Get the second-to-last component (skip version number)
+    let meaningfulComponent: String
+    if let last = components.last, last.allSatisfy({ $0.isNumber }) {
+        meaningfulComponent = String(components[components.count - 2])
+    } else {
+        meaningfulComponent = String(components.last!)
+    }
+
+    return meaningfulComponent
+        .replacingOccurrences(of: "_", with: " ")
+        .split(separator: " ")
+        .map { $0.prefix(1).uppercased() + $0.dropFirst().lowercased() }
+        .joined(separator: " ")
 }

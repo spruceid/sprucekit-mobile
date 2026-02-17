@@ -322,6 +322,8 @@ pub struct MDLReaderResponseData {
     state: Arc<MDLSessionManager>,
     /// Contains the namespaces for the mDL directly, without top-level doc types
     verified_response: HashMap<String, HashMap<String, MDocItem>>,
+    /// Document types (doctypes) from the presented credentials.
+    pub doc_types: Vec<String>,
     /// Outcome of issuer authentication.
     pub issuer_authentication: AuthenticationStatus,
     /// Outcome of device authentication.
@@ -411,6 +413,7 @@ pub fn handle_response(
     Ok(MDLReaderResponseData {
         state: Arc::new(MDLSessionManager(state)),
         verified_response,
+        doc_types: validated_response.doc_types,
         issuer_authentication: AuthenticationStatus::from(validated_response.issuer_authentication),
         device_authentication: AuthenticationStatus::from(validated_response.device_authentication),
         errors,
