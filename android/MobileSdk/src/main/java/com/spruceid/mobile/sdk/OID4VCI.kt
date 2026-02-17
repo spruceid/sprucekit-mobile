@@ -19,13 +19,15 @@ class Oid4vciSyncHttpClient: SyncHttpClient  {
         for ((k, v) in request.headers) {
             connection.setRequestProperty(k, v)
         }
-        connection.doOutput = true
         connection.doInput = true
 
-        val wr = DataOutputStream(connection.outputStream)
-        wr.write(request.body)
-        wr.flush()
-        wr.close()
+        if (request.method != "GET" && request.method != "HEAD") {
+            connection.doOutput = true
+            val wr = DataOutputStream(connection.outputStream)
+            wr.write(request.body)
+            wr.flush()
+            wr.close()
+        }
 
         val statusCode = connection.responseCode
         val stream = BufferedInputStream(connection.inputStream)
@@ -53,14 +55,16 @@ class Oid4vciAsyncHttpClient: AsyncHttpClient {
         for ((k, v) in request.headers) {
             connection.setRequestProperty(k, v)
         }
-        connection.doOutput = true
         connection.doInput = true
 
-        val wr = DataOutputStream(connection.outputStream)
-        withContext(Dispatchers.IO) {
-            wr.write(request.body)
-            wr.flush()
-            wr.close()
+        if (request.method != "GET" && request.method != "HEAD") {
+            connection.doOutput = true
+            val wr = DataOutputStream(connection.outputStream)
+            withContext(Dispatchers.IO) {
+                wr.write(request.body)
+                wr.flush()
+                wr.close()
+            }
         }
 
         val statusCode = connection.responseCode

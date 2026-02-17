@@ -100,3 +100,70 @@ pub async fn test_vc_playground_oid4vp() {
         .await
         .expect("Permission response submission failed");
 }
+
+#[cfg(test)]
+mod tests {
+    use oid4vci::{
+        profile::{StandardFormat, W3cVcFormat},
+        Oid4vciCredential,
+    };
+
+    use crate::credential::{CredentialFormat, RawCredential};
+
+    #[test]
+    fn jwt_vc_json_payload_not_double_encoded() {
+        let jwt = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.\
+                   eyJpc3MiOiJodHRwczovL2V4YW1wbGUuY29tIn0.\
+                   signature";
+
+        let credential = Oid4vciCredential::new(serde_json::Value::String(jwt.to_owned()));
+        let format = StandardFormat::W3c(W3cVcFormat::JwtVcJson);
+
+        let raw = RawCredential::from_oid4vci(&format, credential).unwrap();
+
+        assert_eq!(raw.format, CredentialFormat::JwtVcJson);
+        assert_eq!(
+            raw.payload,
+            jwt.as_bytes(),
+            "payload should be the raw JWT bytes, not JSON-encoded with quotes"
+        );
+    }
+
+    #[test]
+    fn jwt_vc_json_ld_payload_not_double_encoded() {
+        let jwt = "eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.\
+                   eyJpc3MiOiJodHRwczovL2V4YW1wbGUuY29tIn0.\
+                   signature";
+
+        let credential = Oid4vciCredential::new(serde_json::Value::String(jwt.to_owned()));
+        let format = StandardFormat::W3c(W3cVcFormat::JwtVcJsonLd);
+
+        let raw = RawCredential::from_oid4vci(&format, credential).unwrap();
+
+        assert_eq!(raw.format, CredentialFormat::JwtVcJsonLd);
+        assert_eq!(
+            raw.payload,
+            jwt.as_bytes(),
+            "payload should be the raw JWT bytes, not JSON-encoded with quotes"
+        );
+    }
+
+    #[test]
+    fn ldp_vc_payload_is_json_object() {
+        let vc = serde_json::json!({
+            "@context": ["https://www.w3.org/2018/credentials/v1"],
+            "type": ["VerifiableCredential"],
+            "issuer": "https://example.com",
+            "credentialSubject": {}
+        });
+
+        let credential = Oid4vciCredential::new(vc.clone());
+        let format = StandardFormat::W3c(W3cVcFormat::LdpVc);
+
+        let raw = RawCredential::from_oid4vci(&format, credential).unwrap();
+
+        assert_eq!(raw.format, CredentialFormat::LdpVc);
+        let roundtripped: serde_json::Value = serde_json::from_slice(&raw.payload).unwrap();
+        assert_eq!(roundtripped, vc);
+    }
+}
