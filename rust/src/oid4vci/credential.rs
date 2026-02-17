@@ -29,7 +29,7 @@ impl RawCredential {
                 },
                 payload: match credential.value {
                     serde_json::Value::String(s) => s.into_bytes(),
-                    # SAFETY: value is `serde_json::Value`
+                    // SAFETY: value is `serde_json::Value`
                     value => serde_json::to_vec(&value).unwrap(),
                 },
             }),
