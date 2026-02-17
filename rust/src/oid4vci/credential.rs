@@ -27,7 +27,11 @@ impl RawCredential {
                     W3cVcFormat::JwtVcJson => CredentialFormat::JwtVcJson,
                     W3cVcFormat::JwtVcJsonLd => CredentialFormat::JwtVcJsonLd,
                 },
-                payload: serde_json::to_vec(&credential.value).unwrap(),
+                payload: match credential.value {
+                    serde_json::Value::String(s) => s.into_bytes(),
+                    // SAFETY: value is `serde_json::Value`
+                    value => serde_json::to_vec(&value).unwrap(),
+                },
             }),
             StandardFormat::MsoMdoc => match credential.value {
                 serde_json::Value::String(base64_mso_mdoc) => Ok(Self {
