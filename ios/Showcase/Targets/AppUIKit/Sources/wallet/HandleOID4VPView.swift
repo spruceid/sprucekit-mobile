@@ -528,7 +528,9 @@ struct CredentialSelector: View {
             }
             return title
         } else if let mdoc = credential.asParsedCredential().asMsoMdoc() {
-            return mdocDisplayName(for: mdoc.doctype())
+            return credentialTypeDisplayName(for: mdoc.doctype())
+        } else if let dcSdJwt = credential.asParsedCredential().asDcSdJwt() {
+            return credentialTypeDisplayName(for: dcSdJwt.vct())
         } else {
             return ""
         }

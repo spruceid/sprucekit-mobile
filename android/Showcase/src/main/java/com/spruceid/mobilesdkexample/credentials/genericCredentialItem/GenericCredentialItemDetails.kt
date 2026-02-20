@@ -40,6 +40,7 @@ fun GenericCredentialItemDetails(
                                 cred?.asJsonVc() != null ||
                                 cred?.asSdJwt() != null ||
                                 cred?.asMsoMdoc() != null ||
+                                cred?.asDcSdJwt() != null ||
                                 cred?.asCwt() != null
                             ) {
                                 it.second

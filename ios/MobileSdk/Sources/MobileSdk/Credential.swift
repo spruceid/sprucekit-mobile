@@ -165,3 +165,23 @@ public extension Vcdm2SdJwt {
         }
     }
 }
+
+public extension IetfSdJwtVc {
+    /// Access the IETF SD-JWT VC decoded credential
+    func credentialClaims() -> [String: GenericJSON] {
+        guard let jsonString = try? revealedClaimsAsJsonString(),
+              let data = jsonString.data(using: .utf8),
+              let json = try? JSONDecoder().decode(GenericJSON.self, from: data),
+              let object = json.dictValue else {
+            return [:]
+        }
+        return object
+    }
+
+    /// Access the specified claims from the IETF SD-JWT VC credential.
+    func credentialClaims(containing claimNames: [String]) -> [String: GenericJSON] {
+        credentialClaims().filter { key, _ in
+            claimNames.contains(key)
+        }
+    }
+}

@@ -44,6 +44,9 @@ func addCredential(credentialPack: CredentialPack, rawCredential: String) async 
     } else if (try? credentialPack.addSdJwt(
         sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential))) != nil
     {
+    } else if (try? credentialPack.addDcSdJwt(
+        dcSdJwt: IetfSdJwtVc.newFromCompactSdJwt(input: rawCredential))) != nil
+    {
     } else if (try? credentialPack.addCwt(
         cwt: Cwt.newFromBase10(payload: rawCredential))) != nil
     {
@@ -144,7 +147,27 @@ func getCredentialIdTitleAndIssuer(
                 || credential?.asSdJwt() != nil
         })
     }
-    // Mdoc
+    // dc+sd-jwt: use vct for display name
+    if cred == nil || credential?.asDcSdJwt() != nil {
+        cred =
+            claims
+            .first(where: {
+                return credentialPack.get(credentialId: $0.key)?.asDcSdJwt()
+                    != nil
+            }).map { claim in
+                var tmpClaim = claim
+                if let issuingAuthority = claim.value["issuing_authority"],
+                   !issuingAuthority.toString().isEmpty {
+                    tmpClaim.value["issuer"] = issuingAuthority
+                }
+                if let dcSdJwt = credentialPack.get(credentialId: claim.key)?.asDcSdJwt() {
+                    tmpClaim.value["name"] = GenericJSON.string(
+                        credentialTypeDisplayName(for: dcSdJwt.vct()))
+                }
+                return tmpClaim
+            } ?? cred
+    }
+    // Mdoc: use doctype for display name
     if credential?.asMsoMdoc() != nil || cred == nil {
         cred =
             claims
@@ -153,15 +176,13 @@ func getCredentialIdTitleAndIssuer(
                     != nil
             }).map { claim in
                 var tmpClaim = claim
-                // Only set issuer if issuing_authority exists and has a valid value
                 if let issuingAuthority = claim.value["issuing_authority"],
                    !issuingAuthority.toString().isEmpty {
                     tmpClaim.value["issuer"] = issuingAuthority
                 }
-                // Use doctype-based display name
                 if let mdoc = credentialPack.get(credentialId: claim.key)?.asMsoMdoc() {
                     tmpClaim.value["name"] = GenericJSON.string(
-                        mdocDisplayName(for: mdoc.doctype()))
+                        credentialTypeDisplayName(for: mdoc.doctype()))
                 }
                 return tmpClaim
             }
@@ -196,10 +217,12 @@ func getCredentialIdTitleAndIssuer(
     return (credentialKey, title ?? "", issuer)
 }
 
-// MARK: - Mdoc Display Name Mapping
+// MARK: - Credential Type Display Name Mapping
 
-/// Known mdoc doctype to display name mappings.
-private let mdocDoctypeDisplayNames: [String: String] = [
+/// Known credential type identifier to display name mappings.
+/// Used for both mdoc doctypes and dc+sd-jwt vct values, since they share
+/// the same namespace (e.g., EUDI types like "eu.europa.ec.eudi.hiid.1").
+private let knownCredentialTypeDisplayNames: [String: String] = [
     "org.iso.18013.5.1.mDL": "Mobile Driver's License",
     "org.iso.23220.photoID.1": "Photo ID",
     "org.iso.7367.1.mVRC": "Mobile Vehicle Registration Certificate",
@@ -211,20 +234,21 @@ private let mdocDoctypeDisplayNames: [String: String] = [
     "eu.europa.ec.eudi.cor.1": "Certificate of Residence",
 ]
 
-/// Returns a human-readable display name for the given mdoc doctype.
-/// Falls back to generating a readable name from the doctype string if unknown.
-func mdocDisplayName(for doctype: String) -> String {
-    if let knownName = mdocDoctypeDisplayNames[doctype] {
+/// Returns a human-readable display name for a credential type identifier.
+/// Works with mdoc doctypes and dc+sd-jwt vct values.
+/// Falls back to generating a readable name from the identifier string if unknown.
+func credentialTypeDisplayName(for typeIdentifier: String) -> String {
+    if let knownName = knownCredentialTypeDisplayNames[typeIdentifier] {
         return knownName
     }
-    return humanizeDoctype(doctype)
+    return humanizeTypeIdentifier(typeIdentifier)
 }
 
-/// Generates a human-readable name from an unknown doctype.
+/// Generates a human-readable name from an unknown type identifier.
 /// Example: "eu.europa.ec.eudi.hiid.1" -> "Hiid"
-private func humanizeDoctype(_ doctype: String) -> String {
-    let components = doctype.split(separator: ".")
-    guard components.count >= 2 else { return doctype }
+private func humanizeTypeIdentifier(_ typeIdentifier: String) -> String {
+    let components = typeIdentifier.split(separator: ".")
+    guard components.count >= 2 else { return typeIdentifier }
 
     // Get the second-to-last component (skip version number)
     let meaningfulComponent: String

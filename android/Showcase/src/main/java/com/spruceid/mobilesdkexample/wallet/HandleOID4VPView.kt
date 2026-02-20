@@ -75,7 +75,7 @@ import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
-import com.spruceid.mobilesdkexample.utils.mdocDisplayName
+import com.spruceid.mobilesdkexample.utils.credentialTypeDisplayName
 import com.spruceid.mobilesdkexample.utils.removeUnderscores
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.utils.trustedDids
@@ -562,28 +562,34 @@ fun CredentialSelector(
 
     fun getCredentialTitle(credential: PresentableCredential): String {
         try {
-            credentialClaims[credential.asParsedCredential().id()]?.getString("name").let {
-                return it.toString()
-            }
+            credentialClaims[credential.asParsedCredential().id()]?.getString("name")
+                ?.takeIf { it.isNotBlank() }?.let { return it }
         } catch (_: Exception) {
         }
 
         try {
-            credentialClaims[credential.asParsedCredential().id()]?.getJSONArray("type").let {
-                for (i in 0 until it!!.length()) {
+            credentialClaims[credential.asParsedCredential().id()]?.getJSONArray("type")?.let {
+                for (i in 0 until it.length()) {
                     if (it.get(i).toString() != "VerifiableCredential") {
                         return it.get(i).toString().splitCamelCase()
                     }
                 }
-                return ""
             }
         } catch (_: Exception) {
         }
 
-        // For mdocs, use mdocDisplayName for proper display
+        // For mdocs, use doctype for display name
         try {
             credential.asParsedCredential().asMsoMdoc()?.let { mdoc ->
-                return mdocDisplayName(mdoc.doctype())
+                return credentialTypeDisplayName(mdoc.doctype())
+            }
+        } catch (_: Exception) {
+        }
+
+        // For dc+sd-jwt, use vct for display name
+        try {
+            credential.asParsedCredential().asDcSdJwt()?.let { dcSdJwt ->
+                return credentialTypeDisplayName(dcSdJwt.vct())
             }
         } catch (_: Exception) {
         }

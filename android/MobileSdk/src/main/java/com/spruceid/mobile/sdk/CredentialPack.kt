@@ -3,6 +3,7 @@ package com.spruceid.mobile.sdk
 import android.util.Log
 import com.spruceid.mobile.sdk.rs.CredentialDecodingException
 import com.spruceid.mobile.sdk.rs.Cwt
+import com.spruceid.mobile.sdk.rs.IetfSdJwtVc
 import com.spruceid.mobile.sdk.rs.IssuanceServiceClient
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
@@ -58,6 +59,11 @@ class CredentialPack {
 
         try {
             return this.addSdJwt(Vcdm2SdJwt.newFromCompactSdJwt(rawCredential))
+        } catch (_: Exception) {
+        }
+
+        try {
+            return this.addDcSdJwt(IetfSdJwtVc.newFromCompactSdJwt(rawCredential))
         } catch (_: Exception) {
         }
 
@@ -166,6 +172,14 @@ class CredentialPack {
     }
 
     /**
+     * Add an IETF SD-JWT VC (dc+sd-jwt) to the CredentialPack.
+     */
+    fun addDcSdJwt(dcSdJwt: IetfSdJwtVc): List<ParsedCredential> {
+        credentials.add(ParsedCredential.newDcSdJwt(dcSdJwt))
+        return credentials
+    }
+
+    /**
      * Add a CWT to the CredentialPack.
      */
     fun addCwt(cwt: Cwt): List<ParsedCredential> {
@@ -232,6 +246,9 @@ class CredentialPack {
                     res[credentialId] = CredentialStatusList.UNDEFINED
                 }
             }
+            credential.asDcSdJwt()?.let {
+                res[credentialId] = CredentialStatusList.UNDEFINED
+            }
         }
         return res
     }
@@ -255,6 +272,7 @@ class CredentialPack {
         val jwtVc = credential.asJwtVc()
         val jsonVc = credential.asJsonVc()
         val sdJwt = credential.asSdJwt()
+        val dcSdJwt = credential.asDcSdJwt()
         val cwt = credential.asCwt()
 
         if (mdoc != null) {
@@ -286,6 +304,12 @@ class CredentialPack {
                 sdJwt.credentialClaimsFiltered(claimNames)
             } else {
                 sdJwt.credentialClaims()
+            }
+        } else if (dcSdJwt != null) {
+            claims = if (claimNames.isNotEmpty()) {
+                dcSdJwt.credentialClaimsFiltered(claimNames)
+            } else {
+                dcSdJwt.credentialClaims()
             }
         } else {
             var type: String

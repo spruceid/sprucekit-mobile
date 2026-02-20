@@ -89,6 +89,9 @@ impl JsonLdPresentationBuilder {
                     ParsedCredentialInner::VCDM2SdJwt(_) => {
                         Err(PresentationBuilderError::UnsupportedCredentialFormat)
                     }
+                    ParsedCredentialInner::DcSdJwt(_) => {
+                        Err(PresentationBuilderError::UnsupportedCredentialFormat)
+                    }
                     ParsedCredentialInner::LdpVc(ldp_vc) => Ok(ldp_vc.raw.clone()),
                     ParsedCredentialInner::Cwt(_) => {
                         Err(PresentationBuilderError::UnsupportedCredentialFormat)

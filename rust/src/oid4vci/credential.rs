@@ -1,4 +1,4 @@
-use oid4vci::profile::{StandardFormat, W3cVcFormat, FORMAT_DC_SD_JWT};
+use oid4vci::profile::{StandardFormat, W3cVcFormat};
 
 use crate::{
     credential::{vcdm2_sd_jwt::SPRUCE_FORMAT_VC_SD_JWT, CredentialFormat, RawCredential},
@@ -11,16 +11,13 @@ impl RawCredential {
         credential: oid4vci::Oid4vciCredential,
     ) -> Result<Self, Oid4vciError> {
         match format {
-            StandardFormat::DcSdJwt => {
-                // TODO add proper support for DC+SD-JWT.
-                match credential.value {
-                    serde_json::Value::String(dc_sd_jwt) => Ok(Self {
-                        format: CredentialFormat::Other(FORMAT_DC_SD_JWT.to_owned()),
-                        payload: dc_sd_jwt.into_bytes(),
-                    }),
-                    _ => Err(Oid4vciError::InvalidCredentialPayload),
-                }
-            }
+            StandardFormat::DcSdJwt => match credential.value {
+                serde_json::Value::String(dc_sd_jwt) => Ok(Self {
+                    format: CredentialFormat::DcSdJwt,
+                    payload: dc_sd_jwt.into_bytes(),
+                }),
+                _ => Err(Oid4vciError::InvalidCredentialPayload),
+            },
             StandardFormat::W3c(format) => Ok(Self {
                 format: match format {
                     W3cVcFormat::LdpVc => CredentialFormat::LdpVc,

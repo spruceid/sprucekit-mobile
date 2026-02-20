@@ -4366,6 +4366,233 @@ public func FfiConverterTypeIOSISO18013MobileDocumentRequestPresentmentRequest_l
 
 
 
+/**
+ * IETF SD-JWT VC credential.
+ */
+public protocol IetfSdJwtVcProtocol: AnyObject, Sendable {
+    
+    /**
+     * Return the ID for the IetfSdJwtVc instance.
+     */
+    func id()  -> Uuid
+    
+    /**
+     * Return the key alias for the credential
+     */
+    func keyAlias()  -> KeyAlias?
+    
+    /**
+     * Return the revealed claims as a UTF-8 encoded JSON string.
+     */
+    func revealedClaimsAsJsonString() throws  -> String
+    
+    /**
+     * The type of this credential based on the vct claim.
+     */
+    func type()  -> CredentialType
+    
+    /**
+     * Return the Verifiable Credential Type (vct) claim.
+     */
+    func vct()  -> String
+    
+}
+/**
+ * IETF SD-JWT VC credential.
+ */
+open class IetfSdJwtVc: IetfSdJwtVcProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_ietfsdjwtvc(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_ietfsdjwtvc(pointer, $0) }
+    }
+
+    
+public static func fromCompactSdJwtWithIdAndKey(id: Uuid, input: String, keyAlias: KeyAlias)throws  -> IetfSdJwtVc  {
+    return try  FfiConverterTypeIetfSdJwtVc_lift(try rustCallWithError(FfiConverterTypeIetfSdJwtVcError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_ietfsdjwtvc_from_compact_sd_jwt_with_id_and_key(
+        FfiConverterTypeUuid_lower(id),
+        FfiConverterString.lower(input),
+        FfiConverterTypeKeyAlias_lower(keyAlias),$0
+    )
+})
+}
+    
+    /**
+     * Create a new IetfSdJwtVc instance from a compact SD-JWT string.
+     */
+public static func newFromCompactSdJwt(input: String)throws  -> IetfSdJwtVc  {
+    return try  FfiConverterTypeIetfSdJwtVc_lift(try rustCallWithError(FfiConverterTypeIetfSdJwtVcError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_ietfsdjwtvc_new_from_compact_sd_jwt(
+        FfiConverterString.lower(input),$0
+    )
+})
+}
+    
+    /**
+     * Create a new IetfSdJwtVc instance from a compact SD-JWT string with a provided key alias.
+     */
+public static func newFromCompactSdJwtWithKey(input: String, keyAlias: KeyAlias)throws  -> IetfSdJwtVc  {
+    return try  FfiConverterTypeIetfSdJwtVc_lift(try rustCallWithError(FfiConverterTypeIetfSdJwtVcError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_ietfsdjwtvc_new_from_compact_sd_jwt_with_key(
+        FfiConverterString.lower(input),
+        FfiConverterTypeKeyAlias_lower(keyAlias),$0
+    )
+})
+}
+    
+
+    
+    /**
+     * Return the ID for the IetfSdJwtVc instance.
+     */
+open func id() -> Uuid  {
+    return try!  FfiConverterTypeUuid_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_ietfsdjwtvc_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the key alias for the credential
+     */
+open func keyAlias() -> KeyAlias?  {
+    return try!  FfiConverterOptionTypeKeyAlias.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_ietfsdjwtvc_key_alias(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the revealed claims as a UTF-8 encoded JSON string.
+     */
+open func revealedClaimsAsJsonString()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeIetfSdJwtVcError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_ietfsdjwtvc_revealed_claims_as_json_string(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * The type of this credential based on the vct claim.
+     */
+open func type() -> CredentialType  {
+    return try!  FfiConverterTypeCredentialType_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_ietfsdjwtvc_type(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the Verifiable Credential Type (vct) claim.
+     */
+open func vct() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_ietfsdjwtvc_vct(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIetfSdJwtVc: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = IetfSdJwtVc
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> IetfSdJwtVc {
+        return IetfSdJwtVc(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: IetfSdJwtVc) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IetfSdJwtVc {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: IetfSdJwtVc, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIetfSdJwtVc_lift(_ pointer: UnsafeMutableRawPointer) throws -> IetfSdJwtVc {
+    return try FfiConverterTypeIetfSdJwtVc.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIetfSdJwtVc_lower(_ value: IetfSdJwtVc) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeIetfSdJwtVc.lower(value)
+}
+
+
+
+
+
+
 public protocol InProcessRecordProtocol: AnyObject, Sendable {
     
 }
@@ -8150,6 +8377,11 @@ public protocol ParsedCredentialProtocol: AnyObject, Sendable {
     func asCwt()  -> Cwt?
     
     /**
+     * Return the credential as an IETF SD-JWT VC (dc+sd-jwt format), if it is of that format.
+     */
+    func asDcSdJwt()  -> IetfSdJwtVc?
+    
+    /**
      * Return the credential as a JsonVc if it is of that format.
      */
     func asJsonVc()  -> JsonVc?
@@ -8165,7 +8397,7 @@ public protocol ParsedCredentialProtocol: AnyObject, Sendable {
     func asMsoMdoc()  -> Mdoc?
     
     /**
-     * Return the credential as an SD-JWT, if it is of that format.
+     * Return the credential as an SD-JWT (VCDM2 format), if it is of that format.
      */
     func asSdJwt()  -> Vcdm2SdJwt?
     
@@ -8275,6 +8507,17 @@ public static func newCwt(cwt: Cwt) -> ParsedCredential  {
 })
 }
     
+    /**
+     * Construct a new `dc+sd-jwt` credential (IETF SD-JWT VC format).
+     */
+public static func newDcSdJwt(dcSdJwt: IetfSdJwtVc) -> ParsedCredential  {
+    return try!  FfiConverterTypeParsedCredential_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_dc_sd_jwt(
+        FfiConverterTypeIetfSdJwtVc_lower(dcSdJwt),$0
+    )
+})
+}
+    
 public static func newFromJson(jsonString: String)throws  -> ParsedCredential  {
     return try  FfiConverterTypeParsedCredential_lift(try rustCallWithError(FfiConverterTypeCredentialDecodingError_lift) {
     uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_from_json(
@@ -8341,7 +8584,7 @@ public static func newMsoMdoc(mdoc: Mdoc) -> ParsedCredential  {
 }
     
     /**
-     * Construct a new `sd_jwt_vc` credential.
+     * Construct a new `sd_jwt_vc` credential (VCDM2 format).
      */
 public static func newSdJwt(sdJwtVc: Vcdm2SdJwt) -> ParsedCredential  {
     return try!  FfiConverterTypeParsedCredential_lift(try! rustCall() {
@@ -8370,6 +8613,16 @@ public static func parseFromCredential(credential: Credential)throws  -> ParsedC
 open func asCwt() -> Cwt?  {
     return try!  FfiConverterOptionTypeCwt.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_parsedcredential_as_cwt(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the credential as an IETF SD-JWT VC (dc+sd-jwt format), if it is of that format.
+     */
+open func asDcSdJwt() -> IetfSdJwtVc?  {
+    return try!  FfiConverterOptionTypeIetfSdJwtVc.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_parsedcredential_as_dc_sd_jwt(self.uniffiClonePointer(),$0
     )
 })
 }
@@ -8405,7 +8658,7 @@ open func asMsoMdoc() -> Mdoc?  {
 }
     
     /**
-     * Return the credential as an SD-JWT, if it is of that format.
+     * Return the credential as an SD-JWT (VCDM2 format), if it is of that format.
      */
 open func asSdJwt() -> Vcdm2SdJwt?  {
     return try!  FfiConverterOptionTypeVCDM2SdJwt.lift(try! rustCall() {
@@ -9059,7 +9312,7 @@ public protocol PresentableCredentialProtocol: AnyObject, Sendable {
     
     /**
      * Return if the credential supports selective disclosure
-     * For now only SdJwts are supported
+     * SD-JWT formats support selective disclosure
      */
     func selectiveDisclosable()  -> Bool
     
@@ -9141,7 +9394,7 @@ open func isMdoc() -> Bool  {
     
     /**
      * Return if the credential supports selective disclosure
-     * For now only SdJwts are supported
+     * SD-JWT formats support selective disclosure
      */
 open func selectiveDisclosable() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
@@ -16056,6 +16309,8 @@ public enum CredentialDecodingError: Swift.Error {
     )
     case SdJwt(SdJwtError
     )
+    case IetfSdJwtVc(IetfSdJwtVcError
+    )
     case Cwt(CwtError
     )
     case UnsupportedCredentialFormat(String
@@ -16092,16 +16347,19 @@ public struct FfiConverterTypeCredentialDecodingError: FfiConverterRustBuffer {
         case 4: return .SdJwt(
             try FfiConverterTypeSdJwtError.read(from: &buf)
             )
-        case 5: return .Cwt(
+        case 5: return .IetfSdJwtVc(
+            try FfiConverterTypeIetfSdJwtVcError.read(from: &buf)
+            )
+        case 6: return .Cwt(
             try FfiConverterTypeCwtError.read(from: &buf)
             )
-        case 6: return .UnsupportedCredentialFormat(
+        case 7: return .UnsupportedCredentialFormat(
             try FfiConverterString.read(from: &buf)
             )
-        case 7: return .Serialization(
+        case 8: return .Serialization(
             try FfiConverterString.read(from: &buf)
             )
-        case 8: return .Deserialization(
+        case 9: return .Deserialization(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -16136,23 +16394,28 @@ public struct FfiConverterTypeCredentialDecodingError: FfiConverterRustBuffer {
             FfiConverterTypeSdJwtError.write(v1, into: &buf)
             
         
-        case let .Cwt(v1):
+        case let .IetfSdJwtVc(v1):
             writeInt(&buf, Int32(5))
+            FfiConverterTypeIetfSdJwtVcError.write(v1, into: &buf)
+            
+        
+        case let .Cwt(v1):
+            writeInt(&buf, Int32(6))
             FfiConverterTypeCwtError.write(v1, into: &buf)
             
         
         case let .UnsupportedCredentialFormat(v1):
-            writeInt(&buf, Int32(6))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
-        case let .Serialization(v1):
             writeInt(&buf, Int32(7))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Deserialization(v1):
+        case let .Serialization(v1):
             writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Deserialization(v1):
+            writeInt(&buf, Int32(9))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -16312,6 +16575,7 @@ public enum CredentialFormat {
     case jwtVcJsonLd
     case ldpVc
     case vcdm2SdJwt
+    case dcSdJwt
     case cwt
     case other(String
     )
@@ -16342,9 +16606,11 @@ public struct FfiConverterTypeCredentialFormat: FfiConverterRustBuffer {
         
         case 5: return .vcdm2SdJwt
         
-        case 6: return .cwt
+        case 6: return .dcSdJwt
         
-        case 7: return .other(try FfiConverterString.read(from: &buf)
+        case 7: return .cwt
+        
+        case 8: return .other(try FfiConverterString.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -16375,12 +16641,16 @@ public struct FfiConverterTypeCredentialFormat: FfiConverterRustBuffer {
             writeInt(&buf, Int32(5))
         
         
-        case .cwt:
+        case .dcSdJwt:
             writeInt(&buf, Int32(6))
         
         
-        case let .other(v1):
+        case .cwt:
             writeInt(&buf, Int32(7))
+        
+        
+        case let .other(v1):
+            writeInt(&buf, Int32(8))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -17740,6 +18010,129 @@ extension HttpClientError: Equatable, Hashable {}
 
 
 extension HttpClientError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum IetfSdJwtVcError: Swift.Error {
+
+    
+    
+    case InitError(String
+    )
+    case SdJwtDecoding(String
+    )
+    case InvalidSdJwt(String
+    )
+    case Serialization(String
+    )
+    case CredentialEncoding(String
+    )
+    case MissingClaim(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIetfSdJwtVcError: FfiConverterRustBuffer {
+    typealias SwiftType = IetfSdJwtVcError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IetfSdJwtVcError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InitError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .SdJwtDecoding(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .InvalidSdJwt(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .Serialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .CredentialEncoding(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .MissingClaim(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: IetfSdJwtVcError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InitError(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .SdJwtDecoding(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidSdJwt(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Serialization(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .CredentialEncoding(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .MissingClaim(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIetfSdJwtVcError_lift(_ buf: RustBuffer) throws -> IetfSdJwtVcError {
+    return try FfiConverterTypeIetfSdJwtVcError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIetfSdJwtVcError_lower(_ value: IetfSdJwtVcError) -> RustBuffer {
+    return FfiConverterTypeIetfSdJwtVcError.lower(value)
+}
+
+
+extension IetfSdJwtVcError: Equatable, Hashable {}
+
+
+
+extension IetfSdJwtVcError: Foundation.LocalizedError {
     public var errorDescription: String? {
         String(reflecting: self)
     }
@@ -23045,6 +23438,30 @@ fileprivate struct FfiConverterOptionTypeCwt: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeIetfSdJwtVc: FfiConverterRustBuffer {
+    typealias SwiftType = IetfSdJwtVc?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeIetfSdJwtVc.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeIetfSdJwtVc.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeJsonVc: FfiConverterRustBuffer {
     typealias SwiftType = JsonVc?
 
@@ -25935,6 +26352,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_iosiso18013mobiledocumentrequest_to_matches() != 17136) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_ietfsdjwtvc_id() != 57442) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_ietfsdjwtvc_key_alias() != 39743) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_ietfsdjwtvc_revealed_claims_as_json_string() != 1813) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_ietfsdjwtvc_type() != 51355) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_ietfsdjwtvc_vct() != 63525) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequest180137_matches() != 21157) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -26157,6 +26589,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_as_cwt() != 46037) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_as_dc_sd_jwt() != 17508) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_as_json_vc() != 62122) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -26166,7 +26601,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_as_mso_mdoc() != 54804) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_as_sd_jwt() != 23438) {
+    if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_as_sd_jwt() != 33528) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_format() != 39112) {
@@ -26229,7 +26664,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_is_mdoc() != 17013) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_selective_disclosable() != 24142) {
+    if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_selective_disclosable() != 55127) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_readerapduhandoverdriver_process_rapdu() != 65181) {
@@ -26478,6 +26913,15 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestpresentmentrequest_new() != 37016) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_ietfsdjwtvc_from_compact_sd_jwt_with_id_and_key() != 12356) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_ietfsdjwtvc_new_from_compact_sd_jwt() != 39911) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_ietfsdjwtvc_new_from_compact_sd_jwt_with_key() != 46850) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_issuanceserviceclient_new() != 39224) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -26535,6 +26979,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_cwt() != 43883) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_dc_sd_jwt() != 44340) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_from_json() != 1837) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -26553,7 +27000,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_mso_mdoc() != 58058) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_sd_jwt() != 34266) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_sd_jwt() != 13357) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_parse_from_credential() != 15018) {

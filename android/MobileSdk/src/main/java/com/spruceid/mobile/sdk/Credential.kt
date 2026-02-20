@@ -4,6 +4,7 @@ import com.spruceid.mobile.sdk.rs.Cwt
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
+import com.spruceid.mobile.sdk.rs.IetfSdJwtVc
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import org.json.JSONException
 import org.json.JSONObject
@@ -141,6 +142,30 @@ fun Vcdm2SdJwt.credentialClaims(): JSONObject {
  * Access the specified claims from the VCDM 2.0 SD-JWT credential.
  */
 fun Vcdm2SdJwt.credentialClaimsFiltered(claimNames: List<String>): JSONObject {
+    val old = this.credentialClaims()
+    val new = JSONObject()
+    for (name in claimNames) {
+        new.put(name, keyPathFinder(old, name.split(".").toMutableList()))
+    }
+    return new
+}
+
+/**
+ * Access the IETF SD-JWT VC credential (dc+sd-jwt).
+ */
+fun IetfSdJwtVc.credentialClaims(): JSONObject {
+    try {
+        return JSONObject(this.revealedClaimsAsJsonString())
+    } catch (e: Error) {
+        print("failed to decode dc+sd-jwt data from UTF-8-encoded JSON")
+        return JSONObject()
+    }
+}
+
+/**
+ * Access the specified claims from the IETF SD-JWT VC credential (dc+sd-jwt).
+ */
+fun IetfSdJwtVc.credentialClaimsFiltered(claimNames: List<String>): JSONObject {
     val old = this.credentialClaims()
     val new = JSONObject()
     for (name in claimNames) {
