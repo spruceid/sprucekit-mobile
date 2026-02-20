@@ -35,7 +35,7 @@ struct VerifierMdocResultView: View {
         self.logVerification = logVerification
         let mdoc = convertToGenericJSON(map: result)
         self.mdoc = mdoc.dictValue ?? [:]
-        self.title = mdocDisplayName(for: docTypes.first ?? "")
+        self.title = credentialTypeDisplayName(for: docTypes.first ?? "")
         // Try to find issuing_authority from any namespace
         var foundIssuer = ""
         for (_, namespaceValue) in self.mdoc {

@@ -28,17 +28,24 @@ struct GenericCredentialItemListItem: View {
                                 return credential?.asJwtVc() != nil
                                     || credential?.asJsonVc() != nil
                                     || credential?.asSdJwt() != nil
+                                    || credential?.asDcSdJwt() != nil
                                     || credential?.asMsoMdoc() != nil
                                     || credential?.asCwt() != nil
 
                             }).map {
-                                // Use doctype-based display name for mdocs
-                                if let mdoc = credentialPack.get(
+                                let credential = credentialPack.get(
                                     credentialId: $0.key
-                                )?.asMsoMdoc() {
+                                )
+                                if let mdoc = credential?.asMsoMdoc() {
                                     var newValue = $0.value
                                     newValue["name"] = GenericJSON.string(
-                                        mdocDisplayName(for: mdoc.doctype())
+                                        credentialTypeDisplayName(for: mdoc.doctype())
+                                    )
+                                    return newValue
+                                } else if let dcSdJwt = credential?.asDcSdJwt() {
+                                    var newValue = $0.value
+                                    newValue["name"] = GenericJSON.string(
+                                        credentialTypeDisplayName(for: dcSdJwt.vct())
                                     )
                                     return newValue
                                 }
@@ -68,7 +75,7 @@ struct GenericCredentialItemListItem: View {
                         }
                         .padding(.leading, 12)
                     },
-                    descriptionKeys: ["description", "issuer"],
+                    descriptionKeys: ["description", "issuer", "issuing_authority"],
                     descriptionFormatter: descriptionFormatter ?? { values in
                         genericCredentialListItemDescriptionFormatter(
                             credentialPack: credentialPack,
@@ -104,15 +111,22 @@ struct GenericCredentialItemListItem: View {
                                 return credential?.asJwtVc() != nil
                                     || credential?.asJsonVc() != nil
                                     || credential?.asSdJwt() != nil
+                                    || credential?.asDcSdJwt() != nil
                                     || credential?.asMsoMdoc() != nil
                             }).map {
-                                // Use doctype-based display name for mdocs
-                                if let mdoc = credentialPack.get(
+                                let credential = credentialPack.get(
                                     credentialId: $0.key
-                                )?.asMsoMdoc() {
+                                )
+                                if let mdoc = credential?.asMsoMdoc() {
                                     var newValue = $0.value
                                     newValue["name"] = GenericJSON.string(
-                                        mdocDisplayName(for: mdoc.doctype())
+                                        credentialTypeDisplayName(for: mdoc.doctype())
+                                    )
+                                    return newValue
+                                } else if let dcSdJwt = credential?.asDcSdJwt() {
+                                    var newValue = $0.value
+                                    newValue["name"] = GenericJSON.string(
+                                        credentialTypeDisplayName(for: dcSdJwt.vct())
                                     )
                                     return newValue
                                 }
@@ -172,7 +186,7 @@ struct GenericCredentialItemListItem: View {
                         }
                         .padding(.leading, 12)
                     },
-                    descriptionKeys: ["description", "issuer"],
+                    descriptionKeys: ["description", "issuer", "issuing_authority"],
                     descriptionFormatter: descriptionFormatter ?? { values in
                         genericCredentialListItemDescriptionFormatter(
                             credentialPack: credentialPack,
@@ -229,6 +243,7 @@ func genericCredentialListItemDescriptionFormatter(
             return credential?.asJwtVc() != nil
                 || credential?.asJsonVc() != nil
                 || credential?.asSdJwt() != nil
+                || credential?.asDcSdJwt() != nil
                 || credential?.asMsoMdoc() != nil
 
         }).map {
@@ -255,6 +270,8 @@ func genericCredentialListItemDescriptionFormatter(
         description = descriptionString
     } else if let issuerName = credential["issuer"]?.toString() {
         description = issuerName
+    } else if let issuingAuthority = credential["issuing_authority"]?.toString() {
+        description = issuingAuthority
     }
 
     return VStack(alignment: .leading, spacing: 12) {
@@ -285,6 +302,7 @@ func genericCredentialListItemLeadingIconFormatter(
             return credential?.asJwtVc() != nil
                 || credential?.asJsonVc() != nil
                 || credential?.asSdJwt() != nil
+                || credential?.asDcSdJwt() != nil
         }).map { $0.value } ?? [:]
 
     let issuerImg = credential["issuer"]?.dictValue?["image"]

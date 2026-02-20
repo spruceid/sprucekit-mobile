@@ -20,6 +20,7 @@ struct GenericCredentialItemDetails: View {
                                         return credential?.asJwtVc() != nil
                                             || credential?.asJsonVc() != nil
                                             || credential?.asSdJwt() != nil
+                                            || credential?.asDcSdJwt() != nil
                                             || credential?.asMsoMdoc() != nil
                                             || credential?.asCwt() != nil
                                     }).map { $0.value } ?? [:]
