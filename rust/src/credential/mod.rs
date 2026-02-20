@@ -10,6 +10,7 @@ use crate::{
     CredentialType,
 };
 use cwt::{Cwt, CwtError};
+use ietf_sd_jwt_vc::{IetfSdJwtVc, IetfSdJwtVcError};
 use json_vc::{JsonVc, JsonVcEncodingError, JsonVcInitError};
 use jwt_vc::{JwtVc, JwtVcInitError};
 use mdoc::{Mdoc, MdocEncodingError, MdocInitError};
@@ -79,11 +80,9 @@ pub(crate) enum ParsedCredentialInner {
     JwtVcJson(Arc<JwtVc>),
     JwtVcJsonLd(Arc<JwtVc>),
     VCDM2SdJwt(Arc<VCDM2SdJwt>),
+    DcSdJwt(Arc<IetfSdJwtVc>),
     LdpVc(Arc<JsonVc>),
     Cwt(Arc<Cwt>),
-    // More to come, for example:
-    // SdJwt(...),
-    // SdJwtJoseCose(...),
 }
 
 #[uniffi::export]
@@ -96,13 +95,14 @@ impl PresentableCredential {
     }
 
     /// Return if the credential supports selective disclosure
-    /// For now only SdJwts are supported
+    /// SD-JWT formats support selective disclosure
     pub fn selective_disclosable(&self) -> bool {
         match &self.inner {
             ParsedCredentialInner::MsoMdoc(_) => false,
             ParsedCredentialInner::JwtVcJson(_) => false,
             ParsedCredentialInner::JwtVcJsonLd(_) => false,
             ParsedCredentialInner::VCDM2SdJwt(_) => true,
+            ParsedCredentialInner::DcSdJwt(_) => true,
             ParsedCredentialInner::LdpVc(_) => false,
             ParsedCredentialInner::Cwt(_) => false,
         }
@@ -145,6 +145,10 @@ impl ParsedCredential {
             CredentialFormat::VCDM2SdJwt => {
                 let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt_with_key(credential, key_alias)?;
                 Ok(ParsedCredential::new_sd_jwt(sd_jwt))
+            }
+            CredentialFormat::DcSdJwt => {
+                let sd_jwt = IetfSdJwtVc::new_from_compact_sd_jwt_with_key(credential, key_alias)?;
+                Ok(ParsedCredential::new_dc_sd_jwt(sd_jwt))
             }
             CredentialFormat::Cwt => {
                 let cwt = Cwt::new_from_base10(credential)?;
@@ -189,6 +193,11 @@ impl ParsedCredential {
                 let sd_jwt =
                     VCDM2SdJwt::from_compact_sd_jwt_with_id_and_key(id, credential, key_alias)?;
                 Ok(ParsedCredential::new_sd_jwt(sd_jwt))
+            }
+            CredentialFormat::DcSdJwt => {
+                let sd_jwt =
+                    IetfSdJwtVc::from_compact_sd_jwt_with_id_and_key(id, credential, key_alias)?;
+                Ok(ParsedCredential::new_dc_sd_jwt(sd_jwt))
             }
             CredentialFormat::Cwt => {
                 let cwt = Cwt::from_base10(id, credential.as_bytes().into())?.into();
@@ -240,10 +249,18 @@ impl ParsedCredential {
     }
 
     #[uniffi::constructor]
-    /// Construct a new `sd_jwt_vc` credential.
+    /// Construct a new `sd_jwt_vc` credential (VCDM2 format).
     pub fn new_sd_jwt(sd_jwt_vc: Arc<VCDM2SdJwt>) -> Arc<Self> {
         Arc::new(Self {
             inner: ParsedCredentialInner::VCDM2SdJwt(sd_jwt_vc),
+        })
+    }
+
+    #[uniffi::constructor]
+    /// Construct a new `dc+sd-jwt` credential (IETF SD-JWT VC format).
+    pub fn new_dc_sd_jwt(dc_sd_jwt: Arc<IetfSdJwtVc>) -> Arc<Self> {
+        Arc::new(Self {
+            inner: ParsedCredentialInner::DcSdJwt(dc_sd_jwt),
         })
     }
 
@@ -286,6 +303,13 @@ impl ParsedCredential {
                 payload: sd_jwt.inner.as_bytes().into(),
                 key_alias: sd_jwt.key_alias(),
             }),
+            ParsedCredentialInner::DcSdJwt(sd_jwt) => Ok(Credential {
+                id: sd_jwt.id(),
+                format: CredentialFormat::DcSdJwt,
+                r#type: sd_jwt.r#type(),
+                payload: sd_jwt.inner.as_bytes().into(),
+                key_alias: sd_jwt.key_alias(),
+            }),
             ParsedCredentialInner::JwtVcJsonLd(vc) => Ok(Credential {
                 id: vc.id(),
                 format: CredentialFormat::JwtVcJsonLd,
@@ -317,6 +341,7 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJson(_) => CredentialFormat::JwtVcJson,
             ParsedCredentialInner::JwtVcJsonLd(_) => CredentialFormat::JwtVcJsonLd,
             ParsedCredentialInner::VCDM2SdJwt(_) => CredentialFormat::VCDM2SdJwt,
+            ParsedCredentialInner::DcSdJwt(_) => CredentialFormat::DcSdJwt,
             ParsedCredentialInner::Cwt(_) => CredentialFormat::Cwt,
             ParsedCredentialInner::LdpVc(_) => CredentialFormat::LdpVc,
         }
@@ -330,6 +355,7 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJsonLd(arc) => arc.id(),
             ParsedCredentialInner::LdpVc(arc) => arc.id(),
             ParsedCredentialInner::VCDM2SdJwt(arc) => arc.id(),
+            ParsedCredentialInner::DcSdJwt(arc) => arc.id(),
             ParsedCredentialInner::Cwt(arc) => arc.id(),
         }
     }
@@ -342,6 +368,7 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJsonLd(arc) => arc.key_alias(),
             ParsedCredentialInner::LdpVc(arc) => arc.key_alias(),
             ParsedCredentialInner::VCDM2SdJwt(arc) => arc.key_alias(),
+            ParsedCredentialInner::DcSdJwt(arc) => arc.key_alias(),
             ParsedCredentialInner::Cwt(arc) => arc.key_alias(),
         }
     }
@@ -354,6 +381,7 @@ impl ParsedCredential {
             ParsedCredentialInner::JwtVcJsonLd(arc) => arc.r#type(),
             ParsedCredentialInner::LdpVc(arc) => arc.r#type(),
             ParsedCredentialInner::VCDM2SdJwt(arc) => arc.r#type(),
+            ParsedCredentialInner::DcSdJwt(arc) => arc.r#type(),
             ParsedCredentialInner::Cwt(arc) => arc.r#type(),
         }
     }
@@ -383,10 +411,18 @@ impl ParsedCredential {
         }
     }
 
-    /// Return the credential as an SD-JWT, if it is of that format.
+    /// Return the credential as an SD-JWT (VCDM2 format), if it is of that format.
     pub fn as_sd_jwt(&self) -> Option<Arc<VCDM2SdJwt>> {
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => Some(sd_jwt.clone()),
+            _ => None,
+        }
+    }
+
+    /// Return the credential as an IETF SD-JWT VC (dc+sd-jwt format), if it is of that format.
+    pub fn as_dc_sd_jwt(&self) -> Option<Arc<IetfSdJwtVc>> {
+        match &self.inner {
+            ParsedCredentialInner::DcSdJwt(sd_jwt) => Some(sd_jwt.clone()),
             _ => None,
         }
     }
@@ -413,6 +449,11 @@ impl PresentableCredential {
                     .as_vp_token_item(options, self.selected_fields.clone())
                     .await
             }
+            ParsedCredentialInner::DcSdJwt(sd_jwt) => {
+                sd_jwt
+                    .as_vp_token_item(options, self.selected_fields.clone())
+                    .await
+            }
             ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
                 vc.as_vp_token_item(options, None).await
             }
@@ -421,10 +462,9 @@ impl PresentableCredential {
                 mdoc.as_vp_token_item(options, self.selected_fields.clone())
                     .await
             }
-            _ => Err(CredentialEncodingError::VpToken(format!(
-                "Credential encoding for VP Token is not implemented for {:?}.",
-                self.inner,
-            ))
+            ParsedCredentialInner::Cwt(_) => Err(CredentialEncodingError::VpToken(
+                "Credential encoding for VP Token is not implemented for CWT.".to_string(),
+            )
             .into()),
         }
     }
@@ -441,6 +481,7 @@ impl ParsedCredential {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
                 sd_jwt.satisfies_dcql_query(credential_query)
             }
+            ParsedCredentialInner::DcSdJwt(sd_jwt) => sd_jwt.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::MsoMdoc(mdoc) => mdoc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::Cwt(_cwt) => false,
         }
@@ -464,6 +505,9 @@ impl ParsedCredential {
 
         match &self.inner {
             ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+                sd_jwt.requested_fields_dcql(credential_query)
+            }
+            ParsedCredentialInner::DcSdJwt(sd_jwt) => {
                 sd_jwt.requested_fields_dcql(credential_query)
             }
             ParsedCredentialInner::JwtVcJson(vc) => vc.requested_fields_dcql(credential_query),
@@ -519,6 +563,9 @@ impl TryFrom<Credential> for Arc<ParsedCredential> {
             CredentialFormat::VCDM2SdJwt => {
                 Ok(ParsedCredential::new_sd_jwt(credential.try_into()?))
             }
+            CredentialFormat::DcSdJwt => {
+                Ok(ParsedCredential::new_dc_sd_jwt(credential.try_into()?))
+            }
             CredentialFormat::LdpVc => Ok(ParsedCredential::new_ldp_vc(credential.try_into()?)),
             _ => Err(CredentialDecodingError::UnsupportedCredentialFormat(
                 credential.format.to_string(),
@@ -557,6 +604,8 @@ pub enum CredentialDecodingError {
     JwtVc(#[from] JwtVcInitError),
     #[error("SD JWT VC decoding error: {0}")]
     SdJwt(#[from] SdJwtError),
+    #[error("IETF SD-JWT VC decoding error: {0}")]
+    IetfSdJwtVc(#[from] IetfSdJwtVcError),
     #[error("Cwt decoding error: {0}")]
     Cwt(#[from] CwtError),
     #[error("Credential format is not yet supported for type: {0}")]
@@ -586,6 +635,8 @@ pub enum CredentialFormat {
     LdpVc,
     #[serde(rename = "vcdm2_sd_jwt")]
     VCDM2SdJwt,
+    #[serde(rename = "dc+sd-jwt")]
+    DcSdJwt,
     Cwt,
     #[serde(untagged)]
     Other(String), // For ease of expansion.
@@ -599,6 +650,7 @@ impl std::fmt::Display for CredentialFormat {
             CredentialFormat::JwtVcJsonLd => write!(f, "jwt_vc_json-ld"),
             CredentialFormat::LdpVc => write!(f, "ldp_vc"),
             CredentialFormat::VCDM2SdJwt => write!(f, "vcdm2_sd_jwt"),
+            CredentialFormat::DcSdJwt => write!(f, "dc+sd-jwt"),
             CredentialFormat::Cwt => write!(f, "cwt"),
             CredentialFormat::Other(s) => write!(f, "{s}"),
         }
@@ -619,6 +671,7 @@ impl From<String> for CredentialFormat {
             "jwt_vc_json-ld" => CredentialFormat::JwtVcJsonLd,
             "ldp_vc" => CredentialFormat::LdpVc,
             "vcdm2_sd_jwt" => CredentialFormat::VCDM2SdJwt,
+            "dc+sd-jwt" => CredentialFormat::DcSdJwt,
             _ => CredentialFormat::Other(value),
         }
     }
