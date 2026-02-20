@@ -35,7 +35,7 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.ErrorToast
 import com.spruceid.mobilesdkexample.utils.SimpleAlertDialog
 import com.spruceid.mobilesdkexample.utils.WarningToast
-import com.spruceid.mobilesdkexample.utils.mdocDisplayName
+import com.spruceid.mobilesdkexample.utils.credentialTypeDisplayName
 
 @Composable
 fun VerifierMDocResultView(
@@ -48,7 +48,7 @@ fun VerifierMDocResultView(
     logVerification: (String, String, String) -> Unit,
 ) {
     val mdoc by remember { mutableStateOf(convertToJson(result)) }
-    val title = mdocDisplayName(docTypes.firstOrNull() ?: "")
+    val title = credentialTypeDisplayName(docTypes.firstOrNull() ?: "")
     var issuer by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {

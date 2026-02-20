@@ -70,7 +70,7 @@ import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
-import com.spruceid.mobilesdkexample.utils.mdocDisplayName
+import com.spruceid.mobilesdkexample.utils.credentialTypeDisplayName
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.Dispatchers
@@ -560,7 +560,7 @@ fun MdocSelectorItem(
                 )
             )
             Text(
-                text = mdocDisplayName(doctype ?: ""),
+                text = credentialTypeDisplayName(doctype ?: ""),
                 fontFamily = Inter,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 18.sp,

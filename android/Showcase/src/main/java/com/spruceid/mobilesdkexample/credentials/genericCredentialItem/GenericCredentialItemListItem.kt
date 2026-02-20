@@ -40,7 +40,7 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
-import com.spruceid.mobilesdkexample.utils.mdocDisplayName
+import com.spruceid.mobilesdkexample.utils.credentialTypeDisplayName
 import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import org.json.JSONObject
@@ -84,6 +84,7 @@ fun GenericCredentialListItemDescriptionFormatter(
     val credential = values.toList().firstNotNullOfOrNull {
         val cred = credentialPack.getCredentialById(it.first)
         val mdoc = cred?.asMsoMdoc()
+        val dcSdJwt = cred?.asDcSdJwt()
         try {
             if (
                 cred?.asJwtVc() != null ||
@@ -97,6 +98,8 @@ fun GenericCredentialListItemDescriptionFormatter(
                 if (issuer != null && issuer.toString().isNotBlank()) {
                     it.second.put("issuer", issuer)
                 }
+                it.second
+            } else if (dcSdJwt != null) {
                 it.second
             } else {
                 null
@@ -122,6 +125,13 @@ fun GenericCredentialListItemDescriptionFormatter(
     if (description.isBlank()) {
         try {
             description = credential?.getString("issuer").toString()
+        } catch (_: Exception) {
+        }
+    }
+
+    if (description.isBlank()) {
+        try {
+            description = credential?.getString("issuing_authority").toString()
         } catch (_: Exception) {
         }
     }
@@ -152,7 +162,8 @@ private fun GenericCredentialListItemLeadingIconFormatter(
             if (
                 cred?.asJwtVc() != null ||
                 cred?.asJsonVc() != null ||
-                cred?.asSdJwt() != null
+                cred?.asSdJwt() != null ||
+                cred?.asDcSdJwt() != null
             ) {
                 it.second
             } else {
@@ -231,6 +242,7 @@ fun GenericCredentialListItem(
                 val cred = credentialPack.getCredentialById(it.first)
                 try {
                     val mdoc = cred?.asMsoMdoc()
+                    val dcSdJwt = cred?.asDcSdJwt()
                     if (
                         cred?.asJwtVc() != null ||
                         cred?.asJsonVc() != null ||
@@ -238,7 +250,10 @@ fun GenericCredentialListItem(
                     ) {
                         it.second
                     } else if (mdoc != null) {
-                        it.second.put("name", mdocDisplayName(mdoc.doctype()))
+                        it.second.put("name", credentialTypeDisplayName(mdoc.doctype()))
+                        it.second
+                    } else if (dcSdJwt != null) {
+                        it.second.put("name", credentialTypeDisplayName(dcSdJwt.vct()))
                         it.second
                     } else {
                         null
@@ -303,7 +318,7 @@ fun GenericCredentialListItem(
                 }
             }
         },
-        descriptionKeys = listOf("description", "issuer"),
+        descriptionKeys = listOf("description", "issuer", "issuing_authority"),
         descriptionFormatter = { values ->
             if (descriptionFormatter != null) {
                 descriptionFormatter.invoke(
