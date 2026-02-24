@@ -19,7 +19,6 @@ use openid4vp::core::{
     credential_format::ClaimFormatDesignation, dcql_query::DcqlCredentialQuery,
     response::parameters::VpTokenItem,
 };
-use serde::{Deserialize, Serialize};
 use ssi::{
     claims::{
         jws::{JwsSigner, JwsSignerInfo},
@@ -42,34 +41,6 @@ pub struct IetfSdJwtVc {
     pub(crate) claims: serde_json::Value,
     /// The raw SD-JWT buffer
     pub(crate) inner: SdJwtBuf,
-}
-
-/// IETF SD-JWT VC specific claims structure
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct IetfSdJwtVcClaims {
-    /// Verifiable Credential Type - REQUIRED
-    pub vct: String,
-    /// Issuer
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub iss: Option<String>,
-    /// Subject
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub sub: Option<String>,
-    /// Issued At
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub iat: Option<i64>,
-    /// Expiration
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub exp: Option<i64>,
-    /// Not Before
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub nbf: Option<i64>,
-    /// Confirmation (key binding)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cnf: Option<serde_json::Value>,
-    /// Status
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<serde_json::Value>,
 }
 
 impl IetfSdJwtVc {
@@ -348,7 +319,7 @@ impl CredentialPresentation for IetfSdJwtVc {
 
             self.inner
                 .decode_reveal::<AnyClaims>()
-                .map_err(|e| OID4VPError::Debug(e.to_string()))?
+                .map_err(|e| OID4VPError::VpTokenParse(e.to_string()))?
                 .retaining(&selected_fields_pointers)
                 .into_encoded()
         } else {
@@ -358,7 +329,9 @@ impl CredentialPresentation for IetfSdJwtVc {
         // Create and attach Key Binding JWT (KB-JWT).
         let aud = options
             .audience()
-            .ok_or_else(|| OID4VPError::Debug("missing client_id for KB-JWT audience".into()))?
+            .ok_or_else(|| {
+                OID4VPError::VpTokenCreate("missing client_id for KB-JWT audience".into())
+            })?
             .clone();
         let nonce = options.nonce().clone();
 
@@ -371,7 +344,7 @@ impl CredentialPresentation for IetfSdJwtVc {
         let kb_jwt = jws_signer
             .sign(kb_payload)
             .await
-            .map_err(|e| OID4VPError::Debug(format!("KB-JWT signing failed: {e:?}")))?;
+            .map_err(|e| OID4VPError::VpTokenCreate(format!("KB-JWT signing failed: {e:?}")))?;
 
         sd_jwt.set_kb(&kb_jwt);
 

@@ -431,15 +431,6 @@ private fun humanizeTypeIdentifier(doctype: String): String {
         .replace("_", " ")
         .split(" ")
         .joinToString(" ") { word ->
-            word.replaceFirstChar { it.uppercaseChar() }.drop(1).lowercase() +
-                word.firstOrNull()?.uppercaseChar()?.toString().orEmpty()
-        }.let {
-            // Fix: properly capitalize first letter of each word
-            meaningfulComponent
-                .replace("_", " ")
-                .split(" ")
-                .joinToString(" ") { word ->
-                    word.lowercase().replaceFirstChar { it.uppercaseChar() }
-                }
+            word.lowercase().replaceFirstChar { it.uppercaseChar() }
         }
 }
