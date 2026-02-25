@@ -52,6 +52,10 @@ public class CredentialPack {
             sdJwt: Vcdm2SdJwt.newFromCompactSdJwt(input: rawCredential)
         ) {
             return credentials
+        } else if let credentials = try? addDcSdJwt(
+            dcSdJwt: IetfSdJwtVc.newFromCompactSdJwt(input: rawCredential)
+        ) {
+            return credentials
         } else if let credentials = try? addCwt(
             cwt: Cwt.newFromBase10(payload: rawCredential)
         ) {
@@ -135,6 +139,11 @@ public class CredentialPack {
     /// Add an SD-JWT to the CredentialPack.
     public func addSdJwt(sdJwt: Vcdm2SdJwt) -> [ParsedCredential] {
         credentials.append(ParsedCredential.newSdJwt(sdJwtVc: sdJwt))
+        return credentials
+    }
+
+    public func addDcSdJwt(dcSdJwt: IetfSdJwtVc) -> [ParsedCredential] {
+        credentials.append(ParsedCredential.newDcSdJwt(dcSdJwt: dcSdJwt))
         return credentials
     }
 
@@ -291,6 +300,9 @@ public class CredentialPack {
                 } else {
                     res[credentialId] = CredentialStatusList.unknown
                 }
+            } else if credential.asDcSdJwt() != nil {
+                // IETF SD-JWT VC (dc+sd-jwt) - status checking not yet implemented
+                res[credentialId] = CredentialStatusList.undefined
             }
         }
 
@@ -350,6 +362,14 @@ public class CredentialPack {
                 return sdJwt.credentialClaims()
             } else {
                 return sdJwt.credentialClaims(
+                    containing: claimNames
+                )
+            }
+        } else if let dcSdJwt = credential.asDcSdJwt() {
+            if claimNames.isEmpty {
+                return dcSdJwt.credentialClaims()
+            } else {
+                return dcSdJwt.credentialClaims(
                     containing: claimNames
                 )
             }

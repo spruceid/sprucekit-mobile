@@ -231,6 +231,16 @@ impl Holder {
             ClaimFormatPayload::AlgValues(vec!["ES256".into()]),
         );
 
+        // Insert support for IETF SD-JWT VC (dc+sd-jwt) format.
+        // Per draft-ietf-oauth-sd-jwt-vc-14.
+        metadata.vp_formats_supported_mut().0.insert(
+            ClaimFormatDesignation::DcSdJwt,
+            ClaimFormatPayload::Other(serde_json::json!({
+                "sd-jwt_alg_values": ["ES256"],
+                "kb-jwt_alg_values": ["ES256"]
+            })),
+        );
+
         metadata
             // Insert support for client ID prefixes.
             .add_client_id_prefixes_supported(&[

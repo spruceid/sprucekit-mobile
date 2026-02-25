@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.rs.Cwt
+import com.spruceid.mobile.sdk.rs.IetfSdJwtVc
 import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
@@ -169,6 +170,12 @@ fun addCredential(credentialPack: CredentialPack, rawCredential: String): Creden
     }
 
     try {
+        credentialPack.addDcSdJwt(IetfSdJwtVc.newFromCompactSdJwt(rawCredential))
+        return credentialPack
+    } catch (_: Exception) {
+    }
+
+    try {
         credentialPack.addJwtVc(JwtVc.newFromCompactJws(rawCredential))
         return credentialPack
     } catch (_: Exception) {
@@ -267,6 +274,7 @@ fun getCredentialIdTitleAndIssuer(
         claims.entries.firstNotNullOf { claim ->
             val c = credentialPack.getCredentialById(claim.key)
             val mdoc = c?.asMsoMdoc()
+            val dcSdJwt = c?.asDcSdJwt()
             if (
                 c?.asSdJwt() != null ||
                 c?.asJwtVc() != null ||
@@ -278,26 +286,44 @@ fun getCredentialIdTitleAndIssuer(
                 if (issuer != null && issuer.toString().isNotBlank()) {
                     claim.value.put("issuer", issuer)
                 }
-                val title = mdocDisplayName(mdoc.doctype())
+                val title = credentialTypeDisplayName(mdoc.doctype())
                 claim.value.put("name", title)
+                claim
+            } else if (dcSdJwt != null) {
+                val issuer = claim.value.opt("issuing_authority")
+                if (issuer != null && issuer.toString().isNotBlank()) {
+                    claim.value.put("issuer", issuer)
+                }
+                claim.value.put("name", credentialTypeDisplayName(dcSdJwt.vct()))
                 claim
             } else {
                 null
             }
         }
     }
-    // Mdoc
-    if (credential?.asMsoMdoc() != null || cred.equals(null)) {
-        cred = claims.entries.firstNotNullOf { claim ->
-            val mdoc = credentialPack.getCredentialById(claim.key)?.asMsoMdoc()
+    // dc+sd-jwt: use vct for display name
+    if (credential?.asDcSdJwt() != null || cred == null) {
+        cred = claims.entries.firstNotNullOfOrNull { claim ->
+            val dcSdJwt = credentialPack.getCredentialById(claim.key)?.asDcSdJwt() ?: return@firstNotNullOfOrNull null
             val issuer = claim.value.opt("issuing_authority")
             if (issuer != null && issuer.toString().isNotBlank()) {
                 claim.value.put("issuer", issuer)
             }
-            val title = mdoc?.let { mdocDisplayName(it.doctype()) } ?: ""
-            claim.value.put("name", title)
+            claim.value.put("name", credentialTypeDisplayName(dcSdJwt.vct()))
             claim
-        }
+        } ?: cred
+    }
+    // Mdoc: use doctype for display name
+    if (credential?.asMsoMdoc() != null || cred == null) {
+        cred = claims.entries.firstNotNullOfOrNull { claim ->
+            val mdoc = credentialPack.getCredentialById(claim.key)?.asMsoMdoc() ?: return@firstNotNullOfOrNull null
+            val issuer = claim.value.opt("issuing_authority")
+            if (issuer != null && issuer.toString().isNotBlank()) {
+                claim.value.put("issuer", issuer)
+            }
+            claim.value.put("name", credentialTypeDisplayName(mdoc.doctype()))
+            claim
+        } ?: cred
     }
 
     val credentialKey = cred.key
@@ -361,10 +387,11 @@ fun credentialPackHasMdoc(credentialPack: CredentialPack): Boolean {
     return false
 }
 
-// MARK: - Mdoc Display Name Mapping
+// MARK: - Credential Type Display Name Mapping
 
-/** Known mdoc doctype to display name mappings. */
-private val mdocDoctypeDisplayNames = mapOf(
+/** Known credential type identifier to display name mappings.
+ *  Works for both mdoc doctypes and dc+sd-jwt vct values (shared namespace). */
+private val knownCredentialTypeDisplayNames = mapOf(
     "org.iso.18013.5.1.mDL" to "Mobile Driver's License",
     "org.iso.23220.photoID.1" to "Photo ID",
     "org.iso.7367.1.mVRC" to "Mobile Vehicle Registration Certificate",
@@ -377,18 +404,19 @@ private val mdocDoctypeDisplayNames = mapOf(
 )
 
 /**
- * Returns a human-readable display name for the given mdoc doctype.
- * Falls back to generating a readable name from the doctype string if unknown.
+ * Returns a human-readable display name for the given credential type identifier.
+ * Works for both mdoc doctypes and dc+sd-jwt vct values.
+ * Falls back to generating a readable name from the identifier if unknown.
  */
-fun mdocDisplayName(doctype: String): String {
-    return mdocDoctypeDisplayNames[doctype] ?: humanizeDoctype(doctype)
+fun credentialTypeDisplayName(typeIdentifier: String): String {
+    return knownCredentialTypeDisplayNames[typeIdentifier] ?: humanizeTypeIdentifier(typeIdentifier)
 }
 
 /**
- * Generates a human-readable name from an unknown doctype.
+ * Generates a human-readable name from an unknown type identifier.
  * Example: "eu.europa.ec.eudi.hiid.1" -> "Hiid"
  */
-private fun humanizeDoctype(doctype: String): String {
+private fun humanizeTypeIdentifier(doctype: String): String {
     val components = doctype.split(".")
     if (components.size < 2) return doctype
 
@@ -403,15 +431,6 @@ private fun humanizeDoctype(doctype: String): String {
         .replace("_", " ")
         .split(" ")
         .joinToString(" ") { word ->
-            word.replaceFirstChar { it.uppercaseChar() }.drop(1).lowercase() +
-                word.firstOrNull()?.uppercaseChar()?.toString().orEmpty()
-        }.let {
-            // Fix: properly capitalize first letter of each word
-            meaningfulComponent
-                .replace("_", " ")
-                .split(" ")
-                .joinToString(" ") { word ->
-                    word.lowercase().replaceFirstChar { it.uppercaseChar() }
-                }
+            word.lowercase().replaceFirstChar { it.uppercaseChar() }
         }
 }

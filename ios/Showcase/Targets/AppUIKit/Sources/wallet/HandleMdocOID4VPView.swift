@@ -405,7 +405,7 @@ struct MdocSelectorItem: View {
         VStack {
             HStack {
                 Toggle(isOn: $isChecked) {
-                    Text(mdocDisplayName(for: doctype ?? ""))
+                    Text(credentialTypeDisplayName(for: doctype ?? ""))
                         .font(
                             .customFont(
                                 font: .inter, style: .semiBold, size: .h3)
