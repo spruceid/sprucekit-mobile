@@ -20,6 +20,12 @@ jobs:
       - name: Validate tag
         run: |
           echo "${{ github.event.inputs.version }}" | grep -P '^[0-9]+\.[0-9]+\.[0-9]+'
+      - name: Check tag does not already exist
+        run: |
+          if git ls-remote --tags origin "refs/tags/${{ github.event.inputs.version }}" | grep -q .; then
+            echo "Tag ${{ github.event.inputs.version }} already exists"
+            exit 1
+          fi
 
   android:
     runs-on: ubuntu-latest
