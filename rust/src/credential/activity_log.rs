@@ -96,7 +96,7 @@ impl ActivityLogFilterOptions {
         if self
             .interacted_with
             .as_ref()
-            .is_some_and(|actor| entry.interaction_with.contains(actor))
+            .is_some_and(|actor| !entry.interaction_with.contains(actor))
         {
             return false;
         }
@@ -665,6 +665,392 @@ mod test {
 
     use super::*;
 
+    /// Helper to create an ActivityLogEntry with explicit control over
+    /// timestamp and interaction_with for deterministic filter testing.
+    fn make_entry(
+        credential_id: Uuid,
+        entry_type: ActivityLogEntryType,
+        description: &str,
+        interaction_with: &str,
+        timestamp: u64,
+        fields: Vec<String>,
+    ) -> ActivityLogEntry {
+        ActivityLogEntry {
+            id: Uuid::new_v4(),
+            credential_id,
+            r#type: entry_type,
+            timestamp,
+            date: chrono::DateTime::from_timestamp(timestamp as i64, 0)
+                .unwrap()
+                .to_rfc3339(),
+            description: description.to_string(),
+            interaction_with: interaction_with.to_string(),
+            fields,
+            url: None,
+            hidden: false,
+        }
+    }
+
+    /// Runs the full suite of activity log filtering assertions against
+    /// the provided storage backend so we can reuse the logic for both
+    /// the plain `DummyStorage` and the `NamespacedDummyStorage`.
+    async fn run_activity_log_filter_test(
+        storage: Arc<dyn StorageManagerInterface>,
+    ) -> Result<(), ActivityLogError> {
+        let credential_id = Uuid::new_v4();
+        let activity_log = ActivityLog::load(credential_id, storage).await?;
+
+        // ── seed data ────────────────────────────────────────────────
+        // Timestamps spaced 1 day apart starting at 2024-01-01 00:00 UTC
+        let day = 86_400u64; // seconds in a day
+        let base_ts: u64 = 1_704_067_200; // 2024-01-01T00:00:00Z
+
+        let entry_a = make_entry(
+            credential_id,
+            ActivityLogEntryType::Issued,
+            "Credential issued by ACME",
+            "ACME Corp",
+            base_ts,
+            vec!["Name".into()],
+        );
+        let entry_b = make_entry(
+            credential_id,
+            ActivityLogEntryType::Shared,
+            "Credential shared with Verifier",
+            "VerifyMe Inc",
+            base_ts + day,
+            vec!["Name".into(), "DOB".into()],
+        );
+        let entry_c = make_entry(
+            credential_id,
+            ActivityLogEntryType::Request,
+            "Credential requested by Another ACME",
+            "Another ACME Authority",
+            base_ts + 2 * day,
+            vec![],
+        );
+        let entry_d = make_entry(
+            credential_id,
+            ActivityLogEntryType::Shared,
+            "Credential shared again",
+            "VerifyMe Inc",
+            base_ts + 3 * day,
+            vec!["Age".into()],
+        );
+        let entry_e = make_entry(
+            credential_id,
+            ActivityLogEntryType::Deleted,
+            "Credential deleted",
+            "Self",
+            base_ts + 4 * day,
+            vec![],
+        );
+
+        // Save IDs before moving entries into Arcs
+        let id_a = entry_a.id;
+        let id_b = entry_b.id;
+        let id_c = entry_c.id;
+        let id_d = entry_d.id;
+        let id_e = entry_e.id;
+
+        for entry in [&entry_a, &entry_b, &entry_c, &entry_d, &entry_e] {
+            activity_log.add(Arc::new(entry.clone())).await?;
+        }
+
+        // Sanity check – all five entries present without filters
+        let all = activity_log.entries(None).await?;
+        assert_eq!(all.len(), 5, "Expected all 5 entries without any filter");
+
+        // ── 1. Filter by `interacted_with` ───────────────────────────
+
+        // Exact actor name – should match entries B and D
+        let filter_verify = Some(ActivityLogFilterOptions {
+            from_date: None,
+            to_date: None,
+            r#type: None,
+            interacted_with: Some("VerifyMe Inc".into()),
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_verify).await?;
+        assert_eq!(
+            results.len(),
+            2,
+            "interacted_with 'VerifyMe Inc' should match 2 entries"
+        );
+        let result_ids: Vec<Uuid> = results.iter().map(|e| e.id).collect();
+        assert!(result_ids.contains(&id_b));
+        assert!(result_ids.contains(&id_d));
+
+        // Substring match – "ACME" should match both "ACME Corp" (A)
+        // and "Another ACME Authority" (C)
+        let filter_acme = Some(ActivityLogFilterOptions {
+            from_date: None,
+            to_date: None,
+            r#type: None,
+            interacted_with: Some("ACME".into()),
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_acme).await?;
+        assert_eq!(
+            results.len(),
+            2,
+            "interacted_with 'ACME' (substring) should match entries A and C"
+        );
+        let result_ids: Vec<Uuid> = results.iter().map(|e| e.id).collect();
+        assert!(result_ids.contains(&id_a));
+        assert!(result_ids.contains(&id_c));
+
+        // No match – actor that doesn't exist
+        let filter_none = Some(ActivityLogFilterOptions {
+            from_date: None,
+            to_date: None,
+            r#type: None,
+            interacted_with: Some("NonExistent Org".into()),
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_none).await?;
+        assert_eq!(
+            results.len(),
+            0,
+            "interacted_with 'NonExistent Org' should match nothing"
+        );
+
+        // ── 2. Filter by date range ──────────────────────────────────
+
+        // from_date only – entries from day 2 onward (C, D, E)
+        let filter_from = Some(ActivityLogFilterOptions {
+            from_date: Some(base_ts + 2 * day),
+            to_date: None,
+            r#type: None,
+            interacted_with: None,
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_from).await?;
+        assert_eq!(
+            results.len(),
+            3,
+            "from_date at day 2 should return 3 entries (C, D, E)"
+        );
+        let result_ids: Vec<Uuid> = results.iter().map(|e| e.id).collect();
+        assert!(result_ids.contains(&id_c));
+        assert!(result_ids.contains(&id_d));
+        assert!(result_ids.contains(&id_e));
+
+        // to_date only – entries up to day 1 (A, B)
+        let filter_to = Some(ActivityLogFilterOptions {
+            from_date: None,
+            to_date: Some(base_ts + day),
+            r#type: None,
+            interacted_with: None,
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_to).await?;
+        assert_eq!(
+            results.len(),
+            2,
+            "to_date at day 1 should return 2 entries (A, B)"
+        );
+        let result_ids: Vec<Uuid> = results.iter().map(|e| e.id).collect();
+        assert!(result_ids.contains(&id_a));
+        assert!(result_ids.contains(&id_b));
+
+        // Bounded range – from day 1 to day 3 inclusive (B, C, D)
+        let filter_range = Some(ActivityLogFilterOptions {
+            from_date: Some(base_ts + day),
+            to_date: Some(base_ts + 3 * day),
+            r#type: None,
+            interacted_with: None,
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_range).await?;
+        assert_eq!(
+            results.len(),
+            3,
+            "date range day 1..=day 3 should return 3 entries (B, C, D)"
+        );
+        let result_ids: Vec<Uuid> = results.iter().map(|e| e.id).collect();
+        assert!(result_ids.contains(&id_b));
+        assert!(result_ids.contains(&id_c));
+        assert!(result_ids.contains(&id_d));
+
+        // Empty range – from_date after all entries
+        let filter_empty_range = Some(ActivityLogFilterOptions {
+            from_date: Some(base_ts + 10 * day),
+            to_date: None,
+            r#type: None,
+            interacted_with: None,
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_empty_range).await?;
+        assert_eq!(
+            results.len(),
+            0,
+            "from_date far in the future should return 0 entries"
+        );
+
+        // ── 3. Filter by type ────────────────────────────────────────
+
+        let filter_shared = Some(ActivityLogFilterOptions {
+            from_date: None,
+            to_date: None,
+            r#type: Some(ActivityLogEntryType::Shared),
+            interacted_with: None,
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_shared).await?;
+        assert_eq!(
+            results.len(),
+            2,
+            "type=Shared should return entries B and D"
+        );
+        let result_ids: Vec<Uuid> = results.iter().map(|e| e.id).collect();
+        assert!(result_ids.contains(&id_b));
+        assert!(result_ids.contains(&id_d));
+
+        let filter_deleted = Some(ActivityLogFilterOptions {
+            from_date: None,
+            to_date: None,
+            r#type: Some(ActivityLogEntryType::Deleted),
+            interacted_with: None,
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_deleted).await?;
+        assert_eq!(results.len(), 1, "type=Deleted should return entry E");
+        assert_eq!(results[0].id, id_e);
+
+        // ── 4. Combined filters ──────────────────────────────────────
+
+        // type=Shared AND interacted_with="VerifyMe Inc" → B, D
+        let filter_shared_verify = Some(ActivityLogFilterOptions {
+            from_date: None,
+            to_date: None,
+            r#type: Some(ActivityLogEntryType::Shared),
+            interacted_with: Some("VerifyMe Inc".into()),
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_shared_verify).await?;
+        assert_eq!(
+            results.len(),
+            2,
+            "type=Shared + actor=VerifyMe Inc should return B, D"
+        );
+
+        // type=Shared AND date range day 0..=day 1 → only B
+        let filter_shared_early = Some(ActivityLogFilterOptions {
+            from_date: Some(base_ts),
+            to_date: Some(base_ts + day),
+            r#type: Some(ActivityLogEntryType::Shared),
+            interacted_with: None,
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_shared_early).await?;
+        assert_eq!(
+            results.len(),
+            1,
+            "type=Shared + date range day 0..=day 1 should return only B"
+        );
+        assert_eq!(results[0].id, id_b);
+
+        // interacted_with="ACME" AND date range day 0..=day 0 → only A
+        let filter_acme_day0 = Some(ActivityLogFilterOptions {
+            from_date: Some(base_ts),
+            to_date: Some(base_ts),
+            r#type: None,
+            interacted_with: Some("ACME".into()),
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_acme_day0).await?;
+        assert_eq!(
+            results.len(),
+            1,
+            "actor=ACME + date=day 0 only should return A"
+        );
+        assert_eq!(results[0].id, id_a);
+
+        // All filters combined: type=Shared, actor=VerifyMe, day 2..=day 4 → only D
+        let filter_all = Some(ActivityLogFilterOptions {
+            from_date: Some(base_ts + 2 * day),
+            to_date: Some(base_ts + 4 * day),
+            r#type: Some(ActivityLogEntryType::Shared),
+            interacted_with: Some("VerifyMe".into()),
+            max_items: None,
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_all).await?;
+        assert_eq!(
+            results.len(),
+            1,
+            "type=Shared + actor=VerifyMe + day 2..=4 should return only D"
+        );
+        assert_eq!(results[0].id, id_d);
+
+        // ── 5. max_items ─────────────────────────────────────────────
+
+        let filter_max2 = Some(ActivityLogFilterOptions {
+            from_date: None,
+            to_date: None,
+            r#type: None,
+            interacted_with: None,
+            max_items: Some(2),
+            use_cache: false,
+        });
+        let results = activity_log.entries(filter_max2).await?;
+        assert_eq!(
+            results.len(),
+            2,
+            "max_items=2 should return exactly 2 entries"
+        );
+
+        // ── 6. use_cache path returns same filtered results ──────────
+
+        // Hydrate the cache so the cached path has data
+        activity_log.hydrate_cache().await?;
+
+        let filter_cached_verify = Some(ActivityLogFilterOptions {
+            from_date: None,
+            to_date: None,
+            r#type: None,
+            interacted_with: Some("VerifyMe Inc".into()),
+            max_items: None,
+            use_cache: true,
+        });
+        let cached_results = activity_log.entries(filter_cached_verify).await?;
+        assert_eq!(
+            cached_results.len(),
+            2,
+            "Cached interacted_with 'VerifyMe Inc' should also return 2 entries"
+        );
+
+        let filter_cached_range = Some(ActivityLogFilterOptions {
+            from_date: Some(base_ts + day),
+            to_date: Some(base_ts + 3 * day),
+            r#type: None,
+            interacted_with: None,
+            max_items: None,
+            use_cache: true,
+        });
+        let cached_results = activity_log.entries(filter_cached_range).await?;
+        assert_eq!(
+            cached_results.len(),
+            3,
+            "Cached date range day 1..=day 3 should also return 3 entries (B, C, D)"
+        );
+
+        Ok(())
+    }
+
     async fn run_activity_log_test(
         storage: Arc<dyn StorageManagerInterface>,
     ) -> Result<(), ActivityLogError> {
@@ -727,5 +1113,17 @@ mod test {
     async fn test_namespaced_activity_log() -> Result<(), ActivityLogError> {
         let storage: Arc<NamespacedDummyStorage> = Arc::new(NamespacedDummyStorage::default());
         run_activity_log_test(storage).await
+    }
+
+    #[tokio::test]
+    async fn test_activity_log_filter() -> Result<(), ActivityLogError> {
+        let storage = Arc::new(DummyStorage::default());
+        run_activity_log_filter_test(storage).await
+    }
+
+    #[tokio::test]
+    async fn test_namespaced_activity_log_filter() -> Result<(), ActivityLogError> {
+        let storage: Arc<NamespacedDummyStorage> = Arc::new(NamespacedDummyStorage::default());
+        run_activity_log_filter_test(storage).await
     }
 }
