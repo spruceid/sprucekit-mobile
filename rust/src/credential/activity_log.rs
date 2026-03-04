@@ -45,7 +45,8 @@ pub enum ActivityLogEntryType {
     Refresh,
     Review,
     Deleted,
-    // Add more as needed.
+    Suspended,
+    Revoked, // Add more as needed.
 }
 
 #[derive(uniffi::Record)]
