@@ -28,7 +28,7 @@ class Oid4vpSigner(keyId: String?) : PresentationSigner {
         if (!keyManager.keyExists(this.keyId)) {
             keyManager.generateSigningKey(id = this.keyId)
         }
-        this.jwk = keyManager.getJwk(this.keyId)
+        this.jwk = keyManager.getJwk(this.keyId)?.toString()
             ?: throw IllegalArgumentException("Invalid kid")
     }
 
@@ -108,7 +108,8 @@ internal class Oid4vpAdapter(
                     credentials,
                     trustedDids,
                     signer,
-                    contextMap
+                    contextMap,
+                    KeyManager()
                 )
 
                 synchronized(this@Oid4vpAdapter) {
@@ -202,7 +203,7 @@ internal class Oid4vpAdapter(
                 required = field.required(),
                 retained = field.retained(),
                 purpose = field.purpose(),
-                inputDescriptorId = field.inputDescriptorId(),
+                credentialQueryId = field.credentialQueryId(),
                 rawFields = field.rawFields()
             )
         }
@@ -241,9 +242,7 @@ internal class Oid4vpAdapter(
 
                 // Create response options
                 val responseOptions = RsResponseOptions(
-                    shouldStripQuotes = options.shouldStripQuotes,
-                    forceArraySerialization = options.forceArraySerialization,
-                    removeVpPathPrefix = options.removeVpPathPrefix
+                    forceArraySerialization = options.forceArraySerialization
                 )
 
                 // Create permission response
@@ -263,6 +262,51 @@ internal class Oid4vpAdapter(
                 )))
             }
         }
+    }
+
+    override fun getCredentialRequirements(): List<CredentialRequirementData> {
+        val request = synchronized(this) { permissionRequest } ?: return emptyList()
+
+        val requirements = request.credentialRequirements()
+        return requirements.map { req ->
+            val creds = req.credentials.mapIndexed { index, cred ->
+                PresentableCredentialData(
+                    index = index.toLong(),
+                    credentialId = cred.asParsedCredential().id(),
+                    selectiveDisclosable = cred.selectiveDisclosable()
+                )
+            }
+            CredentialRequirementData(
+                displayName = req.displayName,
+                required = req.required,
+                credentialQueryIds = req.credentialQueryIds,
+                credentials = creds
+            )
+        }
+    }
+
+    override fun getCredentialsGroupedByQuery(): List<CredentialQueryGroupData> {
+        val request = synchronized(this) { permissionRequest } ?: return emptyList()
+
+        val groups = request.credentialsGroupedByQuery()
+        return groups.map { group ->
+            val creds = group.credentials.mapIndexed { index, cred ->
+                PresentableCredentialData(
+                    index = index.toLong(),
+                    credentialId = cred.asParsedCredential().id(),
+                    selectiveDisclosable = cred.selectiveDisclosable()
+                )
+            }
+            CredentialQueryGroupData(
+                credentialQueryId = group.credentialQueryId,
+                credentials = creds
+            )
+        }
+    }
+
+    override fun getCredentialQueryIds(): List<String> {
+        val request = synchronized(this) { permissionRequest } ?: return emptyList()
+        return request.credentialQueryIds()
     }
 
     override fun cancel() {
