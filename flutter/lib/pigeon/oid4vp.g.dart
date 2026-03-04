@@ -9,9 +9,9 @@ import 'package:flutter/foundation.dart' show ReadBuffer, WriteBuffer;
 import 'package:flutter/services.dart';
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -36,40 +36,38 @@ Object? _extractReplyValueOrThrow(
 bool _deepEquals(Object? a, Object? b) {
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-        .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
-    return a.length == b.length && a.entries.every((MapEntry<Object?, Object?> entry) =>
-        (b as Map<Object?, Object?>).containsKey(entry.key) &&
-        _deepEquals(entry.value, b[entry.key]));
+    return a.length == b.length &&
+        a.entries.every(
+          (MapEntry<Object?, Object?> entry) =>
+              (b as Map<Object?, Object?>).containsKey(entry.key) &&
+              _deepEquals(entry.value, b[entry.key]),
+        );
   }
   return a == b;
 }
 
-
 /// Options for creating the permission response
 class ResponseOptions {
-  ResponseOptions({
-    required this.forceArraySerialization,
-  });
+  ResponseOptions({required this.forceArraySerialization});
 
   bool forceArraySerialization;
 
   List<Object?> _toList() {
-    return <Object?>[
-      forceArraySerialization,
-    ];
+    return <Object?>[forceArraySerialization];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ResponseOptions decode(Object result) {
     result as List<Object?>;
-    return ResponseOptions(
-      forceArraySerialization: result[0]! as bool,
-    );
+    return ResponseOptions(forceArraySerialization: result[0]! as bool);
   }
 
   @override
@@ -86,8 +84,7 @@ class ResponseOptions {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// A field requested by the verifier
@@ -133,7 +130,8 @@ class RequestedFieldData {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static RequestedFieldData decode(Object result) {
     result as List<Object?>;
@@ -163,8 +161,7 @@ class RequestedFieldData {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// A credential that can be presented
@@ -182,15 +179,12 @@ class PresentableCredentialData {
   bool selectiveDisclosable;
 
   List<Object?> _toList() {
-    return <Object?>[
-      index,
-      credentialId,
-      selectiveDisclosable,
-    ];
+    return <Object?>[index, credentialId, selectiveDisclosable];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PresentableCredentialData decode(Object result) {
     result as List<Object?>;
@@ -204,7 +198,8 @@ class PresentableCredentialData {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! PresentableCredentialData || other.runtimeType != runtimeType) {
+    if (other is! PresentableCredentialData ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -215,8 +210,7 @@ class PresentableCredentialData {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Information about the permission request
@@ -250,7 +244,8 @@ class PermissionRequestInfo {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PermissionRequestInfo decode(Object result) {
     result as List<Object?>;
@@ -277,36 +272,29 @@ class PermissionRequestInfo {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Result of OID4VP operations
-sealed class Oid4vpResult {
-}
+sealed class Oid4vpResult {}
 
 /// Operation succeeded
 class Oid4vpSuccess extends Oid4vpResult {
-  Oid4vpSuccess({
-    this.message,
-  });
+  Oid4vpSuccess({this.message});
 
   String? message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vpSuccess decode(Object result) {
     result as List<Object?>;
-    return Oid4vpSuccess(
-      message: result[0] as String?,
-    );
+    return Oid4vpSuccess(message: result[0] as String?);
   }
 
   @override
@@ -323,32 +311,26 @@ class Oid4vpSuccess extends Oid4vpResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Operation failed with error
 class Oid4vpError extends Oid4vpResult {
-  Oid4vpError({
-    required this.message,
-  });
+  Oid4vpError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vpError decode(Object result) {
     result as List<Object?>;
-    return Oid4vpError(
-      message: result[0]! as String,
-    );
+    return Oid4vpError(message: result[0]! as String);
   }
 
   @override
@@ -365,39 +347,33 @@ class Oid4vpError extends Oid4vpResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Result of handling an authorization request
-sealed class HandleAuthRequestResult {
-}
+sealed class HandleAuthRequestResult {}
 
 /// Authorization request handled successfully
 class HandleAuthRequestSuccess extends HandleAuthRequestResult {
-  HandleAuthRequestSuccess({
-    required this.credentials,
-    required this.info,
-  });
+  HandleAuthRequestSuccess({required this.credentials, required this.info});
 
   List<PresentableCredentialData> credentials;
 
   PermissionRequestInfo info;
 
   List<Object?> _toList() {
-    return <Object?>[
-      credentials,
-      info,
-    ];
+    return <Object?>[credentials, info];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static HandleAuthRequestSuccess decode(Object result) {
     result as List<Object?>;
     return HandleAuthRequestSuccess(
-      credentials: (result[0] as List<Object?>?)!.cast<PresentableCredentialData>(),
+      credentials: (result[0] as List<Object?>?)!
+          .cast<PresentableCredentialData>(),
       info: result[1]! as PermissionRequestInfo,
     );
   }
@@ -405,7 +381,8 @@ class HandleAuthRequestSuccess extends HandleAuthRequestResult {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! HandleAuthRequestSuccess || other.runtimeType != runtimeType) {
+    if (other is! HandleAuthRequestSuccess ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -416,32 +393,26 @@ class HandleAuthRequestSuccess extends HandleAuthRequestResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Authorization request failed
 class HandleAuthRequestError extends HandleAuthRequestResult {
-  HandleAuthRequestError({
-    required this.message,
-  });
+  HandleAuthRequestError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static HandleAuthRequestError decode(Object result) {
     result as List<Object?>;
-    return HandleAuthRequestError(
-      message: result[0]! as String,
-    );
+    return HandleAuthRequestError(message: result[0]! as String);
   }
 
   @override
@@ -458,8 +429,7 @@ class HandleAuthRequestError extends HandleAuthRequestResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// A group of credentials matching a credential query
@@ -474,27 +444,27 @@ class CredentialQueryGroupData {
   List<PresentableCredentialData> credentials;
 
   List<Object?> _toList() {
-    return <Object?>[
-      credentialQueryId,
-      credentials,
-    ];
+    return <Object?>[credentialQueryId, credentials];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CredentialQueryGroupData decode(Object result) {
     result as List<Object?>;
     return CredentialQueryGroupData(
       credentialQueryId: result[0]! as String,
-      credentials: (result[1] as List<Object?>?)!.cast<PresentableCredentialData>(),
+      credentials: (result[1] as List<Object?>?)!
+          .cast<PresentableCredentialData>(),
     );
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! CredentialQueryGroupData || other.runtimeType != runtimeType) {
+    if (other is! CredentialQueryGroupData ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -505,8 +475,7 @@ class CredentialQueryGroupData {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// A credential requirement from the verifier
@@ -527,16 +496,12 @@ class CredentialRequirementData {
   List<PresentableCredentialData> credentials;
 
   List<Object?> _toList() {
-    return <Object?>[
-      displayName,
-      required,
-      credentialQueryIds,
-      credentials,
-    ];
+    return <Object?>[displayName, required, credentialQueryIds, credentials];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CredentialRequirementData decode(Object result) {
     result as List<Object?>;
@@ -544,14 +509,16 @@ class CredentialRequirementData {
       displayName: result[0]! as String,
       required: result[1]! as bool,
       credentialQueryIds: (result[2] as List<Object?>?)!.cast<String>(),
-      credentials: (result[3] as List<Object?>?)!.cast<PresentableCredentialData>(),
+      credentials: (result[3] as List<Object?>?)!
+          .cast<PresentableCredentialData>(),
     );
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! CredentialRequirementData || other.runtimeType != runtimeType) {
+    if (other is! CredentialRequirementData ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -562,10 +529,8 @@ class CredentialRequirementData {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -574,34 +539,34 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is ResponseOptions) {
+    } else if (value is ResponseOptions) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is RequestedFieldData) {
+    } else if (value is RequestedFieldData) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is PresentableCredentialData) {
+    } else if (value is PresentableCredentialData) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is PermissionRequestInfo) {
+    } else if (value is PermissionRequestInfo) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vpSuccess) {
+    } else if (value is Oid4vpSuccess) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vpError) {
+    } else if (value is Oid4vpError) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is HandleAuthRequestSuccess) {
+    } else if (value is HandleAuthRequestSuccess) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is HandleAuthRequestError) {
+    } else if (value is HandleAuthRequestError) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is CredentialQueryGroupData) {
+    } else if (value is CredentialQueryGroupData) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is CredentialRequirementData) {
+    } else if (value is CredentialRequirementData) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
     } else {
@@ -646,8 +611,10 @@ class Oid4vp {
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   Oid4vp({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    : pigeonVar_binaryMessenger = binaryMessenger,
+      pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+          ? '.$messageChannelSuffix'
+          : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -660,22 +627,29 @@ class Oid4vp {
   /// @param trustedDids List of trusted DIDs for verification
   /// @param keyId The key identifier for signing (will create if doesn't exist)
   /// @param contextMap Optional JSON-LD context map
-  Future<Oid4vpResult> createHolder(List<String> credentialPackIds, List<String> trustedDids, String keyId, Map<String, String>? contextMap) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.createHolder$pigeonVar_messageChannelSuffix';
+  Future<Oid4vpResult> createHolder(
+    List<String> credentialPackIds,
+    List<String> trustedDids,
+    String keyId,
+    Map<String, String>? contextMap,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.createHolder$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialPackIds, trustedDids, keyId, contextMap]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[credentialPackIds, trustedDids, keyId, contextMap],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as Oid4vpResult;
   }
 
@@ -684,21 +658,23 @@ class Oid4vp {
   /// @param url The authorization request URL (e.g., "openid4vp://...")
   /// @return HandleAuthRequestResult with matching credentials on success
   Future<HandleAuthRequestResult> handleAuthorizationRequest(String url) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.handleAuthorizationRequest$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.handleAuthorizationRequest$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[url]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[url],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as HandleAuthRequestResult;
   }
 
@@ -706,22 +682,26 @@ class Oid4vp {
   ///
   /// @param credentialIndex Index of the credential in the returned list
   /// @return List of requested fields for the credential
-  Future<List<RequestedFieldData>> getRequestedFields(int credentialIndex) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getRequestedFields$pigeonVar_messageChannelSuffix';
+  Future<List<RequestedFieldData>> getRequestedFields(
+    int credentialIndex,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getRequestedFields$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialIndex]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[credentialIndex],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return (pigeonVar_replyValue as List<Object?>).cast<RequestedFieldData>();
   }
 
@@ -730,22 +710,28 @@ class Oid4vp {
   /// @param selectedCredentialIndices Indices of selected credentials
   /// @param selectedFieldPaths List of selected field paths per credential
   /// @param options Response configuration options
-  Future<Oid4vpResult> submitResponse(List<int> selectedCredentialIndices, List<List<String>> selectedFieldPaths, ResponseOptions options) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.submitResponse$pigeonVar_messageChannelSuffix';
+  Future<Oid4vpResult> submitResponse(
+    List<int> selectedCredentialIndices,
+    List<List<String>> selectedFieldPaths,
+    ResponseOptions options,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.submitResponse$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[selectedCredentialIndices, selectedFieldPaths, options]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[selectedCredentialIndices, selectedFieldPaths, options],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as Oid4vpResult;
   }
 
@@ -753,7 +739,8 @@ class Oid4vp {
   ///
   /// @return List of credential requirements
   Future<List<CredentialRequirementData>> getCredentialRequirements() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getCredentialRequirements$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getCredentialRequirements$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -763,19 +750,20 @@ class Oid4vp {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
-    return (pigeonVar_replyValue as List<Object?>).cast<CredentialRequirementData>();
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
+    return (pigeonVar_replyValue as List<Object?>)
+        .cast<CredentialRequirementData>();
   }
 
   /// Get credentials grouped by credential query
   ///
   /// @return List of credential query groups
   Future<List<CredentialQueryGroupData>> getCredentialsGroupedByQuery() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getCredentialsGroupedByQuery$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getCredentialsGroupedByQuery$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -785,19 +773,20 @@ class Oid4vp {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
-    return (pigeonVar_replyValue as List<Object?>).cast<CredentialQueryGroupData>();
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
+    return (pigeonVar_replyValue as List<Object?>)
+        .cast<CredentialQueryGroupData>();
   }
 
   /// Get credential query IDs from the permission request
   ///
   /// @return List of credential query ID strings
   Future<List<String>> getCredentialQueryIds() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getCredentialQueryIds$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getCredentialQueryIds$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -807,17 +796,17 @@ class Oid4vp {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return (pigeonVar_replyValue as List<Object?>).cast<String>();
   }
 
   /// Cancel and cleanup the current session
   Future<void> cancel() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.cancel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -827,10 +816,9 @@ class Oid4vp {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }

@@ -14,20 +14,24 @@ PlatformException _createConnectionError(String channelName) {
     message: 'Unable to establish connection on channel: "$channelName".',
   );
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-        .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
-    return a.length == b.length && a.entries.every((MapEntry<Object?, Object?> entry) =>
-        (b as Map<Object?, Object?>).containsKey(entry.key) &&
-        _deepEquals(entry.value, b[entry.key]));
+    return a.length == b.length &&
+        a.entries.every(
+          (MapEntry<Object?, Object?> entry) =>
+              (b as Map<Object?, Object?>).containsKey(entry.key) &&
+              _deepEquals(entry.value, b[entry.key]),
+        );
   }
   return a == b;
 }
-
 
 /// A field requested by the verifier for mDoc presentation
 class RequestedField180137Data {
@@ -75,7 +79,8 @@ class RequestedField180137Data {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static RequestedField180137Data decode(Object result) {
     result as List<Object?>;
@@ -93,7 +98,8 @@ class RequestedField180137Data {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! RequestedField180137Data || other.runtimeType != runtimeType) {
+    if (other is! RequestedField180137Data ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -104,8 +110,7 @@ class RequestedField180137Data {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// A matching credential for the OID4VP request
@@ -126,22 +131,20 @@ class RequestMatch180137Data {
   List<RequestedField180137Data> requestedFields;
 
   List<Object?> _toList() {
-    return <Object?>[
-      index,
-      credentialId,
-      requestedFields,
-    ];
+    return <Object?>[index, credentialId, requestedFields];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static RequestMatch180137Data decode(Object result) {
     result as List<Object?>;
     return RequestMatch180137Data(
       index: result[0]! as int,
       credentialId: result[1]! as String,
-      requestedFields: (result[2] as List<Object?>?)!.cast<RequestedField180137Data>(),
+      requestedFields: (result[2] as List<Object?>?)!
+          .cast<RequestedField180137Data>(),
     );
   }
 
@@ -159,16 +162,12 @@ class RequestMatch180137Data {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Information about the OID4VP request
 class Oid4vpMdocRequestInfo {
-  Oid4vpMdocRequestInfo({
-    this.requestedBy,
-    required this.matches,
-  });
+  Oid4vpMdocRequestInfo({this.requestedBy, required this.matches});
 
   /// Name of the verifier requesting the credential
   String? requestedBy;
@@ -177,14 +176,12 @@ class Oid4vpMdocRequestInfo {
   List<RequestMatch180137Data> matches;
 
   List<Object?> _toList() {
-    return <Object?>[
-      requestedBy,
-      matches,
-    ];
+    return <Object?>[requestedBy, matches];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vpMdocRequestInfo decode(Object result) {
     result as List<Object?>;
@@ -208,20 +205,15 @@ class Oid4vpMdocRequestInfo {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Result of OID4VP mDoc operations
-sealed class Oid4vpMdocResult {
-}
+sealed class Oid4vpMdocResult {}
 
 /// Operation succeeded
 class Oid4vpMdocSuccess extends Oid4vpMdocResult {
-  Oid4vpMdocSuccess({
-    this.message,
-    this.redirectUrl,
-  });
+  Oid4vpMdocSuccess({this.message, this.redirectUrl});
 
   String? message;
 
@@ -229,14 +221,12 @@ class Oid4vpMdocSuccess extends Oid4vpMdocResult {
   String? redirectUrl;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-      redirectUrl,
-    ];
+    return <Object?>[message, redirectUrl];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vpMdocSuccess decode(Object result) {
     result as List<Object?>;
@@ -260,32 +250,26 @@ class Oid4vpMdocSuccess extends Oid4vpMdocResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Operation failed with error
 class Oid4vpMdocError extends Oid4vpMdocResult {
-  Oid4vpMdocError({
-    required this.message,
-  });
+  Oid4vpMdocError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vpMdocError decode(Object result) {
     result as List<Object?>;
-    return Oid4vpMdocError(
-      message: result[0]! as String,
-    );
+    return Oid4vpMdocError(message: result[0]! as String);
   }
 
   @override
@@ -302,36 +286,29 @@ class Oid4vpMdocError extends Oid4vpMdocResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Result of processing an authorization request
-sealed class ProcessRequestResult {
-}
+sealed class ProcessRequestResult {}
 
 /// Request processed successfully
 class ProcessRequestSuccess extends ProcessRequestResult {
-  ProcessRequestSuccess({
-    required this.info,
-  });
+  ProcessRequestSuccess({required this.info});
 
   Oid4vpMdocRequestInfo info;
 
   List<Object?> _toList() {
-    return <Object?>[
-      info,
-    ];
+    return <Object?>[info];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ProcessRequestSuccess decode(Object result) {
     result as List<Object?>;
-    return ProcessRequestSuccess(
-      info: result[0]! as Oid4vpMdocRequestInfo,
-    );
+    return ProcessRequestSuccess(info: result[0]! as Oid4vpMdocRequestInfo);
   }
 
   @override
@@ -348,32 +325,26 @@ class ProcessRequestSuccess extends ProcessRequestResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Request processing failed
 class ProcessRequestError extends ProcessRequestResult {
-  ProcessRequestError({
-    required this.message,
-  });
+  ProcessRequestError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ProcessRequestError decode(Object result) {
     result as List<Object?>;
-    return ProcessRequestError(
-      message: result[0]! as String,
-    );
+    return ProcessRequestError(message: result[0]! as String);
   }
 
   @override
@@ -390,10 +361,8 @@ class ProcessRequestError extends ProcessRequestResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -402,25 +371,25 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is RequestedField180137Data) {
+    } else if (value is RequestedField180137Data) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is RequestMatch180137Data) {
+    } else if (value is RequestMatch180137Data) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vpMdocRequestInfo) {
+    } else if (value is Oid4vpMdocRequestInfo) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vpMdocSuccess) {
+    } else if (value is Oid4vpMdocSuccess) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vpMdocError) {
+    } else if (value is Oid4vpMdocError) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is ProcessRequestSuccess) {
+    } else if (value is ProcessRequestSuccess) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is ProcessRequestError) {
+    } else if (value is ProcessRequestError) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else {
@@ -431,19 +400,19 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 129: 
+      case 129:
         return RequestedField180137Data.decode(readValue(buffer)!);
-      case 130: 
+      case 130:
         return RequestMatch180137Data.decode(readValue(buffer)!);
-      case 131: 
+      case 131:
         return Oid4vpMdocRequestInfo.decode(readValue(buffer)!);
-      case 132: 
+      case 132:
         return Oid4vpMdocSuccess.decode(readValue(buffer)!);
-      case 133: 
+      case 133:
         return Oid4vpMdocError.decode(readValue(buffer)!);
-      case 134: 
+      case 134:
         return ProcessRequestSuccess.decode(readValue(buffer)!);
-      case 135: 
+      case 135:
         return ProcessRequestError.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -459,9 +428,13 @@ class Oid4vpMdoc {
   /// Constructor for [Oid4vpMdoc].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  Oid4vpMdoc({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  Oid4vpMdoc({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -473,13 +446,16 @@ class Oid4vpMdoc {
   /// @param credentialPackIds List of credential pack IDs containing mDocs
   /// @return Result indicating success or error
   Future<Oid4vpMdocResult> initialize(List<String> credentialPackIds) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vpMdoc.initialize$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vpMdoc.initialize$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialPackIds]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[credentialPackIds],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -504,13 +480,16 @@ class Oid4vpMdoc {
   /// @param url The authorization request URL (mdoc-openid4vp://...)
   /// @return ProcessRequestResult with matching credentials on success
   Future<ProcessRequestResult> processRequest(String url) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vpMdoc.processRequest$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vpMdoc.processRequest$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[url]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[url],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -535,14 +514,20 @@ class Oid4vpMdoc {
   /// @param matchIndex Index of the selected credential match
   /// @param approvedFieldIds List of approved field IDs to share
   /// @return Result with redirect URL on success
-  Future<Oid4vpMdocResult> submitResponse(int matchIndex, List<String> approvedFieldIds) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vpMdoc.submitResponse$pigeonVar_messageChannelSuffix';
+  Future<Oid4vpMdocResult> submitResponse(
+    int matchIndex,
+    List<String> approvedFieldIds,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vpMdoc.submitResponse$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[matchIndex, approvedFieldIds]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[matchIndex, approvedFieldIds],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -564,7 +549,8 @@ class Oid4vpMdoc {
 
   /// Cancel and cleanup the current session
   Future<void> cancel() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vpMdoc.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vpMdoc.cancel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
