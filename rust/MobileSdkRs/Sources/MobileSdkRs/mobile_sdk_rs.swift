@@ -15557,6 +15557,7 @@ public enum ActivityLogEntryType {
     case deleted
     case suspended
     case revoked
+    case updated
 }
 
 
@@ -15589,6 +15590,8 @@ public struct FfiConverterTypeActivityLogEntryType: FfiConverterRustBuffer {
         case 7: return .suspended
         
         case 8: return .revoked
+        
+        case 9: return .updated
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -15628,6 +15631,10 @@ public struct FfiConverterTypeActivityLogEntryType: FfiConverterRustBuffer {
         
         case .revoked:
             writeInt(&buf, Int32(8))
+        
+        
+        case .updated:
+            writeInt(&buf, Int32(9))
         
         }
     }
