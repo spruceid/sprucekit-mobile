@@ -175,8 +175,8 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
                   onPressed: _loading
                       ? null
                       : _cameraGranted
-                          ? _openScanner
-                          : _requestCameraPermission,
+                      ? _openScanner
+                      : _requestCameraPermission,
                   icon: const Icon(Icons.qr_code_scanner),
                   label: Text(_cameraGranted ? 'Scan' : 'Camera'),
                 ),
