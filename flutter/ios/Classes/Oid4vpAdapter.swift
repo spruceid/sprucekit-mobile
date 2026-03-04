@@ -21,7 +21,7 @@ class Oid4vpSigner: PresentationSigner {
         guard let jwk = KeyManager.getJwk(id: keyId) else {
             throw Oid4vpSignerError.illegalArgumentException(reason: "Invalid kid")
         }
-        self._jwk = jwk
+        self._jwk = jwk.description
     }
 
     func sign(payload: Data) async throws -> Data {
@@ -104,7 +104,8 @@ class Oid4vpAdapter: Oid4vp {
                     providedCredentials: credentials,
                     trustedDids: trustedDids,
                     signer: signer,
-                    contextMap: contextMap
+                    contextMap: contextMap,
+                    keystore: KeyManager()
                 )
 
                 lock.lock()
@@ -203,7 +204,7 @@ class Oid4vpAdapter: Oid4vp {
                 required: field.required(),
                 retained: field.retained(),
                 purpose: field.purpose(),
-                inputDescriptorId: field.inputDescriptorId(),
+                credentialQueryId: field.credentialQueryId(),
                 rawFields: field.rawFields()
             )
         }
@@ -239,9 +240,7 @@ class Oid4vpAdapter: Oid4vp {
 
                 // Create response options
                 let responseOptions = SpruceIDMobileSdkRs.ResponseOptions(
-                    shouldStripQuotes: options.shouldStripQuotes,
-                    forceArraySerialization: options.forceArraySerialization,
-                    removeVpPathPrefix: options.removeVpPathPrefix
+                    forceArraySerialization: options.forceArraySerialization
                 )
 
                 // Create permission response
@@ -259,6 +258,67 @@ class Oid4vpAdapter: Oid4vp {
                 completion(.success(Oid4vpError(message: error.localizedDescription)))
             }
         }
+    }
+
+    func getCredentialRequirements() throws -> [CredentialRequirementData] {
+        lock.lock()
+        guard let permissionRequest = self.permissionRequest else {
+            lock.unlock()
+            return []
+        }
+        lock.unlock()
+
+        let requirements = permissionRequest.credentialRequirements()
+        return requirements.map { req in
+            let creds = req.credentials.enumerated().map { (index, cred) in
+                PresentableCredentialData(
+                    index: Int64(index),
+                    credentialId: cred.asParsedCredential().id(),
+                    selectiveDisclosable: cred.selectiveDisclosable()
+                )
+            }
+            return CredentialRequirementData(
+                displayName: req.displayName,
+                required: req.required,
+                credentialQueryIds: req.credentialQueryIds,
+                credentials: creds
+            )
+        }
+    }
+
+    func getCredentialsGroupedByQuery() throws -> [CredentialQueryGroupData] {
+        lock.lock()
+        guard let permissionRequest = self.permissionRequest else {
+            lock.unlock()
+            return []
+        }
+        lock.unlock()
+
+        let groups = permissionRequest.credentialsGroupedByQuery()
+        return groups.map { group in
+            let creds = group.credentials.enumerated().map { (index, cred) in
+                PresentableCredentialData(
+                    index: Int64(index),
+                    credentialId: cred.asParsedCredential().id(),
+                    selectiveDisclosable: cred.selectiveDisclosable()
+                )
+            }
+            return CredentialQueryGroupData(
+                credentialQueryId: group.credentialQueryId,
+                credentials: creds
+            )
+        }
+    }
+
+    func getCredentialQueryIds() throws -> [String] {
+        lock.lock()
+        guard let permissionRequest = self.permissionRequest else {
+            lock.unlock()
+            return []
+        }
+        lock.unlock()
+
+        return permissionRequest.credentialQueryIds()
     }
 
     func cancel() throws {
