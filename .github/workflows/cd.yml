@@ -201,6 +201,7 @@ jobs:
       - name: Update Flutter plugin versions
         run: |
           sed -i '' "s/com.spruceid.mobile.sdk:mobilesdk:[0-9.]*/com.spruceid.mobile.sdk:mobilesdk:${{ github.event.inputs.version }}/" flutter/android/build.gradle
+          sed -i '' "s/com.spruceid.mobile.sdk.rs:mobilesdkrs:[0-9.]*/com.spruceid.mobile.sdk.rs:mobilesdkrs:${{ github.event.inputs.version }}/" flutter/android/build.gradle
           sed -i '' "s/^version:.*/version: ${{ github.event.inputs.version }}/" flutter/pubspec.yaml
 
       - name: Push Flutter version updates

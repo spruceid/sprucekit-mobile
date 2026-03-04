@@ -151,9 +151,8 @@ dependencies {
     androidTestImplementation("com.android.support.test.espresso:espresso-core:3.0.2")
 
     // DC-API dependencies
-    // SNAPSHOT versions for OID4VP 1.0 support (SelectedCredentialSet)
-    val androidxCredentialsVersion = "1.6.0-SNAPSHOT"
-    val androidxRegistryVersion = "1.0.0-SNAPSHOT"
+    val androidxCredentialsVersion = "1.6.0-rc02"
+    val androidxRegistryVersion = "1.0.0-alpha04"
     implementation("androidx.credentials:credentials:$androidxCredentialsVersion")
     implementation("androidx.credentials:credentials-play-services-auth:$androidxCredentialsVersion")
     implementation("androidx.credentials.registry:registry-digitalcredentials-mdoc:$androidxRegistryVersion")
