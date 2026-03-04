@@ -19,9 +19,7 @@ import 'package:pigeon/pigeon.dart';
 class ResponseOptions {
   bool forceArraySerialization;
 
-  ResponseOptions({
-    required this.forceArraySerialization,
-  });
+  ResponseOptions({required this.forceArraySerialization});
 }
 
 /// A field requested by the verifier
