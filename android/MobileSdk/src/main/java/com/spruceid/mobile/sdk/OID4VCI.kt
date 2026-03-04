@@ -19,20 +19,27 @@ class Oid4vciSyncHttpClient: SyncHttpClient  {
         for ((k, v) in request.headers) {
             connection.setRequestProperty(k, v)
         }
-        connection.doOutput = true
         connection.doInput = true
 
-        val wr = DataOutputStream(connection.outputStream)
-        wr.write(request.body)
-        wr.flush()
-        wr.close()
+        if (request.body.isNotEmpty()) {
+            connection.doOutput = true
+            val wr = DataOutputStream(connection.outputStream)
+            wr.write(request.body)
+            wr.flush()
+            wr.close()
+        }
 
         val statusCode = connection.responseCode
-        val stream = BufferedInputStream(connection.inputStream)
+        val stream = BufferedInputStream(
+            if (statusCode < 400) connection.inputStream else connection.errorStream
+        )
         val body = stream.readBytes()
         stream.close()
 
-        val headers = connection.headerFields.mapValues { it.value.joinToString(",") }
+        val headers = connection.headerFields
+            .filterKeys { it != null }
+            .mapKeys { it.key!! }
+            .mapValues { it.value.joinToString(",") }
 
         return HttpResponse(
             statusCode = statusCode.toUShort(),
@@ -53,24 +60,31 @@ class Oid4vciAsyncHttpClient: AsyncHttpClient {
         for ((k, v) in request.headers) {
             connection.setRequestProperty(k, v)
         }
-        connection.doOutput = true
         connection.doInput = true
 
-        val wr = DataOutputStream(connection.outputStream)
-        withContext(Dispatchers.IO) {
-            wr.write(request.body)
-            wr.flush()
-            wr.close()
+        if (request.body.isNotEmpty()) {
+            connection.doOutput = true
+            withContext(Dispatchers.IO) {
+                val wr = DataOutputStream(connection.outputStream)
+                wr.write(request.body)
+                wr.flush()
+                wr.close()
+            }
         }
 
         val statusCode = connection.responseCode
         val body: ByteArray
         withContext(Dispatchers.IO) {
-            val stream = BufferedInputStream(connection.inputStream)
+            val stream = BufferedInputStream(
+                if (statusCode < 400) connection.inputStream else connection.errorStream
+            )
             body = stream.readBytes()
             stream.close()
         }
-        val headers = connection.headerFields.mapValues { it.value.joinToString(",") }
+        val headers = connection.headerFields
+            .filterKeys { it != null }
+            .mapKeys { it.key!! }
+            .mapValues { it.value.joinToString(",") }
 
         return HttpResponse(
             statusCode = statusCode.toUShort(),
