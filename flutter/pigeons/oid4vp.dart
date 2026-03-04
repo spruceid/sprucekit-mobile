@@ -17,14 +17,10 @@ import 'package:pigeon/pigeon.dart';
 )
 /// Options for creating the permission response
 class ResponseOptions {
-  bool shouldStripQuotes;
   bool forceArraySerialization;
-  bool removeVpPathPrefix;
 
   ResponseOptions({
-    required this.shouldStripQuotes,
     required this.forceArraySerialization,
-    required this.removeVpPathPrefix,
   });
 }
 
@@ -36,7 +32,7 @@ class RequestedFieldData {
   bool required;
   bool retained;
   String? purpose;
-  String inputDescriptorId;
+  String credentialQueryId;
   List<String> rawFields;
 
   RequestedFieldData({
@@ -46,7 +42,7 @@ class RequestedFieldData {
     required this.required,
     required this.retained,
     this.purpose,
-    required this.inputDescriptorId,
+    required this.credentialQueryId,
     required this.rawFields,
   });
 }
@@ -116,6 +112,32 @@ class HandleAuthRequestError implements HandleAuthRequestResult {
   HandleAuthRequestError({required this.message});
 }
 
+/// A group of credentials matching a credential query
+class CredentialQueryGroupData {
+  String credentialQueryId;
+  List<PresentableCredentialData> credentials;
+
+  CredentialQueryGroupData({
+    required this.credentialQueryId,
+    required this.credentials,
+  });
+}
+
+/// A credential requirement from the verifier
+class CredentialRequirementData {
+  String displayName;
+  bool required;
+  List<String> credentialQueryIds;
+  List<PresentableCredentialData> credentials;
+
+  CredentialRequirementData({
+    required this.displayName,
+    required this.required,
+    required this.credentialQueryIds,
+    required this.credentials,
+  });
+}
+
 /// OID4VP credential presentation API
 ///
 /// Handles the OpenID for Verifiable Presentation flow
@@ -159,6 +181,21 @@ abstract class Oid4vp {
     List<List<String>> selectedFieldPaths,
     ResponseOptions options,
   );
+
+  /// Get credential requirements from the permission request
+  ///
+  /// @return List of credential requirements
+  List<CredentialRequirementData> getCredentialRequirements();
+
+  /// Get credentials grouped by credential query
+  ///
+  /// @return List of credential query groups
+  List<CredentialQueryGroupData> getCredentialsGroupedByQuery();
+
+  /// Get credential query IDs from the permission request
+  ///
+  /// @return List of credential query ID strings
+  List<String> getCredentialQueryIds();
 
   /// Cancel and cleanup the current session
   void cancel();
