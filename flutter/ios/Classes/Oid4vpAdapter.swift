@@ -42,11 +42,19 @@ class Oid4vpSigner: PresentationSigner {
     }
 
     func verificationMethod() async -> String {
-        return try! await didJwk.vmFromJwk(jwk: _jwk)
+        do {
+            return try await didJwk.vmFromJwk(jwk: _jwk)
+        } catch {
+            fatalError("Oid4vpSigner: failed to derive verification method from JWK: \(error)")
+        }
     }
 
     func did() -> String {
-        return try! didJwk.didFromJwk(jwk: _jwk)
+        do {
+            return try didJwk.didFromJwk(jwk: _jwk)
+        } catch {
+            fatalError("Oid4vpSigner: failed to derive DID from JWK: \(error)")
+        }
     }
 
     func jwk() -> String {
