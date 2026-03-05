@@ -263,7 +263,7 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
                 rawCredential = this.asCwt()!!.credentialClaims().toString()
             }
             this.asDcSdJwt() != null -> {
-                format = CredentialFormat.SD_JWT
+                format = CredentialFormat.DC_SD_JWT
                 rawCredential = this.asDcSdJwt()!!.credentialClaims().toString()
             }
             else -> {

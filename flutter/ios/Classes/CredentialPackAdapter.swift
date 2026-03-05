@@ -315,7 +315,7 @@ extension SpruceIDMobileSdkRs.ParsedCredential {
                 rawCredential = claims.description
             }
         case .dcSdJwt:
-            pigeonFormat = .sdJwt
+            pigeonFormat = .dcSdJwt
             if let dcSdJwt = self.asDcSdJwt() {
                 rawCredential = (try? dcSdJwt.revealedClaimsAsJsonString()) ?? ""
             }
