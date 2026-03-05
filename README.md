@@ -6,6 +6,48 @@ SpruceKit Mobile is a collection of libraries and examples for integrating verif
 
 In its current version, SpruceKit Mobile has not yet undergone a formal security audit to desired levels of confidence for suitable use in production systems. This implementation is currently suitable for exploratory work and experimentation only. We welcome feedback on the usability, architecture, and security of this implementation and are committed to a conducting a formal audit with a reputable security firm before the v1.0 release.
 
+## Building
+
+### iOS
+
+Requirements:
+- Xcode 16.4
+- Rust 2021 / Cargo 1.91.1
+- [cargo-swift](https://github.com/antoniusnaumann/cargo-swift/) 0.30
+  - Install via `cargo install cargo-swift@0.30 -f`
+  - **NB**: cargo-swift version must match project UniFFI version!
+- [xcodegen](https://github.com/yonaskolb/XcodeGen) 2.44.1
+  - Install via `brew install xcodegen` assuming Homebrew is installed, otherwise follow xcodegen instructions.
+
+Steps:
+
+1. Build Rust to Swift Package
+
+```sh
+cd rust
+cargo swift package -p ios -n MobileSdkRs
+cd ..
+```
+
+2. Generate Xcode project
+
+```sh
+cd ios/MobileSdk
+xcodegen generate
+cd ../Showcase
+xcodegen generate
+cd ../..
+```
+
+3. Open project with Xcode, or build on command line.
+
+```sh
+cd ios/Showcase
+xcodebuild -scheme debug -destination "platform=iOS Simulator,name=iPhone 17" build
+```
+
+**NB:** Apple really wants you to open the XCode IDE. Many problems (such as signing keys) are solved just by opening the IDE, building once, and then closing it.
+
 ## Usage
 
 ### iOS
