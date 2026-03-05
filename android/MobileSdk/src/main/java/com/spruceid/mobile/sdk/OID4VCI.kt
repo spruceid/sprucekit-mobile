@@ -7,6 +7,7 @@ import com.spruceid.mobile.sdk.rs.SyncHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedInputStream
+import java.io.ByteArrayInputStream
 import java.io.DataOutputStream
 import java.net.URL
 import javax.net.ssl.HttpsURLConnection
@@ -30,11 +31,10 @@ class Oid4vciSyncHttpClient: SyncHttpClient  {
         }
 
         val statusCode = connection.responseCode
-        val stream = BufferedInputStream(
-            if (statusCode < 400) connection.inputStream else connection.errorStream
-        )
-        val body = stream.readBytes()
-        stream.close()
+        val body = BufferedInputStream(
+            if (statusCode < 400) connection.inputStream
+            else connection.errorStream ?: ByteArrayInputStream(ByteArray(0))
+        ).use { it.readBytes() }
 
         val headers = connection.headerFields
             .filterKeys { it != null }
@@ -72,14 +72,12 @@ class Oid4vciAsyncHttpClient: AsyncHttpClient {
             }
         }
 
-        val statusCode = connection.responseCode
-        val body: ByteArray
-        withContext(Dispatchers.IO) {
-            val stream = BufferedInputStream(
-                if (statusCode < 400) connection.inputStream else connection.errorStream
-            )
-            body = stream.readBytes()
-            stream.close()
+        val statusCode = withContext(Dispatchers.IO) { connection.responseCode }
+        val body: ByteArray = withContext(Dispatchers.IO) {
+            BufferedInputStream(
+                if (statusCode < 400) connection.inputStream
+                else connection.errorStream ?: ByteArrayInputStream(ByteArray(0))
+            ).use { it.readBytes() }
         }
         val headers = connection.headerFields
             .filterKeys { it != null }
