@@ -435,49 +435,51 @@ class _Oid4vpMdocDemoState extends State<Oid4vpMdocDemo> {
         .map(SelectiveDisclosureFieldData.fromMdocField)
         .toList();
 
-    return Column(
-      children: [
-        Expanded(
-          child: SelectiveDisclosureFieldsList(
-            fields: genericFields,
-            selectedIds: _selectedFieldIds,
-            title: _requestInfo!.requestedBy != null
-                ? 'From: ${_requestInfo!.requestedBy}'
-                : 'Select fields to share:',
-            onFieldToggled: (id, isSelected) {
-              setState(() {
-                if (isSelected) {
-                  _selectedFieldIds.add(id);
-                } else {
-                  _selectedFieldIds.remove(id);
-                }
-              });
-            },
+    return SafeArea(
+      child: Column(
+        children: [
+          Expanded(
+            child: SelectiveDisclosureFieldsList(
+              fields: genericFields,
+              selectedIds: _selectedFieldIds,
+              title: _requestInfo!.requestedBy != null
+                  ? 'From: ${_requestInfo!.requestedBy}'
+                  : 'Select fields to share:',
+              onFieldToggled: (id, isSelected) {
+                setState(() {
+                  if (isSelected) {
+                    _selectedFieldIds.add(id);
+                  } else {
+                    _selectedFieldIds.remove(id);
+                  }
+                });
+              },
+            ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: _reset,
-                  child: const Text('Deny'),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _reset,
+                    child: const Text('Deny'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: _selectedFieldIds.isNotEmpty
-                      ? _submitPresentation
-                      : null,
-                  child: const Text('Approve'),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _selectedFieldIds.isNotEmpty
+                        ? _submitPresentation
+                        : null,
+                    child: const Text('Approve'),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
