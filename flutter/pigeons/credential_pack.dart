@@ -28,7 +28,7 @@ enum CredentialStatus {
 }
 
 /// Credential format type
-enum CredentialFormat { jwtVc, jsonVc, sdJwt, msoMdoc, cwt }
+enum CredentialFormat { jwtVc, jsonVc, sdJwt, dcSdJwt, msoMdoc, cwt }
 
 /// A parsed credential with its metadata
 class ParsedCredentialData {

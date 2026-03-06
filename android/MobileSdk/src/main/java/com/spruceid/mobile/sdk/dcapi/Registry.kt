@@ -212,6 +212,28 @@ class Registry(
         // Maps short combo IDs to full pack and credential IDs
         private val comboIdMap = mutableMapOf<String, Pair<String, String>>()
 
+        /**
+         * Populate the combo ID map from [packs] if it is currently empty.
+         *
+         * The map is normally filled during [register], but after a cold start
+         * (process killed) the Activity may need to resolve short IDs before
+         * [register] has been called. This method covers that gap without
+         * rebuilding on every request.
+         */
+        fun ensureComboIdMap(packs: List<CredentialPack>) {
+            if (comboIdMap.isNotEmpty()) return
+            for (pack in packs) {
+                val packId = pack.id()
+                for (credential in pack.list()) {
+                    val mdoc = credential.asMsoMdoc() ?: continue
+                    val shortPackId = packId.toString().take(8)
+                    val shortMdocId = mdoc.id().toString().take(8)
+                    comboIdMap["$shortPackId~$shortMdocId"] =
+                        Pair(packId.toString(), mdoc.id().toString())
+                }
+            }
+        }
+
         fun idsFromComboId(shortId: String): Pair<String, String> {
             // First check if it's a short ID in our map
             comboIdMap[shortId]?.let { return it }

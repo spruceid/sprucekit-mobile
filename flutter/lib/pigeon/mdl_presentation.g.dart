@@ -15,7 +15,11 @@ PlatformException _createConnectionError(String channelName) {
   );
 }
 
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse({
+  Object? result,
+  PlatformException? error,
+  bool empty = false,
+}) {
   if (empty) {
     return <Object?>[];
   }
@@ -24,55 +28,67 @@ List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty
   }
   return <Object?>[error.code, error.message, error.details];
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-        .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
-    return a.length == b.length && a.entries.every((MapEntry<Object?, Object?> entry) =>
-        (b as Map<Object?, Object?>).containsKey(entry.key) &&
-        _deepEquals(entry.value, b[entry.key]));
+    return a.length == b.length &&
+        a.entries.every(
+          (MapEntry<Object?, Object?> entry) =>
+              (b as Map<Object?, Object?>).containsKey(entry.key) &&
+              _deepEquals(entry.value, b[entry.key]),
+        );
   }
   return a == b;
 }
-
 
 /// Presentation state for ISO 18013-5 mDL presentation
 enum MdlPresentationState {
   /// Initial state, not yet started
   uninitialized,
+
   /// Waiting for Bluetooth/transport to be ready
   initializing,
+
   /// Bluetooth needs to be turned on to continue
   bluetoothRequired,
+
   /// Bluetooth authorization required in Settings
   bluetoothAuthorizationRequired,
+
   /// QR code is ready to be displayed
   engagingQrCode,
+
   /// Reader has connected, waiting for request
   connected,
+
   /// Received request from reader, user needs to select fields
   selectingNamespaces,
+
   /// Sending response to reader
   sendingResponse,
+
   /// Successfully sent response
   success,
+
   /// Session timed out
   timeout,
+
   /// Reader disconnected unexpectedly
   readerDisconnected,
+
   /// An error occurred
   error,
 }
 
 /// Requested item from a namespace
 class MdlNamespaceItem {
-  MdlNamespaceItem({
-    required this.name,
-    required this.intentToRetain,
-  });
+  MdlNamespaceItem({required this.name, required this.intentToRetain});
 
   /// Field name
   String name;
@@ -81,14 +97,12 @@ class MdlNamespaceItem {
   bool intentToRetain;
 
   List<Object?> _toList() {
-    return <Object?>[
-      name,
-      intentToRetain,
-    ];
+    return <Object?>[name, intentToRetain];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static MdlNamespaceItem decode(Object result) {
     result as List<Object?>;
@@ -112,16 +126,12 @@ class MdlNamespaceItem {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Request from reader for a specific namespace
 class MdlNamespaceRequest {
-  MdlNamespaceRequest({
-    required this.namespace,
-    required this.items,
-  });
+  MdlNamespaceRequest({required this.namespace, required this.items});
 
   /// Namespace identifier (e.g., "org.iso.18013.5.1")
   String namespace;
@@ -130,14 +140,12 @@ class MdlNamespaceRequest {
   List<MdlNamespaceItem> items;
 
   List<Object?> _toList() {
-    return <Object?>[
-      namespace,
-      items,
-    ];
+    return <Object?>[namespace, items];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static MdlNamespaceRequest decode(Object result) {
     result as List<Object?>;
@@ -161,16 +169,12 @@ class MdlNamespaceRequest {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Items request from reader for a specific docType
 class MdlItemsRequest {
-  MdlItemsRequest({
-    required this.docType,
-    required this.namespaces,
-  });
+  MdlItemsRequest({required this.docType, required this.namespaces});
 
   /// Document type (e.g., "org.iso.18013.5.1.mDL")
   String docType;
@@ -179,14 +183,12 @@ class MdlItemsRequest {
   List<MdlNamespaceRequest> namespaces;
 
   List<Object?> _toList() {
-    return <Object?>[
-      docType,
-      namespaces,
-    ];
+    return <Object?>[docType, namespaces];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static MdlItemsRequest decode(Object result) {
     result as List<Object?>;
@@ -210,8 +212,7 @@ class MdlItemsRequest {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// State update event from the presentation session
@@ -236,16 +237,12 @@ class MdlPresentationStateUpdate {
   String? error;
 
   List<Object?> _toList() {
-    return <Object?>[
-      state,
-      qrCodeUri,
-      itemsRequests,
-      error,
-    ];
+    return <Object?>[state, qrCodeUri, itemsRequests, error];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static MdlPresentationStateUpdate decode(Object result) {
     result as List<Object?>;
@@ -260,7 +257,8 @@ class MdlPresentationStateUpdate {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! MdlPresentationStateUpdate || other.runtimeType != runtimeType) {
+    if (other is! MdlPresentationStateUpdate ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -271,36 +269,29 @@ class MdlPresentationStateUpdate {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Result type for presentation operations
-sealed class MdlPresentationResult {
-}
+sealed class MdlPresentationResult {}
 
 /// Operation succeeded
 class MdlPresentationSuccess extends MdlPresentationResult {
-  MdlPresentationSuccess({
-    this.message,
-  });
+  MdlPresentationSuccess({this.message});
 
   String? message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static MdlPresentationSuccess decode(Object result) {
     result as List<Object?>;
-    return MdlPresentationSuccess(
-      message: result[0] as String?,
-    );
+    return MdlPresentationSuccess(message: result[0] as String?);
   }
 
   @override
@@ -317,32 +308,26 @@ class MdlPresentationSuccess extends MdlPresentationResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Operation failed
 class MdlPresentationError extends MdlPresentationResult {
-  MdlPresentationError({
-    required this.message,
-  });
+  MdlPresentationError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static MdlPresentationError decode(Object result) {
     result as List<Object?>;
-    return MdlPresentationError(
-      message: result[0]! as String,
-    );
+    return MdlPresentationError(message: result[0]! as String);
   }
 
   @override
@@ -359,10 +344,8 @@ class MdlPresentationError extends MdlPresentationResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -371,25 +354,25 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is MdlPresentationState) {
+    } else if (value is MdlPresentationState) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is MdlNamespaceItem) {
+    } else if (value is MdlNamespaceItem) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is MdlNamespaceRequest) {
+    } else if (value is MdlNamespaceRequest) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is MdlItemsRequest) {
+    } else if (value is MdlItemsRequest) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is MdlPresentationStateUpdate) {
+    } else if (value is MdlPresentationStateUpdate) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is MdlPresentationSuccess) {
+    } else if (value is MdlPresentationSuccess) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is MdlPresentationError) {
+    } else if (value is MdlPresentationError) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else {
@@ -400,20 +383,20 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 129: 
+      case 129:
         final value = readValue(buffer) as int?;
         return value == null ? null : MdlPresentationState.values[value];
-      case 130: 
+      case 130:
         return MdlNamespaceItem.decode(readValue(buffer)!);
-      case 131: 
+      case 131:
         return MdlNamespaceRequest.decode(readValue(buffer)!);
-      case 132: 
+      case 132:
         return MdlItemsRequest.decode(readValue(buffer)!);
-      case 133: 
+      case 133:
         return MdlPresentationStateUpdate.decode(readValue(buffer)!);
-      case 134: 
+      case 134:
         return MdlPresentationSuccess.decode(readValue(buffer)!);
-      case 135: 
+      case 135:
         return MdlPresentationError.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -428,29 +411,44 @@ abstract class MdlPresentationCallback {
   /// Called when the presentation state changes
   void onStateChange(MdlPresentationStateUpdate update);
 
-  static void setUp(MdlPresentationCallback? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  static void setUp(
+    MdlPresentationCallback? api, {
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty
+        ? '.$messageChannelSuffix'
+        : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.sprucekit_mobile.MdlPresentationCallback.onStateChange$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
+        'dev.flutter.pigeon.sprucekit_mobile.MdlPresentationCallback.onStateChange$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
-          assert(message != null,
-          'Argument for dev.flutter.pigeon.sprucekit_mobile.MdlPresentationCallback.onStateChange was null.');
+          assert(
+            message != null,
+            'Argument for dev.flutter.pigeon.sprucekit_mobile.MdlPresentationCallback.onStateChange was null.',
+          );
           final List<Object?> args = (message as List<Object?>?)!;
-          final MdlPresentationStateUpdate? arg_update = (args[0] as MdlPresentationStateUpdate?);
-          assert(arg_update != null,
-              'Argument for dev.flutter.pigeon.sprucekit_mobile.MdlPresentationCallback.onStateChange was null, expected non-null MdlPresentationStateUpdate.');
+          final MdlPresentationStateUpdate? arg_update =
+              (args[0] as MdlPresentationStateUpdate?);
+          assert(
+            arg_update != null,
+            'Argument for dev.flutter.pigeon.sprucekit_mobile.MdlPresentationCallback.onStateChange was null, expected non-null MdlPresentationStateUpdate.',
+          );
           try {
             api.onStateChange(arg_update!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
           }
         });
       }
@@ -465,9 +463,13 @@ class MdlPresentation {
   /// Constructor for [MdlPresentation].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  MdlPresentation({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  MdlPresentation({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -479,14 +481,20 @@ class MdlPresentation {
   /// @param packId The credential pack ID containing the mDL
   /// @param credentialId The credential ID of the mDL to present
   /// @return Result indicating success or error
-  Future<MdlPresentationResult> initializeQrPresentation(String packId, String credentialId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.initializeQrPresentation$pigeonVar_messageChannelSuffix';
+  Future<MdlPresentationResult> initializeQrPresentation(
+    String packId,
+    String credentialId,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.initializeQrPresentation$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, credentialId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId, credentialId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -510,7 +518,8 @@ class MdlPresentation {
   ///
   /// @return The QR code URI, or null if not in the correct state
   Future<String?> getQrCodeUri() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.getQrCodeUri$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.getQrCodeUri$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -535,7 +544,8 @@ class MdlPresentation {
   ///
   /// @return Current state update with all relevant data
   Future<MdlPresentationStateUpdate> getCurrentState() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.getCurrentState$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.getCurrentState$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -567,14 +577,19 @@ class MdlPresentation {
   ///
   /// @param selectedNamespaces The selected namespaces and fields
   /// @return Result indicating success or error
-  Future<MdlPresentationResult> submitNamespaces(Map<String, Map<String, List<String>>> selectedNamespaces) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.submitNamespaces$pigeonVar_messageChannelSuffix';
+  Future<MdlPresentationResult> submitNamespaces(
+    Map<String, Map<String, List<String>>> selectedNamespaces,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.submitNamespaces$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[selectedNamespaces]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[selectedNamespaces],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
       throw _createConnectionError(pigeonVar_channelName);
@@ -596,7 +611,8 @@ class MdlPresentation {
 
   /// Cancel the current presentation session
   Future<void> cancel() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.cancel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,

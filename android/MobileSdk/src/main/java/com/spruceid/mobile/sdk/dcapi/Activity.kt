@@ -123,21 +123,25 @@ open class Activity(val allowedAuthenticators: Int = BIOMETRIC_STRONG or DEVICE_
 
         Log.d(TAG, "onCreate")
 
-        val requests: List<OpenID4VPRequest>
-        try {
-            requests = processIntent();
-        } catch (e: Exception) {
-            Log.w(TAG, "an error occurred while processing the intent", e)
-            val resultData = Intent()
-            PendingIntentHandler.setGetCredentialException(
-                resultData, GetCredentialUnknownException()
-            )
-            setResult(RESULT_OK, resultData)
-            finish()
-            return
-        }
-
         lifecycleScope.launch {
+            // On cold start the combo ID map is empty. Load persisted packs
+            // to rebuild it so processIntent can resolve short IDs.
+            Registry.ensureComboIdMap(CredentialPack.loadPacks(storageManager))
+
+            val requests: List<OpenID4VPRequest>
+            try {
+                requests = processIntent();
+            } catch (e: Exception) {
+                Log.w(TAG, "an error occurred while processing the intent", e)
+                val resultData = Intent()
+                PendingIntentHandler.setGetCredentialException(
+                    resultData, GetCredentialUnknownException()
+                )
+                setResult(RESULT_OK, resultData)
+                finish()
+                return@launch
+            }
+
             for (request in requests) {
                 try {
                     respond(request)
