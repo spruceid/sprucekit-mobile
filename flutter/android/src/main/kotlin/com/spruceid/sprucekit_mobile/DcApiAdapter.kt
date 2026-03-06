@@ -132,9 +132,15 @@ internal class DcApiAdapter(
                     unregisteredCount++
                 }
 
-                // Note: Android CredentialManager doesn't have a direct unregister API
-                // The credentials are re-registered on each call to registerCredentials
-                // So we just clear our tracking here
+                // Android CredentialManager doesn't have a direct unregister API.
+                // registry.register() replaces all previously registered credentials,
+                // so we re-register only the remaining packs.
+                val remainingPacks = credentialPackAdapter.listPacks()
+                    .mapNotNull { credentialPackAdapter.getNativePack(it) }
+                    .filter { pack ->
+                        pack.list().any { cred -> registeredCredentials.containsKey(cred.id()) }
+                    }
+                registry?.register(remainingPacks)
 
                 callback(Result.success(DcApiSuccess(
                     message = "Unregistered $unregisteredCount credentials"
