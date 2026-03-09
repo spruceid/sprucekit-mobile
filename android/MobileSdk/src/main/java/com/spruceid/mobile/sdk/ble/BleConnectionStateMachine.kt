@@ -138,7 +138,8 @@ class BleConnectionStateMachine private constructor() {
         State.IDLE to setOf(State.SCANNING, State.CONNECTING),
         State.SCANNING to setOf(State.CONNECTING, State.IDLE, State.ERROR),
         State.CONNECTING to setOf(State.CONNECTED, State.DISCONNECTED, State.ERROR),
-        State.CONNECTED to setOf(State.DISCONNECTING, State.DISCONNECTED, State.ERROR),
+        // intentionally allows CONNECTED -> CONNECTED due to duplicate events being fired
+        State.CONNECTED to setOf(State.DISCONNECTING, State.DISCONNECTED, State.ERROR, State.CONNECTED),
         State.DISCONNECTING to setOf(State.DISCONNECTED, State.ERROR),
         State.DISCONNECTED to setOf(State.IDLE, State.SCANNING, State.CONNECTING),
         State.ERROR to setOf(State.IDLE, State.DISCONNECTED)
