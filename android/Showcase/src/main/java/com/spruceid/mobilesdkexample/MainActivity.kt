@@ -81,10 +81,14 @@ class MainActivity : ComponentActivity() {
                     )
                 )
             } else if (intent.data!!.toString().startsWith("openid-credential-offer")) {
+                val encodedUrl = java.net.URLEncoder.encode(
+                    intent.data.toString().replace("openid-credential-offer://", ""),
+                    java.nio.charset.StandardCharsets.UTF_8.toString()
+                )
                 navController.navigate(
                     Screen.HandleOID4VCI.route.replace(
                         "{url}",
-                        intent.data.toString().replace("openid-credential-offer://", "")
+                        encodedUrl
                     )
                 )
             } else if (intent.data!!.toString().startsWith("mdoc-openid4vp")) {
