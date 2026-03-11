@@ -221,12 +221,13 @@ fun WalletHomeBody(
                         HacApplicationListItem(
                             application = hacApplication,
                             startIssuance = { url, callback ->
+                                val encodedUrl = java.net.URLEncoder.encode(
+                                    url,
+                                    java.nio.charset.StandardCharsets.UTF_8.toString()
+                                )
                                 navController.navigate(
                                     Screen.HandleOID4VCI.route
-                                        .replace(
-                                            "{url}",
-                                            url.replace("openid-credential-offer://", "")
-                                        )
+                                        .replace("{url}", encodedUrl)
                                 )
                                 navController.currentBackStackEntry?.savedStateHandle?.set(
                                     "callback",

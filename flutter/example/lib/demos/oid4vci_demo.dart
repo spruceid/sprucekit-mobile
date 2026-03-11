@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:sprucekit_mobile/sprucekit_mobile.dart';
 
 class Oid4vciDemo extends StatefulWidget {
@@ -18,8 +20,16 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   final _keyIdController = TextEditingController(text: 'default-signing-key');
 
   bool _loading = false;
-  String? _result;
+  bool _showScanner = false;
+  bool _cameraGranted = false;
+  List<IssuedCredential> _issuedCredentials = [];
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkCameraPermission();
+  }
 
   @override
   void dispose() {
@@ -30,7 +40,28 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     super.dispose();
   }
 
+  Future<void> _checkCameraPermission() async {
+    final status = await Permission.camera.status;
+    setState(() => _cameraGranted = status.isGranted);
+  }
+
+  Future<void> _requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    setState(() => _cameraGranted = status.isGranted);
+  }
+
+  void _openScanner() => setState(() => _showScanner = true);
+  void _closeScanner() => setState(() => _showScanner = false);
+
+  void _handleScannedUrl(String url) {
+    _closeScanner();
+    _offerController.text = url;
+    _runIssuance();
+  }
+
   Future<void> _runIssuance() async {
+    FocusScope.of(context).unfocus();
+
     final offer = _offerController.text.trim();
     if (offer.isEmpty) {
       setState(() => _error = 'Please enter a credential offer URL');
@@ -39,7 +70,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
 
     setState(() {
       _loading = true;
-      _result = null;
+      _issuedCredentials = [];
       _error = null;
     });
 
@@ -57,12 +88,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
         _loading = false;
         switch (result) {
           case Oid4vciSuccess(:final credentials):
-            _result =
-                'Success! Received ${credentials.length} credential(s):\n\n';
-            for (final cred in credentials) {
-              _result =
-                  '${_result}Format: ${cred.format}\nPayload: ${cred.payload.substring(0, 100)}...\n\n';
-            }
+            _issuedCredentials = credentials;
           case Oid4vciError(:final message):
             _error = message;
         }
@@ -77,6 +103,18 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
 
   @override
   Widget build(BuildContext context) {
+    if (_showScanner) {
+      return Scaffold(
+        body: SpruceScanner(
+          type: ScannerType.qrCode,
+          title: 'Scan Issuer QR',
+          subtitle: 'Scan an openid-credential-offer:// QR code',
+          onRead: _handleScannedUrl,
+          onCancel: _closeScanner,
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('OID4VCI Issuance')),
       body: SingleChildScrollView(
@@ -118,15 +156,31 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loading ? null : _runIssuance,
-              child: _loading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Run Issuance'),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _runIssuance,
+                    child: _loading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Run Issuance'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: _loading
+                      ? null
+                      : _cameraGranted
+                      ? _openScanner
+                      : _requestCameraPermission,
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: Text(_cameraGranted ? 'Scan' : 'Camera'),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             if (_error != null)
@@ -141,16 +195,54 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
                   style: TextStyle(color: Colors.red.shade900),
                 ),
               ),
-            if (_result != null)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _result!,
-                  style: TextStyle(color: Colors.green.shade900),
+            for (final (i, cred) in _issuedCredentials.indexed)
+              Card(
+                color: Colors.green.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Credential ${i + 1} (${cred.format})',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green.shade900,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.copy, size: 20),
+                            tooltip: 'Copy payload',
+                            onPressed: () {
+                              Clipboard.setData(
+                                ClipboardData(text: cred.payload),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Payload copied to clipboard'),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        cred.payload.length > 200
+                            ? '${cred.payload.substring(0, 200)}...'
+                            : cred.payload,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green.shade800,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],

@@ -207,5 +207,9 @@ jobs:
       - name: Push Flutter version updates
         run: |
           git add flutter/
-          git commit -m "Update Flutter plugin to ${{ github.event.inputs.version }}"
-          git push
+          if git diff --cached --quiet; then
+            echo "No Flutter version changes to commit (already up to date)"
+          else
+            git commit -m "Update Flutter plugin to ${{ github.event.inputs.version }}"
+            git push
+          fi

@@ -14,50 +14,46 @@ PlatformException _createConnectionError(String channelName) {
     message: 'Unable to establish connection on channel: "$channelName".',
   );
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-        .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
-    return a.length == b.length && a.entries.every((MapEntry<Object?, Object?> entry) =>
-        (b as Map<Object?, Object?>).containsKey(entry.key) &&
-        _deepEquals(entry.value, b[entry.key]));
+    return a.length == b.length &&
+        a.entries.every(
+          (MapEntry<Object?, Object?> entry) =>
+              (b as Map<Object?, Object?>).containsKey(entry.key) &&
+              _deepEquals(entry.value, b[entry.key]),
+        );
   }
   return a == b;
 }
 
-
 /// DID method for proof of possession
-enum DidMethod {
-  jwk,
-  key,
-}
+enum DidMethod { jwk, key }
 
 /// Options for credential exchange
 class Oid4vciExchangeOptions {
-  Oid4vciExchangeOptions({
-    required this.verifyAfterExchange,
-  });
+  Oid4vciExchangeOptions({required this.verifyAfterExchange});
 
   /// Whether to verify the credential after exchange
   bool verifyAfterExchange;
 
   List<Object?> _toList() {
-    return <Object?>[
-      verifyAfterExchange,
-    ];
+    return <Object?>[verifyAfterExchange];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vciExchangeOptions decode(Object result) {
     result as List<Object?>;
-    return Oid4vciExchangeOptions(
-      verifyAfterExchange: result[0]! as bool,
-    );
+    return Oid4vciExchangeOptions(verifyAfterExchange: result[0]! as bool);
   }
 
   @override
@@ -74,16 +70,12 @@ class Oid4vciExchangeOptions {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Credential received from issuance
 class IssuedCredential {
-  IssuedCredential({
-    required this.payload,
-    required this.format,
-  });
+  IssuedCredential({required this.payload, required this.format});
 
   /// The credential payload as string (JSON, JWT, etc.)
   String payload;
@@ -92,14 +84,12 @@ class IssuedCredential {
   String format;
 
   List<Object?> _toList() {
-    return <Object?>[
-      payload,
-      format,
-    ];
+    return <Object?>[payload, format];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static IssuedCredential decode(Object result) {
     result as List<Object?>;
@@ -123,30 +113,25 @@ class IssuedCredential {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Result of OID4VCI issuance
-sealed class Oid4vciResult {
-}
+sealed class Oid4vciResult {}
 
 /// Issuance succeeded with credentials
 class Oid4vciSuccess extends Oid4vciResult {
-  Oid4vciSuccess({
-    required this.credentials,
-  });
+  Oid4vciSuccess({required this.credentials});
 
   List<IssuedCredential> credentials;
 
   List<Object?> _toList() {
-    return <Object?>[
-      credentials,
-    ];
+    return <Object?>[credentials];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vciSuccess decode(Object result) {
     result as List<Object?>;
@@ -169,32 +154,26 @@ class Oid4vciSuccess extends Oid4vciResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Issuance failed with error
 class Oid4vciError extends Oid4vciResult {
-  Oid4vciError({
-    required this.message,
-  });
+  Oid4vciError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vciError decode(Object result) {
     result as List<Object?>;
-    return Oid4vciError(
-      message: result[0]! as String,
-    );
+    return Oid4vciError(message: result[0]! as String);
   }
 
   @override
@@ -211,10 +190,8 @@ class Oid4vciError extends Oid4vciResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -223,19 +200,19 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is DidMethod) {
+    } else if (value is DidMethod) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is Oid4vciExchangeOptions) {
+    } else if (value is Oid4vciExchangeOptions) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is IssuedCredential) {
+    } else if (value is IssuedCredential) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vciSuccess) {
+    } else if (value is Oid4vciSuccess) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vciError) {
+    } else if (value is Oid4vciError) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
     } else {
@@ -246,16 +223,16 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 129: 
+      case 129:
         final int? value = readValue(buffer) as int?;
         return value == null ? null : DidMethod.values[value];
-      case 130: 
+      case 130:
         return Oid4vciExchangeOptions.decode(readValue(buffer)!);
-      case 131: 
+      case 131:
         return IssuedCredential.decode(readValue(buffer)!);
-      case 132: 
+      case 132:
         return Oid4vciSuccess.decode(readValue(buffer)!);
-      case 133: 
+      case 133:
         return Oid4vciError.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -271,8 +248,10 @@ class Oid4vci {
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   Oid4vci({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    : pigeonVar_binaryMessenger = binaryMessenger,
+      pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+          ? '.$messageChannelSuffix'
+          : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -294,14 +273,32 @@ class Oid4vci {
   /// @param didMethod The DID method for proof of possession
   /// @param contextMap Optional JSON-LD context map for credential parsing
   /// @return Oid4vciResult with credentials on success or error message on failure
-  Future<Oid4vciResult> runIssuance(String credentialOffer, String clientId, String redirectUrl, String keyId, DidMethod didMethod, Map<String, String>? contextMap) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.runIssuance$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
+  Future<Oid4vciResult> runIssuance(
+    String credentialOffer,
+    String clientId,
+    String redirectUrl,
+    String keyId,
+    DidMethod didMethod,
+    Map<String, String>? contextMap,
+  ) async {
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.runIssuance$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
+          pigeonVar_channelName,
+          pigeonChannelCodec,
+          binaryMessenger: pigeonVar_binaryMessenger,
+        );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[
+        credentialOffer,
+        clientId,
+        redirectUrl,
+        keyId,
+        didMethod,
+        contextMap,
+      ],
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, redirectUrl, keyId, didMethod, contextMap]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
