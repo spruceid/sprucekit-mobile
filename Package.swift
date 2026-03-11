@@ -21,7 +21,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-algorithms", from: "1.2.0")
     ],
     targets: [
-        .binaryTarget(name: "RustFramework", path: "rust/MobileSdkRs/RustFramework.xcframework"),
+        .binaryTarget(name: "RustFramework", url: "https://github.com/spruceid/sprucekit-mobile/releases/download/0.14.8/RustFramework.xcframework.zip", checksum: "963c06bb41fd0a3bf3e3ef0b5e67b48999ae26d20b29d5cb6839b691fa275eb6"),
         .target(
             name: "SpruceIDMobileSdkRs",
             dependencies: [
