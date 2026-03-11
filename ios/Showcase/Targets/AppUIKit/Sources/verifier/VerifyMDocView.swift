@@ -83,9 +83,14 @@ public struct VerifyMDocView: View {
     var checkAgeOver18: Bool = false
 
     @State private var scanned: String?
+    @State private var trustAnchorPems: [String]?
+    @State private var isLoadingAnchors = true
 
-    var trustedCertificates = TrustedCertificatesDataStore.shared
-        .getAllCertificates()
+    private var additionalCertificatePems: [String] {
+        TrustedCertificatesDataStore.shared
+            .getAllCertificates()
+            .map { $0.content }
+    }
 
     public var body: some View {
         if scanned == nil {
@@ -99,12 +104,19 @@ public struct VerifyMDocView: View {
                     }
                 )
             )
+            .onAppear { loadTrustAnchors() }
+        } else if isLoadingAnchors {
+            LoadingView(
+                loadingText: "Loading trust anchors...",
+                cancelButtonLabel: "Cancel",
+                onCancel: { onCancel() }
+            )
         } else {
             MDocReaderView(
                 uri: scanned!,
                 requestedItems: !checkAgeOver18
                     ? defaultElements : ageOver18Elements,
-                trustAnchorRegistry: trustedCertificates.map { $0.content },
+                trustAnchorRegistry: trustAnchorPems,
                 onCancel: onCancel,
                 path: $path
             )
@@ -114,6 +126,18 @@ public struct VerifyMDocView: View {
     func onCancel() {
         self.scanned = nil
         path.removeLast()
+    }
+
+    private func loadTrustAnchors() {
+        guard isLoadingAnchors else { return }
+        let additional = additionalCertificatePems
+        DispatchQueue.global(qos: .userInitiated).async {
+            let pems = VicalCache.loadTrustAnchors(additionalPems: additional)
+            DispatchQueue.main.async {
+                self.trustAnchorPems = pems
+                self.isLoadingAnchors = false
+            }
+        }
     }
 }
 

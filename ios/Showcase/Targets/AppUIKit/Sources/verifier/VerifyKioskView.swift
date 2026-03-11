@@ -17,8 +17,14 @@ let kioskElements = [
 public struct VerifyKioskView: View {
     @Binding var path: NavigationPath
     @State private var scanned: String?
+    @State private var trustAnchorPems: [String]?
+    @State private var isLoadingAnchors = true
 
-    var trustedCertificates = TrustedCertificatesDataStore.shared.getAllCertificates()
+    private var additionalCertificatePems: [String] {
+        TrustedCertificatesDataStore.shared
+            .getAllCertificates()
+            .map { $0.content }
+    }
 
     public var body: some View {
         if scanned == nil {
@@ -26,11 +32,18 @@ public struct VerifyKioskView: View {
                 onCancel: onCancel,
                 onRead: { code in self.scanned = code }
             )
+            .onAppear { loadTrustAnchors() }
+        } else if isLoadingAnchors {
+            LoadingView(
+                loadingText: "Loading trust anchors...",
+                cancelButtonLabel: "Cancel",
+                onCancel: { onCancel() }
+            )
         } else {
             KioskReaderView(
                 uri: scanned!,
                 requestedItems: kioskElements,
-                trustAnchorRegistry: trustedCertificates.map { $0.content },
+                trustAnchorRegistry: trustAnchorPems,
                 onCancel: onCancel,
                 onStartOver: { self.scanned = nil },
                 path: $path
@@ -41,6 +54,18 @@ public struct VerifyKioskView: View {
     func onCancel() {
         self.scanned = nil
         path.removeLast()
+    }
+
+    private func loadTrustAnchors() {
+        guard isLoadingAnchors else { return }
+        let additional = additionalCertificatePems
+        DispatchQueue.global(qos: .userInitiated).async {
+            let pems = VicalCache.loadTrustAnchors(additionalPems: additional)
+            DispatchQueue.main.async {
+                self.trustAnchorPems = pems
+                self.isLoadingAnchors = false
+            }
+        }
     }
 }
 
