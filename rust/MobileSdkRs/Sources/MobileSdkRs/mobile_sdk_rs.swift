@@ -3531,6 +3531,1530 @@ public func FfiConverterTypeDidUrl_lower(_ value: DidUrl) -> UnsafeMutableRawPoi
 
 
 
+public protocol Draft18DelegatedVerifierProtocol: AnyObject, Sendable {
+    
+    func pollVerificationStatus(url: String) async throws  -> Draft18DelegatedVerifierStatusResponse
+    
+    /**
+     * Initialize a delegated verification request.
+     *
+     * This method will respond with a uniffi::Record object that contains the
+     * `auth_query` to be presented via QR code to the holder, and a `uri` to
+     * check the status of the presentation from the delegated verifier.
+     *
+     * Provide the `uri` to the [Draft18DelegatedVerifier::poll_verification_status] method to
+     * check the status of the presentation.
+     */
+    func requestDelegatedVerification(url: String) async throws  -> Draft18DelegateInitializationResponse
+    
+}
+open class Draft18DelegatedVerifier: Draft18DelegatedVerifierProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_draft18delegatedverifier(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_draft18delegatedverifier(pointer, $0) }
+    }
+
+    
+public static func newClient(baseUrl: Url)async throws  -> Draft18DelegatedVerifier  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_draft18delegatedverifier_new_client(FfiConverterTypeUrl_lower(baseUrl)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeDraft18DelegatedVerifier_lift,
+            errorHandler: FfiConverterTypeDraft18Oid4vpVerifierError_lift
+        )
+}
+    
+
+    
+open func pollVerificationStatus(url: String)async throws  -> Draft18DelegatedVerifierStatusResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_draft18delegatedverifier_poll_verification_status(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(url)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeDraft18DelegatedVerifierStatusResponse_lift,
+            errorHandler: FfiConverterTypeDraft18Oid4vpVerifierError_lift
+        )
+}
+    
+    /**
+     * Initialize a delegated verification request.
+     *
+     * This method will respond with a uniffi::Record object that contains the
+     * `auth_query` to be presented via QR code to the holder, and a `uri` to
+     * check the status of the presentation from the delegated verifier.
+     *
+     * Provide the `uri` to the [Draft18DelegatedVerifier::poll_verification_status] method to
+     * check the status of the presentation.
+     */
+open func requestDelegatedVerification(url: String)async throws  -> Draft18DelegateInitializationResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_draft18delegatedverifier_request_delegated_verification(
+                    self.uniffiClonePointer(),
+                    FfiConverterString.lower(url)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeDraft18DelegateInitializationResponse_lift,
+            errorHandler: FfiConverterTypeDraft18Oid4vpVerifierError_lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18DelegatedVerifier: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Draft18DelegatedVerifier
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18DelegatedVerifier {
+        return Draft18DelegatedVerifier(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Draft18DelegatedVerifier) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18DelegatedVerifier {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Draft18DelegatedVerifier, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegatedVerifier_lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18DelegatedVerifier {
+    return try FfiConverterTypeDraft18DelegatedVerifier.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegatedVerifier_lower(_ value: Draft18DelegatedVerifier) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeDraft18DelegatedVerifier.lower(value)
+}
+
+
+
+
+
+
+/**
+ * A Holder is an entity that possesses one or more Verifiable Credentials.
+ * The Holder is typically the subject of the credentials, but not always.
+ * The Holder has the ability to generate Verifiable Presentations from
+ * these credentials and share them with Verifiers.
+ */
+public protocol Draft18HolderProtocol: AnyObject, Sendable {
+    
+    /**
+     * Given an authorization request URL, return a permission request,
+     * which provides a list of requested credentials and requested fields
+     * that align with the presentation definition of the request.
+     *
+     * This will fetch the presentation definition from the verifier.
+     */
+    func authorizationRequest(req: Draft18AuthRequest) async throws  -> Draft18PermissionRequest
+    
+    func submitPermissionResponse(response: Draft18PermissionResponse) async throws  -> Url?
+    
+}
+/**
+ * A Holder is an entity that possesses one or more Verifiable Credentials.
+ * The Holder is typically the subject of the credentials, but not always.
+ * The Holder has the ability to generate Verifiable Presentations from
+ * these credentials and share them with Verifiers.
+ */
+open class Draft18Holder: Draft18HolderProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_draft18holder(self.pointer, $0) }
+    }
+    /**
+     * Uses VDC collection to retrieve the credentials for a given presentation definition.
+     */
+public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: Draft18PresentationSigner, contextMap: [String: String]?)async throws  {
+    let pointer =
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_draft18holder_new(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceDraft18PresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeDraft18Holder_lift,
+            errorHandler: FfiConverterTypeDraft18OID4VPError_lift
+        )
+        
+        .uniffiClonePointer()
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_draft18holder(pointer, $0) }
+    }
+
+    
+    /**
+     * Construct a new holder with provided credentials
+     * instead of a VDC collection.
+     *
+     * This constructor will use the provided credentials for the presentation,
+     * instead of searching for credentials in the VDC collection.
+     */
+public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: Draft18PresentationSigner, contextMap: [String: String]?)async throws  -> Draft18Holder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_draft18holder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceDraft18PresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeDraft18Holder_lift,
+            errorHandler: FfiConverterTypeDraft18OID4VPError_lift
+        )
+}
+    
+
+    
+    /**
+     * Given an authorization request URL, return a permission request,
+     * which provides a list of requested credentials and requested fields
+     * that align with the presentation definition of the request.
+     *
+     * This will fetch the presentation definition from the verifier.
+     */
+open func authorizationRequest(req: Draft18AuthRequest)async throws  -> Draft18PermissionRequest  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_draft18holder_authorization_request(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeDraft18AuthRequest_lower(req)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeDraft18PermissionRequest_lift,
+            errorHandler: FfiConverterTypeDraft18OID4VPError_lift
+        )
+}
+    
+open func submitPermissionResponse(response: Draft18PermissionResponse)async throws  -> Url?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_draft18holder_submit_permission_response(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeDraft18PermissionResponse_lower(response)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeUrl.lift,
+            errorHandler: FfiConverterTypeDraft18OID4VPError_lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18Holder: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Draft18Holder
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18Holder {
+        return Draft18Holder(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Draft18Holder) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18Holder {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Draft18Holder, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18Holder_lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18Holder {
+    return try FfiConverterTypeDraft18Holder.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18Holder_lower(_ value: Draft18Holder) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeDraft18Holder.lower(value)
+}
+
+
+
+
+
+
+public protocol Draft18PermissionRequestProtocol: AnyObject, Sendable {
+    
+    /**
+     * Return the client ID for the authorization request.
+     *
+     * This can be used by the user interface to show who
+     * is requesting the presentation from the wallet holder.
+     */
+    func clientId()  -> String?
+    
+    /**
+     * Construct a new permission response for the given credential.
+     *
+     * NOTE: `should_strip_quotes` is a non-normative setting to determine
+     * the behavior of removing extra quotations around a JSON
+     * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
+     */
+    func createPermissionResponse(selectedCredentials: [Draft18PresentableCredential], selectedFields: [[String]], responseOptions: Draft18ResponseOptions) async throws  -> Draft18PermissionResponse
+    
+    /**
+     * Return the filtered list of credentials that matched
+     * the presentation definition.
+     */
+    func credentials()  -> [Draft18PresentableCredential]
+    
+    /**
+     * Return the domain name of the redirect URI.
+     *
+     * This can be used by the user interface to show where
+     * the presentation will be sent. It may also be used to show
+     * the domain name of the verifier as an alternative to the client_id.
+     */
+    func domain()  -> String?
+    
+    /**
+     * Returns boolean whether the presentation definition
+     * matches multiple credentials of the same type that
+     * can satisfy the request.
+     */
+    func isMultiCredentialMatching()  -> Bool
+    
+    /**
+     * Return whether the presentation definition is requesting
+     * multiple credentials to satisfy the presentation.
+     *
+     * Will return true IFF multiple input descriptors exist
+     * in the presentation definition.
+     *
+     * NOTE: Based on the oid4vp specification that each input descriptor
+     * corresponds to a single credential type.
+     *
+     * In cases where multiple credentials are requested, for example,
+     * an mDL and a vehicle title, each input descriptor would match
+     * only one credential type.
+     */
+    func isMultiCredentialSelection()  -> Bool
+    
+    /**
+     * Return the purpose of the presentation request.
+     */
+    func purpose()  -> String?
+    
+    /**
+     * Return the requested fields for a given credential.
+     *
+     * NOTE: This will return only the requested fields for a given credential.
+     */
+    func requestedFields(credential: Draft18PresentableCredential)  -> [Draft18RequestedField]
+    
+}
+open class Draft18PermissionRequest: Draft18PermissionRequestProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_draft18permissionrequest(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_draft18permissionrequest(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Return the client ID for the authorization request.
+     *
+     * This can be used by the user interface to show who
+     * is requesting the presentation from the wallet holder.
+     */
+open func clientId() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18permissionrequest_client_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Construct a new permission response for the given credential.
+     *
+     * NOTE: `should_strip_quotes` is a non-normative setting to determine
+     * the behavior of removing extra quotations around a JSON
+     * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
+     */
+open func createPermissionResponse(selectedCredentials: [Draft18PresentableCredential], selectedFields: [[String]], responseOptions: Draft18ResponseOptions)async throws  -> Draft18PermissionResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_draft18permissionrequest_create_permission_response(
+                    self.uniffiClonePointer(),
+                    FfiConverterSequenceTypeDraft18PresentableCredential.lower(selectedCredentials),FfiConverterSequenceSequenceString.lower(selectedFields),FfiConverterTypeDraft18ResponseOptions_lower(responseOptions)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeDraft18PermissionResponse_lift,
+            errorHandler: FfiConverterTypeDraft18OID4VPError_lift
+        )
+}
+    
+    /**
+     * Return the filtered list of credentials that matched
+     * the presentation definition.
+     */
+open func credentials() -> [Draft18PresentableCredential]  {
+    return try!  FfiConverterSequenceTypeDraft18PresentableCredential.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18permissionrequest_credentials(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the domain name of the redirect URI.
+     *
+     * This can be used by the user interface to show where
+     * the presentation will be sent. It may also be used to show
+     * the domain name of the verifier as an alternative to the client_id.
+     */
+open func domain() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18permissionrequest_domain(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Returns boolean whether the presentation definition
+     * matches multiple credentials of the same type that
+     * can satisfy the request.
+     */
+open func isMultiCredentialMatching() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18permissionrequest_is_multi_credential_matching(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return whether the presentation definition is requesting
+     * multiple credentials to satisfy the presentation.
+     *
+     * Will return true IFF multiple input descriptors exist
+     * in the presentation definition.
+     *
+     * NOTE: Based on the oid4vp specification that each input descriptor
+     * corresponds to a single credential type.
+     *
+     * In cases where multiple credentials are requested, for example,
+     * an mDL and a vehicle title, each input descriptor would match
+     * only one credential type.
+     */
+open func isMultiCredentialSelection() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18permissionrequest_is_multi_credential_selection(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the purpose of the presentation request.
+     */
+open func purpose() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18permissionrequest_purpose(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the requested fields for a given credential.
+     *
+     * NOTE: This will return only the requested fields for a given credential.
+     */
+open func requestedFields(credential: Draft18PresentableCredential) -> [Draft18RequestedField]  {
+    return try!  FfiConverterSequenceTypeDraft18RequestedField.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18permissionrequest_requested_fields(self.uniffiClonePointer(),
+        FfiConverterTypeDraft18PresentableCredential_lower(credential),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18PermissionRequest: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Draft18PermissionRequest
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18PermissionRequest {
+        return Draft18PermissionRequest(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Draft18PermissionRequest) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18PermissionRequest {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Draft18PermissionRequest, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PermissionRequest_lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18PermissionRequest {
+    return try FfiConverterTypeDraft18PermissionRequest.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PermissionRequest_lower(_ value: Draft18PermissionRequest) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeDraft18PermissionRequest.lower(value)
+}
+
+
+
+
+
+
+/**
+ * This struct is used to represent the response to a permission request.
+ *
+ * Use the [Draft18PermissionResponse::new] method to create a new instance of the Draft18PermissionResponse.
+ *
+ * The Requested Fields are created by calling the [Draft18PermissionRequest::requested_fields] method, and then
+ * explicitly setting the permission to true or false, based on the holder's decision.
+ */
+public protocol Draft18PermissionResponseProtocol: AnyObject, Sendable {
+    
+    /**
+     * Return the selected credentials for the permission response.
+     */
+    func selectedCredentials()  -> [Draft18PresentableCredential]
+    
+    /**
+     * Return the signed (prepared) vp token as a JSON-encoded utf-8 string.
+     *
+     * This is helpful for debugging purposes, and is not intended to be used
+     * for submitting the response to the verifier.
+     */
+    func vpToken() throws  -> String
+    
+}
+/**
+ * This struct is used to represent the response to a permission request.
+ *
+ * Use the [Draft18PermissionResponse::new] method to create a new instance of the Draft18PermissionResponse.
+ *
+ * The Requested Fields are created by calling the [Draft18PermissionRequest::requested_fields] method, and then
+ * explicitly setting the permission to true or false, based on the holder's decision.
+ */
+open class Draft18PermissionResponse: Draft18PermissionResponseProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_draft18permissionresponse(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_draft18permissionresponse(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Return the selected credentials for the permission response.
+     */
+open func selectedCredentials() -> [Draft18PresentableCredential]  {
+    return try!  FfiConverterSequenceTypeDraft18PresentableCredential.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18permissionresponse_selected_credentials(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the signed (prepared) vp token as a JSON-encoded utf-8 string.
+     *
+     * This is helpful for debugging purposes, and is not intended to be used
+     * for submitting the response to the verifier.
+     */
+open func vpToken()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeDraft18OID4VPError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_draft18permissionresponse_vp_token(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18PermissionResponse: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Draft18PermissionResponse
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18PermissionResponse {
+        return Draft18PermissionResponse(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Draft18PermissionResponse) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18PermissionResponse {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Draft18PermissionResponse, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PermissionResponse_lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18PermissionResponse {
+    return try FfiConverterTypeDraft18PermissionResponse.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PermissionResponse_lower(_ value: Draft18PermissionResponse) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeDraft18PermissionResponse.lower(value)
+}
+
+
+
+
+
+
+/**
+ * Draft18-compatible Draft18PresentableCredential with the original field structure.
+ *
+ * The current `Draft18PresentableCredential` uses DCQL-based fields (`credential_query_id`),
+ * but draft18 used presentation-definition-based fields (`input_descriptor_id`, `limit_disclosure`).
+ */
+public protocol Draft18PresentableCredentialProtocol: AnyObject, Sendable {
+    
+    /**
+     * Converts to the primitive ParsedCredential type.
+     */
+    func asParsedCredential()  -> ParsedCredential
+    
+}
+/**
+ * Draft18-compatible Draft18PresentableCredential with the original field structure.
+ *
+ * The current `Draft18PresentableCredential` uses DCQL-based fields (`credential_query_id`),
+ * but draft18 used presentation-definition-based fields (`input_descriptor_id`, `limit_disclosure`).
+ */
+open class Draft18PresentableCredential: Draft18PresentableCredentialProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_draft18presentablecredential(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_draft18presentablecredential(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Converts to the primitive ParsedCredential type.
+     */
+open func asParsedCredential() -> ParsedCredential  {
+    return try!  FfiConverterTypeParsedCredential_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18presentablecredential_as_parsed_credential(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18PresentableCredential: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Draft18PresentableCredential
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18PresentableCredential {
+        return Draft18PresentableCredential(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Draft18PresentableCredential) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18PresentableCredential {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Draft18PresentableCredential, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PresentableCredential_lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18PresentableCredential {
+    return try FfiConverterTypeDraft18PresentableCredential.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PresentableCredential_lower(_ value: Draft18PresentableCredential) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeDraft18PresentableCredential.lower(value)
+}
+
+
+
+
+
+
+public protocol Draft18RequestSignerInterface: AnyObject, Sendable {
+    
+    /**
+     * Return the algorithm used to sign the request
+     */
+    func alg() throws  -> String
+    
+    /**
+     * Return the JWK public key
+     */
+    func jwk() throws  -> String
+    
+    /**
+     * Sign the request
+     */
+    func trySign(payload: Data) async throws  -> Data
+    
+}
+open class Draft18RequestSignerInterfaceImpl: Draft18RequestSignerInterface, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_draft18requestsignerinterface(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_draft18requestsignerinterface(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Return the algorithm used to sign the request
+     */
+open func alg()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeDraft18RequestSignerError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestsignerinterface_alg(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the JWK public key
+     */
+open func jwk()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeDraft18RequestSignerError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestsignerinterface_jwk(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Sign the request
+     */
+open func trySign(payload: Data)async throws  -> Data  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_draft18requestsignerinterface_try_sign(
+                    self.uniffiClonePointer(),
+                    FfiConverterData.lower(payload)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterData.lift,
+            errorHandler: FfiConverterTypeDraft18RequestSignerError_lift
+        )
+}
+    
+
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceDraft18RequestSignerInterface {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceDraft18RequestSignerInterface] = [UniffiVTableCallbackInterfaceDraft18RequestSignerInterface(
+        alg: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> String in
+                guard let uniffiObj = try? FfiConverterTypeDraft18RequestSignerInterface.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.alg(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
+            uniffiTraitInterfaceCallWithError(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn,
+                lowerError: FfiConverterTypeDraft18RequestSignerError_lower
+            )
+        },
+        jwk: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> String in
+                guard let uniffiObj = try? FfiConverterTypeDraft18RequestSignerInterface.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.jwk(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
+            uniffiTraitInterfaceCallWithError(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn,
+                lowerError: FfiConverterTypeDraft18RequestSignerError_lower
+            )
+        },
+        trySign: { (
+            uniffiHandle: UInt64,
+            payload: RustBuffer,
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
+            uniffiCallbackData: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<UniffiForeignFuture>
+        ) in
+            let makeCall = {
+                () async throws -> Data in
+                guard let uniffiObj = try? FfiConverterTypeDraft18RequestSignerInterface.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try await uniffiObj.trySign(
+                     payload: try FfiConverterData.lift(payload)
+                )
+            }
+
+            let uniffiHandleSuccess = { (returnValue: Data) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: FfiConverterData.lower(returnValue),
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: RustBuffer.empty(),
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            let uniffiForeignFuture = uniffiTraitInterfaceCallAsyncWithError(
+                makeCall: makeCall,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
+                lowerError: FfiConverterTypeDraft18RequestSignerError_lower
+            )
+            uniffiOutReturn.pointee = uniffiForeignFuture
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterTypeDraft18RequestSignerInterface.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface Draft18RequestSignerInterface: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitDraft18RequestSignerInterface() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_draft18requestsignerinterface(UniffiCallbackInterfaceDraft18RequestSignerInterface.vtable)
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18RequestSignerInterface: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<Draft18RequestSignerInterface>()
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Draft18RequestSignerInterface
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18RequestSignerInterface {
+        return Draft18RequestSignerInterfaceImpl(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Draft18RequestSignerInterface) -> UnsafeMutableRawPointer {
+        guard let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: handleMap.insert(obj: value))) else {
+            fatalError("Cast to UnsafeMutableRawPointer failed")
+        }
+        return ptr
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18RequestSignerInterface {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Draft18RequestSignerInterface, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18RequestSignerInterface_lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18RequestSignerInterface {
+    return try FfiConverterTypeDraft18RequestSignerInterface.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18RequestSignerInterface_lower(_ value: Draft18RequestSignerInterface) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeDraft18RequestSignerInterface.lower(value)
+}
+
+
+
+
+
+
+public protocol Draft18RequestedFieldProtocol: AnyObject, Sendable {
+    
+    /**
+     * Return the unique ID for the request field.
+     */
+    func id()  -> Uuid
+    
+    /**
+     * Return the input descriptor id the requested field belongs to
+     */
+    func inputDescriptorId()  -> String
+    
+    /**
+     * Return the field name
+     */
+    func name()  -> String?
+    
+    /**
+     * Return the JsonPath of the field
+     */
+    func path()  -> String
+    
+    /**
+     * Return the purpose of the requested field.
+     */
+    func purpose()  -> String?
+    
+    /**
+     * Return the stringified JSON raw fields.
+     */
+    func rawFields()  -> [String]
+    
+    /**
+     * Return the field required status
+     */
+    func required()  -> Bool
+    
+    /**
+     * Return the field retained status
+     */
+    func retained()  -> Bool
+    
+}
+open class Draft18RequestedField: Draft18RequestedFieldProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_draft18requestedfield(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_draft18requestedfield(pointer, $0) }
+    }
+
+    
+
+    
+    /**
+     * Return the unique ID for the request field.
+     */
+open func id() -> Uuid  {
+    return try!  FfiConverterTypeUuid_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestedfield_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the input descriptor id the requested field belongs to
+     */
+open func inputDescriptorId() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestedfield_input_descriptor_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the field name
+     */
+open func name() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestedfield_name(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the JsonPath of the field
+     */
+open func path() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestedfield_path(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the purpose of the requested field.
+     */
+open func purpose() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestedfield_purpose(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the stringified JSON raw fields.
+     */
+open func rawFields() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestedfield_raw_fields(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the field required status
+     */
+open func required() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestedfield_required(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+    /**
+     * Return the field retained status
+     */
+open func retained() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18requestedfield_retained(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18RequestedField: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Draft18RequestedField
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18RequestedField {
+        return Draft18RequestedField(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Draft18RequestedField) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18RequestedField {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Draft18RequestedField, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18RequestedField_lift(_ pointer: UnsafeMutableRawPointer) throws -> Draft18RequestedField {
+    return try FfiConverterTypeDraft18RequestedField.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18RequestedField_lower(_ value: Draft18RequestedField) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeDraft18RequestedField.lower(value)
+}
+
+
+
+
+
+
 /**
  * A Holder is an entity that possesses one or more Verifiable Credentials.
  * The Holder is typically the subject of the credentials, but not always.
@@ -14104,6 +15628,371 @@ public func FfiConverterTypeDelegatedVerifierStatusResponse_lower(_ value: Deleg
 }
 
 
+public struct Draft18DelegateInitializationResponse {
+    /**
+     * This is the authorization request URL to be presented in
+     * a QR code to the holder.
+     */
+    public var authQuery: String
+    /**
+     * This is the status URL to check the presentation status
+     * from the delegated verifier.
+     */
+    public var uri: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * This is the authorization request URL to be presented in
+         * a QR code to the holder.
+         */authQuery: String, 
+        /**
+         * This is the status URL to check the presentation status
+         * from the delegated verifier.
+         */uri: String) {
+        self.authQuery = authQuery
+        self.uri = uri
+    }
+}
+
+#if compiler(>=6)
+extension Draft18DelegateInitializationResponse: Sendable {}
+#endif
+
+
+extension Draft18DelegateInitializationResponse: Equatable, Hashable {
+    public static func ==(lhs: Draft18DelegateInitializationResponse, rhs: Draft18DelegateInitializationResponse) -> Bool {
+        if lhs.authQuery != rhs.authQuery {
+            return false
+        }
+        if lhs.uri != rhs.uri {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(authQuery)
+        hasher.combine(uri)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18DelegateInitializationResponse: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18DelegateInitializationResponse {
+        return
+            try Draft18DelegateInitializationResponse(
+                authQuery: FfiConverterString.read(from: &buf), 
+                uri: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Draft18DelegateInitializationResponse, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.authQuery, into: &buf)
+        FfiConverterString.write(value.uri, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegateInitializationResponse_lift(_ buf: RustBuffer) throws -> Draft18DelegateInitializationResponse {
+    return try FfiConverterTypeDraft18DelegateInitializationResponse.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegateInitializationResponse_lower(_ value: Draft18DelegateInitializationResponse) -> RustBuffer {
+    return FfiConverterTypeDraft18DelegateInitializationResponse.lower(value)
+}
+
+
+public struct Draft18DelegatedVerifierOid4vpResponse {
+    /**
+     * Presented SD-JWT.
+     */
+    public var vpToken: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Presented SD-JWT.
+         */vpToken: String) {
+        self.vpToken = vpToken
+    }
+}
+
+#if compiler(>=6)
+extension Draft18DelegatedVerifierOid4vpResponse: Sendable {}
+#endif
+
+
+extension Draft18DelegatedVerifierOid4vpResponse: Equatable, Hashable {
+    public static func ==(lhs: Draft18DelegatedVerifierOid4vpResponse, rhs: Draft18DelegatedVerifierOid4vpResponse) -> Bool {
+        if lhs.vpToken != rhs.vpToken {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(vpToken)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18DelegatedVerifierOid4vpResponse: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18DelegatedVerifierOid4vpResponse {
+        return
+            try Draft18DelegatedVerifierOid4vpResponse(
+                vpToken: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Draft18DelegatedVerifierOid4vpResponse, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.vpToken, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegatedVerifierOid4vpResponse_lift(_ buf: RustBuffer) throws -> Draft18DelegatedVerifierOid4vpResponse {
+    return try FfiConverterTypeDraft18DelegatedVerifierOid4vpResponse.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegatedVerifierOid4vpResponse_lower(_ value: Draft18DelegatedVerifierOid4vpResponse) -> RustBuffer {
+    return FfiConverterTypeDraft18DelegatedVerifierOid4vpResponse.lower(value)
+}
+
+
+public struct Draft18DelegatedVerifierStatusResponse {
+    /**
+     * The status of the verification request.
+     */
+    public var status: Draft18DelegatedVerifierStatus
+    /**
+     * OID4VP presentation
+     */
+    public var oid4vp: Draft18DelegatedVerifierOid4vpResponse?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The status of the verification request.
+         */status: Draft18DelegatedVerifierStatus, 
+        /**
+         * OID4VP presentation
+         */oid4vp: Draft18DelegatedVerifierOid4vpResponse?) {
+        self.status = status
+        self.oid4vp = oid4vp
+    }
+}
+
+#if compiler(>=6)
+extension Draft18DelegatedVerifierStatusResponse: Sendable {}
+#endif
+
+
+extension Draft18DelegatedVerifierStatusResponse: Equatable, Hashable {
+    public static func ==(lhs: Draft18DelegatedVerifierStatusResponse, rhs: Draft18DelegatedVerifierStatusResponse) -> Bool {
+        if lhs.status != rhs.status {
+            return false
+        }
+        if lhs.oid4vp != rhs.oid4vp {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(status)
+        hasher.combine(oid4vp)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18DelegatedVerifierStatusResponse: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18DelegatedVerifierStatusResponse {
+        return
+            try Draft18DelegatedVerifierStatusResponse(
+                status: FfiConverterTypeDraft18DelegatedVerifierStatus.read(from: &buf), 
+                oid4vp: FfiConverterOptionTypeDraft18DelegatedVerifierOid4vpResponse.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Draft18DelegatedVerifierStatusResponse, into buf: inout [UInt8]) {
+        FfiConverterTypeDraft18DelegatedVerifierStatus.write(value.status, into: &buf)
+        FfiConverterOptionTypeDraft18DelegatedVerifierOid4vpResponse.write(value.oid4vp, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegatedVerifierStatusResponse_lift(_ buf: RustBuffer) throws -> Draft18DelegatedVerifierStatusResponse {
+    return try FfiConverterTypeDraft18DelegatedVerifierStatusResponse.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegatedVerifierStatusResponse_lower(_ value: Draft18DelegatedVerifierStatusResponse) -> RustBuffer {
+    return FfiConverterTypeDraft18DelegatedVerifierStatusResponse.lower(value)
+}
+
+
+/**
+ * Non-normative response options used to provide configurable interface
+ * for handling variations in the processing of the verifiable presentation
+ * payloads in various external verifiers.
+ */
+public struct Draft18ResponseOptions {
+    /**
+     * This is an non-normative setting to determine
+     * the behavior of removing extra quotations around a JSON
+     * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
+     */
+    public var shouldStripQuotes: Bool
+    /**
+     * Boolean option of whether to use `array_or_value` serialization options
+     * for the verifiable presentation.
+     *
+     * This is provided as an option to force serializing a single verifiable
+     * credential as a member of an array, versus as a singular option, per
+     * implementation.
+     *
+     * NOTE: This may be removed in the future as the oid4vp specification becomes
+     * more solidified around `vp_token` presentation.
+     *
+     * These options are provided as configurable parameters to maintain backwards
+     * compatibility with verifier implementation versions.
+     */
+    public var forceArraySerialization: Bool
+    /**
+     * Remove the `$.vp` path prefix for the descriptor map for the verifiable credential.
+     * This is non-normative option, e.g. `$.vp` -> `$`
+     */
+    public var removeVpPathPrefix: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * This is an non-normative setting to determine
+         * the behavior of removing extra quotations around a JSON
+         * string encoded vp_token, e.g. "'[{ @context: [...] }]'" -> '[{ @context: [...] }]'
+         */shouldStripQuotes: Bool, 
+        /**
+         * Boolean option of whether to use `array_or_value` serialization options
+         * for the verifiable presentation.
+         *
+         * This is provided as an option to force serializing a single verifiable
+         * credential as a member of an array, versus as a singular option, per
+         * implementation.
+         *
+         * NOTE: This may be removed in the future as the oid4vp specification becomes
+         * more solidified around `vp_token` presentation.
+         *
+         * These options are provided as configurable parameters to maintain backwards
+         * compatibility with verifier implementation versions.
+         */forceArraySerialization: Bool, 
+        /**
+         * Remove the `$.vp` path prefix for the descriptor map for the verifiable credential.
+         * This is non-normative option, e.g. `$.vp` -> `$`
+         */removeVpPathPrefix: Bool) {
+        self.shouldStripQuotes = shouldStripQuotes
+        self.forceArraySerialization = forceArraySerialization
+        self.removeVpPathPrefix = removeVpPathPrefix
+    }
+}
+
+#if compiler(>=6)
+extension Draft18ResponseOptions: Sendable {}
+#endif
+
+
+extension Draft18ResponseOptions: Equatable, Hashable {
+    public static func ==(lhs: Draft18ResponseOptions, rhs: Draft18ResponseOptions) -> Bool {
+        if lhs.shouldStripQuotes != rhs.shouldStripQuotes {
+            return false
+        }
+        if lhs.forceArraySerialization != rhs.forceArraySerialization {
+            return false
+        }
+        if lhs.removeVpPathPrefix != rhs.removeVpPathPrefix {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(shouldStripQuotes)
+        hasher.combine(forceArraySerialization)
+        hasher.combine(removeVpPathPrefix)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18ResponseOptions: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18ResponseOptions {
+        return
+            try Draft18ResponseOptions(
+                shouldStripQuotes: FfiConverterBool.read(from: &buf), 
+                forceArraySerialization: FfiConverterBool.read(from: &buf), 
+                removeVpPathPrefix: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Draft18ResponseOptions, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.shouldStripQuotes, into: &buf)
+        FfiConverterBool.write(value.forceArraySerialization, into: &buf)
+        FfiConverterBool.write(value.removeVpPathPrefix, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18ResponseOptions_lift(_ buf: RustBuffer) throws -> Draft18ResponseOptions {
+    return try FfiConverterTypeDraft18ResponseOptions.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18ResponseOptions_lower(_ value: Draft18ResponseOptions) -> RustBuffer {
+    return FfiConverterTypeDraft18ResponseOptions.lower(value)
+}
+
+
 /**
  * Simple representation of an mdoc data element.
  */
@@ -17796,6 +19685,935 @@ public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
 
 extension DidMethod: Equatable, Hashable {}
 
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum Draft18DelegatedVerifierStatus {
+    
+    case initiated
+    case pending
+    case failure
+    case success
+}
+
+
+#if compiler(>=6)
+extension Draft18DelegatedVerifierStatus: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18DelegatedVerifierStatus: FfiConverterRustBuffer {
+    typealias SwiftType = Draft18DelegatedVerifierStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18DelegatedVerifierStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .initiated
+        
+        case 2: return .pending
+        
+        case 3: return .failure
+        
+        case 4: return .success
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Draft18DelegatedVerifierStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .initiated:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .pending:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .failure:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .success:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegatedVerifierStatus_lift(_ buf: RustBuffer) throws -> Draft18DelegatedVerifierStatus {
+    return try FfiConverterTypeDraft18DelegatedVerifierStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18DelegatedVerifierStatus_lower(_ value: Draft18DelegatedVerifierStatus) -> RustBuffer {
+    return FfiConverterTypeDraft18DelegatedVerifierStatus.lower(value)
+}
+
+
+extension Draft18DelegatedVerifierStatus: Equatable, Hashable {}
+
+
+
+
+/**
+ * The [Draft18OID4VPError] enum represents the errors that can occur
+ * when using the oid4vp foreign library.
+ */
+public enum Draft18Oid4vpError: Swift.Error {
+
+    
+    
+    case UnexpectedUniFfiCallbackError(String
+    )
+    case RequestValidation(String
+    )
+    case PresentationDefinitionResolution(String
+    )
+    case Token(String
+    )
+    case UnsupportedResponseMode(String
+    )
+    case ResponseSubmission(String
+    )
+    case CredentialCallback(String
+    )
+    case PresentationSubmissionCreation(String
+    )
+    case InvalidDidUrl(String
+    )
+    case DidKeyGenerateUrl(String
+    )
+    case JsonSyntaxParse(String
+    )
+    case VdcCollection(VdcCollectionError
+    )
+    case HttpClientInitialization(String
+    )
+    case SigningAlgorithmNotFound(String
+    )
+    case InvalidClientIdScheme(String
+    )
+    case InputDescriptorNotFound
+    case VpTokenParse(String
+    )
+    case VpTokenCreate(String
+    )
+    case JwkParse(String
+    )
+    case VdcCollectionNotInitialized
+    case AuthorizationRequestNotFound
+    case RequestSignerNotFound
+    case MetadataInitialization(String
+    )
+    case Draft18PermissionRequest(Draft18PermissionRequestError
+    )
+    case Presentation(Draft18PresentationError
+    )
+    case CredentialEncoding(CredentialEncodingError
+    )
+    case JsonPathParse(String
+    )
+    case JsonPathResolve(String
+    )
+    case JsonPathToPointer(String
+    )
+    case LimitDisclosure(String
+    )
+    case EmptyCredentialSubject(String
+    )
+    case SelectiveDisclosureInvalidFields
+    case SelectiveDisclosureEmptySelection
+    case Debug(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18OID4VPError: FfiConverterRustBuffer {
+    typealias SwiftType = Draft18Oid4vpError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18Oid4vpError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .UnexpectedUniFfiCallbackError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .RequestValidation(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .PresentationDefinitionResolution(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .Token(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .UnsupportedResponseMode(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .ResponseSubmission(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .CredentialCallback(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .PresentationSubmissionCreation(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 9: return .InvalidDidUrl(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 10: return .DidKeyGenerateUrl(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 11: return .JsonSyntaxParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 12: return .VdcCollection(
+            try FfiConverterTypeVdcCollectionError.read(from: &buf)
+            )
+        case 13: return .HttpClientInitialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 14: return .SigningAlgorithmNotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 15: return .InvalidClientIdScheme(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 16: return .InputDescriptorNotFound
+        case 17: return .VpTokenParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 18: return .VpTokenCreate(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 19: return .JwkParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 20: return .VdcCollectionNotInitialized
+        case 21: return .AuthorizationRequestNotFound
+        case 22: return .RequestSignerNotFound
+        case 23: return .MetadataInitialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 24: return .Draft18PermissionRequest(
+            try FfiConverterTypeDraft18PermissionRequestError.read(from: &buf)
+            )
+        case 25: return .Presentation(
+            try FfiConverterTypeDraft18PresentationError.read(from: &buf)
+            )
+        case 26: return .CredentialEncoding(
+            try FfiConverterTypeCredentialEncodingError.read(from: &buf)
+            )
+        case 27: return .JsonPathParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 28: return .JsonPathResolve(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 29: return .JsonPathToPointer(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 30: return .LimitDisclosure(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 31: return .EmptyCredentialSubject(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 32: return .SelectiveDisclosureInvalidFields
+        case 33: return .SelectiveDisclosureEmptySelection
+        case 34: return .Debug(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Draft18Oid4vpError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .UnexpectedUniFfiCallbackError(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .RequestValidation(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PresentationDefinitionResolution(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Token(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .UnsupportedResponseMode(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ResponseSubmission(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .CredentialCallback(v1):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PresentationSubmissionCreation(v1):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidDidUrl(v1):
+            writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .DidKeyGenerateUrl(v1):
+            writeInt(&buf, Int32(10))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .JsonSyntaxParse(v1):
+            writeInt(&buf, Int32(11))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .VdcCollection(v1):
+            writeInt(&buf, Int32(12))
+            FfiConverterTypeVdcCollectionError.write(v1, into: &buf)
+            
+        
+        case let .HttpClientInitialization(v1):
+            writeInt(&buf, Int32(13))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .SigningAlgorithmNotFound(v1):
+            writeInt(&buf, Int32(14))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidClientIdScheme(v1):
+            writeInt(&buf, Int32(15))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .InputDescriptorNotFound:
+            writeInt(&buf, Int32(16))
+        
+        
+        case let .VpTokenParse(v1):
+            writeInt(&buf, Int32(17))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .VpTokenCreate(v1):
+            writeInt(&buf, Int32(18))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .JwkParse(v1):
+            writeInt(&buf, Int32(19))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .VdcCollectionNotInitialized:
+            writeInt(&buf, Int32(20))
+        
+        
+        case .AuthorizationRequestNotFound:
+            writeInt(&buf, Int32(21))
+        
+        
+        case .RequestSignerNotFound:
+            writeInt(&buf, Int32(22))
+        
+        
+        case let .MetadataInitialization(v1):
+            writeInt(&buf, Int32(23))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Draft18PermissionRequest(v1):
+            writeInt(&buf, Int32(24))
+            FfiConverterTypeDraft18PermissionRequestError.write(v1, into: &buf)
+            
+        
+        case let .Presentation(v1):
+            writeInt(&buf, Int32(25))
+            FfiConverterTypeDraft18PresentationError.write(v1, into: &buf)
+            
+        
+        case let .CredentialEncoding(v1):
+            writeInt(&buf, Int32(26))
+            FfiConverterTypeCredentialEncodingError.write(v1, into: &buf)
+            
+        
+        case let .JsonPathParse(v1):
+            writeInt(&buf, Int32(27))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .JsonPathResolve(v1):
+            writeInt(&buf, Int32(28))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .JsonPathToPointer(v1):
+            writeInt(&buf, Int32(29))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .LimitDisclosure(v1):
+            writeInt(&buf, Int32(30))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .EmptyCredentialSubject(v1):
+            writeInt(&buf, Int32(31))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .SelectiveDisclosureInvalidFields:
+            writeInt(&buf, Int32(32))
+        
+        
+        case .SelectiveDisclosureEmptySelection:
+            writeInt(&buf, Int32(33))
+        
+        
+        case let .Debug(v1):
+            writeInt(&buf, Int32(34))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18OID4VPError_lift(_ buf: RustBuffer) throws -> Draft18Oid4vpError {
+    return try FfiConverterTypeDraft18OID4VPError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18OID4VPError_lower(_ value: Draft18Oid4vpError) -> RustBuffer {
+    return FfiConverterTypeDraft18OID4VPError.lower(value)
+}
+
+
+extension Draft18Oid4vpError: Equatable, Hashable {}
+
+
+
+extension Draft18Oid4vpError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum Draft18Oid4vpVerifierError: Swift.Error {
+
+    
+    
+    case HttpClient(String
+    )
+    case Url(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18Oid4vpVerifierError: FfiConverterRustBuffer {
+    typealias SwiftType = Draft18Oid4vpVerifierError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18Oid4vpVerifierError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .HttpClient(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .Url(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Draft18Oid4vpVerifierError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .HttpClient(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Url(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18Oid4vpVerifierError_lift(_ buf: RustBuffer) throws -> Draft18Oid4vpVerifierError {
+    return try FfiConverterTypeDraft18Oid4vpVerifierError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18Oid4vpVerifierError_lower(_ value: Draft18Oid4vpVerifierError) -> RustBuffer {
+    return FfiConverterTypeDraft18Oid4vpVerifierError.lower(value)
+}
+
+
+extension Draft18Oid4vpVerifierError: Equatable, Hashable {}
+
+
+
+extension Draft18Oid4vpVerifierError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum Draft18PermissionRequestError: Swift.Error {
+
+    
+    
+    /**
+     * Permission denied for requested presentation.
+     */
+    case PermissionDenied
+    /**
+     * No credentials found matching the presentation definition.
+     */
+    case NoCredentialsFound
+    /**
+     * Credential not found for input descriptor id.
+     */
+    case CredentialNotFound(String
+    )
+    /**
+     * Input descriptor not found for input descriptor id.
+     */
+    case InputDescriptorNotFound(String
+    )
+    /**
+     * Invalid selected credential for requested field. Selected
+     * credential does not match optional credentials.
+     */
+    case InvalidSelectedCredential(String,String
+    )
+    /**
+     * Credential Presentation Error
+     *
+     * failed to present the credential.
+     */
+    case CredentialPresentation(String
+    )
+    case RwLock(String
+    )
+    case PresentationSigning(String
+    )
+    case CryptographicSuite(String
+    )
+    case VerificationMethod(String
+    )
+    case LimitDisclosure
+    case Presentation(Draft18PresentationError
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18PermissionRequestError: FfiConverterRustBuffer {
+    typealias SwiftType = Draft18PermissionRequestError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18PermissionRequestError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .PermissionDenied
+        case 2: return .NoCredentialsFound
+        case 3: return .CredentialNotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .InputDescriptorNotFound(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .InvalidSelectedCredential(
+            try FfiConverterString.read(from: &buf), 
+            try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .CredentialPresentation(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .RwLock(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .PresentationSigning(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 9: return .CryptographicSuite(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 10: return .VerificationMethod(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 11: return .LimitDisclosure
+        case 12: return .Presentation(
+            try FfiConverterTypeDraft18PresentationError.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Draft18PermissionRequestError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .PermissionDenied:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .NoCredentialsFound:
+            writeInt(&buf, Int32(2))
+        
+        
+        case let .CredentialNotFound(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InputDescriptorNotFound(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidSelectedCredential(v1,v2):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            FfiConverterString.write(v2, into: &buf)
+            
+        
+        case let .CredentialPresentation(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .RwLock(v1):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .PresentationSigning(v1):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .CryptographicSuite(v1):
+            writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .VerificationMethod(v1):
+            writeInt(&buf, Int32(10))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .LimitDisclosure:
+            writeInt(&buf, Int32(11))
+        
+        
+        case let .Presentation(v1):
+            writeInt(&buf, Int32(12))
+            FfiConverterTypeDraft18PresentationError.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PermissionRequestError_lift(_ buf: RustBuffer) throws -> Draft18PermissionRequestError {
+    return try FfiConverterTypeDraft18PermissionRequestError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PermissionRequestError_lower(_ value: Draft18PermissionRequestError) -> RustBuffer {
+    return FfiConverterTypeDraft18PermissionRequestError.lower(value)
+}
+
+
+extension Draft18PermissionRequestError: Equatable, Hashable {}
+
+
+
+extension Draft18PermissionRequestError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum Draft18PresentationError: Swift.Error {
+
+    
+    
+    case Signing(String
+    )
+    case CryptographicSuite(String
+    )
+    case VerificationMethod(String
+    )
+    case Context(String
+    )
+    case Jwk(String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18PresentationError: FfiConverterRustBuffer {
+    typealias SwiftType = Draft18PresentationError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18PresentationError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Signing(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .CryptographicSuite(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .VerificationMethod(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .Context(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .Jwk(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Draft18PresentationError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Signing(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .CryptographicSuite(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .VerificationMethod(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Context(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Jwk(v1):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PresentationError_lift(_ buf: RustBuffer) throws -> Draft18PresentationError {
+    return try FfiConverterTypeDraft18PresentationError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18PresentationError_lower(_ value: Draft18PresentationError) -> RustBuffer {
+    return FfiConverterTypeDraft18PresentationError.lower(value)
+}
+
+
+extension Draft18PresentationError: Equatable, Hashable {}
+
+
+
+extension Draft18PresentationError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
+public enum Draft18RequestSignerError: Swift.Error {
+
+    
+    
+    case UnsupportedAlgorithm
+    case SigningError
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18RequestSignerError: FfiConverterRustBuffer {
+    typealias SwiftType = Draft18RequestSignerError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18RequestSignerError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .UnsupportedAlgorithm
+        case 2: return .SigningError
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Draft18RequestSignerError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .UnsupportedAlgorithm:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .SigningError:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18RequestSignerError_lift(_ buf: RustBuffer) throws -> Draft18RequestSignerError {
+    return try FfiConverterTypeDraft18RequestSignerError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18RequestSignerError_lower(_ value: Draft18RequestSignerError) -> RustBuffer {
+    return FfiConverterTypeDraft18RequestSignerError.lower(value)
+}
+
+
+extension Draft18RequestSignerError: Equatable, Hashable {}
+
+
+
+extension Draft18RequestSignerError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
 
 
 // Note that we don't yet support `indirect` for enums.
@@ -22974,6 +25792,323 @@ extension X509CertChainOpts: Equatable, Hashable {}
 
 
 /**
+ * The `Draft18PresentationSigner` callback interface to be implemented
+ * by the host environment, e.g. Kotlin or Swift.
+ *
+ * Signing is handled after the authorization request is reviewed and authorized
+ * and the credentials for presentation have been selected.
+ *
+ * The payload for signing is determined by the credential format and the encoding
+ * type of the `vp_token`.
+ *
+ * For example, in the case of `JwtVc` credential format,
+ * the signing payload consists of the JWT header and payload (JWS).
+ */
+public protocol Draft18PresentationSigner: AnyObject, Sendable {
+    
+    /**
+     * Sign the payload with the private key and return the signature.
+     *
+     * The signing algorithm must match the `cryptosuite()` method result.
+     */
+    func sign(payload: Data) async throws  -> Data
+    
+    /**
+     * Return the algorithm used for signing the vp token.
+     *
+     * E.g., "ES256"
+     */
+    func algorithm()  -> Algorithm
+    
+    /**
+     * Return the verification method associated with the signing key.
+     */
+    func verificationMethod() async  -> String
+    
+    /**
+     * Return the `DID` of the signing key.
+     */
+    func did()  -> String
+    
+    /**
+     * Data Integrity Cryptographic Suite of the Signer.
+     *
+     * This corresponds to the `proof_type` in the
+     * authorization request corresponding to the
+     * format of the verifiable presentation, e.g,
+     * `ldp_vp`, `jwt_vp`.
+     *
+     *
+     * E.g., JsonWebSignature2020, ecdsa-rdfc-2019
+     */
+    func cryptosuite()  -> CryptosuiteString
+    
+    /**
+     * Return the public JWK of the signing key.
+     * as a String-encoded JSON
+     */
+    func jwk()  -> String
+    
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // This creates 1-element array, since this seems to be the only way to construct a const
+    // pointer that we can pass to the Rust code.
+    static let vtable: [UniffiVTableCallbackInterfaceDraft18PresentationSigner] = [UniffiVTableCallbackInterfaceDraft18PresentationSigner(
+        sign: { (
+            uniffiHandle: UInt64,
+            payload: RustBuffer,
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
+            uniffiCallbackData: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<UniffiForeignFuture>
+        ) in
+            let makeCall = {
+                () async throws -> Data in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDraft18PresentationSigner.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try await uniffiObj.sign(
+                     payload: try FfiConverterData.lift(payload)
+                )
+            }
+
+            let uniffiHandleSuccess = { (returnValue: Data) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: FfiConverterData.lower(returnValue),
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: RustBuffer.empty(),
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            let uniffiForeignFuture = uniffiTraitInterfaceCallAsyncWithError(
+                makeCall: makeCall,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
+                lowerError: FfiConverterTypeDraft18PresentationError_lower
+            )
+            uniffiOutReturn.pointee = uniffiForeignFuture
+        },
+        algorithm: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Algorithm in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDraft18PresentationSigner.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.algorithm(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeAlgorithm_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        verificationMethod: { (
+            uniffiHandle: UInt64,
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
+            uniffiCallbackData: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<UniffiForeignFuture>
+        ) in
+            let makeCall = {
+                () async throws -> String in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDraft18PresentationSigner.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return await uniffiObj.verificationMethod(
+                )
+            }
+
+            let uniffiHandleSuccess = { (returnValue: String) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: FfiConverterString.lower(returnValue),
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureStructRustBuffer(
+                        returnValue: RustBuffer.empty(),
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            let uniffiForeignFuture = uniffiTraitInterfaceCallAsync(
+                makeCall: makeCall,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError
+            )
+            uniffiOutReturn.pointee = uniffiForeignFuture
+        },
+        did: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> String in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDraft18PresentationSigner.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.did(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        cryptosuite: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> CryptosuiteString in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDraft18PresentationSigner.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.cryptosuite(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeCryptosuiteString_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        jwk: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> String in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDraft18PresentationSigner.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.jwk(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            let result = try? FfiConverterCallbackInterfaceDraft18PresentationSigner.handleMap.remove(handle: uniffiHandle)
+            if result == nil {
+                print("Uniffi callback interface Draft18PresentationSigner: handle missing in uniffiFree")
+            }
+        }
+    )]
+}
+
+private func uniffiCallbackInitDraft18PresentationSigner() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_draft18presentationsigner(UniffiCallbackInterfaceDraft18PresentationSigner.vtable)
+}
+
+// FfiConverter protocol for callback interfaces
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterCallbackInterfaceDraft18PresentationSigner {
+    fileprivate static let handleMap = UniffiHandleMap<Draft18PresentationSigner>()
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+extension FfiConverterCallbackInterfaceDraft18PresentationSigner : FfiConverter {
+    typealias SwiftType = Draft18PresentationSigner
+    typealias FfiType = UInt64
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lift(_ handle: UInt64) throws -> SwiftType {
+        try handleMap.get(handle: handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lower(_ v: SwiftType) -> UInt64 {
+        return handleMap.insert(obj: v)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(v))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceDraft18PresentationSigner_lift(_ handle: UInt64) throws -> Draft18PresentationSigner {
+    return try FfiConverterCallbackInterfaceDraft18PresentationSigner.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceDraft18PresentationSigner_lower(_ v: Draft18PresentationSigner) -> UInt64 {
+    return FfiConverterCallbackInterfaceDraft18PresentationSigner.lower(v)
+}
+
+
+
+
+/**
  * The `PresentationSigner` foreign callback interface to be implemented
  * by the host environment, e.g. Kotlin or Swift.
  *
@@ -23747,6 +26882,30 @@ fileprivate struct FfiConverterOptionTypeDelegatedVerifierOid4vpResponse: FfiCon
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeDraft18DelegatedVerifierOid4vpResponse: FfiConverterRustBuffer {
+    typealias SwiftType = Draft18DelegatedVerifierOid4vpResponse?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDraft18DelegatedVerifierOid4vpResponse.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDraft18DelegatedVerifierOid4vpResponse.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypePeripheralServerDetails: FfiConverterRustBuffer {
     typealias SwiftType = PeripheralServerDetails?
 
@@ -24055,6 +27214,56 @@ fileprivate struct FfiConverterSequenceTypeActivityLogEntry: FfiConverterRustBuf
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeActivityLogEntry.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDraft18PresentableCredential: FfiConverterRustBuffer {
+    typealias SwiftType = [Draft18PresentableCredential]
+
+    public static func write(_ value: [Draft18PresentableCredential], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDraft18PresentableCredential.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Draft18PresentableCredential] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Draft18PresentableCredential]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDraft18PresentableCredential.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDraft18RequestedField: FfiConverterRustBuffer {
+    typealias SwiftType = [Draft18RequestedField]
+
+    public static func write(_ value: [Draft18RequestedField], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDraft18RequestedField.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Draft18RequestedField] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Draft18RequestedField]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDraft18RequestedField.read(from: &buf))
         }
         return seq
     }
@@ -25266,6 +28475,50 @@ public func FfiConverterTypeCryptosuiteString_lower(_ value: CryptosuiteString) 
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
+public typealias Draft18AuthRequest = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDraft18AuthRequest: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Draft18AuthRequest {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: Draft18AuthRequest, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> Draft18AuthRequest {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: Draft18AuthRequest) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18AuthRequest_lift(_ value: RustBuffer) throws -> Draft18AuthRequest {
+    return try FfiConverterTypeDraft18AuthRequest.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDraft18AuthRequest_lower(_ value: Draft18AuthRequest) -> RustBuffer {
+    return FfiConverterTypeDraft18AuthRequest.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
 public typealias FieldId180137 = String
 
 #if swift(>=5.8)
@@ -26364,6 +29617,84 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_didurl_did() != 2616) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18delegatedverifier_poll_verification_status() != 42536) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18delegatedverifier_request_delegated_verification() != 17113) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18holder_authorization_request() != 60803) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18holder_submit_permission_response() != 3978) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionrequest_client_id() != 23192) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionrequest_create_permission_response() != 55763) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionrequest_credentials() != 33837) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionrequest_domain() != 3529) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionrequest_is_multi_credential_matching() != 1503) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionrequest_is_multi_credential_selection() != 43722) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionrequest_purpose() != 28313) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionrequest_requested_fields() != 54264) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionresponse_selected_credentials() != 2389) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18permissionresponse_vp_token() != 62899) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentablecredential_as_parsed_credential() != 61387) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestsignerinterface_alg() != 29447) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestsignerinterface_jwk() != 14690) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestsignerinterface_try_sign() != 6636) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestedfield_id() != 35798) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestedfield_input_descriptor_id() != 55607) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestedfield_name() != 37031) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestedfield_path() != 43318) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestedfield_purpose() != 28084) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestedfield_raw_fields() != 16721) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestedfield_required() != 17317) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18requestedfield_retained() != 18629) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_holder_authorization_request() != 37629) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -26913,6 +30244,15 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_didmethodutils_new() != 22235) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_draft18delegatedverifier_new_client() != 35954) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_draft18holder_new() != 56647) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_draft18holder_new_with_credentials() != 24535) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 27591) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27051,6 +30391,24 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_walletserviceclient_new() != 5221) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_sign() != 57310) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_algorithm() != 17754) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_verification_method() != 31123) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_did() != 20379) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_cryptosuite() != 36816) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_jwk() != 10512) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_sign() != 27180) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27072,12 +30430,14 @@ private let initializationResult: InitializationResult = {
 
     uniffiCallbackInitAsyncHttpClient()
     uniffiCallbackInitCrypto()
+    uniffiCallbackInitDraft18RequestSignerInterface()
     uniffiCallbackInitJwsSigner()
     uniffiCallbackInitKeyStore()
     uniffiCallbackInitLogWriter()
     uniffiCallbackInitSigningKey()
     uniffiCallbackInitStorageManagerInterface()
     uniffiCallbackInitSyncHttpClient()
+    uniffiCallbackInitDraft18PresentationSigner()
     uniffiCallbackInitPresentationSigner()
     return InitializationResult.ok
 }()
