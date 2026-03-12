@@ -181,7 +181,7 @@ class IsoMdlPresentation(
         )
     }
 
-    private fun onDataReceived(mode: String, data: ByteArray) {
+    private fun onDataReceived(mode: String, data: ByteArray): Boolean {
         val shouldProcess = synchronized(connectionLock) {
             // First data received wins - terminate the other mode (if in DUAL_MODE)
             if (connectedMode == null) {
@@ -220,8 +220,9 @@ class IsoMdlPresentation(
 
         // Forward data to the handler if we should process it
         if (shouldProcess) {
-            updateRequestData(data)
+            return updateRequestData(data)
         }
+        return true;
     }
 
     fun submitNamespaces(items: Map<String, Map<String, List<String>>>) {
@@ -283,12 +284,16 @@ class IsoMdlPresentation(
         connectedMode = null
     }
 
-    fun updateRequestData(data: ByteArray) {
-        // Only process the first request. Subsequent messages are status/termination messages.
-        // TODO: Not sure what to do here (termination messages)
+    fun updateRequestData(data: ByteArray): Boolean {
+        // TODO: Assuming a termination code after receiving items feels like a hack
         if (this.itemsRequests.isNotEmpty()) {
             Log.d("IsoMdlPresentation", "Ignoring subsequent message (${data.size} bytes) - request already processed")
-            return
+            // TODO: Do we want to handle these more specifically?
+            // Status:
+            //   10 - Error: session encryption
+            //   11 - Error: CBOR decoding
+            //   20 - Session termination
+            return false;
         }
 
         try {
@@ -303,5 +308,6 @@ class IsoMdlPresentation(
             this.peripheralTransport?.terminate()
             this.callback.error(e)
         }
+        return true;
     }
 }

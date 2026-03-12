@@ -15,7 +15,7 @@ import java.util.*
 class TransportBlePeripheralServerHolder(
     private var application: String,
     private var serviceUUID: UUID,
-    private var updateRequestData: ((data: ByteArray) -> Unit)?
+    private var updateRequestData: ((data: ByteArray) -> Boolean)?
 ) {
 
     private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.SERVER)

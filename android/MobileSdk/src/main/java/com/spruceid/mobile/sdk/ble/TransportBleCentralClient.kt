@@ -49,7 +49,7 @@ class TransportBleCentralClient(
     private var application: String,
     private var serviceUUID: UUID,
 
-    private var updateRequestData: ((data: ByteArray) -> Unit)? = null,
+    private var updateRequestData: ((data: ByteArray) -> Boolean)? = null,
     internal var callback: BLESessionStateDelegate?,
     private var requestData: ByteArray? = null
 ) {
@@ -159,7 +159,15 @@ class TransportBleCentralClient(
                         callback?.update(mapOf(Pair("mdl", data)))
                     } else {
                         // Holder mode: Process the request data
-                        updateRequestData?.invoke(data)
+                        val cont = updateRequestData?.invoke(data) ?: true
+                        if(!cont) {
+                            logger.d(
+                                "Got disconnect signal, trying to detach"
+                            )
+
+                            // Session terminated.
+                            onTransportSpecificSessionTermination()
+                        }
                     }
                 } catch (e: Error) {
                     logger.e("${e.message}")
