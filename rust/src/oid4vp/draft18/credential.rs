@@ -62,6 +62,19 @@ impl Draft18PresentableCredential {
             inner: self.inner.clone(),
         })
     }
+
+    /// Return the input descriptor id that matched this credential.
+    pub fn input_descriptor_id(&self) -> String {
+        self.input_descriptor_id.clone()
+    }
+
+    /// Return if the credential supports selective disclosure.
+    pub fn selective_disclosable(&self) -> bool {
+        matches!(
+            &self.inner,
+            ParsedCredentialInner::VCDM2SdJwt(_) | ParsedCredentialInner::DcSdJwt(_)
+        )
+    }
 }
 
 

@@ -4372,6 +4372,16 @@ public protocol Draft18PresentableCredentialProtocol: AnyObject, Sendable {
      */
     func asParsedCredential()  -> ParsedCredential
     
+    /**
+     * Return the input descriptor id that matched this credential.
+     */
+    func inputDescriptorId()  -> String
+    
+    /**
+     * Return if the credential supports selective disclosure.
+     */
+    func selectiveDisclosable()  -> Bool
+    
 }
 /**
  * Draft18-compatible Draft18PresentableCredential with the original field structure.
@@ -4438,6 +4448,28 @@ open class Draft18PresentableCredential: Draft18PresentableCredentialProtocol, @
 open func asParsedCredential() -> ParsedCredential  {
     return try!  FfiConverterTypeParsedCredential_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_draft18presentablecredential_as_parsed_credential(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Return the input descriptor id that matched this credential.
+     */
+open func inputDescriptorId() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18presentablecredential_input_descriptor_id(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Return if the credential supports selective disclosure.
+     */
+open func selectiveDisclosable() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_draft18presentablecredential_selective_disclosable(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -22828,6 +22860,80 @@ public func FfiConverterTypeOid4vpVerifierError_lower(_ value: Oid4vpVerifierErr
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum Oid4vpVersion: Equatable, Hashable {
+    
+    case v1
+    case draft18
+    case unsupported
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension Oid4vpVersion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vpVersion: FfiConverterRustBuffer {
+    typealias SwiftType = Oid4vpVersion
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vpVersion {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .v1
+        
+        case 2: return .draft18
+        
+        case 3: return .unsupported
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Oid4vpVersion, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .v1:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .draft18:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .unsupported:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vpVersion_lift(_ buf: RustBuffer) throws -> Oid4vpVersion {
+    return try FfiConverterTypeOid4vpVersion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vpVersion_lower(_ value: Oid4vpVersion) -> RustBuffer {
+    return FfiConverterTypeOid4vpVersion.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
  * The outcome of attempting to verify a credential.
  */
@@ -28791,6 +28897,13 @@ public func createJwtProof(issuer: String?, audience: String, expireInSecs: UInt
             errorHandler: FfiConverterTypeOid4vciError_lift
         )
 }
+public func getOid4vpVersion(request: String) -> Oid4vpVersion  {
+    return try!  FfiConverterTypeOid4vpVersion_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_get_oid4vp_version(
+        FfiConverterString.lower(request),$0
+    )
+})
+}
 /**
  * Handle a DC API request.
  *
@@ -28961,6 +29074,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_create_jwt_proof() != 10438) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_get_oid4vp_version() != 38672) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_handle_dc_api_request() != 62830) {
@@ -29516,6 +29632,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_draft18presentablecredential_as_parsed_credential() != 52216) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentablecredential_input_descriptor_id() != 64904) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentablecredential_selective_disclosable() != 59527) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_draft18holder_authorization_request() != 19678) {
