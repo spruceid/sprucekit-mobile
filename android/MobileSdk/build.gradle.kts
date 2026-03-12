@@ -72,15 +72,6 @@ signing {
     sign(publishing.publications["release"])
 }
 
-nmcp {
-    afterEvaluate {
-        publish("release") {
-            username = System.getenv("MAVEN_USERNAME")
-            password = System.getenv("MAVEN_PASSWORD")
-            publicationType = "AUTOMATIC"
-        }
-    }
-}
 
 android {
     namespace = "com.spruceid.mobile.sdk"

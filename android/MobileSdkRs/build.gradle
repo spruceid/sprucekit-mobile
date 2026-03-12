@@ -225,12 +225,3 @@ signing {
     sign publishing.publications.release
 }
 
-nmcp {
-    afterEvaluate {
-        publish("release") {
-            it.username.set(System.getenv("MAVEN_USERNAME"))
-            it.password.set(System.getenv("MAVEN_PASSWORD"))
-            it.publicationType.set("AUTOMATIC")
-        }
-    }
-}
