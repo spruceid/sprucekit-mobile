@@ -49,6 +49,13 @@ import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.CredentialRequirement
 import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.DidMethodUtils
+import com.spruceid.mobile.sdk.rs.Draft18Holder
+import com.spruceid.mobile.sdk.rs.Draft18PermissionRequest
+import com.spruceid.mobile.sdk.rs.Draft18PermissionResponse
+import com.spruceid.mobile.sdk.rs.Draft18PresentableCredential
+import com.spruceid.mobile.sdk.rs.Draft18RequestedField
+import com.spruceid.mobile.sdk.rs.Draft18ResponseOptions
+import com.spruceid.mobile.sdk.rs.Oid4vpVersion
 import com.spruceid.mobile.sdk.rs.Holder
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PermissionRequest
@@ -57,6 +64,7 @@ import com.spruceid.mobile.sdk.rs.PresentableCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.RequestedField
 import com.spruceid.mobile.sdk.rs.ResponseOptions
+import com.spruceid.mobile.sdk.rs.getOid4vpVersion
 import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
@@ -165,10 +173,19 @@ fun HandleOID4VPView(
     val credentialPacks by credentialPacksViewModel.credentialPacks.collectAsState()
 
     var credentialClaims by remember { mutableStateOf(mapOf<String, JSONObject>()) }
+    var requestVersion by remember { mutableStateOf<Oid4vpVersion?>(null) }
     var holder by remember { mutableStateOf<Holder?>(null) }
     var permissionRequest by remember { mutableStateOf<PermissionRequest?>(null) }
     var permissionResponse by remember { mutableStateOf<PermissionResponse?>(null) }
     val lSelectedCredentials = remember { mutableStateOf<List<PresentableCredential>>(listOf()) }
+    var draft18Holder by remember { mutableStateOf<Draft18Holder?>(null) }
+    var draft18PermissionRequest by remember { mutableStateOf<Draft18PermissionRequest?>(null) }
+    var draft18PermissionResponse by remember { mutableStateOf<Draft18PermissionResponse?>(null) }
+    var draft18Requirements by remember { mutableStateOf<List<Draft18CredentialRequirement>>(listOf()) }
+    val draft18SelectedCredentials = remember { mutableStateOf<List<Draft18PresentableCredential>>(listOf()) }
+    var draft18RequestedFieldsByCredentialId by remember {
+        mutableStateOf<Map<String, List<Draft18RequestedField>>>(emptyMap())
+    }
     var state by remember { mutableStateOf(OID4VPState.None) }
     var error by remember { mutableStateOf<OID4VPError?>(null) }
     val ctx = LocalContext.current
@@ -179,6 +196,78 @@ fun HandleOID4VPView(
 
     fun onBack() {
         navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+    }
+
+    fun credentialTitle(parsedCredential: ParsedCredential): String {
+        try {
+            credentialClaims[parsedCredential.id()]?.getString("name")
+                ?.takeIf { it.isNotBlank() }?.let { return it }
+        } catch (_: Exception) {
+        }
+
+        try {
+            credentialClaims[parsedCredential.id()]?.getJSONArray("type")?.let {
+                for (i in 0 until it.length()) {
+                    if (it.get(i).toString() != "VerifiableCredential") {
+                        return it.get(i).toString().splitCamelCase()
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+
+        try {
+            parsedCredential.asMsoMdoc()?.let { return credentialTypeDisplayName(it.doctype()) }
+        } catch (_: Exception) {
+        }
+
+        try {
+            parsedCredential.asDcSdJwt()?.let { return credentialTypeDisplayName(it.vct()) }
+        } catch (_: Exception) {
+        }
+
+        return "Credential"
+    }
+
+    fun draft18RequestedFields(credential: Draft18PresentableCredential): List<Draft18RequestedField> {
+        return draft18RequestedFieldsByCredentialId[credential.asParsedCredential().id()] ?: emptyList()
+    }
+
+    fun buildDraft18Requirements(
+        request: Draft18PermissionRequest,
+        credentials: List<Draft18PresentableCredential>
+    ): Pair<List<Draft18CredentialRequirement>, Map<String, List<Draft18RequestedField>>> {
+        val orderedDescriptorIds = mutableListOf<String>()
+        val groupedCredentials = mutableMapOf<String, MutableList<Draft18PresentableCredential>>()
+        val descriptorNames = mutableMapOf<String, String>()
+        val fieldMap = mutableMapOf<String, List<Draft18RequestedField>>()
+
+        credentials.forEach { credential ->
+            val parsedCredential = credential.asParsedCredential()
+            val fields = request.requestedFields(credential)
+            fieldMap[parsedCredential.id()] = fields
+
+            val descriptorId = credential.inputDescriptorId()
+            if (descriptorId !in orderedDescriptorIds) {
+                orderedDescriptorIds += descriptorId
+            }
+
+            groupedCredentials.getOrPut(descriptorId) { mutableListOf() }.add(credential)
+            if (descriptorId !in descriptorNames) {
+                descriptorNames[descriptorId] =
+                    fields.firstOrNull()?.name()
+                    ?: fields.firstOrNull()?.purpose()
+                    ?: credentialTitle(parsedCredential)
+            }
+        }
+
+        return orderedDescriptorIds.map { descriptorId ->
+            Draft18CredentialRequirement(
+                descriptorId = descriptorId,
+                displayName = descriptorNames[descriptorId] ?: "Credential",
+                credentials = groupedCredentials[descriptorId].orEmpty()
+            )
+        } to fieldMap
     }
 
     when (state) {
@@ -197,41 +286,90 @@ fun HandleOID4VPView(
                 }
 
                 withContext(Dispatchers.IO) {
-                    val signer = Signer(DEFAULT_SIGNING_KEY_ID)
-                    holder =
-                        Holder.newWithCredentials(
-                            credentials,
-                            trustedDids,
-                            signer,
-                            getVCPlaygroundOID4VCIContext(ctx),
-                            KeyManager()
-                        )
                     val newurl = url.replace("authorize", "")
-                    val tempPermissionRequest = holder!!.authorizationRequest(newurl)
-                    val permissionRequestCredentials = tempPermissionRequest.credentials()
+                    requestVersion = getOid4vpVersion(newurl)
 
-                    permissionRequest = tempPermissionRequest
-                    val requirements = tempPermissionRequest.credentialRequirements()
-                    if (permissionRequestCredentials.isNotEmpty()) {
-                        // Check if we can skip credential selection:
-                        // Only skip if there's exactly one requirement with exactly one credential
-                        val canSkipSelection =
-                            requirements.size == 1 && requirements.first().credentials.size == 1
-                        if (canSkipSelection) {
-                            lSelectedCredentials.value = permissionRequestCredentials
-                            // Initialize disclosure tracking for single credential
-                            currentDisclosureIndex = 0
-                            allSelectedFields = listOf()
-                            state = OID4VPState.SelectiveDisclosure
-                        } else {
-                            state = OID4VPState.SelectCredential
+                    when (requestVersion) {
+                        Oid4vpVersion.V1 -> {
+                            val signer = Signer(DEFAULT_SIGNING_KEY_ID)
+                            holder =
+                                Holder.newWithCredentials(
+                                    credentials,
+                                    trustedDids,
+                                    signer,
+                                    getVCPlaygroundOID4VCIContext(ctx),
+                                    KeyManager()
+                                )
+                            val tempPermissionRequest = holder!!.authorizationRequest(newurl)
+                            val permissionRequestCredentials = tempPermissionRequest.credentials()
+
+                            permissionRequest = tempPermissionRequest
+                            val requirements = tempPermissionRequest.credentialRequirements()
+                            if (permissionRequestCredentials.isNotEmpty()) {
+                                val canSkipSelection =
+                                    requirements.size == 1 && requirements.first().credentials.size == 1
+                                if (canSkipSelection) {
+                                    lSelectedCredentials.value = permissionRequestCredentials
+                                    currentDisclosureIndex = 0
+                                    allSelectedFields = listOf()
+                                    state = OID4VPState.SelectiveDisclosure
+                                } else {
+                                    state = OID4VPState.SelectCredential
+                                }
+                            } else {
+                                error = OID4VPError(
+                                    "No matching credential(s)",
+                                    "There are no credentials in your wallet that match the verification request you have scanned",
+                                )
+                                state = OID4VPState.Err
+                            }
                         }
-                    } else {
-                        error = OID4VPError(
-                            "No matching credential(s)",
-                            "There are no credentials in your wallet that match the verification request you have scanned",
-                        )
-                        state = OID4VPState.Err
+
+                        Oid4vpVersion.DRAFT18 -> {
+                            val signer = Draft18Signer(DEFAULT_SIGNING_KEY_ID)
+                            draft18Holder =
+                                Draft18Holder.newWithCredentials(
+                                    credentials,
+                                    trustedDids,
+                                    signer,
+                                    getVCPlaygroundOID4VCIContext(ctx)
+                                )
+                            val tempPermissionRequest = draft18Holder!!.authorizationRequest(newurl)
+                            val permissionRequestCredentials = tempPermissionRequest.credentials()
+
+                            draft18PermissionRequest = tempPermissionRequest
+                            val (requirements, requestedFields) =
+                                buildDraft18Requirements(tempPermissionRequest, permissionRequestCredentials)
+                            draft18Requirements = requirements
+                            draft18RequestedFieldsByCredentialId = requestedFields
+
+                            if (permissionRequestCredentials.isNotEmpty()) {
+                                val canSkipSelection =
+                                    requirements.size == 1 && requirements.first().credentials.size == 1
+                                if (canSkipSelection) {
+                                    draft18SelectedCredentials.value = permissionRequestCredentials
+                                    currentDisclosureIndex = 0
+                                    allSelectedFields = listOf()
+                                    state = OID4VPState.SelectiveDisclosure
+                                } else {
+                                    state = OID4VPState.SelectCredential
+                                }
+                            } else {
+                                error = OID4VPError(
+                                    "No matching credential(s)",
+                                    "There are no credentials in your wallet that match the verification request you have scanned",
+                                )
+                                state = OID4VPState.Err
+                            }
+                        }
+
+                        Oid4vpVersion.UNSUPPORTED, null -> {
+                            error = OID4VPError(
+                                "Unsupported request",
+                                "Unable to determine whether the request is OID4VP v1.0 or draft 18.",
+                            )
+                            state = OID4VPState.Err
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -247,113 +385,207 @@ fun HandleOID4VPView(
                 onClose = { onBack() }
             )
 
-        OID4VPState.SelectCredential -> CredentialSelector(
-            requirements = permissionRequest!!.credentialRequirements(),
-            credentialClaims = credentialClaims,
-            getRequestedFields = { credential ->
-                permissionRequest!!.requestedFields(credential)
-            },
-            onContinue = { selectedCredentials ->
-                scope.launch {
-                    try {
-                        lSelectedCredentials.value = selectedCredentials
-                        // Reset disclosure tracking for multi-credential flow
-                        currentDisclosureIndex = 0
-                        allSelectedFields = listOf()
-                        state = OID4VPState.SelectiveDisclosure
-                    } catch (e: Exception) {
-                        error = OID4VPError("Failed to select credential", e.localizedMessage!!)
-                        state = OID4VPState.Err
-                    }
-                }
-            },
-            onCancel = { onBack() }
-        )
-
-        OID4VPState.SelectiveDisclosure -> {
-            val currentCredential = lSelectedCredentials.value[currentDisclosureIndex]
-            val totalCredentials = lSelectedCredentials.value.size
-
-            // Get ALL claims for this credential
-            val currentCredentialPack = credentialPacks.firstOrNull { pack ->
-                pack.getCredentialById(currentCredential.asParsedCredential().id()) != null
-            }
-            val currentAllClaims = currentCredentialPack?.getCredentialClaims(
-                currentCredential.asParsedCredential(),
-                listOf()
-            ) ?: JSONObject()
-
-            DataFieldSelector(
-                requestedFields = permissionRequest!!.requestedFields(currentCredential),
-                selectedCredential = currentCredential,
-                currentIndex = currentDisclosureIndex,
-                totalCount = totalCredentials,
-                onContinue = { selectedFieldsForCredential ->
-                    // Append the selected fields for this credential
-                    allSelectedFields = allSelectedFields + listOf(selectedFieldsForCredential)
-
-                    // Check if there are more credentials to process
-                    if (currentDisclosureIndex + 1 < totalCredentials) {
-                        // Move to next credential
-                        currentDisclosureIndex += 1
-                        // Force view refresh by toggling state
-                        state = OID4VPState.Loading
-                        scope.launch {
-                            state = OID4VPState.SelectiveDisclosure
-                        }
-                    } else {
-                        // All credentials processed, submit response
+        OID4VPState.SelectCredential ->
+            if (requestVersion == Oid4vpVersion.DRAFT18) {
+                Draft18CredentialSelector(
+                    requirements = draft18Requirements,
+                    credentialClaims = credentialClaims,
+                    getRequestedFields = ::draft18RequestedFields,
+                    onContinue = { selectedCredentials ->
                         scope.launch {
                             try {
-                                permissionResponse =
-                                    permissionRequest!!.createPermissionResponse(
-                                        lSelectedCredentials.value,
-                                        allSelectedFields,
-                                        ResponseOptions(false)
-                                    )
-                                holder!!.submitPermissionResponse(permissionResponse!!)
-
-                                // Log activity for each credential
-                                for (credential in lSelectedCredentials.value) {
-                                    val credentialPack =
-                                        credentialPacks.firstOrNull { pack ->
-                                            pack.getCredentialById(
-                                                credential.asParsedCredential().id()
-                                            ) != null
-                                        }
-                                    if (credentialPack != null) {
-                                        val credentialInfo =
-                                            getCredentialIdTitleAndIssuer(credentialPack)
-                                        walletActivityLogsViewModel.saveWalletActivityLog(
-                                            walletActivityLogs = WalletActivityLogs(
-                                                credentialPackId = credentialPack.id().toString(),
-                                                credentialId = credentialInfo.first,
-                                                credentialTitle = credentialInfo.second,
-                                                issuer = credentialInfo.third,
-                                                action = "Verification",
-                                                dateTime = getCurrentSqlDate(),
-                                                additionalInformation = ""
-                                            )
-                                        )
-                                    }
-                                }
-
-                                Toast.showSuccess("Shared successfully")
-                                onBack()
+                                draft18SelectedCredentials.value = selectedCredentials
+                                currentDisclosureIndex = 0
+                                allSelectedFields = listOf()
+                                state = OID4VPState.SelectiveDisclosure
                             } catch (e: Exception) {
-                                error =
-                                    OID4VPError(
-                                        "Failed to submit presentation",
-                                        e.localizedMessage!!
-                                    )
+                                error = OID4VPError("Failed to select credential", e.localizedMessage!!)
                                 state = OID4VPState.Err
                             }
                         }
-                    }
-                },
-                onCancel = { onBack() },
-                allClaims = currentAllClaims
-            )
+                    },
+                    onCancel = { onBack() }
+                )
+            } else {
+                CredentialSelector(
+                    requirements = permissionRequest!!.credentialRequirements(),
+                    credentialClaims = credentialClaims,
+                    getRequestedFields = { credential ->
+                        permissionRequest!!.requestedFields(credential)
+                    },
+                    onContinue = { selectedCredentials ->
+                        scope.launch {
+                            try {
+                                lSelectedCredentials.value = selectedCredentials
+                                currentDisclosureIndex = 0
+                                allSelectedFields = listOf()
+                                state = OID4VPState.SelectiveDisclosure
+                            } catch (e: Exception) {
+                                error = OID4VPError("Failed to select credential", e.localizedMessage!!)
+                                state = OID4VPState.Err
+                            }
+                        }
+                    },
+                    onCancel = { onBack() }
+                )
+            }
+
+        OID4VPState.SelectiveDisclosure -> {
+            if (requestVersion == Oid4vpVersion.DRAFT18) {
+                val currentCredential = draft18SelectedCredentials.value[currentDisclosureIndex]
+                val totalCredentials = draft18SelectedCredentials.value.size
+
+                val currentCredentialPack = credentialPacks.firstOrNull { pack ->
+                    pack.getCredentialById(currentCredential.asParsedCredential().id()) != null
+                }
+                val currentAllClaims = currentCredentialPack?.getCredentialClaims(
+                    currentCredential.asParsedCredential(),
+                    listOf()
+                ) ?: JSONObject()
+
+                Draft18DataFieldSelector(
+                    requestedFields = draft18RequestedFields(currentCredential),
+                    selectedCredential = currentCredential,
+                    currentIndex = currentDisclosureIndex,
+                    totalCount = totalCredentials,
+                    onContinue = { selectedFieldsForCredential ->
+                        allSelectedFields = allSelectedFields + listOf(selectedFieldsForCredential)
+
+                        if (currentDisclosureIndex + 1 < totalCredentials) {
+                            currentDisclosureIndex += 1
+                            state = OID4VPState.Loading
+                            scope.launch { state = OID4VPState.SelectiveDisclosure }
+                        } else {
+                            scope.launch {
+                                try {
+                                    draft18PermissionResponse =
+                                        draft18PermissionRequest!!.createPermissionResponse(
+                                            draft18SelectedCredentials.value,
+                                            allSelectedFields,
+                                            Draft18ResponseOptions(
+                                                shouldStripQuotes = false,
+                                                forceArraySerialization = false,
+                                                removeVpPathPrefix = false
+                                            )
+                                        )
+                                    draft18Holder!!.submitPermissionResponse(draft18PermissionResponse!!)
+
+                                    for (credential in draft18SelectedCredentials.value) {
+                                        val credentialPack =
+                                            credentialPacks.firstOrNull { pack ->
+                                                pack.getCredentialById(
+                                                    credential.asParsedCredential().id()
+                                                ) != null
+                                            }
+                                        if (credentialPack != null) {
+                                            val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+                                            walletActivityLogsViewModel.saveWalletActivityLog(
+                                                walletActivityLogs = WalletActivityLogs(
+                                                    credentialPackId = credentialPack.id().toString(),
+                                                    credentialId = credentialInfo.first,
+                                                    credentialTitle = credentialInfo.second,
+                                                    issuer = credentialInfo.third,
+                                                    action = "Verification",
+                                                    dateTime = getCurrentSqlDate(),
+                                                    additionalInformation = ""
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    Toast.showSuccess("Shared successfully")
+                                    onBack()
+                                } catch (e: Exception) {
+                                    error = OID4VPError(
+                                        "Failed to submit presentation",
+                                        e.localizedMessage!!
+                                    )
+                                    state = OID4VPState.Err
+                                }
+                            }
+                        }
+                    },
+                    onCancel = { onBack() },
+                    allClaims = currentAllClaims
+                )
+            } else {
+                val currentCredential = lSelectedCredentials.value[currentDisclosureIndex]
+                val totalCredentials = lSelectedCredentials.value.size
+
+                val currentCredentialPack = credentialPacks.firstOrNull { pack ->
+                    pack.getCredentialById(currentCredential.asParsedCredential().id()) != null
+                }
+                val currentAllClaims = currentCredentialPack?.getCredentialClaims(
+                    currentCredential.asParsedCredential(),
+                    listOf()
+                ) ?: JSONObject()
+
+                DataFieldSelector(
+                    requestedFields = permissionRequest!!.requestedFields(currentCredential),
+                    selectedCredential = currentCredential,
+                    currentIndex = currentDisclosureIndex,
+                    totalCount = totalCredentials,
+                    onContinue = { selectedFieldsForCredential ->
+                        allSelectedFields = allSelectedFields + listOf(selectedFieldsForCredential)
+
+                        if (currentDisclosureIndex + 1 < totalCredentials) {
+                            currentDisclosureIndex += 1
+                            state = OID4VPState.Loading
+                            scope.launch {
+                                state = OID4VPState.SelectiveDisclosure
+                            }
+                        } else {
+                            scope.launch {
+                                try {
+                                    permissionResponse =
+                                        permissionRequest!!.createPermissionResponse(
+                                            lSelectedCredentials.value,
+                                            allSelectedFields,
+                                            ResponseOptions(false)
+                                        )
+                                    holder!!.submitPermissionResponse(permissionResponse!!)
+
+                                    for (credential in lSelectedCredentials.value) {
+                                        val credentialPack =
+                                            credentialPacks.firstOrNull { pack ->
+                                                pack.getCredentialById(
+                                                    credential.asParsedCredential().id()
+                                                ) != null
+                                            }
+                                        if (credentialPack != null) {
+                                            val credentialInfo =
+                                                getCredentialIdTitleAndIssuer(credentialPack)
+                                            walletActivityLogsViewModel.saveWalletActivityLog(
+                                                walletActivityLogs = WalletActivityLogs(
+                                                    credentialPackId = credentialPack.id().toString(),
+                                                    credentialId = credentialInfo.first,
+                                                    credentialTitle = credentialInfo.second,
+                                                    issuer = credentialInfo.third,
+                                                    action = "Verification",
+                                                    dateTime = getCurrentSqlDate(),
+                                                    additionalInformation = ""
+                                                )
+                                            )
+                                        }
+                                    }
+
+                                    Toast.showSuccess("Shared successfully")
+                                    onBack()
+                                } catch (e: Exception) {
+                                    error =
+                                        OID4VPError(
+                                            "Failed to submit presentation",
+                                            e.localizedMessage!!
+                                        )
+                                    state = OID4VPState.Err
+                                }
+                            }
+                        }
+                    },
+                    onCancel = { onBack() },
+                    allClaims = currentAllClaims
+                )
+            }
         }
 
         OID4VPState.Loading ->
