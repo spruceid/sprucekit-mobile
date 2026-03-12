@@ -61,7 +61,7 @@ class Transport(
         deviceRetrieval: String,
         deviceRetrievalOption: String,
         ident: ByteArray,
-        updateRequestData: ((data: ByteArray) -> Unit)? = null,
+        updateRequestData: ((data: ByteArray) -> Boolean)? = null,
         callback: BLESessionStateDelegate?,
         encodedEDeviceKeyBytes: ByteArray = ByteArray(0)
     ) {

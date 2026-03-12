@@ -101,9 +101,10 @@ class IsoMdlReader(
         }
     }
 
-    private fun updateResponseData(data: ByteArray){
+    private fun updateResponseData(data: ByteArray): Boolean {
         // Handle mDL response when Reader is Central (Client)
         val response = handleMdlReaderResponseData(data)
         callback.update(mapOf("mdl" to response))
+        return true
     }
 }
