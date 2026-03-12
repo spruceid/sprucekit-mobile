@@ -1,0 +1,7 @@
+module mobile_sdk_rsFFI {
+    header "mobile_sdk_rsFFI.h"
+    export *
+    use "Darwin"
+    use "_Builtin_stdbool"
+    use "_Builtin_stdint"
+}
