@@ -58,8 +58,7 @@ internal class DcApiAdapter(
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Initialize registry
-                // Note: walletName parameter reserved for future use when SDK supports it
-                registry = Registry(application, DEFAULT_ICON)
+                registry = Registry(application, DEFAULT_ICON, walletName = walletName ?: "Wallet")
 
                 // Collect all credential packs
                 val nativePacks = packIds.mapNotNull { packId ->
