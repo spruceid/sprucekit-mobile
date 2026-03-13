@@ -4,90 +4,41 @@ import com.spruceid.mobile.sdk.rs.AsyncHttpClient
 import com.spruceid.mobile.sdk.rs.HttpRequest
 import com.spruceid.mobile.sdk.rs.HttpResponse
 import com.spruceid.mobile.sdk.rs.SyncHttpClient
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.BufferedInputStream
-import java.io.ByteArrayInputStream
-import java.io.DataOutputStream
-import java.net.URL
-import javax.net.ssl.HttpsURLConnection
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
+import io.ktor.client.request.request
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.readRawBytes
+import io.ktor.http.HttpMethod
+import io.ktor.util.toMap
+import kotlinx.coroutines.runBlocking
 
-class Oid4vciSyncHttpClient: SyncHttpClient  {
-    override fun httpClient(request: HttpRequest): HttpResponse {
-        val connection: HttpsURLConnection = URL(request.url).openConnection() as HttpsURLConnection
+private val ktorClient = HttpClient(CIO)
 
-        connection.requestMethod = request.method
+private suspend fun ktorHttpClient(request: HttpRequest): HttpResponse {
+    val res = ktorClient.request(request.url) {
+        method = HttpMethod(request.method)
         for ((k, v) in request.headers) {
-            connection.setRequestProperty(k, v)
+            headers[k] = v
         }
-        connection.doInput = true
+        setBody(request.body)
+    }
 
-        if (request.body.isNotEmpty()) {
-            connection.doOutput = true
-            val wr = DataOutputStream(connection.outputStream)
-            wr.write(request.body)
-            wr.flush()
-            wr.close()
-        }
+    return HttpResponse(
+        statusCode = res.status.value.toUShort(),
+        headers = res.headers.toMap().mapValues { it.value.joinToString(",") },
+        body = res.readRawBytes(),
+    )
+}
 
-        val statusCode = connection.responseCode
-        val body = BufferedInputStream(
-            if (statusCode < 400) connection.inputStream
-            else connection.errorStream ?: ByteArrayInputStream(ByteArray(0))
-        ).use { it.readBytes() }
-
-        val headers = connection.headerFields
-            .filterKeys { it != null }
-            .mapKeys { it.key!! }
-            .mapValues { it.value.joinToString(",") }
-
-        return HttpResponse(
-            statusCode = statusCode.toUShort(),
-            headers = headers,
-            body = body,
-        )
+class Oid4vciSyncHttpClient : SyncHttpClient {
+    override fun httpClient(request: HttpRequest): HttpResponse {
+        return runBlocking { ktorHttpClient(request) }
     }
 }
 
-class Oid4vciAsyncHttpClient: AsyncHttpClient {
+class Oid4vciAsyncHttpClient : AsyncHttpClient {
     override suspend fun httpClient(request: HttpRequest): HttpResponse {
-        val connection: HttpsURLConnection =
-            withContext(Dispatchers.IO) {
-                URL(request.url).openConnection()
-            } as HttpsURLConnection
-
-        connection.requestMethod = request.method
-        for ((k, v) in request.headers) {
-            connection.setRequestProperty(k, v)
-        }
-        connection.doInput = true
-
-        if (request.body.isNotEmpty()) {
-            connection.doOutput = true
-            withContext(Dispatchers.IO) {
-                val wr = DataOutputStream(connection.outputStream)
-                wr.write(request.body)
-                wr.flush()
-                wr.close()
-            }
-        }
-
-        val statusCode = withContext(Dispatchers.IO) { connection.responseCode }
-        val body: ByteArray = withContext(Dispatchers.IO) {
-            BufferedInputStream(
-                if (statusCode < 400) connection.inputStream
-                else connection.errorStream ?: ByteArrayInputStream(ByteArray(0))
-            ).use { it.readBytes() }
-        }
-        val headers = connection.headerFields
-            .filterKeys { it != null }
-            .mapKeys { it.key!! }
-            .mapValues { it.value.joinToString(",") }
-
-        return HttpResponse(
-            statusCode = statusCode.toUShort(),
-            headers = headers,
-            body = body,
-        )
+        return ktorHttpClient(request)
     }
 }

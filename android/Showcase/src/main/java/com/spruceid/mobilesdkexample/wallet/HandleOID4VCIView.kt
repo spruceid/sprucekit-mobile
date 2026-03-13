@@ -13,13 +13,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.Oid4vciAsyncHttpClient
-import com.spruceid.mobile.sdk.rs.AsyncHttpClient
 import com.spruceid.mobile.sdk.rs.CredentialResponse
 import com.spruceid.mobile.sdk.rs.CredentialTokenState
 import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.DidMethodUtils
-import com.spruceid.mobile.sdk.rs.HttpRequest
-import com.spruceid.mobile.sdk.rs.HttpResponse
 import com.spruceid.mobile.sdk.rs.JwsSigner
 import com.spruceid.mobile.sdk.rs.JwsSignerInfo
 import com.spruceid.mobile.sdk.rs.Oid4vciClient
@@ -34,13 +31,6 @@ import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.request.request
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.readRawBytes
-import io.ktor.http.HttpMethod
-import io.ktor.util.toMap
 import kotlinx.coroutines.launch
 
 @Composable
@@ -60,30 +50,7 @@ fun HandleOID4VCIView(
         loading = true
 
         // Setup HTTP client.
-        val rawHttpClient = HttpClient(CIO);
-        val httpClient = object : AsyncHttpClient {
-            override suspend fun httpClient(
-                request: HttpRequest
-            ): HttpResponse {
-                val res =
-                    rawHttpClient.request(request.url) {
-                        method = HttpMethod(request.method)
-                        for ((k, v) in request.headers) {
-                            headers[k] = v
-                        }
-                        setBody(request.body)
-                    }
-
-                return HttpResponse(
-                    statusCode = res.status.value.toUShort(),
-                    headers =
-                        res.headers.toMap().mapValues {
-                            it.value.joinToString()
-                        },
-                    body = res.readRawBytes()
-                )
-            }
-        }
+        val httpClient = Oid4vciAsyncHttpClient()
 
         // Setup signer.
         val keyManager = KeyManager()
