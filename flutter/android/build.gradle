@@ -55,8 +55,8 @@ android {
 
     dependencies {
         // SpruceKit Mobile SDK
-        implementation("com.spruceid.mobile.sdk:mobilesdk:0.14.10")
-        implementation("com.spruceid.mobile.sdk.rs:mobilesdkrs:0.14.10")
+        implementation("com.spruceid.mobile.sdk:mobilesdk:0.14.11")
+        implementation("com.spruceid.mobile.sdk.rs:mobilesdkrs:0.14.11")
 
         // Kotlin Coroutines
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
