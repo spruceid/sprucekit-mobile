@@ -25,6 +25,7 @@ jobs:
         with:
           shared-key: "default"
           cache-on-failure: "true"
+          workspaces: "rust -> target"
       - name: Build
         run: cargo build
 
@@ -56,6 +57,7 @@ jobs:
         with:
           shared-key: "ios"
           cache-on-failure: "true"
+          workspaces: "rust -> target"
 
       # - uses: taiki-e/install-action@v2
       #   with:
@@ -117,6 +119,7 @@ jobs:
         with:
           shared-key: "android"
           cache-on-failure: "true"
+          workspaces: "rust -> target"
 
       - uses: taiki-e/install-action@v2
         with:
