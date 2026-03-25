@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::crypto::CryptoCurveUtils;
 
 use super::{error::Draft18OID4VPError, Draft18RequestedField, Draft18ResponseOptions};
@@ -152,6 +154,7 @@ pub trait CredentialPresentation {
 ///
 /// For example, in the case of `JwtVc` credential format,
 /// the signing payload consists of the JWT header and payload (JWS).
+#[deprecated(note = "Use Oid4vpPresentationSigner instead.")]
 #[uniffi::export(callback_interface)]
 #[async_trait::async_trait]
 pub trait Draft18PresentationSigner: Send + Sync + std::fmt::Debug {
@@ -202,7 +205,9 @@ pub struct Draft18PresentationOptions<'a> {
     pub(crate) response_options: &'a Draft18ResponseOptions,
 }
 
-impl MessageSigner<WithProtocol<ssi::crypto::Algorithm, AnyProtocol>> for Draft18PresentationOptions<'_> {
+impl MessageSigner<WithProtocol<ssi::crypto::Algorithm, AnyProtocol>>
+    for Draft18PresentationOptions<'_>
+{
     #[allow(async_fn_in_trait)]
     async fn sign(
         self,
@@ -280,7 +285,8 @@ impl Draft18PresentationOptions<'_> {
     }
 
     pub fn jwk(&self) -> Result<JWK, Draft18PresentationError> {
-        JWK::from_str(&self.signer.jwk()).map_err(|e| Draft18PresentationError::JWK(format!("{e:?}")))
+        JWK::from_str(&self.signer.jwk())
+            .map_err(|e| Draft18PresentationError::JWK(format!("{e:?}")))
     }
 
     /// Return the crypto curve utils based on the signing algorithm, e.g. ES256.
@@ -337,7 +343,9 @@ impl Draft18PresentationOptions<'_> {
         proof_options.domains = vec![self
             .request
             .client_id()
-            .ok_or_else(|| Draft18PresentationError::Context("request missing 'client_id'".to_string()))?
+            .ok_or_else(|| {
+                Draft18PresentationError::Context("request missing 'client_id'".to_string())
+            })?
             .0
             .clone()];
 
@@ -391,7 +399,11 @@ impl Draft18PresentationOptions<'_> {
                     )
                     .await
             }
-            _ => return Err(Draft18PresentationError::CryptographicSuite(suite.to_string())),
+            _ => {
+                return Err(Draft18PresentationError::CryptographicSuite(
+                    suite.to_string(),
+                ))
+            }
         }
         .map_err(|e| Draft18PresentationError::Signing(format!("{e:?}")))
     }

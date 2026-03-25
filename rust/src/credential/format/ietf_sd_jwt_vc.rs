@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 //! This implements support for SD-JWT-based Verifiable Digital Credentials as defined in
 //! [draft-ietf-oauth-sd-jwt-vc 14](https://datatracker.ietf.org/doc/draft-ietf-oauth-sd-jwt-vc/14/).
 use crate::{

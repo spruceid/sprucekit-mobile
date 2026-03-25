@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::crypto::CryptoCurveUtils;
 
 use super::{error::OID4VPError, RequestedField, ResponseOptions};
@@ -139,6 +141,7 @@ pub trait CredentialPresentation {
 ///
 /// For example, in the case of `JwtVc` credential format,
 /// the signing payload consists of the JWT header and payload (JWS).
+#[deprecated(note = "Use Oid4vpPresentationSigner instead.")]
 #[uniffi::export(callback_interface)]
 #[async_trait::async_trait]
 pub trait PresentationSigner: Send + Sync + std::fmt::Debug {

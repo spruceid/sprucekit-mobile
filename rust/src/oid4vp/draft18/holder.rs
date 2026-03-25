@@ -1,4 +1,6 @@
-use super::credential::{ParsedCredentialDraft18Ext, Draft18PresentableCredential};
+#![allow(deprecated)]
+
+use super::credential::{Draft18PresentableCredential, ParsedCredentialDraft18Ext};
 use super::error::Draft18OID4VPError;
 use super::permission_request::*;
 use super::presentation::Draft18PresentationSigner;
@@ -64,6 +66,7 @@ uniffi::custom_type!(Draft18AuthRequest, String, {
 /// The Holder is typically the subject of the credentials, but not always.
 /// The Holder has the ability to generate Verifiable Presentations from
 /// these credentials and share them with Verifiers.
+#[deprecated(note = "Use Oid4vpHolder and Oid4vpSession instead.")]
 #[derive(Debug, uniffi::Object)]
 pub struct Draft18Holder {
     /// An atomic reference to the VDC collection.
@@ -165,7 +168,9 @@ impl Draft18Holder {
             ResponseMode::DirectPost | ResponseMode::DirectPostJwt => {
                 self.permission_request(request).await
             }
-            mode => Err(Draft18OID4VPError::UnsupportedResponseMode(mode.to_string())),
+            mode => Err(Draft18OID4VPError::UnsupportedResponseMode(
+                mode.to_string(),
+            )),
         }
     }
 
