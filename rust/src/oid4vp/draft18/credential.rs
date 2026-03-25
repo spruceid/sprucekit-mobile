@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::credential::{CredentialEncodingError, ParsedCredential, ParsedCredentialInner};
 
 use super::presentation::Draft18PresentationError;
@@ -13,10 +15,8 @@ use std::sync::Arc;
 use base64::{engine::general_purpose::URL_SAFE, prelude::*};
 use openidvp_draft18::{
     core::{
-        credential_format::ClaimFormatDesignation,
-        presentation_definition::PresentationDefinition,
-        presentation_submission::DescriptorMap,
-        response::parameters::VpTokenItem,
+        credential_format::ClaimFormatDesignation, presentation_definition::PresentationDefinition,
+        presentation_submission::DescriptorMap, response::parameters::VpTokenItem,
     },
     JsonPath,
 };
@@ -28,8 +28,7 @@ use ssi::{
             syntax::{IdOr, NonEmptyObject, NonEmptyVec},
             v1::JsonPresentation,
             v2::{
-                syntax::JsonPresentation as JsonPresentationV2,
-                JsonCredential as JsonCredentialV2,
+                syntax::JsonPresentation as JsonPresentationV2, JsonCredential as JsonCredentialV2,
             },
         },
     },
@@ -76,7 +75,6 @@ impl Draft18PresentableCredential {
         )
     }
 }
-
 
 // -- Helpers for getting credential format designations using openidvp_draft18 types --
 
@@ -209,9 +207,7 @@ impl Draft18PresentableCredential {
             ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
                 self.jwt_vc_as_vp_token_item(vc, options).await
             }
-            ParsedCredentialInner::LdpVc(vc) => {
-                self.json_vc_as_vp_token_item(vc, options).await
-            }
+            ParsedCredentialInner::LdpVc(vc) => self.json_vc_as_vp_token_item(vc, options).await,
             _ => Err(CredentialEncodingError::VpToken(format!(
                 "Credential encoding for VP Token is not implemented for {:?}.",
                 self.inner,
@@ -237,10 +233,7 @@ impl Draft18PresentableCredential {
             ParsedCredentialInner::LdpVc(_) => {
                 self.json_vc_create_descriptor_map(input_descriptor_id, index)
             }
-            _ => unimplemented!(
-                "create_descriptor_map not implemented for {:?}",
-                self.inner
-            ),
+            _ => unimplemented!("create_descriptor_map not implemented for {:?}", self.inner),
         }
     }
 
@@ -415,9 +408,9 @@ impl Draft18PresentableCredential {
         let signature = options
             .curve_utils()
             .map(|utils| utils.ensure_raw_fixed_width_signature_encoding(signature))?
-            .ok_or(Draft18OID4VPError::Presentation(Draft18PresentationError::Signing(
-                "Unsupported signature encoding.".into(),
-            )))?;
+            .ok_or(Draft18OID4VPError::Presentation(
+                Draft18PresentationError::Signing("Unsupported signature encoding.".into()),
+            ))?;
 
         let signature_b64 = BASE64_URL_SAFE_NO_PAD.encode(&signature);
 
@@ -478,8 +471,9 @@ impl Draft18PresentableCredential {
         options.supports_security_method(ClaimFormatDesignation::LdpVp)?;
 
         // Parse the credential from the raw JSON to determine V1/V2.
-        let parsed: AnyJsonCredential = serde_json::from_value(vc.raw.clone())
-            .map_err(|e| CredentialEncodingError::VpToken(format!("Error parsing credential: {e:?}")))?;
+        let parsed: AnyJsonCredential = serde_json::from_value(vc.raw.clone()).map_err(|e| {
+            CredentialEncodingError::VpToken(format!("Error parsing credential: {e:?}"))
+        })?;
 
         let unsigned_presentation = match parsed {
             AnyJsonCredential::V1(cred_v1) => {
@@ -487,8 +481,11 @@ impl Draft18PresentableCredential {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?;
 
-                let unsigned_presentation_v1 =
-                    ssi::claims::vc::v1::JsonPresentation::new(Some(id.clone()), Some(holder_id), vec![cred_v1]);
+                let unsigned_presentation_v1 = ssi::claims::vc::v1::JsonPresentation::new(
+                    Some(id.clone()),
+                    Some(holder_id),
+                    vec![cred_v1],
+                );
 
                 AnyJsonPresentation::V1(unsigned_presentation_v1)
             }
@@ -548,14 +545,12 @@ impl Draft18PresentableCredential {
 
         let id = input_descriptor_id.into();
 
-        Ok(
-            DescriptorMap::new(id.clone(), ClaimFormatDesignation::LdpVp, JsonPath::default())
-                .set_path_nested(DescriptorMap::new(
-                    id,
-                    ClaimFormatDesignation::LdpVc,
-                    path,
-                )),
+        Ok(DescriptorMap::new(
+            id.clone(),
+            ClaimFormatDesignation::LdpVp,
+            JsonPath::default(),
         )
+        .set_path_nested(DescriptorMap::new(id, ClaimFormatDesignation::LdpVc, path)))
     }
 }
 

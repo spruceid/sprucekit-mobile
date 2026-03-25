@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 use serde::de::{Deserialize, IntoDeserializer};

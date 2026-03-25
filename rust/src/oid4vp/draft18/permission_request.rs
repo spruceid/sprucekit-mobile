@@ -1,6 +1,10 @@
-use super::credential::{ParsedCredentialDraft18Ext, Draft18PresentableCredential};
+#![allow(deprecated)]
+
+use super::credential::{Draft18PresentableCredential, ParsedCredentialDraft18Ext};
 use super::error::Draft18OID4VPError;
-use super::presentation::{Draft18PresentationError, Draft18PresentationOptions, Draft18PresentationSigner};
+use super::presentation::{
+    Draft18PresentationError, Draft18PresentationOptions, Draft18PresentationSigner,
+};
 use crate::credential::{Credential, ParsedCredential};
 
 use std::collections::HashMap;
@@ -158,7 +162,8 @@ impl Draft18RequestedField {
     }
 }
 
-#[derive(Clone, uniffi::Object)]
+#[deprecated(note = "Use Oid4vpSession instead.")]
+#[derive(Debug, Clone, uniffi::Object)]
 pub struct Draft18PermissionRequest {
     pub(crate) definition: PresentationDefinition,
     pub(crate) credentials: Vec<Arc<Draft18PresentableCredential>>,
@@ -337,6 +342,7 @@ impl Draft18PermissionRequest {
 /// Non-normative response options used to provide configurable interface
 /// for handling variations in the processing of the verifiable presentation
 /// payloads in various external verifiers.
+#[deprecated(note = "Use Oid4vpResponseOptions instead.")]
 #[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct Draft18ResponseOptions {
     /// This is an non-normative setting to determine
@@ -367,6 +373,7 @@ pub struct Draft18ResponseOptions {
 ///
 /// The Requested Fields are created by calling the [Draft18PermissionRequest::requested_fields] method, and then
 /// explicitly setting the permission to true or false, based on the holder's decision.
+#[deprecated(note = "Use Oid4vpPermissionResponse instead.")]
 #[derive(Debug, Clone, uniffi::Object)]
 pub struct Draft18PermissionResponse {
     pub selected_credentials: Vec<Arc<Draft18PresentableCredential>>,
@@ -388,7 +395,8 @@ impl Draft18PermissionResponse {
     /// This is helpful for debugging purposes, and is not intended to be used
     /// for submitting the response to the verifier.
     pub fn vp_token(&self) -> Result<String, Draft18OID4VPError> {
-        serde_json::to_string(&self.vp_token).map_err(|e| Draft18OID4VPError::Token(format!("{e:?}")))
+        serde_json::to_string(&self.vp_token)
+            .map_err(|e| Draft18OID4VPError::Token(format!("{e:?}")))
     }
 }
 

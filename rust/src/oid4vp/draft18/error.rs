@@ -1,6 +1,8 @@
 use crate::credential::CredentialEncodingError;
 
-use super::{permission_request::Draft18PermissionRequestError, presentation::Draft18PresentationError};
+use super::{
+    permission_request::Draft18PermissionRequestError, presentation::Draft18PresentationError,
+};
 
 /// The [Draft18OID4VPError] enum represents the errors that can occur
 /// when using the oid4vp foreign library.
