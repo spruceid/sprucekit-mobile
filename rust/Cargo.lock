@@ -837,6 +837,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap-stdin"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6843ca418f46b4658e03825cb100092697f6b7f94a122281c408cb39f4562f25"
+dependencies = [
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "clap_builder"
 version = "4.5.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2078,6 +2087,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hex-literal"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ebdb29d2ea9ed0083cd8cece49bbd968021bd99b0849edb4a9a7ee0fdf6a4e0"
+
+[[package]]
 name = "hex_fmt"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2584,6 +2599,53 @@ dependencies = [
 
 [[package]]
 name = "isomdl"
+version = "0.1.0"
+source = "git+https://github.com/spruceid/isomdl?rev=7608053#76080536badc867d2d674acfca9e5bae6809a54c"
+dependencies = [
+ "aes",
+ "aes-gcm",
+ "anyhow",
+ "asn1-rs",
+ "async-signature",
+ "base64 0.13.1",
+ "ciborium",
+ "clap",
+ "clap-stdin",
+ "const-oid 0.9.6",
+ "coset",
+ "der 0.7.10",
+ "digest 0.10.7",
+ "ecdsa",
+ "elliptic-curve",
+ "hex",
+ "hex-literal",
+ "hkdf",
+ "hmac",
+ "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=7608053)",
+ "p256",
+ "p384",
+ "pem-rfc7468 0.7.0",
+ "rand 0.8.5",
+ "sec1",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "sha1",
+ "sha2 0.10.9",
+ "signature",
+ "ssi-jwk 0.2.1",
+ "strum 0.24.1",
+ "strum_macros 0.24.3",
+ "thiserror 1.0.69",
+ "time",
+ "tracing",
+ "uuid",
+ "x509-cert",
+ "zeroize",
+]
+
+[[package]]
+name = "isomdl"
 version = "0.2.0"
 source = "git+https://github.com/spruceid/isomdl?rev=fd679d2#fd679d2073a8d96796ceb2c541aecb74a4b23036"
 dependencies = [
@@ -2605,7 +2667,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
- "isomdl-macros",
+ "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=fd679d2)",
  "ndef-rs",
  "p256",
  "p384",
@@ -2626,6 +2688,16 @@ dependencies = [
  "tracing",
  "uuid",
  "x509-cert",
+]
+
+[[package]]
+name = "isomdl-macros"
+version = "0.1.0"
+source = "git+https://github.com/spruceid/isomdl?rev=7608053#76080536badc867d2d674acfca9e5bae6809a54c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -3364,7 +3436,7 @@ dependencies = [
  "hex",
  "hpke",
  "http 1.4.0",
- "isomdl",
+ "isomdl 0.2.0",
  "itertools",
  "josekit",
  "jpeg-decoder",
@@ -3373,7 +3445,8 @@ dependencies = [
  "miniz_oxide 0.7.4",
  "num-bigint",
  "num-traits",
- "oid4vci",
+ "oid4vci 0.1.0 (git+https://github.com/spruceid/oid4vci-rs?rev=490c135)",
+ "oid4vci 0.1.0 (git+https://github.com/spruceid/oid4vci-rs?rev=e64ae8d)",
  "openid4vp 0.1.0 (git+https://github.com/spruceid/openid4vp?rev=2446e7)",
  "openid4vp 0.1.0 (git+https://github.com/spruceid/openid4vp?rev=6127287)",
  "p256",
@@ -3665,6 +3738,32 @@ dependencies = [
  "serde_path_to_error",
  "sha2 0.10.9",
  "thiserror 1.0.69",
+ "url",
+]
+
+[[package]]
+name = "oid4vci"
+version = "0.1.0"
+source = "git+https://github.com/spruceid/oid4vci-rs?rev=490c135#490c1353b77956d1fb3652b6409c0dbb30ec5d4d"
+dependencies = [
+ "anyhow",
+ "async-signature",
+ "base64 0.21.7",
+ "form_urlencoded",
+ "isomdl 0.1.0",
+ "oauth2",
+ "percent-encoding",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "serde_urlencoded",
+ "serde_with 3.16.1",
+ "sha2 0.10.9",
+ "ssi",
+ "thiserror 1.0.69",
+ "time",
+ "tracing",
  "url",
 ]
 
