@@ -12,7 +12,7 @@ enum Oid4vpSignerError: Error {
     case illegalArgumentException(reason: String)
 }
 
-class Signer: PresentationSigner {
+class Signer: Oid4vpPresentationSigner {
     private let keyId: String
     private let _jwk: String
     private let didJwk = DidMethodUtils(method: DidMethod.jwk)
@@ -89,16 +89,10 @@ struct HandleOID4VPView: View {
     var url: String
 
     @State private var requestVersion: Oid4vpVersion?
-    @State private var holder: Holder?
-    @State private var permissionRequest: PermissionRequest?
-    @State private var permissionResponse: PermissionResponse?
-    @State private var lSelectedCredentials: [PresentableCredential]?
-    @State private var draft18Holder: Draft18Holder?
-    @State private var draft18PermissionRequest: Draft18PermissionRequest?
-    @State private var draft18PermissionResponse: Draft18PermissionResponse?
-    @State private var draft18Requirements: [Draft18CredentialRequirement] = []
-    @State private var draft18SelectedCredentials: [Draft18PresentableCredential]?
-    @State private var draft18RequestedFieldsByCredentialId: [String: [Draft18RequestedField]] = [:]
+    @State private var holder: Oid4vpHolder?
+    @State private var session: Oid4vpSession?
+    @State private var permissionResponse: Oid4vpPermissionResponse?
+    @State private var lSelectedCredentials: [Oid4vpPresentableCredential]?
     @State private var credentialClaims: [String: [String: GenericJSON]] = [:]
     @State private var credentialPacks: [CredentialPack] = []
 
@@ -130,49 +124,6 @@ struct HandleOID4VPView: View {
         }
     }
 
-    func draft18RequestedFields(for credential: Draft18PresentableCredential) -> [Draft18RequestedField] {
-        let credentialId = credential.asParsedCredential().id()
-        return draft18RequestedFieldsByCredentialId[credentialId] ?? []
-    }
-
-    func buildDraft18Requirements(
-        request: Draft18PermissionRequest,
-        credentials: [Draft18PresentableCredential]
-    ) -> ([Draft18CredentialRequirement], [String: [Draft18RequestedField]]) {
-        var orderedDescriptorIds: [String] = []
-        var groupedCredentials: [String: [Draft18PresentableCredential]] = [:]
-        var descriptorNames: [String: String] = [:]
-        var fieldMap: [String: [Draft18RequestedField]] = [:]
-
-        credentials.forEach { credential in
-            let parsedCredential = credential.asParsedCredential()
-            let fields = request.requestedFields(credential: credential)
-            fieldMap[parsedCredential.id()] = fields
-
-            let descriptorId = credential.inputDescriptorId()
-            if !orderedDescriptorIds.contains(descriptorId) {
-                orderedDescriptorIds.append(descriptorId)
-            }
-
-            groupedCredentials[descriptorId, default: []].append(credential)
-            if descriptorNames[descriptorId] == nil {
-                descriptorNames[descriptorId] = fields.first?.name()
-                    ?? fields.first?.purpose()
-                    ?? credentialTitle(parsedCredential: parsedCredential)
-            }
-        }
-
-        let requirements = orderedDescriptorIds.map { descriptorId in
-            Draft18CredentialRequirement(
-                descriptorId: descriptorId,
-                displayName: descriptorNames[descriptorId] ?? "Credential",
-                credentials: groupedCredentials[descriptorId] ?? []
-            )
-        }
-
-        return (requirements, fieldMap)
-    }
-
     func presentCredential() async {
         do {
             if let id = credentialPackId,
@@ -193,86 +144,45 @@ struct HandleOID4VPView: View {
 
             let newurl = url.replacing("authorize", with: "")
             requestVersion = getOid4vpVersion(request: newurl)
-
-            switch requestVersion {
-            case .v1:
-                let signer = try Signer(keyId: DEFAULT_SIGNING_KEY_ID)
-                holder = try await Holder.newWithCredentials(
-                    providedCredentials: credentials,
-                    trustedDids: trustedDids,
-                    signer: signer,
-                    contextMap: getVCPlaygroundOID4VCIContext(),
-                    keystore: KeyManager()
-                )
-                let tmpPermissionRequest = try await holder!.authorizationRequest(req: Url(newurl))
-                let permissionRequestCredentials = tmpPermissionRequest.credentials()
-
-                permissionRequest = tmpPermissionRequest
-                let requirements = tmpPermissionRequest.credentialRequirements()
-
-                if !permissionRequestCredentials.isEmpty {
-                    let canSkipSelection =
-                        requirements.count == 1 && requirements.first?.credentials.count == 1
-
-                    if canSkipSelection {
-                        lSelectedCredentials = permissionRequestCredentials
-                        currentDisclosureIndex = 0
-                        allSelectedFields = []
-                        state = .selectiveDisclosure
-                    } else {
-                        state = OID4VPState.selectCredential
-                    }
-                } else {
-                    err = OID4VPError(
-                        title: "No matching credential(s)",
-                        details:
-                            "There are no credentials in your wallet that match the verification request you have scanned"
-                    )
-                    state = .err
-                }
-            case .draft18:
-                let signer = try Draft18Signer(keyId: DEFAULT_SIGNING_KEY_ID)
-                draft18Holder = try await Draft18Holder.newWithCredentials(
-                    providedCredentials: credentials,
-                    trustedDids: trustedDids,
-                    signer: signer,
-                    contextMap: getVCPlaygroundOID4VCIContext()
-                )
-                let tmpPermissionRequest = try await draft18Holder!.authorizationRequest(req: newurl)
-                let permissionRequestCredentials = tmpPermissionRequest.credentials()
-
-                draft18PermissionRequest = tmpPermissionRequest
-                let (requirements, requestedFields) = buildDraft18Requirements(
-                    request: tmpPermissionRequest,
-                    credentials: permissionRequestCredentials
-                )
-                draft18Requirements = requirements
-                draft18RequestedFieldsByCredentialId = requestedFields
-
-                if !permissionRequestCredentials.isEmpty {
-                    let canSkipSelection =
-                        requirements.count == 1 && requirements.first?.credentials.count == 1
-
-                    if canSkipSelection {
-                        draft18SelectedCredentials = permissionRequestCredentials
-                        currentDisclosureIndex = 0
-                        allSelectedFields = []
-                        state = .selectiveDisclosure
-                    } else {
-                        state = .selectCredential
-                    }
-                } else {
-                    err = OID4VPError(
-                        title: "No matching credential(s)",
-                        details:
-                            "There are no credentials in your wallet that match the verification request you have scanned"
-                    )
-                    state = .err
-                }
-            case .unsupported, nil:
+            if requestVersion == .unsupported || requestVersion == nil {
                 err = OID4VPError(
                     title: "Unsupported request",
                     details: "Unable to determine whether the request is OID4VP v1.0 or draft 18."
+                )
+                state = .err
+                return
+            }
+
+            let signer = try Signer(keyId: DEFAULT_SIGNING_KEY_ID)
+            holder = try await Oid4vpHolder.newWithCredentials(
+                providedCredentials: credentials,
+                trustedDids: trustedDids,
+                signer: signer,
+                contextMap: getVCPlaygroundOID4VCIContext(),
+                keystore: KeyManager()
+            )
+            let tmpSession = try await holder!.start(request: newurl)
+            let sessionCredentials = tmpSession.credentials()
+            session = tmpSession
+
+            if !sessionCredentials.isEmpty {
+                let requirements = tmpSession.requirements()
+                let canSkipSelection =
+                    requirements.count == 1 && requirements.first?.credentials.count == 1
+
+                if canSkipSelection {
+                    lSelectedCredentials = sessionCredentials
+                    currentDisclosureIndex = 0
+                    allSelectedFields = []
+                    state = .selectiveDisclosure
+                } else {
+                    state = .selectCredential
+                }
+            } else {
+                err = OID4VPError(
+                    title: "No matching credential(s)",
+                    details:
+                        "There are no credentials in your wallet that match the verification request you have scanned"
                 )
                 state = .err
             }
@@ -292,69 +202,35 @@ struct HandleOID4VPView: View {
 
     func submitResponse() async {
         do {
-            switch requestVersion {
-            case .v1:
-                permissionResponse = try await permissionRequest?
-                    .createPermissionResponse(
-                        selectedCredentials: lSelectedCredentials!,
-                        selectedFields: allSelectedFields,
-                        responseOptions: ResponseOptions(
-                            forceArraySerialization: false
-                        )
+            permissionResponse = try await session?
+                .createPermissionResponse(
+                    selectedCredentials: lSelectedCredentials!,
+                    selectedFields: allSelectedFields,
+                    responseOptions: Oid4vpResponseOptions(
+                        forceArraySerialization: false,
+                        shouldStripQuotes: false,
+                        removeVpPathPrefix: false
                     )
-                _ = try await holder?.submitPermissionResponse(
-                    response: permissionResponse!)
+                )
+            _ = try await session?.submitPermissionResponse(
+                response: permissionResponse!)
 
-                for credential in lSelectedCredentials! {
-                    if let credentialPack = credentialPacks.first(where: { pack in
-                        pack.get(credentialId: credential.asParsedCredential().id()) != nil
-                    }) {
-                        let credentialInfo = getCredentialIdTitleAndIssuer(
-                            credentialPack: credentialPack)
-                        _ = WalletActivityLogDataStore.shared.insert(
-                            credentialPackId: credentialPack.id.uuidString,
-                            credentialId: credentialInfo.0,
-                            credentialTitle: credentialInfo.1,
-                            issuer: credentialInfo.2,
-                            action: "Verification",
-                            dateTime: Date(),
-                            additionalInformation: ""
-                        )
-                    }
-                }
-            case .draft18:
-                draft18PermissionResponse = try await draft18PermissionRequest?
-                    .createPermissionResponse(
-                        selectedCredentials: draft18SelectedCredentials!,
-                        selectedFields: allSelectedFields,
-                        responseOptions: Draft18ResponseOptions(
-                            shouldStripQuotes: false,
-                            forceArraySerialization: false,
-                            removeVpPathPrefix: false
-                        )
+            for credential in lSelectedCredentials! {
+                if let credentialPack = credentialPacks.first(where: { pack in
+                    pack.get(credentialId: credential.asParsedCredential().id()) != nil
+                }) {
+                    let credentialInfo = getCredentialIdTitleAndIssuer(
+                        credentialPack: credentialPack)
+                    _ = WalletActivityLogDataStore.shared.insert(
+                        credentialPackId: credentialPack.id.uuidString,
+                        credentialId: credentialInfo.0,
+                        credentialTitle: credentialInfo.1,
+                        issuer: credentialInfo.2,
+                        action: "Verification",
+                        dateTime: Date(),
+                        additionalInformation: ""
                     )
-                _ = try await draft18Holder?.submitPermissionResponse(
-                    response: draft18PermissionResponse!)
-
-                for credential in draft18SelectedCredentials! {
-                    if let credentialPack = credentialPacks.first(where: { pack in
-                        pack.get(credentialId: credential.asParsedCredential().id()) != nil
-                    }) {
-                        let credentialInfo = getCredentialIdTitleAndIssuer(
-                            credentialPack: credentialPack)
-                        _ = WalletActivityLogDataStore.shared.insert(
-                            credentialPackId: credentialPack.id.uuidString,
-                            credentialId: credentialInfo.0,
-                            credentialTitle: credentialInfo.1,
-                            issuer: credentialInfo.2,
-                            action: "Verification",
-                            dateTime: Date(),
-                            additionalInformation: ""
-                        )
-                    }
                 }
-            case .unsupported, nil:
-                throw Oid4vpSignerError.illegalArgumentException(reason: "Missing request version")
             }
 
             ToastManager.shared.showSuccess(message: "Shared successfully")
@@ -377,109 +253,57 @@ struct HandleOID4VPView: View {
                 onClose: back
             )
         case .selectCredential:
-            if requestVersion == .draft18 {
-                Draft18CredentialSelector(
-                    requirements: draft18Requirements,
-                    credentialClaims: credentialClaims,
-                    getRequestedFields: draft18RequestedFields,
-                    onContinue: { selectedCredentials in
-                        draft18SelectedCredentials = selectedCredentials
-                        currentDisclosureIndex = 0
-                        allSelectedFields = []
-                        state = .selectiveDisclosure
-                    },
-                    onCancel: back
-                )
-            } else {
-                CredentialSelector(
-                    requirements: permissionRequest!.credentialRequirements(),
-                    credentialClaims: credentialClaims,
-                    getRequestedFields: { credential in
-                        return permissionRequest!.requestedFields(
-                            credential: credential)
-                    },
-                    onContinue: { selectedCredentials in
-                        lSelectedCredentials = selectedCredentials
-                        currentDisclosureIndex = 0
-                        allSelectedFields = []
-                        state = .selectiveDisclosure
-                    },
-                    onCancel: back
-                )
-            }
+            CredentialSelector(
+                requirements: session!.requirements(),
+                credentialClaims: credentialClaims,
+                getRequestedFields: { credential in
+                    return try! session!.requestedFields(
+                        credential: credential)
+                },
+                onContinue: { selectedCredentials in
+                    lSelectedCredentials = selectedCredentials
+                    currentDisclosureIndex = 0
+                    allSelectedFields = []
+                    state = .selectiveDisclosure
+                },
+                onCancel: back
+            )
         case .selectiveDisclosure:
-            if requestVersion == .draft18 {
-                let currentCredential = draft18SelectedCredentials![currentDisclosureIndex]
-                let totalCredentials = draft18SelectedCredentials!.count
+            let currentCredential = lSelectedCredentials![currentDisclosureIndex]
+            let totalCredentials = lSelectedCredentials!.count
 
-                let currentCredentialPack = credentialPacks.first { pack in
-                    pack.get(credentialId: currentCredential.asParsedCredential().id()) != nil
-                }
-                let allClaimsForCredential = currentCredentialPack?.getCredentialClaims(
-                    credential: currentCredential.asParsedCredential(),
-                    claimNames: []
-                ) ?? [:]
-
-                Draft18DataFieldSelector(
-                    requestedFields: draft18RequestedFields(for: currentCredential),
-                    selectedCredential: currentCredential,
-                    currentIndex: currentDisclosureIndex,
-                    totalCount: totalCredentials,
-                    onContinue: { selectedFields in
-                        allSelectedFields.append(selectedFields)
-
-                        if currentDisclosureIndex + 1 < totalCredentials {
-                            currentDisclosureIndex += 1
-                            state = .loading
-                            DispatchQueue.main.async {
-                                state = .selectiveDisclosure
-                            }
-                        } else {
-                            Task {
-                                await submitResponse()
-                            }
-                        }
-                    },
-                    onCancel: back,
-                    allClaims: allClaimsForCredential
-                )
-            } else {
-                let currentCredential = lSelectedCredentials![currentDisclosureIndex]
-                let totalCredentials = lSelectedCredentials!.count
-
-                let currentCredentialPack = credentialPacks.first { pack in
-                    pack.get(credentialId: currentCredential.asParsedCredential().id()) != nil
-                }
-                let allClaimsForCredential = currentCredentialPack?.getCredentialClaims(
-                    credential: currentCredential.asParsedCredential(),
-                    claimNames: []
-                ) ?? [:]
-
-                DataFieldSelector(
-                    requestedFields: permissionRequest!.requestedFields(
-                        credential: currentCredential),
-                    selectedCredential: currentCredential,
-                    currentIndex: currentDisclosureIndex,
-                    totalCount: totalCredentials,
-                    onContinue: { selectedFields in
-                        allSelectedFields.append(selectedFields)
-
-                        if currentDisclosureIndex + 1 < totalCredentials {
-                            currentDisclosureIndex += 1
-                            state = .loading
-                            DispatchQueue.main.async {
-                                state = .selectiveDisclosure
-                            }
-                        } else {
-                            Task {
-                                await submitResponse()
-                            }
-                        }
-                    },
-                    onCancel: back,
-                    allClaims: allClaimsForCredential
-                )
+            let currentCredentialPack = credentialPacks.first { pack in
+                pack.get(credentialId: currentCredential.asParsedCredential().id()) != nil
             }
+            let allClaimsForCredential = currentCredentialPack?.getCredentialClaims(
+                credential: currentCredential.asParsedCredential(),
+                claimNames: []
+            ) ?? [:]
+
+            DataFieldSelector(
+                requestedFields: try! session!.requestedFields(
+                    credential: currentCredential),
+                selectedCredential: currentCredential,
+                currentIndex: currentDisclosureIndex,
+                totalCount: totalCredentials,
+                onContinue: { selectedFields in
+                    allSelectedFields.append(selectedFields)
+
+                    if currentDisclosureIndex + 1 < totalCredentials {
+                        currentDisclosureIndex += 1
+                        state = .loading
+                        DispatchQueue.main.async {
+                            state = .selectiveDisclosure
+                        }
+                    } else {
+                        Task {
+                            await submitResponse()
+                        }
+                    }
+                },
+                onCancel: back,
+                allClaims: allClaimsForCredential
+            )
         case .loading:
             LoadingView(loadingText: "Loading...")
         case .none:
@@ -492,8 +316,8 @@ struct HandleOID4VPView: View {
 }
 
 struct DataFieldSelector: View {
-    let requestedFields: [RequestedField]
-    let selectedCredential: PresentableCredential
+    let requestedFields: [Oid4vpRequestedField]
+    let selectedCredential: Oid4vpPresentableCredential
     let currentIndex: Int
     let totalCount: Int
     let onContinue: ([String]) -> Void
@@ -504,8 +328,8 @@ struct DataFieldSelector: View {
     let requiredFields: [String]
 
     init(
-        requestedFields: [RequestedField],
-        selectedCredential: PresentableCredential,
+        requestedFields: [Oid4vpRequestedField],
+        selectedCredential: Oid4vpPresentableCredential,
         currentIndex: Int = 0,
         totalCount: Int = 1,
         onContinue: @escaping ([String]) -> Void,
@@ -521,20 +345,20 @@ struct DataFieldSelector: View {
         self.allClaims = allClaims
         self.requiredFields =
             requestedFields
-            .filter { $0.required() }
-            .map { $0.path() }
+            .filter { $0.required }
+            .map { $0.path }
         self.selectedFields = self.requiredFields
     }
 
-    func toggleBinding(for field: RequestedField) -> Binding<Bool> {
+    func toggleBinding(for field: Oid4vpRequestedField) -> Binding<Bool> {
         Binding {
-            selectedFields.contains(where: { $0 == field.path() })
+            selectedFields.contains(where: { $0 == field.path })
         } set: { _ in
-            if selectedCredential.selectiveDisclosable() && !field.required() {
-                if selectedFields.contains(field.path()) {
-                    selectedFields.removeAll(where: { $0 == field.path() })
+            if selectedCredential.selectiveDisclosable() && !field.required {
+                if selectedFields.contains(field.path) {
+                    selectedFields.removeAll(where: { $0 == field.path })
                 } else {
-                    selectedFields.append(field.path())
+                    selectedFields.append(field.path)
                 }
             }
         }
@@ -581,7 +405,7 @@ struct DataFieldSelector: View {
                     ForEach(requestedFields, id: \.self) { field in
                         SelectiveDisclosureItem(
                             field: field,
-                            required: field.required() || !selectedCredential.selectiveDisclosable(),
+                            required: field.required || !selectedCredential.selectiveDisclosable(),
                             isChecked: toggleBinding(for: field)
                         )
                     }
@@ -627,12 +451,12 @@ struct DataFieldSelector: View {
 }
 
 struct SelectiveDisclosureItem: View {
-    let field: RequestedField?
+    let field: Oid4vpRequestedField?
     let fieldName: String?
     let required: Bool
     @Binding var isChecked: Bool
 
-    init(field: RequestedField, required: Bool, isChecked: Binding<Bool>) {
+    init(field: Oid4vpRequestedField, required: Bool, isChecked: Binding<Bool>) {
         self.field = field
         self.fieldName = nil
         self.required = required
@@ -648,7 +472,7 @@ struct SelectiveDisclosureItem: View {
 
     private var displayName: String {
         if let field = field {
-            return field.name()?.camelCaseToWords().capitalized.replaceUnderscores() ?? ""
+            return field.name?.camelCaseToWords().capitalized.replaceUnderscores() ?? ""
         } else if let fieldName = fieldName {
             return fieldName.camelCaseToWords().capitalized.replaceUnderscores()
         }
@@ -669,18 +493,18 @@ struct SelectiveDisclosureItem: View {
 }
 
 struct CredentialSelector: View {
-    let requirements: [CredentialRequirement]
+    let requirements: [Oid4vpRequirement]
     let credentialClaims: [String: [String: GenericJSON]]
-    let getRequestedFields: (PresentableCredential) -> [RequestedField]
-    let onContinue: ([PresentableCredential]) -> Void
+    let getRequestedFields: (Oid4vpPresentableCredential) -> [Oid4vpRequestedField]
+    let onContinue: ([Oid4vpPresentableCredential]) -> Void
     let onCancel: () -> Void
 
     // Track current requirement index (step-by-step flow)
     @State private var currentIndex: Int = 0
     // Track selected credential per requirement (by index)
-    @State private var selectedByRequirement: [Int: PresentableCredential] = [:]
+    @State private var selectedByRequirement: [Int: Oid4vpPresentableCredential] = [:]
 
-    var currentRequirement: CredentialRequirement {
+    var currentRequirement: Oid4vpRequirement {
         requirements[currentIndex]
     }
 
@@ -692,7 +516,7 @@ struct CredentialSelector: View {
         !currentRequirement.required || selectedByRequirement[currentIndex] != nil
     }
 
-    func selectCredential(credential: PresentableCredential) {
+    func selectCredential(credential: Oid4vpPresentableCredential) {
         let credId = credential.asParsedCredential().id()
         if let current = selectedByRequirement[currentIndex],
            current.asParsedCredential().id() == credId
@@ -705,7 +529,7 @@ struct CredentialSelector: View {
         }
     }
 
-    func getCredentialTitle(credential: PresentableCredential) -> String {
+    func getCredentialTitle(credential: Oid4vpPresentableCredential) -> String {
         if let name = credentialClaims[credential.asParsedCredential().id()]?[
             "name"]?.toString()
         {
@@ -731,12 +555,12 @@ struct CredentialSelector: View {
         }
     }
 
-    func isSelected(credential: PresentableCredential) -> Bool {
+    func isSelected(credential: Oid4vpPresentableCredential) -> Bool {
         guard let selected = selectedByRequirement[currentIndex] else { return false }
         return selected.asParsedCredential().id() == credential.asParsedCredential().id()
     }
 
-    func toggleBinding(for credential: PresentableCredential) -> Binding<Bool> {
+    func toggleBinding(for credential: Oid4vpPresentableCredential) -> Binding<Bool> {
         Binding {
             isSelected(credential: credential)
         } set: { _ in
@@ -745,7 +569,7 @@ struct CredentialSelector: View {
     }
 
     /// Get selected credentials in the order of the requirements
-    func getSelectedCredentials() -> [PresentableCredential] {
+    func getSelectedCredentials() -> [Oid4vpPresentableCredential] {
         requirements.indices.compactMap { index in
             selectedByRequirement[index]
         }
@@ -850,22 +674,22 @@ struct CredentialSelector: View {
 }
 
 struct CredentialSelectorItem: View {
-    let credential: PresentableCredential
+    let credential: Oid4vpPresentableCredential
     let requestedFields: [String]
-    let getCredentialTitle: (PresentableCredential) -> String
+    let getCredentialTitle: (Oid4vpPresentableCredential) -> String
     @Binding var isChecked: Bool
 
     @State var expanded = false
 
     init(
-        credential: PresentableCredential,
-        requestedFields: [RequestedField],
-        getCredentialTitle: @escaping (PresentableCredential) -> String,
+        credential: Oid4vpPresentableCredential,
+        requestedFields: [Oid4vpRequestedField],
+        getCredentialTitle: @escaping (Oid4vpPresentableCredential) -> String,
         isChecked: Binding<Bool>
     ) {
         self.credential = credential
         self.requestedFields = requestedFields.map { field in
-            (field.name() ?? "").capitalized
+            (field.name ?? "").capitalized
         }
         self.getCredentialTitle = getCredentialTitle
         self._isChecked = isChecked

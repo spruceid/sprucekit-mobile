@@ -37,7 +37,10 @@ struct HandleOID4VCIView: View {
         let signer = KeyManagerJwkSigner(id: DEFAULT_SIGNING_KEY_ID, jwk: jwk)
         
         let clientId = didUrl.did().description
-        let oid4vciClient = Oid4vciClient(clientId: clientId)
+        let oid4vciClient = Oid4vciFacadeClient(
+            clientId: clientId,
+            compatibilityMode: .auto
+        )
 
         Task {
             do {
@@ -66,7 +69,7 @@ struct HandleOID4VCIView: View {
                     let proofs = Proofs.jwt([jwt])
                 
                     // Exchange token against credential.
-                    let response = try await oid4vciClient.exchangeCredential(httpClient: httpClient, token: credentialToken, credential: credentialId, proofs: proofs)
+                    let response = try await credentialToken.exchangeCredential(httpClient: httpClient, credential: credentialId, proofs: proofs)
                     
                     switch response {
                     case .deferred(_):
@@ -83,6 +86,14 @@ struct HandleOID4VCIView: View {
                         
                         onSuccess?()
                     }
+                }
+            } catch let error as Oid4vciError {
+                switch error {
+                case .PresentationRequired:
+                    err = "Issuance requires a presentation step. This showcase flow does not currently support present-before-issue."
+                default:
+                    err = error.localizedDescription
+                    print(error)
                 }
             } catch {
                 err = error.localizedDescription
