@@ -14,12 +14,14 @@ import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.Oid4vciAsyncHttpClient
 import com.spruceid.mobile.sdk.rs.CredentialResponse
-import com.spruceid.mobile.sdk.rs.CredentialTokenState
 import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.DidMethodUtils
 import com.spruceid.mobile.sdk.rs.JwsSigner
 import com.spruceid.mobile.sdk.rs.JwsSignerInfo
-import com.spruceid.mobile.sdk.rs.Oid4vciClient
+import com.spruceid.mobile.sdk.rs.Oid4vciCompatibilityMode
+import com.spruceid.mobile.sdk.rs.Oid4vciException
+import com.spruceid.mobile.sdk.rs.Oid4vciFacadeClient
+import com.spruceid.mobile.sdk.rs.Oid4vciFacadeCredentialTokenState
 import com.spruceid.mobile.sdk.rs.Proofs
 import com.spruceid.mobile.sdk.rs.createJwtProof
 import com.spruceid.mobile.sdk.rs.decodeDerSignature
@@ -73,7 +75,7 @@ fun HandleOID4VCIView(
         }
 
         val clientId = didUrl.did().toString()
-        val oid4vciClient = Oid4vciClient(clientId)
+        val oid4vciClient = Oid4vciFacadeClient(clientId, Oid4vciCompatibilityMode.AUTO)
 
         try {
             val offerUrl = if (url.startsWith("openid-credential-offer://")) {
@@ -88,7 +90,7 @@ fun HandleOID4VCIView(
             Log.i("OID4VCI", "Credential Offer resolver, with issuer: $credentialIssuer")
 
             when (val state = oid4vciClient.acceptOffer(httpClient, credentialOffer)) {
-                is CredentialTokenState.Ready -> {
+                is Oid4vciFacadeCredentialTokenState.Ready -> {
                     Log.i("OID4VCI", "Credential ready to be exchanged")
                     val credentialToken = state.v1
                     val credentialId = credentialToken.defaultCredentialId()
@@ -106,7 +108,7 @@ fun HandleOID4VCIView(
 
                     // Exchange token against credential.
                     Log.i("OID4VCI", "Exchanging Credential...")
-                    val response = oid4vciClient.exchangeCredential(httpClient, credentialToken, credentialId, proofs)
+                    val response = credentialToken.exchangeCredential(httpClient, credentialId, proofs)
 
                     when (response) {
                         is CredentialResponse.Deferred -> {
@@ -123,14 +125,16 @@ fun HandleOID4VCIView(
                     }
                 }
 
-                is CredentialTokenState.RequiresTxCode -> {
+                is Oid4vciFacadeCredentialTokenState.RequiresTxCode -> {
                     err = "Transaction Code not supported"
                 }
 
-                is CredentialTokenState.RequiresAuthorizationCode -> {
+                is Oid4vciFacadeCredentialTokenState.RequiresAuthorizationCode -> {
                     err = "Authorization Code Grant not supported"
                 }
             }
+        } catch (e: Oid4vciException.PresentationRequired) {
+            err = "Issuance requires a presentation step. This showcase flow does not currently support present-before-issue."
         } catch (e: Exception) {
             err = e.localizedMessage
             e.printStackTrace()
