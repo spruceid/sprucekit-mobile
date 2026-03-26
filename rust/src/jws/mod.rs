@@ -5,7 +5,7 @@ mod signature;
 pub use signature::*;
 
 /// JSON Web Signature.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Jws(ssi::claims::jws::JwsBuf);
 
 impl From<ssi::claims::jws::JwsBuf> for Jws {

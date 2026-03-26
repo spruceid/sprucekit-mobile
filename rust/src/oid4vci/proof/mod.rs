@@ -2,7 +2,7 @@ use crate::jws::Jws;
 
 pub mod jwt;
 
-#[derive(uniffi::Enum)]
+#[derive(uniffi::Enum, Clone)]
 pub enum Proofs {
     Jwt(Vec<Jws>),
 }

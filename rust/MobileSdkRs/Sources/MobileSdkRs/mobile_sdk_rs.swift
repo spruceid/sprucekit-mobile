@@ -9729,12 +9729,6 @@ public protocol Oid4vciClientProtocol: AnyObject, Sendable {
     func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: ResolvedCredentialOffer) async throws  -> CredentialTokenState
     
     /**
-     * Build the exact JSON request body that SpruceKit will send for
-     * `exchange_credential`, without performing the HTTP request.
-     */
-    func debugExchangeCredentialRequest(token: CredentialToken, credential: CredentialOrConfigurationId, proofs: Proofs?) throws  -> ExchangeCredentialDebugRequest
-    
-    /**
      * Exchange a Credential Token against one or more Credentials.
      */
     func exchangeCredential(httpClient: AsyncHttpClient, token: CredentialToken, credential: CredentialOrConfigurationId, proofs: Proofs?) async throws  -> CredentialResponse
@@ -9829,20 +9823,6 @@ open func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: ResolvedCred
 }
     
     /**
-     * Build the exact JSON request body that SpruceKit will send for
-     * `exchange_credential`, without performing the HTTP request.
-     */
-open func debugExchangeCredentialRequest(token: CredentialToken, credential: CredentialOrConfigurationId, proofs: Proofs?)throws  -> ExchangeCredentialDebugRequest  {
-    return try  FfiConverterTypeExchangeCredentialDebugRequest_lift(try rustCallWithError(FfiConverterTypeOid4vciError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_oid4vciclient_debug_exchange_credential_request(self.uniffiClonePointer(),
-        FfiConverterTypeCredentialToken_lower(token),
-        FfiConverterTypeCredentialOrConfigurationId_lower(credential),
-        FfiConverterOptionTypeProofs.lower(proofs),$0
-    )
-})
-}
-    
-    /**
      * Exchange a Credential Token against one or more Credentials.
      */
 open func exchangeCredential(httpClient: AsyncHttpClient, token: CredentialToken, credential: CredentialOrConfigurationId, proofs: Proofs?)async throws  -> CredentialResponse  {
@@ -9933,6 +9913,880 @@ public func FfiConverterTypeOid4vciClient_lift(_ pointer: UnsafeMutableRawPointe
 #endif
 public func FfiConverterTypeOid4vciClient_lower(_ value: Oid4vciClient) -> UnsafeMutableRawPointer {
     return FfiConverterTypeOid4vciClient.lower(value)
+}
+
+
+
+
+
+
+public protocol Oid4vciFacadeAuthorizationCodeRequiredProtocol: AnyObject, Sendable {
+    
+    func proceed(httpClient: AsyncHttpClient, redirectUrl: String) async throws  -> Oid4vciFacadeWaitingForAuthorizationCode
+    
+}
+open class Oid4vciFacadeAuthorizationCodeRequired: Oid4vciFacadeAuthorizationCodeRequiredProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vcifacadeauthorizationcoderequired(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_oid4vcifacadeauthorizationcoderequired(pointer, $0) }
+    }
+
+    
+
+    
+open func proceed(httpClient: AsyncHttpClient, redirectUrl: String)async throws  -> Oid4vciFacadeWaitingForAuthorizationCode  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeauthorizationcoderequired_proceed(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeAsyncHttpClient_lower(httpClient),FfiConverterString.lower(redirectUrl)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeOid4vciFacadeWaitingForAuthorizationCode_lift,
+            errorHandler: FfiConverterTypeOid4vciError_lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vciFacadeAuthorizationCodeRequired: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Oid4vciFacadeAuthorizationCodeRequired
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeAuthorizationCodeRequired {
+        return Oid4vciFacadeAuthorizationCodeRequired(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Oid4vciFacadeAuthorizationCodeRequired) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciFacadeAuthorizationCodeRequired {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Oid4vciFacadeAuthorizationCodeRequired, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeAuthorizationCodeRequired_lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeAuthorizationCodeRequired {
+    return try FfiConverterTypeOid4vciFacadeAuthorizationCodeRequired.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeAuthorizationCodeRequired_lower(_ value: Oid4vciFacadeAuthorizationCodeRequired) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeOid4vciFacadeAuthorizationCodeRequired.lower(value)
+}
+
+
+
+
+
+
+public protocol Oid4vciFacadeClientProtocol: AnyObject, Sendable {
+    
+    func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: Oid4vciFacadeResolvedOffer) async throws  -> Oid4vciFacadeCredentialTokenState
+    
+    func compatibilityMode()  -> Oid4vciCompatibilityMode
+    
+    func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: String) async throws  -> Oid4vciFacadeResolvedOffer
+    
+}
+open class Oid4vciFacadeClient: Oid4vciFacadeClientProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vcifacadeclient(self.pointer, $0) }
+    }
+public convenience init(clientId: String, compatibilityMode: Oid4vciCompatibilityMode) {
+    let pointer =
+        try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_oid4vcifacadeclient_new(
+        FfiConverterString.lower(clientId),
+        FfiConverterTypeOid4vciCompatibilityMode_lower(compatibilityMode),$0
+    )
+}
+    self.init(unsafeFromRawPointer: pointer)
+}
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_oid4vcifacadeclient(pointer, $0) }
+    }
+
+    
+
+    
+open func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: Oid4vciFacadeResolvedOffer)async throws  -> Oid4vciFacadeCredentialTokenState  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeclient_accept_offer(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeAsyncHttpClient_lower(httpClient),FfiConverterTypeOid4vciFacadeResolvedOffer_lower(credentialOffer)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeOid4vciFacadeCredentialTokenState_lift,
+            errorHandler: FfiConverterTypeOid4vciError_lift
+        )
+}
+    
+open func compatibilityMode() -> Oid4vciCompatibilityMode  {
+    return try!  FfiConverterTypeOid4vciCompatibilityMode_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeclient_compatibility_mode(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: String)async throws  -> Oid4vciFacadeResolvedOffer  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeclient_resolve_offer_url(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeAsyncHttpClient_lower(httpClient),FfiConverterString.lower(credentialOfferUrl)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeOid4vciFacadeResolvedOffer_lift,
+            errorHandler: FfiConverterTypeOid4vciError_lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vciFacadeClient: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Oid4vciFacadeClient
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeClient {
+        return Oid4vciFacadeClient(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Oid4vciFacadeClient) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciFacadeClient {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Oid4vciFacadeClient, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeClient_lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeClient {
+    return try FfiConverterTypeOid4vciFacadeClient.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeClient_lower(_ value: Oid4vciFacadeClient) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeOid4vciFacadeClient.lower(value)
+}
+
+
+
+
+
+
+public protocol Oid4vciFacadeCredentialTokenProtocol: AnyObject, Sendable {
+    
+    func defaultCredentialId() throws  -> CredentialOrConfigurationId
+    
+    func exchangeCredential(httpClient: AsyncHttpClient, credential: CredentialOrConfigurationId, proofs: Proofs?) async throws  -> CredentialResponse
+    
+    func getNonce(httpClient: AsyncHttpClient) async throws  -> String?
+    
+    func version()  -> Oid4vciVersion
+    
+}
+open class Oid4vciFacadeCredentialToken: Oid4vciFacadeCredentialTokenProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vcifacadecredentialtoken(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_oid4vcifacadecredentialtoken(pointer, $0) }
+    }
+
+    
+
+    
+open func defaultCredentialId()throws  -> CredentialOrConfigurationId  {
+    return try  FfiConverterTypeCredentialOrConfigurationId_lift(try rustCallWithError(FfiConverterTypeOid4vciError_lift) {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadecredentialtoken_default_credential_id(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func exchangeCredential(httpClient: AsyncHttpClient, credential: CredentialOrConfigurationId, proofs: Proofs?)async throws  -> CredentialResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vcifacadecredentialtoken_exchange_credential(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeAsyncHttpClient_lower(httpClient),FfiConverterTypeCredentialOrConfigurationId_lower(credential),FfiConverterOptionTypeProofs.lower(proofs)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeCredentialResponse_lift,
+            errorHandler: FfiConverterTypeOid4vciError_lift
+        )
+}
+    
+open func getNonce(httpClient: AsyncHttpClient)async throws  -> String?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vcifacadecredentialtoken_get_nonce(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeAsyncHttpClient_lower(httpClient)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionString.lift,
+            errorHandler: FfiConverterTypeOid4vciError_lift
+        )
+}
+    
+open func version() -> Oid4vciVersion  {
+    return try!  FfiConverterTypeOid4vciVersion_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadecredentialtoken_version(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vciFacadeCredentialToken: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Oid4vciFacadeCredentialToken
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeCredentialToken {
+        return Oid4vciFacadeCredentialToken(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Oid4vciFacadeCredentialToken) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciFacadeCredentialToken {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Oid4vciFacadeCredentialToken, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeCredentialToken_lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeCredentialToken {
+    return try FfiConverterTypeOid4vciFacadeCredentialToken.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeCredentialToken_lower(_ value: Oid4vciFacadeCredentialToken) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeOid4vciFacadeCredentialToken.lower(value)
+}
+
+
+
+
+
+
+public protocol Oid4vciFacadeResolvedOfferProtocol: AnyObject, Sendable {
+    
+    func credentialIssuer()  -> String
+    
+    func version()  -> Oid4vciVersion
+    
+}
+open class Oid4vciFacadeResolvedOffer: Oid4vciFacadeResolvedOfferProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vcifacaderesolvedoffer(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_oid4vcifacaderesolvedoffer(pointer, $0) }
+    }
+
+    
+
+    
+open func credentialIssuer() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_credential_issuer(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+open func version() -> Oid4vciVersion  {
+    return try!  FfiConverterTypeOid4vciVersion_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_version(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vciFacadeResolvedOffer: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Oid4vciFacadeResolvedOffer
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeResolvedOffer {
+        return Oid4vciFacadeResolvedOffer(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Oid4vciFacadeResolvedOffer) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciFacadeResolvedOffer {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Oid4vciFacadeResolvedOffer, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeResolvedOffer_lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeResolvedOffer {
+    return try FfiConverterTypeOid4vciFacadeResolvedOffer.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeResolvedOffer_lower(_ value: Oid4vciFacadeResolvedOffer) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeOid4vciFacadeResolvedOffer.lower(value)
+}
+
+
+
+
+
+
+public protocol Oid4vciFacadeTxCodeRequiredProtocol: AnyObject, Sendable {
+    
+    func proceed(httpClient: AsyncHttpClient, txCode: String) async throws  -> Oid4vciFacadeCredentialToken
+    
+}
+open class Oid4vciFacadeTxCodeRequired: Oid4vciFacadeTxCodeRequiredProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vcifacadetxcoderequired(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_oid4vcifacadetxcoderequired(pointer, $0) }
+    }
+
+    
+
+    
+open func proceed(httpClient: AsyncHttpClient, txCode: String)async throws  -> Oid4vciFacadeCredentialToken  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vcifacadetxcoderequired_proceed(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeAsyncHttpClient_lower(httpClient),FfiConverterString.lower(txCode)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeOid4vciFacadeCredentialToken_lift,
+            errorHandler: FfiConverterTypeOid4vciError_lift
+        )
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vciFacadeTxCodeRequired: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Oid4vciFacadeTxCodeRequired
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeTxCodeRequired {
+        return Oid4vciFacadeTxCodeRequired(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Oid4vciFacadeTxCodeRequired) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciFacadeTxCodeRequired {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Oid4vciFacadeTxCodeRequired, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeTxCodeRequired_lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeTxCodeRequired {
+    return try FfiConverterTypeOid4vciFacadeTxCodeRequired.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeTxCodeRequired_lower(_ value: Oid4vciFacadeTxCodeRequired) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeOid4vciFacadeTxCodeRequired.lower(value)
+}
+
+
+
+
+
+
+public protocol Oid4vciFacadeWaitingForAuthorizationCodeProtocol: AnyObject, Sendable {
+    
+    func proceed(httpClient: AsyncHttpClient, authorizationCode: String) async throws  -> Oid4vciFacadeCredentialToken
+    
+    func redirectUrl()  -> String
+    
+}
+open class Oid4vciFacadeWaitingForAuthorizationCode: Oid4vciFacadeWaitingForAuthorizationCodeProtocol, @unchecked Sendable {
+    fileprivate let pointer: UnsafeMutableRawPointer!
+
+    /// Used to instantiate a [FFIObject] without an actual pointer, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoPointer {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+        self.pointer = pointer
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noPointer: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing [Pointer] the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noPointer: NoPointer) {
+        self.pointer = nil
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiClonePointer() -> UnsafeMutableRawPointer {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vcifacadewaitingforauthorizationcode(self.pointer, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        guard let pointer = pointer else {
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_oid4vcifacadewaitingforauthorizationcode(pointer, $0) }
+    }
+
+    
+
+    
+open func proceed(httpClient: AsyncHttpClient, authorizationCode: String)async throws  -> Oid4vciFacadeCredentialToken  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vcifacadewaitingforauthorizationcode_proceed(
+                    self.uniffiClonePointer(),
+                    FfiConverterTypeAsyncHttpClient_lower(httpClient),FfiConverterString.lower(authorizationCode)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_pointer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_pointer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_pointer,
+            liftFunc: FfiConverterTypeOid4vciFacadeCredentialToken_lift,
+            errorHandler: FfiConverterTypeOid4vciError_lift
+        )
+}
+    
+open func redirectUrl() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadewaitingforauthorizationcode_redirect_url(self.uniffiClonePointer(),$0
+    )
+})
+}
+    
+
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vciFacadeWaitingForAuthorizationCode: FfiConverter {
+
+    typealias FfiType = UnsafeMutableRawPointer
+    typealias SwiftType = Oid4vciFacadeWaitingForAuthorizationCode
+
+    public static func lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeWaitingForAuthorizationCode {
+        return Oid4vciFacadeWaitingForAuthorizationCode(unsafeFromRawPointer: pointer)
+    }
+
+    public static func lower(_ value: Oid4vciFacadeWaitingForAuthorizationCode) -> UnsafeMutableRawPointer {
+        return value.uniffiClonePointer()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciFacadeWaitingForAuthorizationCode {
+        let v: UInt64 = try readInt(&buf)
+        // The Rust code won't compile if a pointer won't fit in a UInt64.
+        // We have to go via `UInt` because that's the thing that's the size of a pointer.
+        let ptr = UnsafeMutableRawPointer(bitPattern: UInt(truncatingIfNeeded: v))
+        if (ptr == nil) {
+            throw UniffiInternalError.unexpectedNullPointer
+        }
+        return try lift(ptr!)
+    }
+
+    public static func write(_ value: Oid4vciFacadeWaitingForAuthorizationCode, into buf: inout [UInt8]) {
+        // This fiddling is because `Int` is the thing that's the same size as a pointer.
+        // The Rust code won't compile if a pointer won't fit in a `UInt64`.
+        writeInt(&buf, UInt64(bitPattern: Int64(Int(bitPattern: lower(value)))))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeWaitingForAuthorizationCode_lift(_ pointer: UnsafeMutableRawPointer) throws -> Oid4vciFacadeWaitingForAuthorizationCode {
+    return try FfiConverterTypeOid4vciFacadeWaitingForAuthorizationCode.lift(pointer)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeWaitingForAuthorizationCode_lower(_ value: Oid4vciFacadeWaitingForAuthorizationCode) -> UnsafeMutableRawPointer {
+    return FfiConverterTypeOid4vciFacadeWaitingForAuthorizationCode.lower(value)
 }
 
 
@@ -16848,76 +17702,6 @@ public func FfiConverterTypeElement_lift(_ buf: RustBuffer) throws -> Element {
 #endif
 public func FfiConverterTypeElement_lower(_ value: Element) -> RustBuffer {
     return FfiConverterTypeElement.lower(value)
-}
-
-
-public struct ExchangeCredentialDebugRequest {
-    public var url: String
-    public var body: String
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(url: String, body: String) {
-        self.url = url
-        self.body = body
-    }
-}
-
-#if compiler(>=6)
-extension ExchangeCredentialDebugRequest: Sendable {}
-#endif
-
-
-extension ExchangeCredentialDebugRequest: Equatable, Hashable {
-    public static func ==(lhs: ExchangeCredentialDebugRequest, rhs: ExchangeCredentialDebugRequest) -> Bool {
-        if lhs.url != rhs.url {
-            return false
-        }
-        if lhs.body != rhs.body {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(url)
-        hasher.combine(body)
-    }
-}
-
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeExchangeCredentialDebugRequest: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExchangeCredentialDebugRequest {
-        return
-            try ExchangeCredentialDebugRequest(
-                url: FfiConverterString.read(from: &buf), 
-                body: FfiConverterString.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: ExchangeCredentialDebugRequest, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.url, into: &buf)
-        FfiConverterString.write(value.body, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeExchangeCredentialDebugRequest_lift(_ buf: RustBuffer) throws -> ExchangeCredentialDebugRequest {
-    return try FfiConverterTypeExchangeCredentialDebugRequest.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeExchangeCredentialDebugRequest_lower(_ value: ExchangeCredentialDebugRequest) -> RustBuffer {
-    return FfiConverterTypeExchangeCredentialDebugRequest.lower(value)
 }
 
 
@@ -24369,6 +25153,80 @@ extension Oid4vpError: Foundation.LocalizedError {
 }
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum Oid4vciCompatibilityMode {
+    
+    case auto
+    case forceV1
+    case forceLegacy
+}
+
+
+#if compiler(>=6)
+extension Oid4vciCompatibilityMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vciCompatibilityMode: FfiConverterRustBuffer {
+    typealias SwiftType = Oid4vciCompatibilityMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciCompatibilityMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .auto
+        
+        case 2: return .forceV1
+        
+        case 3: return .forceLegacy
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Oid4vciCompatibilityMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .auto:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .forceV1:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .forceLegacy:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciCompatibilityMode_lift(_ buf: RustBuffer) throws -> Oid4vciCompatibilityMode {
+    return try FfiConverterTypeOid4vciCompatibilityMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciCompatibilityMode_lower(_ value: Oid4vciCompatibilityMode) -> RustBuffer {
+    return FfiConverterTypeOid4vciCompatibilityMode.lower(value)
+}
+
+
+extension Oid4vciCompatibilityMode: Equatable, Hashable {}
+
+
+
 
 public enum Oid4vciError: Swift.Error {
 
@@ -24377,6 +25235,8 @@ public enum Oid4vciError: Swift.Error {
     case InvalidUri(message: String)
     
     case CredentialOffer(message: String)
+    
+    case PresentationRequired(message: String)
     
     case Client(message: String)
     
@@ -24412,23 +25272,27 @@ public struct FfiConverterTypeOid4vciError: FfiConverterRustBuffer {
             message: try FfiConverterString.read(from: &buf)
         )
         
-        case 3: return .Client(
+        case 3: return .PresentationRequired(
             message: try FfiConverterString.read(from: &buf)
         )
         
-        case 4: return .AlreadyProceeded(
+        case 4: return .Client(
             message: try FfiConverterString.read(from: &buf)
         )
         
-        case 5: return .SignatureFailed(
+        case 5: return .AlreadyProceeded(
             message: try FfiConverterString.read(from: &buf)
         )
         
-        case 6: return .UndefinedCredential(
+        case 6: return .SignatureFailed(
             message: try FfiConverterString.read(from: &buf)
         )
         
-        case 7: return .InvalidCredentialPayload(
+        case 7: return .UndefinedCredential(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 8: return .InvalidCredentialPayload(
             message: try FfiConverterString.read(from: &buf)
         )
         
@@ -24447,16 +25311,18 @@ public struct FfiConverterTypeOid4vciError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(1))
         case .CredentialOffer(_ /* message is ignored*/):
             writeInt(&buf, Int32(2))
-        case .Client(_ /* message is ignored*/):
+        case .PresentationRequired(_ /* message is ignored*/):
             writeInt(&buf, Int32(3))
-        case .AlreadyProceeded(_ /* message is ignored*/):
+        case .Client(_ /* message is ignored*/):
             writeInt(&buf, Int32(4))
-        case .SignatureFailed(_ /* message is ignored*/):
+        case .AlreadyProceeded(_ /* message is ignored*/):
             writeInt(&buf, Int32(5))
-        case .UndefinedCredential(_ /* message is ignored*/):
+        case .SignatureFailed(_ /* message is ignored*/):
             writeInt(&buf, Int32(6))
-        case .InvalidCredentialPayload(_ /* message is ignored*/):
+        case .UndefinedCredential(_ /* message is ignored*/):
             writeInt(&buf, Int32(7))
+        case .InvalidCredentialPayload(_ /* message is ignored*/):
+            writeInt(&buf, Int32(8))
 
         
         }
@@ -24488,6 +25354,154 @@ extension Oid4vciError: Foundation.LocalizedError {
         String(reflecting: self)
     }
 }
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum Oid4vciFacadeCredentialTokenState {
+    
+    case requiresAuthorizationCode(Oid4vciFacadeAuthorizationCodeRequired
+    )
+    case requiresTxCode(Oid4vciFacadeTxCodeRequired
+    )
+    case ready(Oid4vciFacadeCredentialToken
+    )
+}
+
+
+#if compiler(>=6)
+extension Oid4vciFacadeCredentialTokenState: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vciFacadeCredentialTokenState: FfiConverterRustBuffer {
+    typealias SwiftType = Oid4vciFacadeCredentialTokenState
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciFacadeCredentialTokenState {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .requiresAuthorizationCode(try FfiConverterTypeOid4vciFacadeAuthorizationCodeRequired.read(from: &buf)
+        )
+        
+        case 2: return .requiresTxCode(try FfiConverterTypeOid4vciFacadeTxCodeRequired.read(from: &buf)
+        )
+        
+        case 3: return .ready(try FfiConverterTypeOid4vciFacadeCredentialToken.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Oid4vciFacadeCredentialTokenState, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .requiresAuthorizationCode(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeOid4vciFacadeAuthorizationCodeRequired.write(v1, into: &buf)
+            
+        
+        case let .requiresTxCode(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeOid4vciFacadeTxCodeRequired.write(v1, into: &buf)
+            
+        
+        case let .ready(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeOid4vciFacadeCredentialToken.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeCredentialTokenState_lift(_ buf: RustBuffer) throws -> Oid4vciFacadeCredentialTokenState {
+    return try FfiConverterTypeOid4vciFacadeCredentialTokenState.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciFacadeCredentialTokenState_lower(_ value: Oid4vciFacadeCredentialTokenState) -> RustBuffer {
+    return FfiConverterTypeOid4vciFacadeCredentialTokenState.lower(value)
+}
+
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum Oid4vciVersion {
+    
+    case v1
+    case legacy
+}
+
+
+#if compiler(>=6)
+extension Oid4vciVersion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vciVersion: FfiConverterRustBuffer {
+    typealias SwiftType = Oid4vciVersion
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciVersion {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .v1
+        
+        case 2: return .legacy
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Oid4vciVersion, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .v1:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .legacy:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciVersion_lift(_ buf: RustBuffer) throws -> Oid4vciVersion {
+    return try FfiConverterTypeOid4vciVersion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vciVersion_lower(_ value: Oid4vciVersion) -> RustBuffer {
+    return FfiConverterTypeOid4vciVersion.lower(value)
+}
+
+
+extension Oid4vciVersion: Equatable, Hashable {}
+
 
 
 
@@ -31574,13 +32588,49 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_accept_offer() != 15123) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_debug_exchange_credential_request() != 38076) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_exchange_credential() != 10579) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_resolve_offer_url() != 47669) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeauthorizationcoderequired_proceed() != 60181) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_accept_offer() != 26455) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_compatibility_mode() != 645) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 26410) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_default_credential_id() != 41294) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_exchange_credential() != 57160) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_get_nonce() != 9819) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_version() != 16544) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_credential_issuer() != 53112) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_version() != 38061) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadetxcoderequired_proceed() != 23319) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadewaitingforauthorizationcode_proceed() != 20512) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadewaitingforauthorizationcode_redirect_url() != 59877) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_new_draft18_holder() != 51518) {
@@ -32040,6 +33090,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vciclient_new() != 24927) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vcifacadeclient_new() != 52160) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new() != 55659) {
