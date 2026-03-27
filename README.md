@@ -1,6 +1,6 @@
 # SpruceKit Mobile
 
-SpruceKit Mobile is a collection of libraries and examples for integrating verifiable credentials (VC) and mobile driver's licenses (mDL) into Android and iOS applications.
+SpruceKit Mobile is a collection of libraries and examples for integrating verifiable credentials (VC) and mobile driver's licenses (mDL) into Android, iOS, and Flutter applications.
 
 ## Maturity Disclaimer
 
@@ -16,31 +16,35 @@ Import `https://github.com/spruceid/sprucekit-mobile` and use the product `Spruc
 
 See https://central.sonatype.com/artifact/com.spruceid.mobile.sdk/mobilesdk.
 
+### Flutter
+
+Add `sprucekit_mobile` to your `pubspec.yaml` dependencies. See the [Flutter plugin](./flutter) for details.
+
 ## Architecture
 
 Our Mobile SDKs use shared code, with most of the logic being written once in Rust, and when not possible, native APIs (e.g. Bluetooth, OS Keychain) are called in native SDKs.
 
 ```
-┌────────┐ ┌────────┐
-│Showcase│ │Showcase│
-│Android │ │  iOS   │
-└────┬───┘ └───┬────┘
-     │         │
-     │         │
- ┌───▼──┐   ┌──▼──┐
- │Kotlin│   │Swift│
- └───┬──┘   └──┬──┘
-     └────┬────┘
-          │
-       ┌──▼─┐
-       │Rust│
-       └────┘
+               ┌───────┐
+               │Flutter│
+               │plugin │
+               └─┬────┬┘
+                 │    │
+┌────────┐  ┌────▼─┐ ┌▼────┐  ┌────────┐
+│Showcase├──▶Kotlin│ │Swift◀──┤Showcase│
+│Android │  └──┬───┘ └──┬──┘  │  iOS   │
+└────────┘     └────┬───┘     └────────┘
+                 ┌──▼─┐
+                 │Rust│
+                 └────┘
 ```
 - [Rust layer](./rust)
 - [Kotlin SDK](./android)
 - [Swift SDK](./ios)
+- [Flutter plugin](./flutter)
 - [Showcase Android](./android/Showcase)
 - [Showcase iOS](./ios/Showcase)
+- [Flutter example app](./flutter/example)
 
 ## Configuring Deep Links for same device flows
 
