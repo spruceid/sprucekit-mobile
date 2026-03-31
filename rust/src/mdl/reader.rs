@@ -253,13 +253,11 @@ pub fn establish_session_with_vical(
     cached_vical_bytes: Option<Vec<u8>>,
     additional_iaca_pems: Option<Vec<String>>,
 ) -> Result<MDLReaderSessionDataWithVical, MDLReaderSessionError> {
-    let vical_result = crate::vical::fetch_and_build_trust_anchors(
-        cached_vical_bytes,
-        additional_iaca_pems,
-    )
-    .map_err(|e| MDLReaderSessionError::Generic {
-        value: format!("VICAL error: {e}"),
-    })?;
+    let vical_result =
+        crate::vical::fetch_and_build_trust_anchors(cached_vical_bytes, additional_iaca_pems)
+            .map_err(|e| MDLReaderSessionError::Generic {
+                value: format!("VICAL error: {e}"),
+            })?;
 
     let session = establish_session(
         handover,
