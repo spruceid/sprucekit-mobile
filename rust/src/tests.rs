@@ -1,15 +1,18 @@
 use crate::{
     context::default_ld_json_context,
     credential::{json_vc::JsonVc, ParsedCredential},
-    oid4vp::{holder::tests::KeySigner, Oid4vpFacadeError, Oid4vpHolder, Oid4vpPresentationSigner, Oid4vpResponseOptions},
+    oid4vp::{
+        holder::tests::KeySigner, Oid4vpFacadeError, Oid4vpHolder, Oid4vpPresentationSigner,
+        Oid4vpResponseOptions,
+    },
 };
 
 use oid4vci::oauth2::http::StatusCode;
 use ssi::{
     claims::data_integrity::CryptosuiteString,
+    claims::jws::JwsSigner,
     crypto::Algorithm,
     jwk::{ECParams, Params},
-    claims::jws::JwsSigner,
     JWK,
 };
 
