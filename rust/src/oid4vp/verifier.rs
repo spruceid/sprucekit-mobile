@@ -116,9 +116,7 @@ impl DelegatedVerifier {
 mod tests {
     use ssi::JWK;
     use ssi::{
-        claims::data_integrity::CryptosuiteString,
-        claims::jws::JwsSigner,
-        crypto::Algorithm,
+        claims::data_integrity::CryptosuiteString, claims::jws::JwsSigner, crypto::Algorithm,
     };
 
     use super::*;
