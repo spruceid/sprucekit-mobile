@@ -115,13 +115,72 @@ impl DelegatedVerifier {
 #[cfg(test)]
 mod tests {
     use ssi::JWK;
+    use ssi::{
+        claims::data_integrity::CryptosuiteString,
+        claims::jws::JwsSigner,
+        crypto::Algorithm,
+    };
 
     use super::*;
     use crate::credential::vcdm2_sd_jwt::VCDM2SdJwt;
     use crate::credential::*;
     use crate::oid4vp::holder::tests::KeySigner;
-    use crate::oid4vp::{holder::*, ResponseOptions};
+    use crate::oid4vp::{
+        Oid4vpFacadeError, Oid4vpHolder, Oid4vpPresentationSigner, Oid4vpResponseOptions,
+    };
 
+    #[derive(Debug)]
+    struct TestKeySigner(KeySigner);
+
+    #[async_trait::async_trait]
+    impl Oid4vpPresentationSigner for TestKeySigner {
+        async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, Oid4vpFacadeError> {
+            let sig = self
+                .0
+                .jwk
+                .sign_bytes(&payload)
+                .await
+                .expect("failed to sign Jws Payload");
+
+            p256::ecdsa::Signature::from_slice(&sig)
+                .map(|sig| sig.to_der().as_bytes().to_vec())
+                .map_err(|e| Oid4vpFacadeError::RequestParsing(format!("{e:?}")))
+        }
+
+        fn algorithm(&self) -> Algorithm {
+            self.0
+                .jwk
+                .algorithm
+                .map(Algorithm::from)
+                .unwrap_or(Algorithm::ES256)
+        }
+
+        async fn verification_method(&self) -> String {
+            let jwk = self.jwk();
+            crate::did::DidMethod::Key
+                .vm_from_jwk(&jwk)
+                .await
+                .unwrap()
+                .id
+                .to_string()
+        }
+
+        fn did(&self) -> String {
+            let jwk = self.jwk();
+            crate::did::DidMethod::Key
+                .did_from_jwk(&jwk)
+                .unwrap()
+                .to_string()
+        }
+
+        fn cryptosuite(&self) -> CryptosuiteString {
+            CryptosuiteString::new("ecdsa-rdfc-2019".to_string()).unwrap()
+        }
+
+        fn jwk(&self) -> String {
+            serde_json::to_string(&self.0.jwk.to_public()).unwrap()
+        }
+    }
     // NOTE: This requires an instance of credible to be accessible
     const BASE_URL: &str = "http://localhost:3003";
     const DELEGATED_VERIFIER_URL: &str = "/api2/verifier/1/delegate";
@@ -156,47 +215,42 @@ mod tests {
 
         let trusted_dids = vec!["did:web:localhost%3A3003:colofwd_signer_service".to_string()];
 
-        let holder = Holder::new_with_credentials(
+        let holder = Oid4vpHolder::new_with_credentials(
             vec![credential.clone()],
             trusted_dids,
-            Box::new(key_signer),
+            Box::new(TestKeySigner(key_signer)),
             None,
             None,
         )
         .await
         .expect("failed to create oid4vp holder");
 
-        let url = format!("openid4vp://?{auth_query}")
-            .parse()
-            .expect("failed to parse auth_query");
-
         let request = holder
-            .authorization_request(AuthRequest::Url(url))
+            .start(format!("openid4vp://?{auth_query}"))
             .await
             .expect("authorization request failed");
-
-        // Get the first credential query ID from the DCQL query
-        let credential_query_id = request
-            .dcql_query()
-            .credentials()
-            .first()
-            .map(|c: &openid4vp::core::dcql_query::DcqlCredentialQuery| c.id().to_string())
-            .unwrap_or_default();
 
         let response = request
             .create_permission_response(
                 request.credentials(),
-                vec![credential
-                    .requested_fields_dcql(request.dcql_query(), &credential_query_id)
+                request
+                    .credentials()
                     .iter()
-                    .map(|rf| rf.path())
-                    .collect()],
-                ResponseOptions::default(),
+                    .map(|credential| {
+                        request
+                            .requested_fields(credential)
+                            .unwrap()
+                            .iter()
+                            .map(|rf| rf.path.clone())
+                            .collect()
+                    })
+                    .collect(),
+                Oid4vpResponseOptions::default(),
             )
             .await
             .expect("failed to create permission response");
 
-        let _url = holder.submit_permission_response(response).await;
+        let _url = request.submit_permission_response(response).await;
 
         // Sleep for 5 seconds
         tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;

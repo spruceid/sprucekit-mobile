@@ -1,12 +1,15 @@
 use crate::{
     context::default_ld_json_context,
     credential::{json_vc::JsonVc, ParsedCredential},
-    oid4vp::{holder::tests::KeySigner, ResponseOptions},
+    oid4vp::{holder::tests::KeySigner, Oid4vpFacadeError, Oid4vpHolder, Oid4vpPresentationSigner, Oid4vpResponseOptions},
 };
 
 use oid4vci::oauth2::http::StatusCode;
 use ssi::{
+    claims::data_integrity::CryptosuiteString,
+    crypto::Algorithm,
     jwk::{ECParams, Params},
+    claims::jws::JwsSigner,
     JWK,
 };
 
@@ -26,6 +29,59 @@ pub(crate) fn load_jwk() -> JWK {
 
 pub(crate) fn load_signer() -> KeySigner {
     KeySigner { jwk: load_jwk() }
+}
+
+#[derive(Debug)]
+struct TestKeySigner(KeySigner);
+
+#[async_trait::async_trait]
+impl Oid4vpPresentationSigner for TestKeySigner {
+    async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, Oid4vpFacadeError> {
+        let sig = self
+            .0
+            .jwk
+            .sign_bytes(&payload)
+            .await
+            .expect("failed to sign Jws Payload");
+
+        p256::ecdsa::Signature::from_slice(&sig)
+            .map(|sig| sig.to_der().as_bytes().to_vec())
+            .map_err(|e| Oid4vpFacadeError::RequestParsing(format!("{e:?}")))
+    }
+
+    fn algorithm(&self) -> Algorithm {
+        self.0
+            .jwk
+            .algorithm
+            .map(Algorithm::from)
+            .unwrap_or(Algorithm::ES256)
+    }
+
+    async fn verification_method(&self) -> String {
+        let jwk = self.jwk();
+        crate::did::DidMethod::Key
+            .vm_from_jwk(&jwk)
+            .await
+            .unwrap()
+            .id
+            .to_string()
+    }
+
+    fn did(&self) -> String {
+        let jwk = self.jwk();
+        crate::did::DidMethod::Key
+            .did_from_jwk(&jwk)
+            .unwrap()
+            .to_string()
+    }
+
+    fn cryptosuite(&self) -> CryptosuiteString {
+        CryptosuiteString::new("ecdsa-rdfc-2019".to_string()).unwrap()
+    }
+
+    fn jwk(&self) -> String {
+        serde_json::to_string(&self.0.jwk.to_public()).unwrap()
+    }
 }
 
 // NOTE: This test is expected to be performed manually as it requires user interaction
@@ -49,10 +105,10 @@ pub async fn test_vc_playground_oid4vp() {
 
     let trusted_dids = vec![];
 
-    let holder = crate::oid4vp::Holder::new_with_credentials(
+    let holder = Oid4vpHolder::new_with_credentials(
         vec![credential.clone()],
         trusted_dids,
-        Box::new(signer),
+        Box::new(TestKeySigner(signer)),
         Some(default_ld_json_context()),
         None,
     )
@@ -60,7 +116,7 @@ pub async fn test_vc_playground_oid4vp() {
     .expect("Failed to create holder");
 
     let permission_request = holder
-        .authorization_request(crate::oid4vp::AuthRequest::Url(OID4VP_URI.parse().unwrap()))
+        .start(OID4VP_URI.to_string())
         .await
         .expect("Authorization request failed");
 
@@ -69,33 +125,30 @@ pub async fn test_vc_playground_oid4vp() {
     assert_eq!(parsed_credentials.len(), 1);
 
     for credential in parsed_credentials.iter() {
-        let requested_fields = permission_request.requested_fields(credential);
+        let requested_fields = permission_request.requested_fields(credential).unwrap();
         assert!(!requested_fields.is_empty());
     }
 
-    // NOTE: passing `parsed_credentials` as `selected_credentials`.
-    // Get the first credential query ID from the DCQL query
-    let credential_query_id = permission_request
-        .dcql_query()
-        .credentials()
-        .first()
-        .map(|c: &openid4vp::core::dcql_query::DcqlCredentialQuery| c.id().to_string())
-        .unwrap_or_default();
-
     let response = permission_request
         .create_permission_response(
-            parsed_credentials,
-            vec![credential
-                .requested_fields_dcql(permission_request.dcql_query(), &credential_query_id)
+            parsed_credentials.clone(),
+            parsed_credentials
                 .iter()
-                .map(|rf| rf.path())
-                .collect()],
-            ResponseOptions::default(),
+                .map(|credential| {
+                    permission_request
+                        .requested_fields(credential)
+                        .unwrap()
+                        .iter()
+                        .map(|rf| rf.path.clone())
+                        .collect()
+                })
+                .collect(),
+            Oid4vpResponseOptions::default(),
         )
         .await
         .expect("Failed to create permission response");
 
-    holder
+    permission_request
         .submit_permission_response(response)
         .await
         .expect("Permission response submission failed");
