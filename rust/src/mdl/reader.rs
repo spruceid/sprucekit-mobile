@@ -236,6 +236,41 @@ pub fn establish_session(
     })
 }
 
+#[derive(uniffi::Record)]
+pub struct MDLReaderSessionDataWithVical {
+    pub session: MDLReaderSessionData,
+    pub updated_vical_bytes: Option<Vec<u8>>,
+}
+
+/// Convenience wrapper around `establish_session` that fetches/verifies the
+/// AAMVA VICAL and merges its trust anchors with any additional IACA PEMs.
+///
+/// Returns the session data along with updated VICAL bytes for the app to cache.
+#[uniffi::export]
+pub fn establish_session_with_vical(
+    handover: Arc<ReaderHandover>,
+    requested_items: HashMap<String, HashMap<String, bool>>,
+    cached_vical_bytes: Option<Vec<u8>>,
+    additional_iaca_pems: Option<Vec<String>>,
+) -> Result<MDLReaderSessionDataWithVical, MDLReaderSessionError> {
+    let vical_result =
+        crate::vical::fetch_and_build_trust_anchors(cached_vical_bytes, additional_iaca_pems)
+            .map_err(|e| MDLReaderSessionError::Generic {
+                value: format!("VICAL error: {e}"),
+            })?;
+
+    let session = establish_session(
+        handover,
+        requested_items,
+        Some(vical_result.trust_anchor_pems),
+    )?;
+
+    Ok(MDLReaderSessionDataWithVical {
+        session,
+        updated_vical_bytes: vical_result.updated_vical_bytes,
+    })
+}
+
 #[derive(thiserror::Error, uniffi::Error, Debug, PartialEq)]
 pub enum MDLReaderResponseError {
     #[error("Invalid decryption")]

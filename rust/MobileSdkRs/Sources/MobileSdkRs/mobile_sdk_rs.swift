@@ -14800,6 +14800,58 @@ public func FfiConverterTypeMDLReaderSessionData_lower(_ value: MdlReaderSession
 }
 
 
+public struct MdlReaderSessionDataWithVical {
+    public var session: MdlReaderSessionData
+    public var updatedVicalBytes: Data?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(session: MdlReaderSessionData, updatedVicalBytes: Data?) {
+        self.session = session
+        self.updatedVicalBytes = updatedVicalBytes
+    }
+}
+
+#if compiler(>=6)
+extension MdlReaderSessionDataWithVical: Sendable {}
+#endif
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMDLReaderSessionDataWithVical: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdlReaderSessionDataWithVical {
+        return
+            try MdlReaderSessionDataWithVical(
+                session: FfiConverterTypeMDLReaderSessionData.read(from: &buf), 
+                updatedVicalBytes: FfiConverterOptionData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MdlReaderSessionDataWithVical, into buf: inout [UInt8]) {
+        FfiConverterTypeMDLReaderSessionData.write(value.session, into: &buf)
+        FfiConverterOptionData.write(value.updatedVicalBytes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMDLReaderSessionDataWithVical_lift(_ buf: RustBuffer) throws -> MdlReaderSessionDataWithVical {
+    return try FfiConverterTypeMDLReaderSessionDataWithVical.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMDLReaderSessionDataWithVical_lower(_ value: MdlReaderSessionDataWithVical) -> RustBuffer {
+    return FfiConverterTypeMDLReaderSessionDataWithVical.lower(value)
+}
+
+
 /**
  * Connection details for connecting to an mdoc that is using BLE Peripheral Server mode.
  */
@@ -15542,6 +15594,186 @@ public func FfiConverterTypeTestMdlData_lift(_ buf: RustBuffer) throws -> TestMd
 #endif
 public func FfiConverterTypeTestMdlData_lower(_ value: TestMdlData) -> RustBuffer {
     return FfiConverterTypeTestMdlData.lower(value)
+}
+
+
+public struct VicalResult {
+    public var vicalBytes: Data
+    public var vicalName: String?
+    public var vicalDate: String?
+    public var verified: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(vicalBytes: Data, vicalName: String?, vicalDate: String?, verified: Bool) {
+        self.vicalBytes = vicalBytes
+        self.vicalName = vicalName
+        self.vicalDate = vicalDate
+        self.verified = verified
+    }
+}
+
+#if compiler(>=6)
+extension VicalResult: Sendable {}
+#endif
+
+
+extension VicalResult: Equatable, Hashable {
+    public static func ==(lhs: VicalResult, rhs: VicalResult) -> Bool {
+        if lhs.vicalBytes != rhs.vicalBytes {
+            return false
+        }
+        if lhs.vicalName != rhs.vicalName {
+            return false
+        }
+        if lhs.vicalDate != rhs.vicalDate {
+            return false
+        }
+        if lhs.verified != rhs.verified {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(vicalBytes)
+        hasher.combine(vicalName)
+        hasher.combine(vicalDate)
+        hasher.combine(verified)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVicalResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VicalResult {
+        return
+            try VicalResult(
+                vicalBytes: FfiConverterData.read(from: &buf), 
+                vicalName: FfiConverterOptionString.read(from: &buf), 
+                vicalDate: FfiConverterOptionString.read(from: &buf), 
+                verified: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VicalResult, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.vicalBytes, into: &buf)
+        FfiConverterOptionString.write(value.vicalName, into: &buf)
+        FfiConverterOptionString.write(value.vicalDate, into: &buf)
+        FfiConverterBool.write(value.verified, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVicalResult_lift(_ buf: RustBuffer) throws -> VicalResult {
+    return try FfiConverterTypeVicalResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVicalResult_lower(_ value: VicalResult) -> RustBuffer {
+    return FfiConverterTypeVicalResult.lower(value)
+}
+
+
+public struct VicalTrustAnchorsResult {
+    public var trustAnchorPems: [String]
+    public var updatedVicalBytes: Data?
+    public var vicalName: String?
+    public var vicalDate: String?
+    public var verified: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(trustAnchorPems: [String], updatedVicalBytes: Data?, vicalName: String?, vicalDate: String?, verified: Bool) {
+        self.trustAnchorPems = trustAnchorPems
+        self.updatedVicalBytes = updatedVicalBytes
+        self.vicalName = vicalName
+        self.vicalDate = vicalDate
+        self.verified = verified
+    }
+}
+
+#if compiler(>=6)
+extension VicalTrustAnchorsResult: Sendable {}
+#endif
+
+
+extension VicalTrustAnchorsResult: Equatable, Hashable {
+    public static func ==(lhs: VicalTrustAnchorsResult, rhs: VicalTrustAnchorsResult) -> Bool {
+        if lhs.trustAnchorPems != rhs.trustAnchorPems {
+            return false
+        }
+        if lhs.updatedVicalBytes != rhs.updatedVicalBytes {
+            return false
+        }
+        if lhs.vicalName != rhs.vicalName {
+            return false
+        }
+        if lhs.vicalDate != rhs.vicalDate {
+            return false
+        }
+        if lhs.verified != rhs.verified {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(trustAnchorPems)
+        hasher.combine(updatedVicalBytes)
+        hasher.combine(vicalName)
+        hasher.combine(vicalDate)
+        hasher.combine(verified)
+    }
+}
+
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVicalTrustAnchorsResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VicalTrustAnchorsResult {
+        return
+            try VicalTrustAnchorsResult(
+                trustAnchorPems: FfiConverterSequenceString.read(from: &buf), 
+                updatedVicalBytes: FfiConverterOptionData.read(from: &buf), 
+                vicalName: FfiConverterOptionString.read(from: &buf), 
+                vicalDate: FfiConverterOptionString.read(from: &buf), 
+                verified: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VicalTrustAnchorsResult, into buf: inout [UInt8]) {
+        FfiConverterSequenceString.write(value.trustAnchorPems, into: &buf)
+        FfiConverterOptionData.write(value.updatedVicalBytes, into: &buf)
+        FfiConverterOptionString.write(value.vicalName, into: &buf)
+        FfiConverterOptionString.write(value.vicalDate, into: &buf)
+        FfiConverterBool.write(value.verified, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVicalTrustAnchorsResult_lift(_ buf: RustBuffer) throws -> VicalTrustAnchorsResult {
+    return try FfiConverterTypeVicalTrustAnchorsResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVicalTrustAnchorsResult_lower(_ value: VicalTrustAnchorsResult) -> RustBuffer {
+    return FfiConverterTypeVicalTrustAnchorsResult.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
@@ -22724,6 +22956,109 @@ extension VerificationResult: Equatable, Hashable {}
 
 
 
+public enum VicalError: Swift.Error {
+
+    
+    
+    case Network(value: String
+    )
+    case Parse(value: String
+    )
+    case Scraping(value: String
+    )
+    case Generic(value: String
+    )
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVicalError: FfiConverterRustBuffer {
+    typealias SwiftType = VicalError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VicalError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Network(
+            value: try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .Parse(
+            value: try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .Scraping(
+            value: try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .Generic(
+            value: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VicalError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Network(value):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .Parse(value):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .Scraping(value):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .Generic(value):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(value, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVicalError_lift(_ buf: RustBuffer) throws -> VicalError {
+    return try FfiConverterTypeVicalError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVicalError_lower(_ value: VicalError) -> RustBuffer {
+    return FfiConverterTypeVicalError.lower(value)
+}
+
+
+extension VicalError: Equatable, Hashable {}
+
+
+
+extension VicalError: Foundation.LocalizedError {
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+}
+
+
+
 public enum WalletServiceError: Swift.Error {
 
     
@@ -25749,6 +26084,21 @@ public func buildAnnexCResponse(request: Data, origin: String, selectedMatch: Re
         )
 }
 /**
+ * Build a trust anchor registry from cached VICAL bytes and/or additional IACA PEMs.
+ *
+ * Tries verified parse of the VICAL, falls back to unverified parse.
+ * Merges VICAL-derived anchors with any additional IACA PEM strings.
+ * Returns PEM strings compatible with `establish_session`.
+ */
+public func buildTrustAnchorRegistryFromVical(vicalBytes: Data?, additionalIacaPems: [String]?)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeVicalError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_build_trust_anchor_registry_from_vical(
+        FfiConverterOptionData.lower(vicalBytes),
+        FfiConverterOptionSequenceString.lower(additionalIacaPems),$0
+    )
+})
+}
+/**
  * Converts a byte array back to a base-10 numeric string.
  */
 public func bytesToBase10StringNum(bytes: Data) -> String  {
@@ -25877,6 +26227,47 @@ public func establishSession(handover: ReaderHandover, requestedItems: [String: 
         FfiConverterTypeReaderHandover_lower(handover),
         FfiConverterDictionaryStringDictionaryStringBool.lower(requestedItems),
         FfiConverterOptionSequenceString.lower(trustAnchorRegistry),$0
+    )
+})
+}
+/**
+ * Convenience wrapper around `establish_session` that fetches/verifies the
+ * AAMVA VICAL and merges its trust anchors with any additional IACA PEMs.
+ *
+ * Returns the session data along with updated VICAL bytes for the app to cache.
+ */
+public func establishSessionWithVical(handover: ReaderHandover, requestedItems: [String: [String: Bool]], cachedVicalBytes: Data?, additionalIacaPems: [String]?)throws  -> MdlReaderSessionDataWithVical  {
+    return try  FfiConverterTypeMDLReaderSessionDataWithVical_lift(try rustCallWithError(FfiConverterTypeMDLReaderSessionError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_establish_session_with_vical(
+        FfiConverterTypeReaderHandover_lower(handover),
+        FfiConverterDictionaryStringDictionaryStringBool.lower(requestedItems),
+        FfiConverterOptionData.lower(cachedVicalBytes),
+        FfiConverterOptionSequenceString.lower(additionalIacaPems),$0
+    )
+})
+}
+/**
+ * Convenience: fetch fresh VICAL (falling back to cached), verify/parse, merge anchors.
+ *
+ * Returns PEM strings + updated VICAL bytes for caching.
+ */
+public func fetchAndBuildTrustAnchors(cachedVicalBytes: Data?, additionalIacaPems: [String]?)throws  -> VicalTrustAnchorsResult  {
+    return try  FfiConverterTypeVicalTrustAnchorsResult_lift(try rustCallWithError(FfiConverterTypeVicalError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_fetch_and_build_trust_anchors(
+        FfiConverterOptionData.lower(cachedVicalBytes),
+        FfiConverterOptionSequenceString.lower(additionalIacaPems),$0
+    )
+})
+}
+/**
+ * Fetch the latest VICAL from AAMVA.
+ *
+ * Returns raw CBOR bytes + metadata for the app to cache.
+ * Does NOT parse or verify — just fetches.
+ */
+public func fetchVical()throws  -> VicalResult  {
+    return try  FfiConverterTypeVicalResult_lift(try rustCallWithError(FfiConverterTypeVicalError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_fetch_vical($0
     )
 })
 }
@@ -26133,6 +26524,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_build_annex_c_response() != 28694) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_build_trust_anchor_registry_from_vical() != 47851) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_bytes_to_base10_string_num() != 11806) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -26164,6 +26558,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 48320) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_establish_session_with_vical() != 64976) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_fetch_and_build_trust_anchors() != 21571) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_fetch_vical() != 53950) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_did_jwk_url() != 64922) {
