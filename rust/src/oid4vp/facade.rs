@@ -50,6 +50,9 @@ impl From<PermissionRequestError> for Oid4vpFacadeError {
     }
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
+)]
 #[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct Oid4vpResponseOptions {
     pub force_array_serialization: bool,
@@ -57,6 +60,9 @@ pub struct Oid4vpResponseOptions {
     pub remove_vp_path_prefix: bool,
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
+)]
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct Oid4vpRequestedField {
     pub id: uuid::Uuid,
@@ -69,6 +75,9 @@ pub struct Oid4vpRequestedField {
     pub raw_fields: Vec<String>,
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
+)]
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct Oid4vpRequirement {
     pub id: String,
@@ -83,6 +92,9 @@ enum Oid4vpHolderSource {
     Credentials(Vec<Arc<ParsedCredential>>),
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Object)]
 pub struct Oid4vpHolder {
     source: Oid4vpHolderSource,
@@ -114,6 +126,9 @@ enum Oid4vpSessionInner {
     },
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
+)]
 #[derive(Debug, uniffi::Object)]
 pub struct Oid4vpSession {
     inner: Oid4vpSessionInner,
@@ -125,6 +140,9 @@ enum Oid4vpPresentableCredentialInner {
     Draft18(Arc<Draft18PresentableCredential>),
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
+)]
 #[derive(Debug, uniffi::Object)]
 pub struct Oid4vpPresentableCredential {
     inner: Oid4vpPresentableCredentialInner,
@@ -136,11 +154,17 @@ enum Oid4vpPermissionResponseInner {
     Draft18(Arc<Draft18PermissionResponse>),
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
+)]
 #[derive(Debug, uniffi::Object)]
 pub struct Oid4vpPermissionResponse {
     inner: Oid4vpPermissionResponseInner,
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
+)]
 #[uniffi::export(callback_interface)]
 #[async_trait::async_trait]
 pub trait Oid4vpPresentationSigner: Send + Sync + std::fmt::Debug {

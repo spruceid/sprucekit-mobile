@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use std::sync::Arc;
 
 use super::{
@@ -6,6 +8,9 @@ use super::{
     ResolvedCredentialOffer, TxCodeRequired, WaitingForAuthorizationCode,
 };
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Oid4vciCompatibilityMode {
     Auto,
@@ -13,12 +18,18 @@ pub enum Oid4vciCompatibilityMode {
     ForceLegacy,
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Enum, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Oid4vciVersion {
     V1,
     Legacy,
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Object)]
 pub struct Oid4vciFacadeClient {
     client_id: String,
@@ -26,6 +37,9 @@ pub struct Oid4vciFacadeClient {
     v1_client: Oid4vciClient,
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Object)]
 pub struct Oid4vciFacadeResolvedOffer {
     preferred_version: Oid4vciVersion,
@@ -41,6 +55,9 @@ enum Oid4vciFacadeResolvedOfferInner {
     },
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Object)]
 pub struct Oid4vciFacadeAuthorizationCodeRequired {
     client_id: String,
@@ -48,6 +65,9 @@ pub struct Oid4vciFacadeAuthorizationCodeRequired {
     inner: AuthorizationCodeRequired,
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Object)]
 pub struct Oid4vciFacadeWaitingForAuthorizationCode {
     client_id: String,
@@ -55,6 +75,9 @@ pub struct Oid4vciFacadeWaitingForAuthorizationCode {
     inner: WaitingForAuthorizationCode,
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Object)]
 pub struct Oid4vciFacadeTxCodeRequired {
     client_id: String,
@@ -62,6 +85,9 @@ pub struct Oid4vciFacadeTxCodeRequired {
     inner: TxCodeRequired,
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Object)]
 pub struct Oid4vciFacadeCredentialToken {
     version: Oid4vciVersion,
@@ -77,6 +103,9 @@ enum Oid4vciFacadeCredentialTokenInner {
     Legacy(legacy::LegacyCredentialToken),
 }
 
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VCI integrations only. Prefer Oid4vciClient for new integrations; this facade may be removed in a future release."
+)]
 #[derive(uniffi::Enum)]
 pub enum Oid4vciFacadeCredentialTokenState {
     RequiresAuthorizationCode(Arc<Oid4vciFacadeAuthorizationCodeRequired>),
