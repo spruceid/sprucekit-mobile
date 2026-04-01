@@ -162,7 +162,9 @@ impl Draft18RequestedField {
     }
 }
 
-#[deprecated(note = "Use Oid4vpSession instead.")]
+#[deprecated(
+    note = "Legacy draft-18 compatibility only. Prefer OID4VP v1 APIs for new integrations; this API may be removed in a future release."
+)]
 #[derive(Debug, Clone, uniffi::Object)]
 pub struct Draft18PermissionRequest {
     pub(crate) definition: PresentationDefinition,
@@ -342,7 +344,9 @@ impl Draft18PermissionRequest {
 /// Non-normative response options used to provide configurable interface
 /// for handling variations in the processing of the verifiable presentation
 /// payloads in various external verifiers.
-#[deprecated(note = "Use Oid4vpResponseOptions instead.")]
+#[deprecated(
+    note = "Legacy draft-18 compatibility only. Prefer OID4VP v1 APIs for new integrations; this API may be removed in a future release."
+)]
 #[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct Draft18ResponseOptions {
     /// This is an non-normative setting to determine
@@ -373,7 +377,9 @@ pub struct Draft18ResponseOptions {
 ///
 /// The Requested Fields are created by calling the [Draft18PermissionRequest::requested_fields] method, and then
 /// explicitly setting the permission to true or false, based on the holder's decision.
-#[deprecated(note = "Use Oid4vpPermissionResponse instead.")]
+#[deprecated(
+    note = "Legacy draft-18 compatibility only. Prefer OID4VP v1 APIs for new integrations; this API may be removed in a future release."
+)]
 #[derive(Debug, Clone, uniffi::Object)]
 pub struct Draft18PermissionResponse {
     pub selected_credentials: Vec<Arc<Draft18PresentableCredential>>,

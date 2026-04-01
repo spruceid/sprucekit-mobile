@@ -154,7 +154,9 @@ pub trait CredentialPresentation {
 ///
 /// For example, in the case of `JwtVc` credential format,
 /// the signing payload consists of the JWT header and payload (JWS).
-#[deprecated(note = "Use Oid4vpPresentationSigner instead.")]
+#[deprecated(
+    note = "Legacy draft-18 compatibility only. Prefer OID4VP v1 APIs for new integrations; this API may be removed in a future release."
+)]
 #[uniffi::export(callback_interface)]
 #[async_trait::async_trait]
 pub trait Draft18PresentationSigner: Send + Sync + std::fmt::Debug {

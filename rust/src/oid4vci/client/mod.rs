@@ -16,7 +16,11 @@ pub use offer::*;
 pub use state::*;
 pub use token::*;
 
-/// OID4VCI client.
+/// OID4VCI v1 client.
+///
+/// This is the preferred API for new OID4VCI integrations. The compatibility
+/// facade exists only for legacy issuer support and may be removed in a future
+/// release.
 #[derive(uniffi::Object)]
 pub struct Oid4vciClient(oid4vci::client::SimpleOid4vciClient);
 

@@ -68,7 +68,6 @@ match req {
 /// The Holder is typically the subject of the credentials, but not always.
 /// The Holder has the ability to generate Verifiable Presentations from
 /// these credentials and share them with Verifiers.
-#[deprecated(note = "Use Oid4vpHolder and Oid4vpSession instead.")]
 #[derive(uniffi::Object)]
 pub struct Holder {
     /// An atomic reference to the VDC collection.

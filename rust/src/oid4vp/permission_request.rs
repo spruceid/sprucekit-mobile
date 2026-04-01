@@ -209,7 +209,6 @@ pub struct CredentialRequirement {
     pub credentials: Vec<Arc<PresentableCredential>>,
 }
 
-#[deprecated(note = "Use Oid4vpSession instead.")]
 #[derive(Clone, uniffi::Object)]
 pub struct PermissionRequest {
     pub(crate) dcql_query: DcqlQuery,
@@ -560,7 +559,6 @@ impl PermissionRequest {
 /// Response options used to provide configurable interface
 /// for handling variations in the processing of the verifiable presentation
 /// payloads.
-#[deprecated(note = "Use Oid4vpResponseOptions instead.")]
 #[derive(Debug, Clone, Default, uniffi::Record)]
 pub struct ResponseOptions {
     /// Boolean option of whether to use `array_or_value` serialization options
@@ -578,7 +576,6 @@ pub struct ResponseOptions {
 ///
 /// The Requested Fields are created by calling the [PermissionRequest::requested_fields] method, and then
 /// explicitly setting the permission to true or false, based on the holder's decision.
-#[deprecated(note = "Use Oid4vpPermissionResponse instead.")]
 #[derive(Debug, Clone, uniffi::Object)]
 pub struct PermissionResponse {
     // TODO: provide an optional internal mapping of `JsonPointer`s
