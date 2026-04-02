@@ -141,7 +141,7 @@ struct Draft18DataFieldSelector: View {
                         )
                     }
                 } else {
-                    ForEach(requestedFields, id: \.path()) { field in
+                    ForEach(Array(requestedFields.enumerated()), id: \.offset) { _, field in
                         Draft18SelectiveDisclosureItem(
                             field: field,
                             required: field.required() || !supportsSelectiveDisclosure,
