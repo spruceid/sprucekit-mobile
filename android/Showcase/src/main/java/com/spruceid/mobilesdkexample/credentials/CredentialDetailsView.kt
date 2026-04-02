@@ -59,6 +59,7 @@ import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.ParsedCredential
+import com.spruceid.mobile.sdk.rs.generateCredentialPdf
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
@@ -75,10 +76,13 @@ import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.credentialPackHasMdoc
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
+import com.spruceid.mobilesdkexample.viewmodels.HelpersViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.SupportedQRTypes
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.uuid.Uuid
 
@@ -179,6 +183,12 @@ fun CredentialDetailsView(
                 CredentialDetailsViewTabs(
                     { painterResource(id = R.drawable.wallet) },
                     { stringResource(id = R.string.details_share_nfc) }
+                )
+            )
+            tmpTabs.add(
+                CredentialDetailsViewTabs(
+                    { painterResource(id = R.drawable.export) },
+                    { stringResource(id = R.string.details_share_pdf) }
                 )
             )
             tabs = tmpTabs
@@ -300,6 +310,12 @@ fun CredentialDetailsView(
                                 credentialPack!!.list().firstOrNull()
                             )
                         }
+
+                        4 -> { // Share PDF
+                            GenericCredentialDetailsSharePDF(
+                                credentialPack!!.list().firstOrNull()
+                            )
+                        }
                     }
                 }
             }
@@ -403,6 +419,94 @@ fun GenericCredentialDetailsShareQRCode(credential: ParsedCredential?) {
         }
         Text(
             text = "Present this QR code to a verifier in order to share data. You will see a consent dialogue.",
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .padding(top = 12.dp),
+            fontFamily = Inter,
+            fontWeight = FontWeight.Normal,
+            fontSize = 14.sp,
+            color = ColorStone500,
+        )
+    }
+}
+
+@Composable
+fun GenericCredentialDetailsSharePDF(credential: ParsedCredential?) {
+    val coroutineScope = rememberCoroutineScope()
+    val helpersViewModel: HelpersViewModel = activityHiltViewModel()
+    var isGenerating by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Column(
+            Modifier
+                .clip(shape = RoundedCornerShape(12.dp))
+                .background(ColorBase1)
+                .border(
+                    width = 1.dp,
+                    color = ColorStone300,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.export),
+                contentDescription = stringResource(id = R.string.details_share_pdf),
+                colorFilter = ColorFilter.tint(ColorBlue600),
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(48.dp)
+                    .padding(bottom = 12.dp)
+            )
+            Button(
+                onClick = {
+                    if (credential == null || isGenerating) return@Button
+                    isGenerating = true
+                    errorMessage = null
+                    coroutineScope.launch {
+                        try {
+                            val pdfBytes = withContext(Dispatchers.IO) {
+                                generateCredentialPdf(credential)
+                            }
+                            helpersViewModel.exportBytes(pdfBytes, "credential.pdf", "application/pdf")
+                        } catch (e: Exception) {
+                            errorMessage = e.message ?: "Failed to generate PDF"
+                        } finally {
+                            isGenerating = false
+                        }
+                    }
+                },
+                enabled = credential != null && !isGenerating,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ColorBlue600,
+                )
+            ) {
+                Text(
+                    text = if (isGenerating) "Generating..." else "Generate & Share PDF",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    color = ColorBase1,
+                )
+            }
+            errorMessage?.let { msg ->
+                Text(
+                    text = msg,
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Normal,
+                    fontSize = 12.sp,
+                    color = Color.Red,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+        Text(
+            text = "Generate a PDF representation of this credential and share it.",
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .padding(horizontal = 24.dp)

@@ -76,6 +76,8 @@ w3c-vc-barcodes = { git = "https://github.com/spruceid/w3c-vc-barcodes", rev = "
 x509-cert = { version = "0.2.5", features = ["builder", "hazmat"] }
 csv = "1.3.1"
 chrono = { version = "0.4.42", features = ["serde"] }
+printpdf = { version = "0.7", default-features = false }
+jpeg-decoder = { version = "0.3", default-features = false }
 
 
 [dev-dependencies]

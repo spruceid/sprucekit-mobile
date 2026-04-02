@@ -13,6 +13,7 @@ pub mod local_store;
 pub mod logger;
 pub mod mdl;
 pub mod oid4vci;
+pub mod pdf;
 pub mod oid4vp;
 pub mod presentation;
 pub mod storage_manager;
