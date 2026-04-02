@@ -52,8 +52,7 @@ impl PdfRenderer {
         let theme = source.theme();
         let sections = source.sections();
 
-        let (doc, page, layer_idx) =
-            PdfDocument::new(&title, Mm(PAGE_W), Mm(PAGE_H), "Main");
+        let (doc, page, layer_idx) = PdfDocument::new(&title, Mm(PAGE_W), Mm(PAGE_H), "Main");
         let layer = doc.get_page(page).get_layer(layer_idx);
 
         let font_bold = doc
@@ -335,4 +334,3 @@ fn draw_footer(
     layer.use_text(text, 7.0, Mm(MARGIN), Mm(footer_y), font_reg);
     Ok(footer_y - LINE_H)
 }
-

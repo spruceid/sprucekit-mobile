@@ -6,11 +6,7 @@ use crate::{
     credential::ParsedCredential,
     crypto::{KeyAlias, RustTestKeyManager},
     mdl::util::generate_test_mdl,
-    pdf::{
-        doctypes::mdl::MdlContent,
-        generate_credential_pdf,
-        render::PdfRenderer,
-    },
+    pdf::{doctypes::mdl::MdlContent, generate_credential_pdf, render::PdfRenderer},
 };
 
 /// Build a test Mdoc using the in-memory key manager and hardcoded test data.
@@ -60,12 +56,18 @@ async fn test_mdl_fields_extracted_for_pdf() {
         .find(|e| e.identifier == "given_name")
         .and_then(|e| e.value.as_deref())
         .expect("given_name missing");
-    assert!(given.contains("John"), "given_name should contain 'John', got: {given}");
+    assert!(
+        given.contains("John"),
+        "given_name should contain 'John', got: {given}"
+    );
 
     let family = elements
         .iter()
         .find(|e| e.identifier == "family_name")
         .and_then(|e| e.value.as_deref())
         .expect("family_name missing");
-    assert!(family.contains("Doe"), "family_name should contain 'Doe', got: {family}");
+    assert!(
+        family.contains("Doe"),
+        "family_name should contain 'Doe', got: {family}"
+    );
 }

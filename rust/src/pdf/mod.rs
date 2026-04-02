@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use crate::credential::ParsedCredential;
 
-mod render;
 pub mod doctypes;
+mod render;
 
 #[cfg(test)]
 mod tests;
