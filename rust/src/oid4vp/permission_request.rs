@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use super::error::OID4VPError;
 use super::presentation::{PresentationError, PresentationOptions, PresentationSigner};
 use crate::credential::{Credential, ParsedCredential, PresentableCredential};

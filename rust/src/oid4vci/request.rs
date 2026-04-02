@@ -1,5 +1,5 @@
 /// Credential or configuration identifier.
-#[derive(uniffi::Enum)]
+#[derive(uniffi::Enum, Clone)]
 pub enum CredentialOrConfigurationId {
     Credential(String),
     Configuration(String),
