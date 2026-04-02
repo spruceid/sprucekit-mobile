@@ -12,6 +12,25 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
         super.init()
     }
 
+    func generateCredentialPdf(
+        rawMdoc: String,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task {
+            do {
+                let mdoc = try Mdoc.newFromBase64urlEncodedIssuerSigned(
+                    base64urlEncodedIssuerSigned: rawMdoc,
+                    keyAlias: "pdf"
+                )
+                let credential = ParsedCredential.newMsoMdoc(mdoc: mdoc)
+                let pdfBytes = try generateCredentialPdf(credential: credential)
+                completion(.success(FlutterStandardTypedData(bytes: Data(pdfBytes))))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
     func generateMockMdl(
         keyAlias: String?,
         completion: @escaping (Result<GenerateMockMdlResult, Error>) -> Void
