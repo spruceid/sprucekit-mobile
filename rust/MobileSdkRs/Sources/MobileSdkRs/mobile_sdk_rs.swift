@@ -9719,7 +9719,11 @@ public func FfiConverterTypeOID4VP180137_lower(_ value: Oid4vp180137) -> UnsafeM
 
 
 /**
- * OID4VCI client.
+ * OID4VCI v1 client.
+ *
+ * This is the preferred API for new OID4VCI integrations. The compatibility
+ * facade exists only for legacy issuer support and may be removed in a future
+ * release.
  */
 public protocol Oid4vciClientProtocol: AnyObject, Sendable {
     
@@ -9740,7 +9744,11 @@ public protocol Oid4vciClientProtocol: AnyObject, Sendable {
     
 }
 /**
- * OID4VCI client.
+ * OID4VCI v1 client.
+ *
+ * This is the preferred API for new OID4VCI integrations. The compatibility
+ * facade exists only for legacy issuer support and may be removed in a future
+ * release.
  */
 open class Oid4vciClient: Oid4vciClientProtocol, @unchecked Sendable {
     fileprivate let pointer: UnsafeMutableRawPointer!
