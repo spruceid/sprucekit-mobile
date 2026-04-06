@@ -17,6 +17,9 @@ buildscript {
 
 allprojects {
     repositories {
+        // Uncomment mavenLocal() when testing against a locally-built SDK artifact.
+        // See flutter/CLAUDE.md → "Adding a new Rust function to the Android adapter".
+        // mavenLocal()
         google()
         mavenCentral()
     }

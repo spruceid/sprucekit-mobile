@@ -27,7 +27,10 @@ internal class SpruceUtilsAdapter(
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val mdoc = Mdoc.newFromBase64urlEncodedIssuerSigned(rawMdoc, "pdf")
+                // rawMdoc is standard Base64-encoded CBOR Document bytes
+                // (from parsedCredential.intoGenericForm().payload)
+                val documentBytes = Base64.decode(rawMdoc, Base64.DEFAULT)
+                val mdoc = Mdoc.fromCborEncodedDocument(documentBytes, "pdf")
                 val credential = ParsedCredential.newMsoMdoc(mdoc)
                 val pdfBytes = generateCredentialPdf(credential)
                 callback(Result.success(pdfBytes))

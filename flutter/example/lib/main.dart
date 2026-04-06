@@ -6,6 +6,7 @@ import 'demos/mdl_share_demo.dart';
 import 'demos/oid4vci_demo.dart';
 import 'demos/oid4vp_demo.dart';
 import 'demos/oid4vp_mdoc_demo.dart';
+import 'demos/credential_pdf_demo.dart';
 import 'demos/scanner_demo.dart';
 
 void main() {
@@ -40,6 +41,7 @@ class HomeScreen extends StatelessWidget {
       ('Share mDL', Icons.share, const MdlShareDemo()),
       ('DC API', Icons.web, const DcApiDemo()),
       ('Credential Pack', Icons.folder, const CredentialPackDemo()),
+      ('Credential PDF', Icons.picture_as_pdf, const CredentialPdfDemo()),
       ('Scanner', Icons.qr_code_scanner, const ScannerDemo()),
     ];
 
