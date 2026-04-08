@@ -21,8 +21,10 @@ mod tests;
 pub mod trusted_roots;
 pub mod vdc_collection;
 pub mod verifier;
+pub mod vical;
 pub mod w3c_vc_barcodes;
 
 pub use common::*;
 pub use mdl::reader::*;
 pub use mdl::*;
+pub use vical::*;
