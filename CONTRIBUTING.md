@@ -34,9 +34,9 @@ rustup target install \
     x86_64-apple-ios
 ```
 - `cargo-ndk`
-    - `cargo install cargo-ndk` (or use `cargo binstall` for a faster install)
-- `cargo-swift` 0.9
-    - `cargo install cargo-swift@0.9.0`
+  - `cargo install cargo-ndk` (or use `cargo binstall` for a faster install)
+- `cargo-swift` 0.11
+  - `cargo install cargo-swift@0.11.0`
 
 ### Android
 
