@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::{
     credential::{Credential, CredentialEncodingError, CredentialFormat, VcdmVersion},
     crypto::KeyAlias,

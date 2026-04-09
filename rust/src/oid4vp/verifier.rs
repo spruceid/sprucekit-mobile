@@ -121,7 +121,6 @@ mod tests {
     use crate::credential::*;
     use crate::oid4vp::holder::tests::KeySigner;
     use crate::oid4vp::{holder::*, ResponseOptions};
-
     // NOTE: This requires an instance of credible to be accessible
     const BASE_URL: &str = "http://localhost:3003";
     const DELEGATED_VERIFIER_URL: &str = "/api2/verifier/1/delegate";

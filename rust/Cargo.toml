@@ -21,7 +21,9 @@ cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", featur
 ] }
 isomdl = { git = "https://github.com/spruceid/isomdl", rev = "fd679d2" }
 oid4vci = { git = "https://github.com/spruceid/oid4vci-rs", rev = "e64ae8d", features = ["ssi", "integer-ts"] }
+oid4vci_legacy = { package = "oid4vci", git = "https://github.com/spruceid/oid4vci-rs", rev = "490c135" }
 openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "6127287" }
+openidvp_draft18 = { package = "openid4vp", git = "https://github.com/spruceid/openid4vp", rev = "2446e7"}
 ssi = { version = "0.14", features = ["secp256r1", "secp384r1"] }
 
 anyhow = "1"

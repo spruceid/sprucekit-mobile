@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use super::error::OID4VPError;
 use super::permission_request::*;
 use super::presentation::PresentationSigner;
