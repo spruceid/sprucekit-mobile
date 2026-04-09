@@ -140,6 +140,31 @@ dart run pigeon --input pigeons/mdl_presentation.dart
 dart run pigeon --input pigeons/spruce_utils.dart
 ```
 
+## Pre-push Checklist
+
+Run these locally before opening a PR to catch the same failures CI will catch.
+
+**Rust** — see commands in `rust/CLAUDE.md`. Make sure to set `RUSTFLAGS="-Dwarnings"` for build and clippy, as CI treats warnings as errors.
+
+**iOS Swift bindings** — after any Rust change, regenerate (see `rust/CLAUDE.md`) and commit any changes to `rust/MobileSdkRs/`. CI fails if the committed bindings are out of date.
+
+**Flutter** — use `fvm` to match the pinned Flutter version (see `flutter/.fvmrc`):
+
+```bash
+cd flutter
+fvm flutter pub get
+fvm flutter analyze
+fvm dart format --set-exit-if-changed lib/sprucekit_mobile.dart pigeons/ example/
+```
+
+**Android** — the CI job requires cross-compilation toolchains that are heavy to run locally. Running the Rust and Flutter checks above is usually sufficient. If you've changed Kotlin code in the Showcase or SDK, you can run lint with:
+
+```bash
+cd android
+touch local.properties  # if missing
+./gradlew :showcase:lint -Prust-target=arm64
+```
+
 ## Releases
 
 ### SDKs

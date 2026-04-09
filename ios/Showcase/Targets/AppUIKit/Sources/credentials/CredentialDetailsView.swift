@@ -1,6 +1,7 @@
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import SwiftUI
+import UIKit
 
 struct CredentialDetails: Hashable {
     var credentialPackId: String
@@ -104,6 +105,9 @@ struct CredentialDetailsView: View {
                         } else if index == 2, let mdoc = mdoc() {  // Share
                             ShareMdocView(mdoc: mdoc)
                                 .tag(index)
+                        } else if index == 3 {  // Share PDF
+                            SharePdfView(credentialPack: credentialPack)
+                                .tag(index)
                         }
                     }
                 }
@@ -155,6 +159,9 @@ struct CredentialDetailsView: View {
             if credentialPackHasMdoc(credentialPack: credentialPack!) {
                 credentialDetailsViewTabs.append(
                     CredentialDetailsViewTab(image: "QRCode")
+                )
+                credentialDetailsViewTabs.append(
+                    CredentialDetailsViewTab(image: "Export")
                 )
             }
             credentialTitle =

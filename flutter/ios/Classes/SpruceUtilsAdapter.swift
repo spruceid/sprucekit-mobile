@@ -12,6 +12,35 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
         super.init()
     }
 
+    func generateCredentialPdf(
+        rawMdoc: String,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task {
+            do {
+                // rawMdoc is standard Base64-encoded CBOR Document bytes
+                // (from parsedCredential.intoGenericForm().payload)
+                guard let documentBytes = Data(base64Encoded: rawMdoc) else {
+                    completion(.failure(NSError(
+                        domain: "SpruceUtilsAdapter",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to decode base64 rawMdoc"]
+                    )))
+                    return
+                }
+                let mdoc = try Mdoc.fromCborEncodedDocument(
+                    cborEncodedDocument: documentBytes,
+                    keyAlias: "pdf"
+                )
+                let credential = ParsedCredential.newMsoMdoc(mdoc: mdoc)
+                let pdfBytes = try SpruceIDMobileSdkRs.generateCredentialPdf(credential: credential)
+                completion(.success(FlutterStandardTypedData(bytes: Data(pdfBytes))))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
     func generateMockMdl(
         keyAlias: String?,
         completion: @escaping (Result<GenerateMockMdlResult, Error>) -> Void

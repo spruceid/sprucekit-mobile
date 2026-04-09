@@ -45,3 +45,14 @@ dart run pigeon --input pigeons/dc_api.dart
 - Generated code lands in three places: `lib/pigeon/` (Dart), `ios/Classes/` (Swift `.g.swift`), `android/src/main/kotlin/` (Kotlin `.g.kt`)
 - Native adapter classes (e.g., `Oid4vciAdapter.swift`, `Oid4vciAdapter.kt`) implement the generated Pigeon host APIs by delegating to the native SDKs
 - For releases, the plugin depends on **published** native SDK versions (Maven Central for Android, CocoaPods for iOS). For local dev, it uses source builds.
+- **Adding a new Rust function to the Android adapter**: the Flutter plugin references the *published* `mobilesdkrs` artifact, so a newly-added Rust function won't be available until the next SDK release. To build the Flutter example locally against your local SDK:
+  1. Publish the local SDK to Maven Local:
+     ```bash
+     cd android && touch local.properties
+     VERSION=0.0.1-local ./gradlew :MobileSdkRs:publishDebugPublicationToMavenLocal
+     ```
+     > **Note:** Use `publishDebugPublicationToMavenLocal` (not `publishToMavenLocal`) to avoid GPG signing errors. The `release` publication requires GPG signing (`gpg` command + keys), which is only needed for Maven Central. The `debug` publication skips signing and works for local development.
+  2. Uncomment `mavenLocal()` in `flutter/android/build.gradle`.
+  3. Build the example: `cd flutter/example && flutter build apk`
+
+  The Flutter CI only runs Dart analysis (`flutter analyze`) — Kotlin compilation is not checked in CI, so the PR will pass even before the SDK is published. Re-comment `mavenLocal()` before pushing.

@@ -3,7 +3,9 @@ package com.spruceid.sprucekit_mobile
 import android.content.Context
 import android.util.Base64
 import com.spruceid.mobile.sdk.KeyManager
+import com.spruceid.mobile.sdk.rs.generateCredentialPdf
 import com.spruceid.mobile.sdk.rs.generateTestMdl
+import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +20,25 @@ internal class SpruceUtilsAdapter(
     private val context: Context,
     private val credentialPackAdapter: CredentialPackAdapter
 ) : SpruceUtils {
+
+    override fun generateCredentialPdf(
+        rawMdoc: String,
+        callback: (Result<ByteArray>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // rawMdoc is standard Base64-encoded CBOR Document bytes
+                // (from parsedCredential.intoGenericForm().payload)
+                val documentBytes = Base64.decode(rawMdoc, Base64.DEFAULT)
+                val mdoc = Mdoc.fromCborEncodedDocument(documentBytes, "pdf")
+                val credential = ParsedCredential.newMsoMdoc(mdoc)
+                val pdfBytes = generateCredentialPdf(credential)
+                callback(Result.success(pdfBytes))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
 
     override fun generateMockMdl(
         keyAlias: String?,

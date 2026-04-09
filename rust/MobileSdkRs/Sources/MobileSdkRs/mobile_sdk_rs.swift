@@ -20161,6 +20161,80 @@ public func FfiConverterTypeOutcome_lower(_ value: Outcome) -> RustBuffer {
 
 
 
+public enum PdfError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case Render(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension PdfError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePdfError: FfiConverterRustBuffer {
+    typealias SwiftType = PdfError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PdfError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Render(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PdfError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Render(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePdfError_lift(_ buf: RustBuffer) throws -> PdfError {
+    return try FfiConverterTypePdfError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePdfError_lower(_ value: PdfError) -> RustBuffer {
+    return FfiConverterTypePdfError.lower(value)
+}
+
+
 public enum PermissionRequestError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
@@ -25558,6 +25632,26 @@ public func buildAnnexCResponse(request: Data, origin: String, selectedMatch: Re
             errorHandler: FfiConverterTypeDcApiError_lift
         )
 }
+/**
+ * Generate a PDF from a parsed credential. Returns raw PDF bytes.
+ *
+ * **New credential type** (e.g. vehicle registration): add a `doctypes/` module
+ * implementing [`PdfSource`], then add a match arm here. The renderer needs no changes.
+ *
+ * **Non-credential PDF** (e.g. audit report, receipt): implement [`PdfSource`] on any
+ * struct, call [`render::PdfRenderer::render`] directly, and expose a separate
+ * `#[uniffi::export]` entry point — no need to route through this function.
+ *
+ * **Phase 2 barcodes** (QR / PDF-417): produce the encoded bytes in the doctype and
+ * return them as `PdfSection::Barcode` — picked up by the renderer automatically.
+ */
+public func generateCredentialPdf(credential: ParsedCredential)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypePdfError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_generate_credential_pdf(
+        FfiConverterTypeParsedCredential_lower(credential),$0
+    )
+})
+}
 public func verifyPdf417Barcode(payload: String)async throws   {
     return
         try  await uniffiRustCallAsync(
@@ -25681,6 +25775,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_build_annex_c_response() != 24658) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_credential_pdf() != 34886) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_verify_pdf417_barcode() != 30995) {

@@ -39,6 +39,7 @@
     <string name="generate_mdl">Generate mDL</string>
     <string name="details_share_qr">QR Code to share credential</string>
     <string name="details_share_nfc">Tap to share credential</string>
+    <string name="details_share_pdf">Export credential as PDF</string>
     <string name="details_info">Credential information</string>
     <string name="trusted_certificates">Manage trusted certificates</string>
     <string name="delete">Delete</string>

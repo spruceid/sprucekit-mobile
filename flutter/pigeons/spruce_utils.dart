@@ -60,4 +60,14 @@ abstract class SpruceUtils {
   /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
   @async
   GenerateMockMdlResult generateMockMdl(String? keyAlias);
+
+  /// Generate a PDF from a raw mDL credential.
+  ///
+  /// Accepts the raw mSO mDoc as a base64url-encoded IssuerSigned string
+  /// (the same format returned by generateMockMdl's rawCredential field).
+  ///
+  /// @param rawMdoc Base64url-encoded IssuerSigned bytes of the mDL
+  /// @return Raw PDF bytes ready to write to a file and share
+  @async
+  Uint8List generateCredentialPdf(String rawMdoc);
 }
