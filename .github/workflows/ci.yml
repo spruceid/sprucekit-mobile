@@ -162,6 +162,9 @@ jobs:
       - name: Run Showcase lint
         run: ./gradlew :showcase:lint -Prust-target=arm64
 
+      - name: Check dependency licenses
+        run: ./gradlew licensee -Prust-target=arm64
+
   flutter:
     runs-on: ubuntu-latest
     if: github.actor != 'sprucekit-mobile-monorepo[bot]'
