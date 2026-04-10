@@ -5,6 +5,27 @@ plugins {
     id("signing")
     id("com.gradleup.nmcp")
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
+    id("app.cash.licensee")
+}
+
+// Full allowlist is in rust/deny.toml. Only licenses actually present in this
+// module's dependencies are listed so licensee flags any new license type.
+licensee {
+    allow("Apache-2.0")
+    allow("BSD-3-Clause")
+
+    // Some dependencies use license URLs instead of SPDX identifiers in their POM
+    // metadata. Each is compatible with our permissive-only policy (no copyleft):
+
+    // Android SDK Terms -- Google Play Services, ML Kit, and related libraries.
+    // Free-to-use binaries with no copyleft or source-disclosure obligations.
+    allowUrl("https://developer.android.com/studio/terms.html")
+    allowUrl("https://developers.google.com/ml-kit/terms")
+    allowUrl("https://developer.android.com/guide/playcore/license")
+    allowUrl("https://developer.android.com/google/play/integrity/overview#tos")
+
+    // slf4j -- MIT-licensed; uses a non-standard URL for the MIT license text.
+    allowUrl("https://opensource.org/license/mit")
 }
 
 publishing {

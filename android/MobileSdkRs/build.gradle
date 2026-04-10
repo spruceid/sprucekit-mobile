@@ -6,6 +6,13 @@ plugins {
     id 'signing'
     id 'com.gradleup.nmcp'
     id("org.jetbrains.kotlin.plugin.compose") version "2.1.0"
+    id 'app.cash.licensee'
+}
+
+// Full allowlist is in rust/deny.toml. Only licenses actually present in this
+// module's dependencies are listed so licensee flags any new license type.
+licensee {
+    allow('Apache-2.0')
 }
 
 android {
