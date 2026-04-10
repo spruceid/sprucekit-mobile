@@ -116,6 +116,9 @@ jobs:
         working-directory: ios/MobileSdk
         # ignoring Rs because it's automatically generated, and Showcase has many many warnings
 
+      - name: Check Swift dependency licenses
+        run: python3 ios/check-swift-licenses.py
+
   android:
     runs-on: ubuntu-latest-m
     if: github.actor != 'sprucekit-mobile-monorepo[bot]' # not running CI on release commits
