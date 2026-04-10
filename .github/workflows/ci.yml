@@ -26,6 +26,14 @@ jobs:
           shared-key: "default"
           cache-on-failure: "true"
           workspaces: "rust -> target"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-machete
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
       - name: Build
         run: cargo build
 
@@ -43,6 +51,12 @@ jobs:
         run: cargo fmt -- --check
       - name: Clippy
         run: cargo clippy
+
+      - name: Unused dependencies
+        run: cargo machete
+
+      - name: Check dependencies licences are compatible
+        run: cargo deny check licenses
 
   ios:
     runs-on: macos-15 # macos-latest is currently macos-14 and we need iOS 18.2
