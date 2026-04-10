@@ -191,3 +191,13 @@ jobs:
 
       - name: Format check
         run: dart format --set-exit-if-changed lib/sprucekit_mobile.dart pigeons/ example/
+
+      - name: Install Very Good CLI
+        run: dart pub global activate very_good_cli
+
+      - name: Check dependency licenses
+        run: very_good packages check licenses --allowed="Apache-2.0,BSD-2-Clause,BSD-3-Clause,CC0-1.0,CDLA-Permissive-2.0,ISC,MIT,MPL-2.0,Unicode-3.0"
+
+      - name: Check example app dependency licenses
+        run: very_good packages check licenses --allowed="Apache-2.0,BSD-2-Clause,BSD-3-Clause,CC0-1.0,CDLA-Permissive-2.0,ISC,MIT,MPL-2.0,Unicode-3.0"
+        working-directory: flutter/example
