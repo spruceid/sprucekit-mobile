@@ -32,6 +32,19 @@ CI runs on push to main and PRs with four jobs (rust, ios, android, flutter). Se
 
 `RUSTFLAGS="-Dwarnings"` is set globally -- all Rust warnings are errors in CI.
 
+## Dependency License Checks
+
+All layers enforce that dependency licenses are in an allowlist of permissive licenses. The canonical allowlist is in `rust/deny.toml` under `[licenses] allow`. It is duplicated in:
+
+- **Rust**: `rust/deny.toml` -- `cargo deny check licenses`
+- **Android**: `android/build.gradle.kts` -- `cashapp/licensee` Gradle plugin (`./gradlew licensee`)
+- **iOS**: `ios/check-swift-licenses.py` -- custom script checking SPM `Package.resolved` + CocoaPods podspec consistency
+- **Flutter**: CI workflow flags -- `very_good packages check licenses --allowed="..."`
+
+When changing the allowlist, update all four locations.
+
+When adding a new iOS/Swift dependency, update `ios/check-swift-licenses.py` with the package name, license, and (if applicable) the CocoaPods-to-SPM name mapping.
+
 ## Versioning
 
 All SDKs are versioned together. Release process is in `CONTRIBUTING.md`.
