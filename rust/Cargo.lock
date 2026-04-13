@@ -2585,7 +2585,7 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/isomdl?rev=fd679d2#fd679d2073a8d96796ceb2c541aecb74a4b23036"
+source = "git+https://github.com/spruceid/isomdl?branch=feat%2Fdevice-auth-device-mac#5b8dcfc08154d641a0a0875268cf25ddacd6b1ba"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2631,7 +2631,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=fd679d2#fd679d2073a8d96796ceb2c541aecb74a4b23036"
+source = "git+https://github.com/spruceid/isomdl?branch=feat%2Fdevice-auth-device-mac#5b8dcfc08154d641a0a0875268cf25ddacd6b1ba"
 dependencies = [
  "proc-macro2",
  "quote",

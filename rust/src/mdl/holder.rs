@@ -18,6 +18,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use isomdl::definitions::device_signed::DeviceAuthType;
+use isomdl::presentation::device::DeviceSession;
 use isomdl::{
     cbor,
     definitions::{
@@ -474,15 +476,26 @@ impl MdlPresentationSession {
     }
 
     pub fn submit_response(&self, signature: Vec<u8>) -> Result<Vec<u8>, SignatureError> {
-        let signature = p256::ecdsa::Signature::from_slice(&signature).map_err(|e| {
-            SignatureError::InvalidSignature {
-                value: e.to_string(),
-            }
-        })?;
+        // TODO: We may want some kind of validation here, though it should be validated deeper into isomdl anyway.
+        //       This got removed to support HMAC0
+
         if let Some(ref mut in_process) = self.in_process.lock().unwrap().deref_mut() {
+            let validated_signature = match in_process.session.device_auth_type() {
+                DeviceAuthType::Sign1 => p256::ecdsa::Signature::from_slice(&signature)
+                    .map_err(|e| SignatureError::InvalidSignature {
+                        value: e.to_string(),
+                    })?
+                    .to_bytes()
+                    .to_vec(),
+                DeviceAuthType::Mac0 => {
+                    // There's no good way to validate the structure of an HMAC signature (aside from length check)
+                    // We'll just let isomdl handle it, since it'll get validated later anyway
+                    signature
+                }
+            };
             in_process
                 .session
-                .submit_next_signature(signature.to_bytes().to_vec())
+                .submit_next_signature(validated_signature)
                 .map_err(|e| SignatureError::Generic {
                     value: format!("Could not submit next signature: {e:?}"),
                 })?;
