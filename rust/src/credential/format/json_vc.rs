@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use crate::{
     credential::{
         status::{BitStringStatusListResolver, Status, StatusListError},

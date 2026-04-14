@@ -9,6 +9,9 @@ pub enum Oid4vciError {
     #[error("{0}")]
     CredentialOffer(#[from] CredentialOfferError),
 
+    #[error("{authorization_request}")]
+    PresentationRequired { authorization_request: String },
+
     #[error("{0}")]
     Client(#[from] oid4vci::client::ClientError),
 
@@ -28,6 +31,50 @@ pub enum Oid4vciError {
 impl From<oid4vci::oauth2::url::ParseError> for Oid4vciError {
     fn from(_value: oid4vci::oauth2::url::ParseError) -> Self {
         Self::InvalidUri
+    }
+}
+
+impl Oid4vciError {
+    pub(crate) fn client_other(message: impl Into<String>) -> Self {
+        Self::Client(oid4vci::client::ClientError::Other(message.into()))
+    }
+
+    pub(crate) fn from_response_body(body: &[u8]) -> Option<Self> {
+        let json = serde_json::from_slice::<serde_json::Value>(body).ok()?;
+        let authorization_request = json.get("authorization_request")?;
+
+        Some(Self::PresentationRequired {
+            authorization_request: serde_json::to_string(authorization_request).ok()?,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Oid4vciError;
+
+    #[test]
+    fn extracts_authorization_request_from_response_body() {
+        let body = br#"{
+            "error": "presentation_required",
+            "authorization_request": {
+                "response_type": "vp_token",
+                "nonce": "abc123"
+            }
+        }"#;
+
+        let error = Oid4vciError::from_response_body(body)
+            .expect("presentation_required body should be detected");
+
+        match error {
+            Oid4vciError::PresentationRequired {
+                authorization_request,
+            } => {
+                assert!(authorization_request.contains("\"response_type\":\"vp_token\""));
+                assert!(authorization_request.contains("\"nonce\":\"abc123\""));
+            }
+            other => panic!("unexpected error variant: {other:?}"),
+        }
     }
 }
 
