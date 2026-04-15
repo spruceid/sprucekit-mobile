@@ -15,7 +15,8 @@ licensee {
     allow("BSD-3-Clause")
 
     // Some dependencies use license URLs instead of SPDX identifiers in their POM
-    // metadata. Each is compatible with our permissive-only policy (no copyleft):
+    // metadata. Each is compatible with our license allowlist (permissive and
+    // file-copyleft licenses like MPL-2.0 are permitted):
 
     // Android SDK Terms -- Google Play Services, ML Kit, and related libraries.
     // Free-to-use binaries with no copyleft or source-disclosure obligations.
