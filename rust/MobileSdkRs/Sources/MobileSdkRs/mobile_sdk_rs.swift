@@ -18918,6 +18918,73 @@ public func FfiConverterTypeAuthenticationStatus_lower(_ value: AuthenticationSt
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
+public enum BarcodeType: Equatable, Hashable {
+    
+    case qrCode
+    case pdf417
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BarcodeType: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBarcodeType: FfiConverterRustBuffer {
+    typealias SwiftType = BarcodeType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BarcodeType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .qrCode
+        
+        case 2: return .pdf417
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BarcodeType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .qrCode:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .pdf417:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBarcodeType_lift(_ buf: RustBuffer) throws -> BarcodeType {
+    return try FfiConverterTypeBarcodeType.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBarcodeType_lower(_ value: BarcodeType) -> RustBuffer {
+    return FfiConverterTypeBarcodeType.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
 public enum BleMode: Equatable, Hashable {
     
     case centralClient(CentralClientDetails
@@ -25182,6 +25249,78 @@ public func FfiConverterTypePdfError_lower(_ value: PdfError) -> RustBuffer {
     return FfiConverterTypePdfError.lower(value)
 }
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * External data that the Wallet provides at PDF-generation time.
+ *
+ * Barcode payloads (VP Token bytes, AAMVA bytes, etc.) are *derived* data —
+ * they don't belong inside `ParsedCredential`.  `PdfSupplement` is the
+ * extensible carrier that keeps the function signature stable: adding a new
+ * variant here never changes the public API.
+ */
+
+public enum PdfSupplement: Equatable, Hashable {
+    
+    case barcode(data: Data, barcodeType: BarcodeType
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension PdfSupplement: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePdfSupplement: FfiConverterRustBuffer {
+    typealias SwiftType = PdfSupplement
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PdfSupplement {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .barcode(data: try FfiConverterData.read(from: &buf), barcodeType: try FfiConverterTypeBarcodeType.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PdfSupplement, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .barcode(data,barcodeType):
+            writeInt(&buf, Int32(1))
+            FfiConverterData.write(data, into: &buf)
+            FfiConverterTypeBarcodeType.write(barcodeType, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePdfSupplement_lift(_ buf: RustBuffer) throws -> PdfSupplement {
+    return try FfiConverterTypePdfSupplement.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePdfSupplement_lower(_ value: PdfSupplement) -> RustBuffer {
+    return FfiConverterTypePdfSupplement.lower(value)
+}
+
+
 
 public enum PermissionRequestError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -29789,6 +29928,31 @@ fileprivate struct FfiConverterSequenceTypeMDocItem: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypePdfSupplement: FfiConverterRustBuffer {
+    typealias SwiftType = [PdfSupplement]
+
+    public static func write(_ value: [PdfSupplement], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePdfSupplement.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PdfSupplement] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PdfSupplement]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePdfSupplement.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [[String]]
 
@@ -31396,13 +31560,15 @@ public func buildAnnexCResponse(request: Data, origin: String, selectedMatch: Re
  * struct, call [`render::PdfRenderer::render`] directly, and expose a separate
  * `#[uniffi::export]` entry point — no need to route through this function.
  *
- * **Phase 2 barcodes** (QR / PDF-417): produce the encoded bytes in the doctype and
- * return them as `PdfSection::Barcode` — picked up by the renderer automatically.
+ * **Barcodes** (QR / PDF-417): pass barcode payloads via `supplements`.
+ * The doctype translates them into `PdfSection::Barcode` — picked up by the
+ * renderer automatically.
  */
-public func generateCredentialPdf(credential: ParsedCredential)throws  -> Data  {
+public func generateCredentialPdf(credential: ParsedCredential, supplements: [PdfSupplement])throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypePdfError_lift) {
     uniffi_mobile_sdk_rs_fn_func_generate_credential_pdf(
-        FfiConverterTypeParsedCredential_lower(credential),$0
+        FfiConverterTypeParsedCredential_lower(credential),
+        FfiConverterSequenceTypePdfSupplement.lower(supplements),$0
     )
 })
 }
@@ -31534,7 +31700,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_build_annex_c_response() != 24658) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_generate_credential_pdf() != 34886) {
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_credential_pdf() != 35255) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_verify_pdf417_barcode() != 30995) {

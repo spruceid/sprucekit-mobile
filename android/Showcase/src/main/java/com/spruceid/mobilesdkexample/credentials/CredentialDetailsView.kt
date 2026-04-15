@@ -58,7 +58,9 @@ import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.rs.DeviceEngagementData
+import com.spruceid.mobile.sdk.rs.BarcodeType
 import com.spruceid.mobile.sdk.rs.ParsedCredential
+import com.spruceid.mobile.sdk.rs.PdfSupplement
 import com.spruceid.mobile.sdk.rs.generateCredentialPdf
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -470,8 +472,22 @@ fun GenericCredentialDetailsSharePDF(credential: ParsedCredential?) {
                     errorMessage = null
                     coroutineScope.launch {
                         try {
+                            // Demo: include QR Code and PDF-417 barcodes with mock data.
+                            // In production, QR would be a VP Token and PDF-417 would be AAMVA data.
+                            val qrPayload = """{"type":"mDL","source":"SpruceKit Showcase"}""".toByteArray()
+                            val pdf417Payload = "DAQ DL-123456789\nDCS Doe\nDCT John\nDBB 01151990\nDBA 01152029".toByteArray()
+                            val demoSupplements = listOf(
+                                PdfSupplement.Barcode(
+                                    data = qrPayload,
+                                    barcodeType = BarcodeType.QR_CODE
+                                ),
+                                PdfSupplement.Barcode(
+                                    data = pdf417Payload,
+                                    barcodeType = BarcodeType.PDF417
+                                )
+                            )
                             val pdfBytes = withContext(Dispatchers.IO) {
-                                generateCredentialPdf(credential)
+                                generateCredentialPdf(credential, demoSupplements)
                             }
                             helpersViewModel.exportBytes(pdfBytes, "credential.pdf", "application/pdf")
                         } catch (e: Exception) {

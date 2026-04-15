@@ -1,7 +1,7 @@
 use base64::prelude::*;
 
 use crate::credential::mdoc::Mdoc;
-use crate::pdf::{PdfSection, PdfSource, PdfTheme};
+use crate::pdf::{PdfSection, PdfSource, PdfSupplement, PdfTheme};
 
 /// MDL-specific data extracted from an `Mdoc` ready for PDF rendering.
 pub struct MdlContent {
@@ -17,6 +17,8 @@ pub struct MdlContent {
     resident_state: Option<String>,
     resident_postal_code: Option<String>,
     portrait: Option<Vec<u8>>,
+    /// External data provided by the Wallet at generation time (barcodes, etc.).
+    pub(crate) supplements: Vec<PdfSupplement>,
 }
 
 impl MdlContent {
@@ -41,6 +43,7 @@ impl MdlContent {
             resident_state: None,
             resident_postal_code: None,
             portrait: None,
+            supplements: Vec::new(),
         };
 
         for element in &elements {
@@ -153,6 +156,19 @@ impl PdfSource for MdlContent {
                 title: Some("Address".to_string()),
                 entries: vec![("Address".to_string(), addr)],
             });
+        }
+
+        // ── Barcodes (from supplements) ────────────────────────────────────
+        for sup in &self.supplements {
+            match sup {
+                PdfSupplement::Barcode { data, barcode_type } => {
+                    sections.push(PdfSection::Barcode {
+                        label: None,
+                        data: data.clone(),
+                        barcode_type: *barcode_type,
+                    });
+                }
+            }
         }
 
         // ── Footer ─────────────────────────────────────────────────────────
