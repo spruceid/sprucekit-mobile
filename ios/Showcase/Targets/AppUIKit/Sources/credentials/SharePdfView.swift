@@ -6,6 +6,8 @@ import UIKit
 struct SharePdfView: View {
     let credentialPack: CredentialPack?
 
+    @EnvironmentObject private var credentialPackObservable: CredentialPackObservable
+
     @State private var isGenerating = false
     @State private var errorMessage: String?
 
@@ -65,21 +67,8 @@ struct SharePdfView: View {
 
         Task {
             do {
-                // Demo: include QR Code and PDF-417 barcodes with mock data.
-                // In production, QR would be a VP Token and PDF-417 would be AAMVA data.
-                let qrPayload = #"{"type":"mDL","source":"SpruceKit Showcase"}"#
-                let pdf417Payload = "DAQ DL-123456789\nDCS Doe\nDCT John\nDBB 01151990\nDBA 01152029"
-                let demoSupplements: [PdfSupplement] = [
-                    .barcode(
-                        data: Data(qrPayload.utf8),
-                        barcodeType: .qrCode
-                    ),
-                    .barcode(
-                        data: Data(pdf417Payload.utf8),
-                        barcodeType: .pdf417
-                    )
-                ]
-                let pdfBytes = try generateCredentialPdf(credential: credential, supplements: demoSupplements)
+                let supplements = credentialPackObservable.getDemoSupplements()
+                let pdfBytes = try generateCredentialPdf(credential: credential, supplements: supplements)
                 await sharePdf(Data(pdfBytes))
             } catch {
                 await MainActor.run {

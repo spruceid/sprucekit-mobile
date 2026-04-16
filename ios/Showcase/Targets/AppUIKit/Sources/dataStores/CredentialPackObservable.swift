@@ -1,5 +1,6 @@
 import Foundation
 import SpruceIDMobileSdk
+import SpruceIDMobileSdkRs
 
 class CredentialPackObservable: ObservableObject {
     @Published var credentialPacks: [CredentialPack]
@@ -45,5 +46,22 @@ class CredentialPackObservable: ObservableObject {
         return credentialPacks.first { credentialPack in
             credentialPack.id.uuidString == credentialPackId
         }
+    }
+
+    /// Returns demo PDF supplements with mock barcode data.
+    /// In production, QR would be a VP Token and PDF-417 would be AAMVA data.
+    func getDemoSupplements() -> [PdfSupplement] {
+        let qrPayload = #"{"type":"mDL","source":"SpruceKit Showcase"}"#
+        let pdf417Payload = "DAQ DL-123456789\nDCS Doe\nDCT John\nDBB 01151990\nDBA 01152029"
+        return [
+            .barcode(
+                data: Data(qrPayload.utf8),
+                barcodeType: .qrCode
+            ),
+            .barcode(
+                data: Data(pdf417Payload.utf8),
+                barcodeType: .pdf417
+            )
+        ]
     }
 }

@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.dcapi.Registry
 import com.spruceid.mobile.sdk.StorageManager
+import com.spruceid.mobile.sdk.rs.BarcodeType
+import com.spruceid.mobile.sdk.rs.PdfSupplement
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -70,5 +72,24 @@ class CredentialPacksViewModel @Inject constructor(
         return _credentialPacks.value.firstOrNull { credentialPack ->
             credentialPack.id().toString() == credentialPackId
         }
+    }
+
+    /**
+     * Returns demo PDF supplements with mock barcode data.
+     * In production, QR would be a VP Token and PDF-417 would be AAMVA data.
+     */
+    fun getDemoSupplements(): List<PdfSupplement> {
+        val qrPayload = """{"type":"mDL","source":"SpruceKit Showcase"}""".toByteArray()
+        val pdf417Payload = "DAQ DL-123456789\nDCS Doe\nDCT John\nDBB 01151990\nDBA 01152029".toByteArray()
+        return listOf(
+            PdfSupplement.Barcode(
+                data = qrPayload,
+                barcodeType = BarcodeType.QR_CODE
+            ),
+            PdfSupplement.Barcode(
+                data = pdf417Payload,
+                barcodeType = BarcodeType.PDF417
+            )
+        )
     }
 }
