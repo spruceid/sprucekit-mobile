@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -339,40 +340,40 @@ fun DetailsViewBottomTabs(
     BottomAppBar(containerColor = ColorBase50) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            Row {
-                tabs.forEachIndexed { index, tab ->
-                    Button(
-                        onClick = { changeTabs(index) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
+            tabs.forEachIndexed { index, tab ->
+                Button(
+                    onClick = { changeTabs(index) },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                    )
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = tab.image(),
+                            contentDescription = tab.alt(),
+                            colorFilter = ColorFilter.tint(
+                                if (pagerState.currentPage == index) ColorBlue600 else ColorBase600,
+                            ),
+                            modifier = Modifier
+                                .width(32.dp)
+                                .height(32.dp)
+                                .padding(end = 3.dp)
+                                .drawBehind {
+                                    drawLine(
+                                        color = if (pagerState.currentPage == index) ColorBlue600 else Color.Transparent,
+                                        start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                        end = androidx.compose.ui.geometry.Offset(
+                                            size.width,
+                                            0f
+                                        ),
+                                        strokeWidth = 4.dp.toPx()
+                                    )
+                                }
                         )
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Image(
-                                painter = tab.image(),
-                                contentDescription = tab.alt(),
-                                colorFilter = ColorFilter.tint(
-                                    if (pagerState.currentPage == index) ColorBlue600 else ColorBase600,
-                                ),
-                                modifier = Modifier
-                                    .width(32.dp)
-                                    .height(32.dp)
-                                    .padding(end = 3.dp)
-                                    .drawBehind {
-                                        drawLine(
-                                            color = if (pagerState.currentPage == index) ColorBlue600 else Color.Transparent,
-                                            start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                                            end = androidx.compose.ui.geometry.Offset(
-                                                size.width,
-                                                0f
-                                            ),
-                                            strokeWidth = 4.dp.toPx()
-                                        )
-                                    }
-                            )
-                        }
                     }
                 }
             }
