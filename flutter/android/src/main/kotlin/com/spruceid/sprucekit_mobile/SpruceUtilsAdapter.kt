@@ -7,6 +7,8 @@ import com.spruceid.mobile.sdk.rs.generateCredentialPdf
 import com.spruceid.mobile.sdk.rs.generateTestMdl
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
+import com.spruceid.mobile.sdk.rs.PdfSupplement as RustPdfSupplement
+import com.spruceid.mobile.sdk.rs.BarcodeType as RustBarcodeType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,6 +25,7 @@ internal class SpruceUtilsAdapter(
 
     override fun generateCredentialPdf(
         rawMdoc: String,
+        supplements: List<PdfSupplement>,
         callback: (Result<ByteArray>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -32,7 +35,23 @@ internal class SpruceUtilsAdapter(
                 val documentBytes = Base64.decode(rawMdoc, Base64.DEFAULT)
                 val mdoc = Mdoc.fromCborEncodedDocument(documentBytes, "pdf")
                 val credential = ParsedCredential.newMsoMdoc(mdoc)
-                val pdfBytes = generateCredentialPdf(credential)
+
+                // Convert Pigeon supplements to Rust PdfSupplement
+                val rustSupplements: List<RustPdfSupplement> = supplements.mapNotNull { sup ->
+                    when (sup.type) {
+                        PdfSupplementType.BARCODE -> {
+                            val data = sup.data ?: return@mapNotNull null
+                            val barcodeType = sup.barcodeType ?: return@mapNotNull null
+                            val rustBarcodeType = when (barcodeType) {
+                                PdfBarcodeType.QR_CODE -> RustBarcodeType.QR_CODE
+                                PdfBarcodeType.PDF417 -> RustBarcodeType.PDF417
+                            }
+                            RustPdfSupplement.Barcode(data = data, barcodeType = rustBarcodeType)
+                        }
+                    }
+                }
+
+                val pdfBytes = generateCredentialPdf(credential, rustSupplements)
                 callback(Result.success(pdfBytes))
             } catch (e: Exception) {
                 callback(Result.failure(e))

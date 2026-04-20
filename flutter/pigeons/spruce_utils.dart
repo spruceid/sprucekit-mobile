@@ -47,6 +47,38 @@ class GenerateMockMdlError implements GenerateMockMdlResult {
   GenerateMockMdlError({required this.message});
 }
 
+/// The type of a PDF supplement.
+///
+/// New supplement types can be added here without changing the function
+/// signature of `generateCredentialPdf`.
+enum PdfSupplementType { barcode }
+
+/// Barcode type for PDF supplements
+enum PdfBarcodeType { qrCode, pdf417 }
+
+/// A supplement to include in the generated PDF.
+///
+/// This is an extensible carrier: the `type` field determines which optional
+/// fields are relevant.  Adding a new supplement kind only requires a new
+/// [PdfSupplementType] value and new optional fields — the API signature
+/// stays the same.
+///
+/// **Barcode** (`type == PdfSupplementType.barcode`):
+///   - `data` — raw bytes to encode (e.g. VP Token, AAMVA payload)
+///   - `barcodeType` — QR Code or PDF-417
+class PdfSupplement {
+  PdfSupplementType type;
+
+  // ── Barcode fields ──────────────────────────────────────────────────
+  /// Raw bytes to encode as a barcode. Required when `type` is `barcode`.
+  Uint8List? data;
+
+  /// The barcode symbology. Required when `type` is `barcode`.
+  PdfBarcodeType? barcodeType;
+
+  PdfSupplement({required this.type, this.data, this.barcodeType});
+}
+
 /// Utility functions for credential operations
 @HostApi()
 abstract class SpruceUtils {
@@ -67,7 +99,11 @@ abstract class SpruceUtils {
   /// (the same format returned by generateMockMdl's rawCredential field).
   ///
   /// @param rawMdoc Base64url-encoded IssuerSigned bytes of the mDL
+  /// @param supplements Optional list of supplements to include in the PDF
   /// @return Raw PDF bytes ready to write to a file and share
   @async
-  Uint8List generateCredentialPdf(String rawMdoc);
+  Uint8List generateCredentialPdf(
+    String rawMdoc,
+    List<PdfSupplement> supplements,
+  );
 }

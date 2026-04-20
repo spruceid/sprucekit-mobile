@@ -14,6 +14,7 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
 
     func generateCredentialPdf(
         rawMdoc: String,
+        supplements: [PdfSupplement],
         completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
     ) {
         Task {
@@ -33,7 +34,29 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
                     keyAlias: "pdf"
                 )
                 let credential = ParsedCredential.newMsoMdoc(mdoc: mdoc)
-                let pdfBytes = try SpruceIDMobileSdkRs.generateCredentialPdf(credential: credential)
+
+                // Convert Pigeon supplements to Rust PdfSupplement
+                let rustSupplements: [SpruceIDMobileSdkRs.PdfSupplement] = supplements.compactMap { sup -> SpruceIDMobileSdkRs.PdfSupplement? in
+                    switch sup.type {
+                    case .barcode:
+                        guard let pigeonData = sup.data, let barcodeType = sup.barcodeType else {
+                            return nil
+                        }
+                        let data = pigeonData.data  // FlutterStandardTypedData -> Data
+                        let rustBarcodeType: SpruceIDMobileSdkRs.BarcodeType = {
+                            switch barcodeType {
+                            case .qrCode: return .qrCode
+                            case .pdf417: return .pdf417
+                            }
+                        }()
+                        return .barcode(data: data, barcodeType: rustBarcodeType)
+                    }
+                }
+
+                let pdfBytes = try SpruceIDMobileSdkRs.generateCredentialPdf(
+                    credential: credential,
+                    supplements: rustSupplements
+                )
                 completion(.success(FlutterStandardTypedData(bytes: Data(pdfBytes))))
             } catch {
                 completion(.failure(error))

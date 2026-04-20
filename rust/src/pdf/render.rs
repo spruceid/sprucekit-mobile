@@ -6,7 +6,7 @@ use printpdf::{
     IndirectFontRef, Mm, PdfDocument, PdfLayerReference, Px, Rect, Rgb,
 };
 
-use super::{PdfSection, PdfSource, PdfTheme};
+use super::{BarcodeType, PdfSection, PdfSource, PdfTheme};
 
 // ── Page geometry (A4) ────────────────────────────────────────────────────────
 const PAGE_W: f32 = 210.0; // mm
@@ -28,6 +28,15 @@ const LABEL_FONT_SIZE: f32 = 8.0; // pt
 const VALUE_FONT_SIZE: f32 = 8.0; // pt
 const LINE_H: f32 = 4.5; // mm per text row
 const SECTION_PAD: f32 = 4.0; // mm gap between sections
+
+// ── Barcode layout ────────────────────────────────────────────────────────────
+const QR_SIZE: f32 = 30.0; // mm, QR code side length
+const PDF417_W: f32 = 80.0; // mm, PDF-417 width
+const PDF417_H: f32 = 18.0; // mm, PDF-417 height
+const BARCODE_LABEL_H: f32 = 5.0; // mm, label text height above barcode
+const BARCODE_GAP: f32 = 3.0; // mm, gap between stacked barcodes
+                              // Footer occupies ~MARGIN from the bottom; barcodes stack upward from just above it.
+const BARCODE_BOTTOM_Y: f32 = MARGIN + LINE_H + BARCODE_GAP; // mm from page bottom
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 
@@ -165,8 +174,14 @@ fn render_section(
             x,
         ),
 
-        // Phase 2: barcode rendering not yet implemented
-        PdfSection::Barcode { .. } => Ok(y_cursor),
+        PdfSection::Barcode {
+            label,
+            data,
+            barcode_type,
+        } => match barcode_type {
+            BarcodeType::QrCode => draw_qr_code(ctx, label.as_deref(), data, y_cursor, x, width),
+            BarcodeType::Pdf417 => draw_pdf417(ctx, label.as_deref(), data, y_cursor, x, width),
+        },
     }
 }
 
@@ -333,4 +348,199 @@ fn draw_footer(
     layer.set_fill_color(Color::Rgb(Rgb::new(0.5, 0.5, 0.5, None)));
     layer.use_text(text, 7.0, Mm(MARGIN), Mm(footer_y), font_reg);
     Ok(footer_y - LINE_H)
+}
+
+// ── Barcode helpers ───────────────────────────────────────────────────────────
+
+/// Embed a greyscale bitmap into the PDF layer at the given position and size.
+#[allow(clippy::too_many_arguments)]
+fn embed_bitmap(
+    layer: &PdfLayerReference,
+    pixels: Vec<u8>,
+    img_w: usize,
+    img_h: usize,
+    target_x: f32,
+    target_y_bottom: f32,
+    target_w: f32,
+    target_h: f32,
+) {
+    let image_xobject = ImageXObject {
+        width: Px(img_w),
+        height: Px(img_h),
+        color_space: ColorSpace::Greyscale,
+        bits_per_component: ColorBits::Bit8,
+        interpolate: false,
+        image_data: pixels,
+        image_filter: None,
+        smask: None,
+        clipping_bbox: None,
+    };
+
+    const DPI: f32 = 300.0;
+    let scale_x = target_w * DPI / (25.4 * img_w as f32);
+    let scale_y = target_h * DPI / (25.4 * img_h as f32);
+
+    Image::from(image_xobject).add_to_layer(
+        layer.clone(),
+        ImageTransform {
+            translate_x: Some(Mm(target_x)),
+            translate_y: Some(Mm(target_y_bottom)),
+            rotate: None,
+            scale_x: Some(scale_x),
+            scale_y: Some(scale_y),
+            dpi: Some(DPI),
+        },
+    );
+}
+
+/// Render a QR code from raw bytes and embed it in the bottom-right of the page.
+///
+/// Barcodes are pinned to the bottom-right corner, stacking upward from
+/// just above the footer. The `y_cursor` parameter is used to track the
+/// bottom-right "slot" — each barcode claims space upward.
+fn draw_qr_code(
+    ctx: &RenderCtx<'_>,
+    label: Option<&str>,
+    data: &[u8],
+    y_cursor: f32,
+    _x: f32,
+    _width: f32,
+) -> Result<f32, PdfRenderError> {
+    use qrcode::QrCode;
+
+    // Place at bottom-right: use y_cursor if it's already in the bottom zone,
+    // otherwise start from the fixed bottom position.
+    let slot_top = if y_cursor < BARCODE_BOTTOM_Y + QR_SIZE + BARCODE_GAP + 50.0 {
+        y_cursor
+    } else {
+        BARCODE_BOTTOM_Y + QR_SIZE + BARCODE_GAP
+    };
+
+    let mut y = slot_top;
+
+    // Optional label above the barcode (right-aligned)
+    if let Some(lbl) = label {
+        ctx.layer
+            .set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+        ctx.layer.use_text(
+            lbl,
+            LABEL_FONT_SIZE,
+            Mm(PAGE_W - MARGIN - QR_SIZE),
+            Mm(y),
+            ctx.font_bold,
+        );
+        y -= BARCODE_LABEL_H;
+    }
+
+    let code = QrCode::new(data).map_err(|e| PdfRenderError::Image(format!("QR encode: {e}")))?;
+    let modules = code.to_colors();
+    let qr_width = code.width();
+
+    // Add a 1-module quiet zone on each side
+    let padded_size = qr_width + 2;
+    let mut pixels = Vec::with_capacity(padded_size * padded_size);
+    pixels.extend(std::iter::repeat_n(255u8, padded_size));
+    for row in 0..qr_width {
+        pixels.push(255);
+        for col in 0..qr_width {
+            let idx = row * qr_width + col;
+            pixels.push(match modules[idx] {
+                qrcode::Color::Dark => 0u8,
+                qrcode::Color::Light => 255u8,
+            });
+        }
+        pixels.push(255);
+    }
+    pixels.extend(std::iter::repeat_n(255u8, padded_size));
+
+    // Pin to bottom-right corner
+    let qr_x = PAGE_W - MARGIN - QR_SIZE;
+    let qr_y_bottom = y - QR_SIZE;
+
+    embed_bitmap(
+        ctx.layer,
+        pixels,
+        padded_size,
+        padded_size,
+        qr_x,
+        qr_y_bottom,
+        QR_SIZE,
+        QR_SIZE,
+    );
+
+    Ok(qr_y_bottom - BARCODE_GAP)
+}
+
+/// Render a PDF-417 barcode from raw bytes and embed it in the bottom-right of the page.
+///
+/// Stacks upward from the bottom-right, below any previously placed barcode.
+fn draw_pdf417(
+    ctx: &RenderCtx<'_>,
+    label: Option<&str>,
+    data: &[u8],
+    y_cursor: f32,
+    _x: f32,
+    _width: f32,
+) -> Result<f32, PdfRenderError> {
+    use rxing::{BarcodeFormat, EncodeHints, Writer};
+
+    // Place at bottom-right: use y_cursor if it's already in the bottom zone,
+    // otherwise start from the fixed bottom position.
+    let slot_top = if y_cursor < BARCODE_BOTTOM_Y + PDF417_H + BARCODE_GAP + 50.0 {
+        y_cursor
+    } else {
+        BARCODE_BOTTOM_Y + PDF417_H + BARCODE_GAP
+    };
+
+    let mut y = slot_top;
+
+    // Optional label above the barcode (right-aligned)
+    if let Some(lbl) = label {
+        ctx.layer
+            .set_fill_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+        ctx.layer.use_text(
+            lbl,
+            LABEL_FONT_SIZE,
+            Mm(PAGE_W - MARGIN - PDF417_W),
+            Mm(y),
+            ctx.font_bold,
+        );
+        y -= BARCODE_LABEL_H;
+    }
+
+    // rxing expects a string; encode binary data as ISO-8859-1 (byte-transparent)
+    let text: String = data.iter().map(|&b| b as char).collect();
+
+    let writer = rxing::pdf417::PDF417Writer;
+    let hints = EncodeHints::default();
+    let matrix = writer
+        .encode_with_hints(&text, &BarcodeFormat::PDF_417, 0, 0, &hints)
+        .map_err(|e| PdfRenderError::Image(format!("PDF-417 encode: {e}")))?;
+
+    let mat_w = matrix.getWidth() as usize;
+    let mat_h = matrix.getHeight() as usize;
+
+    let mut pixels = Vec::with_capacity(mat_w * mat_h);
+    for row in 0..mat_h as u32 {
+        for col in 0..mat_w as u32 {
+            pixels.push(if matrix.get(col, row) { 0u8 } else { 255u8 });
+        }
+    }
+
+    // Pin to bottom-right corner
+    let barcode_x = PAGE_W - MARGIN - PDF417_W;
+    let barcode_y_bottom = y - PDF417_H;
+
+    embed_bitmap(
+        ctx.layer,
+        pixels,
+        mat_w,
+        mat_h,
+        barcode_x,
+        barcode_y_bottom,
+        PDF417_W,
+        PDF417_H,
+    );
+
+    Ok(barcode_y_bottom - BARCODE_GAP)
 }

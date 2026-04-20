@@ -57,10 +57,24 @@ pub enum PdfSection {
     },
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, uniffi::Enum)]
 pub enum BarcodeType {
     QrCode,
     Pdf417,
+}
+
+/// External data that the Wallet provides at PDF-generation time.
+///
+/// Barcode payloads (VP Token bytes, AAMVA bytes, etc.) are *derived* data —
+/// they don't belong inside `ParsedCredential`.  `PdfSupplement` is the
+/// extensible carrier that keeps the function signature stable: adding a new
+/// variant here never changes the public API.
+#[derive(uniffi::Enum)]
+pub enum PdfSupplement {
+    Barcode {
+        data: Vec<u8>,
+        barcode_type: BarcodeType,
+    },
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
@@ -104,17 +118,22 @@ impl From<PdfRenderError> for PdfError {
 /// struct, call [`render::PdfRenderer::render`] directly, and expose a separate
 /// `#[uniffi::export]` entry point — no need to route through this function.
 ///
-/// **Phase 2 barcodes** (QR / PDF-417): produce the encoded bytes in the doctype and
-/// return them as `PdfSection::Barcode` — picked up by the renderer automatically.
+/// **Barcodes** (QR / PDF-417): pass barcode payloads via `supplements`.
+/// The doctype translates them into `PdfSection::Barcode` — picked up by the
+/// renderer automatically.
 #[uniffi::export]
-pub fn generate_credential_pdf(credential: Arc<ParsedCredential>) -> Result<Vec<u8>, PdfError> {
+pub fn generate_credential_pdf(
+    credential: Arc<ParsedCredential>,
+    supplements: Vec<PdfSupplement>,
+) -> Result<Vec<u8>, PdfError> {
     use crate::credential::ParsedCredentialInner;
     use doctypes::mdl::MdlContent;
     use render::PdfRenderer;
 
     match &credential.inner {
         ParsedCredentialInner::MsoMdoc(mdoc) => {
-            let content = MdlContent::from_mdoc(mdoc);
+            let mut content = MdlContent::from_mdoc(mdoc);
+            content.supplements = supplements;
             PdfRenderer::render(&content).map_err(Into::into)
         }
         _ => Err(PdfError::Render(

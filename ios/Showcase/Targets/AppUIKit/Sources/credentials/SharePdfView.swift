@@ -6,6 +6,8 @@ import UIKit
 struct SharePdfView: View {
     let credentialPack: CredentialPack?
 
+    @EnvironmentObject private var credentialPackObservable: CredentialPackObservable
+
     @State private var isGenerating = false
     @State private var errorMessage: String?
 
@@ -65,7 +67,8 @@ struct SharePdfView: View {
 
         Task {
             do {
-                let pdfBytes = try generateCredentialPdf(credential: credential)
+                let supplements = credentialPackObservable.getDemoSupplements()
+                let pdfBytes = try generateCredentialPdf(credential: credential, supplements: supplements)
                 await sharePdf(Data(pdfBytes))
             } catch {
                 await MainActor.run {
