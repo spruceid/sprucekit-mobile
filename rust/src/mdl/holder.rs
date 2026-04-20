@@ -457,9 +457,14 @@ impl MdlPresentationSession {
             })
             .collect();
         if let Some(ref mut in_process) = self.in_process.lock().unwrap().deref_mut() {
-            in_process
-                .session
-                .prepare_response(&in_process.items_request, permitted);
+            // TODO: This is a bad API - name resolution affects whether or not
+            // this function modifies internal state.
+            // Subtle cause of *runtime* errors! Do not ship this
+            device::SessionManager::prepare_response(
+                &mut in_process.session,
+                &in_process.items_request,
+                permitted,
+            );
             Ok(in_process
                 .session
                 .get_next_signature_payload()
