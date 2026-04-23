@@ -171,7 +171,11 @@ abstract class CredentialPack {
   /// @param userHash Optional user hash for per-user isolation (null = device-global key)
   /// @return CredentialOperationResult indicating success or error
   @async
-  CredentialOperationResult deletePack(String packId, String? appGroupId, String? userHash);
+  CredentialOperationResult deletePack(
+    String packId,
+    String? appGroupId,
+    String? userHash,
+  );
 
   /// Get all credential pack IDs
   ///
@@ -188,7 +192,11 @@ abstract class CredentialPack {
   /// @param userHash Optional user hash for per-user isolation (null = device-global key)
   /// @return CredentialOperationResult indicating success or error
   @async
-  CredentialOperationResult savePack(String packId, String? appGroupId, String? userHash);
+  CredentialOperationResult savePack(
+    String packId,
+    String? appGroupId,
+    String? userHash,
+  );
 
   /// Load all credential packs from persistent storage
   ///
@@ -209,5 +217,9 @@ abstract class CredentialPack {
   /// @param userHash Optional user hash for per-user isolation
   /// @return CredentialOperationResult indicating success or error
   @async
-  CredentialOperationResult loadPack(String packId, String? appGroupId, String? userHash);
+  CredentialOperationResult loadPack(
+    String packId,
+    String? appGroupId,
+    String? userHash,
+  );
 }

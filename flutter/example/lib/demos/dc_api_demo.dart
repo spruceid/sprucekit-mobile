@@ -137,7 +137,11 @@ class _DcApiDemoState extends State<DcApiDemo> {
       });
 
       // Step 2: Save pack to StorageManager (uses App Group on iOS)
-      final saveResult = await _credentialPack.savePack(packId, _appGroupId, null);
+      final saveResult = await _credentialPack.savePack(
+        packId,
+        _appGroupId,
+        null,
+      );
       if (saveResult is CredentialOperationError) {
         setState(() {
           _status = 'Save error: ${saveResult.message}';
@@ -192,7 +196,11 @@ class _DcApiDemoState extends State<DcApiDemo> {
       }
 
       // Step 2: Delete the pack from storage
-      final result = await _credentialPack.deletePack(packId, _appGroupId, null);
+      final result = await _credentialPack.deletePack(
+        packId,
+        _appGroupId,
+        null,
+      );
       if (result is CredentialOperationError) {
         setState(() {
           _status = 'Delete error: ${result.message}';
