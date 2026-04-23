@@ -406,7 +406,11 @@ public class CredentialPack {
     /// Persists the CredentialPack in the StorageManager, and persists all credentials in the VdcCollection.
     ///
     /// If a credential already exists in the VdcCollection (matching on id), then it will be skipped without updating.
-    public func save(storageManager: StorageManagerInterface) async throws {
+    ///
+    /// - Parameter scope: Optional isolation scope. When non-nil, the pack is stored under a
+    ///   scope-prefixed key so `loadAll`/`list` filtered by the same scope only enumerate matching packs.
+    ///   Credentials in the VdcCollection are NOT scoped (they remain in the shared namespace keyed by UUID).
+    public func save(storageManager: StorageManagerInterface, scope: String? = nil) async throws {
         let vdcCollection = VdcCollection(engine: storageManager)
         for credential in list() {
             do {
@@ -423,13 +427,15 @@ public class CredentialPack {
             }
         }
 
-        try await self.intoContents().save(storageManager: storageManager)
+        try await self.intoContents().save(storageManager: storageManager, scope: scope)
     }
 
     /// Remove this CredentialPack from the StorageManager.
     ///
     /// Credentials that are in this pack __are__ removed from the VdcCollection.
-    public func remove(storageManager: StorageManagerInterface) async throws {
+    ///
+    /// - Parameter scope: Must match the scope used at save time (see `save(storageManager:scope:)`).
+    public func remove(storageManager: StorageManagerInterface, scope: String? = nil) async throws {
         #if canImport(IdentityDocumentServices)
         if #available(iOS 26.0, *) {
             let store = IdentityDocumentProviderRegistrationStore()
@@ -452,18 +458,37 @@ public class CredentialPack {
             }
         }
         #endif
-        try await self.intoContents().remove(storageManager: storageManager)
+        try await self.intoContents().remove(storageManager: storageManager, scope: scope)
     }
 
     /// Loads all CredentialPacks from the StorageManager.
-    public static func loadAll(storageManager: StorageManagerInterface)
+    ///
+    /// - Parameter scope: When non-nil, returns only packs saved under this scope.
+    public static func loadAll(storageManager: StorageManagerInterface, scope: String? = nil)
         async throws -> [CredentialPack] {
-        try await CredentialPackContents.list(storageManager: storageManager)
+        try await CredentialPackContents.list(storageManager: storageManager, scope: scope)
             .asyncMap { contents in
                 try await contents.load(
                     vdcCollection: VdcCollection(engine: storageManager)
                 )
             }
+    }
+
+    /// Loads a single CredentialPack by id from the StorageManager.
+    ///
+    /// - Parameter scope: Must match the scope used at save time.
+    /// - Returns: The loaded pack, or nil if no pack with that id exists under the given scope.
+    public static func load(
+        storageManager: StorageManagerInterface,
+        id: UUID,
+        scope: String? = nil
+    ) async throws -> CredentialPack? {
+        let key = CredentialPackContents.storageKey(id: id, scope: scope)
+        guard let data = try await storageManager.get(key: key) else { return nil }
+        let contents = try CredentialPackContents(fromBytes: data)
+        return try await contents.load(
+            vdcCollection: VdcCollection(engine: storageManager)
+        )
     }
 
     private func intoContents() -> CredentialPackContents {
@@ -478,9 +503,22 @@ public class CredentialPack {
 
 /// Metadata for a CredentialPack, as loaded from the StorageManager.
 public struct CredentialPackContents {
-    private static let storagePrefix = "CredentialPack:"
+    private static let basePrefix = "CredentialPack:"
     private let idKey = "id"
     private let credentialsKey = "credentials"
+
+    /// Compose the storage prefix for a given scope. Unscoped (`nil`) returns the legacy
+    /// "CredentialPack:" prefix; scoped returns "user-{scope}-CredentialPack:".
+    internal static func storagePrefix(scope: String?) -> String {
+        guard let scope = scope else { return basePrefix }
+        return "user-\(scope)-\(basePrefix)"
+    }
+
+    /// Compose the storage key for a pack id under an optional scope.
+    /// Uses `-` (not `/`) as separator to match Android and avoid subdir creation.
+    internal static func storageKey(id: UUID, scope: String?) -> String {
+        "\(storagePrefix(scope: scope))\(id)"
+    }
     public let id: UUID
     let credentials: [Uuid]
 
@@ -557,14 +595,15 @@ public struct CredentialPackContents {
         return CredentialPack(id: self.id, credentials: credentials)
     }
 
-    /// Clears all CredentialPacks.
-    public static func clear(storageManager: StorageManagerInterface)
+    /// Clears all CredentialPacks under the given scope.
+    ///
+    /// - Parameter scope: When nil, clears only legacy unscoped packs. When non-nil, clears only that scope's packs.
+    public static func clear(storageManager: StorageManagerInterface, scope: String? = nil)
         async throws {
+        let prefix = Self.storagePrefix(scope: scope)
         do {
             try await storageManager.list()
-                .filter { file in
-                    file.contains(Self.storagePrefix)
-                }
+                .filter { file in Self.matches(key: file, prefix: prefix, scope: scope) }
                 .asyncForEach { file in
                     try await storageManager.remove(key: file)
                 }
@@ -573,16 +612,15 @@ public struct CredentialPackContents {
         }
     }
 
-    /// Lists all CredentialPacks.
+    /// Lists all CredentialPacks under the given scope.
     ///
     /// These can then be individually loaded. For eager loading of all packs, see `CredentialPack.loadAll`.
-    public static func list(storageManager: StorageManagerInterface)
+    public static func list(storageManager: StorageManagerInterface, scope: String? = nil)
         async throws -> [CredentialPackContents] {
+        let prefix = Self.storagePrefix(scope: scope)
         do {
             return try await storageManager.list()
-                .filter { file in
-                    file.contains(Self.storagePrefix)
-                }
+                .filter { file in Self.matches(key: file, prefix: prefix, scope: scope) }
                 .asyncMap { file in
                     guard let contents = try await storageManager.get(key: file)
                     else {
@@ -595,10 +633,21 @@ public struct CredentialPackContents {
         }
     }
 
-    public func save(storageManager: StorageManagerInterface) async throws {
+    /// Prefix match with legacy-mode exclusion of scoped keys.
+    /// When scope is nil we want only "CredentialPack:..." and must reject "user-X-CredentialPack:..."
+    /// since the latter also contains the base prefix as a substring.
+    private static func matches(key: String, prefix: String, scope: String?) -> Bool {
+        guard key.hasPrefix(prefix) else { return false }
+        if scope == nil {
+            return !key.hasPrefix("user-")
+        }
+        return true
+    }
+
+    public func save(storageManager: StorageManagerInterface, scope: String? = nil) async throws {
         let bytes = try self.toBytes()
         do {
-            try await storageManager.add(key: self.storageKey(), value: bytes)
+            try await storageManager.add(key: Self.storageKey(id: self.id, scope: scope), value: bytes)
         } catch {
             throw CredentialPackError.storage(reason: error)
         }
@@ -624,7 +673,7 @@ public struct CredentialPackContents {
     /// Remove this CredentialPack from the StorageManager.
     ///
     /// Credentials that are in this pack __are__ removed from the VdcCollection.
-    public func remove(storageManager: StorageManagerInterface) async throws {
+    public func remove(storageManager: StorageManagerInterface, scope: String? = nil) async throws {
         let vdcCollection = VdcCollection(engine: storageManager)
         await self.credentials.asyncForEach { credential in
             do {
@@ -637,14 +686,10 @@ public struct CredentialPackContents {
         }
 
         do {
-            try await storageManager.remove(key: self.storageKey())
+            try await storageManager.remove(key: Self.storageKey(id: self.id, scope: scope))
         } catch {
             throw CredentialPackError.removing(reason: error)
         }
-    }
-
-    private func storageKey() -> String {
-        "\(Self.storagePrefix)\(self.id)"
     }
 }
 
