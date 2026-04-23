@@ -10,6 +10,7 @@ import com.spruceid.mobile.sdk.rs.ParsedCredential
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -133,18 +134,23 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
     override fun deletePack(
         packId: String,
         appGroupId: String?,
+        userHash: String?,
         callback: (Result<CredentialOperationResult>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Remove from persistent storage
+                val storageManager = StorageManager(context)
                 val pack = packs[packId]
                 if (pack != null) {
-                    val storageManager = StorageManager(context)
-                    pack.remove(storageManager)
+                    pack.remove(storageManager, userHash)
+                } else {
+                    // Pack not in memory — load from storage so we can remove its credentials too
+                    val uuid = runCatching { UUID.fromString(packId) }.getOrNull()
+                    if (uuid != null) {
+                        SdkCredentialPack.load(storageManager, uuid, userHash)
+                            ?.remove(storageManager, userHash)
+                    }
                 }
-
-                // Remove from in-memory store
                 packs.remove(packId)
                 callback(Result.success(CredentialOperationSuccess(unused = null)))
             } catch (e: Exception) {
@@ -162,6 +168,7 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
     override fun savePack(
         packId: String,
         appGroupId: String?,
+        userHash: String?,
         callback: (Result<CredentialOperationResult>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -172,11 +179,10 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
                     return@launch
                 }
 
-                // On Android, appGroupId is ignored - we use app-private storage
                 val storageManager = StorageManager(context)
-                pack.save(storageManager)
+                pack.save(storageManager, userHash)
 
-                Log.d(TAG, "Saved pack $packId to storage")
+                Log.d(TAG, "Saved pack $packId to storage (userHash=${userHash?.take(8)})")
                 callback(Result.success(CredentialOperationSuccess(unused = null)))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save pack: ${e.message}", e)
@@ -187,24 +193,53 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
         }
     }
 
+    override fun loadPack(
+        packId: String,
+        appGroupId: String?,
+        userHash: String?,
+        callback: (Result<CredentialOperationResult>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val uuid = runCatching { UUID.fromString(packId) }.getOrNull()
+                if (uuid == null) {
+                    callback(Result.success(CredentialOperationError(message = "Invalid pack id: $packId")))
+                    return@launch
+                }
+                val storageManager = StorageManager(context)
+                val pack = SdkCredentialPack.load(storageManager, uuid, userHash)
+                if (pack == null) {
+                    callback(Result.success(CredentialOperationError(message = "Pack not found: $packId")))
+                    return@launch
+                }
+                packs[packId] = pack
+                Log.d(TAG, "Loaded pack $packId from storage (userHash=${userHash?.take(8)})")
+                callback(Result.success(CredentialOperationSuccess(unused = null)))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load pack: ${e.message}", e)
+                callback(Result.success(CredentialOperationError(
+                    message = "Failed to load pack: ${e.localizedMessage}"
+                )))
+            }
+        }
+    }
+
     override fun loadAllPacks(
         appGroupId: String?,
+        userHash: String?,
         callback: (Result<List<String>>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // On Android, appGroupId is ignored - we use app-private storage
                 val storageManager = StorageManager(context)
-                val loadedPacks = SdkCredentialPack.loadPacks(storageManager)
-
+                val loadedPacks = SdkCredentialPack.loadPacks(storageManager, userHash)
                 val packIds = mutableListOf<String>()
                 for (pack in loadedPacks) {
                     val packId = pack.id().toString()
                     packs[packId] = pack
                     packIds.add(packId)
                 }
-
-                Log.d(TAG, "Loaded ${packIds.size} packs from storage")
+                Log.d(TAG, "Loaded ${packIds.size} packs (userHash=${userHash?.take(8)})")
                 callback(Result.success(packIds))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load packs: ${e.message}", e)

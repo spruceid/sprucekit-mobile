@@ -157,23 +157,28 @@ class CredentialPackAdapter: CredentialPack {
     func deletePack(
         packId: String,
         appGroupId: String?,
+        userHash: String?,
         completion: @escaping (Result<CredentialOperationResult, any Error>) -> Void
     ) {
         Task {
             do {
-                // Remove from persistent storage if appGroupId provided
-                if let appGroupId = appGroupId {
-                    let storageManager = StorageManager(appGroupId: appGroupId)
-                    lock.lock()
-                    if let pack = packs[packId] {
-                        lock.unlock()
-                        try await pack.remove(storageManager: storageManager)
-                    } else {
-                        lock.unlock()
-                    }
+                let storageManager = StorageManager(appGroupId: appGroupId)
+                lock.lock()
+                let pack = packs[packId]
+                lock.unlock()
+
+                if let pack = pack {
+                    try await pack.remove(storageManager: storageManager, scope: userHash)
+                } else if let uuid = UUID(uuidString: packId),
+                          let loaded = try await SpruceIDMobileSdk.CredentialPack.load(
+                              storageManager: storageManager,
+                              id: uuid,
+                              scope: userHash
+                          ) {
+                    // Pack not in memory — load from storage so we can remove its credentials too
+                    try await loaded.remove(storageManager: storageManager, scope: userHash)
                 }
 
-                // Remove from in-memory store
                 lock.lock()
                 packs.removeValue(forKey: packId)
                 lock.unlock()
@@ -197,6 +202,7 @@ class CredentialPackAdapter: CredentialPack {
     func savePack(
         packId: String,
         appGroupId: String?,
+        userHash: String?,
         completion: @escaping (Result<CredentialOperationResult, any Error>) -> Void
     ) {
         Task {
@@ -210,7 +216,7 @@ class CredentialPackAdapter: CredentialPack {
                 lock.unlock()
 
                 let storageManager = StorageManager(appGroupId: appGroupId)
-                try await pack.save(storageManager: storageManager)
+                try await pack.save(storageManager: storageManager, scope: userHash)
 
                 completion(.success(CredentialOperationSuccess(unused: nil)))
             } catch {
@@ -221,15 +227,49 @@ class CredentialPackAdapter: CredentialPack {
         }
     }
 
+    func loadPack(
+        packId: String,
+        appGroupId: String?,
+        userHash: String?,
+        completion: @escaping (Result<CredentialOperationResult, any Error>) -> Void
+    ) {
+        Task {
+            do {
+                guard let uuid = UUID(uuidString: packId) else {
+                    completion(.success(CredentialOperationError(message: "Invalid pack id: \(packId)")))
+                    return
+                }
+                let storageManager = StorageManager(appGroupId: appGroupId)
+                guard let pack = try await SpruceIDMobileSdk.CredentialPack.load(
+                    storageManager: storageManager,
+                    id: uuid,
+                    scope: userHash
+                ) else {
+                    completion(.success(CredentialOperationError(message: "Pack not found: \(packId)")))
+                    return
+                }
+                lock.lock()
+                packs[packId] = pack
+                lock.unlock()
+                completion(.success(CredentialOperationSuccess(unused: nil)))
+            } catch {
+                completion(.success(CredentialOperationError(message: error.localizedDescription)))
+            }
+        }
+    }
+
     func loadAllPacks(
         appGroupId: String?,
+        userHash: String?,
         completion: @escaping (Result<[String], any Error>) -> Void
     ) {
         Task {
             do {
                 let storageManager = StorageManager(appGroupId: appGroupId)
-                let loadedPacks = try await SpruceIDMobileSdk.CredentialPack.loadAll(storageManager: storageManager)
-
+                let loadedPacks = try await SpruceIDMobileSdk.CredentialPack.loadAll(
+                    storageManager: storageManager,
+                    scope: userHash
+                )
                 var packIds: [String] = []
                 lock.lock()
                 for pack in loadedPacks {
@@ -238,7 +278,6 @@ class CredentialPackAdapter: CredentialPack {
                     packIds.append(packId)
                 }
                 lock.unlock()
-
                 completion(.success(packIds))
             } catch {
                 completion(.success([]))

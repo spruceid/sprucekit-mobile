@@ -350,9 +350,14 @@ class CredentialPack {
      *
      * If a Credential already exists in the VdcCollection (matching on id), then
      * it will be skipped without updating.
+     *
+     * @param scope Optional isolation scope. When non-null, the pack is stored under a
+     *   scope-prefixed key so `loadPacks`/`listPacks` filtered by the same scope only enumerate
+     *   matching packs. Credentials in the VdcCollection are NOT scoped (they remain in the shared
+     *   namespace keyed by UUID).
      */
     @Throws(SavingException::class)
-    suspend fun save(storage: StorageManagerInterface) {
+    suspend fun save(storage: StorageManagerInterface, scope: String? = null) {
         val vdcCollection = VdcCollection(storage)
         try {
             list().forEach {
@@ -373,17 +378,19 @@ class CredentialPack {
             throw SavingException("failed to store credentials in VdcCollection", e)
         }
 
-        intoContents().save(storage)
+        intoContents().save(storage, scope)
     }
 
     /**
      * Remove this CredentialPack from the StorageManager.
      *
      * Credentials that are in this pack __are__ removed from the VdcCollection.
+     *
+     * @param scope Must match the scope used at save time.
      */
     @Throws(SavingException::class)
-    suspend fun remove(storage: StorageManagerInterface) {
-        intoContents().remove(storage)
+    suspend fun remove(storage: StorageManagerInterface, scope: String? = null) {
+        intoContents().remove(storage, scope)
     }
 
     private fun intoContents(): CredentialPackContents =
@@ -391,12 +398,15 @@ class CredentialPack {
 
     companion object {
         /**
-         * Clears all stored CredentialPacks.
+         * Clears all stored CredentialPacks under the given scope.
+         *
+         * @param scope When null, clears only legacy unscoped packs. When non-null, clears only that scope's packs.
          */
-        suspend fun clearPacks(storage: StorageManagerInterface) {
+        suspend fun clearPacks(storage: StorageManagerInterface, scope: String? = null) {
             try {
+                val prefix = CredentialPackContents.storagePrefix(scope)
                 storage.list()
-                    .filter { it.contains(CredentialPackContents.STORAGE_PREFIX) }
+                    .filter { CredentialPackContents.matches(it, prefix, scope) }
                     .forEach { storage.remove(it) }
             } catch (e: Exception) {
                 throw ClearingException("unable to clear CredentialPacks", e)
@@ -404,17 +414,18 @@ class CredentialPack {
         }
 
         /**
-         * List all CredentialPacks.
+         * List all CredentialPacks under the given scope.
          *
          * These can then be individually loaded. For eager loading of all packs, see `loadPacks`.
          */
         @Throws(LoadingException::class)
-        suspend fun listPacks(storage: StorageManagerInterface): List<CredentialPackContents> {
+        suspend fun listPacks(storage: StorageManagerInterface, scope: String? = null): List<CredentialPackContents> {
             val contents: Iterable<CredentialPackContents>
             try {
+                val prefix = CredentialPackContents.storagePrefix(scope)
                 contents =
                     storage.list()
-                        .filter { it.contains(CredentialPackContents.STORAGE_PREFIX) }
+                        .filter { CredentialPackContents.matches(it, prefix, scope) }
                         .mapNotNull { storage.get(it) }
                         .map { CredentialPackContents(it) }
             } catch (e: Exception) {
@@ -424,12 +435,33 @@ class CredentialPack {
         }
 
         /**
-         * Loads all CredentialPacks.
+         * Loads all CredentialPacks under the given scope.
+         *
+         * @param scope When non-null, returns only packs saved under this scope.
          */
-        suspend fun loadPacks(storage: StorageManagerInterface): List<CredentialPack> {
+        suspend fun loadPacks(storage: StorageManagerInterface, scope: String? = null): List<CredentialPack> {
             val vdcCollection = VdcCollection(storage)
-            return listPacks(storage)
+            return listPacks(storage, scope)
                 .map { it.load(vdcCollection) }
+        }
+
+        /**
+         * Loads a single CredentialPack by id under the given scope.
+         *
+         * @param scope Must match the scope used at save time.
+         * @return The loaded pack, or null if no pack with that id exists under the given scope.
+         */
+        @Throws(LoadingException::class)
+        suspend fun load(
+            storage: StorageManagerInterface,
+            id: UUID,
+            scope: String? = null
+        ): CredentialPack? {
+            val key = CredentialPackContents.storageKey(id, scope)
+            val bytes = storage.get(key) ?: return null
+            val contents = CredentialPackContents(bytes)
+            val vdcCollection = VdcCollection(storage)
+            return contents.load(vdcCollection)
         }
     }
 }
@@ -442,6 +474,31 @@ class CredentialPackContents {
         internal const val STORAGE_PREFIX = "CredentialPack:"
         private const val ID_KEY = "id"
         private const val CREDENTIALS_KEY = "credentials"
+
+        /**
+         * Compose the storage prefix for a given scope. Unscoped (`null`) returns the legacy
+         * "CredentialPack:" prefix; scoped returns "user-{scope}-CredentialPack:".
+         */
+        internal fun storagePrefix(scope: String?): String =
+            if (scope != null) "user-$scope-$STORAGE_PREFIX" else STORAGE_PREFIX
+
+        /**
+         * Compose the storage key for a pack id under an optional scope.
+         * Uses `-` (not `/`) as separator because Android openFileOutput forbids path separators.
+         */
+        internal fun storageKey(id: UUID, scope: String?): String =
+            "${storagePrefix(scope)}$id"
+
+        /**
+         * Prefix match with legacy-mode exclusion of scoped keys.
+         * When scope is null we want only "CredentialPack:..." and must reject "user-X-CredentialPack:..."
+         * since the latter also starts with the base prefix when comparing substrings.
+         */
+        internal fun matches(key: String, prefix: String, scope: String?): Boolean {
+            if (!key.startsWith(prefix)) return false
+            if (scope == null && key.startsWith("user-")) return false
+            return true
+        }
     }
 
     val id: UUID
@@ -517,16 +574,16 @@ class CredentialPackContents {
     }
 
     @Throws(SavingException::class)
-    internal suspend fun save(storage: StorageManagerInterface) {
+    internal suspend fun save(storage: StorageManagerInterface, scope: String? = null) {
         try {
-            storage.add(storageKey(), toBytes())
+            storage.add(storageKey(scope), toBytes())
         } catch (e: Exception) {
             throw SavingException("unable to store or update CredentialPack", e)
         }
     }
 
     @Throws(SavingException::class)
-    internal suspend fun remove(storage: StorageManagerInterface) {
+    internal suspend fun remove(storage: StorageManagerInterface, scope: String? = null) {
         val vdcCollection = VdcCollection(storage)
         credentials.forEach {
             try {
@@ -538,13 +595,13 @@ class CredentialPackContents {
         }
 
         try {
-            storage.remove(storageKey())
+            storage.remove(storageKey(scope))
         } catch (e: Exception) {
             throw SavingException("unable to remove CredentialPack", e)
         }
     }
 
-    private fun storageKey(): String = "$STORAGE_PREFIX${id}"
+    private fun storageKey(scope: String? = null): String = storageKey(id, scope)
 
     private fun toBytes(): ByteArray = JSONObject(buildMap {
         put(ID_KEY, id)
