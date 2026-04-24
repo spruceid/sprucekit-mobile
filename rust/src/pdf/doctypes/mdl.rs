@@ -1,9 +1,13 @@
+use std::sync::Arc;
+
 use base64::prelude::*;
 
 use crate::credential::mdoc::Mdoc;
+use crate::credential::vcdm2_sd_jwt::{SdJwtError, VCDM2SdJwt};
 use crate::pdf::{PdfSection, PdfSource, PdfSupplement, PdfTheme};
 
 /// MDL-specific data extracted from an `Mdoc` ready for PDF rendering.
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct MdlContent {
     family_name: Option<String>,
     given_name: Option<String>,
@@ -17,8 +21,21 @@ pub struct MdlContent {
     resident_state: Option<String>,
     resident_postal_code: Option<String>,
     portrait: Option<Vec<u8>>,
+    #[serde(skip)]
     /// External data provided by the Wallet at generation time (barcodes, etc.).
     pub(crate) supplements: Vec<PdfSupplement>,
+}
+
+impl TryFrom<&Arc<VCDM2SdJwt>> for MdlContent {
+    type Error = SdJwtError;
+
+    fn try_from(value: &Arc<VCDM2SdJwt>) -> Result<Self, Self::Error> {
+        let claims = value.revealed_claims_as_json()?;
+        let content: Self =
+            serde_json::from_value(claims).map_err(|e| SdJwtError::Serialization(e.to_string()))?;
+
+        Ok(content)
+    }
 }
 
 impl MdlContent {

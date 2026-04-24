@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::credential::ParsedCredential;
+use crate::credential::{ParsedCredential, ParsedCredentialInner};
 
 pub mod doctypes;
 mod render;
@@ -133,6 +133,12 @@ pub fn generate_credential_pdf(
     match &credential.inner {
         ParsedCredentialInner::MsoMdoc(mdoc) => {
             let mut content = MdlContent::from_mdoc(mdoc);
+            content.supplements = supplements;
+            PdfRenderer::render(&content).map_err(Into::into)
+        }
+        ParsedCredentialInner::VCDM2SdJwt(sd_jwt) => {
+            let mut content =
+                MdlContent::try_from(sd_jwt).map_err(|e| PdfError::Render(e.to_string()))?;
             content.supplements = supplements;
             PdfRenderer::render(&content).map_err(Into::into)
         }
