@@ -2743,7 +2743,7 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/isomdl?rev=fd679d2#fd679d2073a8d96796ceb2c541aecb74a4b23036"
+source = "git+https://github.com/spruceid/isomdl?rev=909c361#909c361e443e5e5843a726a3e9cf8cf35e0c4bec"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2763,7 +2763,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=fd679d2)",
+ "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=909c361)",
  "ndef-rs",
  "p256",
  "p384",
@@ -2799,7 +2799,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=fd679d2#fd679d2073a8d96796ceb2c541aecb74a4b23036"
+source = "git+https://github.com/spruceid/isomdl?rev=909c361#909c361e443e5e5843a726a3e9cf8cf35e0c4bec"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3523,7 +3523,7 @@ dependencies = [
 
 [[package]]
 name = "mobile-sdk-rs"
-version = "0.14.6"
+version = "0.15.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5025,7 +5025,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7e5f136594d614d0d8e44f63508abd25c8fe0280655bb1d477b177bf718d0a4"
 dependencies = [
  "quote",
- "syn 2.0.114",
+ "syn 2.0.117",
 ]
 
 [[package]]

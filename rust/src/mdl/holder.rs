@@ -18,6 +18,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use isomdl::definitions::device_signed::DeviceAuthType;
+use isomdl::presentation::device::DeviceSession;
 use isomdl::{
     cbor,
     definitions::{
@@ -455,9 +457,18 @@ impl MdlPresentationSession {
             })
             .collect();
         if let Some(ref mut in_process) = self.in_process.lock().unwrap().deref_mut() {
-            in_process
-                .session
-                .prepare_response(&in_process.items_request, permitted);
+            // WARNING: name resolution affects whether or not this function modifies internal state.
+            // Rust will choose the imported trait (DeviceSession::prepare_response)
+            // over the method (SessionManager::prepare_response) unless we explicitly choose it.
+            // We need SessionManager's impl so that we push the state machine forward.
+            // This is probably a good place for an API improvement in isomdl, since if the trait's
+            // function is used, it still builds! It just silently fails.
+            // See https://github.com/spruceid/isomdl/issues/127
+            device::SessionManager::prepare_response(
+                &mut in_process.session,
+                &in_process.items_request,
+                permitted,
+            );
             Ok(in_process
                 .session
                 .get_next_signature_payload()
@@ -474,15 +485,23 @@ impl MdlPresentationSession {
     }
 
     pub fn submit_response(&self, signature: Vec<u8>) -> Result<Vec<u8>, SignatureError> {
-        let signature = p256::ecdsa::Signature::from_slice(&signature).map_err(|e| {
-            SignatureError::InvalidSignature {
-                value: e.to_string(),
-            }
-        })?;
         if let Some(ref mut in_process) = self.in_process.lock().unwrap().deref_mut() {
+            let validated_signature = match in_process.session.device_auth_type() {
+                DeviceAuthType::Sign1 => p256::ecdsa::Signature::from_slice(&signature)
+                    .map_err(|e| SignatureError::InvalidSignature {
+                        value: e.to_string(),
+                    })?
+                    .to_bytes()
+                    .to_vec(),
+                DeviceAuthType::Mac0 => {
+                    // There's no good way to validate the structure of an HMAC signature (aside from length check)
+                    // We'll just let isomdl handle it, since it'll get validated later anyway
+                    signature
+                }
+            };
             in_process
                 .session
-                .submit_next_signature(signature.to_bytes().to_vec())
+                .submit_next_signature(validated_signature)
                 .map_err(|e| SignatureError::Generic {
                     value: format!("Could not submit next signature: {e:?}"),
                 })?;
