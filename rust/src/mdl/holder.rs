@@ -457,9 +457,12 @@ impl MdlPresentationSession {
             })
             .collect();
         if let Some(ref mut in_process) = self.in_process.lock().unwrap().deref_mut() {
-            // TODO: This is a bad API - name resolution affects whether or not
-            // this function modifies internal state.
-            // Subtle cause of *runtime* errors! Do not ship this
+            // WARNING: name resolution affects whether or not this function modifies internal state.
+            // Rust will choose the imported trait (DeviceSession::prepare_response)
+            // over the method (SessionManager::prepare_response) unless we explicitly choose it.
+            // We need SessionManager's impl so that we push the state machine forward.
+            // This is probably a good place for an API improvement in isomdl, since if the trait's
+            // function is used, it still builds! It just silently fails.
             device::SessionManager::prepare_response(
                 &mut in_process.session,
                 &in_process.items_request,
@@ -481,9 +484,6 @@ impl MdlPresentationSession {
     }
 
     pub fn submit_response(&self, signature: Vec<u8>) -> Result<Vec<u8>, SignatureError> {
-        // TODO: We may want some kind of validation here, though it should be validated deeper into isomdl anyway.
-        //       This got removed to support HMAC0
-
         if let Some(ref mut in_process) = self.in_process.lock().unwrap().deref_mut() {
             let validated_signature = match in_process.session.device_auth_type() {
                 DeviceAuthType::Sign1 => p256::ecdsa::Signature::from_slice(&signature)
