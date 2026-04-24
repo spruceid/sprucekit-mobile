@@ -6,7 +6,10 @@ use crate::{
     credential::ParsedCredential,
     crypto::{KeyAlias, RustTestKeyManager},
     mdl::util::generate_test_mdl,
-    pdf::{doctypes::mdl::MdlContent, generate_credential_pdf, render::PdfRenderer},
+    pdf::{
+        doctypes::mdl::MdlContent, generate_credential_pdf, render::PdfRenderer, BarcodeType,
+        PdfSupplement,
+    },
 };
 
 /// Build a test Mdoc using the in-memory key manager and hardcoded test data.
@@ -23,7 +26,7 @@ async fn make_test_mdoc() -> crate::credential::mdoc::Mdoc {
 async fn test_mdl_to_pdf_produces_valid_pdf_bytes() {
     let mdoc = make_test_mdoc().await;
     let credential = ParsedCredential::new_mso_mdoc(Arc::new(mdoc));
-    let pdf_bytes = generate_credential_pdf(credential).expect("PDF generation failed");
+    let pdf_bytes = generate_credential_pdf(credential, vec![]).expect("PDF generation failed");
 
     assert!(
         pdf_bytes.starts_with(b"%PDF-"),
@@ -69,5 +72,82 @@ async fn test_mdl_fields_extracted_for_pdf() {
     assert!(
         family.contains("Doe"),
         "family_name should contain 'Doe', got: {family}"
+    );
+}
+
+#[test(tokio::test)]
+async fn test_qr_barcode_renders() {
+    let mdoc = make_test_mdoc().await;
+    let credential = ParsedCredential::new_mso_mdoc(Arc::new(mdoc));
+
+    let qr_data = b"https://example.com/credential/12345".to_vec();
+    let supplements = vec![PdfSupplement::Barcode {
+        data: qr_data,
+        barcode_type: BarcodeType::QrCode,
+    }];
+
+    let pdf_bytes = generate_credential_pdf(credential, supplements).expect("PDF with QR failed");
+
+    assert!(
+        pdf_bytes.starts_with(b"%PDF-"),
+        "output should start with PDF magic bytes"
+    );
+    // PDF with a QR code image should be larger than without
+    assert!(
+        pdf_bytes.len() > 2048,
+        "PDF with QR should be non-trivial (got {} bytes)",
+        pdf_bytes.len()
+    );
+}
+
+#[test(tokio::test)]
+async fn test_pdf417_barcode_renders() {
+    let mdoc = make_test_mdoc().await;
+    let credential = ParsedCredential::new_mso_mdoc(Arc::new(mdoc));
+
+    let pdf417_data = b"given_name=John\nfamily_name=Doe\nbirth_date=1990-01-15".to_vec();
+    let supplements = vec![PdfSupplement::Barcode {
+        data: pdf417_data,
+        barcode_type: BarcodeType::Pdf417,
+    }];
+
+    let pdf_bytes =
+        generate_credential_pdf(credential, supplements).expect("PDF with PDF-417 failed");
+
+    assert!(
+        pdf_bytes.starts_with(b"%PDF-"),
+        "output should start with PDF magic bytes"
+    );
+    assert!(
+        pdf_bytes.len() > 2048,
+        "PDF with PDF-417 should be non-trivial (got {} bytes)",
+        pdf_bytes.len()
+    );
+}
+
+#[test(tokio::test)]
+async fn test_both_barcodes_render() {
+    let mdoc = make_test_mdoc().await;
+    let credential = ParsedCredential::new_mso_mdoc(Arc::new(mdoc));
+
+    let supplements = vec![
+        PdfSupplement::Barcode {
+            data: b"https://example.com/vp/token123".to_vec(),
+            barcode_type: BarcodeType::QrCode,
+        },
+        PdfSupplement::Barcode {
+            data: b"given_name=John\nfamily_name=Doe".to_vec(),
+            barcode_type: BarcodeType::Pdf417,
+        },
+    ];
+
+    let pdf_bytes =
+        generate_credential_pdf(credential, supplements).expect("PDF with both barcodes failed");
+
+    assert!(pdf_bytes.starts_with(b"%PDF-"));
+    assert!(
+        pdf_bytes.len() > 3000,
+        "PDF with both barcodes should be substantial (got {} bytes)",
+        pdf_bytes.len()
     );
 }

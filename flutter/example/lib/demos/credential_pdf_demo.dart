@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -23,6 +24,47 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
   bool _isGeneratingMdl = false;
   bool _isGeneratingPdf = false;
   String? _pdfFilePath;
+  bool _includeBarcodes = true;
+
+  /// Build demo barcode supplements from mock credential data.
+  ///
+  /// In a real app, the QR data would be a VP Token and the PDF-417 data
+  /// would be AAMVA-encoded bytes. Here we use representative demo content
+  /// so the barcodes are scannable and visually verify the rendering.
+  List<PdfSupplement> _buildDemoSupplements() {
+    if (!_includeBarcodes) return [];
+
+    // QR Code: JSON with key credential fields (simulates a VP Token)
+    final qrPayload = jsonEncode({
+      'type': 'mDL',
+      'given_name': 'John',
+      'family_name': 'Doe',
+      'birth_date': '1990-01-15',
+      'document_number': 'DL-123456789',
+      'expiry_date': '2029-01-15',
+    });
+
+    // PDF-417: key=value pairs (simulates AAMVA barcode data)
+    const pdf417Payload =
+        'DAQ DL-123456789\n'
+        'DCS Doe\n'
+        'DCT John\n'
+        'DBB 01151990\n'
+        'DBA 01152029\n';
+
+    return [
+      PdfSupplement(
+        type: PdfSupplementType.barcode,
+        data: Uint8List.fromList(utf8.encode(qrPayload)),
+        barcodeType: PdfBarcodeType.qrCode,
+      ),
+      PdfSupplement(
+        type: PdfSupplementType.barcode,
+        data: Uint8List.fromList(utf8.encode(pdf417Payload)),
+        barcodeType: PdfBarcodeType.pdf417,
+      ),
+    ];
+  }
 
   Future<void> _generateMockMdl() async {
     setState(() {
@@ -66,8 +108,10 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
     });
 
     try {
+      final supplements = _buildDemoSupplements();
       final Uint8List pdfBytes = await _spruceUtils.generateCredentialPdf(
         _rawCredential!,
+        supplements,
       );
 
       // Write PDF to temporary directory
@@ -78,7 +122,9 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
       setState(() {
         _isGeneratingPdf = false;
         _pdfFilePath = pdfFile.path;
-        _message = 'PDF generated successfully! (${pdfBytes.length} bytes)';
+        _message =
+            'PDF generated successfully! (${pdfBytes.length} bytes)'
+            '${_includeBarcodes ? '\nIncludes QR Code + PDF-417 barcodes' : ''}';
       });
     } catch (e) {
       setState(() {
@@ -167,7 +213,19 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
                       'Convert the mDL credential into a PDF document '
                       'that can be shared or printed.',
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+                    SwitchListTile(
+                      title: const Text('Include Barcodes'),
+                      subtitle: const Text(
+                        'Add QR Code and PDF-417 barcodes with demo data',
+                      ),
+                      value: _includeBarcodes,
+                      onChanged: (value) {
+                        setState(() => _includeBarcodes = value);
+                      },
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    const SizedBox(height: 8),
                     ElevatedButton.icon(
                       onPressed: _rawCredential == null || _isGeneratingPdf
                           ? null

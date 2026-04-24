@@ -168,9 +168,14 @@ abstract class CredentialPack {
   ///
   /// @param packId The pack identifier
   /// @param appGroupId Optional App Group ID (iOS) for persistent storage
+  /// @param userHash Optional user hash for per-user isolation (null = device-global key)
   /// @return CredentialOperationResult indicating success or error
   @async
-  CredentialOperationResult deletePack(String packId, String? appGroupId);
+  CredentialOperationResult deletePack(
+    String packId,
+    String? appGroupId,
+    String? userHash,
+  );
 
   /// Get all credential pack IDs
   ///
@@ -184,9 +189,14 @@ abstract class CredentialPack {
   ///
   /// @param packId The pack identifier
   /// @param appGroupId Optional App Group ID (iOS only) for shared storage with extensions
+  /// @param userHash Optional user hash for per-user isolation (null = device-global key)
   /// @return CredentialOperationResult indicating success or error
   @async
-  CredentialOperationResult savePack(String packId, String? appGroupId);
+  CredentialOperationResult savePack(
+    String packId,
+    String? appGroupId,
+    String? userHash,
+  );
 
   /// Load all credential packs from persistent storage
   ///
@@ -194,7 +204,22 @@ abstract class CredentialPack {
   /// On Android: Uses StorageManager with app-private storage
   ///
   /// @param appGroupId Optional App Group ID (iOS only) for shared storage with extensions
+  /// @param userHash Optional user hash — when non-null, enumerates only this user's packs
   /// @return List of loaded pack IDs
   @async
-  List<String> loadAllPacks(String? appGroupId);
+  List<String> loadAllPacks(String? appGroupId, String? userHash);
+
+  /// Load a single credential pack from persistent storage by ID.
+  /// Unlike loadAllPacks(), this loads only the specified pack into memory.
+  ///
+  /// @param packId The pack identifier (UUID string)
+  /// @param appGroupId Optional App Group ID (iOS only) for shared storage
+  /// @param userHash Optional user hash for per-user isolation
+  /// @return CredentialOperationResult indicating success or error
+  @async
+  CredentialOperationResult loadPack(
+    String packId,
+    String? appGroupId,
+    String? userHash,
+  );
 }
