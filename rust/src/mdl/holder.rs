@@ -463,6 +463,7 @@ impl MdlPresentationSession {
             // We need SessionManager's impl so that we push the state machine forward.
             // This is probably a good place for an API improvement in isomdl, since if the trait's
             // function is used, it still builds! It just silently fails.
+            // See https://github.com/spruceid/isomdl/issues/127
             device::SessionManager::prepare_response(
                 &mut in_process.session,
                 &in_process.items_request,
