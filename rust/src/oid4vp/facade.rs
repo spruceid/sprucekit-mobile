@@ -63,6 +63,17 @@ pub struct Oid4vpResponseOptions {
 #[deprecated(
     note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
 )]
+#[derive(uniffi::Enum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Oid4vpCompatibilityMode {
+    #[default]
+    Auto,
+    V1,
+    Draft18,
+}
+
+#[deprecated(
+    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
+)]
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct Oid4vpRequestedField {
     pub id: uuid::Uuid,
@@ -284,7 +295,22 @@ impl Oid4vpHolder {
     }
 
     pub async fn start(&self, request: String) -> Result<Arc<Oid4vpSession>, Oid4vpFacadeError> {
-        match get_oid4vp_version(request.clone()) {
+        self.start_with_compatibility_mode(request, Oid4vpCompatibilityMode::Auto)
+            .await
+    }
+
+    pub async fn start_with_compatibility_mode(
+        &self,
+        request: String,
+        compatibility_mode: Oid4vpCompatibilityMode,
+    ) -> Result<Arc<Oid4vpSession>, Oid4vpFacadeError> {
+        let version = match compatibility_mode {
+            Oid4vpCompatibilityMode::Auto => get_oid4vp_version(request.clone()),
+            Oid4vpCompatibilityMode::V1 => Oid4vpVersion::V1,
+            Oid4vpCompatibilityMode::Draft18 => Oid4vpVersion::Draft18,
+        };
+
+        match version {
             Oid4vpVersion::V1 => {
                 let holder = self.new_v1_holder().await?;
                 let permission_request = holder
@@ -873,6 +899,71 @@ mod tests {
         .to_string()
     }
 
+    fn hybrid_request() -> String {
+        json!({
+            "client_id": "redirect_uri:https://wallet.example/callback",
+            "client_id_scheme": "redirect_uri",
+            "response_uri": "https://wallet.example/callback",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "state-hybrid",
+            "nonce": "nonce-hybrid",
+            "client_metadata": {
+                "vp_formats": {
+                    "ldp_vp": {
+                        "proof_type": ["ecdsa-rdfc-2019"]
+                    }
+                }
+            },
+            "dcql_query": {
+                "credentials": [
+                    {
+                        "id": "alumni_vc_0",
+                        "format": "ldp_vc",
+                        "claims": [
+                            {
+                                "path": ["credentialSubject", "alumniOf", "name"],
+                                "intent_to_retain": true
+                            }
+                        ]
+                    }
+                ],
+                "credential_sets": [
+                    {
+                        "options": [["alumni_vc_0"]]
+                    }
+                ]
+            },
+            "presentation_definition": {
+                "id": "pd-alumni",
+                "purpose": "Prove university alumni status",
+                "input_descriptors": [
+                    {
+                        "id": "alumni_descriptor",
+                        "name": "Alumni Credential",
+                        "purpose": "Prove university alumni status",
+                        "format": {
+                            "ldp_vc": {
+                                "proof_type": ["DataIntegrityProof"]
+                            }
+                        },
+                        "constraints": {
+                            "fields": [
+                                {
+                                    "path": ["$.credentialSubject.alumniOf.name"],
+                                    "name": "Alumni organization",
+                                    "purpose": "Verify alumni relationship",
+                                    "intent_to_retain": true
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        })
+        .to_string()
+    }
+
     #[test]
     fn facade_wraps_v1_presentable_credentials() {
         let parsed = alumni_credential();
@@ -922,6 +1013,48 @@ mod tests {
             .start("openid4vp://?client_id=test&nonce=123".into())
             .await;
         assert!(matches!(err, Err(Oid4vpFacadeError::UnsupportedRequest)));
+    }
+
+    #[tokio::test]
+    async fn facade_holder_can_force_v1_mode() {
+        let credential = alumni_credential();
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![credential],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_compatibility_mode(hybrid_request(), Oid4vpCompatibilityMode::V1)
+            .await
+            .unwrap();
+
+        assert_eq!(session.version(), Oid4vpVersion::V1);
+    }
+
+    #[tokio::test]
+    async fn facade_holder_can_force_draft18_mode() {
+        let credential = alumni_credential();
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![credential],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_compatibility_mode(hybrid_request(), Oid4vpCompatibilityMode::Draft18)
+            .await
+            .unwrap();
+
+        assert_eq!(session.version(), Oid4vpVersion::Draft18);
     }
 
     #[tokio::test]
