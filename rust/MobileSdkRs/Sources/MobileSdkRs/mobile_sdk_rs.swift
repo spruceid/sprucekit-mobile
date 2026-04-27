@@ -10686,6 +10686,8 @@ public protocol Oid4vpHolderProtocol: AnyObject, Sendable {
     
     func start(request: String) async throws  -> Oid4vpSession
     
+    func startWithCompatibilityMode(request: String, compatibilityMode: Oid4vpCompatibilityMode) async throws  -> Oid4vpSession
+    
 }
 open class Oid4vpHolder: Oid4vpHolderProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -10812,6 +10814,23 @@ open func start(request: String)async throws  -> Oid4vpSession  {
                 uniffi_mobile_sdk_rs_fn_method_oid4vpholder_start(
                     self.uniffiCloneHandle(),
                     FfiConverterString.lower(request)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeOid4vpSession_lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
+}
+    
+open func startWithCompatibilityMode(request: String, compatibilityMode: Oid4vpCompatibilityMode)async throws  -> Oid4vpSession  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vpholder_start_with_compatibility_mode(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(request),FfiConverterTypeOid4vpCompatibilityMode_lower(compatibilityMode)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -24761,6 +24780,80 @@ public func FfiConverterTypeOid4vciVersion_lower(_ value: Oid4vciVersion) -> Rus
 }
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+
+public enum Oid4vpCompatibilityMode: Equatable, Hashable {
+    
+    case auto
+    case v1
+    case draft18
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension Oid4vpCompatibilityMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOid4vpCompatibilityMode: FfiConverterRustBuffer {
+    typealias SwiftType = Oid4vpCompatibilityMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vpCompatibilityMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .auto
+        
+        case 2: return .v1
+        
+        case 3: return .draft18
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Oid4vpCompatibilityMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .auto:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .v1:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .draft18:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vpCompatibilityMode_lift(_ buf: RustBuffer) throws -> Oid4vpCompatibilityMode {
+    return try FfiConverterTypeOid4vpCompatibilityMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOid4vpCompatibilityMode_lower(_ value: Oid4vpCompatibilityMode) -> RustBuffer {
+    return FfiConverterTypeOid4vpCompatibilityMode.lower(value)
+}
+
+
 
 public enum Oid4vpFacadeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -32210,6 +32303,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start() != 11945) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start_with_compatibility_mode() != 60396) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vppermissionresponse_selected_credentials() != 5574) {
