@@ -2743,7 +2743,7 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/isomdl?rev=909c361#909c361e443e5e5843a726a3e9cf8cf35e0c4bec"
+source = "git+https://github.com/spruceid/isomdl?rev=a4f92cc#a4f92ccd4a8f4ef5e0e11fe4fa6c3320cce707bf"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2763,7 +2763,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=909c361)",
+ "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=a4f92cc)",
  "ndef-rs",
  "p256",
  "p384",
@@ -2799,7 +2799,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=909c361#909c361e443e5e5843a726a3e9cf8cf35e0c4bec"
+source = "git+https://github.com/spruceid/isomdl?rev=a4f92cc#a4f92ccd4a8f4ef5e0e11fe4fa6c3320cce707bf"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3523,7 +3523,7 @@ dependencies = [
 
 [[package]]
 name = "mobile-sdk-rs"
-version = "0.15.1"
+version = "0.15.2"
 dependencies = [
  "anyhow",
  "async-trait",
