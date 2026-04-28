@@ -276,7 +276,7 @@ impl Holder {
             None => match &self.vdc_collection {
                 None => vec![],
                 Some(vdc_collection) => {
-                    futures::stream::iter(vdc_collection.all_entries().await?.into_iter())
+                    futures::stream::iter(vdc_collection.all_entries().await?)
                         .filter_map(|id| async move {
                             vdc_collection
                                 .get(id)

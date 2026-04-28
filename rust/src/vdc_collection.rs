@@ -106,7 +106,7 @@ impl VdcCollection {
         ctype: &CredentialType,
     ) -> Result<Vec<Uuid>, VdcCollectionError> {
         let all_entries = self.all_entries().await?;
-        Ok(futures::stream::iter(all_entries.into_iter())
+        Ok(futures::stream::iter(all_entries)
             .filter_map(|id| async move { self.get(id).await.ok().flatten() })
             .collect::<Vec<Credential>>()
             .await

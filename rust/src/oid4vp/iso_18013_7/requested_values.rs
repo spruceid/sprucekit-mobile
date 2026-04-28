@@ -275,7 +275,7 @@ pub fn calculate_age_over_mapping(
         })
         .collect();
 
-    age_over_x_elements.sort_by(|a, b| a.0.cmp(&b.0));
+    age_over_x_elements.sort_by_key(|a| a.0);
 
     // Transform this mapping from (requested_age -> responded_age) into
     // (responded_age -> requested_age[]]) so that virtual elements for every possible requested_age
