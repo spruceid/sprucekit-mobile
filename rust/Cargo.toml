@@ -40,6 +40,7 @@ hpke = { version = "0.13.0", default-features = false, features = [
 ] }
 json-syntax = "0.12.5"
 itertools = "0.13"
+josekit = { git = "https://github.com/cobward/josekit-rs", rev = "635c8a7" }
 log = { version = "0.4", features = ["std", "serde"] }
 miniz_oxide = "0.7.2"
 num-bigint = "0.4.4"

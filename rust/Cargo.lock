@@ -3539,6 +3539,7 @@ dependencies = [
  "http 1.4.0",
  "isomdl 0.2.0",
  "itertools",
+ "josekit",
  "jpeg-decoder",
  "json-syntax",
  "log",

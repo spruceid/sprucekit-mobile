@@ -79,16 +79,25 @@ pub fn handover_from_request(
     let nonce = request.nonce().to_string();
     let response_uri = request.get::<RawResponseUri>().parsing_error()?.0;
 
+    handover_from_components(&client_id, &nonce, &response_uri, jwk_thumbprint)
+}
+
+pub fn handover_from_components(
+    client_id: &str,
+    nonce: &str,
+    response_uri: &str,
+    jwk_thumbprint: Option<&[u8; 32]>,
+) -> Result<Handover> {
     tracing::debug!(
         "Creating OID4VP 1.0 Handover - client_id: {}, nonce: {}, jwk_thumbprint: {:?}, response_uri: {}",
         client_id, nonce, jwk_thumbprint.is_some(), response_uri
     );
 
     ISO180137Handover::new(
-        &client_id,
-        &nonce,
+        client_id,
+        nonce,
         jwk_thumbprint.map(|t| t.as_slice()),
-        &response_uri,
+        response_uri,
     )
     .context("failed to create Handover")
 }

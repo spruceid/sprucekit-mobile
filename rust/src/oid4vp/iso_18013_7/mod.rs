@@ -1,6 +1,7 @@
 //! CLI test wallet for the 18013-7 Annex B OpenID4VP profile.
 
 pub mod build_response;
+pub mod facade;
 pub mod prepare_response;
 pub mod requested_values;
 
@@ -261,7 +262,7 @@ impl RequestVerifier for OID4VP180137 {
     }
 }
 
-fn default_metadata() -> WalletMetadata {
+pub(super) fn default_metadata() -> WalletMetadata {
     let metadata_json = json!({
         "issuer": "https://self-issued.me/v2",
         "authorization_endpoint": "mdoc-openid4vp://",
