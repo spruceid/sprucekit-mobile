@@ -54,9 +54,9 @@ use openidvp_draft18::{
         },
         util::ReqwestClient as Draft18ReqwestClient,
     },
-    JsonPath as Draft18JsonPath,
     verifier::client::X509SanVariant,
     wallet::Wallet as Draft18Wallet,
+    JsonPath as Draft18JsonPath,
 };
 use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
@@ -66,7 +66,9 @@ use super::{
     build_response::build_response,
     default_metadata,
     prepare_response::{handover_from_components, prepare_response, RawResponseUri},
-    requested_values::{cbor_to_string, parse_request, FieldId180137, FieldMap, RequestMatch180137},
+    requested_values::{
+        cbor_to_string, parse_request, FieldId180137, FieldMap, RequestMatch180137,
+    },
     ApprovedResponse180137,
 };
 use crate::{credential::mdoc::Mdoc, crypto::KeyStore};
@@ -209,20 +211,16 @@ impl Oid4vp180137Facade {
                 .process_auto_request(&request)
                 .await
                 .map_err(invalid_request)?,
-            Oid4vp180137CompatibilityMode::V1 => {
-                Oid4vp180137SessionInner::V1(
-                    self.process_v1_request(&request)
-                        .await
-                        .map_err(invalid_request)?,
-                )
-            }
-            Oid4vp180137CompatibilityMode::Draft18 => {
-                Oid4vp180137SessionInner::Draft18(
-                    self.process_draft18_request(&request)
-                        .await
-                        .map_err(invalid_request)?,
-                )
-            }
+            Oid4vp180137CompatibilityMode::V1 => Oid4vp180137SessionInner::V1(
+                self.process_v1_request(&request)
+                    .await
+                    .map_err(invalid_request)?,
+            ),
+            Oid4vp180137CompatibilityMode::Draft18 => Oid4vp180137SessionInner::Draft18(
+                self.process_draft18_request(&request)
+                    .await
+                    .map_err(invalid_request)?,
+            ),
         };
 
         Ok(Arc::new(Oid4vp180137Session {
@@ -254,7 +252,9 @@ impl Oid4vp180137Session {
 
     pub fn requested_by(&self) -> Option<String> {
         match &self.inner {
-            Oid4vp180137SessionInner::V1(request) => request.request.client_id().map(|id| id.0.clone()),
+            Oid4vp180137SessionInner::V1(request) => {
+                request.request.client_id().map(|id| id.0.clone())
+            }
             Oid4vp180137SessionInner::Draft18(request) => {
                 request.request.client_id().map(|id| id.0.clone())
             }
@@ -273,7 +273,10 @@ impl Oid4vp180137Facade {
     async fn process_auto_request(&self, request: &str) -> Result<Oid4vp180137SessionInner> {
         let resolved_request = self.resolve_request_once(request).await?;
         let version = detect_request_version(&resolved_request);
-        tracing::info!("ISO OID4VP compatibility facade selected version: {:?}", version);
+        tracing::info!(
+            "ISO OID4VP compatibility facade selected version: {:?}",
+            version
+        );
 
         match version {
             DetectedIsoRequestVersion::V1 => self
@@ -315,8 +318,12 @@ impl Oid4vp180137Facade {
             .parsing_error()
             .context("failed to get DCQL query from request")?;
 
-        let request_matches =
-            parse_request(&dcql_query, self.credentials.iter().map(|credential| credential.as_ref()));
+        let request_matches = parse_request(
+            &dcql_query,
+            self.credentials
+                .iter()
+                .map(|credential| credential.as_ref()),
+        );
 
         Ok(V1InProgressRequest180137 {
             request,
@@ -349,32 +356,35 @@ impl Oid4vp180137Facade {
             bail!("cannot respond to {} with a JWE", request.response_mode())
         }
 
-        let (request_kind, request_matches) = if let Some(dcql_query) =
-            request.get::<Draft18DcqlQuery>().transpose()?
-        {
-            let current_dcql_query = convert_dcql_query(&dcql_query)?;
-            let request_matches = parse_request(
-                &current_dcql_query,
-                self.credentials.iter().map(|credential| credential.as_ref()),
-            );
-            (Draft18RequestKind::Dcql(dcql_query), request_matches)
-        } else {
-            let presentation_definition = request
-                .resolve_presentation_definition(Draft18Wallet::http_client(self))
-                .await
-                .context("failed to resolve presentation_definition")?
-                .context("request object did not contain a presentation_definition")?
-                .into_parsed();
-            let request_matches = parse_presentation_definition(
-                &presentation_definition,
-                self.credentials.iter().map(|credential| credential.as_ref()),
-            );
+        let (request_kind, request_matches) =
+            if let Some(dcql_query) = request.get::<Draft18DcqlQuery>().transpose()? {
+                let current_dcql_query = convert_dcql_query(&dcql_query)?;
+                let request_matches = parse_request(
+                    &current_dcql_query,
+                    self.credentials
+                        .iter()
+                        .map(|credential| credential.as_ref()),
+                );
+                (Draft18RequestKind::Dcql(dcql_query), request_matches)
+            } else {
+                let presentation_definition = request
+                    .resolve_presentation_definition(Draft18Wallet::http_client(self))
+                    .await
+                    .context("failed to resolve presentation_definition")?
+                    .context("request object did not contain a presentation_definition")?
+                    .into_parsed();
+                let request_matches = parse_presentation_definition(
+                    &presentation_definition,
+                    self.credentials
+                        .iter()
+                        .map(|credential| credential.as_ref()),
+                );
 
-            (
-                Draft18RequestKind::PresentationDefinition(presentation_definition),
-                request_matches,
-            )
-        };
+                (
+                    Draft18RequestKind::PresentationDefinition(presentation_definition),
+                    request_matches,
+                )
+            };
 
         Ok(Draft18InProgressRequest180137 {
             request,
@@ -420,8 +430,7 @@ impl Oid4vp180137Facade {
                 .parsing_error()
                 .context("missing response_uri")?
                 .0,
-            openid4vp::core::iso_18013_7::get_encryption_jwk_thumbprint(&request.request)
-                .as_ref(),
+            openid4vp::core::iso_18013_7::get_encryption_jwk_thumbprint(&request.request).as_ref(),
         )
         .context("failed to generate handover")?;
 
@@ -634,9 +643,7 @@ impl draft18_verification::RequestVerifier for Oid4vp180137Facade {
     ) -> Result<()> {
         let request_jwt =
             request_jwt.context("request JWT is required for x509_san_dns verification")?;
-        openidvp_draft18::core::authorization_request::verification::x509_san::validate::<
-            Draft18P256,
-        >(
+        openidvp_draft18::core::authorization_request::verification::x509_san::validate::<Draft18P256>(
             X509SanVariant::Dns,
             Draft18Wallet::metadata(self),
             decoded_request,
@@ -652,9 +659,7 @@ impl draft18_verification::RequestVerifier for Oid4vp180137Facade {
     ) -> Result<()> {
         let request_jwt =
             request_jwt.context("request JWT is required for x509_san_uri verification")?;
-        openidvp_draft18::core::authorization_request::verification::x509_san::validate::<
-            Draft18P256,
-        >(
+        openidvp_draft18::core::authorization_request::verification::x509_san::validate::<Draft18P256>(
             X509SanVariant::Uri,
             Draft18Wallet::metadata(self),
             decoded_request,
@@ -695,9 +700,9 @@ async fn resolve_v1_request(
 
     AuthorizationRequest {
         client_id: request_object.client_id().map(|id| id.0.clone()),
-        request_indirection: RequestIndirection::Direct(
-            serde_json::from_value::<UntypedObject>(serde_json::to_value(&request_object)?)?,
-        ),
+        request_indirection: RequestIndirection::Direct(serde_json::from_value::<UntypedObject>(
+            serde_json::to_value(&request_object)?,
+        )?),
     }
     .validate(wallet)
     .await
@@ -729,9 +734,11 @@ async fn resolve_draft18_request(
 
     Draft18AuthorizationRequest {
         client_id: request_object.client_id().map(|id| id.0.clone()),
-        request_indirection: Draft18RequestIndirection::Direct(
-            serde_json::from_value::<Draft18UntypedObject>(serde_json::to_value(&request_object)?)?,
-        ),
+        request_indirection: Draft18RequestIndirection::Direct(serde_json::from_value::<
+            Draft18UntypedObject,
+        >(serde_json::to_value(
+            &request_object,
+        )?)?),
     }
     .validate(wallet)
     .await
@@ -762,7 +769,8 @@ fn build_draft18_dcql_response(
     device_response: isomdl::definitions::DeviceResponse,
 ) -> Result<Draft18AuthorizationResponse> {
     let device_response = BASE64_URL_SAFE_NO_PAD.encode(
-        isomdl::cbor::to_vec(&device_response).context("failed to encode device response as CBOR")?,
+        isomdl::cbor::to_vec(&device_response)
+            .context("failed to encode device response as CBOR")?,
     );
 
     let credential_query_id = dcql_query
@@ -859,8 +867,7 @@ fn descriptor_map_for_input_descriptor(
     Ok(Draft18DescriptorMap::new(
         input_descriptor.id.clone(),
         Draft18ClaimFormatDesignation::MsoMDoc,
-        "$"
-            .parse::<Draft18JsonPath>()
+        "$".parse::<Draft18JsonPath>()
             .context("failed to parse descriptor map path")?,
     ))
 }
@@ -1037,7 +1044,8 @@ fn draft18_jwk_thumbprint(client_metadata: &Draft18ClientMetadata) -> Result<Opt
 fn convert_request_object(
     request: &Draft18AuthorizationRequestObject,
 ) -> Result<AuthorizationRequestObject> {
-    serde_json::from_value(serde_json::to_value(request)?).context("failed to convert request object")
+    serde_json::from_value(serde_json::to_value(request)?)
+        .context("failed to convert request object")
 }
 
 fn convert_dcql_query(query: &Draft18DcqlQuery) -> Result<DcqlQuery> {
@@ -1052,13 +1060,15 @@ where
     C: Iterator<Item = &'l Mdoc>,
 {
     credentials
-        .filter_map(|credential| match find_presentation_definition_match(definition, credential) {
-            Ok(m) => Some(Arc::new(m)),
-            Err(e) => {
-                tracing::info!("credential did not match draft18 presentation_definition: {e}");
-                None
-            }
-        })
+        .filter_map(
+            |credential| match find_presentation_definition_match(definition, credential) {
+                Ok(m) => Some(Arc::new(m)),
+                Err(e) => {
+                    tracing::info!("credential did not match draft18 presentation_definition: {e}");
+                    None
+                }
+            },
+        )
         .collect()
 }
 
@@ -1068,7 +1078,8 @@ fn find_presentation_definition_match(
 ) -> Result<RequestMatch180137> {
     let (credential_json, elements_map, field_map) = mdoc_json_and_fields(credential);
 
-    let definition_accepts_mdoc = definition.contains_format(Draft18ClaimFormatDesignation::MsoMDoc)
+    let definition_accepts_mdoc = definition
+        .contains_format(Draft18ClaimFormatDesignation::MsoMDoc)
         || definition.input_descriptors().iter().all(|descriptor| {
             descriptor.format.is_empty()
                 || descriptor
@@ -1111,13 +1122,15 @@ fn find_presentation_definition_match(
 
         requested_fields
             .entry(field_id.0.clone())
-            .and_modify(|field: &mut super::requested_values::RequestedField180137| {
-                field.intent_to_retain |= requested_field.retained;
-                field.required |= requested_field.required;
-                if field.purpose.is_none() {
-                    field.purpose = requested_field.purpose.clone();
-                }
-            })
+            .and_modify(
+                |field: &mut super::requested_values::RequestedField180137| {
+                    field.intent_to_retain |= requested_field.retained;
+                    field.required |= requested_field.required;
+                    if field.purpose.is_none() {
+                        field.purpose = requested_field.purpose.clone();
+                    }
+                },
+            )
             .or_insert_with(|| super::requested_values::RequestedField180137 {
                 id: field_id.clone(),
                 displayable_name,
@@ -1145,7 +1158,8 @@ fn mdoc_json_and_fields(
     FieldMap,
 ) {
     let mdoc = credential.document();
-    let mut age_over_mapping = super::requested_values::calculate_age_over_mapping(&mdoc.namespaces);
+    let mut age_over_mapping =
+        super::requested_values::calculate_age_over_mapping(&mdoc.namespaces);
     let mut field_map = FieldMap::new();
     let mut elements_map = std::collections::BTreeMap::new();
     let mut namespaces_json = serde_json::Map::new();
@@ -1299,13 +1313,16 @@ fn response_processing(error: anyhow::Error) -> Oid4vp180137FacadeError {
 fn build_v1_authorization_request(request: &ResolvedIsoRequest) -> Result<AuthorizationRequest> {
     match request {
         ResolvedIsoRequest::DirectJson { payload } => {
-            let request_object = serde_json::from_value::<AuthorizationRequestObject>(payload.clone())
-                .context("unable to parse v1 authorization request object")?;
+            let request_object =
+                serde_json::from_value::<AuthorizationRequestObject>(payload.clone())
+                    .context("unable to parse v1 authorization request object")?;
             Ok(AuthorizationRequest {
                 client_id: request_object.client_id().map(|id| id.0.clone()),
-                request_indirection: RequestIndirection::Direct(
-                    serde_json::from_value::<UntypedObject>(serde_json::to_value(&request_object)?)?,
-                ),
+                request_indirection: RequestIndirection::Direct(serde_json::from_value::<
+                    UntypedObject,
+                >(
+                    serde_json::to_value(&request_object)?,
+                )?),
             })
         }
         ResolvedIsoRequest::Jwt { client_id, jwt, .. } => Ok(AuthorizationRequest {
@@ -1327,11 +1344,11 @@ fn build_draft18_authorization_request(
                     .context("unable to parse draft18 authorization request object")?;
             Ok(Draft18AuthorizationRequest {
                 client_id: request_object.client_id().map(|id| id.0.clone()),
-                request_indirection: Draft18RequestIndirection::Direct(
-                    serde_json::from_value::<Draft18UntypedObject>(serde_json::to_value(
-                        &request_object,
-                    )?)?,
-                ),
+                request_indirection: Draft18RequestIndirection::Direct(serde_json::from_value::<
+                    Draft18UntypedObject,
+                >(
+                    serde_json::to_value(&request_object)?,
+                )?),
             })
         }
         ResolvedIsoRequest::Jwt { client_id, jwt, .. } => Ok(Draft18AuthorizationRequest {
@@ -1376,12 +1393,9 @@ async fn resolve_url_request_once<H: AsyncHttpClient>(
         .body(vec![])
         .context("failed to build authorization request request")?;
 
-    let response = http_client
-        .execute(request)
-        .await
-        .context(format!(
-            "failed to make authorization request request at {request_uri}"
-        ))?;
+    let response = http_client.execute(request).await.context(format!(
+        "failed to make authorization request request at {request_uri}"
+    ))?;
 
     let status = response.status();
     let body = String::from_utf8(response.into_body()).with_context(|| {
@@ -1543,7 +1557,8 @@ mod tests {
     };
 
     fn encryption_jwk() -> Json {
-        let mut jwk: Json = serde_json::from_str(include_str!("../../../tests/examples/jwk.json")).unwrap();
+        let mut jwk: Json =
+            serde_json::from_str(include_str!("../../../tests/examples/jwk.json")).unwrap();
         let Json::Object(map) = &mut jwk else {
             panic!("expected object")
         };
@@ -1553,7 +1568,10 @@ mod tests {
     }
 
     fn dcql_query() -> Json {
-        serde_json::from_str(include_str!("../../../tests/examples/18013_7_dcql_query.json")).unwrap()
+        serde_json::from_str(include_str!(
+            "../../../tests/examples/18013_7_dcql_query.json"
+        ))
+        .unwrap()
     }
 
     fn v1_request_json() -> String {
@@ -1653,11 +1671,13 @@ mod tests {
     async fn test_facade() -> Arc<Oid4vp180137Facade> {
         let keystore = Arc::new(RustTestKeyManager::default());
         let key_alias = KeyAlias("test-mdl".into());
-        keystore.generate_p256_signing_key(key_alias.clone()).await.unwrap();
+        keystore
+            .generate_p256_signing_key(key_alias.clone())
+            .await
+            .unwrap();
         let credential = Arc::new(generate_test_mdl(keystore.clone(), key_alias).unwrap());
 
-        Oid4vp180137Facade::new(vec![credential], keystore)
-            .unwrap()
+        Oid4vp180137Facade::new(vec![credential], keystore).unwrap()
     }
 
     #[tokio::test]
@@ -1674,7 +1694,10 @@ mod tests {
     #[tokio::test]
     async fn processes_draft18_json_request_in_auto_mode() {
         let facade = test_facade().await;
-        let session = facade.process_request(draft18_request_json()).await.unwrap();
+        let session = facade
+            .process_request(draft18_request_json())
+            .await
+            .unwrap();
         assert!(!session.matches().is_empty());
         assert_eq!(
             session.requested_by().as_deref(),
@@ -1687,7 +1710,10 @@ mod tests {
         let resolved = ResolvedIsoRequest::DirectJson {
             payload: serde_json::from_str(&detect_v1_request_json()).unwrap(),
         };
-        assert_eq!(detect_request_version(&resolved), DetectedIsoRequestVersion::V1);
+        assert_eq!(
+            detect_request_version(&resolved),
+            DetectedIsoRequestVersion::V1
+        );
     }
 
     #[test]
@@ -1725,7 +1751,10 @@ mod tests {
         .await
         .unwrap();
 
-        assert_eq!(detect_request_version(&resolved), DetectedIsoRequestVersion::V1);
+        assert_eq!(
+            detect_request_version(&resolved),
+            DetectedIsoRequestVersion::V1
+        );
         server.verify().await;
     }
 
