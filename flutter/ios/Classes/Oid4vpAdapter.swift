@@ -77,7 +77,14 @@ class Oid4vpAdapter: Oid4vp {
     // Session state
     private var holder: Holder?
     private var permissionRequest: PermissionRequest?
-    private var presentableCredentials: [PresentableCredential] = []
+    /// Resolves a Dart-side `PresentableCredentialKey` back to the live
+    /// `PresentableCredential` handle. Built from `credentialsGroupedByQuery()`
+    /// in `handleAuthorizationRequest`: each group entry contributes one
+    /// `(credentialId, credentialQueryId) -> credential` mapping. The same
+    /// underlying credential may appear under multiple keys if it satisfies
+    /// multiple DCQL queries — those are distinct `PresentableCredential`
+    /// instances on the Rust side, each carrying its own internal query id.
+    private var credentialsByKey: [PresentableCredentialKey: PresentableCredential] = [:]
 
     init(credentialPackAdapter: CredentialPackAdapter) {
         self.credentialPackAdapter = credentialPackAdapter
@@ -146,27 +153,42 @@ class Oid4vpAdapter: Oid4vp {
 
                 // Parse authorization request
                 let request = try await holder.authorizationRequest(req: Url(processedUrl))
-                let credentials = request.credentials()
+
+                // Build (credentialId, credentialQueryId) -> credential map and
+                // the flat credential list for Dart from a single source: the
+                // grouped-by-query view. Rust groups by each credential's
+                // internal `credential_query_id` (1-to-1 with the flat list),
+                // so the union of group entries equals `request.credentials()`.
+                let groups = request.credentialsGroupedByQuery()
+                var keyMap: [PresentableCredentialKey: PresentableCredential] = [:]
+                var credentialData: [PresentableCredentialData] = []
+                for group in groups {
+                    let qid = group.credentialQueryId
+                    for cred in group.credentials {
+                        let cid = cred.asParsedCredential().id()
+                        let key = PresentableCredentialKey(
+                            credentialId: cid,
+                            credentialQueryId: qid
+                        )
+                        keyMap[key] = cred
+                        credentialData.append(PresentableCredentialData(
+                            credentialId: cid,
+                            credentialQueryId: qid,
+                            selectiveDisclosable: cred.selectiveDisclosable()
+                        ))
+                    }
+                }
 
                 lock.lock()
                 self.permissionRequest = request
-                self.presentableCredentials = credentials
+                self.credentialsByKey = keyMap
                 lock.unlock()
 
-                if credentials.isEmpty {
+                if credentialData.isEmpty {
                     completion(.success(HandleAuthRequestError(
                         message: "No matching credentials found for this verification request"
                     )))
                     return
-                }
-
-                // Convert to Pigeon types
-                let credentialData = credentials.enumerated().map { (index, cred) in
-                    PresentableCredentialData(
-                        index: Int64(index),
-                        credentialId: cred.asParsedCredential().id(),
-                        selectiveDisclosable: cred.selectiveDisclosable()
-                    )
                 }
 
                 let info = PermissionRequestInfo(
@@ -187,19 +209,13 @@ class Oid4vpAdapter: Oid4vp {
         }
     }
 
-    func getRequestedFields(credentialIndex: Int64) throws -> [RequestedFieldData] {
+    func getRequestedFields(key: PresentableCredentialKey) throws -> [RequestedFieldData] {
         lock.lock()
-        guard let permissionRequest = self.permissionRequest else {
+        guard let permissionRequest = self.permissionRequest,
+              let credential = self.credentialsByKey[key] else {
             lock.unlock()
             return []
         }
-
-        guard credentialIndex >= 0 && credentialIndex < presentableCredentials.count else {
-            lock.unlock()
-            return []
-        }
-
-        let credential = presentableCredentials[Int(credentialIndex)]
         lock.unlock()
 
         let fields = permissionRequest.requestedFields(credential: credential)
@@ -219,7 +235,7 @@ class Oid4vpAdapter: Oid4vp {
     }
 
     func submitResponse(
-        selectedCredentialIndices: [Int64],
+        selectedCredentials: [PresentableCredentialKey],
         selectedFieldPaths: [[String]],
         options: ResponseOptions,
         completion: @escaping (Result<Oid4vpResult, any Error>) -> Void
@@ -234,14 +250,11 @@ class Oid4vpAdapter: Oid4vp {
                     return
                 }
 
-                // Map indices to credentials
-                let selectedCredentials = selectedCredentialIndices.compactMap { index -> PresentableCredential? in
-                    guard index >= 0 && index < presentableCredentials.count else { return nil }
-                    return presentableCredentials[Int(index)]
-                }
+                // Resolve keys to live credential handles
+                let resolvedCredentials = selectedCredentials.compactMap { self.credentialsByKey[$0] }
                 lock.unlock()
 
-                if selectedCredentials.isEmpty {
+                if resolvedCredentials.isEmpty {
                     completion(.success(Oid4vpError(message: "No valid credentials selected")))
                     return
                 }
@@ -253,7 +266,7 @@ class Oid4vpAdapter: Oid4vp {
 
                 // Create permission response
                 let permissionResponse = try await permissionRequest.createPermissionResponse(
-                    selectedCredentials: selectedCredentials,
+                    selectedCredentials: resolvedCredentials,
                     selectedFields: selectedFieldPaths,
                     responseOptions: responseOptions
                 )
@@ -274,14 +287,26 @@ class Oid4vpAdapter: Oid4vp {
             lock.unlock()
             return []
         }
+        let keyMap = self.credentialsByKey
         lock.unlock()
 
         let requirements = permissionRequest.credentialRequirements()
         return requirements.map { req in
-            let creds = req.credentials.enumerated().map { (index, cred) in
-                PresentableCredentialData(
-                    index: Int64(index),
-                    credentialId: cred.asParsedCredential().id(),
+            // For each credential in the requirement, pick the first
+            // credentialQueryId from `req.credentialQueryIds` (in order)
+            // for which `(credentialId, qid)` exists in `keyMap`. Rust's
+            // invariant guarantees at least one such qid exists per cred.
+            let creds = req.credentials.map { cred -> PresentableCredentialData in
+                let credId = cred.asParsedCredential().id()
+                let qid = req.credentialQueryIds.first { qid in
+                    keyMap[PresentableCredentialKey(
+                        credentialId: credId,
+                        credentialQueryId: qid
+                    )] != nil
+                } ?? req.credentialQueryIds.first ?? ""
+                return PresentableCredentialData(
+                    credentialId: credId,
+                    credentialQueryId: qid,
                     selectiveDisclosable: cred.selectiveDisclosable()
                 )
             }
@@ -304,15 +329,16 @@ class Oid4vpAdapter: Oid4vp {
 
         let groups = permissionRequest.credentialsGroupedByQuery()
         return groups.map { group in
-            let creds = group.credentials.enumerated().map { (index, cred) in
+            let qid = group.credentialQueryId
+            let creds = group.credentials.map { cred in
                 PresentableCredentialData(
-                    index: Int64(index),
                     credentialId: cred.asParsedCredential().id(),
+                    credentialQueryId: qid,
                     selectiveDisclosable: cred.selectiveDisclosable()
                 )
             }
             return CredentialQueryGroupData(
-                credentialQueryId: group.credentialQueryId,
+                credentialQueryId: qid,
                 credentials: creds
             )
         }
@@ -333,7 +359,7 @@ class Oid4vpAdapter: Oid4vp {
         lock.lock()
         holder = nil
         permissionRequest = nil
-        presentableCredentials = []
+        credentialsByKey = [:]
         lock.unlock()
     }
 }

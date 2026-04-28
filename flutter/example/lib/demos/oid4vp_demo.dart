@@ -36,7 +36,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   List<PresentableCredentialData> _credentials = [];
   PermissionRequestInfo? _requestInfo;
   List<SelectiveDisclosureFieldData> _requestedFields = [];
-  int? _selectedCredentialIndex;
+  PresentableCredentialKey? _selectedCredentialKey;
   Set<String> _selectedFields = {};
   bool _presentationLoading = false;
   _ScanPurpose? _scanPurpose;
@@ -204,7 +204,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
         });
 
         if (_credentials.length == 1) {
-          _selectCredential(0);
+          _selectCredential(_credentials.first);
         }
       }
     } catch (e) {
@@ -215,11 +215,15 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
     }
   }
 
-  Future<void> _selectCredential(int index) async {
-    setState(() => _selectedCredentialIndex = index);
+  Future<void> _selectCredential(PresentableCredentialData cred) async {
+    final key = PresentableCredentialKey(
+      credentialId: cred.credentialId,
+      credentialQueryId: cred.credentialQueryId,
+    );
+    setState(() => _selectedCredentialKey = key);
 
     try {
-      final fields = await _oid4vp.getRequestedFields(index);
+      final fields = await _oid4vp.getRequestedFields(key);
       debugPrint('OID4VP: Received ${fields.length} fields from SDK:');
       for (final f in fields) {
         debugPrint('  - name: ${f.name}, path: ${f.path}, id: ${f.id}');
@@ -240,7 +244,8 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   }
 
   Future<void> _submitPresentation() async {
-    if (_selectedCredentialIndex == null) return;
+    final selectedKey = _selectedCredentialKey;
+    if (selectedKey == null) return;
 
     setState(() {
       _presentationLoading = true;
@@ -249,7 +254,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
 
     try {
       final result = await _oid4vp.submitResponse(
-        [_selectedCredentialIndex!],
+        [selectedKey],
         [_selectedFields.toList()],
         ResponseOptions(forceArraySerialization: false),
       );
@@ -280,7 +285,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
       _credentials = [];
       _requestInfo = null;
       _requestedFields = [];
-      _selectedCredentialIndex = null;
+      _selectedCredentialKey = null;
       _selectedFields = {};
     });
   }
@@ -337,7 +342,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
       if (_presentationLoading) {
         return const Center(child: CircularProgressIndicator());
       }
-      if (_selectedCredentialIndex == null) {
+      if (_selectedCredentialKey == null) {
         return _buildCredentialSelector();
       }
       return _buildFieldSelector();
@@ -573,7 +578,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
                 'Selective Disclosure: ${cred.selectiveDisclosable ? 'Yes' : 'No'}',
               ),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => _selectCredential(index),
+              onTap: () => _selectCredential(cred),
             ),
           );
         }),
@@ -608,7 +613,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
                   child: OutlinedButton(
                     onPressed: () {
                       setState(() {
-                        _selectedCredentialIndex = null;
+                        _selectedCredentialKey = null;
                         _requestedFields = [];
                         _selectedFields = {};
                       });

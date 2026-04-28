@@ -77,7 +77,17 @@ internal class Oid4vpAdapter(
     // Session state
     private var holder: Holder? = null
     private var permissionRequest: PermissionRequest? = null
-    private var presentableCredentials: List<PresentableCredential> = emptyList()
+
+    /**
+     * Resolves a Dart-side `PresentableCredentialKey` back to the live
+     * `PresentableCredential` handle. Built from `credentialsGroupedByQuery()`
+     * in `handleAuthorizationRequest`: each group entry contributes one
+     * `(credentialId, credentialQueryId) -> credential` mapping. The same
+     * underlying credential may appear under multiple keys if it satisfies
+     * multiple DCQL queries — those are distinct `PresentableCredential`
+     * instances on the Rust side, each carrying its own internal query id.
+     */
+    private var credentialsByKey: Map<PresentableCredentialKey, PresentableCredential> = emptyMap()
 
     override fun createHolder(
         credentialPackIds: List<String>,
@@ -142,27 +152,44 @@ internal class Oid4vpAdapter(
 
                 // Parse authorization request
                 val request = currentHolder.authorizationRequest(processedUrl)
-                val credentials = request.credentials()
+
+                // Build (credentialId, credentialQueryId) -> credential map
+                // and the flat credential list for Dart from a single source:
+                // the grouped-by-query view. Rust groups by each credential's
+                // internal `credential_query_id` (1-to-1 with the flat list),
+                // so the union of group entries equals `request.credentials()`.
+                val groups = request.credentialsGroupedByQuery()
+                val keyMap = mutableMapOf<PresentableCredentialKey, PresentableCredential>()
+                val credentialData = mutableListOf<PresentableCredentialData>()
+                for (group in groups) {
+                    val qid = group.credentialQueryId
+                    for (cred in group.credentials) {
+                        val cid = cred.asParsedCredential().id()
+                        val key = PresentableCredentialKey(
+                            credentialId = cid,
+                            credentialQueryId = qid
+                        )
+                        keyMap[key] = cred
+                        credentialData.add(
+                            PresentableCredentialData(
+                                credentialId = cid,
+                                credentialQueryId = qid,
+                                selectiveDisclosable = cred.selectiveDisclosable()
+                            )
+                        )
+                    }
+                }
 
                 synchronized(this@Oid4vpAdapter) {
                     this@Oid4vpAdapter.permissionRequest = request
-                    this@Oid4vpAdapter.presentableCredentials = credentials
+                    this@Oid4vpAdapter.credentialsByKey = keyMap
                 }
 
-                if (credentials.isEmpty()) {
+                if (credentialData.isEmpty()) {
                     callback(Result.success(HandleAuthRequestError(
                         message = "No matching credentials found for this verification request"
                     )))
                     return@launch
-                }
-
-                // Convert to Pigeon types
-                val credentialData = credentials.mapIndexed { index, cred ->
-                    PresentableCredentialData(
-                        index = index.toLong(),
-                        credentialId = cred.asParsedCredential().id(),
-                        selectiveDisclosable = cred.selectiveDisclosable()
-                    )
                 }
 
                 val info = PermissionRequestInfo(
@@ -185,15 +212,10 @@ internal class Oid4vpAdapter(
         }
     }
 
-    override fun getRequestedFields(credentialIndex: Long): List<RequestedFieldData> {
+    override fun getRequestedFields(key: PresentableCredentialKey): List<RequestedFieldData> {
         val request = synchronized(this) { permissionRequest } ?: return emptyList()
-        val credentials = synchronized(this) { presentableCredentials }
+        val credential = synchronized(this) { credentialsByKey[key] } ?: return emptyList()
 
-        if (credentialIndex < 0 || credentialIndex >= credentials.size) {
-            return emptyList()
-        }
-
-        val credential = credentials[credentialIndex.toInt()]
         val fields = request.requestedFields(credential)
         return fields.map { field ->
             RequestedFieldData(
@@ -210,7 +232,7 @@ internal class Oid4vpAdapter(
     }
 
     override fun submitResponse(
-        selectedCredentialIndices: List<Long>,
+        selectedCredentials: List<PresentableCredentialKey>,
         selectedFieldPaths: List<List<String>>,
         options: ResponseOptions,
         callback: (Result<Oid4vpResult>) -> Unit
@@ -219,23 +241,17 @@ internal class Oid4vpAdapter(
             try {
                 val currentHolder = synchronized(this@Oid4vpAdapter) { holder }
                 val request = synchronized(this@Oid4vpAdapter) { permissionRequest }
-                val credentials = synchronized(this@Oid4vpAdapter) { presentableCredentials }
+                val keyMap = synchronized(this@Oid4vpAdapter) { credentialsByKey }
 
                 if (currentHolder == null || request == null) {
                     callback(Result.success(Oid4vpError(message = "Session not initialized")))
                     return@launch
                 }
 
-                // Map indices to credentials
-                val selectedCredentials = selectedCredentialIndices.mapNotNull { index ->
-                    if (index >= 0 && index < credentials.size) {
-                        credentials[index.toInt()]
-                    } else {
-                        null
-                    }
-                }
+                // Resolve keys to live credential handles
+                val resolvedCredentials = selectedCredentials.mapNotNull { keyMap[it] }
 
-                if (selectedCredentials.isEmpty()) {
+                if (resolvedCredentials.isEmpty()) {
                     callback(Result.success(Oid4vpError(message = "No valid credentials selected")))
                     return@launch
                 }
@@ -247,7 +263,7 @@ internal class Oid4vpAdapter(
 
                 // Create permission response
                 val permissionResponse = request.createPermissionResponse(
-                    selectedCredentials,
+                    resolvedCredentials,
                     selectedFieldPaths,
                     responseOptions
                 )
@@ -266,13 +282,27 @@ internal class Oid4vpAdapter(
 
     override fun getCredentialRequirements(): List<CredentialRequirementData> {
         val request = synchronized(this) { permissionRequest } ?: return emptyList()
+        val keyMap = synchronized(this) { credentialsByKey }
 
         val requirements = request.credentialRequirements()
         return requirements.map { req ->
-            val creds = req.credentials.mapIndexed { index, cred ->
+            // For each credential in the requirement, pick the first
+            // credentialQueryId from `req.credentialQueryIds` (in order)
+            // for which `(credentialId, qid)` exists in `keyMap`. Rust's
+            // invariant guarantees at least one such qid exists per cred.
+            val creds = req.credentials.map { cred ->
+                val credId = cred.asParsedCredential().id()
+                val qid = req.credentialQueryIds.firstOrNull { qid ->
+                    keyMap.containsKey(
+                        PresentableCredentialKey(
+                            credentialId = credId,
+                            credentialQueryId = qid
+                        )
+                    )
+                } ?: req.credentialQueryIds.firstOrNull() ?: ""
                 PresentableCredentialData(
-                    index = index.toLong(),
-                    credentialId = cred.asParsedCredential().id(),
+                    credentialId = credId,
+                    credentialQueryId = qid,
                     selectiveDisclosable = cred.selectiveDisclosable()
                 )
             }
@@ -290,15 +320,16 @@ internal class Oid4vpAdapter(
 
         val groups = request.credentialsGroupedByQuery()
         return groups.map { group ->
-            val creds = group.credentials.mapIndexed { index, cred ->
+            val qid = group.credentialQueryId
+            val creds = group.credentials.map { cred ->
                 PresentableCredentialData(
-                    index = index.toLong(),
                     credentialId = cred.asParsedCredential().id(),
+                    credentialQueryId = qid,
                     selectiveDisclosable = cred.selectiveDisclosable()
                 )
             }
             CredentialQueryGroupData(
-                credentialQueryId = group.credentialQueryId,
+                credentialQueryId = qid,
                 credentials = creds
             )
         }
@@ -313,7 +344,7 @@ internal class Oid4vpAdapter(
         synchronized(this) {
             holder = null
             permissionRequest = null
-            presentableCredentials = emptyList()
+            credentialsByKey = emptyMap()
         }
     }
 }
