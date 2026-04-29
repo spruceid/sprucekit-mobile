@@ -41,10 +41,20 @@ class ParsedCredentialData {
   /// Raw credential data as string
   String rawCredential;
 
+  /// `MsoMdoc.doctype()` for mdoc credentials. Null otherwise.
+  /// E.g. `"org.iso.18013.5.1.mDL"`, `"org.iso.23220.photoID.1"`.
+  String? doctype;
+
+  /// `DcSdJwt.vct()` for IETF SD-JWT VC credentials. Null otherwise.
+  /// E.g. `"eu.europa.ec.eudi.pid.1"`.
+  String? vct;
+
   ParsedCredentialData({
     required this.id,
     required this.format,
     required this.rawCredential,
+    this.doctype,
+    this.vct,
   });
 }
 

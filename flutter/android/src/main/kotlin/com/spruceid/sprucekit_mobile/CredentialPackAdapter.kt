@@ -275,6 +275,8 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
     private fun ParsedCredential.toData(): ParsedCredentialData {
         val format: CredentialFormat
         var rawCredential = ""
+        var doctype: String? = null
+        var vct: String? = null
 
         when {
             this.asJwtVc() != null -> {
@@ -290,16 +292,20 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
                 rawCredential = this.asSdJwt()!!.credentialClaims().toString()
             }
             this.asMsoMdoc() != null -> {
+                val mdoc = this.asMsoMdoc()!!
                 format = CredentialFormat.MSO_MDOC
-                rawCredential = this.asMsoMdoc()!!.jsonEncodedDetailsAll().toString()
+                rawCredential = mdoc.jsonEncodedDetailsAll().toString()
+                doctype = mdoc.doctype()
             }
             this.asCwt() != null -> {
                 format = CredentialFormat.CWT
                 rawCredential = this.asCwt()!!.credentialClaims().toString()
             }
             this.asDcSdJwt() != null -> {
+                val dcSdJwt = this.asDcSdJwt()!!
                 format = CredentialFormat.DC_SD_JWT
-                rawCredential = this.asDcSdJwt()!!.credentialClaims().toString()
+                rawCredential = dcSdJwt.credentialClaims().toString()
+                vct = dcSdJwt.vct()
             }
             else -> {
                 format = CredentialFormat.JWT_VC
@@ -309,7 +315,9 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
         return ParsedCredentialData(
             id = this.id(),
             format = format,
-            rawCredential = rawCredential
+            rawCredential = rawCredential,
+            doctype = doctype,
+            vct = vct
         )
     }
 }
