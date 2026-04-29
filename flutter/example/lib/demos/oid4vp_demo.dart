@@ -575,6 +575,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
               title: Text('Credential ${index + 1}'),
               subtitle: Text(
                 'ID: ${cred.credentialId}\n'
+                'Query: ${cred.credentialQueryId}\n'
                 'Selective Disclosure: ${cred.selectiveDisclosable ? 'Yes' : 'No'}',
               ),
               trailing: const Icon(Icons.chevron_right),
