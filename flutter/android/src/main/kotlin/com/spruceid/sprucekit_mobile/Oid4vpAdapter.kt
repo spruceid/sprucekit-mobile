@@ -299,7 +299,10 @@ internal class Oid4vpAdapter(
                             credentialQueryId = qid
                         )
                     )
-                } ?: req.credentialQueryIds.firstOrNull() ?: ""
+                } ?: error(
+                    "No matching credentialQueryId for credentialId=$credId " +
+                        "in requirement '${req.displayName}'"
+                )
                 PresentableCredentialData(
                     credentialId = credId,
                     credentialQueryId = qid,

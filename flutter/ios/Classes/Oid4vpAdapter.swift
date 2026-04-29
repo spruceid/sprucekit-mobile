@@ -298,12 +298,17 @@ class Oid4vpAdapter: Oid4vp {
             // invariant guarantees at least one such qid exists per cred.
             let creds = req.credentials.map { cred -> PresentableCredentialData in
                 let credId = cred.asParsedCredential().id()
-                let qid = req.credentialQueryIds.first { qid in
+                guard let qid = req.credentialQueryIds.first(where: { qid in
                     keyMap[PresentableCredentialKey(
                         credentialId: credId,
                         credentialQueryId: qid
                     )] != nil
-                } ?? req.credentialQueryIds.first ?? ""
+                }) else {
+                    preconditionFailure(
+                        "No matching credentialQueryId for credentialId=\(credId) " +
+                        "in requirement '\(req.displayName)'"
+                    )
+                }
                 return PresentableCredentialData(
                     credentialId: credId,
                     credentialQueryId: qid,
