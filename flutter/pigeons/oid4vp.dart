@@ -45,15 +45,36 @@ class RequestedFieldData {
   });
 }
 
-/// A credential that can be presented
-class PresentableCredentialData {
-  int index;
+/// Stable identifier for a presentable credential within a single
+/// `handleAuthorizationRequest` session.
+///
+/// A credential is uniquely identified by the pair
+/// `(credentialId, credentialQueryId)`: the same credential may appear
+/// once per DCQL credential query that it satisfies. Use this key
+/// (not list position) when calling `getRequestedFields` and `submitResponse`.
+class PresentableCredentialKey {
   String credentialId;
+  String credentialQueryId;
+
+  PresentableCredentialKey({
+    required this.credentialId,
+    required this.credentialQueryId,
+  });
+}
+
+/// A credential that can be presented.
+///
+/// `credentialId` and `credentialQueryId` together form the stable key
+/// used to refer back to this credential in subsequent calls
+/// (`getRequestedFields`, `submitResponse`). See `PresentableCredentialKey`.
+class PresentableCredentialData {
+  String credentialId;
+  String credentialQueryId;
   bool selectiveDisclosable;
 
   PresentableCredentialData({
-    required this.index,
     required this.credentialId,
+    required this.credentialQueryId,
     required this.selectiveDisclosable,
   });
 }
@@ -164,18 +185,22 @@ abstract class Oid4vp {
 
   /// Get requested fields for a credential
   ///
-  /// @param credentialIndex Index of the credential in the returned list
+  /// @param key Stable key identifying the credential. Take the
+  ///   `credentialId` and `credentialQueryId` from a `PresentableCredentialData`
+  ///   returned by `handleAuthorizationRequest`, `getCredentialRequirements`,
+  ///   or `getCredentialsGroupedByQuery`.
   /// @return List of requested fields for the credential
-  List<RequestedFieldData> getRequestedFields(int credentialIndex);
+  List<RequestedFieldData> getRequestedFields(PresentableCredentialKey key);
 
   /// Submit the presentation response
   ///
-  /// @param selectedCredentialIndices Indices of selected credentials
-  /// @param selectedFieldPaths List of selected field paths per credential
+  /// @param selectedCredentials Stable keys of the credentials the user selected
+  /// @param selectedFieldPaths List of selected field paths per credential, in
+  ///   the same order as `selectedCredentials`
   /// @param options Response configuration options
   @async
   Oid4vpResult submitResponse(
-    List<int> selectedCredentialIndices,
+    List<PresentableCredentialKey> selectedCredentials,
     List<List<String>> selectedFieldPaths,
     ResponseOptions options,
   );

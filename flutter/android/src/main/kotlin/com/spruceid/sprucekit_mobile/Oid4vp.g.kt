@@ -164,28 +164,73 @@ data class RequestedFieldData (
 }
 
 /**
- * A credential that can be presented
+ * Stable identifier for a presentable credential within a single
+ * `handleAuthorizationRequest` session.
+ *
+ * A credential is uniquely identified by the pair
+ * `(credentialId, credentialQueryId)`: the same credential may appear
+ * once per DCQL credential query that it satisfies. Use this key
+ * (not list position) when calling `getRequestedFields` and `submitResponse`.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class PresentableCredentialKey (
+  val credentialId: String,
+  val credentialQueryId: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PresentableCredentialKey {
+      val credentialId = pigeonVar_list[0] as String
+      val credentialQueryId = pigeonVar_list[1] as String
+      return PresentableCredentialKey(credentialId, credentialQueryId)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      credentialId,
+      credentialQueryId,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is PresentableCredentialKey) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return Oid4vpPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * A credential that can be presented.
+ *
+ * `credentialId` and `credentialQueryId` together form the stable key
+ * used to refer back to this credential in subsequent calls
+ * (`getRequestedFields`, `submitResponse`). See `PresentableCredentialKey`.
  *
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class PresentableCredentialData (
-  val index: Long,
   val credentialId: String,
+  val credentialQueryId: String,
   val selectiveDisclosable: Boolean
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): PresentableCredentialData {
-      val index = pigeonVar_list[0] as Long
-      val credentialId = pigeonVar_list[1] as String
+      val credentialId = pigeonVar_list[0] as String
+      val credentialQueryId = pigeonVar_list[1] as String
       val selectiveDisclosable = pigeonVar_list[2] as Boolean
-      return PresentableCredentialData(index, credentialId, selectiveDisclosable)
+      return PresentableCredentialData(credentialId, credentialQueryId, selectiveDisclosable)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
-      index,
       credentialId,
+      credentialQueryId,
       selectiveDisclosable,
     )
   }
@@ -480,40 +525,45 @@ private open class Oid4vpPigeonCodec : StandardMessageCodec() {
       }
       131.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PresentableCredentialData.fromList(it)
+          PresentableCredentialKey.fromList(it)
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PermissionRequestInfo.fromList(it)
+          PresentableCredentialData.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          Oid4vpSuccess.fromList(it)
+          PermissionRequestInfo.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          Oid4vpError.fromList(it)
+          Oid4vpSuccess.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HandleAuthRequestSuccess.fromList(it)
+          Oid4vpError.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HandleAuthRequestError.fromList(it)
+          HandleAuthRequestSuccess.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CredentialQueryGroupData.fromList(it)
+          HandleAuthRequestError.fromList(it)
         }
       }
       138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          CredentialQueryGroupData.fromList(it)
+        }
+      }
+      139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           CredentialRequirementData.fromList(it)
         }
@@ -531,36 +581,40 @@ private open class Oid4vpPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.toList())
       }
-      is PresentableCredentialData -> {
+      is PresentableCredentialKey -> {
         stream.write(131)
         writeValue(stream, value.toList())
       }
-      is PermissionRequestInfo -> {
+      is PresentableCredentialData -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is Oid4vpSuccess -> {
+      is PermissionRequestInfo -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is Oid4vpError -> {
+      is Oid4vpSuccess -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is HandleAuthRequestSuccess -> {
+      is Oid4vpError -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is HandleAuthRequestError -> {
+      is HandleAuthRequestSuccess -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is CredentialQueryGroupData -> {
+      is HandleAuthRequestError -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is CredentialRequirementData -> {
+      is CredentialQueryGroupData -> {
         stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is CredentialRequirementData -> {
+        stream.write(139)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -596,18 +650,22 @@ interface Oid4vp {
   /**
    * Get requested fields for a credential
    *
-   * @param credentialIndex Index of the credential in the returned list
+   * @param key Stable key identifying the credential. Take the
+   *   `credentialId` and `credentialQueryId` from a `PresentableCredentialData`
+   *   returned by `handleAuthorizationRequest`, `getCredentialRequirements`,
+   *   or `getCredentialsGroupedByQuery`.
    * @return List of requested fields for the credential
    */
-  fun getRequestedFields(credentialIndex: Long): List<RequestedFieldData>
+  fun getRequestedFields(key: PresentableCredentialKey): List<RequestedFieldData>
   /**
    * Submit the presentation response
    *
-   * @param selectedCredentialIndices Indices of selected credentials
-   * @param selectedFieldPaths List of selected field paths per credential
+   * @param selectedCredentials Stable keys of the credentials the user selected
+   * @param selectedFieldPaths List of selected field paths per credential, in
+   *   the same order as `selectedCredentials`
    * @param options Response configuration options
    */
-  fun submitResponse(selectedCredentialIndices: List<Long>, selectedFieldPaths: List<List<String>>, options: ResponseOptions, callback: (Result<Oid4vpResult>) -> Unit)
+  fun submitResponse(selectedCredentials: List<PresentableCredentialKey>, selectedFieldPaths: List<List<String>>, options: ResponseOptions, callback: (Result<Oid4vpResult>) -> Unit)
   /**
    * Get credential requirements from the permission request
    *
@@ -686,9 +744,9 @@ interface Oid4vp {
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val credentialIndexArg = args[0] as Long
+            val keyArg = args[0] as PresentableCredentialKey
             val wrapped: List<Any?> = try {
-              listOf(api.getRequestedFields(credentialIndexArg))
+              listOf(api.getRequestedFields(keyArg))
             } catch (exception: Throwable) {
               Oid4vpPigeonUtils.wrapError(exception)
             }
@@ -703,10 +761,10 @@ interface Oid4vp {
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val selectedCredentialIndicesArg = args[0] as List<Long>
+            val selectedCredentialsArg = args[0] as List<PresentableCredentialKey>
             val selectedFieldPathsArg = args[1] as List<List<String>>
             val optionsArg = args[2] as ResponseOptions
-            api.submitResponse(selectedCredentialIndicesArg, selectedFieldPathsArg, optionsArg) { result: Result<Oid4vpResult> ->
+            api.submitResponse(selectedCredentialsArg, selectedFieldPathsArg, optionsArg) { result: Result<Oid4vpResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(Oid4vpPigeonUtils.wrapError(error))

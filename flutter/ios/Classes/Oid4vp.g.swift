@@ -210,31 +210,72 @@ struct RequestedFieldData: Hashable {
   }
 }
 
-/// A credential that can be presented
+/// Stable identifier for a presentable credential within a single
+/// `handleAuthorizationRequest` session.
+///
+/// A credential is uniquely identified by the pair
+/// `(credentialId, credentialQueryId)`: the same credential may appear
+/// once per DCQL credential query that it satisfies. Use this key
+/// (not list position) when calling `getRequestedFields` and `submitResponse`.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct PresentableCredentialKey: Hashable {
+  var credentialId: String
+  var credentialQueryId: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> PresentableCredentialKey? {
+    let credentialId = pigeonVar_list[0] as! String
+    let credentialQueryId = pigeonVar_list[1] as! String
+
+    return PresentableCredentialKey(
+      credentialId: credentialId,
+      credentialQueryId: credentialQueryId
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      credentialId,
+      credentialQueryId,
+    ]
+  }
+  static func == (lhs: PresentableCredentialKey, rhs: PresentableCredentialKey) -> Bool {
+    return deepEqualsOid4vp(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashOid4vp(value: toList(), hasher: &hasher)
+  }
+}
+
+/// A credential that can be presented.
+///
+/// `credentialId` and `credentialQueryId` together form the stable key
+/// used to refer back to this credential in subsequent calls
+/// (`getRequestedFields`, `submitResponse`). See `PresentableCredentialKey`.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct PresentableCredentialData: Hashable {
-  var index: Int64
   var credentialId: String
+  var credentialQueryId: String
   var selectiveDisclosable: Bool
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> PresentableCredentialData? {
-    let index = pigeonVar_list[0] as! Int64
-    let credentialId = pigeonVar_list[1] as! String
+    let credentialId = pigeonVar_list[0] as! String
+    let credentialQueryId = pigeonVar_list[1] as! String
     let selectiveDisclosable = pigeonVar_list[2] as! Bool
 
     return PresentableCredentialData(
-      index: index,
       credentialId: credentialId,
+      credentialQueryId: credentialQueryId,
       selectiveDisclosable: selectiveDisclosable
     )
   }
   func toList() -> [Any?] {
     return [
-      index,
       credentialId,
+      credentialQueryId,
       selectiveDisclosable,
     ]
   }
@@ -494,20 +535,22 @@ private class Oid4vpPigeonCodecReader: FlutterStandardReader {
     case 130:
       return RequestedFieldData.fromList(self.readValue() as! [Any?])
     case 131:
-      return PresentableCredentialData.fromList(self.readValue() as! [Any?])
+      return PresentableCredentialKey.fromList(self.readValue() as! [Any?])
     case 132:
-      return PermissionRequestInfo.fromList(self.readValue() as! [Any?])
+      return PresentableCredentialData.fromList(self.readValue() as! [Any?])
     case 133:
-      return Oid4vpSuccess.fromList(self.readValue() as! [Any?])
+      return PermissionRequestInfo.fromList(self.readValue() as! [Any?])
     case 134:
-      return Oid4vpError.fromList(self.readValue() as! [Any?])
+      return Oid4vpSuccess.fromList(self.readValue() as! [Any?])
     case 135:
-      return HandleAuthRequestSuccess.fromList(self.readValue() as! [Any?])
+      return Oid4vpError.fromList(self.readValue() as! [Any?])
     case 136:
-      return HandleAuthRequestError.fromList(self.readValue() as! [Any?])
+      return HandleAuthRequestSuccess.fromList(self.readValue() as! [Any?])
     case 137:
-      return CredentialQueryGroupData.fromList(self.readValue() as! [Any?])
+      return HandleAuthRequestError.fromList(self.readValue() as! [Any?])
     case 138:
+      return CredentialQueryGroupData.fromList(self.readValue() as! [Any?])
+    case 139:
       return CredentialRequirementData.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -523,29 +566,32 @@ private class Oid4vpPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? RequestedFieldData {
       super.writeByte(130)
       super.writeValue(value.toList())
-    } else if let value = value as? PresentableCredentialData {
+    } else if let value = value as? PresentableCredentialKey {
       super.writeByte(131)
       super.writeValue(value.toList())
-    } else if let value = value as? PermissionRequestInfo {
+    } else if let value = value as? PresentableCredentialData {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? Oid4vpSuccess {
+    } else if let value = value as? PermissionRequestInfo {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? Oid4vpError {
+    } else if let value = value as? Oid4vpSuccess {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? HandleAuthRequestSuccess {
+    } else if let value = value as? Oid4vpError {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? HandleAuthRequestError {
+    } else if let value = value as? HandleAuthRequestSuccess {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? CredentialQueryGroupData {
+    } else if let value = value as? HandleAuthRequestError {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? CredentialRequirementData {
+    } else if let value = value as? CredentialQueryGroupData {
       super.writeByte(138)
+      super.writeValue(value.toList())
+    } else if let value = value as? CredentialRequirementData {
+      super.writeByte(139)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -588,15 +634,19 @@ protocol Oid4vp {
   func handleAuthorizationRequest(url: String, completion: @escaping (Result<HandleAuthRequestResult, Error>) -> Void)
   /// Get requested fields for a credential
   ///
-  /// @param credentialIndex Index of the credential in the returned list
+  /// @param key Stable key identifying the credential. Take the
+  ///   `credentialId` and `credentialQueryId` from a `PresentableCredentialData`
+  ///   returned by `handleAuthorizationRequest`, `getCredentialRequirements`,
+  ///   or `getCredentialsGroupedByQuery`.
   /// @return List of requested fields for the credential
-  func getRequestedFields(credentialIndex: Int64) throws -> [RequestedFieldData]
+  func getRequestedFields(key: PresentableCredentialKey) throws -> [RequestedFieldData]
   /// Submit the presentation response
   ///
-  /// @param selectedCredentialIndices Indices of selected credentials
-  /// @param selectedFieldPaths List of selected field paths per credential
+  /// @param selectedCredentials Stable keys of the credentials the user selected
+  /// @param selectedFieldPaths List of selected field paths per credential, in
+  ///   the same order as `selectedCredentials`
   /// @param options Response configuration options
-  func submitResponse(selectedCredentialIndices: [Int64], selectedFieldPaths: [[String]], options: ResponseOptions, completion: @escaping (Result<Oid4vpResult, Error>) -> Void)
+  func submitResponse(selectedCredentials: [PresentableCredentialKey], selectedFieldPaths: [[String]], options: ResponseOptions, completion: @escaping (Result<Oid4vpResult, Error>) -> Void)
   /// Get credential requirements from the permission request
   ///
   /// @return List of credential requirements
@@ -668,15 +718,18 @@ class Oid4vpSetup {
     }
     /// Get requested fields for a credential
     ///
-    /// @param credentialIndex Index of the credential in the returned list
+    /// @param key Stable key identifying the credential. Take the
+    ///   `credentialId` and `credentialQueryId` from a `PresentableCredentialData`
+    ///   returned by `handleAuthorizationRequest`, `getCredentialRequirements`,
+    ///   or `getCredentialsGroupedByQuery`.
     /// @return List of requested fields for the credential
     let getRequestedFieldsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getRequestedFields\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       getRequestedFieldsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let credentialIndexArg = args[0] as! Int64
+        let keyArg = args[0] as! PresentableCredentialKey
         do {
-          let result = try api.getRequestedFields(credentialIndex: credentialIndexArg)
+          let result = try api.getRequestedFields(key: keyArg)
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
@@ -687,17 +740,18 @@ class Oid4vpSetup {
     }
     /// Submit the presentation response
     ///
-    /// @param selectedCredentialIndices Indices of selected credentials
-    /// @param selectedFieldPaths List of selected field paths per credential
+    /// @param selectedCredentials Stable keys of the credentials the user selected
+    /// @param selectedFieldPaths List of selected field paths per credential, in
+    ///   the same order as `selectedCredentials`
     /// @param options Response configuration options
     let submitResponseChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.submitResponse\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       submitResponseChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let selectedCredentialIndicesArg = args[0] as! [Int64]
+        let selectedCredentialsArg = args[0] as! [PresentableCredentialKey]
         let selectedFieldPathsArg = args[1] as! [[String]]
         let optionsArg = args[2] as! ResponseOptions
-        api.submitResponse(selectedCredentialIndices: selectedCredentialIndicesArg, selectedFieldPaths: selectedFieldPathsArg, options: optionsArg) { result in
+        api.submitResponse(selectedCredentials: selectedCredentialsArg, selectedFieldPaths: selectedFieldPathsArg, options: optionsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

@@ -320,6 +320,8 @@ extension SpruceIDMobileSdkRs.ParsedCredential {
         // Map SpruceIDMobileSdkRs.CredentialFormat to Pigeon CredentialFormat
         let pigeonFormat: CredentialFormat
         var rawCredential = ""
+        var doctype: String? = nil
+        var vct: String? = nil
 
         // Get native format from the credential
         let nativeFormat = self.format()
@@ -346,6 +348,7 @@ extension SpruceIDMobileSdkRs.ParsedCredential {
             if let mdoc = self.asMsoMdoc() {
                 let details = mdoc.jsonEncodedDetails()
                 rawCredential = details.description
+                doctype = mdoc.doctype()
             }
         case .cwt:
             pigeonFormat = .cwt
@@ -357,6 +360,7 @@ extension SpruceIDMobileSdkRs.ParsedCredential {
             pigeonFormat = .dcSdJwt
             if let dcSdJwt = self.asDcSdJwt() {
                 rawCredential = (try? dcSdJwt.revealedClaimsAsJsonString()) ?? ""
+                vct = dcSdJwt.vct()
             }
         case .other(_):
             pigeonFormat = .jwtVc // default fallback
@@ -365,7 +369,9 @@ extension SpruceIDMobileSdkRs.ParsedCredential {
         return ParsedCredentialData(
             id: self.id(),
             format: pigeonFormat,
-            rawCredential: rawCredential
+            rawCredential: rawCredential,
+            doctype: doctype,
+            vct: vct
         )
     }
 }
