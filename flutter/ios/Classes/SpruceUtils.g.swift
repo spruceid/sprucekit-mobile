@@ -619,6 +619,21 @@ protocol SpruceUtils {
   /// @param qrPayload Bytes scanned from the QR (`"9"` prefix + base10 digits)
   /// @return Original compact SD-JWT VP token bytes (UTF-8)
   func decompressVpFromQr(qrPayload: FlutterStandardTypedData, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  /// Generate AAMVA-format PDF-417 bytes from a raw mDL credential.
+  ///
+  /// The returned bytes follow the AAMVA DL/ID Card Design Standard and can
+  /// be passed straight into [generateCredentialPdf] as a [PdfSupplement]
+  /// of type [PdfSupplementType.barcode] with [PdfBarcodeType.pdf417].
+  ///
+  /// @param rawMdoc Base64-encoded IssuerSigned bytes of the mDL
+  /// @param vcBarcode Optional pre-signed **VC Barcode (VCB)** bytes per the
+  ///   W3C `w3c-vc-barcodes` spec (CBOR-LD compressed, DL-field-commitment-
+  ///   bound). **Not** a generic JWT-VC / LDP-VC / mDoc — the issuer must
+  ///   produce this specific format. When non-null, embedded as a ZZ subfile
+  ///   so compliant AAMVA readers can verify the credential offline against
+  ///   the DL subfile. When null, only the DL subfile is emitted.
+  /// @return Raw AAMVA bytes ready to be rendered as a PDF-417 barcode
+  func generateAamvaPdf417Bytes(rawMdoc: String, vcBarcode: FlutterStandardTypedData?, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -830,6 +845,38 @@ class SpruceUtilsSetup {
       }
     } else {
       decompressVpFromQrChannel.setMessageHandler(nil)
+    }
+    /// Generate AAMVA-format PDF-417 bytes from a raw mDL credential.
+    ///
+    /// The returned bytes follow the AAMVA DL/ID Card Design Standard and can
+    /// be passed straight into [generateCredentialPdf] as a [PdfSupplement]
+    /// of type [PdfSupplementType.barcode] with [PdfBarcodeType.pdf417].
+    ///
+    /// @param rawMdoc Base64-encoded IssuerSigned bytes of the mDL
+    /// @param vcBarcode Optional pre-signed **VC Barcode (VCB)** bytes per the
+    ///   W3C `w3c-vc-barcodes` spec (CBOR-LD compressed, DL-field-commitment-
+    ///   bound). **Not** a generic JWT-VC / LDP-VC / mDoc — the issuer must
+    ///   produce this specific format. When non-null, embedded as a ZZ subfile
+    ///   so compliant AAMVA readers can verify the credential offline against
+    ///   the DL subfile. When null, only the DL subfile is emitted.
+    /// @return Raw AAMVA bytes ready to be rendered as a PDF-417 barcode
+    let generateAamvaPdf417BytesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateAamvaPdf417Bytes\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      generateAamvaPdf417BytesChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let rawMdocArg = args[0] as! String
+        let vcBarcodeArg: FlutterStandardTypedData? = nilOrValue(args[1])
+        api.generateAamvaPdf417Bytes(rawMdoc: rawMdocArg, vcBarcode: vcBarcodeArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      generateAamvaPdf417BytesChannel.setMessageHandler(nil)
     }
   }
 }

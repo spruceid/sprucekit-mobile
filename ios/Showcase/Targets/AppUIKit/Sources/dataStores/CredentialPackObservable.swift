@@ -52,8 +52,13 @@ class CredentialPackObservable: ObservableObject {
     ///   • QR — a real, verifiable **SD-JWT VP** with `portrait` selectively
     ///     hidden, generated end-to-end on this device (test fixture issuer
     ///     → VP token → bytes).
-    ///   • PDF-417 — AAMVA-style mock string (real AAMVA encoder integration
-    ///     handled by the `generateAamvaPdf417Bytes` PR; not yet wired here).
+    ///   • PDF-417 — real **AAMVA DL bytes** derived from the passed
+    ///     `credential` via `generateAamvaPdf417Bytes`. `vcBarcode: nil`
+    ///     means we emit DL-only (no signed ZZ subfile); CA DMV doesn't
+    ///     issue VC Barcodes yet, and when they do the wallet will fetch
+    ///     those bytes and pass them through here. On encode failure
+    ///     (e.g. non-mDL credential), falls back to a mock so the PDF
+    ///     still renders.
     ///
     /// ## Swap to a real CA DMV credential
     /// Replace the `generateTestMdlSdJwtCompact()` call below with the
@@ -64,13 +69,13 @@ class CredentialPackObservable: ObservableObject {
     ///
     /// See `vcdm2_sd_jwt.rs::generate_test_mdl_sd_jwt` for the full swap
     /// recipe.
-    func getDemoSupplements() async throws -> [PdfSupplement] {
+    func getDemoSupplements(for mdocCredential: ParsedCredential) async throws -> [PdfSupplement] {
         // 1. Get a self-signed test SD-JWT (REPLACE WITH REAL CREDENTIAL).
         let sdJwtCompact = await generateTestMdlSdJwtCompact()
 
         // 2. Parse into a ParsedCredential the SDK can work with.
         let sdJwt = try Vcdm2SdJwt.newFromCompactSdJwt(input: sdJwtCompact)
-        let credential = ParsedCredential.newSdJwt(sdJwtVc: sdJwt)
+        let sdJwtCredential = ParsedCredential.newSdJwt(sdJwtVc: sdJwt)
 
         // 3. Generate the SD-JWT VP that hides `portrait`.
         let vpParams = VpTokenParams(
@@ -79,7 +84,7 @@ class CredentialPackObservable: ObservableObject {
             nonce: nil
         )
         let vpBytes = try await generateCredentialVpToken(
-            credential: credential,
+            credential: sdJwtCredential,
             params: vpParams
         )
 
@@ -92,13 +97,19 @@ class CredentialPackObservable: ObservableObject {
         //    decompresses before signature checking.
         let qrBytes = try compressVpForQr(vpToken: Data(vpBytes))
 
-        // 4. PDF-417 payload — still a mock AAMVA-style string. The actual
-        //    AAMVA encoder (generateAamvaPdf417Bytes) is on a parallel PR.
-        let pdf417Payload = "DAQ DL-123456789\nDCS Doe\nDCT John\nDBB 01151990\nDBA 01152029"
+        // 5. PDF-417 payload — real AAMVA DL subfile bytes from the mDL.
+        //    `vcBarcode: nil` keeps us in DL-only mode (no signed ZZ subfile).
+        let pdf417Bytes: Data
+        do {
+            pdf417Bytes = try generateAamvaPdf417Bytes(credential: mdocCredential, vcBarcode: nil)
+        } catch {
+            let fallback = "DAQ DL-123456789\nDCS Doe\nDCT John\nDBB 01151990\nDBA 01152029"
+            pdf417Bytes = Data(fallback.utf8)
+        }
 
         return [
             .barcode(data: Data(qrBytes), barcodeType: .qrCode),
-            .barcode(data: Data(pdf417Payload.utf8), barcodeType: .pdf417),
+            .barcode(data: pdf417Bytes, barcodeType: .pdf417),
         ]
     }
 }

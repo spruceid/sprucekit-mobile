@@ -71,7 +71,7 @@ internal class SpruceUtilsAdapter(
      * Shared helper: parses a compact SD-JWT string and generates a raw VP Token byte array.
      * Both [generateCredentialVpToken] and [generateCompressedVpToken] use this logic.
      */
-    private fun buildVpTokenBytes(rawSdJwt: String, params: VpTokenParams): ByteArray {
+    private suspend fun buildVpTokenBytes(rawSdJwt: String, params: VpTokenParams): ByteArray {
         // Parse compact SD-JWT into a ParsedCredential.
         val sdJwt = Vcdm2SdJwt.newFromCompactSdJwt(rawSdJwt)
         val credential = ParsedCredential.newSdJwt(sdJwt)
@@ -157,6 +157,24 @@ internal class SpruceUtilsAdapter(
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val bytes = rustDecompressVpFromQr(qrPayload)
+                callback(Result.success(bytes))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    override fun generateAamvaPdf417Bytes(
+        rawMdoc: String,
+        vcBarcode: ByteArray?,
+        callback: (Result<ByteArray>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val documentBytes = Base64.decode(rawMdoc, Base64.DEFAULT)
+                val mdoc = Mdoc.fromCborEncodedDocument(documentBytes, "pdf")
+                val credential = ParsedCredential.newMsoMdoc(mdoc)
+                val bytes = com.spruceid.mobile.sdk.rs.generateAamvaPdf417Bytes(credential, vcBarcode)
                 callback(Result.success(bytes))
             } catch (e: Exception) {
                 callback(Result.failure(e))

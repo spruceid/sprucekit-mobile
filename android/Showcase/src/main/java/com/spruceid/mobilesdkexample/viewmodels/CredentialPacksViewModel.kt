@@ -16,6 +16,7 @@ import com.spruceid.mobile.sdk.rs.PdfSupplement
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobile.sdk.rs.VpTokenParams
 import com.spruceid.mobile.sdk.rs.compressVpForQr
+import com.spruceid.mobile.sdk.rs.generateAamvaPdf417Bytes
 import com.spruceid.mobile.sdk.rs.generateCredentialVpToken
 import com.spruceid.mobile.sdk.rs.generateTestMdlSdJwtCompact
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -86,8 +87,12 @@ class CredentialPacksViewModel @Inject constructor(
      *   - QR: a real, verifiable **SD-JWT VP** with `portrait` selectively
      *     hidden, generated end-to-end on this device (test fixture issuer
      *     -> VP token -> bytes).
-     *   - PDF-417: AAMVA-style mock string (real AAMVA encoder integration
-     *     is on a parallel PR — `generateAamvaPdf417Bytes`).
+     *   - PDF-417: real **AAMVA DL bytes** derived from the passed
+     *     [mdocCredential] via [generateAamvaPdf417Bytes].  `vcBarcode = null`
+     *     means we emit DL-only (no signed ZZ subfile); CA DMV doesn't issue
+     *     VC Barcodes yet, and when they do the wallet will fetch those
+     *     bytes and pass them through here.  On encode failure (e.g. non-mDL
+     *     credential), falls back to a mock so the PDF still renders.
      *
      * ## Swap to a real CA DMV credential
      * Replace the `generateTestMdlSdJwtCompact()` call below with the
@@ -99,13 +104,13 @@ class CredentialPacksViewModel @Inject constructor(
      * See `vcdm2_sd_jwt.rs::generate_test_mdl_sd_jwt` for the full swap
      * recipe.
      */
-    suspend fun getDemoSupplements(): List<PdfSupplement> {
+    suspend fun getDemoSupplements(mdocCredential: ParsedCredential): List<PdfSupplement> {
         // 1. Get a self-signed test SD-JWT (REPLACE WITH REAL CREDENTIAL).
         val sdJwtCompact = generateTestMdlSdJwtCompact()
 
         // 2. Parse into a ParsedCredential the SDK can work with.
         val sdJwt = Vcdm2SdJwt.newFromCompactSdJwt(sdJwtCompact)
-        val credential = ParsedCredential.newSdJwt(sdJwt)
+        val sdJwtCredential = ParsedCredential.newSdJwt(sdJwt)
 
         // 3. Generate the SD-JWT VP that hides `portrait`.
         val vpParams = VpTokenParams(
@@ -113,7 +118,7 @@ class CredentialPacksViewModel @Inject constructor(
             audience = "https://demo.spruceid.com",
             nonce = null
         )
-        val vpBytes = generateCredentialVpToken(credential, vpParams)
+        val vpBytes = generateCredentialVpToken(sdJwtCredential, vpParams)
 
         // 4. Compress for QR numeric-mode encoding. The raw SD-JWT VP is
         //    too large for QR byte mode (~2.95 KB cap @ V40 L-EC); the
@@ -124,9 +129,13 @@ class CredentialPacksViewModel @Inject constructor(
         //    decompresses before signature checking.
         val qrBytes = compressVpForQr(vpBytes)
 
-        // 4. PDF-417 payload — still a mock AAMVA-style string. The real
-        //    AAMVA encoder (generateAamvaPdf417Bytes) is on a parallel PR.
-        val pdf417Payload = "DAQ DL-123456789\nDCS Doe\nDCT John\nDBB 01151990\nDBA 01152029".toByteArray()
+        // 5. PDF-417 payload — real AAMVA DL subfile bytes from the mDL.
+        //    `vcBarcode = null` keeps us in DL-only mode (no signed ZZ subfile).
+        val pdf417Payload = try {
+            generateAamvaPdf417Bytes(mdocCredential, null)
+        } catch (_: Exception) {
+            "DAQ DL-123456789\nDCS Doe\nDCT John\nDBB 01151990\nDBA 01152029".toByteArray()
+        }
 
         return listOf(
             PdfSupplement.Barcode(data = qrBytes, barcodeType = BarcodeType.QR_CODE),

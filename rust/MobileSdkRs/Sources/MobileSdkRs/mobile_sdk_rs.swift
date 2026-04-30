@@ -18910,6 +18910,96 @@ public func FfiConverterTypeVpTokenParams_lower(_ value: VpTokenParams) -> RustB
     return FfiConverterTypeVpTokenParams.lower(value)
 }
 
+
+public enum AamvaEncodeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case UnsupportedCredentialType
+    case MissingMdlField(String
+    )
+    case Internal(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension AamvaEncodeError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAamvaEncodeError: FfiConverterRustBuffer {
+    typealias SwiftType = AamvaEncodeError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AamvaEncodeError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .UnsupportedCredentialType
+        case 2: return .MissingMdlField(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .Internal(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AamvaEncodeError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .UnsupportedCredentialType:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .MissingMdlField(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Internal(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAamvaEncodeError_lift(_ buf: RustBuffer) throws -> AamvaEncodeError {
+    return try FfiConverterTypeAamvaEncodeError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAamvaEncodeError_lower(_ value: AamvaEncodeError) -> RustBuffer {
+    return FfiConverterTypeAamvaEncodeError.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -31947,6 +32037,35 @@ private func uniffiForeignFutureDroppedCallback(handle: UInt64) {
 public func uniffiForeignFutureHandleCountMobileSdkRs() -> Int {
     UNIFFI_FOREIGN_FUTURE_HANDLE_MAP.count
 }
+/**
+ * Generate AAMVA-format bytes suitable for feeding into the PDF-417 renderer.
+ *
+ * Wallets typically pass the returned bytes as a
+ * [`crate::pdf::PdfSupplement::Barcode`] into
+ * [`crate::pdf::generate_credential_pdf`].
+ *
+ * # Parameters
+ *
+ * - `credential` — an mDL (`mso_mdoc` doctype). Other credential types return
+ * [`AamvaEncodeError::UnsupportedCredentialType`].
+ * - `vc_barcode` — optional pre-signed **VC Barcode (VCB)** bytes per the W3C
+ * [`w3c-vc-barcodes`] spec (CBOR-LD compressed, DL-field-commitment-bound).
+ * **Not** a generic JWT-VC / LDP-VC / mDoc — the issuer must produce this
+ * specific format (SpruceKit only receives it and passes through).
+ * When `Some`, embedded as a ZZ subfile so compliant AAMVA readers can verify
+ * the credential offline against the DL subfile. When `None`, only the DL
+ * subfile is emitted.
+ *
+ * [`w3c-vc-barcodes`]: https://w3c-ccg.github.io/vc-barcodes/
+ */
+public func generateAamvaPdf417Bytes(credential: ParsedCredential, vcBarcode: Data?)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeAamvaEncodeError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_generate_aamva_pdf417_bytes(
+        FfiConverterTypeParsedCredential_lower(credential),
+        FfiConverterOptionData.lower(vcBarcode),$0
+    )
+})
+}
 public func cborLdEncodeToBytes(credentialStr: String, loader: [String: String]?)async throws  -> Data  {
     return
         try  await uniffiRustCallAsync(
@@ -32502,6 +32621,9 @@ private let initializationResult: InitializationResult = {
     let scaffolding_contract_version = ffi_mobile_sdk_rs_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_aamva_pdf417_bytes() != 37974) {
+        return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_cbor_ld_encode_to_bytes() != 42759) {
         return InitializationResult.apiChecksumMismatch

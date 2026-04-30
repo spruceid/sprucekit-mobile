@@ -7,15 +7,15 @@ PODS:
     - Flutter
   - share_plus (0.0.1):
     - Flutter
-  - SpruceIDMobileSdk (0.15.3):
-    - SpruceIDMobileSdkRs (~> 0.15.3)
+  - SpruceIDMobileSdk (0.15.4):
+    - SpruceIDMobileSdkRs (~> 0.15.4)
     - SwiftAlgorithms (~> 1.0.0)
-  - SpruceIDMobileSdkRs (0.15.3):
-    - SpruceIDMobileSdkRsRustFramework (= 0.15.3)
-  - SpruceIDMobileSdkRsRustFramework (0.15.3)
-  - sprucekit_mobile (0.15.3):
+  - SpruceIDMobileSdkRs (0.15.4):
+    - SpruceIDMobileSdkRsRustFramework (= 0.15.4)
+  - SpruceIDMobileSdkRsRustFramework (0.15.4)
+  - sprucekit_mobile (0.15.4):
     - Flutter
-    - SpruceIDMobileSdk (~> 0.15.3)
+    - SpruceIDMobileSdk (~> 0.15.4)
   - SwiftAlgorithms (1.0.0)
 
 DEPENDENCIES:
@@ -56,10 +56,10 @@ SPEC CHECKSUMS:
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
-  SpruceIDMobileSdk: 183e92d0da633108ff101d5664968866e5285174
-  SpruceIDMobileSdkRs: 1128a2e35c7398a876470aba190d451cee55876d
-  SpruceIDMobileSdkRsRustFramework: 7b5cde7afcd91ac055088fc6e075fb6ba4b841e4
-  sprucekit_mobile: 9d344c114bc641962a779e6dda4f2d1d637beb47
+  SpruceIDMobileSdk: 61c1278c6d12a87fc84bc37cbe26bb80d52e806f
+  SpruceIDMobileSdkRs: 8438aaea8a421293dabc87d722236318674610af
+  SpruceIDMobileSdkRsRustFramework: fe6afb73b8cf3782aacf321a993550473ea5c575
+  sprucekit_mobile: 2172658d82ae4856b944ebe2d3ea6cfbeffcfe5d
   SwiftAlgorithms: 38dda4731d19027fdeee1125f973111bf3386b53
 
 PODFILE CHECKSUM: b69b363296c914f73d8c30eef22e70abce1812bc

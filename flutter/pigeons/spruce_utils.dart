@@ -228,4 +228,21 @@ abstract class SpruceUtils {
   /// @return Original compact SD-JWT VP token bytes (UTF-8)
   @async
   Uint8List decompressVpFromQr(Uint8List qrPayload);
+
+  /// Generate AAMVA-format PDF-417 bytes from a raw mDL credential.
+  ///
+  /// The returned bytes follow the AAMVA DL/ID Card Design Standard and can
+  /// be passed straight into [generateCredentialPdf] as a [PdfSupplement]
+  /// of type [PdfSupplementType.barcode] with [PdfBarcodeType.pdf417].
+  ///
+  /// @param rawMdoc Base64-encoded IssuerSigned bytes of the mDL
+  /// @param vcBarcode Optional pre-signed **VC Barcode (VCB)** bytes per the
+  ///   W3C `w3c-vc-barcodes` spec (CBOR-LD compressed, DL-field-commitment-
+  ///   bound). **Not** a generic JWT-VC / LDP-VC / mDoc — the issuer must
+  ///   produce this specific format. When non-null, embedded as a ZZ subfile
+  ///   so compliant AAMVA readers can verify the credential offline against
+  ///   the DL subfile. When null, only the DL subfile is emitted.
+  /// @return Raw AAMVA bytes ready to be rendered as a PDF-417 barcode
+  @async
+  Uint8List generateAamvaPdf417Bytes(String rawMdoc, Uint8List? vcBarcode);
 }

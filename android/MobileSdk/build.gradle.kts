@@ -89,9 +89,14 @@ publishing {
     }
 }
 
-signing {
-    useGpgCmd()
-    sign(publishing.publications["release"])
+// Skip signing for local-only publications.  CLAUDE.md note:
+// `-PskipSigning` is the standard local-dev escape hatch — revert never
+// needed (it's a no-op in CI / release builds where the property is unset).
+if (!project.hasProperty("skipSigning")) {
+    signing {
+        useGpgCmd()
+        sign(publishing.publications["release"])
+    }
 }
 
 

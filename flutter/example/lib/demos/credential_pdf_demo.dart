@@ -23,6 +23,14 @@ const int _kMaxScanAttempts = 5;
 /// preserves the issuer signature for the remaining claims.
 const _kHiddenFieldsForQr = <String>['portrait'];
 
+/// Which barcode the step-3 scanner is currently reading.
+///
+/// QR uses the high-density (ML Kit / Vision) scanner and runs the scanned
+/// payload through `verifySdJwtVp`. PDF-417 uses the dedicated PDF-417
+/// scanner and just stashes the decoded AAMVA bytes for inspection — no
+/// cryptographic verification (the AAMVA DL subfile is plain text).
+enum _ScanMode { qr, pdf417 }
+
 /// Demo screen for generating a PDF from an mDL credential
 class CredentialPdfDemo extends StatefulWidget {
   const CredentialPdfDemo({super.key});
@@ -44,9 +52,15 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
 
   // ── Step 3: Scan + verify the QR we just embedded ──────────────────────
   bool _isScanning = false;
+  _ScanMode _scanMode = _ScanMode.qr;
   bool? _verifySuccess;
   String? _verifyMessage;
   int _scanFailureCount = 0;
+
+  /// Raw text decoded from a PDF-417 scan — typically AAMVA-format bytes
+  /// starting with `@\n\x1e\rANSI …`. Shown verbatim in a monospace block
+  /// so the user can eyeball the DL subfile fields.
+  String? _scannedPdf417Content;
 
   /// Build the QR + PDF-417 supplements that get embedded in the PDF.
   ///
@@ -56,9 +70,12 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
   /// so the same PDF can be exercised across all three platforms — and the
   /// Showcase Android `VerifySdJwtView` can scan and verify it.
   ///
-  /// **PDF-417**: Still placeholder AAMVA-style key/value text. A real
-  /// AAMVA encoder is in flight on `feat/generate_aamva_pdf317_bytes`; once
-  /// that lands and is exposed via Pigeon, swap this for a call to it.
+  /// **PDF-417**: Real AAMVA DL subfile bytes derived from the wallet's
+  /// stored mDL via [SpruceUtils.generateAamvaPdf417Bytes]. `vcBarcode = null`
+  /// keeps us in DL-only mode (no signed ZZ subfile); when CA DMV starts
+  /// issuing VC Barcodes the wallet will fetch those bytes and pass them
+  /// through here. On encode failure, falls back to a mock so the PDF still
+  /// renders.
   Future<List<PdfSupplement>> _buildDemoSupplements() async {
     if (!_includeBarcodes) return [];
 
@@ -79,13 +96,22 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
       ),
     );
 
-    // ── PDF-417: placeholder AAMVA text (real encoder pending) ────────────
-    const pdf417Payload =
-        'DAQ DL-123456789\n'
-        'DCS Doe\n'
-        'DCT John\n'
-        'DBB 01151990\n'
-        'DBA 01152029\n';
+    // ── PDF-417: real AAMVA DL bytes from the stored mDL ──────────────────
+    Uint8List pdf417Bytes;
+    try {
+      pdf417Bytes = await _spruceUtils.generateAamvaPdf417Bytes(
+        _rawCredential!,
+        null,
+      );
+    } catch (_) {
+      const fallback =
+          'DAQ DL-123456789\n'
+          'DCS Doe\n'
+          'DCT John\n'
+          'DBB 01151990\n'
+          'DBA 01152029\n';
+      pdf417Bytes = Uint8List.fromList(utf8.encode(fallback));
+    }
 
     return [
       PdfSupplement(
@@ -95,7 +121,7 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
       ),
       PdfSupplement(
         type: PdfSupplementType.barcode,
-        data: Uint8List.fromList(utf8.encode(pdf417Payload)),
+        data: pdf417Bytes,
         barcodeType: PdfBarcodeType.pdf417,
       ),
     ];
@@ -169,12 +195,13 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
     }
   }
 
-  /// Step 3 entry point: ensure camera permission, then open the high-density
-  /// QR scanner. The native [SpruceScanner] platform view does not request
-  /// permission itself (unlike the showcase's `ScanningComponent`), so the
-  /// Flutter side has to do it before the view goes on-screen — otherwise
-  /// the camera silently never starts.
-  Future<void> _startScan() async {
+  /// Step 3 entry point: ensure camera permission, then open a scanner of
+  /// the requested type ([_ScanMode.qr] or [_ScanMode.pdf417]). The native
+  /// [SpruceScanner] platform view does not request permission itself
+  /// (unlike the showcase's `ScanningComponent`), so the Flutter side has
+  /// to do it before the view goes on-screen — otherwise the camera
+  /// silently never starts.
+  Future<void> _startScan(_ScanMode mode) async {
     final status = await Permission.camera.request();
     if (!status.isGranted) {
       setState(() {
@@ -191,6 +218,7 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
     }
     setState(() {
       _resetScanState();
+      _scanMode = mode;
       _isScanning = true;
     });
   }
@@ -207,6 +235,18 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
   /// consecutive failures (which would indicate a real problem rather than
   /// noise — e.g. wrong QR, expired credential, etc.).
   Future<void> _onScanRead(String content) async {
+    // PDF-417 path: AAMVA DL bytes are plain text — no signature to check,
+    // first successful read is what we want.
+    if (_scanMode == _ScanMode.pdf417) {
+      setState(() {
+        _isScanning = false;
+        _scannedPdf417Content = content;
+      });
+      return;
+    }
+
+    // QR path: SD-JWT VP — verify issuer signature; retry on transient
+    // QR-density bit flips.
     try {
       await _spruceUtils.verifySdJwtVp(content);
       // Success: dismiss scanner and show result.
@@ -239,6 +279,7 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
     _scanFailureCount = 0;
     _verifySuccess = null;
     _verifyMessage = null;
+    _scannedPdf417Content = null;
   }
 
   void _cancelScan() {
@@ -264,12 +305,15 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
     // SpruceScanner. Returning to the demo on read / cancel goes through
     // _onScanRead / _cancelScan, which clear _isScanning.
     if (_isScanning) {
+      final isPdf417 = _scanMode == _ScanMode.pdf417;
       return Scaffold(
         body: SafeArea(
           child: SpruceScanner(
-            type: ScannerType.qrCodeHighDensity,
-            title: 'Scan PDF QR',
-            subtitle: 'Frame the QR on the generated PDF',
+            type: isPdf417 ? ScannerType.pdf417 : ScannerType.qrCodeHighDensity,
+            title: isPdf417 ? 'Scan PDF-417' : 'Scan PDF QR',
+            subtitle: isPdf417
+                ? 'Frame the PDF-417 barcode at the bottom of the PDF'
+                : 'Frame the QR on the generated PDF',
             onRead: _onScanRead,
             onCancel: _cancelScan,
           ),
@@ -435,17 +479,25 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Open the high-density QR scanner (ML Kit on Android, '
-                      'Vision on iOS) and scan an SD-JWT VP QR — from the '
-                      'PDF you just generated, or any other source. The '
-                      'scanner is tuned for V37+ QR codes (same as the '
-                      'native Showcase verifier).',
+                      'Two scanners — point either at the corresponding '
+                      'barcode on the generated PDF (or any other source).\n\n'
+                      '• QR: high-density (ML Kit / Vision) scanner that '
+                      'verifies the SD-JWT VP signature.\n'
+                      '• PDF-417: dedicated PDF-417 scanner that decodes the '
+                      'AAMVA DL subfile to plain text (no signature to '
+                      'check at this stage).',
                     ),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
-                      onPressed: _startScan,
+                      onPressed: () => _startScan(_ScanMode.qr),
                       icon: const Icon(Icons.qr_code_scanner),
-                      label: const Text('Scan & Verify'),
+                      label: const Text('Scan QR & Verify'),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => _startScan(_ScanMode.pdf417),
+                      icon: const Icon(Icons.barcode_reader),
+                      label: const Text('Scan PDF-417'),
                     ),
                     if (_verifyMessage != null) ...[
                       const SizedBox(height: 12),
@@ -477,6 +529,45 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
                                       ? Colors.green.shade700
                                       : Colors.red.shade700,
                                 ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    if (_scannedPdf417Content != null) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.barcode_reader,
+                                  color: Colors.blue.shade700,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'PDF-417 decoded (${_scannedPdf417Content!.length} bytes)',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            SelectableText(
+                              _scannedPdf417Content!,
+                              style: const TextStyle(
+                                fontFamily: 'monospace',
+                                fontSize: 11,
                               ),
                             ),
                           ],
