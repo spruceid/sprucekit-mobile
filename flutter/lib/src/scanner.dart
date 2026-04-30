@@ -67,6 +67,8 @@ class SpruceScanner extends StatefulWidget {
     this.subtitle = 'Please align within the guides',
     this.isMatch,
     this.showCancelButton = true,
+    this.headless = false,
+    this.scanCooldownMs = 0,
   });
 
   /// The type of scanner to use.
@@ -90,6 +92,17 @@ class SpruceScanner extends StatefulWidget {
 
   /// Whether to show the cancel button. Defaults to true.
   final bool showCancelButton;
+
+  /// When true, the scanner renders only the camera preview with no chrome
+  /// (no title, subtitle, overlay, guides, scan-line, or cancel button).
+  /// The caller is expected to draw its own UI on top.
+  final bool headless;
+
+  /// Cooldown between successive [onRead] emissions, in milliseconds.
+  /// When 0 (default), the scanner stops after the first read on iOS and
+  /// fires per-frame on Android. When > 0, the scanner runs continuously
+  /// and ignores reads within the cooldown window.
+  final int scanCooldownMs;
 
   @override
   State<SpruceScanner> createState() => _SpruceScannerState();
@@ -137,11 +150,27 @@ class _SpruceScannerState extends State<SpruceScanner> {
   }
 
   Map<String, dynamic> _creationParams() {
+    if (widget.headless) {
+      // Native scanners render no chrome when text is empty and overlays are transparent.
+      return {
+        'type': widget.type.name,
+        'title': '',
+        'subtitle': '',
+        'instructions': '',
+        'guidesText': '',
+        'showCancelButton': false,
+        'backgroundOpacity': 0.0,
+        'guidesColor': 0x00000000,
+        'readerColor': 0x00000000,
+        'scanCooldownMs': widget.scanCooldownMs,
+      };
+    }
     return {
       'type': widget.type.name,
       'title': widget.title,
       'subtitle': widget.subtitle,
       'showCancelButton': widget.showCancelButton,
+      'scanCooldownMs': widget.scanCooldownMs,
     };
   }
 

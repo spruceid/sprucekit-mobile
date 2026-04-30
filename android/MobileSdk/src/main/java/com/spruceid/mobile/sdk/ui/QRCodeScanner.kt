@@ -71,7 +71,8 @@ fun QRCodeScanner(
     backgroundColor: Color = Color.White,
     backgroundOpacity: Float = 1f,
     instructions: String = "",
-    instructionsDefaultColor: Color = Color.Gray
+    instructionsDefaultColor: Color = Color.Gray,
+    scanCooldownMs: Long = 0L
 ) {
 
     GenericCameraXScanner(
@@ -89,7 +90,9 @@ fun QRCodeScanner(
             isMatch = isMatch,
             onQrCodeScanned = { result ->
                 onRead(result)
-            }),
+            },
+            scanCooldownMs = scanCooldownMs,
+        ),
         background = {
             QRCodeScannerBackground(
                 guidesText = guidesText,
@@ -185,50 +188,52 @@ fun QRCodeScannerBackground(
         )
 
         // Blue pill component with loader and text
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset {
-                    IntOffset(
-                        0,
-                        (guidesMessageOffsetTop - (bluePillHeight / 2) - 10.dp.toPx()).toInt() // offset - height - padding
+        if (guidesText.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset {
+                        IntOffset(
+                            0,
+                            (guidesMessageOffsetTop - (bluePillHeight / 2) - 10.dp.toPx()).toInt() // offset - height - padding
+                        )
+                    }
+                    .background(
+                        color = guidesColor,
+                        shape = RoundedCornerShape(100f)
                     )
-                }
-                .background(
-                    color = guidesColor,
-                    shape = RoundedCornerShape(100f)
-                )
-                .padding(horizontal = 20.dp, vertical = 10.dp)
-                .onGloballyPositioned { coordinates ->
-                    bluePillHeight = coordinates.size.height.toFloat()
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                    .onGloballyPositioned { coordinates ->
+                        bluePillHeight = coordinates.size.height.toFloat()
+                    },
+                contentAlignment = Alignment.Center
             ) {
-                // Rotating loader
-                Box(
-                    modifier = Modifier.size(20.dp),
-                    contentAlignment = Alignment.Center
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = Color.Gray.copy(alpha = 0.6f),
-                        trackColor = Color.White,
-                        strokeWidth = 2.dp
+                    // Rotating loader
+                    Box(
+                        modifier = Modifier.size(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.Gray.copy(alpha = 0.6f),
+                            trackColor = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                    }
+
+                    // Text
+                    Text(
+                        text = guidesText,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontFamily = fontFamily,
+                        fontWeight = FontWeight.Normal
                     )
                 }
-
-                // Text
-                Text(
-                    text = guidesText,
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontFamily = fontFamily,
-                    fontWeight = FontWeight.Normal
-                )
             }
         }
 
@@ -256,9 +261,12 @@ fun QRCodeScannerBackground(
 class QrCodeAnalyzer(
     private val onQrCodeScanned: (String) -> Unit,
     private val isMatch: (content: String) -> Boolean = { _ -> true },
+    private val scanCooldownMs: Long = 0L,
 ) : ImageAnalysis.Analyzer {
 
     private val supportedImageFormats = mutableListOf(ImageFormat.YUV_420_888)
+    @Volatile
+    private var lastReadAt: Long = 0L
 
     init {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -290,7 +298,11 @@ class QrCodeAnalyzer(
             try {
                 val result = QRCodeReader().decode(binaryBmp, hints)
                 if (isMatch(result.text)) {
-                    onQrCodeScanned(result.text)
+                    val now = System.currentTimeMillis()
+                    if (scanCooldownMs <= 0L || now - lastReadAt >= scanCooldownMs) {
+                        lastReadAt = now
+                        onQrCodeScanned(result.text)
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

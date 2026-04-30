@@ -36,6 +36,9 @@ public struct AVMetadataObjectScanner: View {
     /// Scanned code
     @State private var scannedCode: String = ""
 
+    /// Last read timestamp; used to throttle reads when scanCooldownMs > 0.
+    @State private var lastReadAt: Date?
+
     var metadataObjectTypes: [AVMetadataObject.ObjectType]
     var title: String
     var subtitle: String
@@ -55,6 +58,9 @@ public struct AVMetadataObjectScanner: View {
     var backgroundOpacity: Double
     var regionOfInterest: CGSize
     var scannerGuides: (any View)?
+    /// When > 0, the scanner runs continuously and throttles onRead to at most
+    /// once per window. When 0 (default), the camera stops after the first read.
+    var scanCooldownMs: Int
 
     public init(
         metadataObjectTypes: [AVMetadataObject.ObjectType] = [.qr],
@@ -75,7 +81,8 @@ public struct AVMetadataObjectScanner: View {
         backgroundColor: Color = .black,
         backgroundOpacity: Double = 0.75,
         regionOfInterest: CGSize = CGSize(width: 0, height: 0),
-        scannerGuides: (any View)? = nil
+        scannerGuides: (any View)? = nil,
+        scanCooldownMs: Int = 0
     ) {
         self.metadataObjectTypes = metadataObjectTypes
         self.title = title
@@ -96,6 +103,7 @@ public struct AVMetadataObjectScanner: View {
         self.backgroundOpacity = backgroundOpacity
         self.regionOfInterest = regionOfInterest
         self.scannerGuides = scannerGuides
+        self.scanCooldownMs = scanCooldownMs
     }
 
     public var body: some View {
@@ -221,20 +229,26 @@ public struct AVMetadataObjectScanner: View {
         }
 
         .onChange(of: qrDelegate.scannedCode) { newValue in
-            if let code = newValue {
+            guard let code = newValue else { return }
+
+            if scanCooldownMs > 0 {
+                let now = Date()
+                if let last = lastReadAt,
+                   now.timeIntervalSince(last) * 1000 < Double(scanCooldownMs) {
+                    qrDelegate.scannedCode = nil
+                    return
+                }
+                lastReadAt = now
                 scannedCode = code
-
-                /// When the first code scan is available, immediately stop the camera.
-                session.stopRunning()
-
-                /// Stopping scanner animation
-                deActivateScannerAnimation()
-                /// Clearing the data on delegate
                 qrDelegate.scannedCode = nil
-
+                onRead(code)
+            } else {
+                scannedCode = code
+                session.stopRunning()
+                deActivateScannerAnimation()
+                qrDelegate.scannedCode = nil
                 onRead(code)
             }
-
         }
 
     }
