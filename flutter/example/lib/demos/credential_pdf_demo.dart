@@ -309,7 +309,12 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
       return Scaffold(
         body: SafeArea(
           child: SpruceScanner(
-            type: isPdf417 ? ScannerType.pdf417 : ScannerType.qrCodeHighDensity,
+            // Use the high-density PDF-417 scanner (ML Kit on Android,
+            // Vision on iOS). ZXing's default PDF-417 reader can't reliably
+            // decode the dense AAMVA DL payload we generate.
+            type: isPdf417
+                ? ScannerType.pdf417HighDensity
+                : ScannerType.qrCodeHighDensity,
             title: isPdf417 ? 'Scan PDF-417' : 'Scan PDF QR',
             subtitle: isPdf417
                 ? 'Frame the PDF-417 barcode at the bottom of the PDF'

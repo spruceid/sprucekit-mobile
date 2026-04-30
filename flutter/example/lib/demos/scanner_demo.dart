@@ -292,6 +292,7 @@ class _ScannerDemoState extends State<ScannerDemo> {
       case ScannerType.qrCodeHighDensity:
         return 'Scan QR Code';
       case ScannerType.pdf417:
+      case ScannerType.pdf417HighDensity:
         return 'Scan Barcode';
       case ScannerType.mrz:
         return 'Scan MRZ';
@@ -304,6 +305,7 @@ class _ScannerDemoState extends State<ScannerDemo> {
       case ScannerType.qrCodeHighDensity:
         return 'Align the QR code within the frame';
       case ScannerType.pdf417:
+      case ScannerType.pdf417HighDensity:
         return 'Align the barcode within the frame';
       case ScannerType.mrz:
         return 'Align the document within the frame';

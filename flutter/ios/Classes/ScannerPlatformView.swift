@@ -93,7 +93,11 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
                     hideCancelButton: hideCancelButton
                 )
             )
-        case "pdf417":
+        case "pdf417", "pdf417HighDensity":
+            // iOS Vision handles dense PDF-417 natively, so the high-density
+            // variant routes to the same scanner here. The Android side
+            // dispatches to a separate ML Kit-backed implementation; see
+            // Flutter `ScannerType.pdf417HighDensity`.
             scannerView = AnyView(
                 PDF417Scanner(
                     title: title,

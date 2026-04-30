@@ -22,6 +22,17 @@ enum ScannerType {
   /// PDF417 barcode scanner (used for driver's licenses)
   pdf417,
 
+  /// PDF-417 scanner tuned for **dense** payloads (e.g. real AAMVA DL
+  /// subfiles, ~340 bytes → ~30 cols × ~30 rows).
+  ///
+  /// On Android, routes to a Google ML Kit-backed scanner running on a
+  /// 4K analysis stream — required to read the AAMVA bytes that the
+  /// `generateAamvaPdf417Bytes` pipeline produces. The default [pdf417]
+  /// scanner uses ZXing at 720p and cannot reliably decode these
+  /// payloads. iOS routes to the same Vision-based decoder as [pdf417]
+  /// (Vision handles dense PDF-417 natively).
+  pdf417HighDensity,
+
   /// MRZ (Machine Readable Zone) scanner for passports/IDs
   mrz,
 }
