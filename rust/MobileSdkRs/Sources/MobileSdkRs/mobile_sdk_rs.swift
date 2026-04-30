@@ -18846,6 +18846,70 @@ public func FfiConverterTypeTestMdlData_lower(_ value: TestMdlData) -> RustBuffe
     return FfiConverterTypeTestMdlData.lower(value)
 }
 
+
+/**
+ * Parameters controlling VP token generation.
+ *
+ * `audience` and `nonce` are reserved for a future KB-JWT signing path; they
+ * are currently accepted but ignored (see module-level KB-JWT note above).
+ */
+public struct VpTokenParams: Equatable, Hashable {
+    public var disclosure: DisclosureSelection
+    public var audience: String
+    public var nonce: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(disclosure: DisclosureSelection, audience: String, nonce: String?) {
+        self.disclosure = disclosure
+        self.audience = audience
+        self.nonce = nonce
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VpTokenParams: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVpTokenParams: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VpTokenParams {
+        return
+            try VpTokenParams(
+                disclosure: FfiConverterTypeDisclosureSelection.read(from: &buf), 
+                audience: FfiConverterString.read(from: &buf), 
+                nonce: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VpTokenParams, into buf: inout [UInt8]) {
+        FfiConverterTypeDisclosureSelection.write(value.disclosure, into: &buf)
+        FfiConverterString.write(value.audience, into: &buf)
+        FfiConverterOptionString.write(value.nonce, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVpTokenParams_lift(_ buf: RustBuffer) throws -> VpTokenParams {
+    return try FfiConverterTypeVpTokenParams.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVpTokenParams_lower(_ value: VpTokenParams) -> RustBuffer {
+    return FfiConverterTypeVpTokenParams.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -21180,6 +21244,94 @@ public func FfiConverterTypeDidMethod_lift(_ buf: RustBuffer) throws -> DidMetho
 #endif
 public func FfiConverterTypeDidMethod_lower(_ value: DidMethod) -> RustBuffer {
     return FfiConverterTypeDidMethod.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Selective-disclosure mode for VP token generation.
+ *
+ * `HideOnly` is more ergonomic when the caller wants to reveal the bulk of
+ * available claims (e.g. the mDL PDF use case, which hides only `portrait`
+ * to fit the QR capacity). `SelectOnly` is more ergonomic when only a few
+ * claims should be revealed (e.g. an age-verification flow that discloses
+ * just `age_over_21`).
+ */
+
+public enum DisclosureSelection: Equatable, Hashable {
+    
+    /**
+     * Reveal every selectively-disclosable claim **except** those listed.
+     */
+    case hideOnly(fields: [String]
+    )
+    /**
+     * Reveal **only** the listed selectively-disclosable claims.
+     */
+    case selectOnly(fields: [String]
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DisclosureSelection: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDisclosureSelection: FfiConverterRustBuffer {
+    typealias SwiftType = DisclosureSelection
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisclosureSelection {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .hideOnly(fields: try FfiConverterSequenceString.read(from: &buf)
+        )
+        
+        case 2: return .selectOnly(fields: try FfiConverterSequenceString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DisclosureSelection, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .hideOnly(fields):
+            writeInt(&buf, Int32(1))
+            FfiConverterSequenceString.write(fields, into: &buf)
+            
+        
+        case let .selectOnly(fields):
+            writeInt(&buf, Int32(2))
+            FfiConverterSequenceString.write(fields, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisclosureSelection_lift(_ buf: RustBuffer) throws -> DisclosureSelection {
+    return try FfiConverterTypeDisclosureSelection.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisclosureSelection_lower(_ value: DisclosureSelection) -> RustBuffer {
+    return FfiConverterTypeDisclosureSelection.lower(value)
 }
 
 
@@ -26715,6 +26867,15 @@ public enum SdJwtError: Swift.Error, Equatable, Hashable, Foundation.LocalizedEr
     case CredentialEncoding(String
     )
     case CredentialClaimMissing
+    case Verification(String
+    )
+    case UnsupportedCredentialType
+    case Disclosure(String
+    )
+    case Internal(String
+    )
+    case QrCodec(String
+    )
 
     
 
@@ -26760,6 +26921,19 @@ public struct FfiConverterTypeSdJwtError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 6: return .CredentialClaimMissing
+        case 7: return .Verification(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .UnsupportedCredentialType
+        case 9: return .Disclosure(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 10: return .Internal(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 11: return .QrCodec(
+            try FfiConverterString.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -26800,6 +26974,30 @@ public struct FfiConverterTypeSdJwtError: FfiConverterRustBuffer {
         case .CredentialClaimMissing:
             writeInt(&buf, Int32(6))
         
+        
+        case let .Verification(v1):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .UnsupportedCredentialType:
+            writeInt(&buf, Int32(8))
+        
+        
+        case let .Disclosure(v1):
+            writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Internal(v1):
+            writeInt(&buf, Int32(10))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .QrCodec(v1):
+            writeInt(&buf, Int32(11))
+            FfiConverterString.write(v1, into: &buf)
+            
         }
     }
 }
@@ -31794,6 +31992,34 @@ public func defaultLdJsonContext() -> [String: String]  {
     )
 })
 }
+/**
+ * Compress a UTF-8 VP token (typically a compact SD-JWT) into the Colorado
+ * "deflate + base10 + 9-prefix" form that fits in a QR **numeric-mode**
+ * payload (~7089 digits at V40 L-EC, vs ~2953 bytes in byte mode).
+ *
+ * Pipeline:
+ * 1. `deflate` raw compression of the input bytes
+ * 2. interpret compressed bytes as a big-endian unsigned integer
+ * 3. encode that integer as a base-10 string
+ * 4. prefix with `9` (mirrors `cwt.rs::from_base10` decoder convention)
+ *
+ * **Why**: SD-JWT compact form for an mDL with 35 SD claims is ~3-6 KB even
+ * after `HideOnly(["portrait"])` — the issuer-signed `_sd` array dominates
+ * (1.6 KB just for 35 SHA-256 hashes) and we can't shrink it on the holder
+ * side. Deflate typically compresses the text-heavy SD-JWT by 50%+, and
+ * base10 numeric-mode QR has the highest density of any QR mode.
+ *
+ * Symmetric with the existing CWT base10 reader at `cwt.rs::from_base10`
+ * (line 240) — wallets / verifiers reading the QR can decompress with the
+ * same logic, swapping the final CBOR step for SD-JWT parsing.
+ */
+public func compressVpForQr(vpToken: Data)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeSdJwtError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_compress_vp_for_qr(
+        FfiConverterData.lower(vpToken),$0
+    )
+})
+}
 public func decodeRevealSdJwt(input: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeSdJwtError_lift) {
     uniffi_mobile_sdk_rs_fn_func_decode_reveal_sd_jwt(
@@ -31801,12 +32027,108 @@ public func decodeRevealSdJwt(input: String)throws  -> String  {
     )
 })
 }
+/**
+ * Inverse of [`compress_vp_for_qr`]. Given a `9`-prefixed base10 numeric
+ * string (as scanned from a QR code), recover the original VP token bytes.
+ *
+ * Mirrors [`crate::credential::format::cwt::Cwt::from_base10`] but stops
+ * after deflate decompression — the decompressed bytes are a UTF-8 SD-JWT
+ * compact serialization (vs a CWT CBOR blob in the Colorado path).
+ */
+public func decompressVpFromQr(qrPayload: Data)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeSdJwtError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_decompress_vp_from_qr(
+        FfiConverterData.lower(qrPayload),$0
+    )
+})
+}
+/**
+ * Build a compact VP token suitable for embedding in a PDF QR code.
+ *
+ * Returns the SD-JWT compact serialization (`<jwt>~<disc1>~<disc2>~…`) as
+ * UTF-8 bytes, with non-revealed disclosures filtered out per `params`.
+ */
+public func generateCredentialVpToken(credential: ParsedCredential, params: VpTokenParams)async throws  -> Data  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_generate_credential_vp_token(FfiConverterTypeParsedCredential_lower(credential),FfiConverterTypeVpTokenParams_lower(params)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterData.lift,
+            errorHandler: FfiConverterTypeSdJwtError_lift
+        )
+}
+/**
+ * Demo-only: generate a self-signed mDL SD-JWT and return its compact
+ * serialization. UniFFI-exposed wrapper around [`generate_test_mdl_sd_jwt`]
+ * so iOS / Android Showcase can produce a verifiable VP without waiting on
+ * the CA DMV microservice deploy.
+ *
+ * **Replace with stored real-issuer SD-JWT when** the wallet's OID4VCI
+ * flow returns one (see [`generate_test_mdl_sd_jwt`] for swap recipe).
+ */
+public func generateTestMdlSdJwtCompact()async  -> String  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_generate_test_mdl_sd_jwt_compact(
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: nil
+            
+        )
+}
 public func listSdFields(input: Vcdm2SdJwt)throws  -> [String]  {
     return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeSdJwtError_lift) {
     uniffi_mobile_sdk_rs_fn_func_list_sd_fields(
         FfiConverterTypeVCDM2SdJwt_lower(input),$0
     )
 })
+}
+/**
+ * Verify a compact SD-JWT VP (or VC) by parsing it, resolving the issuer's
+ * public key via DID resolution, and checking the JWS signature.
+ *
+ * Mirrors [`crate::mdl::verify_jwt_vp`] but for SD-JWT compact form
+ * (`<jwt>~<disclosure>~<disclosure>~…~`). Used by Showcase's `VerifySdJwtView`
+ * (and the wallet via UniFFI) to validate that a scanned QR payload was
+ * genuinely issued by the claimed authority.
+ *
+ * **Trust model**: relies on `AnyDidMethod` resolving the issuer's
+ * `verificationMethod` to a public key. For `did:jwk` (which embeds the key
+ * in the DID itself) this works fully offline. For other DID methods (e.g.
+ * `did:web`) network access may be required.
+ *
+ * Disclosure-level integrity (each disclosure's hash matches an `_sd` array
+ * entry) is enforced by `SdJwtVc::decode_reveal_any` during parsing, before
+ * signature verification reaches the JWT.
+ *
+ * **Caveat**: this does *not* verify a key-binding JWT, even if one is
+ * present. Holder-binding for the offline PDF-embedded VP scenario is
+ * considered out of scope (see `vp_token::generate_credential_vp_token`
+ * module note).
+ */
+public func verifySdJwtVp(input: String)async throws   {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_verify_sd_jwt_vp(FfiConverterString.lower(input)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: FfiConverterTypeSdJwtError_lift
+        )
 }
 /**
  * Verifies the signature of a raw credential.
@@ -32193,10 +32515,25 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_default_ld_json_context() != 551) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_compress_vp_for_qr() != 806) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_decode_reveal_sd_jwt() != 1713) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_decompress_vp_from_qr() != 29102) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_credential_vp_token() != 3462) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl_sd_jwt_compact() != 26745) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_list_sd_fields() != 5570) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_verify_sd_jwt_vp() != 37454) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_verify_raw_credential() != 23828) {

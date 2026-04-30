@@ -126,7 +126,6 @@ pub fn generate_credential_pdf(
     credential: Arc<ParsedCredential>,
     supplements: Vec<PdfSupplement>,
 ) -> Result<Vec<u8>, PdfError> {
-    use crate::credential::ParsedCredentialInner;
     use doctypes::mdl::MdlContent;
     use render::PdfRenderer;
 

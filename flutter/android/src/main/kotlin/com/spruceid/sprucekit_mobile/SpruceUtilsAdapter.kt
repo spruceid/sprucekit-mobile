@@ -4,11 +4,19 @@ import android.content.Context
 import android.util.Base64
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.generateCredentialPdf
+import com.spruceid.mobile.sdk.rs.generateCredentialVpToken
 import com.spruceid.mobile.sdk.rs.generateTestMdl
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PdfSupplement as RustPdfSupplement
 import com.spruceid.mobile.sdk.rs.BarcodeType as RustBarcodeType
+import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
+import com.spruceid.mobile.sdk.rs.DisclosureSelection as RustDisclosureSelection
+import com.spruceid.mobile.sdk.rs.VpTokenParams as RustVpTokenParams
+import com.spruceid.mobile.sdk.rs.compressVpForQr
+import com.spruceid.mobile.sdk.rs.decompressVpFromQr as rustDecompressVpFromQr
+import com.spruceid.mobile.sdk.rs.generateTestMdlSdJwtCompact as rustGenerateTestMdlSdJwtCompact
+import com.spruceid.mobile.sdk.rs.verifySdJwtVp as rustVerifySdJwtVp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -53,6 +61,103 @@ internal class SpruceUtilsAdapter(
 
                 val pdfBytes = generateCredentialPdf(credential, rustSupplements)
                 callback(Result.success(pdfBytes))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    /**
+     * Shared helper: parses a compact SD-JWT string and generates a raw VP Token byte array.
+     * Both [generateCredentialVpToken] and [generateCompressedVpToken] use this logic.
+     */
+    private fun buildVpTokenBytes(rawSdJwt: String, params: VpTokenParams): ByteArray {
+        // Parse compact SD-JWT into a ParsedCredential.
+        val sdJwt = Vcdm2SdJwt.newFromCompactSdJwt(rawSdJwt)
+        val credential = ParsedCredential.newSdJwt(sdJwt)
+
+        // Pigeon DisclosureSelection -> Rust DisclosureSelection
+        val rustDisclosure: RustDisclosureSelection = when (params.disclosure.type) {
+            DisclosureSelectionType.HIDE_ONLY ->
+                RustDisclosureSelection.HideOnly(fields = params.disclosure.fields)
+            DisclosureSelectionType.SELECT_ONLY ->
+                RustDisclosureSelection.SelectOnly(fields = params.disclosure.fields)
+        }
+
+        val rustParams = RustVpTokenParams(
+            disclosure = rustDisclosure,
+            audience = params.audience,
+            nonce = params.nonce
+        )
+
+        return generateCredentialVpToken(credential, rustParams)
+    }
+
+    override fun generateCredentialVpToken(
+        rawSdJwt: String,
+        params: VpTokenParams,
+        callback: (Result<ByteArray>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                callback(Result.success(buildVpTokenBytes(rawSdJwt, params)))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    override fun generateCompressedVpToken(
+        rawSdJwt: String,
+        params: VpTokenParams,
+        callback: (Result<ByteArray>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // deflate + base10 + "9"-prefix compression for QR encoding.
+                val compressed = compressVpForQr(buildVpTokenBytes(rawSdJwt, params))
+                callback(Result.success(compressed))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    override fun generateTestMdlSdJwtCompact(
+        callback: (Result<String>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val compact = rustGenerateTestMdlSdJwtCompact()
+                callback(Result.success(compact))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    override fun verifySdJwtVp(
+        input: String,
+        callback: (Result<Unit>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                rustVerifySdJwtVp(input)
+                callback(Result.success(Unit))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    override fun decompressVpFromQr(
+        qrPayload: ByteArray,
+        callback: (Result<ByteArray>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val bytes = rustDecompressVpFromQr(qrPayload)
+                callback(Result.success(bytes))
             } catch (e: Exception) {
                 callback(Result.failure(e))
             }

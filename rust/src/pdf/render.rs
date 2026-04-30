@@ -30,7 +30,15 @@ const LINE_H: f32 = 4.5; // mm per text row
 const SECTION_PAD: f32 = 4.0; // mm gap between sections
 
 // ── Barcode layout ────────────────────────────────────────────────────────────
-const QR_SIZE: f32 = 30.0; // mm, QR code side length
+// Note on QR scanning across platforms: SD-JWT VP payloads with the current
+// CA DMV schema land at QR V40 (177×177 modules). At 30mm physical that's
+// 0.17 mm/module — iOS Vision still decodes (very permissive on dense QR)
+// but Android ML Kit / ZXing cannot (need ~0.5 mm/module). Confirmed
+// empirically 2026-04-29: bumping to 110mm makes Android scan reliably,
+// but at 30mm Android can't decode at all. Long-term fix is reducing the
+// VP payload (schema alignment with DMV / CWT format), not bigger physical
+// print.
+const QR_SIZE: f32 = 70.0; // mm, QR code side length
 const PDF417_W: f32 = 80.0; // mm, PDF-417 width
 const PDF417_H: f32 = 18.0; // mm, PDF-417 height
 const BARCODE_LABEL_H: f32 = 5.0; // mm, label text height above barcode

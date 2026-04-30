@@ -188,6 +188,17 @@ enum PdfBarcodeType: Int {
   case pdf417 = 1
 }
 
+/// Selective-disclosure mode for VP token generation.
+///
+/// Mirrors the Rust `DisclosureSelection` enum.  The `type` discriminator
+/// keeps the Pigeon class extensible: future modes (path-based selection,
+/// presentation-definition driven, etc.) can be added without changing
+/// [generateCredentialVpToken]'s signature.
+enum DisclosureSelectionType: Int {
+  case hideOnly = 0
+  case selectOnly = 1
+}
+
 /// Result of generating a mock mDL
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -335,6 +346,100 @@ struct PdfSupplement: Hashable {
   }
 }
 
+/// Parameters for selective-disclosure VP token generation.
+///
+/// `hideOnly` reveals every disclosable claim **except** [fields]; ergonomic
+/// for the mDL PDF case where almost every claim is shown and only `portrait`
+/// is hidden.
+///
+/// `selectOnly` reveals **only** [fields]; ergonomic for narrow disclosures
+/// like age verification (`["age_over_21"]`).
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DisclosureSelection: Hashable {
+  var type: DisclosureSelectionType
+  /// Field names (top-level under `credentialSubject.driversLicense`) to
+  /// hide or select, depending on [type].
+  var fields: [String]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DisclosureSelection? {
+    let type = pigeonVar_list[0] as! DisclosureSelectionType
+    let fields = pigeonVar_list[1] as! [String]
+
+    return DisclosureSelection(
+      type: type,
+      fields: fields
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      type,
+      fields,
+    ]
+  }
+  static func == (lhs: DisclosureSelection, rhs: DisclosureSelection) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsSpruceUtils(lhs.type, rhs.type) && deepEqualsSpruceUtils(lhs.fields, rhs.fields)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("DisclosureSelection")
+    deepHashSpruceUtils(value: type, hasher: &hasher)
+    deepHashSpruceUtils(value: fields, hasher: &hasher)
+  }
+}
+
+/// Parameters for [SpruceUtils.generateCredentialVpToken].
+///
+/// `audience` and `nonce` are reserved for a future KB-JWT signing path; the
+/// current implementation does not produce a key-binding JWT (suitable for
+/// offline PDF-embedded VPs).
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VpTokenParams: Hashable {
+  var disclosure: DisclosureSelection
+  var audience: String
+  var nonce: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VpTokenParams? {
+    let disclosure = pigeonVar_list[0] as! DisclosureSelection
+    let audience = pigeonVar_list[1] as! String
+    let nonce: String? = nilOrValue(pigeonVar_list[2])
+
+    return VpTokenParams(
+      disclosure: disclosure,
+      audience: audience,
+      nonce: nonce
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      disclosure,
+      audience,
+      nonce,
+    ]
+  }
+  static func == (lhs: VpTokenParams, rhs: VpTokenParams) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsSpruceUtils(lhs.disclosure, rhs.disclosure) && deepEqualsSpruceUtils(lhs.audience, rhs.audience) && deepEqualsSpruceUtils(lhs.nonce, rhs.nonce)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("VpTokenParams")
+    deepHashSpruceUtils(value: disclosure, hasher: &hasher)
+    deepHashSpruceUtils(value: audience, hasher: &hasher)
+    deepHashSpruceUtils(value: nonce, hasher: &hasher)
+  }
+}
+
 private class SpruceUtilsPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -351,11 +456,21 @@ private class SpruceUtilsPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 131:
-      return GenerateMockMdlSuccess.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return DisclosureSelectionType(rawValue: enumResultAsInt)
+      }
+      return nil
     case 132:
-      return GenerateMockMdlError.fromList(self.readValue() as! [Any?])
+      return GenerateMockMdlSuccess.fromList(self.readValue() as! [Any?])
     case 133:
+      return GenerateMockMdlError.fromList(self.readValue() as! [Any?])
+    case 134:
       return PdfSupplement.fromList(self.readValue() as! [Any?])
+    case 135:
+      return DisclosureSelection.fromList(self.readValue() as! [Any?])
+    case 136:
+      return VpTokenParams.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -370,14 +485,23 @@ private class SpruceUtilsPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? PdfBarcodeType {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? GenerateMockMdlSuccess {
+    } else if let value = value as? DisclosureSelectionType {
       super.writeByte(131)
-      super.writeValue(value.toList())
-    } else if let value = value as? GenerateMockMdlError {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? GenerateMockMdlSuccess {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? PdfSupplement {
+    } else if let value = value as? GenerateMockMdlError {
       super.writeByte(133)
+      super.writeValue(value.toList())
+    } else if let value = value as? PdfSupplement {
+      super.writeByte(134)
+      super.writeValue(value.toList())
+    } else if let value = value as? DisclosureSelection {
+      super.writeByte(135)
+      super.writeValue(value.toList())
+    } else if let value = value as? VpTokenParams {
+      super.writeByte(136)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -422,6 +546,79 @@ protocol SpruceUtils {
   /// @param supplements Optional list of supplements to include in the PDF
   /// @return Raw PDF bytes ready to write to a file and share
   func generateCredentialPdf(rawMdoc: String, supplements: [PdfSupplement], completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  /// Generate a compact SD-JWT VP token suitable for embedding in a PDF QR
+  /// code.
+  ///
+  /// Wallets typically pass the returned bytes to [generateCredentialPdf] as
+  /// a [PdfSupplement] with `barcodeType == PdfBarcodeType.qrCode`.
+  ///
+  /// **Currently only VCDM2 SD-JWT credentials are supported** (mDoc / JWT VC
+  /// will throw `UnsupportedCredentialType`).  For the offline PDF case the
+  /// returned token does **not** include a key-binding JWT — `audience` and
+  /// `nonce` are accepted but not yet used.
+  ///
+  /// @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
+  /// @param params Disclosure selection + reserved audience / nonce
+  /// @return Compact SD-JWT VP token bytes (UTF-8)
+  func generateCredentialVpToken(rawSdJwt: String, params: VpTokenParams, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  /// Generate a **QR-ready compressed** SD-JWT VP token.
+  ///
+  /// Combines [generateCredentialVpToken] with the Colorado-pattern compression
+  /// pipeline (`deflate → BigUint → base10 → "9"-prefix`) used to fit dense
+  /// VP tokens into a QR numeric-mode payload.
+  ///
+  /// This is the **recommended path** for embedding a VP token in a PDF QR:
+  /// wallets pass the returned bytes directly to [generateCredentialPdf] as
+  /// a [PdfSupplement] with `barcodeType == PdfBarcodeType.qrCode` — no
+  /// manual compression step needed.
+  ///
+  /// The verifier side (a) auto-detects the leading `"9"` and decompresses
+  /// transparently inside `verifySdJwtVp`, or (b) can call
+  /// [decompressVpFromQr] directly for inspection.
+  ///
+  /// @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
+  /// @param params Disclosure selection + reserved audience / nonce
+  /// @return QR-ready compressed bytes (UTF-8 ASCII, `"9"` prefix + base10 digits)
+  func generateCompressedVpToken(rawSdJwt: String, params: VpTokenParams, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  /// Generate a test mDL VCDM2 SD-JWT credential, returned as a compact
+  /// SD-JWS string.
+  ///
+  /// The credential mirrors the schema CA DMV will issue once the SD-JWT
+  /// microservice ships, but is signed with a test key generated on demand —
+  /// so the credential is **not** verifiable against any production trust
+  /// anchor. Useful for showcase / demo flows that need a real SD-JWT to
+  /// drive [generateCompressedVpToken] without depending on a live issuer.
+  ///
+  /// @return Compact SD-JWT serialization (`<jwt>~<disc1>~…`) — feed straight
+  ///         to [generateCredentialVpToken] / [generateCompressedVpToken]
+  ///         as `rawSdJwt`.
+  func generateTestMdlSdJwtCompact(completion: @escaping (Result<String, Error>) -> Void)
+  /// Verify a compact SD-JWT VP token.
+  ///
+  /// Accepts either a raw compact SD-JWT (`<jwt>~<disc1>~…`) or a
+  /// `"9"`-prefixed base10 QR payload — the implementation auto-detects the
+  /// leading `"9"` and decompresses transparently before verifying. Throws
+  /// on any failure (issuer signature mismatch, decompression error,
+  /// disclosure hash mismatch, etc.); returns normally on success.
+  ///
+  /// Issuer trust is established via DID resolution (`AnyDidMethod`), so
+  /// `did:jwk` issuers are fully verifiable offline.
+  ///
+  /// @param input Compact SD-JWT VP, or its `"9"`-prefixed compressed form
+  ///              (e.g. straight from a [SpruceScanner] callback)
+  func verifySdJwtVp(input: String, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Decompress a `"9"`-prefixed base10 QR payload back into a compact
+  /// SD-JWT VP token.
+  ///
+  /// The inverse of the compression step inside [generateCompressedVpToken].
+  /// Verification code typically does **not** need to call this directly —
+  /// `verifySdJwtVp` auto-detects the prefix and decompresses internally —
+  /// but it is exposed for inspection, logging, or non-verification flows
+  /// (e.g. extracting fields client-side from a scanned QR).
+  ///
+  /// @param qrPayload Bytes scanned from the QR (`"9"` prefix + base10 digits)
+  /// @return Original compact SD-JWT VP token bytes (UTF-8)
+  func decompressVpFromQr(qrPayload: FlutterStandardTypedData, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -480,6 +677,159 @@ class SpruceUtilsSetup {
       }
     } else {
       generateCredentialPdfChannel.setMessageHandler(nil)
+    }
+    /// Generate a compact SD-JWT VP token suitable for embedding in a PDF QR
+    /// code.
+    ///
+    /// Wallets typically pass the returned bytes to [generateCredentialPdf] as
+    /// a [PdfSupplement] with `barcodeType == PdfBarcodeType.qrCode`.
+    ///
+    /// **Currently only VCDM2 SD-JWT credentials are supported** (mDoc / JWT VC
+    /// will throw `UnsupportedCredentialType`).  For the offline PDF case the
+    /// returned token does **not** include a key-binding JWT — `audience` and
+    /// `nonce` are accepted but not yet used.
+    ///
+    /// @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
+    /// @param params Disclosure selection + reserved audience / nonce
+    /// @return Compact SD-JWT VP token bytes (UTF-8)
+    let generateCredentialVpTokenChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCredentialVpToken\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      generateCredentialVpTokenChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let rawSdJwtArg = args[0] as! String
+        let paramsArg = args[1] as! VpTokenParams
+        api.generateCredentialVpToken(rawSdJwt: rawSdJwtArg, params: paramsArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      generateCredentialVpTokenChannel.setMessageHandler(nil)
+    }
+    /// Generate a **QR-ready compressed** SD-JWT VP token.
+    ///
+    /// Combines [generateCredentialVpToken] with the Colorado-pattern compression
+    /// pipeline (`deflate → BigUint → base10 → "9"-prefix`) used to fit dense
+    /// VP tokens into a QR numeric-mode payload.
+    ///
+    /// This is the **recommended path** for embedding a VP token in a PDF QR:
+    /// wallets pass the returned bytes directly to [generateCredentialPdf] as
+    /// a [PdfSupplement] with `barcodeType == PdfBarcodeType.qrCode` — no
+    /// manual compression step needed.
+    ///
+    /// The verifier side (a) auto-detects the leading `"9"` and decompresses
+    /// transparently inside `verifySdJwtVp`, or (b) can call
+    /// [decompressVpFromQr] directly for inspection.
+    ///
+    /// @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
+    /// @param params Disclosure selection + reserved audience / nonce
+    /// @return QR-ready compressed bytes (UTF-8 ASCII, `"9"` prefix + base10 digits)
+    let generateCompressedVpTokenChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCompressedVpToken\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      generateCompressedVpTokenChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let rawSdJwtArg = args[0] as! String
+        let paramsArg = args[1] as! VpTokenParams
+        api.generateCompressedVpToken(rawSdJwt: rawSdJwtArg, params: paramsArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      generateCompressedVpTokenChannel.setMessageHandler(nil)
+    }
+    /// Generate a test mDL VCDM2 SD-JWT credential, returned as a compact
+    /// SD-JWS string.
+    ///
+    /// The credential mirrors the schema CA DMV will issue once the SD-JWT
+    /// microservice ships, but is signed with a test key generated on demand —
+    /// so the credential is **not** verifiable against any production trust
+    /// anchor. Useful for showcase / demo flows that need a real SD-JWT to
+    /// drive [generateCompressedVpToken] without depending on a live issuer.
+    ///
+    /// @return Compact SD-JWT serialization (`<jwt>~<disc1>~…`) — feed straight
+    ///         to [generateCredentialVpToken] / [generateCompressedVpToken]
+    ///         as `rawSdJwt`.
+    let generateTestMdlSdJwtCompactChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateTestMdlSdJwtCompact\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      generateTestMdlSdJwtCompactChannel.setMessageHandler { _, reply in
+        api.generateTestMdlSdJwtCompact { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      generateTestMdlSdJwtCompactChannel.setMessageHandler(nil)
+    }
+    /// Verify a compact SD-JWT VP token.
+    ///
+    /// Accepts either a raw compact SD-JWT (`<jwt>~<disc1>~…`) or a
+    /// `"9"`-prefixed base10 QR payload — the implementation auto-detects the
+    /// leading `"9"` and decompresses transparently before verifying. Throws
+    /// on any failure (issuer signature mismatch, decompression error,
+    /// disclosure hash mismatch, etc.); returns normally on success.
+    ///
+    /// Issuer trust is established via DID resolution (`AnyDidMethod`), so
+    /// `did:jwk` issuers are fully verifiable offline.
+    ///
+    /// @param input Compact SD-JWT VP, or its `"9"`-prefixed compressed form
+    ///              (e.g. straight from a [SpruceScanner] callback)
+    let verifySdJwtVpChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.verifySdJwtVp\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      verifySdJwtVpChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let inputArg = args[0] as! String
+        api.verifySdJwtVp(input: inputArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      verifySdJwtVpChannel.setMessageHandler(nil)
+    }
+    /// Decompress a `"9"`-prefixed base10 QR payload back into a compact
+    /// SD-JWT VP token.
+    ///
+    /// The inverse of the compression step inside [generateCompressedVpToken].
+    /// Verification code typically does **not** need to call this directly —
+    /// `verifySdJwtVp` auto-detects the prefix and decompresses internally —
+    /// but it is exposed for inspection, logging, or non-verification flows
+    /// (e.g. extracting fields client-side from a scanned QR).
+    ///
+    /// @param qrPayload Bytes scanned from the QR (`"9"` prefix + base10 digits)
+    /// @return Original compact SD-JWT VP token bytes (UTF-8)
+    let decompressVpFromQrChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.decompressVpFromQr\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      decompressVpFromQrChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let qrPayloadArg = args[0] as! FlutterStandardTypedData
+        api.decompressVpFromQr(qrPayload: qrPayloadArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      decompressVpFromQrChannel.setMessageHandler(nil)
     }
   }
 }
