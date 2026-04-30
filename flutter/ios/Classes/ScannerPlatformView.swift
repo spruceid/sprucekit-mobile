@@ -3,6 +3,14 @@ import SpruceIDMobileSdk
 import SwiftUI
 import UIKit
 
+private func colorFromArgb(_ argb: Int) -> Color {
+    let alpha = Double((argb >> 24) & 0xFF) / 255.0
+    let red = Double((argb >> 16) & 0xFF) / 255.0
+    let green = Double((argb >> 8) & 0xFF) / 255.0
+    let blue = Double(argb & 0xFF) / 255.0
+    return Color(.sRGB, red: red, green: green, blue: blue, opacity: alpha)
+}
+
 /// Factory for creating scanner platform views
 class ScannerPlatformViewFactory: NSObject, FlutterPlatformViewFactory {
     private var messenger: FlutterBinaryMessenger
@@ -39,6 +47,12 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
     private let title: String
     private let subtitle: String
     private let showCancelButton: Bool
+    private let backgroundOpacity: Double
+    private let guidesColorArgb: Int
+    private let readerColorArgb: Int
+    private let guidesText: String
+    private let instructions: String
+    private let scanCooldownMs: Int
 
     init(
         frame: CGRect,
@@ -55,6 +69,12 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
         self.title = args?["title"] as? String ?? "Scan QR Code"
         self.subtitle = args?["subtitle"] as? String ?? "Please align within the guides"
         self.showCancelButton = args?["showCancelButton"] as? Bool ?? true
+        self.backgroundOpacity = (args?["backgroundOpacity"] as? Double) ?? 1.0
+        self.guidesColorArgb = (args?["guidesColor"] as? Int) ?? 0xFF2563EB
+        self.readerColorArgb = (args?["readerColor"] as? Int) ?? 0xFFFFFFFF
+        self.guidesText = (args?["guidesText"] as? String) ?? "Detecting..."
+        self.instructions = (args?["instructions"] as? String) ?? ""
+        self.scanCooldownMs = (args?["scanCooldownMs"] as? Int) ?? 0
 
         super.init()
 
@@ -86,7 +106,13 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
                     subtitle: subtitle,
                     onRead: onRead,
                     onCancel: onCancel,
-                    hideCancelButton: hideCancelButton
+                    hideCancelButton: hideCancelButton,
+                    guidesColor: colorFromArgb(guidesColorArgb),
+                    guidesText: guidesText,
+                    readerColor: colorFromArgb(readerColorArgb),
+                    backgroundOpacity: backgroundOpacity,
+                    instructions: instructions,
+                    scanCooldownMs: scanCooldownMs
                 )
             )
         case "pdf417":
@@ -115,7 +141,13 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
                     subtitle: subtitle,
                     onRead: onRead,
                     onCancel: onCancel,
-                    hideCancelButton: hideCancelButton
+                    hideCancelButton: hideCancelButton,
+                    guidesColor: colorFromArgb(guidesColorArgb),
+                    guidesText: guidesText,
+                    readerColor: colorFromArgb(readerColorArgb),
+                    backgroundOpacity: backgroundOpacity,
+                    instructions: instructions,
+                    scanCooldownMs: scanCooldownMs
                 )
             )
         }

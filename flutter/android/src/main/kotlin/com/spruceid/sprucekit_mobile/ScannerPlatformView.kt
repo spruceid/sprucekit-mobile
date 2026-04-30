@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.FrameLayout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Recomposer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.AndroidUiDispatcher
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.compositionContext
@@ -69,6 +70,12 @@ class ScannerPlatformView(
     private val title: String = creationParams?.get("title") as? String ?: "Scan QR Code"
     private val subtitle: String = creationParams?.get("subtitle") as? String ?: "Please align within the guides"
     private val showCancelButton: Boolean = creationParams?.get("showCancelButton") as? Boolean ?: true
+    private val backgroundOpacity: Float = (creationParams?.get("backgroundOpacity") as? Double)?.toFloat() ?: 1.0f
+    private val guidesColorArgb: Int = (creationParams?.get("guidesColor") as? Int) ?: 0xFF2563EB.toInt()
+    private val readerColorArgb: Int = (creationParams?.get("readerColor") as? Int) ?: 0xFFFFFFFF.toInt()
+    private val guidesText: String = (creationParams?.get("guidesText") as? String) ?: "Detecting..."
+    private val instructions: String = (creationParams?.get("instructions") as? String) ?: ""
+    private val scanCooldownMs: Long = ((creationParams?.get("scanCooldownMs") as? Number)?.toLong()) ?: 0L
 
     // Create the lifecycle-aware container
     private val lifecycleOwnerView = ComposeLifecycleOwnerView(context)
@@ -96,7 +103,13 @@ class ScannerPlatformView(
                     },
                     onCancel = {
                         channel.invokeMethod("onCancel", null)
-                    }
+                    },
+                    backgroundOpacity = backgroundOpacity,
+                    guidesColor = Color(guidesColorArgb),
+                    readerColor = Color(readerColorArgb),
+                    guidesText = guidesText,
+                    instructions = instructions,
+                    scanCooldownMs = scanCooldownMs
                 )
             }
         }
@@ -182,7 +195,13 @@ private fun ScannerContent(
     subtitle: String,
     hideCancelButton: Boolean,
     onRead: (String) -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    backgroundOpacity: Float,
+    guidesColor: Color,
+    readerColor: Color,
+    guidesText: String,
+    instructions: String,
+    scanCooldownMs: Long
 ) {
     when (scannerType) {
         "qrCode" -> QRCodeScanner(
@@ -190,7 +209,13 @@ private fun ScannerContent(
             subtitle = subtitle,
             onRead = onRead,
             onCancel = onCancel,
-            hideCancelButton = hideCancelButton
+            hideCancelButton = hideCancelButton,
+            backgroundOpacity = backgroundOpacity,
+            guidesColor = guidesColor,
+            readerColor = readerColor,
+            guidesText = guidesText,
+            instructions = instructions,
+            scanCooldownMs = scanCooldownMs
         )
         "pdf417" -> PDF417Scanner(
             title = title,
@@ -211,7 +236,13 @@ private fun ScannerContent(
             subtitle = subtitle,
             onRead = onRead,
             onCancel = onCancel,
-            hideCancelButton = hideCancelButton
+            hideCancelButton = hideCancelButton,
+            backgroundOpacity = backgroundOpacity,
+            guidesColor = guidesColor,
+            readerColor = readerColor,
+            guidesText = guidesText,
+            instructions = instructions,
+            scanCooldownMs = scanCooldownMs
         )
     }
 }
