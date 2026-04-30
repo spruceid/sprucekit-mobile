@@ -154,6 +154,10 @@ dependencies {
     implementation("com.google.accompanist:accompanist-permissions:0.37.3")
     implementation("androidx.camera:camera-mlkit-vision:1.4.2")
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+    // MLKit barcode scanning — used only by `MlKitQRCodeScanner` for high-density
+    // QR codes (V37+) that ZXing struggles with. The default `QRCodeScanner`
+    // continues to use ZXing.
+    implementation("com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1")
     /* End UI dependencies */
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("com.google.android.play:integrity:1.4.0")

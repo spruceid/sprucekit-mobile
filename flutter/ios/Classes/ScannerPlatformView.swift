@@ -79,7 +79,11 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
         let hideCancelButton = !showCancelButton
 
         switch scannerType {
-        case "qrCode":
+        case "qrCode", "qrCodeHighDensity":
+            // iOS Vision handles dense V37+ QR codes natively, so the
+            // high-density variant routes to the same scanner here.
+            // The Android side dispatches to a separate ML Kit-backed
+            // implementation; see Flutter `ScannerType.qrCodeHighDensity`.
             scannerView = AnyView(
                 QRCodeScanner(
                     title: title,

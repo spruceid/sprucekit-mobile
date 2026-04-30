@@ -9,6 +9,16 @@ enum ScannerType {
   /// QR Code scanner
   qrCode,
 
+  /// QR code scanner tuned for very dense QR codes (V37+ at L-EC).
+  ///
+  /// On Android, routes to a Google ML Kit-backed scanner running on a
+  /// 4K analysis stream — required to read the deflate+base10-compressed
+  /// SD-JWT VP tokens that the SD-JWT PDF flow produces. The default
+  /// [qrCode] scanner uses ZXing at 1080p and cannot reliably decode
+  /// these payloads. iOS routes to the same Vision-based decoder as
+  /// [qrCode] (Vision handles the dense codes natively).
+  qrCodeHighDensity,
+
   /// PDF417 barcode scanner (used for driver's licenses)
   pdf417,
 

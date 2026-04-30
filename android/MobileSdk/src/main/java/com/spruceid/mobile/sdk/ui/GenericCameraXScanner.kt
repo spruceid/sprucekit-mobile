@@ -2,12 +2,15 @@ package com.spruceid.mobile.sdk.ui
 
 import android.content.Context
 import android.util.Range
+import android.util.Size
 import android.view.Surface
 import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.BorderStroke
@@ -48,6 +51,8 @@ fun GenericCameraXScanner(
     hideCancelButton: Boolean = false,
     fontFamily: FontFamily = FontFamily.Default,
     imageAnalyzer: ImageAnalysis.Analyzer,
+    imageAnalysisTargetResolution: Size? = null,
+    zoomRatio: Float = 2f,
     background: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -75,10 +80,25 @@ fun GenericCameraXScanner(
                 .requireLensFacing(CameraSelector.LENS_FACING_BACK)
                 .build()
         preview.setSurfaceProvider(previewView.surfaceProvider)
-        val imageAnalysis =
+        val imageAnalysisBuilder =
             ImageAnalysis.Builder()
                 .setBackpressureStrategy(STRATEGY_KEEP_ONLY_LATEST)
-                .build()
+        imageAnalysisTargetResolution?.let { size ->
+            // ResolutionSelector with `EXACT` first, falling back to higher
+            // — guarantees we get at least the requested resolution when
+            // the device supports it, otherwise the next-best larger size.
+            imageAnalysisBuilder.setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setResolutionStrategy(
+                        ResolutionStrategy(
+                            size,
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER,
+                        )
+                    )
+                    .build()
+            )
+        }
+        val imageAnalysis = imageAnalysisBuilder.build()
         imageAnalysis.setAnalyzer(
             ContextCompat.getMainExecutor(context),
             imageAnalyzer
@@ -97,7 +117,7 @@ fun GenericCameraXScanner(
             e.printStackTrace()
         }
         try {
-            cameraControl?.setZoomRatio(2f)
+            cameraControl?.setZoomRatio(zoomRatio)
         } catch (e: Exception) {
             e.printStackTrace()
         }
