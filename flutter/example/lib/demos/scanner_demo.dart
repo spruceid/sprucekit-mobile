@@ -289,6 +289,7 @@ class _ScannerDemoState extends State<ScannerDemo> {
   String _getTitleForType(ScannerType type) {
     switch (type) {
       case ScannerType.qrCode:
+      case ScannerType.qrCodeHighDensity:
         return 'Scan QR Code';
       case ScannerType.pdf417:
         return 'Scan Barcode';
@@ -300,6 +301,7 @@ class _ScannerDemoState extends State<ScannerDemo> {
   String _getSubtitleForType(ScannerType type) {
     switch (type) {
       case ScannerType.qrCode:
+      case ScannerType.qrCodeHighDensity:
         return 'Align the QR code within the frame';
       case ScannerType.pdf417:
         return 'Align the barcode within the frame';

@@ -4,6 +4,7 @@ const val HOME_SCREEN_PATH = "home/{tab}"
 const val VERIFY_DL_PATH = "verify_dl"
 const val VERIFY_EA_PATH = "verify_ea"
 const val VERIFY_VC_PATH = "verify_vc"
+const val VERIFY_SD_JWT_PATH = "verify_sd_jwt"
 const val VERIFY_CWT_PATH = "verify_CWT"
 const val VERIFY_MDOC_PATH = "verify_mdoc"
 const val VERIFY_MDL_OVER_18_PATH = "verify_mdl_over_18"
@@ -29,6 +30,7 @@ sealed class Screen(val route: String) {
     object VerifyDLScreen : Screen(VERIFY_DL_PATH)
     object VerifyEAScreen : Screen(VERIFY_EA_PATH)
     object VerifyVCScreen : Screen(VERIFY_VC_PATH)
+    object VerifySdJwtScreen : Screen(VERIFY_SD_JWT_PATH)
     object VerifyCWTScreen : Screen(VERIFY_CWT_PATH)
     object VerifyMDocScreen : Screen(VERIFY_MDOC_PATH)
     object VerifyMDlOver18Screen : Screen(VERIFY_MDL_OVER_18_PATH)
