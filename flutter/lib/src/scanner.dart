@@ -69,6 +69,7 @@ class SpruceScanner extends StatefulWidget {
     this.showCancelButton = true,
     this.headless = false,
     this.scanCooldownMs = 0,
+    this.onCameraReady,
   });
 
   /// The type of scanner to use.
@@ -104,6 +105,14 @@ class SpruceScanner extends StatefulWidget {
   /// and ignores reads within the cooldown window.
   final int scanCooldownMs;
 
+  /// Fired once when the camera preview is producing frames.
+  ///
+  /// Android: triggered when `PreviewView.previewStreamState` reaches
+  /// `STREAMING` (CameraX's first-frame signal).
+  /// iOS: fired immediately after the platform view is constructed
+  /// (UIKitView composition does not need a real frame signal).
+  final VoidCallback? onCameraReady;
+
   @override
   State<SpruceScanner> createState() => _SpruceScannerState();
 }
@@ -134,6 +143,9 @@ class _SpruceScannerState extends State<SpruceScanner> {
         return null;
       case 'onCancel':
         widget.onCancel();
+        return null;
+      case 'onCameraReady':
+        widget.onCameraReady?.call();
         return null;
       case 'isMatch':
         final content = call.arguments as String;

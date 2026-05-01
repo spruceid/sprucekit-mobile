@@ -106,6 +106,9 @@ class ScannerPlatformView(
                     onCancel = {
                         channel.invokeMethod("onCancel", null)
                     },
+                    onCameraReady = {
+                        channel.invokeMethod("onCameraReady", null)
+                    },
                     backgroundOpacity = backgroundOpacity,
                     guidesColor = Color(guidesColorArgb),
                     readerColor = Color(readerColorArgb),
@@ -198,6 +201,7 @@ private fun ScannerContent(
     hideCancelButton: Boolean,
     onRead: (String) -> Unit,
     onCancel: () -> Unit,
+    onCameraReady: () -> Unit,
     backgroundOpacity: Float,
     guidesColor: Color,
     readerColor: Color,
@@ -217,7 +221,8 @@ private fun ScannerContent(
             readerColor = readerColor,
             guidesText = guidesText,
             instructions = instructions,
-            scanCooldownMs = scanCooldownMs
+            scanCooldownMs = scanCooldownMs,
+            onCameraReady = onCameraReady
         )
         // ML Kit-backed scanner with the same camera tuning the native
         // SD-JWT verifier showcase uses (4K analysis stream, no zoom).
@@ -234,7 +239,8 @@ private fun ScannerContent(
             subtitle = subtitle,
             onRead = onRead,
             onCancel = onCancel,
-            hideCancelButton = hideCancelButton
+            hideCancelButton = hideCancelButton,
+            onCameraReady = onCameraReady
         )
         // ML Kit-backed scanner with the same camera tuning the SD-JWT
         // verifier uses (4K analysis, no zoom). Required for dense
@@ -251,7 +257,8 @@ private fun ScannerContent(
             subtitle = subtitle,
             onRead = onRead,
             onCancel = onCancel,
-            hideCancelButton = hideCancelButton
+            hideCancelButton = hideCancelButton,
+            onCameraReady = onCameraReady
         )
         else -> QRCodeScanner(
             title = title,
@@ -264,7 +271,8 @@ private fun ScannerContent(
             readerColor = readerColor,
             guidesText = guidesText,
             instructions = instructions,
-            scanCooldownMs = scanCooldownMs
+            scanCooldownMs = scanCooldownMs,
+            onCameraReady = onCameraReady
         )
     }
 }

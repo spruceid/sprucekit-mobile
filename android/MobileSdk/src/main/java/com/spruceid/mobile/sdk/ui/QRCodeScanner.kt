@@ -72,7 +72,8 @@ fun QRCodeScanner(
     backgroundOpacity: Float = 1f,
     instructions: String = "",
     instructionsDefaultColor: Color = Color.Gray,
-    scanCooldownMs: Long = 0L
+    scanCooldownMs: Long = 0L,
+    onCameraReady: (() -> Unit)? = null
 ) {
 
     GenericCameraXScanner(
@@ -104,7 +105,8 @@ fun QRCodeScanner(
                 instructionsDefaultColor = instructionsDefaultColor,
                 fontFamily = fontFamily
             )
-        }
+        },
+        onCameraReady = onCameraReady
     )
 }
 
