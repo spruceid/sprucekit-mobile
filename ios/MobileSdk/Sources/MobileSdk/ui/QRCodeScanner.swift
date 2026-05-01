@@ -140,9 +140,11 @@ public struct QRCodeScanner: View {
                             RoundedRectangle(cornerRadius: 100)
                         )
                     )
-                    //INFO: Since this iOS version uses hstackHeight to calculate the positioning of the ProgressRing+guideText
-                    // we have to use this opacity trick instead of conditional rendering, so the layout is not messed up
-                    .opacity(guidesText.isEmpty ? 0 : 1) 
+                    // INFO: Since this iOS version uses hstackHeight 
+                    // to calculate the positioning of the ProgressRing+guideText
+                    // we have to use this opacity trick instead of conditional 
+                    // rendering, so the layout is not messed up
+                    .opacity(guidesText.isEmpty ? 0 : 1)
                     .background(
                         GeometryReader { geometry in
                             Color.clear
