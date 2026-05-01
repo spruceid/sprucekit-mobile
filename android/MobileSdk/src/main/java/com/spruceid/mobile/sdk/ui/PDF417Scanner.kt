@@ -55,6 +55,7 @@ fun PDF417Scanner(
     guidesColor: Color = Color.White,
     readerColor: Color = Color.White,
     backgroundOpacity: Float = 0.5f,
+    onCameraReady: (() -> Unit)? = null,
 ) {
 
     GenericCameraXScanner(
@@ -79,7 +80,8 @@ fun PDF417Scanner(
                 readerColor = readerColor,
                 backgroundOpacity = backgroundOpacity,
             )
-        }
+        },
+        onCameraReady = onCameraReady
     )
 }
 

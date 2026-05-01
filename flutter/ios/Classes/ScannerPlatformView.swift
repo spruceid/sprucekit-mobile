@@ -79,6 +79,13 @@ class ScannerPlatformView: NSObject, FlutterPlatformView {
         super.init()
 
         createHostingController()
+
+        // iOS uses UIKitView composition where Flutter widgets composite correctly
+        // above the platform view, so a real first-frame signal is unnecessary.
+        // Fire on next runloop turn so listeners attached after construction still receive it.
+        DispatchQueue.main.async { [weak self] in
+            self?.channel.invokeMethod("onCameraReady", arguments: nil)
+        }
     }
 
     func view() -> UIView {

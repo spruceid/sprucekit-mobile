@@ -104,6 +104,9 @@ class ScannerPlatformView(
                     onCancel = {
                         channel.invokeMethod("onCancel", null)
                     },
+                    onCameraReady = {
+                        channel.invokeMethod("onCameraReady", null)
+                    },
                     backgroundOpacity = backgroundOpacity,
                     guidesColor = Color(guidesColorArgb),
                     readerColor = Color(readerColorArgb),
@@ -196,6 +199,7 @@ private fun ScannerContent(
     hideCancelButton: Boolean,
     onRead: (String) -> Unit,
     onCancel: () -> Unit,
+    onCameraReady: () -> Unit,
     backgroundOpacity: Float,
     guidesColor: Color,
     readerColor: Color,
@@ -215,21 +219,24 @@ private fun ScannerContent(
             readerColor = readerColor,
             guidesText = guidesText,
             instructions = instructions,
-            scanCooldownMs = scanCooldownMs
+            scanCooldownMs = scanCooldownMs,
+            onCameraReady = onCameraReady
         )
         "pdf417" -> PDF417Scanner(
             title = title,
             subtitle = subtitle,
             onRead = onRead,
             onCancel = onCancel,
-            hideCancelButton = hideCancelButton
+            hideCancelButton = hideCancelButton,
+            onCameraReady = onCameraReady
         )
         "mrz" -> MRZScanner(
             title = title,
             subtitle = subtitle,
             onRead = onRead,
             onCancel = onCancel,
-            hideCancelButton = hideCancelButton
+            hideCancelButton = hideCancelButton,
+            onCameraReady = onCameraReady
         )
         else -> QRCodeScanner(
             title = title,
@@ -242,7 +249,8 @@ private fun ScannerContent(
             readerColor = readerColor,
             guidesText = guidesText,
             instructions = instructions,
-            scanCooldownMs = scanCooldownMs
+            scanCooldownMs = scanCooldownMs,
+            onCameraReady = onCameraReady
         )
     }
 }
