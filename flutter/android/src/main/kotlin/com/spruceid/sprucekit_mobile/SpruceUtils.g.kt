@@ -221,6 +221,25 @@ enum class PdfBarcodeType(val raw: Int) {
 }
 
 /**
+ * Selective-disclosure mode for VP token generation.
+ *
+ * Mirrors the Rust `DisclosureSelection` enum.  The `type` discriminator
+ * keeps the Pigeon class extensible: future modes (path-based selection,
+ * presentation-definition driven, etc.) can be added without changing
+ * [generateCredentialVpToken]'s signature.
+ */
+enum class DisclosureSelectionType(val raw: Int) {
+  HIDE_ONLY(0),
+  SELECT_ONLY(1);
+
+  companion object {
+    fun ofRaw(raw: Int): DisclosureSelectionType? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/**
  * Result of generating a mock mDL
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -375,6 +394,109 @@ data class PdfSupplement (
     return result
   }
 }
+
+/**
+ * Parameters for selective-disclosure VP token generation.
+ *
+ * `hideOnly` reveals every disclosable claim **except** [fields]; ergonomic
+ * for the mDL PDF case where almost every claim is shown and only `portrait`
+ * is hidden.
+ *
+ * `selectOnly` reveals **only** [fields]; ergonomic for narrow disclosures
+ * like age verification (`["age_over_21"]`).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DisclosureSelection (
+  val type: DisclosureSelectionType,
+  /**
+   * Field names (top-level under `credentialSubject.driversLicense`) to
+   * hide or select, depending on [type].
+   */
+  val fields: List<String>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DisclosureSelection {
+      val type = pigeonVar_list[0] as DisclosureSelectionType
+      val fields = pigeonVar_list[1] as List<String>
+      return DisclosureSelection(type, fields)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      type,
+      fields,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as DisclosureSelection
+    return SpruceUtilsPigeonUtils.deepEquals(this.type, other.type) && SpruceUtilsPigeonUtils.deepEquals(this.fields, other.fields)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.type)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.fields)
+    return result
+  }
+}
+
+/**
+ * Parameters for [SpruceUtils.generateCredentialVpToken].
+ *
+ * `audience` and `nonce` are reserved for a future KB-JWT signing path; the
+ * current implementation does not produce a key-binding JWT (suitable for
+ * offline PDF-embedded VPs).
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class VpTokenParams (
+  val disclosure: DisclosureSelection,
+  val audience: String,
+  val nonce: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): VpTokenParams {
+      val disclosure = pigeonVar_list[0] as DisclosureSelection
+      val audience = pigeonVar_list[1] as String
+      val nonce = pigeonVar_list[2] as String?
+      return VpTokenParams(disclosure, audience, nonce)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      disclosure,
+      audience,
+      nonce,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as VpTokenParams
+    return SpruceUtilsPigeonUtils.deepEquals(this.disclosure, other.disclosure) && SpruceUtilsPigeonUtils.deepEquals(this.audience, other.audience) && SpruceUtilsPigeonUtils.deepEquals(this.nonce, other.nonce)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.disclosure)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.audience)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.nonce)
+    return result
+  }
+}
 private open class SpruceUtilsPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -389,18 +511,33 @@ private open class SpruceUtilsPigeonCodec : StandardMessageCodec() {
         }
       }
       131.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          GenerateMockMdlSuccess.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          DisclosureSelectionType.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          GenerateMockMdlError.fromList(it)
+          GenerateMockMdlSuccess.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
+          GenerateMockMdlError.fromList(it)
+        }
+      }
+      134.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
           PdfSupplement.fromList(it)
+        }
+      }
+      135.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DisclosureSelection.fromList(it)
+        }
+      }
+      136.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          VpTokenParams.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -416,16 +553,28 @@ private open class SpruceUtilsPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is GenerateMockMdlSuccess -> {
+      is DisclosureSelectionType -> {
         stream.write(131)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is GenerateMockMdlError -> {
+      is GenerateMockMdlSuccess -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is PdfSupplement -> {
+      is GenerateMockMdlError -> {
         stream.write(133)
+        writeValue(stream, value.toList())
+      }
+      is PdfSupplement -> {
+        stream.write(134)
+        writeValue(stream, value.toList())
+      }
+      is DisclosureSelection -> {
+        stream.write(135)
+        writeValue(stream, value.toList())
+      }
+      is VpTokenParams -> {
+        stream.write(136)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -462,6 +611,106 @@ interface SpruceUtils {
    * @return Raw PDF bytes ready to write to a file and share
    */
   fun generateCredentialPdf(rawMdoc: String, supplements: List<PdfSupplement>, callback: (Result<ByteArray>) -> Unit)
+  /**
+   * Generate a compact SD-JWT VP token suitable for embedding in a PDF QR
+   * code.
+   *
+   * Wallets typically pass the returned bytes to [generateCredentialPdf] as
+   * a [PdfSupplement] with `barcodeType == PdfBarcodeType.qrCode`.
+   *
+   * **Currently only VCDM2 SD-JWT credentials are supported** (mDoc / JWT VC
+   * will throw `UnsupportedCredentialType`).  For the offline PDF case the
+   * returned token does **not** include a key-binding JWT — `audience` and
+   * `nonce` are accepted but not yet used.
+   *
+   * @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
+   * @param params Disclosure selection + reserved audience / nonce
+   * @return Compact SD-JWT VP token bytes (UTF-8)
+   */
+  fun generateCredentialVpToken(rawSdJwt: String, params: VpTokenParams, callback: (Result<ByteArray>) -> Unit)
+  /**
+   * Generate a **QR-ready compressed** SD-JWT VP token.
+   *
+   * Combines [generateCredentialVpToken] with the Colorado-pattern compression
+   * pipeline (`deflate → BigUint → base10 → "9"-prefix`) used to fit dense
+   * VP tokens into a QR numeric-mode payload.
+   *
+   * This is the **recommended path** for embedding a VP token in a PDF QR:
+   * wallets pass the returned bytes directly to [generateCredentialPdf] as
+   * a [PdfSupplement] with `barcodeType == PdfBarcodeType.qrCode` — no
+   * manual compression step needed.
+   *
+   * The verifier side (a) auto-detects the leading `"9"` and decompresses
+   * transparently inside `verifySdJwtVp`, or (b) can call
+   * [decompressVpFromQr] directly for inspection.
+   *
+   * @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
+   * @param params Disclosure selection + reserved audience / nonce
+   * @return QR-ready compressed bytes (UTF-8 ASCII, `"9"` prefix + base10 digits)
+   */
+  fun generateCompressedVpToken(rawSdJwt: String, params: VpTokenParams, callback: (Result<ByteArray>) -> Unit)
+  /**
+   * Generate a test mDL VCDM2 SD-JWT credential, returned as a compact
+   * SD-JWS string.
+   *
+   * The credential mirrors the schema CA DMV will issue once the SD-JWT
+   * microservice ships, but is signed with a test key generated on demand —
+   * so the credential is **not** verifiable against any production trust
+   * anchor. Useful for showcase / demo flows that need a real SD-JWT to
+   * drive [generateCompressedVpToken] without depending on a live issuer.
+   *
+   * @return Compact SD-JWT serialization (`<jwt>~<disc1>~…`) — feed straight
+   *         to [generateCredentialVpToken] / [generateCompressedVpToken]
+   *         as `rawSdJwt`.
+   */
+  fun generateTestMdlSdJwtCompact(callback: (Result<String>) -> Unit)
+  /**
+   * Verify a compact SD-JWT VP token.
+   *
+   * Accepts either a raw compact SD-JWT (`<jwt>~<disc1>~…`) or a
+   * `"9"`-prefixed base10 QR payload — the implementation auto-detects the
+   * leading `"9"` and decompresses transparently before verifying. Throws
+   * on any failure (issuer signature mismatch, decompression error,
+   * disclosure hash mismatch, etc.); returns normally on success.
+   *
+   * Issuer trust is established via DID resolution (`AnyDidMethod`), so
+   * `did:jwk` issuers are fully verifiable offline.
+   *
+   * @param input Compact SD-JWT VP, or its `"9"`-prefixed compressed form
+   *              (e.g. straight from a [SpruceScanner] callback)
+   */
+  fun verifySdJwtVp(input: String, callback: (Result<Unit>) -> Unit)
+  /**
+   * Decompress a `"9"`-prefixed base10 QR payload back into a compact
+   * SD-JWT VP token.
+   *
+   * The inverse of the compression step inside [generateCompressedVpToken].
+   * Verification code typically does **not** need to call this directly —
+   * `verifySdJwtVp` auto-detects the prefix and decompresses internally —
+   * but it is exposed for inspection, logging, or non-verification flows
+   * (e.g. extracting fields client-side from a scanned QR).
+   *
+   * @param qrPayload Bytes scanned from the QR (`"9"` prefix + base10 digits)
+   * @return Original compact SD-JWT VP token bytes (UTF-8)
+   */
+  fun decompressVpFromQr(qrPayload: ByteArray, callback: (Result<ByteArray>) -> Unit)
+  /**
+   * Generate AAMVA-format PDF-417 bytes from a raw mDL credential.
+   *
+   * The returned bytes follow the AAMVA DL/ID Card Design Standard and can
+   * be passed straight into [generateCredentialPdf] as a [PdfSupplement]
+   * of type [PdfSupplementType.barcode] with [PdfBarcodeType.pdf417].
+   *
+   * @param rawMdoc Base64-encoded IssuerSigned bytes of the mDL
+   * @param vcBarcode Optional pre-signed **VC Barcode (VCB)** bytes per the
+   *   W3C `w3c-vc-barcodes` spec (CBOR-LD compressed, DL-field-commitment-
+   *   bound). **Not** a generic JWT-VC / LDP-VC / mDoc — the issuer must
+   *   produce this specific format. When non-null, embedded as a ZZ subfile
+   *   so compliant AAMVA readers can verify the credential offline against
+   *   the DL subfile. When null, only the DL subfile is emitted.
+   * @return Raw AAMVA bytes ready to be rendered as a PDF-417 barcode
+   */
+  fun generateAamvaPdf417Bytes(rawMdoc: String, vcBarcode: ByteArray?, callback: (Result<ByteArray>) -> Unit)
 
   companion object {
     /** The codec used by SpruceUtils. */
@@ -500,6 +749,126 @@ interface SpruceUtils {
             val rawMdocArg = args[0] as String
             val supplementsArg = args[1] as List<PdfSupplement>
             api.generateCredentialPdf(rawMdocArg, supplementsArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(SpruceUtilsPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(SpruceUtilsPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCredentialVpToken$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val rawSdJwtArg = args[0] as String
+            val paramsArg = args[1] as VpTokenParams
+            api.generateCredentialVpToken(rawSdJwtArg, paramsArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(SpruceUtilsPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(SpruceUtilsPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCompressedVpToken$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val rawSdJwtArg = args[0] as String
+            val paramsArg = args[1] as VpTokenParams
+            api.generateCompressedVpToken(rawSdJwtArg, paramsArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(SpruceUtilsPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(SpruceUtilsPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateTestMdlSdJwtCompact$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.generateTestMdlSdJwtCompact{ result: Result<String> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(SpruceUtilsPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(SpruceUtilsPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.verifySdJwtVp$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val inputArg = args[0] as String
+            api.verifySdJwtVp(inputArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(SpruceUtilsPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(SpruceUtilsPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.decompressVpFromQr$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val qrPayloadArg = args[0] as ByteArray
+            api.decompressVpFromQr(qrPayloadArg) { result: Result<ByteArray> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(SpruceUtilsPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(SpruceUtilsPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateAamvaPdf417Bytes$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val rawMdocArg = args[0] as String
+            val vcBarcodeArg = args[1] as ByteArray?
+            api.generateAamvaPdf417Bytes(rawMdocArg, vcBarcodeArg) { result: Result<ByteArray> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(SpruceUtilsPigeonUtils.wrapError(error))

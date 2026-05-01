@@ -79,6 +79,45 @@ class PdfSupplement {
   PdfSupplement({required this.type, this.data, this.barcodeType});
 }
 
+/// Selective-disclosure mode for VP token generation.
+///
+/// Mirrors the Rust `DisclosureSelection` enum.  The `type` discriminator
+/// keeps the Pigeon class extensible: future modes (path-based selection,
+/// presentation-definition driven, etc.) can be added without changing
+/// [generateCredentialVpToken]'s signature.
+enum DisclosureSelectionType { hideOnly, selectOnly }
+
+/// Parameters for selective-disclosure VP token generation.
+///
+/// `hideOnly` reveals every disclosable claim **except** [fields]; ergonomic
+/// for the mDL PDF case where almost every claim is shown and only `portrait`
+/// is hidden.
+///
+/// `selectOnly` reveals **only** [fields]; ergonomic for narrow disclosures
+/// like age verification (`["age_over_21"]`).
+class DisclosureSelection {
+  DisclosureSelectionType type;
+
+  /// Field names (top-level under `credentialSubject.driversLicense`) to
+  /// hide or select, depending on [type].
+  List<String> fields;
+
+  DisclosureSelection({required this.type, required this.fields});
+}
+
+/// Parameters for [SpruceUtils.generateCredentialVpToken].
+///
+/// `audience` and `nonce` are reserved for a future KB-JWT signing path; the
+/// current implementation does not produce a key-binding JWT (suitable for
+/// offline PDF-embedded VPs).
+class VpTokenParams {
+  DisclosureSelection disclosure;
+  String audience;
+  String? nonce;
+
+  VpTokenParams({required this.disclosure, required this.audience, this.nonce});
+}
+
 /// Utility functions for credential operations
 @HostApi()
 abstract class SpruceUtils {
@@ -106,4 +145,104 @@ abstract class SpruceUtils {
     String rawMdoc,
     List<PdfSupplement> supplements,
   );
+
+  /// Generate a compact SD-JWT VP token suitable for embedding in a PDF QR
+  /// code.
+  ///
+  /// Wallets typically pass the returned bytes to [generateCredentialPdf] as
+  /// a [PdfSupplement] with `barcodeType == PdfBarcodeType.qrCode`.
+  ///
+  /// **Currently only VCDM2 SD-JWT credentials are supported** (mDoc / JWT VC
+  /// will throw `UnsupportedCredentialType`).  For the offline PDF case the
+  /// returned token does **not** include a key-binding JWT — `audience` and
+  /// `nonce` are accepted but not yet used.
+  ///
+  /// @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
+  /// @param params Disclosure selection + reserved audience / nonce
+  /// @return Compact SD-JWT VP token bytes (UTF-8)
+  @async
+  Uint8List generateCredentialVpToken(String rawSdJwt, VpTokenParams params);
+
+  /// Generate a **QR-ready compressed** SD-JWT VP token.
+  ///
+  /// Combines [generateCredentialVpToken] with the Colorado-pattern compression
+  /// pipeline (`deflate → BigUint → base10 → "9"-prefix`) used to fit dense
+  /// VP tokens into a QR numeric-mode payload.
+  ///
+  /// This is the **recommended path** for embedding a VP token in a PDF QR:
+  /// wallets pass the returned bytes directly to [generateCredentialPdf] as
+  /// a [PdfSupplement] with `barcodeType == PdfBarcodeType.qrCode` — no
+  /// manual compression step needed.
+  ///
+  /// The verifier side (a) auto-detects the leading `"9"` and decompresses
+  /// transparently inside `verifySdJwtVp`, or (b) can call
+  /// [decompressVpFromQr] directly for inspection.
+  ///
+  /// @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
+  /// @param params Disclosure selection + reserved audience / nonce
+  /// @return QR-ready compressed bytes (UTF-8 ASCII, `"9"` prefix + base10 digits)
+  @async
+  Uint8List generateCompressedVpToken(String rawSdJwt, VpTokenParams params);
+
+  /// Generate a test mDL VCDM2 SD-JWT credential, returned as a compact
+  /// SD-JWS string.
+  ///
+  /// The credential mirrors the schema CA DMV will issue once the SD-JWT
+  /// microservice ships, but is signed with a test key generated on demand —
+  /// so the credential is **not** verifiable against any production trust
+  /// anchor. Useful for showcase / demo flows that need a real SD-JWT to
+  /// drive [generateCompressedVpToken] without depending on a live issuer.
+  ///
+  /// @return Compact SD-JWT serialization (`<jwt>~<disc1>~…`) — feed straight
+  ///         to [generateCredentialVpToken] / [generateCompressedVpToken]
+  ///         as `rawSdJwt`.
+  @async
+  String generateTestMdlSdJwtCompact();
+
+  /// Verify a compact SD-JWT VP token.
+  ///
+  /// Accepts either a raw compact SD-JWT (`<jwt>~<disc1>~…`) or a
+  /// `"9"`-prefixed base10 QR payload — the implementation auto-detects the
+  /// leading `"9"` and decompresses transparently before verifying. Throws
+  /// on any failure (issuer signature mismatch, decompression error,
+  /// disclosure hash mismatch, etc.); returns normally on success.
+  ///
+  /// Issuer trust is established via DID resolution (`AnyDidMethod`), so
+  /// `did:jwk` issuers are fully verifiable offline.
+  ///
+  /// @param input Compact SD-JWT VP, or its `"9"`-prefixed compressed form
+  ///              (e.g. straight from a [SpruceScanner] callback)
+  @async
+  void verifySdJwtVp(String input);
+
+  /// Decompress a `"9"`-prefixed base10 QR payload back into a compact
+  /// SD-JWT VP token.
+  ///
+  /// The inverse of the compression step inside [generateCompressedVpToken].
+  /// Verification code typically does **not** need to call this directly —
+  /// `verifySdJwtVp` auto-detects the prefix and decompresses internally —
+  /// but it is exposed for inspection, logging, or non-verification flows
+  /// (e.g. extracting fields client-side from a scanned QR).
+  ///
+  /// @param qrPayload Bytes scanned from the QR (`"9"` prefix + base10 digits)
+  /// @return Original compact SD-JWT VP token bytes (UTF-8)
+  @async
+  Uint8List decompressVpFromQr(Uint8List qrPayload);
+
+  /// Generate AAMVA-format PDF-417 bytes from a raw mDL credential.
+  ///
+  /// The returned bytes follow the AAMVA DL/ID Card Design Standard and can
+  /// be passed straight into [generateCredentialPdf] as a [PdfSupplement]
+  /// of type [PdfSupplementType.barcode] with [PdfBarcodeType.pdf417].
+  ///
+  /// @param rawMdoc Base64-encoded IssuerSigned bytes of the mDL
+  /// @param vcBarcode Optional pre-signed **VC Barcode (VCB)** bytes per the
+  ///   W3C `w3c-vc-barcodes` spec (CBOR-LD compressed, DL-field-commitment-
+  ///   bound). **Not** a generic JWT-VC / LDP-VC / mDoc — the issuer must
+  ///   produce this specific format. When non-null, embedded as a ZZ subfile
+  ///   so compliant AAMVA readers can verify the credential offline against
+  ///   the DL subfile. When null, only the DL subfile is emitted.
+  /// @return Raw AAMVA bytes ready to be rendered as a PDF-417 barcode
+  @async
+  Uint8List generateAamvaPdf417Bytes(String rawMdoc, Uint8List? vcBarcode);
 }

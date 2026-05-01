@@ -1,24 +1,63 @@
+use std::sync::Arc;
+
 use base64::prelude::*;
 
 use crate::credential::mdoc::Mdoc;
+use crate::credential::vcdm2_sd_jwt::{SdJwtError, VCDM2SdJwt};
 use crate::pdf::{PdfSection, PdfSource, PdfSupplement, PdfTheme};
 
 /// MDL-specific data extracted from an `Mdoc` ready for PDF rendering.
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct MdlContent {
+    #[serde(default)]
     family_name: Option<String>,
+    #[serde(default)]
     given_name: Option<String>,
+    #[serde(default)]
     birth_date: Option<String>,
+    #[serde(default)]
     document_number: Option<String>,
+    #[serde(default)]
     expiry_date: Option<String>,
+    #[serde(default)]
     issuing_country: Option<String>,
+    #[serde(default)]
     issuing_authority: Option<String>,
+    #[serde(default)]
     resident_address: Option<String>,
+    #[serde(default)]
     resident_city: Option<String>,
+    #[serde(default)]
     resident_state: Option<String>,
+    #[serde(default)]
     resident_postal_code: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_portrait_data_url")]
     portrait: Option<Vec<u8>>,
+    #[serde(skip)]
     /// External data provided by the Wallet at generation time (barcodes, etc.).
     pub(crate) supplements: Vec<PdfSupplement>,
+}
+
+impl TryFrom<&Arc<VCDM2SdJwt>> for MdlContent {
+    type Error = SdJwtError;
+
+    /// Build an `MdlContent` from a VCDM2 SD-JWT credential.
+    ///
+    /// Navigates to the `credentialSubject.driversLicense` subobject (per the
+    /// VDL JSON-LD context) before deserializing into our flat `MdlContent`
+    /// shape. Fields not present in the revealed claims (e.g. portrait when
+    /// holder hides it for QR encoding) are deserialized as `None`.
+    fn try_from(value: &Arc<VCDM2SdJwt>) -> Result<Self, Self::Error> {
+        let claims = value.revealed_claims_as_json()?;
+        let dl = claims
+            .pointer("/credentialSubject/driversLicense")
+            .ok_or_else(|| {
+                SdJwtError::Serialization(
+                    "missing credentialSubject.driversLicense in SD-JWT".to_string(),
+                )
+            })?;
+        serde_json::from_value(dl.clone()).map_err(|e| SdJwtError::Serialization(e.to_string()))
+    }
 }
 
 impl MdlContent {
@@ -217,4 +256,90 @@ fn decode_portrait(raw: &str) -> Option<Vec<u8>> {
         }
     }
     None
+}
+
+/// Serde deserializer for the `portrait` field when the source is a JSON
+/// data-URL string (as produced by SD-JWT issuance).
+///
+/// Accepts either `null`, a missing field, or a `"data:image/jpeg;base64,…"`
+/// string. Returns `None` if the field is absent, null, or unparsable —
+/// rendering the PDF without a portrait rather than failing the whole flow
+/// (consistent with the mDoc path's `decode_portrait` behavior).
+fn deserialize_portrait_data_url<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+    let opt: Option<String> = Option::deserialize(deserializer)?;
+    Ok(opt.and_then(|s| {
+        // `decode_portrait` expects a JSON-quoted string (matches the mDoc path
+        // where values come from `serde_json::to_string_pretty`). Re-quote to
+        // reuse the same parser.
+        decode_portrait(&format!("\"{s}\""))
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::credential::{
+        format::vcdm2_sd_jwt::{tests::generate_mdl_sd_jwt, VCDM2SdJwt},
+        ParsedCredential,
+    };
+    use crate::pdf::generate_credential_pdf;
+
+    /// `MdlContent::try_from(&Arc<VCDM2SdJwt>)` should pull the expected leaf
+    /// values out of the SD-JWT's `credentialSubject.driversLicense` subtree
+    /// and decode the portrait data-URL into raw bytes.
+    #[tokio::test]
+    async fn try_from_sd_jwt_extracts_fields() {
+        let sd_jwt_buf: ssi::claims::sd_jwt::SdJwtBuf = generate_mdl_sd_jwt().await;
+        let parsed: Arc<VCDM2SdJwt> = VCDM2SdJwt::new_from_compact_sd_jwt(sd_jwt_buf.to_string())
+            .expect("parse fixture SD-JWT");
+
+        let content = MdlContent::try_from(&parsed).expect("MdlContent::try_from");
+
+        assert_eq!(content.family_name.as_deref(), Some("ONEZERO"));
+        assert_eq!(content.given_name.as_deref(), Some("IRVINGTEST"));
+        assert_eq!(content.birth_date.as_deref(), Some("1999-03-16"));
+        assert_eq!(content.document_number.as_deref(), Some("I8882610"));
+        assert_eq!(content.expiry_date.as_deref(), Some("2028-03-16"));
+        assert_eq!(content.issuing_country.as_deref(), Some("US"));
+        assert_eq!(content.issuing_authority.as_deref(), Some("CA,USA"));
+        assert_eq!(content.resident_address.as_deref(), Some("2415 1ST AVE"));
+        assert_eq!(content.resident_city.as_deref(), Some("SACRAMENTO"));
+        assert_eq!(content.resident_state.as_deref(), Some("CA"));
+        assert_eq!(content.resident_postal_code.as_deref(), Some("95818"));
+
+        // Portrait data-URL should decode to non-empty bytes.
+        let portrait = content.portrait.as_ref().expect("portrait decoded");
+        assert!(!portrait.is_empty(), "portrait bytes should be non-empty");
+        // First two bytes of the placeholder JPEG (after base64-decoding
+        // `/9j/2w...`) are the JPEG SOI marker `0xFF 0xD8`.
+        assert_eq!(&portrait[0..2], &[0xFF, 0xD8]);
+    }
+
+    /// Going all the way through `generate_credential_pdf` from a SD-JWT
+    /// credential should produce a valid PDF — the same end-to-end smoke
+    /// guarantee we already have for the mDoc path.
+    #[tokio::test]
+    async fn sd_jwt_credential_renders_to_pdf() {
+        let sd_jwt_buf: ssi::claims::sd_jwt::SdJwtBuf = generate_mdl_sd_jwt().await;
+        let sd_jwt = VCDM2SdJwt::new_from_compact_sd_jwt(sd_jwt_buf.to_string())
+            .expect("parse fixture SD-JWT");
+        let credential = ParsedCredential::new_sd_jwt(sd_jwt);
+
+        let pdf_bytes = generate_credential_pdf(credential, vec![]).expect("PDF generation");
+
+        assert!(
+            pdf_bytes.starts_with(b"%PDF-"),
+            "output should start with PDF magic bytes"
+        );
+        assert!(
+            pdf_bytes.len() > 1024,
+            "PDF should be non-trivial (got {} bytes)",
+            pdf_bytes.len()
+        );
+    }
 }

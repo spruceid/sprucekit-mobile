@@ -25,7 +25,7 @@ use uuid::Uuid;
 use vcdm2_sd_jwt::{SdJwtError, VCDM2SdJwt};
 
 pub mod activity_log;
-mod format;
+pub(crate) mod format;
 mod raw;
 pub mod status;
 pub mod status_20240406;
