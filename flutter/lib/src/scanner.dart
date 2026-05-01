@@ -46,6 +46,9 @@ class SpruceScanner extends StatefulWidget {
     this.subtitle = 'Please align within the guides',
     this.isMatch,
     this.showCancelButton = true,
+    this.headless = false,
+    this.scanCooldownMs = 0,
+    this.onCameraReady,
   });
 
   /// The type of scanner to use.
@@ -69,6 +72,25 @@ class SpruceScanner extends StatefulWidget {
 
   /// Whether to show the cancel button. Defaults to true.
   final bool showCancelButton;
+
+  /// When true, the scanner renders only the camera preview with no chrome
+  /// (no title, subtitle, overlay, guides, scan-line, or cancel button).
+  /// The caller is expected to draw its own UI on top.
+  final bool headless;
+
+  /// Cooldown between successive [onRead] emissions, in milliseconds.
+  /// When 0 (default), the scanner stops after the first read on iOS and
+  /// fires per-frame on Android. When > 0, the scanner runs continuously
+  /// and ignores reads within the cooldown window.
+  final int scanCooldownMs;
+
+  /// Fired once when the camera preview is producing frames.
+  ///
+  /// Android: triggered when `PreviewView.previewStreamState` reaches
+  /// `STREAMING` (CameraX's first-frame signal).
+  /// iOS: fired immediately after the platform view is constructed
+  /// (UIKitView composition does not need a real frame signal).
+  final VoidCallback? onCameraReady;
 
   @override
   State<SpruceScanner> createState() => _SpruceScannerState();
@@ -101,6 +123,9 @@ class _SpruceScannerState extends State<SpruceScanner> {
       case 'onCancel':
         widget.onCancel();
         return null;
+      case 'onCameraReady':
+        widget.onCameraReady?.call();
+        return null;
       case 'isMatch':
         final content = call.arguments as String;
         if (widget.isMatch != null) {
@@ -116,11 +141,27 @@ class _SpruceScannerState extends State<SpruceScanner> {
   }
 
   Map<String, dynamic> _creationParams() {
+    if (widget.headless) {
+      // Native scanners render no chrome when text is empty and overlays are transparent.
+      return {
+        'type': widget.type.name,
+        'title': '',
+        'subtitle': '',
+        'instructions': '',
+        'guidesText': '',
+        'showCancelButton': false,
+        'backgroundOpacity': 0.0,
+        'guidesColor': 0x00000000,
+        'readerColor': 0x00000000,
+        'scanCooldownMs': widget.scanCooldownMs,
+      };
+    }
     return {
       'type': widget.type.name,
       'title': widget.title,
       'subtitle': widget.subtitle,
       'showCancelButton': widget.showCancelButton,
+      'scanCooldownMs': widget.scanCooldownMs,
     };
   }
 

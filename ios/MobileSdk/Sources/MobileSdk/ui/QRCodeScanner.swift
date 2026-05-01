@@ -41,6 +41,7 @@ public struct QRCodeScanner: View {
     var instructions: String
     var instructionsFont: Font?
     var instructionsDefaultColor: Color
+    var scanCooldownMs: Int
 
     public init(
         title: String = "Scan QR Code",
@@ -63,7 +64,8 @@ public struct QRCodeScanner: View {
         backgroundOpacity: Double = 1,
         instructions: String = "",
         instructionsFont: Font? = nil,
-        instructionsDefaultColor: Color = .gray
+        instructionsDefaultColor: Color = .gray,
+        scanCooldownMs: Int = 0
     ) {
         self.title = title
         self.subtitle = subtitle
@@ -86,6 +88,7 @@ public struct QRCodeScanner: View {
         self.instructions = instructions
         self.instructionsFont = instructionsFont
         self.instructionsDefaultColor = instructionsDefaultColor
+        self.scanCooldownMs = scanCooldownMs
     }
 
     func calculateRegionOfInterest() -> CGSize {
@@ -137,6 +140,11 @@ public struct QRCodeScanner: View {
                             RoundedRectangle(cornerRadius: 100)
                         )
                     )
+                    // INFO: Since this iOS version uses hstackHeight 
+                    // to calculate the positioning of the ProgressRing+guideText
+                    // we have to use this opacity trick instead of conditional 
+                    // rendering, so the layout is not messed up
+                    .opacity(guidesText.isEmpty ? 0 : 1)
                     .background(
                         GeometryReader { geometry in
                             Color.clear
@@ -171,7 +179,8 @@ public struct QRCodeScanner: View {
                     vstackHeight = height
                 }
                 .offset(y: vstackHeight - (hstackHeight / 2))
-            }
+            },
+            scanCooldownMs: scanCooldownMs
         )
     }
 }
