@@ -98,6 +98,15 @@ struct VerifierHomeBody: View {
             }
 
             VerifierListItem(
+                title: "SD-JWT VP",
+                description:
+                    "Verifies a Selective-Disclosure JWT Verifiable Presentation (e.g. an mDL PDF QR payload)",
+                type: VerifierListItemTagType.SCAN_QR_CODE
+            ).onTapGesture {
+                path.append(VerifySdJwt())
+            }
+
+            VerifierListItem(
                 title: "Mobile Driver's License",
                 description:
                     "Verifies an ISO formatted mobile driver's license by reading a QR code",

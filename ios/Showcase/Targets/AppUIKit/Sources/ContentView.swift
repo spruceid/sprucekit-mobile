@@ -96,6 +96,9 @@ public struct ContentView: View {
                     .navigationDestination(for: VerifyVC.self) { _ in
                         VerifyVCView(path: $path)
                     }
+                    .navigationDestination(for: VerifySdJwt.self) { _ in
+                        VerifySdJwtView(path: $path)
+                    }
                     .navigationDestination(for: VerifyMDoc.self) {
                         verifyMDocParams in
                         VerifyMDocView(

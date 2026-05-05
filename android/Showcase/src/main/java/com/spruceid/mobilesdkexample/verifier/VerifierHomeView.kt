@@ -181,6 +181,14 @@ fun VerifierHomeBody(
                 }
             )
             VerifierListItem(
+                title = "SD-JWT VP",
+                description = "Verifies a Selective-Disclosure JWT Verifiable Presentation (e.g. an mDL PDF QR payload)",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifySdJwtScreen.route)
+                }
+            )
+            VerifierListItem(
                 title = "CWT",
                 description = "Verifies a CWT by reading a QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,

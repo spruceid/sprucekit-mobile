@@ -64,6 +64,132 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
         }
     }
 
+    /// Shared helper: parses a compact SD-JWT string and generates a raw VP Token byte array.
+    /// Both `generateCredentialVpToken` and `generateCompressedVpToken` use this logic.
+    private func buildVpTokenBytes(rawSdJwt: String, params: VpTokenParams) async throws -> Data {
+        // Parse the compact SD-JWT into a ParsedCredential.
+        let sdJwt = try SpruceIDMobileSdkRs.Vcdm2SdJwt.newFromCompactSdJwt(input: rawSdJwt)
+        let credential = SpruceIDMobileSdkRs.ParsedCredential.newSdJwt(sdJwtVc: sdJwt)
+
+        // Convert Pigeon DisclosureSelection -> Rust DisclosureSelection
+        let rustDisclosure: SpruceIDMobileSdkRs.DisclosureSelection
+        switch params.disclosure.type {
+        case .hideOnly:
+            rustDisclosure = .hideOnly(fields: params.disclosure.fields)
+        case .selectOnly:
+            rustDisclosure = .selectOnly(fields: params.disclosure.fields)
+        }
+
+        let rustParams = SpruceIDMobileSdkRs.VpTokenParams(
+            disclosure: rustDisclosure,
+            audience: params.audience,
+            nonce: params.nonce
+        )
+
+        return try await SpruceIDMobileSdkRs.generateCredentialVpToken(
+            credential: credential,
+            params: rustParams
+        )
+    }
+
+    func generateCredentialVpToken(
+        rawSdJwt: String,
+        params: VpTokenParams,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task {
+            do {
+                let bytes = try await buildVpTokenBytes(rawSdJwt: rawSdJwt, params: params)
+                completion(.success(FlutterStandardTypedData(bytes: bytes)))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func generateCompressedVpToken(
+        rawSdJwt: String,
+        params: VpTokenParams,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task {
+            do {
+                let vpBytes = try await buildVpTokenBytes(rawSdJwt: rawSdJwt, params: params)
+                // deflate + base10 + "9"-prefix compression so the bytes fit a QR numeric-mode payload.
+                let compressed = try SpruceIDMobileSdkRs.compressVpForQr(vpToken: vpBytes)
+                completion(.success(FlutterStandardTypedData(bytes: compressed)))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func generateTestMdlSdJwtCompact(
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        Task {
+            let compact = await SpruceIDMobileSdkRs.generateTestMdlSdJwtCompact()
+            completion(.success(compact))
+        }
+    }
+
+    func verifySdJwtVp(
+        input: String,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        Task {
+            do {
+                try await SpruceIDMobileSdkRs.verifySdJwtVp(input: input)
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func decompressVpFromQr(
+        qrPayload: FlutterStandardTypedData,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        do {
+            let bytes = try SpruceIDMobileSdkRs.decompressVpFromQr(qrPayload: qrPayload.data)
+            completion(.success(FlutterStandardTypedData(bytes: bytes)))
+        } catch {
+            completion(.failure(error))
+        }
+    }
+
+    func generateAamvaPdf417Bytes(
+        rawMdoc: String,
+        vcBarcode: FlutterStandardTypedData?,
+        completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void
+    ) {
+        Task {
+            do {
+                guard let documentBytes = Data(base64Encoded: rawMdoc) else {
+                    completion(.failure(NSError(
+                        domain: "SpruceUtilsAdapter",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to decode base64 rawMdoc"]
+                    )))
+                    return
+                }
+                let mdoc = try Mdoc.fromCborEncodedDocument(
+                    cborEncodedDocument: documentBytes,
+                    keyAlias: "pdf"
+                )
+                let credential = ParsedCredential.newMsoMdoc(mdoc: mdoc)
+                let bytes = try SpruceIDMobileSdkRs.generateAamvaPdf417Bytes(
+                    credential: credential,
+                    vcBarcode: vcBarcode?.data
+                )
+                completion(.success(FlutterStandardTypedData(bytes: Data(bytes))))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
     func generateMockMdl(
         keyAlias: String?,
         completion: @escaping (Result<GenerateMockMdlResult, Error>) -> Void

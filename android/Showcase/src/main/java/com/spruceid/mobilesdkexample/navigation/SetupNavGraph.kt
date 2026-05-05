@@ -17,6 +17,7 @@ import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
 import com.spruceid.mobilesdkexample.verifier.VerifyEAView
 import com.spruceid.mobilesdkexample.verifier.VerifyKioskView
 import com.spruceid.mobilesdkexample.verifier.VerifyMDocView
+import com.spruceid.mobilesdkexample.verifier.VerifySdJwtView
 import com.spruceid.mobilesdkexample.verifier.VerifyVCView
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.verifiersettings.VerifierSettingsHomeView
@@ -61,6 +62,11 @@ fun SetupNavGraph(
             route = Screen.VerifyVCScreen.route,
         ) {
             VerifyVCView(navController)
+        }
+        composable(
+            route = Screen.VerifySdJwtScreen.route,
+        ) {
+            VerifySdJwtView(navController)
         }
         composable(
             route = Screen.VerifyCWTScreen.route,

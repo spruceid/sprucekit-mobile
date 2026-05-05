@@ -472,8 +472,8 @@ fun GenericCredentialDetailsSharePDF(credential: ParsedCredential?) {
                     errorMessage = null
                     coroutineScope.launch {
                         try {
-                            val supplements = credentialPacksViewModel.getDemoSupplements()
                             val pdfBytes = withContext(Dispatchers.IO) {
+                                val supplements = credentialPacksViewModel.getDemoSupplements(credential)
                                 generateCredentialPdf(credential, supplements)
                             }
                             helpersViewModel.exportBytes(pdfBytes, "credential.pdf", "application/pdf")

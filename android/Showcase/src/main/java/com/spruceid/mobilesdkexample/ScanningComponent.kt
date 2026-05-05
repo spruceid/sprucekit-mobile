@@ -29,6 +29,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.spruceid.mobile.sdk.ui.MRZScanner
+import com.spruceid.mobile.sdk.ui.MlKitQRCodeScanner
 import com.spruceid.mobile.sdk.ui.PDF417Scanner
 import com.spruceid.mobile.sdk.ui.QRCodeScanner
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
@@ -40,7 +41,10 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 
 enum class ScanningType {
-    QRCODE, PDF417, MRZ
+    QRCODE,
+    QRCODE_HIGH_DENSITY,
+    PDF417,
+    MRZ,
 }
 
 @ExperimentalMaterial3Api
@@ -108,6 +112,25 @@ fun ScanningComponent(
                     cancelButtonBorderColor = ColorStone300,
                     instructionsDefaultColor = ColorStone500,
                     backgroundColor = backgroundColor
+                )
+
+                ScanningType.QRCODE_HIGH_DENSITY -> MlKitQRCodeScanner(
+                    title = title,
+                    titleColor = ColorStone950,
+                    subtitle = subtitle,
+                    subtitleColor = ColorStone600,
+                    cancelButtonLabel = "Cancel",
+                    onRead = onRead,
+                    isMatch = isMatch,
+                    onCancel = onCancel,
+                    hideCancelButton = hideCancelButton,
+                    fontFamily = Inter,
+                    readerColor = Color.White,
+                    guidesColor = ColorBlue600,
+                    cancelButtonColor = ColorStone950,
+                    cancelButtonBorderColor = ColorStone300,
+                    instructionsDefaultColor = ColorStone500,
+                    backgroundColor = backgroundColor,
                 )
 
                 ScanningType.PDF417 -> PDF417Scanner(

@@ -19,6 +19,8 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.spruceid.mobile.sdk.ui.MlKitPDF417Scanner
+import com.spruceid.mobile.sdk.ui.MlKitQRCodeScanner
 import com.spruceid.mobile.sdk.ui.MRZScanner
 import com.spruceid.mobile.sdk.ui.PDF417Scanner
 import com.spruceid.mobile.sdk.ui.QRCodeScanner
@@ -192,7 +194,27 @@ private fun ScannerContent(
             onCancel = onCancel,
             hideCancelButton = hideCancelButton
         )
+        // ML Kit-backed scanner with the same camera tuning the native
+        // SD-JWT verifier showcase uses (4K analysis stream, no zoom).
+        // Required for V37+ QR (e.g. compressed SD-JWT VPs).
+        "qrCodeHighDensity" -> MlKitQRCodeScanner(
+            title = title,
+            subtitle = subtitle,
+            onRead = onRead,
+            onCancel = onCancel,
+            hideCancelButton = hideCancelButton
+        )
         "pdf417" -> PDF417Scanner(
+            title = title,
+            subtitle = subtitle,
+            onRead = onRead,
+            onCancel = onCancel,
+            hideCancelButton = hideCancelButton
+        )
+        // ML Kit-backed scanner with the same camera tuning the SD-JWT
+        // verifier uses (4K analysis, no zoom). Required for dense
+        // PDF-417 payloads (e.g. real AAMVA DL bytes).
+        "pdf417HighDensity" -> MlKitPDF417Scanner(
             title = title,
             subtitle = subtitle,
             onRead = onRead,
