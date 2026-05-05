@@ -37,6 +37,50 @@ class IssuedCredential {
   IssuedCredential({required this.payload, required this.format});
 }
 
+/// Grant type discriminator for an OID4VCI credential offer.
+///
+/// Mirrors the Rust `GrantType` enum on `ResolvedCredentialOffer`.
+enum GrantType {
+  /// Pre-authorized code grant with no transaction code (PIN). No user
+  /// authorization required beyond the wallet's confirmation.
+  preAuthCodeNoTxCode,
+
+  /// Pre-authorized code grant requiring a transaction code (PIN) provided
+  /// out-of-band by the issuer.
+  preAuthCodeWithTxCode,
+
+  /// Authorization-code grant requiring the user to sign in via browser.
+  authorizationCode,
+}
+
+/// Pre-issuance metadata about an OID4VCI offer.
+///
+/// Returned by `parseOffer`. Contains everything the wallet needs to render
+/// an issuer-details screen before requesting any user authorization.
+class ParsedOfferMetadata {
+  /// The issuer's identifier URL (`credential_issuer` field in OID4VCI metadata).
+  String issuerId;
+
+  /// Optional human-readable display name of the issuer, taken from the
+  /// `display[0].name` field in the issuer metadata. May be null when the
+  /// issuer does not provide a display name.
+  String? issuerDisplayName;
+
+  /// The credential configuration IDs included in this offer. Multi-credential
+  /// offers will contain more than one entry.
+  List<String> credentialConfigurationIds;
+
+  /// The grant type required to complete the issuance.
+  GrantType grantType;
+
+  ParsedOfferMetadata({
+    required this.issuerId,
+    required this.issuerDisplayName,
+    required this.credentialConfigurationIds,
+    required this.grantType,
+  });
+}
+
 /// Result of OID4VCI issuance
 sealed class Oid4vciResult {}
 
@@ -59,6 +103,18 @@ class Oid4vciError implements Oid4vciResult {
 /// Handles the OpenID for Verifiable Credential Issuance flow
 @HostApi()
 abstract class Oid4vci {
+  /// Resolve an OID4VCI credential offer URL and return pre-issuance metadata.
+  ///
+  /// Performs the issuer-metadata HTTP fetch but does NOT initiate token
+  /// exchange or credential request. Safe to call before any user authorization.
+  ///
+  /// @param credentialOffer The full credential offer URL.
+  /// @return Pre-issuance metadata describing the issuer and the grant type
+  ///   the user will need to complete.
+  /// @throws when the URL is unparseable or the issuer metadata fetch fails.
+  @async
+  ParsedOfferMetadata parseOffer(String credentialOffer);
+
   /// Run the complete OID4VCI issuance flow
   ///
   /// This method handles:
