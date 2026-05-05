@@ -6,6 +6,7 @@ import com.spruceid.mobile.sdk.Oid4vciAsyncHttpClient
 import com.spruceid.mobile.sdk.rs.CredentialFormat as RsCredentialFormat
 import com.spruceid.mobile.sdk.rs.CredentialResponse
 import com.spruceid.mobile.sdk.rs.CredentialTokenState
+import com.spruceid.mobile.sdk.rs.GrantType as RsGrantType
 import com.spruceid.mobile.sdk.rs.JwsSigner
 import com.spruceid.mobile.sdk.rs.JwsSignerInfo
 import com.spruceid.mobile.sdk.rs.Oid4vciClient
@@ -42,6 +43,46 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                 callback(Result.success(result))
             } catch (e: Exception) {
                 callback(Result.success(Oid4vciError(message = e.localizedMessage ?: "Unknown error")))
+            }
+        }
+    }
+
+    override fun parseOffer(
+        credentialOffer: String,
+        callback: (Result<ParsedOfferMetadata>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val httpClient = Oid4vciAsyncHttpClient()
+
+                // The clientId is unused for resolveOfferUrl (no token request happens here),
+                // so a sentinel is fine. Real issuance derives a clientId from the device key.
+                val client = Oid4vciClient("parse-offer-only")
+
+                val offerUrl = if (credentialOffer.startsWith("openid-credential-offer://")) {
+                    credentialOffer
+                } else {
+                    "openid-credential-offer://$credentialOffer"
+                }
+
+                val resolved = client.resolveOfferUrl(httpClient, offerUrl)
+
+                val grantType = when (resolved.grantType()) {
+                    RsGrantType.PRE_AUTH_CODE_NO_TX_CODE -> GrantType.PRE_AUTH_CODE_NO_TX_CODE
+                    RsGrantType.PRE_AUTH_CODE_WITH_TX_CODE -> GrantType.PRE_AUTH_CODE_WITH_TX_CODE
+                    RsGrantType.AUTHORIZATION_CODE -> GrantType.AUTHORIZATION_CODE
+                }
+
+                val metadata = ParsedOfferMetadata(
+                    issuerId = resolved.credentialIssuer(),
+                    issuerDisplayName = resolved.issuerDisplayName(),
+                    credentialConfigurationIds = resolved.credentialConfigurationIds(),
+                    grantType = grantType,
+                )
+
+                callback(Result.success(metadata))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
             }
         }
     }

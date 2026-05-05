@@ -56,6 +56,50 @@ class Oid4vciAdapter: Oid4vci {
         }
     }
 
+    func parseOffer(
+        credentialOffer: String,
+        completion: @escaping (Result<ParsedOfferMetadata, Error>) -> Void
+    ) {
+        Task {
+            do {
+                let httpClient = Oid4vciAsyncHttpClient()
+
+                // clientId is irrelevant for offer resolution (no token request occurs here)
+                let client = Oid4vciClient(clientId: "parse-offer-only")
+
+                let offerUrl = credentialOffer.starts(with: "openid-credential-offer://")
+                    ? credentialOffer
+                    : "openid-credential-offer://\(credentialOffer)"
+
+                let resolved = try await client.resolveOfferUrl(
+                    httpClient: httpClient,
+                    credentialOfferUrl: offerUrl
+                )
+
+                let rsGrantType: SpruceIDMobileSdkRs.GrantType = resolved.grantType()
+                let grantType: GrantType
+                switch rsGrantType {
+                case .preAuthCodeNoTxCode:
+                    grantType = .preAuthCodeNoTxCode
+                case .preAuthCodeWithTxCode:
+                    grantType = .preAuthCodeWithTxCode
+                case .authorizationCode:
+                    grantType = .authorizationCode
+                }
+
+                let metadata = ParsedOfferMetadata(
+                    issuerId: resolved.credentialIssuer(),
+                    issuerDisplayName: resolved.issuerDisplayName(),
+                    credentialConfigurationIds: resolved.credentialConfigurationIds(),
+                    grantType: grantType
+                )
+                completion(.success(metadata))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
     private func performIssuance(
         credentialOffer: String,
         keyId: String
