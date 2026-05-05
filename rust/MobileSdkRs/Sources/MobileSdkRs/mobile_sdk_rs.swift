@@ -13616,7 +13616,13 @@ public func FfiConverterTypeRequestedField_lower(_ value: RequestedField) -> UIn
 
 public protocol ResolvedCredentialOfferProtocol: AnyObject, Sendable {
     
+    func credentialConfigurationIds()  -> [String]
+    
     func credentialIssuer()  -> String
+    
+    func grantType()  -> GrantType
+    
+    func issuerDisplayName()  -> String?
     
 }
 open class ResolvedCredentialOffer: ResolvedCredentialOfferProtocol, @unchecked Sendable {
@@ -13672,9 +13678,33 @@ open class ResolvedCredentialOffer: ResolvedCredentialOfferProtocol, @unchecked 
     
 
     
+open func credentialConfigurationIds() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_credential_configuration_ids(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
 open func credentialIssuer() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_credential_issuer(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func grantType() -> GrantType  {
+    return try!  FfiConverterTypeGrantType_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_grant_type(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func issuerDisplayName() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_issuer_display_name(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -22636,6 +22666,86 @@ public func FfiConverterTypeFlowState_lift(_ buf: RustBuffer) throws -> FlowStat
 #endif
 public func FfiConverterTypeFlowState_lower(_ value: FlowState) -> RustBuffer {
     return FfiConverterTypeFlowState.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Grant type of an OID4VCI credential offer.
+ *
+ * Determines the authorization ceremony required before a credential can be
+ * issued: none, a transaction code (PIN), or a full authorization-code flow.
+ */
+
+public enum GrantType: Equatable, Hashable {
+    
+    case preAuthCodeNoTxCode
+    case preAuthCodeWithTxCode
+    case authorizationCode
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GrantType: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGrantType: FfiConverterRustBuffer {
+    typealias SwiftType = GrantType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GrantType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .preAuthCodeNoTxCode
+        
+        case 2: return .preAuthCodeWithTxCode
+        
+        case 3: return .authorizationCode
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GrantType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .preAuthCodeNoTxCode:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .preAuthCodeWithTxCode:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .authorizationCode:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrantType_lift(_ buf: RustBuffer) throws -> GrantType {
+    return try FfiConverterTypeGrantType.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrantType_lower(_ value: GrantType) -> RustBuffer {
+    return FfiConverterTypeGrantType.lower(value)
 }
 
 
@@ -33786,7 +33896,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_resolve_offer_url() != 51427) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_credential_configuration_ids() != 53699) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_credential_issuer() != 56209) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_grant_type() != 61562) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_issuer_display_name() != 9881) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_authorizationcoderequired_proceed() != 10740) {
