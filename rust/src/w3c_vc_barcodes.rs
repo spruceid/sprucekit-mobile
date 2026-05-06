@@ -110,8 +110,8 @@ pub async fn encode_optical_barcode_credential_for_pdf417(
     jsonld: String,
 ) -> Result<Vec<u8>, VcbEncodingError> {
     crate::big_stack::run_async(move || async move {
-        let doc = JsonValue::from_str(&jsonld)
-            .map_err(|e| VcbEncodingError::JsonParse(e.to_string()))?;
+        let doc =
+            JsonValue::from_str(&jsonld).map_err(|e| VcbEncodingError::JsonParse(e.to_string()))?;
         cbor_ld::encode_to_bytes(&doc, &*CONTEXT_LOADER)
             .await
             .map_err(|e| VcbEncodingError::CborEncode(e.to_string()))
