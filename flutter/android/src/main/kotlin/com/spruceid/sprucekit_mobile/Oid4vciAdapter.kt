@@ -119,6 +119,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                                 is RsCredentialFormat.Vcdm2SdJwt -> "vc+sd-jwt"
                                 is RsCredentialFormat.DcSdJwt -> "dc+sd-jwt"
                                 is RsCredentialFormat.Cwt -> "cwt"
+                                is RsCredentialFormat.OpticalBarcodeCredential -> "optical_barcode_credential"
                                 is RsCredentialFormat.Other -> (cred.format as RsCredentialFormat.Other).v1
                             }
                             IssuedCredential(

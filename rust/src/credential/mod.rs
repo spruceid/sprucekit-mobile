@@ -18,6 +18,7 @@ use openid4vp::core::{
     dcql_query::{DcqlCredentialQuery, DcqlQuery},
     response::parameters::VpTokenItem,
 };
+use optical_barcode_credential::{OpticalBarcodeCred, OpticalBarcodeCredError};
 use serde::{Deserialize, Serialize};
 use status::BitStringStatusListResolver;
 use status_20240406::BitStringStatusListResolver20240406;
@@ -83,6 +84,9 @@ pub(crate) enum ParsedCredentialInner {
     DcSdJwt(Arc<IetfSdJwtVc>),
     LdpVc(Arc<JsonVc>),
     Cwt(Arc<Cwt>),
+    /// W3C OpticalBarcodeCredential (issuer-signed JSON-LD VC, used by the
+    /// PDF-417 VCB pipeline). Wallet has no holder key for this credential.
+    OpticalBarcodeCredential(Arc<OpticalBarcodeCred>),
 }
 
 #[uniffi::export]
@@ -105,6 +109,7 @@ impl PresentableCredential {
             ParsedCredentialInner::DcSdJwt(_) => true,
             ParsedCredentialInner::LdpVc(_) => false,
             ParsedCredentialInner::Cwt(_) => false,
+            ParsedCredentialInner::OpticalBarcodeCredential(_) => false,
         }
     }
 
@@ -154,6 +159,13 @@ impl ParsedCredential {
                 let cwt = Cwt::new_from_base10(credential)?;
                 Ok(ParsedCredential::new_cwt(cwt))
             }
+            CredentialFormat::OpticalBarcodeCredential => {
+                // VCBs are issuer-signed and not bound to a holder key; the
+                // supplied `key_alias` is intentionally ignored.
+                let _ = key_alias;
+                let cred = OpticalBarcodeCred::new(credential)?;
+                Ok(ParsedCredential::new_optical_barcode_credential(cred))
+            }
             CredentialFormat::Other(_) => Err(
                 CredentialDecodingError::UnsupportedCredentialFormat(format.to_string()),
             ),
@@ -202,6 +214,11 @@ impl ParsedCredential {
             CredentialFormat::Cwt => {
                 let cwt = Cwt::from_base10(id, credential.as_bytes().into())?.into();
                 Ok(ParsedCredential::new_cwt(cwt))
+            }
+            CredentialFormat::OpticalBarcodeCredential => {
+                let _ = key_alias;
+                let cred = OpticalBarcodeCred::new_with_id(id, credential)?;
+                Ok(ParsedCredential::new_optical_barcode_credential(cred))
             }
             CredentialFormat::Other(_) => Err(
                 CredentialDecodingError::UnsupportedCredentialFormat(format.to_string()),
@@ -273,6 +290,19 @@ impl ParsedCredential {
     }
 
     #[uniffi::constructor]
+    /// Construct a new `optical_barcode_credential` (W3C VCB).
+    ///
+    /// VCBs are issuer-signed JSON-LD VCs intended for embedding in optical
+    /// barcodes (PDF-417 ZZA, QR). The wallet stores the credential verbatim
+    /// and surfaces it to the PDF pipeline, which handles CBOR-LD compression
+    /// and AAMVA assembly.
+    pub fn new_optical_barcode_credential(cred: Arc<OpticalBarcodeCred>) -> Arc<Self> {
+        Arc::new(Self {
+            inner: ParsedCredentialInner::OpticalBarcodeCredential(cred),
+        })
+    }
+
+    #[uniffi::constructor]
     /// Parse a credential from the generic form retrieved from storage.
     pub fn parse_from_credential(
         credential: Credential,
@@ -331,6 +361,7 @@ impl ParsedCredential {
                 payload: cwt.payload(),
                 key_alias: cwt.key_alias(),
             }),
+            ParsedCredentialInner::OpticalBarcodeCredential(cred) => Ok(cred.to_credential()),
         }
     }
 
@@ -344,6 +375,9 @@ impl ParsedCredential {
             ParsedCredentialInner::DcSdJwt(_) => CredentialFormat::DcSdJwt,
             ParsedCredentialInner::Cwt(_) => CredentialFormat::Cwt,
             ParsedCredentialInner::LdpVc(_) => CredentialFormat::LdpVc,
+            ParsedCredentialInner::OpticalBarcodeCredential(_) => {
+                CredentialFormat::OpticalBarcodeCredential
+            }
         }
     }
 
@@ -357,6 +391,7 @@ impl ParsedCredential {
             ParsedCredentialInner::VCDM2SdJwt(arc) => arc.id(),
             ParsedCredentialInner::DcSdJwt(arc) => arc.id(),
             ParsedCredentialInner::Cwt(arc) => arc.id(),
+            ParsedCredentialInner::OpticalBarcodeCredential(arc) => arc.id(),
         }
     }
 
@@ -370,6 +405,7 @@ impl ParsedCredential {
             ParsedCredentialInner::VCDM2SdJwt(arc) => arc.key_alias(),
             ParsedCredentialInner::DcSdJwt(arc) => arc.key_alias(),
             ParsedCredentialInner::Cwt(arc) => arc.key_alias(),
+            ParsedCredentialInner::OpticalBarcodeCredential(arc) => arc.key_alias(),
         }
     }
 
@@ -383,6 +419,7 @@ impl ParsedCredential {
             ParsedCredentialInner::VCDM2SdJwt(arc) => arc.r#type(),
             ParsedCredentialInner::DcSdJwt(arc) => arc.r#type(),
             ParsedCredentialInner::Cwt(arc) => arc.r#type(),
+            ParsedCredentialInner::OpticalBarcodeCredential(arc) => arc.r#type(),
         }
     }
 
@@ -434,6 +471,15 @@ impl ParsedCredential {
             _ => None,
         }
     }
+
+    /// Return the credential as an OpticalBarcodeCredential (W3C VCB),
+    /// if it is of that format.
+    pub fn as_optical_barcode_credential(&self) -> Option<Arc<OpticalBarcodeCred>> {
+        match &self.inner {
+            ParsedCredentialInner::OpticalBarcodeCredential(cred) => Some(cred.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl PresentableCredential {
@@ -466,6 +512,14 @@ impl PresentableCredential {
                 "Credential encoding for VP Token is not implemented for CWT.".to_string(),
             )
             .into()),
+            ParsedCredentialInner::OpticalBarcodeCredential(_) => {
+                Err(CredentialEncodingError::VpToken(
+                    "Credential encoding for VP Token is not implemented for \
+                     OpticalBarcodeCredential."
+                        .to_string(),
+                )
+                .into())
+            }
         }
     }
 }
@@ -484,6 +538,7 @@ impl ParsedCredential {
             ParsedCredentialInner::DcSdJwt(sd_jwt) => sd_jwt.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::MsoMdoc(mdoc) => mdoc.satisfies_dcql_query(credential_query),
             ParsedCredentialInner::Cwt(_cwt) => false,
+            ParsedCredentialInner::OpticalBarcodeCredential(_) => false,
         }
     }
 
@@ -516,6 +571,10 @@ impl ParsedCredential {
             ParsedCredentialInner::MsoMdoc(mdoc) => mdoc.requested_fields_dcql(credential_query),
             ParsedCredentialInner::Cwt(_cwt) => {
                 log::warn!("Cwt requested fields not implemented");
+                vec![]
+            }
+            ParsedCredentialInner::OpticalBarcodeCredential(_) => {
+                log::warn!("OpticalBarcodeCredential requested fields not implemented");
                 vec![]
             }
         }
@@ -567,6 +626,11 @@ impl TryFrom<Credential> for Arc<ParsedCredential> {
                 Ok(ParsedCredential::new_dc_sd_jwt(credential.try_into()?))
             }
             CredentialFormat::LdpVc => Ok(ParsedCredential::new_ldp_vc(credential.try_into()?)),
+            CredentialFormat::OpticalBarcodeCredential => {
+                Ok(ParsedCredential::new_optical_barcode_credential(
+                    OpticalBarcodeCred::from_credential(credential)?,
+                ))
+            }
             _ => Err(CredentialDecodingError::UnsupportedCredentialFormat(
                 credential.format.to_string(),
             )),
@@ -608,6 +672,8 @@ pub enum CredentialDecodingError {
     IetfSdJwtVc(#[from] IetfSdJwtVcError),
     #[error("Cwt decoding error: {0}")]
     Cwt(#[from] CwtError),
+    #[error("OpticalBarcodeCredential decoding error: {0}")]
+    OpticalBarcodeCredential(#[from] OpticalBarcodeCredError),
     #[error("Credential format is not yet supported for type: {0}")]
     UnsupportedCredentialFormat(String),
     #[error("Serialization error: {0}")]
@@ -638,6 +704,11 @@ pub enum CredentialFormat {
     #[serde(rename = "dc+sd-jwt")]
     DcSdJwt,
     Cwt,
+    /// W3C OpticalBarcodeCredential — JSON-LD VC carried inside an optical
+    /// barcode (e.g. PDF-417 ZZA, QR). Issuer-signed; not bound to a holder
+    /// key, not presentable via OID4VP.
+    #[serde(rename = "optical_barcode_credential")]
+    OpticalBarcodeCredential,
     #[serde(untagged)]
     Other(String), // For ease of expansion.
 }
@@ -652,6 +723,7 @@ impl std::fmt::Display for CredentialFormat {
             CredentialFormat::VCDM2SdJwt => write!(f, "vcdm2_sd_jwt"),
             CredentialFormat::DcSdJwt => write!(f, "dc+sd-jwt"),
             CredentialFormat::Cwt => write!(f, "cwt"),
+            CredentialFormat::OpticalBarcodeCredential => write!(f, "optical_barcode_credential"),
             CredentialFormat::Other(s) => write!(f, "{s}"),
         }
     }

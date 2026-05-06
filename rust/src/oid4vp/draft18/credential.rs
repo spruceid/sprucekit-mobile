@@ -89,6 +89,9 @@ fn credential_format_designation(inner: &ParsedCredentialInner) -> ClaimFormatDe
         ParsedCredentialInner::MsoMdoc(_) => ClaimFormatDesignation::Other("mso_mdoc".into()),
         ParsedCredentialInner::Cwt(_) => ClaimFormatDesignation::Other("cwt".into()),
         ParsedCredentialInner::DcSdJwt(_) => ClaimFormatDesignation::Other("dc+sd-jwt".into()),
+        ParsedCredentialInner::OpticalBarcodeCredential(_) => {
+            ClaimFormatDesignation::Other("optical_barcode_credential".into())
+        }
     }
 }
 
@@ -104,6 +107,9 @@ fn presentation_format_designation(inner: &ParsedCredentialInner) -> ClaimFormat
         ParsedCredentialInner::MsoMdoc(_) => ClaimFormatDesignation::Other("mso_mdoc".into()),
         ParsedCredentialInner::Cwt(_) => ClaimFormatDesignation::Other("cwt".into()),
         ParsedCredentialInner::DcSdJwt(_) => ClaimFormatDesignation::Other("dc+sd-jwt".into()),
+        ParsedCredentialInner::OpticalBarcodeCredential(_) => {
+            ClaimFormatDesignation::Other("optical_barcode_credential".into())
+        }
     }
 }
 
