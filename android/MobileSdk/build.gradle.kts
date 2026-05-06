@@ -89,9 +89,9 @@ publishing {
     }
 }
 
-// Skip signing for local-only publications.  CLAUDE.md note:
-// `-PskipSigning` is the standard local-dev escape hatch — revert never
-// needed (it's a no-op in CI / release builds where the property is unset).
+// Skip GPG signing for local-only publications.
+// Usage (local dev, e.g. publishToMavenLocal): `./gradlew <task> -PskipSigning`
+// No-op in CI / release builds where the property is unset.
 if (!project.hasProperty("skipSigning")) {
     signing {
         useGpgCmd()

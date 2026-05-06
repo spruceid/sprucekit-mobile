@@ -50,6 +50,7 @@ fun MRZScanner(
     guidesColor: Color = Color.White,
     readerColor: Color = Color.White,
     backgroundOpacity: Float = 0.5f,
+    onCameraReady: (() -> Unit)? = null,
 ) {
 
     val textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
@@ -126,7 +127,8 @@ fun MRZScanner(
                 readerColor = readerColor,
                 backgroundOpacity = backgroundOpacity,
             )
-        }
+        },
+        onCameraReady = onCameraReady
     )
 }
 

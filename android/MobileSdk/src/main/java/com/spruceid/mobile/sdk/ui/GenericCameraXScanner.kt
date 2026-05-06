@@ -53,7 +53,8 @@ fun GenericCameraXScanner(
     imageAnalyzer: ImageAnalysis.Analyzer,
     imageAnalysisTargetResolution: Size? = null,
     zoomRatio: Float = 2f,
-    background: @Composable () -> Unit
+    background: @Composable () -> Unit,
+    onCameraReady: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val cameraProviderFuture =
@@ -70,6 +71,15 @@ fun GenericCameraXScanner(
 
     fun setupCamera(context: Context): PreviewView {
         val previewView = PreviewView(context)
+        if (onCameraReady != null) {
+            var fired = false
+            previewView.previewStreamState.observe(lifecycleOwner) { state ->
+                if (!fired && state == PreviewView.StreamState.STREAMING) {
+                    fired = true
+                    onCameraReady.invoke()
+                }
+            }
+        }
         val preview =
             Preview.Builder()
                 .setTargetFrameRate(Range(20, 45))
