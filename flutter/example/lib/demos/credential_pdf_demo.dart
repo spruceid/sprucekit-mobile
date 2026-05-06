@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -14,14 +13,6 @@ import 'package:sprucekit_mobile/sprucekit_mobile.dart';
 /// fails this many times in a row is almost certainly a real problem
 /// (wrong QR, expired credential, corrupted issuer signature, etc.).
 const int _kMaxScanAttempts = 5;
-
-/// Fields the wallet will hide from the QR-embedded VP token.
-///
-/// `portrait` is the only field that genuinely cannot fit in a QR (a base64
-/// JPEG runs to multiple kilobytes on its own). Every other claim stays in
-/// the VP so the verifier sees a meaningful payload. Selective disclosure
-/// preserves the issuer signature for the remaining claims.
-const _kHiddenFieldsForQr = <String>['portrait'];
 
 /// Which barcode the step-3 scanner is currently reading.
 ///
@@ -62,67 +53,30 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
   /// so the user can eyeball the DL subfile fields.
   String? _scannedPdf417Content;
 
-  /// Build the QR + PDF-417 supplements that get embedded in the PDF.
+  /// Build the demo supplements: a single VCB-backed PDF-417.
   ///
-  /// **QR**: A real SD-JWT VP token (generated from a test mDL credential,
-  /// disclosed claims minus `portrait`, then deflate+base10 compressed for
-  /// QR numeric mode). This matches the iOS / Android Showcase flow exactly,
-  /// so the same PDF can be exercised across all three platforms — and the
-  /// Showcase Android `VerifySdJwtView` can scan and verify it.
+  /// SDK encodes the JSON-LD VCB to CBOR-LD using the bundled
+  /// `w3c-vc-barcodes` context loader, embeds the bytes as the ZZA field of
+  /// an AAMVA ZZ subfile alongside the DL subfile, and renders the resulting
+  /// PDF-417. The wallet does not touch CBOR-LD or AAMVA primitives.
   ///
-  /// **PDF-417**: Real AAMVA DL subfile bytes derived from the wallet's
-  /// stored mDL via [SpruceUtils.generateAamvaPdf417Bytes]. `vcBarcode = null`
-  /// keeps us in DL-only mode (no signed ZZ subfile); when CA DMV starts
-  /// issuing VC Barcodes the wallet will fetch those bytes and pass them
-  /// through here. On encode failure, falls back to a mock so the PDF still
-  /// renders.
+  /// The QR section is intentionally omitted in this demo. The
+  /// `PdfBarcodeType.qrCode` primitive remains available for non-mDL flows.
+  ///
+  /// ## Swap to a real CA DMV VCB
+  /// Replace the `generateTestOpticalBarcodeCredential()` call with the
+  /// JSON-LD VCB fetched from the wallet's stored credentials, once the DMV
+  /// microservice issues VCBs alongside mDLs. The downstream call shape is
+  /// identical.
   Future<List<PdfSupplement>> _buildDemoSupplements() async {
     if (!_includeBarcodes) return [];
 
-    // ── QR: real SD-JWT VP, hide portrait, compress for QR ────────────────
-    final testSdJwt = await _spruceUtils.generateTestMdlSdJwtCompact();
-    final qrBytes = await _spruceUtils.generateCompressedVpToken(
-      testSdJwt,
-      VpTokenParams(
-        disclosure: DisclosureSelection(
-          type: DisclosureSelectionType.hideOnly,
-          fields: _kHiddenFieldsForQr,
-        ),
-        // No live verifier in this demo — KB-JWT isn't signed today, so
-        // these are reserved fields. Set them to recognisable placeholders
-        // so logs / debug breakpoints make it obvious where they came from.
-        audience: 'https://demo.spruceid.com',
-        nonce: null,
-      ),
-    );
-
-    // ── PDF-417: real AAMVA DL bytes from the stored mDL ──────────────────
-    Uint8List pdf417Bytes;
-    try {
-      pdf417Bytes = await _spruceUtils.generateAamvaPdf417Bytes(
-        _rawCredential!,
-        null,
-      );
-    } catch (_) {
-      const fallback =
-          'DAQ DL-123456789\n'
-          'DCS Doe\n'
-          'DCT John\n'
-          'DBB 01151990\n'
-          'DBA 01152029\n';
-      pdf417Bytes = Uint8List.fromList(utf8.encode(fallback));
-    }
+    final jsonld = await _spruceUtils.generateTestOpticalBarcodeCredential();
 
     return [
       PdfSupplement(
-        type: PdfSupplementType.barcode,
-        data: qrBytes,
-        barcodeType: PdfBarcodeType.qrCode,
-      ),
-      PdfSupplement(
-        type: PdfSupplementType.barcode,
-        data: pdf417Bytes,
-        barcodeType: PdfBarcodeType.pdf417,
+        type: PdfSupplementType.opticalBarcodeCredential,
+        jsonldVcb: jsonld,
       ),
     ];
   }
@@ -185,7 +139,7 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
         _pdfFilePath = pdfFile.path;
         _message =
             'PDF generated successfully! (${pdfBytes.length} bytes)'
-            '${_includeBarcodes ? '\nIncludes QR Code + PDF-417 barcodes' : ''}';
+            '${_includeBarcodes ? '\nIncludes VCB-backed PDF-417 barcode' : ''}';
       });
     } catch (e) {
       setState(() {
@@ -392,9 +346,9 @@ class _CredentialPdfDemoState extends State<CredentialPdfDemo> {
                     ),
                     const SizedBox(height: 12),
                     SwitchListTile(
-                      title: const Text('Include Barcodes'),
+                      title: const Text('Include Barcode'),
                       subtitle: const Text(
-                        'Add QR Code and PDF-417 barcodes with demo data',
+                        'Embed a VCB-backed PDF-417 barcode (test VCB)',
                       ),
                       value: _includeBarcodes,
                       onChanged: (value) {

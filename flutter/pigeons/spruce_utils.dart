@@ -51,7 +51,7 @@ class GenerateMockMdlError implements GenerateMockMdlResult {
 ///
 /// New supplement types can be added here without changing the function
 /// signature of `generateCredentialPdf`.
-enum PdfSupplementType { barcode }
+enum PdfSupplementType { barcode, opticalBarcodeCredential }
 
 /// Barcode type for PDF supplements
 enum PdfBarcodeType { qrCode, pdf417 }
@@ -66,6 +66,11 @@ enum PdfBarcodeType { qrCode, pdf417 }
 /// **Barcode** (`type == PdfSupplementType.barcode`):
 ///   - `data` — raw bytes to encode (e.g. VP Token, AAMVA payload)
 ///   - `barcodeType` — QR Code or PDF-417
+///
+/// **OpticalBarcodeCredential** (`type == PdfSupplementType.opticalBarcodeCredential`):
+///   - `jsonldVcb` — issuer-signed W3C VCB JSON-LD string. SDK CBOR-LD encodes
+///     it and embeds it in an AAMVA ZZ subfile alongside the DL subfile —
+///     wallets do not touch CBOR-LD or AAMVA primitives.
 class PdfSupplement {
   PdfSupplementType type;
 
@@ -76,7 +81,17 @@ class PdfSupplement {
   /// The barcode symbology. Required when `type` is `barcode`.
   PdfBarcodeType? barcodeType;
 
-  PdfSupplement({required this.type, this.data, this.barcodeType});
+  // ── OpticalBarcodeCredential fields ──────────────────────────────────
+  /// Issuer-signed W3C OpticalBarcodeCredential JSON-LD string. Required
+  /// when `type` is `opticalBarcodeCredential`.
+  String? jsonldVcb;
+
+  PdfSupplement({
+    required this.type,
+    this.data,
+    this.barcodeType,
+    this.jsonldVcb,
+  });
 }
 
 /// Selective-disclosure mode for VP token generation.
@@ -245,4 +260,18 @@ abstract class SpruceUtils {
   /// @return Raw AAMVA bytes ready to be rendered as a PDF-417 barcode
   @async
   Uint8List generateAamvaPdf417Bytes(String rawMdoc, Uint8List? vcBarcode);
+
+  /// Generate a freshly-signed test W3C OpticalBarcodeCredential (VCB),
+  /// returned as a JSON-LD string.
+  ///
+  /// Used by demos / showcases to exercise the full PDF-417 VCB pipeline
+  /// before real DMV microservices ship. The credential is signed with a
+  /// throwaway P-256 key so it is **not** verifiable against any production
+  /// trust anchor.
+  ///
+  /// @return JSON-LD `OpticalBarcodeCredential` — pass straight to
+  ///   [PdfSupplement] with `type == PdfSupplementType.opticalBarcodeCredential`
+  ///   via the `jsonldVcb` field.
+  @async
+  String generateTestOpticalBarcodeCredential();
 }

@@ -7,6 +7,7 @@ import com.spruceid.mobile.sdk.rs.generateCredentialPdf
 import com.spruceid.mobile.sdk.rs.generateCredentialVpToken
 import com.spruceid.mobile.sdk.rs.generateTestMdl
 import com.spruceid.mobile.sdk.rs.Mdoc
+import com.spruceid.mobile.sdk.rs.OpticalBarcodeCred
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PdfSupplement as RustPdfSupplement
 import com.spruceid.mobile.sdk.rs.BarcodeType as RustBarcodeType
@@ -16,6 +17,7 @@ import com.spruceid.mobile.sdk.rs.VpTokenParams as RustVpTokenParams
 import com.spruceid.mobile.sdk.rs.compressVpForQr
 import com.spruceid.mobile.sdk.rs.decompressVpFromQr as rustDecompressVpFromQr
 import com.spruceid.mobile.sdk.rs.generateTestMdlSdJwtCompact as rustGenerateTestMdlSdJwtCompact
+import com.spruceid.mobile.sdk.rs.generateTestOpticalBarcodeCredential as rustGenerateTestOpticalBarcodeCredential
 import com.spruceid.mobile.sdk.rs.verifySdJwtVp as rustVerifySdJwtVp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +57,12 @@ internal class SpruceUtilsAdapter(
                                 PdfBarcodeType.PDF417 -> RustBarcodeType.PDF417
                             }
                             RustPdfSupplement.Barcode(data = data, barcodeType = rustBarcodeType)
+                        }
+                        PdfSupplementType.OPTICAL_BARCODE_CREDENTIAL -> {
+                            val jsonld = sup.jsonldVcb ?: return@mapNotNull null
+                            val vcb = OpticalBarcodeCred(jsonld)
+                            val vcbCredential = ParsedCredential.newOpticalBarcodeCredential(vcb)
+                            RustPdfSupplement.OpticalBarcodeCredential(credential = vcbCredential)
                         }
                     }
                 }
@@ -130,6 +138,19 @@ internal class SpruceUtilsAdapter(
             try {
                 val compact = rustGenerateTestMdlSdJwtCompact()
                 callback(Result.success(compact))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
+            }
+        }
+    }
+
+    override fun generateTestOpticalBarcodeCredential(
+        callback: (Result<String>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val jsonld = rustGenerateTestOpticalBarcodeCredential()
+                callback(Result.success(jsonld))
             } catch (e: Exception) {
                 callback(Result.failure(e))
             }
