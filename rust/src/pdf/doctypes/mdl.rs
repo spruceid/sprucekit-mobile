@@ -207,6 +207,17 @@ impl PdfSource for MdlContent {
                         barcode_type: *barcode_type,
                     });
                 }
+                // By contract, `generate_credential_pdf::preprocess_supplements`
+                // resolves this variant into a `Barcode` before reaching the
+                // doctype.  If an out-of-band caller bypasses preprocessing
+                // and stuffs one in directly, we silently drop it rather than
+                // panic — the credential still renders without the barcode.
+                PdfSupplement::OpticalBarcodeCredential { .. } => {
+                    log::warn!(
+                        "OpticalBarcodeCredential supplement reached MdlContent unprocessed; \
+                         did you bypass generate_credential_pdf?"
+                    );
+                }
             }
         }
 
@@ -330,7 +341,9 @@ mod tests {
             .expect("parse fixture SD-JWT");
         let credential = ParsedCredential::new_sd_jwt(sd_jwt);
 
-        let pdf_bytes = generate_credential_pdf(credential, vec![]).expect("PDF generation");
+        let pdf_bytes = generate_credential_pdf(credential, vec![])
+            .await
+            .expect("PDF generation");
 
         assert!(
             pdf_bytes.starts_with(b"%PDF-"),

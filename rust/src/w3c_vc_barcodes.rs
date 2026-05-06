@@ -1,5 +1,6 @@
-use std::io::Cursor;
+use std::{io::Cursor, str::FromStr};
 
+use cbor_ld::JsonValue;
 use ssi::{
     dids::{AnyDidMethod, DIDResolver},
     json_ld::iref::Uri,
@@ -18,7 +19,7 @@ use w3c_vc_barcodes::{
         dlid::{pdf_417, DlSubfile},
         ZZSubfile,
     },
-    optical_barcode_credential::{decode_from_bytes, VerificationParameters},
+    optical_barcode_credential::{decode_from_bytes, VerificationParameters, CONTEXT_LOADER},
     terse_bitstring_status_list_entry::{ConstTerseStatusListProvider, StatusListInfo},
     verify, MachineReadableZone, MRZ,
 };
@@ -82,6 +83,49 @@ pub enum VCBVerificationError {
     Generic { value: String },
     #[error("verification failed")]
     Verification,
+}
+
+// ── VCB encoder ──────────────────────────────────────────────────────────────
+
+/// Encode a JSON-LD `OpticalBarcodeCredential` to CBOR-LD bytes ready for
+/// embedding as a PDF-417 ZZ subfile (ZZA field).
+///
+/// Uses the bundled context loader from the upstream `w3c-vc-barcodes` crate
+/// (`CONTEXT_LOADER`), which already includes the five contexts required by
+/// VCBs: `credentials/v2`, `vc-barcodes/v1`, `utopia/v2`, `vdl/v2`,
+/// `citizenship/v2`.  Wallets do **not** need to provide their own loader.
+///
+/// Wallets typically don't call this directly — they pass the
+/// `OpticalBarcodeCredential` through
+/// [`crate::pdf::PdfSupplement::OpticalBarcodeCredential`] and
+/// [`crate::pdf::generate_credential_pdf`] handles encoding internally. This
+/// function is exposed as a public API for advanced use cases (e.g. testing,
+/// or wallets that want to cache CBOR-LD bytes).
+///
+/// The work runs on a dedicated 8 MB-stack thread because cbor-ld's JSON-LD
+/// context expansion recurses deep enough to blow iOS's default ~512 KB
+/// child-thread stack.
+#[uniffi::export(async_runtime = "tokio")]
+pub async fn encode_optical_barcode_credential_for_pdf417(
+    jsonld: String,
+) -> Result<Vec<u8>, VcbEncodingError> {
+    crate::big_stack::run_async(move || async move {
+        let doc = JsonValue::from_str(&jsonld)
+            .map_err(|e| VcbEncodingError::JsonParse(e.to_string()))?;
+        cbor_ld::encode_to_bytes(&doc, &*CONTEXT_LOADER)
+            .await
+            .map_err(|e| VcbEncodingError::CborEncode(e.to_string()))
+    })
+    .await
+    .map_err(|e| VcbEncodingError::CborEncode(format!("big-stack thread: {e}")))?
+}
+
+#[derive(Debug, thiserror::Error, uniffi::Error)]
+pub enum VcbEncodingError {
+    #[error("JSON-LD parse error: {0}")]
+    JsonParse(String),
+    #[error("CBOR-LD encode error: {0}")]
+    CborEncode(String),
 }
 
 #[uniffi::export]

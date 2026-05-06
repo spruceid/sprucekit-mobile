@@ -11706,6 +11706,190 @@ public func FfiConverterTypeOid4vpSession_lower(_ value: Oid4vpSession) -> UInt6
 
 
 
+public protocol OpticalBarcodeCredProtocol: AnyObject, Sendable {
+    
+    func id()  -> Uuid
+    
+    /**
+     * Optical-barcode credentials are issuer-signed and not re-presented by
+     * the wallet, so there is no associated holder key.
+     */
+    func keyAlias()  -> KeyAlias?
+    
+    /**
+     * Verbatim JSON-LD VC string, as received from the issuer.
+     */
+    func rawJsonld()  -> String
+    
+    func type()  -> CredentialType
+    
+}
+open class OpticalBarcodeCred: OpticalBarcodeCredProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_opticalbarcodecred(self.handle, $0) }
+    }
+    /**
+     * Parse a JSON-LD OpticalBarcodeCredential. A fresh UUID is assigned.
+     */
+public convenience init(jsonld: String)throws  {
+    let handle =
+        try rustCallWithError(FfiConverterTypeOpticalBarcodeCredError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_opticalbarcodecred_new(
+        FfiConverterString.lower(jsonld),$0
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_opticalbarcodecred(handle, $0) }
+    }
+
+    
+    /**
+     * Parse a JSON-LD OpticalBarcodeCredential with a caller-supplied UUID.
+     * Used when re-hydrating from storage (see `TryFrom<Credential>`).
+     */
+public static func newWithId(id: Uuid, jsonld: String)throws  -> OpticalBarcodeCred  {
+    return try  FfiConverterTypeOpticalBarcodeCred_lift(try rustCallWithError(FfiConverterTypeOpticalBarcodeCredError_lift) {
+    uniffi_mobile_sdk_rs_fn_constructor_opticalbarcodecred_new_with_id(
+        FfiConverterTypeUuid_lower(id),
+        FfiConverterString.lower(jsonld),$0
+    )
+})
+}
+    
+
+    
+open func id() -> Uuid  {
+    return try!  FfiConverterTypeUuid_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_opticalbarcodecred_id(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Optical-barcode credentials are issuer-signed and not re-presented by
+     * the wallet, so there is no associated holder key.
+     */
+open func keyAlias() -> KeyAlias?  {
+    return try!  FfiConverterOptionTypeKeyAlias.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_opticalbarcodecred_key_alias(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Verbatim JSON-LD VC string, as received from the issuer.
+     */
+open func rawJsonld() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_opticalbarcodecred_raw_jsonld(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func type() -> CredentialType  {
+    return try!  FfiConverterTypeCredentialType_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_opticalbarcodecred_type(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOpticalBarcodeCred: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = OpticalBarcodeCred
+
+    public static func lift(_ handle: UInt64) throws -> OpticalBarcodeCred {
+        return OpticalBarcodeCred(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: OpticalBarcodeCred) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OpticalBarcodeCred {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: OpticalBarcodeCred, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpticalBarcodeCred_lift(_ handle: UInt64) throws -> OpticalBarcodeCred {
+    return try FfiConverterTypeOpticalBarcodeCred.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpticalBarcodeCred_lower(_ value: OpticalBarcodeCred) -> UInt64 {
+    return FfiConverterTypeOpticalBarcodeCred.lower(value)
+}
+
+
+
+
+
+
 /**
  * A credential that has been parsed as a known variant.
  */
@@ -11735,6 +11919,12 @@ public protocol ParsedCredentialProtocol: AnyObject, Sendable {
      * Return the credential as an Mdoc if it is of that format.
      */
     func asMsoMdoc()  -> Mdoc?
+    
+    /**
+     * Return the credential as an OpticalBarcodeCredential (W3C VCB),
+     * if it is of that format.
+     */
+    func asOpticalBarcodeCredential()  -> OpticalBarcodeCred?
     
     /**
      * Return the credential as an SD-JWT (VCDM2 format), if it is of that format.
@@ -11925,6 +12115,22 @@ public static func newMsoMdoc(mdoc: Mdoc) -> ParsedCredential  {
 }
     
     /**
+     * Construct a new `optical_barcode_credential` (W3C VCB).
+     *
+     * VCBs are issuer-signed JSON-LD VCs intended for embedding in optical
+     * barcodes (PDF-417 ZZA, QR). The wallet stores the credential verbatim
+     * and surfaces it to the PDF pipeline, which handles CBOR-LD compression
+     * and AAMVA assembly.
+     */
+public static func newOpticalBarcodeCredential(cred: OpticalBarcodeCred) -> ParsedCredential  {
+    return try!  FfiConverterTypeParsedCredential_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_constructor_parsedcredential_new_optical_barcode_credential(
+        FfiConverterTypeOpticalBarcodeCred_lower(cred),$0
+    )
+})
+}
+    
+    /**
      * Construct a new `sd_jwt_vc` credential (VCDM2 format).
      */
 public static func newSdJwt(sdJwtVc: Vcdm2SdJwt) -> ParsedCredential  {
@@ -11998,6 +12204,18 @@ open func asJwtVc() -> JwtVc?  {
 open func asMsoMdoc() -> Mdoc?  {
     return try!  FfiConverterOptionTypeMdoc.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_parsedcredential_as_mso_mdoc(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Return the credential as an OpticalBarcodeCredential (W3C VCB),
+     * if it is of that format.
+     */
+open func asOpticalBarcodeCredential() -> OpticalBarcodeCred?  {
+    return try!  FfiConverterOptionTypeOpticalBarcodeCred.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_parsedcredential_as_optical_barcode_credential(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -19862,6 +20080,8 @@ public enum CredentialDecodingError: Swift.Error, Equatable, Hashable, Foundatio
     )
     case Cwt(CwtError
     )
+    case OpticalBarcodeCredential(OpticalBarcodeCredError
+    )
     case UnsupportedCredentialFormat(String
     )
     case Serialization(String
@@ -19915,13 +20135,16 @@ public struct FfiConverterTypeCredentialDecodingError: FfiConverterRustBuffer {
         case 6: return .Cwt(
             try FfiConverterTypeCwtError.read(from: &buf)
             )
-        case 7: return .UnsupportedCredentialFormat(
+        case 7: return .OpticalBarcodeCredential(
+            try FfiConverterTypeOpticalBarcodeCredError.read(from: &buf)
+            )
+        case 8: return .UnsupportedCredentialFormat(
             try FfiConverterString.read(from: &buf)
             )
-        case 8: return .Serialization(
+        case 9: return .Serialization(
             try FfiConverterString.read(from: &buf)
             )
-        case 9: return .Deserialization(
+        case 10: return .Deserialization(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -19966,18 +20189,23 @@ public struct FfiConverterTypeCredentialDecodingError: FfiConverterRustBuffer {
             FfiConverterTypeCwtError.write(v1, into: &buf)
             
         
-        case let .UnsupportedCredentialFormat(v1):
+        case let .OpticalBarcodeCredential(v1):
             writeInt(&buf, Int32(7))
-            FfiConverterString.write(v1, into: &buf)
+            FfiConverterTypeOpticalBarcodeCredError.write(v1, into: &buf)
             
         
-        case let .Serialization(v1):
+        case let .UnsupportedCredentialFormat(v1):
             writeInt(&buf, Int32(8))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Deserialization(v1):
+        case let .Serialization(v1):
             writeInt(&buf, Int32(9))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Deserialization(v1):
+            writeInt(&buf, Int32(10))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -20128,6 +20356,12 @@ public enum CredentialFormat: Equatable, Hashable {
     case vcdm2SdJwt
     case dcSdJwt
     case cwt
+    /**
+     * W3C OpticalBarcodeCredential — JSON-LD VC carried inside an optical
+     * barcode (e.g. PDF-417 ZZA, QR). Issuer-signed; not bound to a holder
+     * key, not presentable via OID4VP.
+     */
+    case opticalBarcodeCredential
     case other(String
     )
 
@@ -20165,7 +20399,9 @@ public struct FfiConverterTypeCredentialFormat: FfiConverterRustBuffer {
         
         case 7: return .cwt
         
-        case 8: return .other(try FfiConverterString.read(from: &buf)
+        case 8: return .opticalBarcodeCredential
+        
+        case 9: return .other(try FfiConverterString.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -20204,8 +20440,12 @@ public struct FfiConverterTypeCredentialFormat: FfiConverterRustBuffer {
             writeInt(&buf, Int32(7))
         
         
-        case let .other(v1):
+        case .opticalBarcodeCredential:
             writeInt(&buf, Int32(8))
+        
+        
+        case let .other(v1):
+            writeInt(&buf, Int32(9))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -25899,6 +26139,96 @@ public func FfiConverterTypeOid4vpVersion_lower(_ value: Oid4vpVersion) -> RustB
 }
 
 
+
+public enum OpticalBarcodeCredError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case InvalidJsonLd(String
+    )
+    case MissingType
+    case TestGenerationFailed(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension OpticalBarcodeCredError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOpticalBarcodeCredError: FfiConverterRustBuffer {
+    typealias SwiftType = OpticalBarcodeCredError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OpticalBarcodeCredError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidJsonLd(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .MissingType
+        case 3: return .TestGenerationFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: OpticalBarcodeCredError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InvalidJsonLd(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .MissingType:
+            writeInt(&buf, Int32(2))
+        
+        
+        case let .TestGenerationFailed(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpticalBarcodeCredError_lift(_ buf: RustBuffer) throws -> OpticalBarcodeCredError {
+    return try FfiConverterTypeOpticalBarcodeCredError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpticalBarcodeCredError_lower(_ value: OpticalBarcodeCredError) -> RustBuffer {
+    return FfiConverterTypeOpticalBarcodeCredError.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
@@ -25989,6 +26319,22 @@ public enum PdfError: Swift.Error, Equatable, Hashable, Foundation.LocalizedErro
     
     case Render(String
     )
+    /**
+     * Raised when a `PdfSupplement::OpticalBarcodeCredential` is supplied
+     * but the host credential isn't an mDL — VCB embedding piggybacks on
+     * the AAMVA DL subfile, so we can't assemble a PDF-417 without it.
+     */
+    case HostCredentialNotMdl
+    /**
+     * Wraps the supplement-side `OpticalBarcodeCredential` parse failure
+     * (the supplement carried a `ParsedCredential` that wasn't actually
+     * of `OpticalBarcodeCredential` format).
+     */
+    case SupplementNotOpticalBarcodeCredential
+    case OpticalBarcodeCredentialEncoding(String
+    )
+    case AamvaEncoding(String
+    )
 
     
 
@@ -26021,6 +26367,14 @@ public struct FfiConverterTypePdfError: FfiConverterRustBuffer {
         case 1: return .Render(
             try FfiConverterString.read(from: &buf)
             )
+        case 2: return .HostCredentialNotMdl
+        case 3: return .SupplementNotOpticalBarcodeCredential
+        case 4: return .OpticalBarcodeCredentialEncoding(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .AamvaEncoding(
+            try FfiConverterString.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -26035,6 +26389,24 @@ public struct FfiConverterTypePdfError: FfiConverterRustBuffer {
         
         case let .Render(v1):
             writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .HostCredentialNotMdl:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .SupplementNotOpticalBarcodeCredential:
+            writeInt(&buf, Int32(3))
+        
+        
+        case let .OpticalBarcodeCredentialEncoding(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .AamvaEncoding(v1):
+            writeInt(&buf, Int32(5))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -26067,9 +26439,26 @@ public func FfiConverterTypePdfError_lower(_ value: PdfError) -> RustBuffer {
  * variant here never changes the public API.
  */
 
-public enum PdfSupplement: Equatable, Hashable {
+public enum PdfSupplement {
     
+    /**
+     * Pre-encoded barcode bytes — fed straight into the renderer as a
+     * `PdfSection::Barcode`. Use this when the wallet already has the
+     * barcode payload (e.g. a QR-code-encoded SD-JWT VP, or AAMVA bytes
+     * produced by an external tool).
+     */
     case barcode(data: Data, barcodeType: BarcodeType
+    )
+    /**
+     * W3C OpticalBarcodeCredential (VCB) — SDK encodes JSON-LD →
+     * CBOR-LD using the bundled `w3c-vc-barcodes` context loader, then
+     * assembles a complete AAMVA PDF-417 (DL subfile + ZZ subfile with
+     * the CBOR-LD as ZZA). The host credential must be an mDL.
+     *
+     * This is the recommended path for issuer-signed VCBs — wallets pass
+     * the credential directly without touching CBOR-LD or AAMVA primitives.
+     */
+    case opticalBarcodeCredential(credential: ParsedCredential
     )
 
 
@@ -26095,6 +26484,9 @@ public struct FfiConverterTypePdfSupplement: FfiConverterRustBuffer {
         case 1: return .barcode(data: try FfiConverterData.read(from: &buf), barcodeType: try FfiConverterTypeBarcodeType.read(from: &buf)
         )
         
+        case 2: return .opticalBarcodeCredential(credential: try FfiConverterTypeParsedCredential.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -26107,6 +26499,11 @@ public struct FfiConverterTypePdfSupplement: FfiConverterRustBuffer {
             writeInt(&buf, Int32(1))
             FfiConverterData.write(data, into: &buf)
             FfiConverterTypeBarcodeType.write(barcodeType, into: &buf)
+            
+        
+        case let .opticalBarcodeCredential(credential):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeParsedCredential.write(credential, into: &buf)
             
         }
     }
@@ -27819,6 +28216,90 @@ public func FfiConverterTypeVPError_lift(_ buf: RustBuffer) throws -> VpError {
 #endif
 public func FfiConverterTypeVPError_lower(_ value: VpError) -> RustBuffer {
     return FfiConverterTypeVPError.lower(value)
+}
+
+
+public enum VcbEncodingError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case JsonParse(String
+    )
+    case CborEncode(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension VcbEncodingError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVcbEncodingError: FfiConverterRustBuffer {
+    typealias SwiftType = VcbEncodingError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VcbEncodingError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .JsonParse(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .CborEncode(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VcbEncodingError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .JsonParse(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .CborEncode(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcbEncodingError_lift(_ buf: RustBuffer) throws -> VcbEncodingError {
+    return try FfiConverterTypeVcbEncodingError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcbEncodingError_lower(_ value: VcbEncodingError) -> RustBuffer {
+    return FfiConverterTypeVcbEncodingError.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
@@ -29664,6 +30145,30 @@ fileprivate struct FfiConverterOptionTypeNegotiatedCarrierInfo: FfiConverterRust
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeNegotiatedCarrierInfo.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeOpticalBarcodeCred: FfiConverterRustBuffer {
+    typealias SwiftType = OpticalBarcodeCred?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeOpticalBarcodeCred.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeOpticalBarcodeCred.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -32112,6 +32617,37 @@ public func defaultLdJsonContext() -> [String: String]  {
 })
 }
 /**
+ * Generate a freshly-signed test `OpticalBarcodeCredential` (MachineReadableZone
+ * type) and return it as a JSON-LD string.
+ *
+ * Mirrors the fixture used by [`crate::aamva`]'s `roundtrip_with_zz_subfile`
+ * test: a randomly generated P-256 key + `did:key` issuer signs a minimal MRZ
+ * VCB. Three-platform demos use this so they can exercise the full PDF-417
+ * VCB pipeline before real DMV microservices ship — same key-handling /
+ * signing flow as production, just with a throwaway key.
+ *
+ * The MRZ data baked in matches the test fixture in `aamva.rs`, so the same
+ * VCB can be verified against the same MRZ.
+ *
+ * The work runs on a dedicated 8 MB-stack thread because ssi's data-integrity
+ * proof signing recurses through JSON-LD context expansion deep enough to
+ * blow iOS's default ~512 KB child-thread stack.
+ */
+public func generateTestOpticalBarcodeCredential()async throws  -> String  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_generate_test_optical_barcode_credential(
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterString.lift,
+            errorHandler: FfiConverterTypeOpticalBarcodeCredError_lift
+        )
+}
+/**
  * Compress a UTF-8 VP token (typically a compact SD-JWT) into the Colorado
  * "deflate + base10 + 9-prefix" form that fits in a QR **numeric-mode**
  * payload (~7089 digits at V40 L-EC, vs ~2953 bytes in byte mode).
@@ -32569,14 +33105,59 @@ public func buildAnnexCResponse(request: Data, origin: String, selectedMatch: Re
  * **Barcodes** (QR / PDF-417): pass barcode payloads via `supplements`.
  * The doctype translates them into `PdfSection::Barcode` — picked up by the
  * renderer automatically.
+ *
+ * **VCBs** (`PdfSupplement::OpticalBarcodeCredential`): SDK encodes
+ * JSON-LD → CBOR-LD and assembles the AAMVA PDF-417 internally.  Because
+ * CBOR-LD encoding is async, this function is async too.  Sync callers
+ * providing only `PdfSupplement::Barcode` can ignore the await.
  */
-public func generateCredentialPdf(credential: ParsedCredential, supplements: [PdfSupplement])throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypePdfError_lift) {
-    uniffi_mobile_sdk_rs_fn_func_generate_credential_pdf(
-        FfiConverterTypeParsedCredential_lower(credential),
-        FfiConverterSequenceTypePdfSupplement.lower(supplements),$0
-    )
-})
+public func generateCredentialPdf(credential: ParsedCredential, supplements: [PdfSupplement])async throws  -> Data  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_generate_credential_pdf(FfiConverterTypeParsedCredential_lower(credential),FfiConverterSequenceTypePdfSupplement.lower(supplements)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterData.lift,
+            errorHandler: FfiConverterTypePdfError_lift
+        )
+}
+/**
+ * Encode a JSON-LD `OpticalBarcodeCredential` to CBOR-LD bytes ready for
+ * embedding as a PDF-417 ZZ subfile (ZZA field).
+ *
+ * Uses the bundled context loader from the upstream `w3c-vc-barcodes` crate
+ * (`CONTEXT_LOADER`), which already includes the five contexts required by
+ * VCBs: `credentials/v2`, `vc-barcodes/v1`, `utopia/v2`, `vdl/v2`,
+ * `citizenship/v2`.  Wallets do **not** need to provide their own loader.
+ *
+ * Wallets typically don't call this directly — they pass the
+ * `OpticalBarcodeCredential` through
+ * [`crate::pdf::PdfSupplement::OpticalBarcodeCredential`] and
+ * [`crate::pdf::generate_credential_pdf`] handles encoding internally. This
+ * function is exposed as a public API for advanced use cases (e.g. testing,
+ * or wallets that want to cache CBOR-LD bytes).
+ *
+ * The work runs on a dedicated 8 MB-stack thread because cbor-ld's JSON-LD
+ * context expansion recurses deep enough to blow iOS's default ~512 KB
+ * child-thread stack.
+ */
+public func encodeOpticalBarcodeCredentialForPdf417(jsonld: String)async throws  -> Data  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_encode_optical_barcode_credential_for_pdf417(FfiConverterString.lower(jsonld)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterData.lift,
+            errorHandler: FfiConverterTypeVcbEncodingError_lift
+        )
 }
 public func verifyPdf417Barcode(payload: String)async throws   {
     return
@@ -32635,6 +33216,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_default_ld_json_context() != 551) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_optical_barcode_credential() != 23054) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_compress_vp_for_qr() != 806) {
@@ -32724,7 +33308,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_build_annex_c_response() != 24658) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_generate_credential_pdf() != 35255) {
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_credential_pdf() != 18296) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_encode_optical_barcode_credential_for_pdf417() != 61126) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_verify_pdf417_barcode() != 30995) {
@@ -32761,6 +33348,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_as_mso_mdoc() != 2483) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_as_optical_barcode_credential() != 4030) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_as_sd_jwt() != 42515) {
@@ -32956,6 +33546,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 45386) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_id() != 57284) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_key_alias() != 10828) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_raw_jsonld() != 34204) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_type() != 3775) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_id() != 29264) {
@@ -33630,6 +34232,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_mso_mdoc() != 53418) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_optical_barcode_credential() != 64908) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_sd_jwt() != 7511) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -33691,6 +34296,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_cbor_encoded_issuer_signed_dehydrated() != 4060) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_opticalbarcodecred_new() != 48883) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_opticalbarcodecred_new_with_id() != 37541) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_from_compact_sd_jwt_with_id_and_key() != 46842) {

@@ -139,6 +139,74 @@ pub enum OpticalBarcodeCredError {
     InvalidJsonLd(String),
     #[error("missing or malformed `type` field")]
     MissingType,
+    #[error("test VCB generation failed: {0}")]
+    TestGenerationFailed(String),
+}
+
+/// Generate a freshly-signed test `OpticalBarcodeCredential` (MachineReadableZone
+/// type) and return it as a JSON-LD string.
+///
+/// Mirrors the fixture used by [`crate::aamva`]'s `roundtrip_with_zz_subfile`
+/// test: a randomly generated P-256 key + `did:key` issuer signs a minimal MRZ
+/// VCB. Three-platform demos use this so they can exercise the full PDF-417
+/// VCB pipeline before real DMV microservices ship — same key-handling /
+/// signing flow as production, just with a throwaway key.
+///
+/// The MRZ data baked in matches the test fixture in `aamva.rs`, so the same
+/// VCB can be verified against the same MRZ.
+///
+/// The work runs on a dedicated 8 MB-stack thread because ssi's data-integrity
+/// proof signing recurses through JSON-LD context expansion deep enough to
+/// blow iOS's default ~512 KB child-thread stack.
+#[uniffi::export(async_runtime = "tokio")]
+pub async fn generate_test_optical_barcode_credential() -> Result<String, OpticalBarcodeCredError> {
+    crate::big_stack::run_async(|| async move { sign_test_vcb().await })
+        .await
+        .map_err(|e| {
+            OpticalBarcodeCredError::TestGenerationFailed(format!("big-stack thread: {e}"))
+        })?
+}
+
+async fn sign_test_vcb() -> Result<String, OpticalBarcodeCredError> {
+    use ssi::{
+        claims::data_integrity::ProofOptions,
+        dids::{AnyDidMethod, DIDKey, DIDResolver},
+        verification_methods::SingleSecretSigner,
+        JWK,
+    };
+    use w3c_vc_barcodes::{
+        optical_barcode_credential::{create, SignatureParameters},
+        MachineReadableZone,
+    };
+
+    let jwk = JWK::generate_p256();
+    let vm = DIDKey::generate_url(&jwk)
+        .map_err(|e| OpticalBarcodeCredError::TestGenerationFailed(format!("did:key gen: {e}")))?;
+    let options = ProofOptions::from_method(vm.into_iri().into());
+    let params = SignatureParameters::new(
+        AnyDidMethod::default().into_vm_resolver(),
+        SingleSecretSigner::new(jwk),
+        None,
+    );
+
+    // Same MRZ shape used by the aamva.rs roundtrip test, so the resulting
+    // VCB can be verified against this MRZ in downstream tests.
+    let mrz_data: [[u8; 30]; 3] = [
+        *b"IAUTO0000007010SRC0000000701<<",
+        *b"8804192M2601058NOT<<<<<<<<<<<5",
+        *b"SMITH<<JOHN<<<<<<<<<<<<<<<<<<<",
+    ];
+    let issuer = "http://example.org/issuer".parse().map_err(|e| {
+        OpticalBarcodeCredError::TestGenerationFailed(format!("invalid issuer URI: {e}"))
+    })?;
+
+    let vc = create(&mrz_data, issuer, MachineReadableZone {}, options, params)
+        .await
+        .map_err(|e| OpticalBarcodeCredError::TestGenerationFailed(format!("VCB signing: {e}")))?;
+
+    serde_json::to_string(&vc).map_err(|e| {
+        OpticalBarcodeCredError::TestGenerationFailed(format!("serialize to JSON-LD: {e}"))
+    })
 }
 
 #[cfg(test)]
