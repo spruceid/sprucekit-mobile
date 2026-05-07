@@ -8,14 +8,23 @@ import android.content.IntentFilter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,8 +39,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,11 +55,16 @@ import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.rs.AuthenticationStatus
 import com.spruceid.mobile.sdk.rs.MDocItem
+import com.spruceid.mobile.sdk.rs.ReaderHandover
 import com.spruceid.mobilesdkexample.LoadingView
+import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.db.VerificationActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase600
+import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.Toast
@@ -237,7 +254,7 @@ fun VerifyMDocView(
         }
     }
 
-    fun onRead(content: String) {
+    fun onHandover(handover: ReaderHandover) {
         scanProcessState = State.TRANSMITTING
         checkAndRequestBluetoothPermissions(
             context.applicationContext,
@@ -249,7 +266,7 @@ fun VerifyMDocView(
             try {
                 reader = IsoMdlReader(
                     bleCallback,
-                    content,
+                    handover,
                     if (checkAgeOver18) {
                         ageOver18Elements
                     } else {
@@ -268,6 +285,8 @@ fun VerifyMDocView(
 
         }
     }
+
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
 
     when (scanProcessState) {
         State.ENABLE_BLUETOOTH -> if (!isBluetoothEnabled) {
@@ -317,13 +336,29 @@ fun VerifyMDocView(
             }
         }
 
-        State.SCANNING -> ScanningComponent(
-            ScanningType.QRCODE,
-            title = "",
-            subtitle = "",
-            onRead = ::onRead,
-            onCancel = ::back
-        )
+        State.SCANNING -> Column(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.weight(1f)) {
+                HorizontalPager(state = pagerState) { page ->
+                    when (page) {
+                        0 -> ScanningComponent(
+                            ScanningType.QRCODE,
+                            title = "",
+                            subtitle = "",
+                            onRead = { uri -> onHandover(ReaderHandover.newQr(uri)) },
+                            onCancel = ::back,
+                        )
+                        1 -> VerifyMDocNfcTab(
+                            active = pagerState.settledPage == 1,
+                            onHandover = ::onHandover,
+                            onCancel = ::back,
+                        )
+                    }
+                }
+            }
+            VerifyMDocEngagementTabs(pagerState) { index ->
+                scope.launch { pagerState.animateScrollToPage(index) }
+            }
+        }
 
         State.TRANSMITTING -> LoadingView("Verifying...", "Cancel", ::back)
         State.DONE -> VerifierMDocResultView(
@@ -347,5 +382,52 @@ fun VerifyMDocView(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun VerifyMDocEngagementTabs(
+    pagerState: PagerState,
+    changeTab: (Int) -> Unit,
+) {
+    val icons = listOf(
+        R.drawable.qrcode_scanner to "QR code engagement",
+        R.drawable.wallet to "NFC engagement",
+    )
+    BottomAppBar(containerColor = ColorBase50) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            icons.forEachIndexed { index, (drawable, alt) ->
+                Button(
+                    onClick = { changeTab(index) },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                ) {
+                    val active = pagerState.currentPage == index
+                    Image(
+                        painter = painterResource(id = drawable),
+                        contentDescription = alt,
+                        colorFilter = ColorFilter.tint(
+                            if (active) ColorBlue600 else ColorBase600,
+                        ),
+                        modifier = Modifier
+                            .width(32.dp)
+                            .height(32.dp)
+                            .padding(end = 3.dp)
+                            .drawBehind {
+                                drawLine(
+                                    color = if (active) ColorBlue600 else Color.Transparent,
+                                    start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                    end = androidx.compose.ui.geometry.Offset(size.width, 0f),
+                                    strokeWidth = 4.dp.toPx(),
+                                )
+                            },
+                    )
+                }
+            }
+        }
     }
 }

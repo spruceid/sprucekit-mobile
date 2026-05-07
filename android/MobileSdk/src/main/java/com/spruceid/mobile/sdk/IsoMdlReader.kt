@@ -15,7 +15,7 @@ import java.util.UUID
 
 class IsoMdlReader(
     val callback: BLESessionStateDelegate,
-    uri: String,
+    handover: ReaderHandover,
     requestedItems: Map<String, Map<String, Boolean>>,
     trustAnchorRegistry: List<String>?,
     platformBluetooth: BluetoothManager,
@@ -24,9 +24,25 @@ class IsoMdlReader(
     private lateinit var session: MdlSessionManager
     private lateinit var bleManager: Transport
 
+    constructor(
+        callback: BLESessionStateDelegate,
+        uri: String,
+        requestedItems: Map<String, Map<String, Boolean>>,
+        trustAnchorRegistry: List<String>?,
+        platformBluetooth: BluetoothManager,
+        context: Context,
+    ) : this(
+        callback,
+        ReaderHandover.newQr(uri),
+        requestedItems,
+        trustAnchorRegistry,
+        platformBluetooth,
+        context,
+    )
+
     init {
         try {
-            val sessionData = establishSession(ReaderHandover.newQr(uri), requestedItems, trustAnchorRegistry)
+            val sessionData = establishSession(handover, requestedItems, trustAnchorRegistry)
 
             session = sessionData.state
             try {
