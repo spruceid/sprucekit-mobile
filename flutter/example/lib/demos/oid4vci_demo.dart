@@ -24,6 +24,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   bool _cameraGranted = false;
   List<IssuedCredential> _issuedCredentials = [];
   String? _error;
+  ParsedOfferMetadata? _parsedMetadata;
 
   @override
   void initState() {
@@ -56,7 +57,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   void _handleScannedUrl(String url) {
     _closeScanner();
     _offerController.text = url;
-    _runIssuance();
+    // _runIssuance();
   }
 
   Future<void> _runIssuance() async {
@@ -92,6 +93,35 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
           case Oid4vciError(:final message):
             _error = message;
         }
+      });
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  Future<void> _parseOffer() async {
+    FocusScope.of(context).unfocus();
+
+    final offer = _offerController.text.trim();
+    if (offer.isEmpty) {
+      setState(() => _error = 'Please enter a credential offer URL');
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _parsedMetadata = null;
+      _error = null;
+    });
+
+    try {
+      final metadata = await _api.parseOffer(offer);
+      setState(() {
+        _loading = false;
+        _parsedMetadata = metadata;
       });
     } catch (e) {
       setState(() {
@@ -156,6 +186,11 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
               ),
             ),
             const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _loading ? null : _parseOffer,
+              child: const Text('Parse Offer'),
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -183,6 +218,21 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
               ],
             ),
             const SizedBox(height: 24),
+            if (_parsedMetadata != null) ...[
+              const Text(
+                'Parsed Offer Metadata:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Issuer: ${_parsedMetadata!.issuerDisplayName ?? "(no display name)"}',
+              ),
+              Text('Issuer ID: ${_parsedMetadata!.issuerId}'),
+              Text(
+                'Credentials: ${_parsedMetadata!.credentialConfigurationIds.join(", ")}',
+              ),
+              Text('Grant: ${_parsedMetadata!.grantType.name}'),
+              const SizedBox(height: 16),
+            ],
             if (_error != null)
               Container(
                 padding: const EdgeInsets.all(12),
