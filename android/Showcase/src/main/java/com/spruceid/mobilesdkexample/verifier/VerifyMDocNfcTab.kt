@@ -2,7 +2,6 @@ package com.spruceid.mobilesdkexample.verifier
 
 import android.content.Intent
 import android.provider.Settings
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,11 +17,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,15 +25,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.spruceid.mobile.sdk.nfc.NfcReaderEngagement
-import com.spruceid.mobile.sdk.rs.ReaderHandover
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 
-private sealed class NfcTabUi {
+internal sealed class NfcTabUi {
     object NfcUnsupported : NfcTabUi()
     object NfcDisabled : NfcTabUi()
     object WaitingForTag : NfcTabUi()
@@ -47,45 +39,19 @@ private sealed class NfcTabUi {
     data class ProtocolError(val message: String) : NfcTabUi()
 }
 
+/**
+ * Pure UI for the NFC verifier tab. Engagement lifecycle (reader mode,
+ * APDU exchange) is owned by the parent [VerifyMDocView] which lifts the
+ * [NfcReaderEngagement] to the screen scope so reader mode can stay on
+ * across all tabs and states.
+ */
 @Composable
-fun VerifyMDocNfcTab(
-    active: Boolean,
-    onHandover: (ReaderHandover) -> Unit,
+internal fun VerifyMDocNfcTab(
+    nfcUi: NfcTabUi,
+    onRetry: () -> Unit,
     onCancel: () -> Unit,
 ) {
     val context = LocalContext.current
-    val activity = context as ComponentActivity
-    var ui by remember { mutableStateOf<NfcTabUi>(NfcTabUi.WaitingForTag) }
-
-    val engagement = remember(activity) {
-        NfcReaderEngagement(activity) { event ->
-            ui = when (event) {
-                is NfcReaderEngagement.Event.WaitingForTag -> NfcTabUi.WaitingForTag
-                is NfcReaderEngagement.Event.Exchanging -> NfcTabUi.Exchanging
-                is NfcReaderEngagement.Event.TransientError -> ui // already handled by next WaitingForTag
-                is NfcReaderEngagement.Event.ProtocolError -> NfcTabUi.ProtocolError(
-                    event.cause.localizedMessage ?: event.cause.message ?: "Handover failed"
-                )
-                is NfcReaderEngagement.Event.Success -> {
-                    onHandover(event.handover)
-                    NfcTabUi.WaitingForTag
-                }
-            }
-        }
-    }
-
-    DisposableEffect(active, engagement.isSupported, engagement.isEnabled) {
-        ui = when {
-            !engagement.isSupported -> NfcTabUi.NfcUnsupported
-            !engagement.isEnabled -> NfcTabUi.NfcDisabled
-            active -> {
-                engagement.start()
-                NfcTabUi.WaitingForTag
-            }
-            else -> ui
-        }
-        onDispose { engagement.stop() }
-    }
 
     Column(
         modifier = Modifier
@@ -102,7 +68,7 @@ fun VerifyMDocNfcTab(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                when (val s = ui) {
+                when (val s = nfcUi) {
                     is NfcTabUi.NfcUnsupported -> {
                         Text(
                             text = "This device does not support NFC.",
@@ -174,7 +140,7 @@ fun VerifyMDocNfcTab(
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(
-                            onClick = { ui = NfcTabUi.WaitingForTag },
+                            onClick = onRetry,
                             colors = ButtonDefaults.buttonColors(containerColor = ColorBlue600),
                             shape = RoundedCornerShape(5.dp),
                         ) {

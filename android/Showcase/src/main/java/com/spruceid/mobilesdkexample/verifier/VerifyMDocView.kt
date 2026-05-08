@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -53,6 +54,7 @@ import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.IsoMdlReader
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
+import com.spruceid.mobile.sdk.nfc.NfcReaderEngagement
 import com.spruceid.mobile.sdk.rs.AuthenticationStatus
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobile.sdk.rs.ReaderHandover
@@ -288,6 +290,56 @@ fun VerifyMDocView(
 
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
 
+    val activity = context as ComponentActivity
+    var nfcUi by remember { mutableStateOf<NfcTabUi>(NfcTabUi.WaitingForTag) }
+    val engagement = remember(activity) {
+        NfcReaderEngagement(activity) { event ->
+            when (event) {
+                is NfcReaderEngagement.Event.WaitingForTag ->
+                    nfcUi = NfcTabUi.WaitingForTag
+                is NfcReaderEngagement.Event.Exchanging ->
+                    nfcUi = NfcTabUi.Exchanging
+                is NfcReaderEngagement.Event.TransientError -> {
+                    // Recoverable; the SDK emits WaitingForTag right after.
+                }
+                is NfcReaderEngagement.Event.ProtocolError ->
+                    nfcUi = NfcTabUi.ProtocolError(
+                        event.cause.localizedMessage
+                            ?: event.cause.message
+                            ?: "Handover failed"
+                    )
+                is NfcReaderEngagement.Event.Success ->
+                    onHandover(event.handover)
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        nfcUi = when {
+            !engagement.isSupported -> NfcTabUi.NfcUnsupported
+            !engagement.isEnabled -> NfcTabUi.NfcDisabled
+            else -> NfcTabUi.WaitingForTag
+        }
+    }
+
+    // Reader mode is on for the entire VerifyMDocView lifecycle. While on,
+    // the device is in initiator role only — its HCE controller is dormant,
+    // so foreign HCE services (payment apps, our own NfcPresentationService),
+    // wallet pickers, and OS-level tag dispatchers (e.g. Samsung's "tag
+    // scanner" overlay) all stay quiet for the duration of the verifier flow.
+    DisposableEffect(Unit) {
+        engagement.start()
+        onDispose { engagement.stop() }
+    }
+
+    // Only actually run the APDU exchange while the user is on the NFC tab
+    // and we're still in SCANNING. In every other case (QR tab, BT prompt,
+    // BLE transmission, results screen) detected tags are silently swallowed.
+    LaunchedEffect(scanProcessState, pagerState.settledPage) {
+        engagement.engageOnTap = scanProcessState == State.SCANNING &&
+            pagerState.settledPage == 1
+    }
+
     when (scanProcessState) {
         State.ENABLE_BLUETOOTH -> if (!isBluetoothEnabled) {
             Box(
@@ -348,8 +400,8 @@ fun VerifyMDocView(
                             onCancel = ::back,
                         )
                         1 -> VerifyMDocNfcTab(
-                            active = pagerState.settledPage == 1,
-                            onHandover = ::onHandover,
+                            nfcUi = nfcUi,
+                            onRetry = { nfcUi = NfcTabUi.WaitingForTag },
                             onCancel = ::back,
                         )
                     }

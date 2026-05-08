@@ -51,14 +51,28 @@ class NfcReaderEngagement(
     val isSupported: Boolean get() = nfcAdapter != null
     val isEnabled: Boolean get() = nfcAdapter?.isEnabled == true
 
+    /**
+     * When false, detected tags are silently consumed without an APDU exchange
+     * or any [Event] emission. Reader mode itself stays enabled, which is
+     * useful for keeping the device in initiator role (so foreign HCE,
+     * system tag dispatch, OEM "tag scanner" overlays, etc. are suppressed)
+     * while the host UI is foreground but not actively soliciting a tap.
+     */
+    @Volatile
+    var engageOnTap: Boolean = true
+
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var running = false
+    @Volatile private var running = false
 
     private val readerCallback = NfcAdapter.ReaderCallback { tag: Tag ->
         // Guard against stale invocations that the system may dispatch after
         // disableReaderMode() returns.
         if (!running) {
             Log.d(TAG, "Ignoring tag detection after stop()")
+            return@ReaderCallback
+        }
+        if (!engageOnTap) {
+            Log.d(TAG, "Tag detected but engagement is paused; swallowing")
             return@ReaderCallback
         }
         emit(Event.Exchanging)
@@ -86,15 +100,17 @@ class NfcReaderEngagement(
                         } catch (_: IOException) {
                             // Connection already gone; ignore.
                         }
-                        // Disable reader mode before delivering the handover so
-                        // the holder's HCE service does not get re-triggered
-                        // (e.g. wallet picker reappearing) while the caller
-                        // moves on to BLE.
+                        // Mark this engagement as done so subsequent taps are
+                        // silently swallowed even if the host hasn't yet
+                        // reacted to the Success event. We deliberately do NOT
+                        // call stop() here: callers typically want reader
+                        // mode to stay active through the post-handover BLE
+                        // phase so the device stays in initiator role and no
+                        // foreign HCE service / OS tag dispatcher gets fired
+                        // while the phones may still be in proximity.
+                        engageOnTap = false
                         val handover = progress.v1
-                        mainHandler.post {
-                            stop()
-                            onEvent(Event.Success(handover))
-                        }
+                        mainHandler.post { onEvent(Event.Success(handover)) }
                         return@ReaderCallback
                     }
                 }
@@ -146,9 +162,23 @@ class NfcReaderEngagement(
     companion object {
         private const val TAG = "NfcReaderEngagement"
         private const val TRANSCEIVE_TIMEOUT_MS = 20_000
+        // Claim every NFC tech: tags we don't recognise are silently swallowed
+        // by the callback (when engageOnTap=false or non-IsoDep), but we MUST
+        // claim them at the reader-mode level so the OS doesn't fall through
+        // to its default tag dispatcher (TECH_DISCOVERED → system TagViewer,
+        // OEM "tag scanner" overlays, NDEF auto-launch, etc.). Observed in
+        // the wild: Pixel + Google Wallet emits NFC-F during ISO 18013-5
+        // engagement; without FLAG_READER_NFC_F our reader mode misses it
+        // and Samsung's OS launches com.android.apps.tag/.TagViewer.
+        // FLAG_READER_NO_PLATFORM_SOUNDS also kills the system tag-detected
+        // chime, which otherwise plays even on tags we silently swallow.
         private const val READER_FLAGS =
             NfcAdapter.FLAG_READER_NFC_A or
                 NfcAdapter.FLAG_READER_NFC_B or
-                NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK
+                NfcAdapter.FLAG_READER_NFC_F or
+                NfcAdapter.FLAG_READER_NFC_V or
+                NfcAdapter.FLAG_READER_NFC_BARCODE or
+                NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or
+                NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS
     }
 }
