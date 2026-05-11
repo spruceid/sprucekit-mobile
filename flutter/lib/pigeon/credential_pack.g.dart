@@ -139,6 +139,75 @@ class ParsedCredentialData {
 ;
 }
 
+/// Stateless preview of a parsed credential, used to render claims BEFORE
+/// the user has agreed to persist the credential into their wallet.
+///
+/// Unlike [ParsedCredentialData], this preview is not bound to a stored
+/// credential pack and carries the full claims map inline so callers can
+/// render it without a follow-up `getCredentialClaims` lookup.
+class ParsedCredentialPreview {
+  ParsedCredentialPreview({
+    required this.format,
+    this.doctype,
+    this.vct,
+    required this.claimsJson,
+  });
+
+  /// The credential format.
+  CredentialFormat format;
+
+  /// `MsoMdoc.doctype()` for mdoc credentials. Null otherwise.
+  String? doctype;
+
+  /// `DcSdJwt.vct()` for IETF SD-JWT VC credentials. Null otherwise.
+  String? vct;
+
+  /// JSON-encoded string of the credential claims. For mdoc, keys preserve
+  /// the namespace path (e.g. `"org.iso.18013.5.1.given_name"`). Mirrors the
+  /// shape returned by `getCredentialClaims` so callers can decode it the
+  /// same way.
+  String claimsJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      format,
+      doctype,
+      vct,
+      claimsJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ParsedCredentialPreview decode(Object result) {
+    result as List<Object?>;
+    return ParsedCredentialPreview(
+      format: result[0]! as CredentialFormat,
+      doctype: result[1] as String?,
+      vct: result[2] as String?,
+      claimsJson: result[3]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ParsedCredentialPreview || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 /// A credential pack with its credentials
 class CredentialPackData {
   CredentialPackData({
@@ -382,20 +451,23 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is ParsedCredentialData) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is CredentialPackData) {
+    }    else if (value is ParsedCredentialPreview) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is CredentialOperationSuccess) {
+    }    else if (value is CredentialPackData) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is CredentialOperationError) {
+    }    else if (value is CredentialOperationSuccess) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is AddCredentialSuccess) {
+    }    else if (value is CredentialOperationError) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is AddCredentialError) {
+    }    else if (value is AddCredentialSuccess) {
       buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    }    else if (value is AddCredentialError) {
+      buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -414,14 +486,16 @@ class _PigeonCodec extends StandardMessageCodec {
       case 131:
         return ParsedCredentialData.decode(readValue(buffer)!);
       case 132:
-        return CredentialPackData.decode(readValue(buffer)!);
+        return ParsedCredentialPreview.decode(readValue(buffer)!);
       case 133:
-        return CredentialOperationSuccess.decode(readValue(buffer)!);
+        return CredentialPackData.decode(readValue(buffer)!);
       case 134:
-        return CredentialOperationError.decode(readValue(buffer)!);
+        return CredentialOperationSuccess.decode(readValue(buffer)!);
       case 135:
-        return AddCredentialSuccess.decode(readValue(buffer)!);
+        return CredentialOperationError.decode(readValue(buffer)!);
       case 136:
+        return AddCredentialSuccess.decode(readValue(buffer)!);
+      case 137:
         return AddCredentialError.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -514,6 +588,35 @@ class CredentialPack {
     )
     !;
     return pigeonVar_replyValue as AddCredentialResult;
+  }
+
+  /// Parse a raw credential payload into a stateless preview, without
+  /// persisting it. Used by issuance flows to render claims before the user
+  /// agrees to add the credential to their wallet.
+  ///
+  /// @param rawCredential The raw credential payload (compact JWS for JWT-VC
+  ///   / SD-JWT, JSON for ldp_vc, base64url-encoded CBOR for mdoc).
+  /// @param format The credential format.
+  /// @return A preview containing the parsed claims. The native side passes
+  ///   a throwaway key alias internally; the credential is never bound to
+  ///   any device key during parsing.
+  Future<ParsedCredentialPreview> parseRawCredential(String rawCredential, CredentialFormat format) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.parseRawCredential$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[rawCredential, format]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    !;
+    return pigeonVar_replyValue as ParsedCredentialPreview;
   }
 
   /// Add a raw mDoc credential to a pack

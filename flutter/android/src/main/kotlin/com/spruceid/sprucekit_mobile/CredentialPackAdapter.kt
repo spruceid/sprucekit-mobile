@@ -6,6 +6,7 @@ import com.spruceid.mobile.sdk.CredentialPack as SdkCredentialPack
 import com.spruceid.mobile.sdk.StorageManager
 import com.spruceid.mobile.sdk.credentialClaims
 import com.spruceid.mobile.sdk.jsonEncodedDetailsAll
+import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -111,6 +112,66 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
                 callback(Result.success(AddCredentialError(
                     message = e.localizedMessage ?: "Failed to add credential"
                 )))
+            }
+        }
+    }
+
+    override fun parseRawCredential(
+        rawCredential: String,
+        format: CredentialFormat,
+        callback: (Result<ParsedCredentialPreview>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Dummy alias: parsing does not bind the credential to any key.
+                // On accept, the wallet re-parses with a real alias before persisting.
+                val previewAlias = "preview-only-${UUID.randomUUID()}"
+
+                val parsed = if (format == CredentialFormat.MSO_MDOC) {
+                    val mdoc = try {
+                        Mdoc.fromStringifiedDocument(rawCredential, previewAlias)
+                    } catch (_: Exception) {
+                        Mdoc.newFromBase64urlEncodedIssuerSigned(rawCredential, previewAlias)
+                    }
+                    ParsedCredential.newMsoMdoc(mdoc)
+                } else {
+                    ParsedCredential.newFromStringWithFormat(
+                        format = format.toRustFormatString(),
+                        credential = rawCredential,
+                        keyAlias = previewAlias,
+                    )
+                }
+
+                var doctype: String? = null
+                var vct: String? = null
+                val claimsJson: String = when {
+                    parsed.asMsoMdoc() != null -> {
+                        val mdoc = parsed.asMsoMdoc()!!
+                        doctype = mdoc.doctype()
+                        mdoc.jsonEncodedDetailsAll().toString()
+                    }
+                    parsed.asJwtVc() != null -> parsed.asJwtVc()!!.credentialClaims().toString()
+                    parsed.asJsonVc() != null -> parsed.asJsonVc()!!.credentialClaims().toString()
+                    parsed.asSdJwt() != null -> parsed.asSdJwt()!!.credentialClaims().toString()
+                    parsed.asDcSdJwt() != null -> {
+                        val dcSdJwt = parsed.asDcSdJwt()!!
+                        vct = dcSdJwt.vct()
+                        dcSdJwt.credentialClaims().toString()
+                    }
+                    parsed.asCwt() != null -> parsed.asCwt()!!.credentialClaims().toString()
+                    else -> throw IllegalStateException(
+                        "Parsed credential did not match any known format accessor"
+                    )
+                }
+
+                callback(Result.success(ParsedCredentialPreview(
+                    format = format,
+                    doctype = doctype,
+                    vct = vct,
+                    claimsJson = claimsJson,
+                )))
+            } catch (e: Exception) {
+                callback(Result.failure(e))
             }
         }
     }
@@ -320,4 +381,16 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
             vct = vct
         )
     }
+}
+
+/// Map the Pigeon [CredentialFormat] enum to the format string accepted by
+/// `ParsedCredential.newFromStringWithFormat`. Mirrors the canonical strings
+/// defined in `rust/src/credential/mod.rs::CredentialFormat::Display`.
+private fun CredentialFormat.toRustFormatString(): String = when (this) {
+    CredentialFormat.MSO_MDOC -> "mso_mdoc"
+    CredentialFormat.JWT_VC -> "jwt_vc_json"
+    CredentialFormat.JSON_VC -> "ldp_vc"
+    CredentialFormat.SD_JWT -> "vcdm2_sd_jwt"
+    CredentialFormat.DC_SD_JWT -> "dc+sd-jwt"
+    CredentialFormat.CWT -> "cwt"
 }

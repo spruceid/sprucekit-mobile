@@ -122,6 +122,95 @@ class CredentialPackAdapter: CredentialPack {
         }
     }
 
+    func parseRawCredential(
+        rawCredential: String,
+        format: CredentialFormat,
+        completion: @escaping (Result<ParsedCredentialPreview, any Error>) -> Void
+    ) {
+        Task {
+            do {
+                // Dummy alias: parsing does not bind the credential to any key.
+                // On accept, the wallet re-parses with a real alias before persisting.
+                let previewAlias = "preview-only-\(UUID().uuidString)"
+
+                let parsed: SpruceIDMobileSdkRs.ParsedCredential
+                if format == .msoMdoc {
+                    let mdoc: SpruceIDMobileSdkRs.Mdoc
+                    do {
+                        mdoc = try SpruceIDMobileSdkRs.Mdoc.fromStringifiedDocument(
+                            stringifiedDocument: rawCredential,
+                            keyAlias: previewAlias
+                        )
+                    } catch {
+                        mdoc = try SpruceIDMobileSdkRs.Mdoc.newFromBase64urlEncodedIssuerSigned(
+                            base64urlEncodedIssuerSigned: rawCredential,
+                            keyAlias: previewAlias
+                        )
+                    }
+                    parsed = SpruceIDMobileSdkRs.ParsedCredential.newMsoMdoc(mdoc: mdoc)
+                } else {
+                    parsed = try SpruceIDMobileSdkRs.ParsedCredential.newFromStringWithFormat(
+                        format: format.toRustFormatString(),
+                        credential: rawCredential,
+                        keyAlias: previewAlias
+                    )
+                }
+
+                var doctype: String? = nil
+                var vct: String? = nil
+                let claimsJson: String
+
+                switch format {
+                case .jwtVc:
+                    claimsJson = parsed.asJwtVc()?.credentialAsJsonEncodedUtf8String() ?? ""
+                case .jsonVc:
+                    claimsJson = parsed.asJsonVc()?.credentialAsJsonEncodedUtf8String() ?? ""
+                case .sdJwt:
+                    claimsJson = (try parsed.asSdJwt()?.revealedClaimsAsJsonString()) ?? ""
+                case .msoMdoc:
+                    if let mdoc = parsed.asMsoMdoc() {
+                        let data = try JSONEncoder().encode(mdoc.jsonEncodedDetails())
+                        claimsJson = String(data: data, encoding: .utf8) ?? ""
+                        doctype = mdoc.doctype()
+                    } else {
+                        claimsJson = ""
+                    }
+                case .cwt:
+                    if let cwt = parsed.asCwt() {
+                        let data = try JSONEncoder().encode(cwt.credentialClaims())
+                        claimsJson = String(data: data, encoding: .utf8) ?? ""
+                    } else {
+                        claimsJson = ""
+                    }
+                case .dcSdJwt:
+                    if let dcSdJwt = parsed.asDcSdJwt() {
+                        claimsJson = (try dcSdJwt.revealedClaimsAsJsonString())
+                        vct = dcSdJwt.vct()
+                    } else {
+                        claimsJson = ""
+                    }
+                }
+
+                if claimsJson.isEmpty {
+                    throw NSError(
+                        domain: "CredentialPackAdapter",
+                        code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "Parsed credential did not match the declared format"]
+                    )
+                }
+
+                completion(.success(ParsedCredentialPreview(
+                    format: format,
+                    doctype: doctype,
+                    vct: vct,
+                    claimsJson: claimsJson
+                )))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
     func listCredentials(packId: String) throws -> [ParsedCredentialData] {
         lock.lock()
         let pack = packs[packId]
@@ -391,6 +480,22 @@ extension GenericJSON {
             return value.mapValues { $0.toAny() }
         case .null:
             return NSNull()
+        }
+    }
+}
+
+extension CredentialFormat {
+    /// Map the Pigeon `CredentialFormat` enum to the format string accepted by
+    /// `ParsedCredential.newFromStringWithFormat`. Mirrors the canonical strings
+    /// defined in `rust/src/credential/mod.rs::CredentialFormat::Display`.
+    func toRustFormatString() -> String {
+        switch self {
+        case .msoMdoc: return "mso_mdoc"
+        case .jwtVc: return "jwt_vc_json"
+        case .jsonVc: return "ldp_vc"
+        case .sdJwt: return "vcdm2_sd_jwt"
+        case .dcSdJwt: return "dc+sd-jwt"
+        case .cwt: return "cwt"
         }
     }
 }
