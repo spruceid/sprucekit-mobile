@@ -68,7 +68,7 @@ struct SharePdfView: View {
         Task {
             do {
                 let supplements = try await credentialPackObservable.getDemoSupplements(for: credential)
-                let pdfBytes = try generateCredentialPdf(credential: credential, supplements: supplements)
+                let pdfBytes = try await generateCredentialPdf(credential: credential, supplements: supplements)
                 await sharePdf(Data(pdfBytes))
             } catch {
                 await MainActor.run {

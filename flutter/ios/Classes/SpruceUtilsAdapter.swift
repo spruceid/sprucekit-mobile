@@ -36,7 +36,7 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
                 let credential = ParsedCredential.newMsoMdoc(mdoc: mdoc)
 
                 // Convert Pigeon supplements to Rust PdfSupplement
-                let rustSupplements: [SpruceIDMobileSdkRs.PdfSupplement] = supplements.compactMap { sup -> SpruceIDMobileSdkRs.PdfSupplement? in
+                let rustSupplements: [SpruceIDMobileSdkRs.PdfSupplement] = try supplements.compactMap { sup -> SpruceIDMobileSdkRs.PdfSupplement? in
                     switch sup.type {
                     case .barcode:
                         guard let pigeonData = sup.data, let barcodeType = sup.barcodeType else {
@@ -50,10 +50,15 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
                             }
                         }()
                         return .barcode(data: data, barcodeType: rustBarcodeType)
+                    case .opticalBarcodeCredential:
+                        guard let jsonld = sup.jsonldVcb else { return nil }
+                        let vcb = try OpticalBarcodeCred(jsonld: jsonld)
+                        let vcbCredential = ParsedCredential.newOpticalBarcodeCredential(cred: vcb)
+                        return .opticalBarcodeCredential(credential: vcbCredential)
                     }
                 }
 
-                let pdfBytes = try SpruceIDMobileSdkRs.generateCredentialPdf(
+                let pdfBytes = try await SpruceIDMobileSdkRs.generateCredentialPdf(
                     credential: credential,
                     supplements: rustSupplements
                 )
@@ -130,6 +135,19 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
         Task {
             let compact = await SpruceIDMobileSdkRs.generateTestMdlSdJwtCompact()
             completion(.success(compact))
+        }
+    }
+
+    func generateTestOpticalBarcodeCredential(
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        Task {
+            do {
+                let jsonld = try await SpruceIDMobileSdkRs.generateTestOpticalBarcodeCredential()
+                completion(.success(jsonld))
+            } catch {
+                completion(.failure(error))
+            }
         }
     }
 

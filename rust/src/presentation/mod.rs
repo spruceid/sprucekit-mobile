@@ -98,6 +98,9 @@ impl JsonLdPresentationBuilder {
                     ParsedCredentialInner::Cwt(_) => {
                         Err(PresentationBuilderError::UnsupportedCredentialFormat)
                     }
+                    ParsedCredentialInner::OpticalBarcodeCredential(_) => {
+                        Err(PresentationBuilderError::UnsupportedCredentialFormat)
+                    }
                 })
                 .collect::<Result<_, _>>()?,
         );

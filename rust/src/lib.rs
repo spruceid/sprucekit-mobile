@@ -1,6 +1,7 @@
 uniffi::setup_scaffolding!();
 
 pub mod aamva;
+pub mod big_stack;
 pub mod cborld;
 pub mod common;
 pub mod context;

@@ -39,8 +39,15 @@ const SECTION_PAD: f32 = 4.0; // mm gap between sections
 // VP payload (schema alignment with DMV / CWT format), not bigger physical
 // print.
 const QR_SIZE: f32 = 70.0; // mm, QR code side length
-const PDF417_W: f32 = 80.0; // mm, PDF-417 width
-const PDF417_H: f32 = 18.0; // mm, PDF-417 height
+                           // PDF-417 sized to keep modules at a scannable density even with large
+                           // payloads (AAMVA DL + ZZ subfile carrying a CBOR-LD VCB can run 600+ bytes,
+                           // producing symbols ~30 cols × ~17 rows). Page content area is
+                           // 210 - 2*15 = 180 mm wide, so 170 mm consumes most of it and gives module
+                           // X-dimension ~0.30 mm — well above AAMVA-spec minimum (0.168 mm).
+                           // 40 mm tall keeps vertical modules ~0.59 mm so phone scanners can lock on
+                           // reliably.
+const PDF417_W: f32 = 170.0; // mm, PDF-417 width
+const PDF417_H: f32 = 40.0; // mm, PDF-417 height
 const BARCODE_LABEL_H: f32 = 5.0; // mm, label text height above barcode
 const BARCODE_GAP: f32 = 3.0; // mm, gap between stacked barcodes
                               // Footer occupies ~MARGIN from the bottom; barcodes stack upward from just above it.

@@ -6,5 +6,8 @@
 /build/
 .swiftpm
 
+# Kotlin incremental-compile cache (Gradle/KSP) appears under */kotlin or .kotlin
+.kotlin/
+
 # FVM
 .fvm/flutter_sdk
