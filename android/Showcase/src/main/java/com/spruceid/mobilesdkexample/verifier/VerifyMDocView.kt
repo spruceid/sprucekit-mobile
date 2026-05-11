@@ -3,6 +3,7 @@ package com.spruceid.mobilesdkexample.verifier
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
 import android.nfc.NfcAdapter
@@ -45,6 +46,9 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -291,7 +295,11 @@ fun VerifyMDocView(
 
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
 
-    val activity = context as? ComponentActivity
+    // Walk the ContextWrapper chain to find the owning ComponentActivity.
+    // A direct `context as? ComponentActivity` cast happens to work today
+    // (LocalContext.current is the Activity), but stays robust if a wrapper
+    // is ever inserted between the composition and the Activity.
+    val activity = remember(context) { context.findComponentActivity() }
     var nfcUi by remember { mutableStateOf<NfcTabUi>(NfcTabUi.WaitingForTag) }
     val engagement = remember(activity) {
         activity?.let { act ->
@@ -357,14 +365,29 @@ fun VerifyMDocView(
         onDispose { context.unregisterReceiver(receiver) }
     }
 
-    // Reader mode is on for the entire VerifyMDocView lifecycle. While on,
-    // the device is in initiator role only — its HCE controller is dormant,
-    // so foreign HCE services (payment apps, our own NfcPresentationService),
-    // wallet pickers, and OS-level tag dispatchers (e.g. Samsung's "tag
-    // scanner" overlay) all stay quiet for the duration of the verifier flow.
-    DisposableEffect(Unit) {
-        engagement?.start()
-        onDispose { engagement?.stop() }
+    // Reader mode is bound to the Activity's RESUMED/PAUSED lifecycle, not
+    // to first composition. The OS auto-disables reader mode whenever our
+    // Activity loses top-resumed (e.g. when the post-tap OS overlay
+    // launches), and a one-shot DisposableEffect(Unit) would never
+    // re-enable it. Reader mode keeps the device in initiator role: its
+    // HCE controller is dormant, so foreign HCE services (payment apps,
+    // our own NfcPresentationService), wallet pickers, and OS-level tag
+    // dispatchers stay quiet — except on Samsung, see note in
+    // NfcReaderEngagement.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, engagement) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> engagement?.start()
+                Lifecycle.Event.ON_PAUSE -> engagement?.stop()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            engagement?.stop()
+        }
     }
 
     // Only actually run the APDU exchange while the user is on the NFC tab
@@ -517,4 +540,10 @@ private fun VerifyMDocEngagementTabs(
             }
         }
     }
+}
+
+private tailrec fun Context.findComponentActivity(): ComponentActivity? = when (this) {
+    is ComponentActivity -> this
+    is ContextWrapper -> baseContext.findComponentActivity()
+    else -> null
 }

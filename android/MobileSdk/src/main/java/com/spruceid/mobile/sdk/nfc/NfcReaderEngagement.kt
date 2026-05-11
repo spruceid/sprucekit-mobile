@@ -173,9 +173,19 @@ class NfcReaderEngagement(
         // OEM "tag scanner" overlays, NDEF auto-launch, etc.). Observed in
         // the wild: Pixel + Google Wallet emits NFC-F during ISO 18013-5
         // engagement; without FLAG_READER_NFC_F our reader mode misses it
-        // and Samsung's OS launches com.android.apps.tag/.TagViewer.
+        // and the OS launches com.android.apps.tag/.TagViewer.
         // FLAG_READER_NO_PLATFORM_SOUNDS also kills the system tag-detected
         // chime, which otherwise plays even on tags we silently swallow.
+        //
+        // Known limitation on Samsung: when a holder advertises NDEF over
+        // HCE (Google Wallet does this), Samsung's modified NfcService runs
+        // its own NDEF read and dispatches the tag explicitly to
+        // com.android.apps.tag/.TagViewer, bypassing both this reader mode
+        // (despite FLAG_READER_SKIP_NDEF_CHECK) and any manifest
+        // TECH_DISCOVERED intent-filter. The dispatch uses an explicit
+        // component, so no app-side filter can intercept it. The first tap
+        // shows a brief "Unknown tag" overlay; subsequent taps within the
+        // same engagement go through reader mode normally.
         private const val READER_FLAGS =
             NfcAdapter.FLAG_READER_NFC_A or
                 NfcAdapter.FLAG_READER_NFC_B or
