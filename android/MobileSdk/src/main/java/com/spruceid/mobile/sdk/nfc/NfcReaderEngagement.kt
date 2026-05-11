@@ -24,8 +24,12 @@ import java.io.IOException
  *     [Event.WaitingForTag].
  *  3. On tap, the APDU exchange runs on a binder thread; events are always
  *     delivered to the consumer on the main thread.
- *  4. Call [stop] when leaving the screen. Reader mode is also released
- *     automatically after [Event.Success] is delivered.
+ *  4. Call [stop] when leaving the screen. After [Event.Success] reader
+ *     mode is intentionally NOT released — only [engageOnTap] is flipped
+ *     to false. Callers typically keep the device in initiator role
+ *     through the post-handover BLE phase so foreign HCE services,
+ *     wallet pickers, and OS tag dispatchers stay suppressed while the
+ *     phones may still be in proximity.
  *
  * Transient failures (tag lost, I/O) are recovered automatically: reader
  * mode stays on and the next tap starts a fresh handover. This handles
@@ -87,10 +91,10 @@ class NfcReaderEngagement(
             // Fresh driver per tap: holders that disconnect mid-handover
             // (e.g. wallet picker) reconnect with a new SELECT, so resumption
             // is not possible.
-            val init = newReaderApduHandoverDriver()
-            var rapdu = isoDep.transceive(init.initialApdu)
+            val driverInit = newReaderApduHandoverDriver()
+            var rapdu = isoDep.transceive(driverInit.initialApdu)
             while (true) {
-                when (val progress = init.driver.processRapdu(rapdu)) {
+                when (val progress = driverInit.driver.processRapdu(rapdu)) {
                     is ReaderApduProgress.InProgress -> {
                         rapdu = isoDep.transceive(progress.v1)
                     }
