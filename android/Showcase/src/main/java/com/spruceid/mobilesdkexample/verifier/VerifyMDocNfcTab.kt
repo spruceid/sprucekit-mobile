@@ -25,30 +25,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.spruceid.mobile.sdk.nfc.NfcReaderPhase
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 
-internal sealed class NfcTabUi {
-    object NfcUnsupported : NfcTabUi()
-    object NfcDisabled : NfcTabUi()
-    object WaitingForTag : NfcTabUi()
-    object Exchanging : NfcTabUi()
-    data class ProtocolError(val message: String) : NfcTabUi()
-}
-
 /**
  * Pure UI for the NFC verifier tab. Engagement lifecycle (reader mode,
- * APDU exchange) is owned by the parent [VerifyMDocView] which lifts the
- * [NfcReaderEngagement] to the screen scope so reader mode can stay on
- * across all tabs and states.
+ * APDU exchange, NFC adapter state) is owned by the parent [VerifyMDocView]
+ * via [com.spruceid.mobile.sdk.nfc.rememberNfcReaderEngagement].
  */
 @Composable
 internal fun VerifyMDocNfcTab(
-    nfcUi: NfcTabUi,
-    onRetry: () -> Unit,
+    phase: NfcReaderPhase,
     onCancel: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -68,8 +59,8 @@ internal fun VerifyMDocNfcTab(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                when (val s = nfcUi) {
-                    is NfcTabUi.NfcUnsupported -> {
+                when (phase) {
+                    NfcReaderPhase.Unsupported -> {
                         Text(
                             text = "This device does not support NFC.",
                             fontFamily = Inter,
@@ -78,7 +69,7 @@ internal fun VerifyMDocNfcTab(
                             textAlign = TextAlign.Center,
                         )
                     }
-                    is NfcTabUi.NfcDisabled -> {
+                    NfcReaderPhase.Disabled -> {
                         Text(
                             text = "NFC is turned off. Enable NFC in system settings to continue.",
                             fontFamily = Inter,
@@ -102,7 +93,7 @@ internal fun VerifyMDocNfcTab(
                             )
                         }
                     }
-                    is NfcTabUi.WaitingForTag -> {
+                    NfcReaderPhase.WaitingForTag -> {
                         Text(
                             text = "Tap the holder's phone to share their credential.",
                             fontFamily = Inter,
@@ -120,7 +111,7 @@ internal fun VerifyMDocNfcTab(
                             textAlign = TextAlign.Center,
                         )
                     }
-                    is NfcTabUi.Exchanging -> {
+                    NfcReaderPhase.Exchanging -> {
                         CircularProgressIndicator(color = ColorBlue600)
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
@@ -130,27 +121,24 @@ internal fun VerifyMDocNfcTab(
                             color = ColorStone500,
                         )
                     }
-                    is NfcTabUi.ProtocolError -> {
+                    is NfcReaderPhase.ProtocolError -> {
                         Text(
-                            text = s.message,
+                            text = phase.cause.localizedMessage
+                                ?: phase.cause.message
+                                ?: "Handover failed",
                             fontFamily = Inter,
                             fontSize = 16.sp,
                             color = Color.Red,
                             textAlign = TextAlign.Center,
                         )
                         Spacer(modifier = Modifier.height(24.dp))
-                        Button(
-                            onClick = onRetry,
-                            colors = ButtonDefaults.buttonColors(containerColor = ColorBlue600),
-                            shape = RoundedCornerShape(5.dp),
-                        ) {
-                            Text(
-                                "Try again",
-                                fontFamily = Inter,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
-                            )
-                        }
+                        Text(
+                            text = "Tap again to retry.",
+                            fontFamily = Inter,
+                            fontSize = 14.sp,
+                            color = ColorStone500,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             }

@@ -1,6 +1,10 @@
 package com.spruceid.mobile.sdk.nfc
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.TagLostException
@@ -8,6 +12,9 @@ import android.nfc.tech.IsoDep
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.spruceid.mobile.sdk.rs.ReaderApduHandoverException
 import com.spruceid.mobile.sdk.rs.ReaderApduProgress
 import com.spruceid.mobile.sdk.rs.ReaderHandover
@@ -17,56 +24,102 @@ import java.io.IOException
 /**
  * Drives the reader (verifier) side of ISO 18013-5 NFC engagement.
  *
- * Lifecycle (Activity-scoped):
- *  1. Construct with the hosting [Activity] and an event handler.
- *  2. Call [start] when the user is ready to tap (e.g. when a verifier
- *     screen becomes active). [start] enables NFC reader mode and emits
- *     [Event.WaitingForTag].
- *  3. On tap, the APDU exchange runs on a binder thread; events are always
- *     delivered to the consumer on the main thread.
- *  4. Call [stop] when leaving the screen. After [Event.Success] reader
- *     mode is intentionally NOT released — only [engageOnTap] is flipped
- *     to false. Callers typically keep the device in initiator role
- *     through the post-handover BLE phase so foreign HCE services,
- *     wallet pickers, and OS tag dispatchers stay suppressed while the
- *     phones may still be in proximity.
+ * Most integrators should prefer [rememberNfcReaderEngagement] from the
+ * Compose helper, which wraps this class with lifecycle binding, activity
+ * discovery, and event-to-state translation. This class is the lower-level
+ * primitive for non-Compose hosts.
  *
- * Transient failures (tag lost, I/O) are recovered automatically: reader
- * mode stays on and the next tap starts a fresh handover. This handles
- * holders that disconnect after the first APDU to show a wallet picker
- * and reconnect (e.g. Samsung Wallet).
+ * Typical lifecycle when used directly:
+ *  1. Construct with the hosting [Activity] and an event handler. The
+ *     constructor registers an internal receiver for NFC adapter state
+ *     changes so [Event.NfcDisabled] / [Event.WaitingForTag] are emitted
+ *     when the user toggles NFC in system settings.
+ *  2. Call [bindToLifecycle] with the activity's [LifecycleOwner] so
+ *     reader mode follows the activity's RESUMED/PAUSED state and the
+ *     instance is automatically [release]d on DESTROYED. Or, drive
+ *     [start] / [stop] / [release] manually.
+ *  3. Toggle [setActive] off when the UI is foreground but not actively
+ *     soliciting a tap (e.g. on a different tab). Reader mode stays on
+ *     to keep the device in initiator role (suppressing foreign HCE,
+ *     wallet pickers, and OS tag dispatchers) but detected taps are
+ *     silently swallowed.
+ *
+ * After [Event.Success] the SDK automatically calls `setActive(false)`
+ * so a stray second tap during the post-handover BLE phase does not
+ * re-fire the handover. To accept another handover, call `setActive(true)`.
+ *
+ * Transient failures (tag lost, I/O) are recovered automatically: a
+ * [Event.WaitingForTag] follows and the next tap starts a fresh handover.
+ * Protocol failures keep reader mode armed too — the next tap retries.
  */
 class NfcReaderEngagement(
     private val activity: Activity,
     private val onEvent: (Event) -> Unit,
 ) {
     sealed class Event {
+        /** NFC hardware is not present on this device. Terminal. */
+        object NfcUnsupported : Event()
+
+        /** NFC adapter exists but is turned off in system settings. */
+        object NfcDisabled : Event()
+
+        /** Reader mode is armed and waiting for a holder tap. */
         object WaitingForTag : Event()
+
+        /** A tap has been detected; the APDU exchange is in progress. */
         object Exchanging : Event()
-        /** Recoverable failure (tag lost, I/O). Reader mode is still active. */
+
+        /**
+         * Recoverable failure (tag lost, I/O). A [WaitingForTag] is
+         * emitted right after. Safe to ignore — only useful for logging.
+         */
         data class TransientError(val cause: Throwable) : Event()
-        /** Protocol-level failure. Caller should decide whether to [start] again. */
+
+        /**
+         * Protocol-level failure. Reader mode stays armed; the next tap
+         * starts a fresh handover automatically.
+         */
         data class ProtocolError(val cause: Throwable) : Event()
+
+        /** Engagement completed. */
         data class Success(val handover: ReaderHandover) : Event()
     }
 
-    val nfcAdapter: NfcAdapter? = NfcAdapter.getDefaultAdapter(activity)
-
-    val isSupported: Boolean get() = nfcAdapter != null
-    val isEnabled: Boolean get() = nfcAdapter?.isEnabled == true
-
-    /**
-     * When false, detected tags are silently consumed without an APDU exchange
-     * or any [Event] emission. Reader mode itself stays enabled, which is
-     * useful for keeping the device in initiator role (so foreign HCE,
-     * system tag dispatch, OEM "tag scanner" overlays, etc. are suppressed)
-     * while the host UI is foreground but not actively soliciting a tap.
-     */
-    @Volatile
-    var engageOnTap: Boolean = true
+    private val nfcAdapter: NfcAdapter? = NfcAdapter.getDefaultAdapter(activity)
 
     private val mainHandler = Handler(Looper.getMainLooper())
     @Volatile private var running = false
+    @Volatile private var active: Boolean = true
+    private var lifecycleObserver: LifecycleEventObserver? = null
+    private var boundOwner: LifecycleOwner? = null
+    private var receiverRegistered = false
+
+    private val adapterStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != NfcAdapter.ACTION_ADAPTER_STATE_CHANGED) return
+            when (intent.getIntExtra(NfcAdapter.EXTRA_ADAPTER_STATE, NfcAdapter.STATE_OFF)) {
+                NfcAdapter.STATE_ON -> {
+                    // Re-arm reader mode if start() was called before the
+                    // user toggled NFC off.
+                    if (running) {
+                        nfcAdapter?.enableReaderMode(activity, readerCallback, READER_FLAGS, null)
+                        emit(Event.WaitingForTag)
+                    }
+                }
+                NfcAdapter.STATE_OFF -> emit(Event.NfcDisabled)
+            }
+        }
+    }
+
+    init {
+        if (nfcAdapter != null) {
+            activity.registerReceiver(
+                adapterStateReceiver,
+                IntentFilter(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED),
+            )
+            receiverRegistered = true
+        }
+    }
 
     private val readerCallback = NfcAdapter.ReaderCallback { tag: Tag ->
         // Guard against stale invocations that the system may dispatch after
@@ -75,8 +128,8 @@ class NfcReaderEngagement(
             Log.d(TAG, "Ignoring tag detection after stop()")
             return@ReaderCallback
         }
-        if (!engageOnTap) {
-            Log.d(TAG, "Tag detected but engagement is paused; swallowing")
+        if (!active) {
+            Log.d(TAG, "Tag detected but engagement is inactive; swallowing")
             return@ReaderCallback
         }
         emit(Event.Exchanging)
@@ -112,7 +165,7 @@ class NfcReaderEngagement(
                         // phase so the device stays in initiator role and no
                         // foreign HCE service / OS tag dispatcher gets fired
                         // while the phones may still be in proximity.
-                        engageOnTap = false
+                        active = false
                         val handover = progress.v1
                         mainHandler.post { onEvent(Event.Success(handover)) }
                         return@ReaderCallback
@@ -134,25 +187,89 @@ class NfcReaderEngagement(
     }
 
     /**
-     * Enable reader mode. Returns true if reader mode was activated.
-     * Returns false if NFC is unsupported or disabled — callers should
-     * check [isSupported] / [isEnabled] beforehand to give a useful UI.
+     * Bind reader mode to a [LifecycleOwner]. Maps RESUMED → [start],
+     * PAUSED → [stop], DESTROYED → [release]. Idempotent — calling again
+     * replaces any previous binding.
+     */
+    fun bindToLifecycle(owner: LifecycleOwner) {
+        boundOwner?.let { prev ->
+            lifecycleObserver?.let { prev.lifecycle.removeObserver(it) }
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> start()
+                Lifecycle.Event.ON_PAUSE -> stop()
+                Lifecycle.Event.ON_DESTROY -> release()
+                else -> {}
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        lifecycleObserver = observer
+        boundOwner = owner
+    }
+
+    /**
+     * Set whether detected taps should be processed. When false, taps are
+     * silently swallowed but reader mode stays on, keeping the device in
+     * initiator role (so foreign HCE services, wallet pickers, and OS
+     * tag dispatchers stay suppressed) while the host UI is not actively
+     * soliciting a tap.
+     *
+     * The SDK automatically sets active=false after delivering
+     * [Event.Success]; call `setActive(true)` to accept another handover.
+     */
+    fun setActive(active: Boolean) {
+        this.active = active
+    }
+
+    /**
+     * Enable reader mode. If NFC is unsupported or disabled, emits the
+     * corresponding event and returns false; callers don't need to check
+     * up-front. Idempotent.
      */
     fun start(): Boolean {
         if (running) return true
-        val adapter = nfcAdapter ?: return false
-        if (!adapter.isEnabled) return false
+        val adapter = nfcAdapter ?: run {
+            emit(Event.NfcUnsupported)
+            return false
+        }
+        if (!adapter.isEnabled) {
+            emit(Event.NfcDisabled)
+            return false
+        }
         running = true
         adapter.enableReaderMode(activity, readerCallback, READER_FLAGS, null)
         emit(Event.WaitingForTag)
         return true
     }
 
-    /** Disable reader mode. Idempotent. */
+    /** Disable reader mode. Idempotent. The instance remains usable. */
     fun stop() {
         if (!running) return
         running = false
         nfcAdapter?.disableReaderMode(activity)
+    }
+
+    /**
+     * Fully tear down: [stop] reader mode, unregister the adapter state
+     * receiver, and detach any lifecycle binding. After [release] the
+     * instance is unusable. Idempotent.
+     */
+    fun release() {
+        stop()
+        if (receiverRegistered) {
+            try {
+                activity.unregisterReceiver(adapterStateReceiver)
+            } catch (_: IllegalArgumentException) {
+                // Already unregistered.
+            }
+            receiverRegistered = false
+        }
+        boundOwner?.let { owner ->
+            lifecycleObserver?.let { owner.lifecycle.removeObserver(it) }
+        }
+        boundOwner = null
+        lifecycleObserver = null
     }
 
     private fun emit(event: Event) {
@@ -167,7 +284,7 @@ class NfcReaderEngagement(
         private const val TAG = "NfcReaderEngagement"
         private const val TRANSCEIVE_TIMEOUT_MS = 20_000
         // Claim every NFC tech: tags we don't recognise are silently swallowed
-        // by the callback (when engageOnTap=false or non-IsoDep), but we MUST
+        // by the callback (when active=false or non-IsoDep), but we MUST
         // claim them at the reader-mode level so the OS doesn't fall through
         // to its default tag dispatcher (TECH_DISCOVERED → system TagViewer,
         // OEM "tag scanner" overlays, NDEF auto-launch, etc.). Observed in

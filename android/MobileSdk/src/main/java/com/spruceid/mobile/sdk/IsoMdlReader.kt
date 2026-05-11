@@ -87,14 +87,14 @@ class IsoMdlReader(
                         )
                     }
 
-                    else -> throw Error("No BLE transport options in Device Engagement")
+                    else -> throw IllegalStateException("No BLE transport options in Device Engagement")
                 }
             } catch (e: SecurityException) {
                 Log.e("IsoMdlReader", "SecurityException during BLE initialization: ${e.message}", e)
                 callback.update(mapOf("error" to "Bluetooth permission denied: ${e.message}"))
             }
 
-        } catch (e: Error) {
+        } catch (e: Exception) {
             Log.e("IsoMdlReader.constructor", "Error during initialization: ${e.message}", e)
             callback.update(mapOf("error" to (e.message ?: "Unknown initialization error")))
         }

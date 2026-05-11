@@ -3,11 +3,8 @@ package com.spruceid.mobilesdkexample.verifier
 import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
-import android.nfc.NfcAdapter
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -46,9 +43,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,7 +53,7 @@ import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.IsoMdlReader
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
-import com.spruceid.mobile.sdk.nfc.NfcReaderEngagement
+import com.spruceid.mobile.sdk.nfc.rememberNfcReaderEngagement
 import com.spruceid.mobile.sdk.rs.AuthenticationStatus
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobile.sdk.rs.ReaderHandover
@@ -176,7 +170,7 @@ fun VerifyMDocView(
     val trustedCertificatesViewModel: TrustedCertificatesViewModel = activityHiltViewModel()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var reader: IsoMdlReader? = null
+    var reader by remember { mutableStateOf<IsoMdlReader?>(null) }
 
     var scanProcessState by remember {
         mutableStateOf(State.ENABLE_BLUETOOTH)
@@ -295,108 +289,15 @@ fun VerifyMDocView(
 
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { 2 })
 
-    // Walk the ContextWrapper chain to find the owning ComponentActivity.
-    // A direct `context as? ComponentActivity` cast happens to work today
-    // (LocalContext.current is the Activity), but stays robust if a wrapper
-    // is ever inserted between the composition and the Activity.
-    val activity = remember(context) { context.findComponentActivity() }
-    var nfcUi by remember { mutableStateOf<NfcTabUi>(NfcTabUi.WaitingForTag) }
-    val engagement = remember(activity) {
-        activity?.let { act ->
-            NfcReaderEngagement(act) { event ->
-                when (event) {
-                    is NfcReaderEngagement.Event.WaitingForTag ->
-                        nfcUi = NfcTabUi.WaitingForTag
-                    is NfcReaderEngagement.Event.Exchanging ->
-                        nfcUi = NfcTabUi.Exchanging
-                    is NfcReaderEngagement.Event.TransientError -> {
-                        // Recoverable; the SDK emits WaitingForTag right after.
-                    }
-                    is NfcReaderEngagement.Event.ProtocolError ->
-                        nfcUi = NfcTabUi.ProtocolError(
-                            event.cause.localizedMessage
-                                ?: event.cause.message
-                                ?: "Handover failed"
-                        )
-                    is NfcReaderEngagement.Event.Success ->
-                        onHandover(event.handover)
-                }
-            }
-        }
-    }
-
-    fun refreshNfcUi() {
-        val eng = engagement
-        nfcUi = when {
-            eng == null || !eng.isSupported -> NfcTabUi.NfcUnsupported
-            !eng.isEnabled -> NfcTabUi.NfcDisabled
-            else -> NfcTabUi.WaitingForTag
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        refreshNfcUi()
-    }
-
-    // Track NFC adapter state changes so the UI recovers when the user
-    // enables NFC via system settings (e.g. through the "Open NFC Settings"
-    // button on the disabled-state screen).
-    DisposableEffect(Unit) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == NfcAdapter.ACTION_ADAPTER_STATE_CHANGED) {
-                    val state = intent.getIntExtra(
-                        NfcAdapter.EXTRA_ADAPTER_STATE,
-                        NfcAdapter.STATE_OFF
-                    )
-                    when (state) {
-                        NfcAdapter.STATE_ON -> {
-                            engagement?.start()
-                            refreshNfcUi()
-                        }
-                        NfcAdapter.STATE_OFF ->
-                            nfcUi = NfcTabUi.NfcDisabled
-                    }
-                }
-            }
-        }
-        val filter = IntentFilter(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED)
-        context.registerReceiver(receiver, filter)
-        onDispose { context.unregisterReceiver(receiver) }
-    }
-
-    // Reader mode is bound to the Activity's RESUMED/PAUSED lifecycle, not
-    // to first composition. The OS auto-disables reader mode whenever our
-    // Activity loses top-resumed (e.g. when the post-tap OS overlay
-    // launches), and a one-shot DisposableEffect(Unit) would never
-    // re-enable it. Reader mode keeps the device in initiator role: its
-    // HCE controller is dormant, so foreign HCE services (payment apps,
-    // our own NfcPresentationService), wallet pickers, and OS-level tag
-    // dispatchers stay quiet — except on Samsung, see note in
-    // NfcReaderEngagement.
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, engagement) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> engagement?.start()
-                Lifecycle.Event.ON_PAUSE -> engagement?.stop()
-                else -> {}
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            engagement?.stop()
-        }
-    }
-
-    // Only actually run the APDU exchange while the user is on the NFC tab
-    // and we're still in SCANNING. In every other case (QR tab, BT prompt,
-    // BLE transmission, results screen) detected tags are silently swallowed.
-    LaunchedEffect(scanProcessState, pagerState.settledPage) {
-        engagement?.engageOnTap = scanProcessState == State.SCANNING &&
-            pagerState.settledPage == 1
-    }
+    // Only engage NFC taps while the user is actively on the NFC tab and
+    // we're still in SCANNING. The SDK keeps reader mode on regardless so
+    // the device stays in initiator role (suppressing wallet pickers,
+    // foreign HCE, and OS tag dispatchers).
+    val nfcActive = scanProcessState == State.SCANNING && pagerState.settledPage == 1
+    val nfcPhase by rememberNfcReaderEngagement(
+        onHandover = ::onHandover,
+        active = nfcActive,
+    )
 
     when (scanProcessState) {
         State.ENABLE_BLUETOOTH -> if (!isBluetoothEnabled) {
@@ -458,8 +359,7 @@ fun VerifyMDocView(
                             onCancel = ::back,
                         )
                         1 -> VerifyMDocNfcTab(
-                            nfcUi = nfcUi,
-                            onRetry = { nfcUi = NfcTabUi.WaitingForTag },
+                            phase = nfcPhase,
                             onCancel = ::back,
                         )
                     }
@@ -540,10 +440,4 @@ private fun VerifyMDocEngagementTabs(
             }
         }
     }
-}
-
-private tailrec fun Context.findComponentActivity(): ComponentActivity? = when (this) {
-    is ComponentActivity -> this
-    is ContextWrapper -> baseContext.findComponentActivity()
-    else -> null
 }
