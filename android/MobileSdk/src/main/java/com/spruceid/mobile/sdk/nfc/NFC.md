@@ -53,6 +53,8 @@ For non-Compose hosts, the underlying `NfcReaderEngagement` class can be driven 
 
 - **Samsung camera/NFC mutex.** On Samsung devices, opening the camera forces NFC active polling off (`NfcService: setReaderMode: active polling is forced to disable now`). When the camera is then closed, Samsung's NfcService internally clears the app's reader mode and falls back to the default tag dispatcher, so the next tap surfaces the OS "new tag scanned" / "Unknown tag" overlay instead of hitting the app callback. `NfcReaderEngagement` watches `CameraManager.AvailabilityCallback` and re-arms reader mode whenever a camera transitions back to available — so for most consumers this is invisible. If the host UI has a camera preview *and* a reader simultaneously (e.g. a QR-or-NFC verifier screen), prefer releasing the camera fully before soliciting an NFC tap to avoid the brief overlay window between camera-close and the SDK's re-arm.
 
+- **Reader-mode tech set must be narrow.** Adding `FLAG_READER_NFC_F`, `FLAG_READER_NFC_V`, or `FLAG_READER_NFC_BARCODE` to the reader flags re-introduces the Samsung overlay even with the camera re-arm active. Mdoc engagement only needs NFC-A IsoDep; NFC-B is harmless. Don't be tempted to "claim every tech to suppress OS tag dispatch" — on Samsung it routes through a path the re-arm doesn't recover.
+
 ## Holder (HCE) NFC engagement
 
 ### Creating the service handler

@@ -197,11 +197,11 @@ class NfcReaderEngagement(
                         // Mark this engagement as done so subsequent taps are
                         // silently swallowed even if the host hasn't yet
                         // reacted to the Success event. We deliberately do NOT
-                        // call stop() here: callers typically want reader
-                        // mode to stay active through the post-handover BLE
-                        // phase so the device stays in initiator role and no
-                        // foreign HCE service / OS tag dispatcher gets fired
-                        // while the phones may still be in proximity.
+                        // call stop() here: empirically, fully disabling reader
+                        // mode at this point lets the OS wallet picker fire
+                        // and puts the reader into weird latent states while
+                        // the BLE handoff is still in progress. Keeping reader
+                        // mode armed with active=false suppresses both.
                         active = false
                         val handover = progress.v1
                         mainHandler.post { onEvent(Event.Success(handover)) }
@@ -326,28 +326,19 @@ class NfcReaderEngagement(
         private const val TAG = "NfcReaderEngagement"
         private const val TRANSCEIVE_TIMEOUT_MS = 20_000
         // ISO 18013-5 NFC engagement uses IsoDep (Type 4 Tag) over NFC-A;
-        // NFC-B is kept as a hedge. NFC-F/V/BARCODE were tried — they do
-        // not change the Samsung first-tap behaviour either way — so we
-        // omit them to match Multipaz's flag set.
+        // NFC-B is kept as a hedge.
+        //
+        // Do NOT add NFC_F / NFC_V / NFC_BARCODE here: empirically, on
+        // Samsung the wider tech set causes the "new tag scanned" / OS
+        // tag-dispatcher overlay to surface on first tap, even with the
+        // camera-availability re-arm active. The extra techs evidently
+        // route through a code path the re-arm doesn't catch. Mdoc only
+        // needs A; B is harmless.
         //
         // FLAG_READER_SKIP_NDEF_CHECK avoids the platform-level NDEF probe
         // (which is what foreign HCE / wallet pickers latch onto on most
         // OEMs). FLAG_READER_NO_PLATFORM_SOUNDS suppresses the system
         // tag-detected chime that otherwise plays on every tag we see.
-        //
-        // Samsung first-tap caveat (unresolved): when a holder advertises
-        // NDEF over HCE (e.g. Google Wallet), Samsung's modified NfcService
-        // runs its own NDEF read and dispatches the tag explicitly to
-        // com.android.apps.tag/.TagViewer, bypassing both this reader mode
-        // (despite FLAG_READER_SKIP_NDEF_CHECK) and any manifest
-        // TECH_DISCOVERED intent-filter. The dispatch uses an explicit
-        // component, so no app-side filter can intercept it. The first tap
-        // shows a brief "Unknown tag" overlay; subsequent taps within the
-        // same engagement go through reader mode normally. Multipaz does
-        // not reproduce this on the same hardware/holder, and the cause
-        // is not the reader flags — likely the lifecycle/timing of when
-        // reader mode is armed (Multipaz arms lazily on prompt show, we
-        // arm on Activity ON_RESUME).
         private const val READER_FLAGS =
             NfcAdapter.FLAG_READER_NFC_A or
                 NfcAdapter.FLAG_READER_NFC_B or
