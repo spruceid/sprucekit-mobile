@@ -21,6 +21,7 @@ import com.spruceid.mobile.sdk.rs.ReaderApduProgress
 import com.spruceid.mobile.sdk.rs.ReaderHandover
 import com.spruceid.mobile.sdk.rs.newReaderApduHandoverDriver
 import java.io.IOException
+import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -129,25 +130,43 @@ class NfcReaderEngagement(
     // dispatcher. The next tap then hits the OS overlay (`new tag scanned` /
     // `Unknown tag`) instead of our callback. Re-arm reader mode whenever a
     // camera transitions from in-use back to available.
-    private val cameraAvailabilityCallback = object : CameraManager.AvailabilityCallback() {
-        override fun onCameraUnavailable(cameraId: String) {
-            unavailableCameras.add(cameraId)
-        }
+    //
+    // The callback is a static nested class holding the engagement weakly
+    // so that if `release()` is somehow skipped, the registered callback
+    // (which CameraManager keeps strongly) does not pin the engagement —
+    // and therefore the Activity — in memory. In normal usage release()
+    // unregisters it; this is belt-and-braces.
+    private val cameraAvailabilityCallback = WeakCameraAvailabilityCallback(this)
 
-        override fun onCameraAvailable(cameraId: String) {
-            val wasUnavailable = unavailableCameras.remove(cameraId)
-            if (!wasUnavailable) return
-            if (!running) return
-            // NfcService has already finished its setReaderMode(uid=1000) +
-            // restoreSavedTech sequence by the time this callback fires; we
-            // just need to be on the main thread to re-arm.
-            mainHandler.post {
-                val adapter = nfcAdapter ?: return@post
-                if (running && adapter.isEnabled) {
-                    Log.d(TAG, "Camera released; re-arming reader mode")
-                    adapter.enableReaderMode(activity, readerCallback, READER_FLAGS, null)
-                }
+    private fun onCameraUnavailableInternal(cameraId: String) {
+        unavailableCameras.add(cameraId)
+    }
+
+    private fun onCameraAvailableInternal(cameraId: String) {
+        val wasUnavailable = unavailableCameras.remove(cameraId)
+        if (!wasUnavailable) return
+        if (!running) return
+        // NfcService has already finished its setReaderMode(uid=1000) +
+        // restoreSavedTech sequence by the time this callback fires; we
+        // just need to be on the main thread to re-arm.
+        mainHandler.post {
+            val adapter = nfcAdapter ?: return@post
+            if (running && adapter.isEnabled) {
+                Log.d(TAG, "Camera released; re-arming reader mode")
+                adapter.enableReaderMode(activity, readerCallback, READER_FLAGS, null)
             }
+        }
+    }
+
+    private class WeakCameraAvailabilityCallback(
+        engagement: NfcReaderEngagement,
+    ) : CameraManager.AvailabilityCallback() {
+        private val ref = WeakReference(engagement)
+        override fun onCameraUnavailable(cameraId: String) {
+            ref.get()?.onCameraUnavailableInternal(cameraId)
+        }
+        override fun onCameraAvailable(cameraId: String) {
+            ref.get()?.onCameraAvailableInternal(cameraId)
         }
     }
 
