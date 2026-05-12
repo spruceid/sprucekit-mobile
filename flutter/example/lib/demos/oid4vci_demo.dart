@@ -330,9 +330,10 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
                       TextField(
                         controller: _pinController,
                         keyboardType:
-                            _txCodeMetadata?.inputMode == TxCodeInputMode.numeric
-                                ? TextInputType.number
-                                : TextInputType.text,
+                            _txCodeMetadata?.inputMode ==
+                                TxCodeInputMode.numeric
+                            ? TextInputType.number
+                            : TextInputType.text,
                         decoration: const InputDecoration(
                           labelText: 'PIN',
                           border: OutlineInputBorder(),

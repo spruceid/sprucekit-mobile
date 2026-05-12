@@ -57,10 +57,7 @@ enum GrantType {
 ///
 /// Mirrors the upstream `oid4vci-rs` `InputMode` enum. The OID4VCI spec
 /// defines `numeric` as the default when the issuer omits the field.
-enum TxCodeInputMode {
-  numeric,
-  text,
-}
+enum TxCodeInputMode { numeric, text }
 
 /// Metadata describing the issuer's transaction code requirements.
 ///
@@ -222,10 +219,7 @@ abstract class Oid4vci {
   ///
   /// The session is consumed and removed from the registry in all cases.
   @async
-  Oid4vciResult continueWithTxCode(
-    String sessionId,
-    String txCode,
-  );
+  Oid4vciResult continueWithTxCode(String sessionId, String txCode);
 
   /// Drop a session without consuming it (user abort).
   ///
