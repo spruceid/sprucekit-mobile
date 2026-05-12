@@ -51,7 +51,7 @@ For non-Compose hosts, the underlying `NfcReaderEngagement` class can be driven 
 
 ### Reader-side caveats
 
-- **Samsung "Unknown tag" on first tap.** When a holder advertises NDEF over HCE, Samsung's modified NFC service runs its own NDEF read in parallel with reader mode and briefly displays an "Unknown tag" overlay. Subsequent taps in the same engagement go through reader mode normally. See the inline comment on `READER_FLAGS` in `NfcReaderEngagement.kt` for details — this cannot be fully suppressed from app code.
+- **Samsung camera/NFC mutex.** On Samsung devices, opening the camera forces NFC active polling off (`NfcService: setReaderMode: active polling is forced to disable now`). When the camera is then closed, Samsung's NfcService internally clears the app's reader mode and falls back to the default tag dispatcher, so the next tap surfaces the OS "new tag scanned" / "Unknown tag" overlay instead of hitting the app callback. `NfcReaderEngagement` watches `CameraManager.AvailabilityCallback` and re-arms reader mode whenever a camera transitions back to available — so for most consumers this is invisible. If the host UI has a camera preview *and* a reader simultaneously (e.g. a QR-or-NFC verifier screen), prefer releasing the camera fully before soliciting an NFC tap to avoid the brief overlay window between camera-close and the SDK's re-arm.
 
 ## Holder (HCE) NFC engagement
 

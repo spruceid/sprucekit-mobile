@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.camera2.CameraManager
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.TagLostException
@@ -86,6 +87,8 @@ class NfcReaderEngagement(
     }
 
     private val nfcAdapter: NfcAdapter? = NfcAdapter.getDefaultAdapter(activity)
+    private val cameraManager: CameraManager? =
+        activity.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
 
     private val mainHandler = Handler(Looper.getMainLooper())
     @Volatile private var running = false
@@ -93,6 +96,8 @@ class NfcReaderEngagement(
     private var lifecycleObserver: LifecycleEventObserver? = null
     private var boundOwner: LifecycleOwner? = null
     private var receiverRegistered = false
+    private var cameraCallbackRegistered = false
+    private val unavailableCameras = mutableSetOf<String>()
 
     private val adapterStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -111,6 +116,36 @@ class NfcReaderEngagement(
         }
     }
 
+    // Samsung quirk: when the camera is open, NfcService forces NFC active
+    // polling off ("setReaderMode: active polling is forced to disable now").
+    // When the camera closes, NfcService internally clears the app's reader
+    // mode (logs `setReaderMode: uid=1000, packageName: android, flags: 0`
+    // followed by `restoreSavedTech`) and falls back to the default tag
+    // dispatcher. The next tap then hits the OS overlay (`new tag scanned` /
+    // `Unknown tag`) instead of our callback. Re-arm reader mode whenever a
+    // camera transitions from in-use back to available.
+    private val cameraAvailabilityCallback = object : CameraManager.AvailabilityCallback() {
+        override fun onCameraUnavailable(cameraId: String) {
+            unavailableCameras.add(cameraId)
+        }
+
+        override fun onCameraAvailable(cameraId: String) {
+            val wasUnavailable = unavailableCameras.remove(cameraId)
+            if (!wasUnavailable) return
+            if (!running) return
+            // NfcService has already finished its setReaderMode(uid=1000) +
+            // restoreSavedTech sequence by the time this callback fires; we
+            // just need to be on the main thread to re-arm.
+            mainHandler.post {
+                val adapter = nfcAdapter ?: return@post
+                if (running && adapter.isEnabled) {
+                    Log.d(TAG, "Camera released; re-arming reader mode")
+                    adapter.enableReaderMode(activity, readerCallback, READER_FLAGS, null)
+                }
+            }
+        }
+    }
+
     init {
         if (nfcAdapter != null) {
             activity.registerReceiver(
@@ -118,6 +153,8 @@ class NfcReaderEngagement(
                 IntentFilter(NfcAdapter.ACTION_ADAPTER_STATE_CHANGED),
             )
             receiverRegistered = true
+            cameraManager?.registerAvailabilityCallback(cameraAvailabilityCallback, mainHandler)
+            cameraCallbackRegistered = cameraManager != null
         }
     }
 
@@ -265,6 +302,11 @@ class NfcReaderEngagement(
             }
             receiverRegistered = false
         }
+        if (cameraCallbackRegistered) {
+            cameraManager?.unregisterAvailabilityCallback(cameraAvailabilityCallback)
+            cameraCallbackRegistered = false
+        }
+        unavailableCameras.clear()
         boundOwner?.let { owner ->
             lifecycleObserver?.let { owner.lifecycle.removeObserver(it) }
         }
@@ -283,32 +325,32 @@ class NfcReaderEngagement(
     companion object {
         private const val TAG = "NfcReaderEngagement"
         private const val TRANSCEIVE_TIMEOUT_MS = 20_000
-        // Claim every NFC tech: tags we don't recognise are silently swallowed
-        // by the callback (when active=false or non-IsoDep), but we MUST
-        // claim them at the reader-mode level so the OS doesn't fall through
-        // to its default tag dispatcher (TECH_DISCOVERED → system TagViewer,
-        // OEM "tag scanner" overlays, NDEF auto-launch, etc.). Observed in
-        // the wild: Pixel + Google Wallet emits NFC-F during ISO 18013-5
-        // engagement; without FLAG_READER_NFC_F our reader mode misses it
-        // and the OS launches com.android.apps.tag/.TagViewer.
-        // FLAG_READER_NO_PLATFORM_SOUNDS also kills the system tag-detected
-        // chime, which otherwise plays even on tags we silently swallow.
+        // ISO 18013-5 NFC engagement uses IsoDep (Type 4 Tag) over NFC-A;
+        // NFC-B is kept as a hedge. NFC-F/V/BARCODE were tried — they do
+        // not change the Samsung first-tap behaviour either way — so we
+        // omit them to match Multipaz's flag set.
         //
-        // Known limitation on Samsung: when a holder advertises NDEF over
-        // HCE (Google Wallet does this), Samsung's modified NfcService runs
-        // its own NDEF read and dispatches the tag explicitly to
+        // FLAG_READER_SKIP_NDEF_CHECK avoids the platform-level NDEF probe
+        // (which is what foreign HCE / wallet pickers latch onto on most
+        // OEMs). FLAG_READER_NO_PLATFORM_SOUNDS suppresses the system
+        // tag-detected chime that otherwise plays on every tag we see.
+        //
+        // Samsung first-tap caveat (unresolved): when a holder advertises
+        // NDEF over HCE (e.g. Google Wallet), Samsung's modified NfcService
+        // runs its own NDEF read and dispatches the tag explicitly to
         // com.android.apps.tag/.TagViewer, bypassing both this reader mode
         // (despite FLAG_READER_SKIP_NDEF_CHECK) and any manifest
         // TECH_DISCOVERED intent-filter. The dispatch uses an explicit
         // component, so no app-side filter can intercept it. The first tap
         // shows a brief "Unknown tag" overlay; subsequent taps within the
-        // same engagement go through reader mode normally.
+        // same engagement go through reader mode normally. Multipaz does
+        // not reproduce this on the same hardware/holder, and the cause
+        // is not the reader flags — likely the lifecycle/timing of when
+        // reader mode is armed (Multipaz arms lazily on prompt show, we
+        // arm on Activity ON_RESUME).
         private const val READER_FLAGS =
             NfcAdapter.FLAG_READER_NFC_A or
                 NfcAdapter.FLAG_READER_NFC_B or
-                NfcAdapter.FLAG_READER_NFC_F or
-                NfcAdapter.FLAG_READER_NFC_V or
-                NfcAdapter.FLAG_READER_NFC_BARCODE or
                 NfcAdapter.FLAG_READER_SKIP_NDEF_CHECK or
                 NfcAdapter.FLAG_READER_NO_PLATFORM_SOUNDS
     }
