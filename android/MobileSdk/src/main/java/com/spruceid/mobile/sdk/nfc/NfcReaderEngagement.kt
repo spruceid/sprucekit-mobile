@@ -21,6 +21,7 @@ import com.spruceid.mobile.sdk.rs.ReaderApduProgress
 import com.spruceid.mobile.sdk.rs.ReaderHandover
 import com.spruceid.mobile.sdk.rs.newReaderApduHandoverDriver
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Drives the reader (verifier) side of ISO 18013-5 NFC engagement.
@@ -92,7 +93,11 @@ class NfcReaderEngagement(
 
     private val mainHandler = Handler(Looper.getMainLooper())
     @Volatile private var running = false
-    @Volatile private var active: Boolean = true
+    // Atomic so the reader callback (which the OS may dispatch on a worker
+    // thread, potentially concurrently for rapid double-taps) can claim the
+    // engagement with compareAndSet, preventing two APDU flows on the same
+    // IsoDep from racing.
+    private val active = AtomicBoolean(true)
     private var lifecycleObserver: LifecycleEventObserver? = null
     private var boundOwner: LifecycleOwner? = null
     private var receiverRegistered = false
@@ -165,13 +170,19 @@ class NfcReaderEngagement(
             Log.d(TAG, "Ignoring tag detection after stop()")
             return@ReaderCallback
         }
-        if (!active) {
-            Log.d(TAG, "Tag detected but engagement is inactive; swallowing")
+        // Atomically claim the engagement: if active was false (host
+        // disabled, or another tap is already in flight), bail. If true,
+        // we now own it (flag flipped to false). Transient/protocol errors
+        // restore it so the next tap can retry; Done leaves it false as
+        // a sticky disable until the host calls setActive(true) again.
+        if (!active.compareAndSet(true, false)) {
+            Log.d(TAG, "Tag detected but engagement is inactive or in-flight; swallowing")
             return@ReaderCallback
         }
         emit(Event.Exchanging)
         val isoDep = IsoDep.get(tag)
         if (isoDep == null) {
+            active.set(true)
             emit(Event.WaitingForTag)
             return@ReaderCallback
         }
@@ -194,15 +205,14 @@ class NfcReaderEngagement(
                         } catch (_: IOException) {
                             // Connection already gone; ignore.
                         }
-                        // Mark this engagement as done so subsequent taps are
-                        // silently swallowed even if the host hasn't yet
-                        // reacted to the Success event. We deliberately do NOT
-                        // call stop() here: empirically, fully disabling reader
+                        // Engagement complete. We deliberately do NOT call
+                        // stop() here: empirically, fully disabling reader
                         // mode at this point lets the OS wallet picker fire
                         // and puts the reader into weird latent states while
-                        // the BLE handoff is still in progress. Keeping reader
-                        // mode armed with active=false suppresses both.
-                        active = false
+                        // the BLE handoff is still in progress. Keeping
+                        // reader mode armed with active=false suppresses
+                        // both. (active is already false from compareAndSet
+                        // above; left here for clarity.)
                         val handover = progress.v1
                         mainHandler.post { onEvent(Event.Success(handover)) }
                         return@ReaderCallback
@@ -211,14 +221,17 @@ class NfcReaderEngagement(
             }
         } catch (e: TagLostException) {
             Log.i(TAG, "Tag lost during handover; awaiting next tap", e)
+            active.set(true)
             emit(Event.TransientError(e))
             emit(Event.WaitingForTag)
         } catch (e: IOException) {
             Log.w(TAG, "I/O during handover; awaiting next tap", e)
+            active.set(true)
             emit(Event.TransientError(e))
             emit(Event.WaitingForTag)
         } catch (e: ReaderApduHandoverException) {
             Log.e(TAG, "Handover protocol error", e)
+            active.set(true)
             emit(Event.ProtocolError(e))
         }
     }
@@ -256,7 +269,7 @@ class NfcReaderEngagement(
      * [Event.Success]; call `setActive(true)` to accept another handover.
      */
     fun setActive(active: Boolean) {
-        this.active = active
+        this.active.set(active)
     }
 
     /**
