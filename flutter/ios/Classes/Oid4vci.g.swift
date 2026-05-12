@@ -148,6 +148,15 @@ enum GrantType: Int {
   case authorizationCode = 2
 }
 
+/// Input character set for the transaction code.
+///
+/// Mirrors the upstream `oid4vci-rs` `InputMode` enum. The OID4VCI spec
+/// defines `numeric` as the default when the issuer omits the field.
+enum TxCodeInputMode: Int {
+  case numeric = 0
+  case text = 1
+}
+
 /// Options for credential exchange
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -209,6 +218,88 @@ struct IssuedCredential: Hashable {
   }
 }
 
+/// Metadata describing the issuer's transaction code requirements.
+///
+/// All fields are optional per OID4VCI §4.1.1. `tx_code: {}` (an empty
+/// object) is a valid signal that PIN is required but with no hints.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct TxCodeMetadata: Hashable {
+  /// Input character set. `null` ⇒ wallet treats as `numeric` (spec default).
+  var inputMode: TxCodeInputMode? = nil
+  /// Expected code length. `null` ⇒ no length hint (free textfield).
+  /// `<= 0` ⇒ misconfigured issuer; wallet skips the PIN input and sends "".
+  var length: Int64? = nil
+  /// Optional guidance string from the issuer (max 300 chars per spec).
+  /// Displayed below the localized subtitle when present.
+  var description: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> TxCodeMetadata? {
+    let inputMode: TxCodeInputMode? = nilOrValue(pigeonVar_list[0])
+    let length: Int64? = nilOrValue(pigeonVar_list[1])
+    let description: String? = nilOrValue(pigeonVar_list[2])
+
+    return TxCodeMetadata(
+      inputMode: inputMode,
+      length: length,
+      description: description
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      inputMode,
+      length,
+      description,
+    ]
+  }
+  static func == (lhs: TxCodeMetadata, rhs: TxCodeMetadata) -> Bool {
+    return deepEqualsOid4vci(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashOid4vci(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Opaque handle to a server-side OID4VCI session.
+///
+/// Created by `acceptOffer`. The `sessionId` is the key into the Kotlin/Swift
+/// registry that holds the underlying Rust `Arc<...>` state handle. Callers
+/// must call `releaseSession` if the flow is abandoned before terminal.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct OfferSession: Hashable {
+  var sessionId: String
+  /// Pre-issuance metadata for the resolved offer. Returned here (rather than
+  /// requiring a separate `parseOffer` call) because `acceptOffer` performs
+  /// its own resolve as part of the token exchange. Use this value, not a
+  /// cached `parseOffer` result, when constructing the UI for the session.
+  var metadata: ParsedOfferMetadata
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> OfferSession? {
+    let sessionId = pigeonVar_list[0] as! String
+    let metadata = pigeonVar_list[1] as! ParsedOfferMetadata
+
+    return OfferSession(
+      sessionId: sessionId,
+      metadata: metadata
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      sessionId,
+      metadata,
+    ]
+  }
+  static func == (lhs: OfferSession, rhs: OfferSession) -> Bool {
+    return deepEqualsOid4vci(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashOid4vci(value: toList(), hasher: &hasher)
+  }
+}
+
 /// Pre-issuance metadata about an OID4VCI offer.
 ///
 /// Returned by `parseOffer`. Contains everything the wallet needs to render
@@ -227,6 +318,8 @@ struct ParsedOfferMetadata: Hashable {
   var credentialConfigurationIds: [String]
   /// The grant type required to complete the issuance.
   var grantType: GrantType
+  /// Populated only when `grantType == preAuthCodeWithTxCode`.
+  var txCode: TxCodeMetadata? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -235,12 +328,14 @@ struct ParsedOfferMetadata: Hashable {
     let issuerDisplayName: String? = nilOrValue(pigeonVar_list[1])
     let credentialConfigurationIds = pigeonVar_list[2] as! [String]
     let grantType = pigeonVar_list[3] as! GrantType
+    let txCode: TxCodeMetadata? = nilOrValue(pigeonVar_list[4])
 
     return ParsedOfferMetadata(
       issuerId: issuerId,
       issuerDisplayName: issuerDisplayName,
       credentialConfigurationIds: credentialConfigurationIds,
-      grantType: grantType
+      grantType: grantType,
+      txCode: txCode
     )
   }
   func toList() -> [Any?] {
@@ -249,6 +344,7 @@ struct ParsedOfferMetadata: Hashable {
       issuerDisplayName,
       credentialConfigurationIds,
       grantType,
+      txCode,
     ]
   }
   static func == (lhs: ParsedOfferMetadata, rhs: ParsedOfferMetadata) -> Bool {
@@ -336,14 +432,24 @@ private class Oid4vciPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 131:
-      return Oid4vciExchangeOptions.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return TxCodeInputMode(rawValue: enumResultAsInt)
+      }
+      return nil
     case 132:
-      return IssuedCredential.fromList(self.readValue() as! [Any?])
+      return Oid4vciExchangeOptions.fromList(self.readValue() as! [Any?])
     case 133:
-      return ParsedOfferMetadata.fromList(self.readValue() as! [Any?])
+      return IssuedCredential.fromList(self.readValue() as! [Any?])
     case 134:
-      return Oid4vciSuccess.fromList(self.readValue() as! [Any?])
+      return TxCodeMetadata.fromList(self.readValue() as! [Any?])
     case 135:
+      return OfferSession.fromList(self.readValue() as! [Any?])
+    case 136:
+      return ParsedOfferMetadata.fromList(self.readValue() as! [Any?])
+    case 137:
+      return Oid4vciSuccess.fromList(self.readValue() as! [Any?])
+    case 138:
       return Oid4vciError.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -359,20 +465,29 @@ private class Oid4vciPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? GrantType {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? Oid4vciExchangeOptions {
+    } else if let value = value as? TxCodeInputMode {
       super.writeByte(131)
-      super.writeValue(value.toList())
-    } else if let value = value as? IssuedCredential {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? Oid4vciExchangeOptions {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? ParsedOfferMetadata {
+    } else if let value = value as? IssuedCredential {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? Oid4vciSuccess {
+    } else if let value = value as? TxCodeMetadata {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? Oid4vciError {
+    } else if let value = value as? OfferSession {
       super.writeByte(135)
+      super.writeValue(value.toList())
+    } else if let value = value as? ParsedOfferMetadata {
+      super.writeByte(136)
+      super.writeValue(value.toList())
+    } else if let value = value as? Oid4vciSuccess {
+      super.writeByte(137)
+      super.writeValue(value.toList())
+    } else if let value = value as? Oid4vciError {
+      super.writeByte(138)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -427,6 +542,36 @@ protocol Oid4vci {
   /// @param contextMap Optional JSON-LD context map for credential parsing
   /// @return Oid4vciResult with credentials on success or error message on failure
   func runIssuance(credentialOffer: String, clientId: String, redirectUrl: String, keyId: String, didMethod: DidMethod, contextMap: [String: String]?, completion: @escaping (Result<Oid4vciResult, Error>) -> Void)
+  /// Resolve the offer URL and complete the token-endpoint exchange.
+  ///
+  /// Performs a full `resolveOfferUrl` (which re-fetches issuer metadata)
+  /// followed by the token endpoint call, returning the session in its
+  /// post-token state (e.g., `RequiresTxCode` for tx_code grants).
+  ///
+  /// The caller does NOT need to call `parseOffer` separately — this call
+  /// performs its own resolve. The embedded `OfferSession.metadata` reflects
+  /// the resolve performed here.
+  ///
+  /// Returns a stateful session handle keyed into the platform-side registry.
+  /// Callers must call `releaseSession` if the flow is abandoned before
+  /// terminal.
+  ///
+  /// @throws when the offer cannot be resolved or the token request fails.
+  func acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, completion: @escaping (Result<OfferSession, Error>) -> Void)
+  /// Submit a transaction code (PIN) and complete the issuance.
+  ///
+  /// Returns `Oid4vciSuccess` on success or `Oid4vciError` on any failure
+  /// (wrong PIN, network, server error). Upstream `oid4vci-rs` erases the
+  /// OAuth2 error code at the FFI boundary, so we cannot distinguish a
+  /// wrong PIN from other token-endpoint failures at this layer; all
+  /// token-endpoint errors surface as `Oid4vciError("authorization failed")`.
+  ///
+  /// The session is consumed and removed from the registry in all cases.
+  func continueWithTxCode(sessionId: String, txCode: String, completion: @escaping (Result<Oid4vciResult, Error>) -> Void)
+  /// Drop a session without consuming it (user abort).
+  ///
+  /// Safe to call with an unknown sessionId — no-op.
+  func releaseSession(sessionId: String, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -497,6 +642,88 @@ class Oid4vciSetup {
       }
     } else {
       runIssuanceChannel.setMessageHandler(nil)
+    }
+    /// Resolve the offer URL and complete the token-endpoint exchange.
+    ///
+    /// Performs a full `resolveOfferUrl` (which re-fetches issuer metadata)
+    /// followed by the token endpoint call, returning the session in its
+    /// post-token state (e.g., `RequiresTxCode` for tx_code grants).
+    ///
+    /// The caller does NOT need to call `parseOffer` separately — this call
+    /// performs its own resolve. The embedded `OfferSession.metadata` reflects
+    /// the resolve performed here.
+    ///
+    /// Returns a stateful session handle keyed into the platform-side registry.
+    /// Callers must call `releaseSession` if the flow is abandoned before
+    /// terminal.
+    ///
+    /// @throws when the offer cannot be resolved or the token request fails.
+    let acceptOfferChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.acceptOffer\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      acceptOfferChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let credentialOfferArg = args[0] as! String
+        let clientIdArg = args[1] as! String
+        let keyIdArg = args[2] as! String
+        let didMethodArg = args[3] as! DidMethod
+        api.acceptOffer(credentialOffer: credentialOfferArg, clientId: clientIdArg, keyId: keyIdArg, didMethod: didMethodArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      acceptOfferChannel.setMessageHandler(nil)
+    }
+    /// Submit a transaction code (PIN) and complete the issuance.
+    ///
+    /// Returns `Oid4vciSuccess` on success or `Oid4vciError` on any failure
+    /// (wrong PIN, network, server error). Upstream `oid4vci-rs` erases the
+    /// OAuth2 error code at the FFI boundary, so we cannot distinguish a
+    /// wrong PIN from other token-endpoint failures at this layer; all
+    /// token-endpoint errors surface as `Oid4vciError("authorization failed")`.
+    ///
+    /// The session is consumed and removed from the registry in all cases.
+    let continueWithTxCodeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithTxCode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      continueWithTxCodeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let sessionIdArg = args[0] as! String
+        let txCodeArg = args[1] as! String
+        api.continueWithTxCode(sessionId: sessionIdArg, txCode: txCodeArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      continueWithTxCodeChannel.setMessageHandler(nil)
+    }
+    /// Drop a session without consuming it (user abort).
+    ///
+    /// Safe to call with an unknown sessionId — no-op.
+    let releaseSessionChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.releaseSession\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      releaseSessionChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let sessionIdArg = args[0] as! String
+        api.releaseSession(sessionId: sessionIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      releaseSessionChannel.setMessageHandler(nil)
     }
   }
 }

@@ -117,6 +117,23 @@ enum class GrantType(val raw: Int) {
 }
 
 /**
+ * Input character set for the transaction code.
+ *
+ * Mirrors the upstream `oid4vci-rs` `InputMode` enum. The OID4VCI spec
+ * defines `numeric` as the default when the issuer omits the field.
+ */
+enum class TxCodeInputMode(val raw: Int) {
+  NUMERIC(0),
+  TEXT(1);
+
+  companion object {
+    fun ofRaw(raw: Int): TxCodeInputMode? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/**
  * Options for credential exchange
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -187,6 +204,101 @@ data class IssuedCredential (
 }
 
 /**
+ * Metadata describing the issuer's transaction code requirements.
+ *
+ * All fields are optional per OID4VCI §4.1.1. `tx_code: {}` (an empty
+ * object) is a valid signal that PIN is required but with no hints.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class TxCodeMetadata (
+  /** Input character set. `null` ⇒ wallet treats as `numeric` (spec default). */
+  val inputMode: TxCodeInputMode? = null,
+  /**
+   * Expected code length. `null` ⇒ no length hint (free textfield).
+   * `<= 0` ⇒ misconfigured issuer; wallet skips the PIN input and sends "".
+   */
+  val length: Long? = null,
+  /**
+   * Optional guidance string from the issuer (max 300 chars per spec).
+   * Displayed below the localized subtitle when present.
+   */
+  val description: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): TxCodeMetadata {
+      val inputMode = pigeonVar_list[0] as TxCodeInputMode?
+      val length = pigeonVar_list[1] as Long?
+      val description = pigeonVar_list[2] as String?
+      return TxCodeMetadata(inputMode, length, description)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      inputMode,
+      length,
+      description,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is TxCodeMetadata) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return Oid4vciPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Opaque handle to a server-side OID4VCI session.
+ *
+ * Created by `acceptOffer`. The `sessionId` is the key into the Kotlin/Swift
+ * registry that holds the underlying Rust `Arc<...>` state handle. Callers
+ * must call `releaseSession` if the flow is abandoned before terminal.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class OfferSession (
+  val sessionId: String,
+  /**
+   * Pre-issuance metadata for the resolved offer. Returned here (rather than
+   * requiring a separate `parseOffer` call) because `acceptOffer` performs
+   * its own resolve as part of the token exchange. Use this value, not a
+   * cached `parseOffer` result, when constructing the UI for the session.
+   */
+  val metadata: ParsedOfferMetadata
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): OfferSession {
+      val sessionId = pigeonVar_list[0] as String
+      val metadata = pigeonVar_list[1] as ParsedOfferMetadata
+      return OfferSession(sessionId, metadata)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      sessionId,
+      metadata,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is OfferSession) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return Oid4vciPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
  * Pre-issuance metadata about an OID4VCI offer.
  *
  * Returned by `parseOffer`. Contains everything the wallet needs to render
@@ -209,7 +321,9 @@ data class ParsedOfferMetadata (
    */
   val credentialConfigurationIds: List<String>,
   /** The grant type required to complete the issuance. */
-  val grantType: GrantType
+  val grantType: GrantType,
+  /** Populated only when `grantType == preAuthCodeWithTxCode`. */
+  val txCode: TxCodeMetadata? = null
 )
  {
   companion object {
@@ -218,7 +332,8 @@ data class ParsedOfferMetadata (
       val issuerDisplayName = pigeonVar_list[1] as String?
       val credentialConfigurationIds = pigeonVar_list[2] as List<String>
       val grantType = pigeonVar_list[3] as GrantType
-      return ParsedOfferMetadata(issuerId, issuerDisplayName, credentialConfigurationIds, grantType)
+      val txCode = pigeonVar_list[4] as TxCodeMetadata?
+      return ParsedOfferMetadata(issuerId, issuerDisplayName, credentialConfigurationIds, grantType, txCode)
     }
   }
   fun toList(): List<Any?> {
@@ -227,6 +342,7 @@ data class ParsedOfferMetadata (
       issuerDisplayName,
       credentialConfigurationIds,
       grantType,
+      txCode,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -325,26 +441,41 @@ private open class Oid4vciPigeonCodec : StandardMessageCodec() {
         }
       }
       131.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          Oid4vciExchangeOptions.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          TxCodeInputMode.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          IssuedCredential.fromList(it)
+          Oid4vciExchangeOptions.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ParsedOfferMetadata.fromList(it)
+          IssuedCredential.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          Oid4vciSuccess.fromList(it)
+          TxCodeMetadata.fromList(it)
         }
       }
       135.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          OfferSession.fromList(it)
+        }
+      }
+      136.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ParsedOfferMetadata.fromList(it)
+        }
+      }
+      137.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          Oid4vciSuccess.fromList(it)
+        }
+      }
+      138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           Oid4vciError.fromList(it)
         }
@@ -362,24 +493,36 @@ private open class Oid4vciPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is Oid4vciExchangeOptions -> {
+      is TxCodeInputMode -> {
         stream.write(131)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is IssuedCredential -> {
+      is Oid4vciExchangeOptions -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is ParsedOfferMetadata -> {
+      is IssuedCredential -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is Oid4vciSuccess -> {
+      is TxCodeMetadata -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is Oid4vciError -> {
+      is OfferSession -> {
         stream.write(135)
+        writeValue(stream, value.toList())
+      }
+      is ParsedOfferMetadata -> {
+        stream.write(136)
+        writeValue(stream, value.toList())
+      }
+      is Oid4vciSuccess -> {
+        stream.write(137)
+        writeValue(stream, value.toList())
+      }
+      is Oid4vciError -> {
+        stream.write(138)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -426,6 +569,42 @@ interface Oid4vci {
    * @return Oid4vciResult with credentials on success or error message on failure
    */
   fun runIssuance(credentialOffer: String, clientId: String, redirectUrl: String, keyId: String, didMethod: DidMethod, contextMap: Map<String, String>?, callback: (Result<Oid4vciResult>) -> Unit)
+  /**
+   * Resolve the offer URL and complete the token-endpoint exchange.
+   *
+   * Performs a full `resolveOfferUrl` (which re-fetches issuer metadata)
+   * followed by the token endpoint call, returning the session in its
+   * post-token state (e.g., `RequiresTxCode` for tx_code grants).
+   *
+   * The caller does NOT need to call `parseOffer` separately — this call
+   * performs its own resolve. The embedded `OfferSession.metadata` reflects
+   * the resolve performed here.
+   *
+   * Returns a stateful session handle keyed into the platform-side registry.
+   * Callers must call `releaseSession` if the flow is abandoned before
+   * terminal.
+   *
+   * @throws when the offer cannot be resolved or the token request fails.
+   */
+  fun acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, callback: (Result<OfferSession>) -> Unit)
+  /**
+   * Submit a transaction code (PIN) and complete the issuance.
+   *
+   * Returns `Oid4vciSuccess` on success or `Oid4vciError` on any failure
+   * (wrong PIN, network, server error). Upstream `oid4vci-rs` erases the
+   * OAuth2 error code at the FFI boundary, so we cannot distinguish a
+   * wrong PIN from other token-endpoint failures at this layer; all
+   * token-endpoint errors surface as `Oid4vciError("authorization failed")`.
+   *
+   * The session is consumed and removed from the registry in all cases.
+   */
+  fun continueWithTxCode(sessionId: String, txCode: String, callback: (Result<Oid4vciResult>) -> Unit)
+  /**
+   * Drop a session without consuming it (user abort).
+   *
+   * Safe to call with an unknown sessionId — no-op.
+   */
+  fun releaseSession(sessionId: String, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by Oid4vci. */
@@ -474,6 +653,69 @@ interface Oid4vci {
               } else {
                 val data = result.getOrNull()
                 reply.reply(Oid4vciPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.acceptOffer$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val credentialOfferArg = args[0] as String
+            val clientIdArg = args[1] as String
+            val keyIdArg = args[2] as String
+            val didMethodArg = args[3] as DidMethod
+            api.acceptOffer(credentialOfferArg, clientIdArg, keyIdArg, didMethodArg) { result: Result<OfferSession> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(Oid4vciPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(Oid4vciPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithTxCode$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val sessionIdArg = args[0] as String
+            val txCodeArg = args[1] as String
+            api.continueWithTxCode(sessionIdArg, txCodeArg) { result: Result<Oid4vciResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(Oid4vciPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(Oid4vciPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.releaseSession$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val sessionIdArg = args[0] as String
+            api.releaseSession(sessionIdArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(Oid4vciPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(Oid4vciPigeonUtils.wrapResult(null))
               }
             }
           }

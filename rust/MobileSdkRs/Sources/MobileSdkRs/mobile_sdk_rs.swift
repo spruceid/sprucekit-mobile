@@ -13624,6 +13624,8 @@ public protocol ResolvedCredentialOfferProtocol: AnyObject, Sendable {
     
     func issuerDisplayName()  -> String?
     
+    func txCodeDefinition()  -> TxCodeDefinition?
+    
 }
 open class ResolvedCredentialOffer: ResolvedCredentialOfferProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -13705,6 +13707,14 @@ open func grantType() -> GrantType  {
 open func issuerDisplayName() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_issuer_display_name(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func txCodeDefinition() -> TxCodeDefinition?  {
+    return try!  FfiConverterOptionTypeTxCodeDefinition.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_tx_code_definition(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -15312,6 +15322,8 @@ public func FfiConverterTypeSyncHttpClient_lower(_ value: SyncHttpClient) -> UIn
 
 public protocol TxCodeRequiredProtocol: AnyObject, Sendable {
     
+    func proceed(httpClient: AsyncHttpClient, txCode: String) async throws  -> CredentialToken
+    
 }
 open class TxCodeRequired: TxCodeRequiredProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -15365,6 +15377,23 @@ open class TxCodeRequired: TxCodeRequiredProtocol, @unchecked Sendable {
 
     
 
+    
+open func proceed(httpClient: AsyncHttpClient, txCode: String)async throws  -> CredentialToken  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_txcoderequired_proceed(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeAsyncHttpClient_lower(httpClient),FfiConverterString.lower(txCode)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeCredentialToken_lift,
+            errorHandler: FfiConverterTypeOid4vciError_lift
+        )
+}
     
 
     
@@ -19028,6 +19057,72 @@ public func FfiConverterTypeTestMdlData_lift(_ buf: RustBuffer) throws -> TestMd
 #endif
 public func FfiConverterTypeTestMdlData_lower(_ value: TestMdlData) -> RustBuffer {
     return FfiConverterTypeTestMdlData.lower(value)
+}
+
+
+/**
+ * FFI mirror of [`oid4vci::offer::TxCodeDefinition`].
+ *
+ * uniffi requires a local `Record` struct with `#[derive(uniffi::Record)]`
+ * to cross the FFI boundary; conversion from the upstream type is delegated
+ * to `From`. Per OID4VCI §4.1.1, `input_mode` defaults to `Numeric` when
+ * absent upstream.
+ */
+public struct TxCodeDefinition: Equatable, Hashable {
+    public var inputMode: InputMode
+    public var length: UInt32?
+    public var description: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(inputMode: InputMode, length: UInt32?, description: String?) {
+        self.inputMode = inputMode
+        self.length = length
+        self.description = description
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TxCodeDefinition: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTxCodeDefinition: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TxCodeDefinition {
+        return
+            try TxCodeDefinition(
+                inputMode: FfiConverterTypeInputMode.read(from: &buf), 
+                length: FfiConverterOptionUInt32.read(from: &buf), 
+                description: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TxCodeDefinition, into buf: inout [UInt8]) {
+        FfiConverterTypeInputMode.write(value.inputMode, into: &buf)
+        FfiConverterOptionUInt32.write(value.length, into: &buf)
+        FfiConverterOptionString.write(value.description, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTxCodeDefinition_lift(_ buf: RustBuffer) throws -> TxCodeDefinition {
+    return try FfiConverterTypeTxCodeDefinition.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTxCodeDefinition_lower(_ value: TxCodeDefinition) -> RustBuffer {
+    return FfiConverterTypeTxCodeDefinition.lower(value)
 }
 
 
@@ -23008,6 +23103,79 @@ public func FfiConverterTypeIetfSdJwtVcError_lift(_ buf: RustBuffer) throws -> I
 public func FfiConverterTypeIetfSdJwtVcError_lower(_ value: IetfSdJwtVcError) -> RustBuffer {
     return FfiConverterTypeIetfSdJwtVcError.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * FFI mirror of [`oid4vci::offer::InputMode`].
+ *
+ * uniffi requires a local enum with `#[derive(uniffi::Enum)]` to cross
+ * the FFI boundary; semantics delegate to the upstream type via `From`.
+ */
+
+public enum InputMode: Equatable, Hashable {
+    
+    case numeric
+    case text
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension InputMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInputMode: FfiConverterRustBuffer {
+    typealias SwiftType = InputMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InputMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .numeric
+        
+        case 2: return .text
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: InputMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .numeric:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .text:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInputMode_lift(_ buf: RustBuffer) throws -> InputMode {
+    return try FfiConverterTypeInputMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInputMode_lower(_ value: InputMode) -> RustBuffer {
+    return FfiConverterTypeInputMode.lower(value)
+}
+
 
 
 public enum InvalidClaims: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
@@ -30415,6 +30583,30 @@ fileprivate struct FfiConverterOptionTypePeripheralServerDetails: FfiConverterRu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeTxCodeDefinition: FfiConverterRustBuffer {
+    typealias SwiftType = TxCodeDefinition?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTxCodeDefinition.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTxCodeDefinition.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeActivityLogEntryType: FfiConverterRustBuffer {
     typealias SwiftType = ActivityLogEntryType?
 
@@ -33908,6 +34100,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_issuer_display_name() != 9881) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_tx_code_definition() != 62227) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_authorizationcoderequired_proceed() != 10740) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -33915,6 +34110,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_waitingforauthorizationcode_redirect_url() != 47402) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_txcoderequired_proceed() != 29775) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_credentialtoken_default_credential_id() != 30044) {

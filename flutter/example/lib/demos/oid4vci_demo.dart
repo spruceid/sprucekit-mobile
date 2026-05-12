@@ -18,13 +18,17 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     text: 'https://spruceid.com',
   );
   final _keyIdController = TextEditingController(text: 'default-signing-key');
+  final _pinController = TextEditingController();
 
   bool _loading = false;
   bool _showScanner = false;
   bool _cameraGranted = false;
+  bool _showPinDialog = false;
   List<IssuedCredential> _issuedCredentials = [];
   String? _error;
   ParsedOfferMetadata? _parsedMetadata;
+  String? _sessionId;
+  TxCodeMetadata? _txCodeMetadata;
 
   @override
   void initState() {
@@ -38,6 +42,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     _clientIdController.dispose();
     _redirectUrlController.dispose();
     _keyIdController.dispose();
+    _pinController.dispose();
     super.dispose();
   }
 
@@ -57,10 +62,10 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   void _handleScannedUrl(String url) {
     _closeScanner();
     _offerController.text = url;
-    // _runIssuance();
+    _startIssuance();
   }
 
-  Future<void> _runIssuance() async {
+  Future<void> _startIssuance() async {
     FocusScope.of(context).unfocus();
 
     final offer = _offerController.text.trim();
@@ -72,21 +77,82 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     setState(() {
       _loading = true;
       _issuedCredentials = [];
+      _parsedMetadata = null;
+      _sessionId = null;
+      _txCodeMetadata = null;
       _error = null;
     });
 
     try {
-      final result = await _api.runIssuance(
-        offer,
-        _clientIdController.text,
-        _redirectUrlController.text,
-        _keyIdController.text,
-        DidMethod.jwk,
-        null,
-      );
+      final metadata = await _api.parseOffer(offer);
+      setState(() => _parsedMetadata = metadata);
 
+      switch (metadata.grantType) {
+        case GrantType.preAuthCodeNoTxCode:
+          await _runNoAuthFlow(offer);
+        case GrantType.preAuthCodeWithTxCode:
+          await _runTxCodeFlow(offer);
+        case GrantType.authorizationCode:
+          setState(() {
+            _loading = false;
+            _error = 'Authorization code grant not supported in this demo';
+          });
+      }
+    } catch (e) {
       setState(() {
         _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  Future<void> _runNoAuthFlow(String offer) async {
+    final result = await _api.runIssuance(
+      offer,
+      _clientIdController.text,
+      _redirectUrlController.text,
+      _keyIdController.text,
+      DidMethod.jwk,
+      null,
+    );
+    setState(() {
+      _loading = false;
+      switch (result) {
+        case Oid4vciSuccess(:final credentials):
+          _issuedCredentials = credentials;
+        case Oid4vciError(:final message):
+          _error = message;
+      }
+    });
+  }
+
+  Future<void> _runTxCodeFlow(String offer) async {
+    final session = await _api.acceptOffer(
+      offer,
+      _clientIdController.text,
+      _keyIdController.text,
+      DidMethod.jwk,
+    );
+    setState(() {
+      _loading = false;
+      _sessionId = session.sessionId;
+      _txCodeMetadata = session.metadata.txCode;
+      _showPinDialog = true;
+    });
+  }
+
+  Future<void> _submitPin(String pin) async {
+    final sessionId = _sessionId;
+    if (sessionId == null) return;
+    setState(() {
+      _showPinDialog = false;
+      _loading = true;
+    });
+    try {
+      final result = await _api.continueWithTxCode(sessionId, pin);
+      setState(() {
+        _loading = false;
+        _sessionId = null;
         switch (result) {
           case Oid4vciSuccess(:final credentials):
             _issuedCredentials = credentials;
@@ -97,38 +163,28 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     } catch (e) {
       setState(() {
         _loading = false;
+        _sessionId = null;
         _error = e.toString();
       });
     }
   }
 
-  Future<void> _parseOffer() async {
-    FocusScope.of(context).unfocus();
-
-    final offer = _offerController.text.trim();
-    if (offer.isEmpty) {
-      setState(() => _error = 'Please enter a credential offer URL');
-      return;
+  Future<void> _cancelPin() async {
+    final sessionId = _sessionId;
+    if (sessionId != null) {
+      try {
+        await _api.releaseSession(sessionId);
+      } catch (_) {
+        // best effort; don't surface
+      }
     }
-
     setState(() {
-      _loading = true;
-      _parsedMetadata = null;
-      _error = null;
+      _showPinDialog = false;
+      _loading = false;
+      _sessionId = null;
+      _txCodeMetadata = null;
+      _error = 'PIN entry cancelled';
     });
-
-    try {
-      final metadata = await _api.parseOffer(offer);
-      setState(() {
-        _loading = false;
-        _parsedMetadata = metadata;
-      });
-    } catch (e) {
-      setState(() {
-        _loading = false;
-        _error = e.toString();
-      });
-    }
   }
 
   @override
@@ -186,23 +242,18 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _loading ? null : _parseOffer,
-              child: const Text('Parse Offer'),
-            ),
-            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _loading ? null : _runIssuance,
+                    onPressed: _loading ? null : _startIssuance,
                     child: _loading
                         ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Run Issuance'),
+                        : const Text('Start Issuance'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -213,7 +264,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
                       ? _openScanner
                       : _requestCameraPermission,
                   icon: const Icon(Icons.qr_code_scanner),
-                  label: Text(_cameraGranted ? 'Scan' : 'Camera'),
+                  label: Text(_cameraGranted ? 'Scan QR' : 'Camera'),
                 ),
               ],
             ),
@@ -231,6 +282,89 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
                 'Credentials: ${_parsedMetadata!.credentialConfigurationIds.join(", ")}',
               ),
               Text('Grant: ${_parsedMetadata!.grantType.name}'),
+              if (_parsedMetadata!.txCode != null)
+                Text(
+                  'Tx Code: inputMode=${_parsedMetadata!.txCode!.inputMode?.name ?? "(default numeric)"}, '
+                  'length=${_parsedMetadata!.txCode!.length ?? "(none)"}, '
+                  'description=${_parsedMetadata!.txCode!.description ?? "(none)"}',
+                ),
+              const SizedBox(height: 16),
+            ],
+            if (_showPinDialog) ...[
+              Card(
+                color: Colors.amber.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Enter PIN',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _txCodeMetadata?.description ??
+                            'Enter the PIN provided with the offer.',
+                      ),
+                      if (_txCodeMetadata?.length != null)
+                        Text(
+                          'Length hint: ${_txCodeMetadata!.length}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      if (_txCodeMetadata?.inputMode != null)
+                        Text(
+                          'Input mode: ${_txCodeMetadata!.inputMode!.name}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _pinController,
+                        keyboardType:
+                            _txCodeMetadata?.inputMode == TxCodeInputMode.numeric
+                                ? TextInputType.number
+                                : TextInputType.text,
+                        decoration: const InputDecoration(
+                          labelText: 'PIN',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                final pin = _pinController.text;
+                                _pinController.clear();
+                                _submitPin(pin);
+                              },
+                              child: const Text('Submit'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () {
+                              _pinController.clear();
+                              _cancelPin();
+                            },
+                            child: const Text('Cancel'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
             ],
             if (_error != null)

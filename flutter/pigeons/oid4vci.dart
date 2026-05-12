@@ -53,6 +53,51 @@ enum GrantType {
   authorizationCode,
 }
 
+/// Input character set for the transaction code.
+///
+/// Mirrors the upstream `oid4vci-rs` `InputMode` enum. The OID4VCI spec
+/// defines `numeric` as the default when the issuer omits the field.
+enum TxCodeInputMode {
+  numeric,
+  text,
+}
+
+/// Metadata describing the issuer's transaction code requirements.
+///
+/// All fields are optional per OID4VCI §4.1.1. `tx_code: {}` (an empty
+/// object) is a valid signal that PIN is required but with no hints.
+class TxCodeMetadata {
+  /// Input character set. `null` ⇒ wallet treats as `numeric` (spec default).
+  TxCodeInputMode? inputMode;
+
+  /// Expected code length. `null` ⇒ no length hint (free textfield).
+  /// `<= 0` ⇒ misconfigured issuer; wallet skips the PIN input and sends "".
+  int? length;
+
+  /// Optional guidance string from the issuer (max 300 chars per spec).
+  /// Displayed below the localized subtitle when present.
+  String? description;
+
+  TxCodeMetadata({this.inputMode, this.length, this.description});
+}
+
+/// Opaque handle to a server-side OID4VCI session.
+///
+/// Created by `acceptOffer`. The `sessionId` is the key into the Kotlin/Swift
+/// registry that holds the underlying Rust `Arc<...>` state handle. Callers
+/// must call `releaseSession` if the flow is abandoned before terminal.
+class OfferSession {
+  String sessionId;
+
+  /// Pre-issuance metadata for the resolved offer. Returned here (rather than
+  /// requiring a separate `parseOffer` call) because `acceptOffer` performs
+  /// its own resolve as part of the token exchange. Use this value, not a
+  /// cached `parseOffer` result, when constructing the UI for the session.
+  ParsedOfferMetadata metadata;
+
+  OfferSession({required this.sessionId, required this.metadata});
+}
+
 /// Pre-issuance metadata about an OID4VCI offer.
 ///
 /// Returned by `parseOffer`. Contains everything the wallet needs to render
@@ -73,11 +118,15 @@ class ParsedOfferMetadata {
   /// The grant type required to complete the issuance.
   GrantType grantType;
 
+  /// Populated only when `grantType == preAuthCodeWithTxCode`.
+  TxCodeMetadata? txCode;
+
   ParsedOfferMetadata({
     required this.issuerId,
     required this.issuerDisplayName,
     required this.credentialConfigurationIds,
     required this.grantType,
+    this.txCode,
   });
 }
 
@@ -139,4 +188,48 @@ abstract class Oid4vci {
     DidMethod didMethod,
     Map<String, String>? contextMap,
   );
+
+  /// Resolve the offer URL and complete the token-endpoint exchange.
+  ///
+  /// Performs a full `resolveOfferUrl` (which re-fetches issuer metadata)
+  /// followed by the token endpoint call, returning the session in its
+  /// post-token state (e.g., `RequiresTxCode` for tx_code grants).
+  ///
+  /// The caller does NOT need to call `parseOffer` separately — this call
+  /// performs its own resolve. The embedded `OfferSession.metadata` reflects
+  /// the resolve performed here.
+  ///
+  /// Returns a stateful session handle keyed into the platform-side registry.
+  /// Callers must call `releaseSession` if the flow is abandoned before
+  /// terminal.
+  ///
+  /// @throws when the offer cannot be resolved or the token request fails.
+  @async
+  OfferSession acceptOffer(
+    String credentialOffer,
+    String clientId,
+    String keyId,
+    DidMethod didMethod,
+  );
+
+  /// Submit a transaction code (PIN) and complete the issuance.
+  ///
+  /// Returns `Oid4vciSuccess` on success or `Oid4vciError` on any failure
+  /// (wrong PIN, network, server error). Upstream `oid4vci-rs` erases the
+  /// OAuth2 error code at the FFI boundary, so we cannot distinguish a
+  /// wrong PIN from other token-endpoint failures at this layer; all
+  /// token-endpoint errors surface as `Oid4vciError("authorization failed")`.
+  ///
+  /// The session is consumed and removed from the registry in all cases.
+  @async
+  Oid4vciResult continueWithTxCode(
+    String sessionId,
+    String txCode,
+  );
+
+  /// Drop a session without consuming it (user abort).
+  ///
+  /// Safe to call with an unknown sessionId — no-op.
+  @async
+  void releaseSession(String sessionId);
 }

@@ -68,6 +68,15 @@ enum GrantType {
   authorizationCode,
 }
 
+/// Input character set for the transaction code.
+///
+/// Mirrors the upstream `oid4vci-rs` `InputMode` enum. The OID4VCI spec
+/// defines `numeric` as the default when the issuer omits the field.
+enum TxCodeInputMode {
+  numeric,
+  text,
+}
+
 /// Options for credential exchange
 class Oid4vciExchangeOptions {
   Oid4vciExchangeOptions({
@@ -160,6 +169,121 @@ class IssuedCredential {
 ;
 }
 
+/// Metadata describing the issuer's transaction code requirements.
+///
+/// All fields are optional per OID4VCI §4.1.1. `tx_code: {}` (an empty
+/// object) is a valid signal that PIN is required but with no hints.
+class TxCodeMetadata {
+  TxCodeMetadata({
+    this.inputMode,
+    this.length,
+    this.description,
+  });
+
+  /// Input character set. `null` ⇒ wallet treats as `numeric` (spec default).
+  TxCodeInputMode? inputMode;
+
+  /// Expected code length. `null` ⇒ no length hint (free textfield).
+  /// `<= 0` ⇒ misconfigured issuer; wallet skips the PIN input and sends "".
+  int? length;
+
+  /// Optional guidance string from the issuer (max 300 chars per spec).
+  /// Displayed below the localized subtitle when present.
+  String? description;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      inputMode,
+      length,
+      description,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static TxCodeMetadata decode(Object result) {
+    result as List<Object?>;
+    return TxCodeMetadata(
+      inputMode: result[0] as TxCodeInputMode?,
+      length: result[1] as int?,
+      description: result[2] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! TxCodeMetadata || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+/// Opaque handle to a server-side OID4VCI session.
+///
+/// Created by `acceptOffer`. The `sessionId` is the key into the Kotlin/Swift
+/// registry that holds the underlying Rust `Arc<...>` state handle. Callers
+/// must call `releaseSession` if the flow is abandoned before terminal.
+class OfferSession {
+  OfferSession({
+    required this.sessionId,
+    required this.metadata,
+  });
+
+  String sessionId;
+
+  /// Pre-issuance metadata for the resolved offer. Returned here (rather than
+  /// requiring a separate `parseOffer` call) because `acceptOffer` performs
+  /// its own resolve as part of the token exchange. Use this value, not a
+  /// cached `parseOffer` result, when constructing the UI for the session.
+  ParsedOfferMetadata metadata;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      sessionId,
+      metadata,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static OfferSession decode(Object result) {
+    result as List<Object?>;
+    return OfferSession(
+      sessionId: result[0]! as String,
+      metadata: result[1]! as ParsedOfferMetadata,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! OfferSession || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 /// Pre-issuance metadata about an OID4VCI offer.
 ///
 /// Returned by `parseOffer`. Contains everything the wallet needs to render
@@ -170,6 +294,7 @@ class ParsedOfferMetadata {
     this.issuerDisplayName,
     required this.credentialConfigurationIds,
     required this.grantType,
+    this.txCode,
   });
 
   /// The issuer's identifier URL (`credential_issuer` field in OID4VCI metadata).
@@ -187,12 +312,16 @@ class ParsedOfferMetadata {
   /// The grant type required to complete the issuance.
   GrantType grantType;
 
+  /// Populated only when `grantType == preAuthCodeWithTxCode`.
+  TxCodeMetadata? txCode;
+
   List<Object?> _toList() {
     return <Object?>[
       issuerId,
       issuerDisplayName,
       credentialConfigurationIds,
       grantType,
+      txCode,
     ];
   }
 
@@ -206,6 +335,7 @@ class ParsedOfferMetadata {
       issuerDisplayName: result[1] as String?,
       credentialConfigurationIds: (result[2] as List<Object?>?)!.cast<String>(),
       grantType: result[3]! as GrantType,
+      txCode: result[4] as TxCodeMetadata?,
     );
   }
 
@@ -329,20 +459,29 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is GrantType) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is Oid4vciExchangeOptions) {
+    }    else if (value is TxCodeInputMode) {
       buffer.putUint8(131);
-      writeValue(buffer, value.encode());
-    }    else if (value is IssuedCredential) {
+      writeValue(buffer, value.index);
+    }    else if (value is Oid4vciExchangeOptions) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is ParsedOfferMetadata) {
+    }    else if (value is IssuedCredential) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vciSuccess) {
+    }    else if (value is TxCodeMetadata) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vciError) {
+    }    else if (value is OfferSession) {
       buffer.putUint8(135);
+      writeValue(buffer, value.encode());
+    }    else if (value is ParsedOfferMetadata) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    }    else if (value is Oid4vciSuccess) {
+      buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    }    else if (value is Oid4vciError) {
+      buffer.putUint8(138);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -359,14 +498,21 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : GrantType.values[value];
       case 131:
-        return Oid4vciExchangeOptions.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : TxCodeInputMode.values[value];
       case 132:
-        return IssuedCredential.decode(readValue(buffer)!);
+        return Oid4vciExchangeOptions.decode(readValue(buffer)!);
       case 133:
-        return ParsedOfferMetadata.decode(readValue(buffer)!);
+        return IssuedCredential.decode(readValue(buffer)!);
       case 134:
-        return Oid4vciSuccess.decode(readValue(buffer)!);
+        return TxCodeMetadata.decode(readValue(buffer)!);
       case 135:
+        return OfferSession.decode(readValue(buffer)!);
+      case 136:
+        return ParsedOfferMetadata.decode(readValue(buffer)!);
+      case 137:
+        return Oid4vciSuccess.decode(readValue(buffer)!);
+      case 138:
         return Oid4vciError.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -450,5 +596,88 @@ class Oid4vci {
     )
     !;
     return pigeonVar_replyValue as Oid4vciResult;
+  }
+
+  /// Resolve the offer URL and complete the token-endpoint exchange.
+  ///
+  /// Performs a full `resolveOfferUrl` (which re-fetches issuer metadata)
+  /// followed by the token endpoint call, returning the session in its
+  /// post-token state (e.g., `RequiresTxCode` for tx_code grants).
+  ///
+  /// The caller does NOT need to call `parseOffer` separately — this call
+  /// performs its own resolve. The embedded `OfferSession.metadata` reflects
+  /// the resolve performed here.
+  ///
+  /// Returns a stateful session handle keyed into the platform-side registry.
+  /// Callers must call `releaseSession` if the flow is abandoned before
+  /// terminal.
+  ///
+  /// @throws when the offer cannot be resolved or the token request fails.
+  Future<OfferSession> acceptOffer(String credentialOffer, String clientId, String keyId, DidMethod didMethod) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.acceptOffer$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, keyId, didMethod]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    !;
+    return pigeonVar_replyValue as OfferSession;
+  }
+
+  /// Submit a transaction code (PIN) and complete the issuance.
+  ///
+  /// Returns `Oid4vciSuccess` on success or `Oid4vciError` on any failure
+  /// (wrong PIN, network, server error). Upstream `oid4vci-rs` erases the
+  /// OAuth2 error code at the FFI boundary, so we cannot distinguish a
+  /// wrong PIN from other token-endpoint failures at this layer; all
+  /// token-endpoint errors surface as `Oid4vciError("authorization failed")`.
+  ///
+  /// The session is consumed and removed from the registry in all cases.
+  Future<Oid4vciResult> continueWithTxCode(String sessionId, String txCode) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithTxCode$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, txCode]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    !;
+    return pigeonVar_replyValue as Oid4vciResult;
+  }
+
+  /// Drop a session without consuming it (user abort).
+  ///
+  /// Safe to call with an unknown sessionId — no-op.
+  Future<void> releaseSession(String sessionId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.releaseSession$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 }
