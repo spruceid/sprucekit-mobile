@@ -28,9 +28,11 @@ public final class NfcReaderObservable: ObservableObject {
         engagement.delegate = self
     }
 
-    deinit {
-        engagement.stop()
-    }
+    // No explicit deinit: when this observable is released, its `engagement`
+    // is released too, and `NfcReaderEngagement.deinit` invalidates any
+    // in-flight session. Calling `engagement.stop()` here would require
+    // running on the main thread, which we can't guarantee for arbitrary
+    // release paths.
 
     /// Arm (or disarm) the engagement. While active, the iOS NFC scan sheet
     /// will be shown; while inactive, any in-flight session is invalidated.

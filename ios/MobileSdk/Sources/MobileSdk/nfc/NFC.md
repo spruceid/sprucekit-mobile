@@ -105,6 +105,30 @@ live on the app target, not on the framework.
    under "Enabling the capability". No commercial agreement is required for
    reader mode — it's just a checkbox.
 
+### Suppressing the Apple Wallet pass picker (optional)
+
+iOS automatically presents the Apple Wallet pass picker when the device enters
+an NFC field and Wallet contains a contactless pass (Apple Pay card, transit
+card, ID, etc.). While our `NFCTagReaderSession` is running iOS suppresses
+this, but once we invalidate the session (to hand off to BLE) Wallet may pop
+up if the user is still holding the phones close.
+
+If that becomes a usability problem in a verifier app, request the
+[`com.apple.developer.passkit.pass-presentation-suppression`](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.passkit.pass-presentation-suppression)
+entitlement from Apple and call
+[`PKPassLibrary.requestAutomaticPassPresentationSuppression(responseHandler:)`](https://developer.apple.com/documentation/passkit/pkpasslibrary/requestautomaticpasspresentationsuppression(responsehandler:))
+before invalidating the session. Caveats:
+
+- The entitlement is **not freely available** — you must apply through Apple
+  developer support; without it the call returns `denied` and is a no-op.
+- The first call shows a system prompt asking the user to allow suppression.
+- Suppression is **temporary**: it ends when your app is suspended, or after
+  24 hours, whichever comes first. Re-request when you need it again.
+- You can end it earlier with `endAutomaticPassPresentationSuppression(withRequestToken:)`.
+
+The SDK does not request suppression itself because the entitlement is an
+app-level approval and not every consumer will need it.
+
 ### Reader-side caveats
 
 - **Simulator has no NFC.** `NFCTagReaderSession.readingAvailable` returns

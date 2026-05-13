@@ -19,7 +19,8 @@ public enum NfcReaderPhase {
     /// A tap has been detected; the APDU handover exchange is in progress.
     case exchanging
     /// Protocol-level failure. The session has ended; the caller should
-    /// re-arm with another `start()` (e.g. via a retry button).
+    /// re-arm via `NfcReaderObservable.setActive(true)` (or another `start()`
+    /// if driving the engagement directly), e.g. behind a retry button.
     case protocolError(Error)
 }
 
@@ -33,10 +34,13 @@ public enum NfcReaderPhase {
 /// cancel it stops and surfaces `.idle`. On a protocol-level error it stops
 /// and surfaces `.protocolError(_)`.
 ///
+/// All public methods must be called on the main thread, and delegate
+/// callbacks are delivered on the main thread.
+///
 /// Integrators driving the SDK from SwiftUI should prefer `NfcReaderObservable`,
 /// which wraps this class with a published phase.
 public final class NfcReaderEngagement: NSObject {
-    /// Receives phase changes and the completed handover.
+    /// Receives phase changes and the completed handover on the main thread.
     public protocol Delegate: AnyObject {
         func nfcReaderEngagement(_ engagement: NfcReaderEngagement, didChangePhase phase: NfcReaderPhase)
         func nfcReaderEngagement(_ engagement: NfcReaderEngagement, didCompleteHandover handover: ReaderHandover)
@@ -50,15 +54,27 @@ public final class NfcReaderEngagement: NSObject {
     private var session: NFCTagReaderSession?
     private var active = false
 
+    /// Delay before re-arming after a transient session end (timeout, tag
+    /// lost). Gives iOS time to dismiss its modal before we open another.
+    private static let rearmDelay: TimeInterval = 0.3
+
     public init(delegate: Delegate? = nil) {
         self.delegate = delegate
         super.init()
     }
 
+    deinit {
+        // Invalidate any in-flight session so the iOS modal doesn't linger
+        // past our lifetime. `invalidate()` is safe to call from any thread.
+        session?.invalidate()
+    }
+
     /// Open a reader session. If NFC reading is unavailable on this device,
-    /// emits `.unsupported` and returns false.
+    /// emits `.unsupported` and returns false. Must be called on the main
+    /// thread.
     @discardableResult
     public func start() -> Bool {
+        dispatchPrecondition(condition: .onQueue(.main))
         guard NFCTagReaderSession.readingAvailable else {
             emit(.unsupported)
             return false
@@ -69,8 +85,9 @@ public final class NfcReaderEngagement: NSObject {
     }
 
     /// Tear down any in-flight session. The instance remains usable; call
-    /// `start()` again to re-arm.
+    /// `start()` again to re-arm. Must be called on the main thread.
     public func stop() {
+        dispatchPrecondition(condition: .onQueue(.main))
         active = false
         session?.invalidate()
         session = nil
@@ -78,10 +95,12 @@ public final class NfcReaderEngagement: NSObject {
 
     private func beginSession() {
         guard active, session == nil else { return }
+        // Pass DispatchQueue.main so all `NFCTagReaderSessionDelegate`
+        // callbacks are serialized with our other state mutations on main.
         guard let session = NFCTagReaderSession(
             pollingOption: [.iso14443],
             delegate: self,
-            queue: nil
+            queue: DispatchQueue.main
         ) else {
             active = false
             emit(.protocolError(NfcReaderEngagementError.sessionUnavailable))
@@ -93,19 +112,12 @@ public final class NfcReaderEngagement: NSObject {
     }
 
     private func emit(_ phase: NfcReaderPhase) {
-        let delegate = self.delegate
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            delegate?.nfcReaderEngagement(self, didChangePhase: phase)
-        }
+        // Always on main: callers and delegate-queue callbacks both run here.
+        delegate?.nfcReaderEngagement(self, didChangePhase: phase)
     }
 
     private func emitHandover(_ handover: ReaderHandover) {
-        let delegate = self.delegate
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            delegate?.nfcReaderEngagement(self, didCompleteHandover: handover)
-        }
+        delegate?.nfcReaderEngagement(self, didCompleteHandover: handover)
     }
 }
 
@@ -115,10 +127,12 @@ extension NfcReaderEngagement: NFCTagReaderSessionDelegate {
     }
 
     public func tagReaderSession(_ session: NFCTagReaderSession, didInvalidateWithError error: Error) {
+        // If this isn't the session we currently track, our state was already
+        // cleaned up by `stop()` or replaced by a new session.
+        guard self.session === session else { return }
         self.session = nil
-        // If we already shut the session down deliberately (success / protocol
-        // error path set active=false before invalidating), the outcome has
-        // been surfaced — nothing more to do here.
+        // If `stop()` already disarmed us, the outcome has been surfaced —
+        // nothing more to do here.
         guard active else { return }
 
         let nfcError = error as? NFCReaderError
@@ -130,7 +144,7 @@ extension NfcReaderEngagement: NFCTagReaderSessionDelegate {
         // Transient session end (timeout, tag lost mid-poll, system reset).
         // Re-arm after a brief delay so iOS has time to dismiss its sheet
         // before we open another one.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.rearmDelay) { [weak self] in
             self?.beginSession()
         }
     }
@@ -141,11 +155,16 @@ extension NfcReaderEngagement: NFCTagReaderSessionDelegate {
             return
         }
         emit(.exchanging)
-        Task { [weak self] in
-            await self?.runHandover(session: session, tag: iso7816Tag)
+        // Capture self strongly: the engagement must stay alive for the
+        // duration of the handover so the session gets invalidated on the
+        // outcome path; otherwise a mid-handover deallocation would leave the
+        // iOS modal up until it times out.
+        Task { @MainActor in
+            await self.runHandover(session: session, tag: iso7816Tag)
         }
     }
 
+    @MainActor
     private func runHandover(session: NFCTagReaderSession, tag: NFCISO7816Tag) async {
         do {
             try await connect(session: session, to: .iso7816(tag))
@@ -160,6 +179,10 @@ extension NfcReaderEngagement: NFCTagReaderSessionDelegate {
                 case .inProgress(let nextApdu):
                     rapdu = try await sendCommand(nextApdu, on: tag)
                 case .done(let handover):
+                    // Bail if `stop()` or a new session replaced us during the
+                    // exchange — we no longer own this outcome.
+                    guard self.session === session else { return }
+                    self.session = nil
                     active = false
                     session.invalidate()
                     emitHandover(handover)
@@ -172,9 +195,11 @@ extension NfcReaderEngagement: NFCTagReaderSessionDelegate {
     }
 
     private func failHandover(session: NFCTagReaderSession, error: Error) {
-        // If `stop()` already disarmed us, the error is just collateral from
-        // the session invalidation it triggered — don't surface it.
+        // If we no longer own this session (`stop()` raced us, or a new session
+        // replaced it), the error is just collateral — don't surface it.
+        guard self.session === session else { return }
         let wasActive = active
+        self.session = nil
         active = false
         session.invalidate(errorMessage: error.localizedDescription)
         if wasActive {

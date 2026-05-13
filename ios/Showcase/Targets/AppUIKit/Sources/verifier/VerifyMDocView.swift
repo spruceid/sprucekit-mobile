@@ -125,6 +125,12 @@ public struct VerifyMDocView: View {
         .onChange(of: selectedTab) { _ in
             updateNfcActive()
         }
+        .onChange(of: handover == nil) { _ in
+            // Re-arm NFC when we return from a BLE session (handover cleared)
+            // and disarm it the instant we capture one. Keeps the engagement
+            // lifecycle consistent without depending on view re-creation.
+            updateNfcActive()
+        }
         .onAppear {
             updateNfcActive()
         }
