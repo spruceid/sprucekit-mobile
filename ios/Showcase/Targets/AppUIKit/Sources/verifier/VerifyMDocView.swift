@@ -1,3 +1,4 @@
+import Combine
 import CoreBluetooth
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
@@ -78,42 +79,134 @@ let ageOver18Elements = [
     ]
 ]
 
+private enum EngagementTab: Int, Hashable {
+    case qr = 0
+    case nfc = 1
+}
+
 public struct VerifyMDocView: View {
     @Binding var path: NavigationPath
     var checkAgeOver18: Bool = false
 
-    @State private var scanned: String?
+    @State private var handover: ReaderHandover?
+    @State private var selectedTab: EngagementTab = .qr
+    @StateObject private var nfcObservable = NfcReaderObservable(
+        alertMessage: "Hold near the holder phone to share their credential"
+    )
 
     var trustedCertificates = TrustedCertificatesDataStore.shared
         .getAllCertificates()
 
+    public init(path: Binding<NavigationPath>, checkAgeOver18: Bool = false) {
+        self._path = path
+        self.checkAgeOver18 = checkAgeOver18
+    }
+
     public var body: some View {
-        if scanned == nil {
-            ScanningComponent(
-                path: $path,
-                scanningParams: Scanning(
-                    scanningType: .qrcode,
+        Group {
+            if let handover {
+                MDocReaderView(
+                    handover: handover,
+                    requestedItems: !checkAgeOver18
+                        ? defaultElements : ageOver18Elements,
+                    trustAnchorRegistry: trustedCertificates.map { $0.content },
                     onCancel: onCancel,
-                    onRead: { code in
-                        self.scanned = code
-                    }
+                    path: $path
                 )
-            )
-        } else {
-            MDocReaderView(
-                uri: scanned!,
-                requestedItems: !checkAgeOver18
-                    ? defaultElements : ageOver18Elements,
-                trustAnchorRegistry: trustedCertificates.map { $0.content },
-                onCancel: onCancel,
-                path: $path
-            )
+            } else {
+                scanningView
+            }
+        }
+        .onReceive(nfcObservable.$pendingHandover) { newHandover in
+            guard let newHandover else { return }
+            handover = newHandover
+            nfcObservable.consumeHandover()
+        }
+        .onChange(of: selectedTab) { _ in
+            updateNfcActive()
+        }
+        .onAppear {
+            updateNfcActive()
+        }
+        .onDisappear {
+            nfcObservable.setActive(false)
         }
     }
 
-    func onCancel() {
-        self.scanned = nil
-        path.removeLast()
+    private var scanningView: some View {
+        VStack(spacing: 0) {
+            TabView(selection: $selectedTab) {
+                ScanningComponent(
+                    path: $path,
+                    scanningParams: Scanning(
+                        scanningType: .qrcode,
+                        onCancel: onCancel,
+                        onRead: { code in
+                            handover = ReaderHandover.newQr(qr: code)
+                        }
+                    )
+                )
+                .tag(EngagementTab.qr)
+
+                VerifyMDocNfcTab(
+                    phase: nfcObservable.phase,
+                    onCancel: onCancel,
+                    onRetry: { nfcObservable.setActive(true) }
+                )
+                .tag(EngagementTab.nfc)
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            engagementTabBar
+        }
+    }
+
+    private var engagementTabBar: some View {
+        HStack(spacing: 0) {
+            tabButton(
+                icon: "qrcode.viewfinder",
+                tab: .qr,
+                accessibilityLabel: "QR code engagement"
+            )
+            tabButton(
+                icon: "wave.3.right",
+                tab: .nfc,
+                accessibilityLabel: "NFC engagement"
+            )
+        }
+        .frame(height: 56)
+        .background(Color("ColorBase50"))
+    }
+
+    private func tabButton(icon: String, tab: EngagementTab, accessibilityLabel: String) -> some View {
+        let active = selectedTab == tab
+        return Button(action: { selectedTab = tab }) {
+            VStack(spacing: 0) {
+                Rectangle()
+                    .fill(active ? Color("ColorBlue600") : .clear)
+                    .frame(height: 3)
+                Image(systemName: icon)
+                    .font(.system(size: 24, weight: .regular))
+                    .foregroundColor(active ? Color("ColorBlue600") : Color("ColorBase600"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .accessibilityLabel(accessibilityLabel)
+        .buttonStyle(.plain)
+    }
+
+    private func updateNfcActive() {
+        // NFC engagement should only be soliciting taps while the user is on
+        // the NFC tab and we have not yet captured a handover.
+        let shouldBeActive = selectedTab == .nfc && handover == nil
+        nfcObservable.setActive(shouldBeActive)
+    }
+
+    private func onCancel() {
+        handover = nil
+        nfcObservable.setActive(false)
+        if !path.isEmpty {
+            path.removeLast()
+        }
     }
 }
 
@@ -123,7 +216,7 @@ public struct MDocReaderView: View {
     var onCancel: () -> Void
 
     init(
-        uri: String,
+        handover: ReaderHandover,
         requestedItems: [String: [String: Bool]],
         trustAnchorRegistry: [String]?,
         onCancel: @escaping () -> Void,
@@ -131,7 +224,7 @@ public struct MDocReaderView: View {
     ) {
         self._delegate = StateObject(
             wrappedValue: MDocScanViewDelegate(
-                uri: uri,
+                handover: handover,
                 requestedItems: requestedItems,
                 trustAnchorRegistry: trustAnchorRegistry,
             )
@@ -236,7 +329,7 @@ public struct MDocReaderView: View {
         .padding(.all, 30)
         .navigationBarBackButtonHidden(true)
     }
-    
+
     @ViewBuilder
     var authorizeBluetooth: some View {
         if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -251,7 +344,7 @@ public struct MDocReaderView: View {
             Text("Open iPhone settings and allow bluetooth permissions for this app to continue.")
         }
     }
-    
+
     @ViewBuilder
     var turnOnBluetoothView: some View {
         Text("Turn on bluetooth to continue.")
@@ -265,22 +358,22 @@ public struct MDocReaderView: View {
 
 class MDocScanViewDelegate: ObservableObject & MdocProximityReader.Delegate {
     @Published var state: MdocProximityReader.State = .initializing
-    private var mdocReader: MdocProximityReader? = nil
+    private var mdocReader: MdocProximityReader?
 
     init(
-        uri: String,
+        handover: ReaderHandover,
         requestedItems: [String: [String: Bool]],
         trustAnchorRegistry: [String]?
     ) {
         self.mdocReader = MdocProximityReader(
-            fromHolderQrCode: uri,
+            fromHandover: handover,
             delegate: self,
             requestedItems: requestedItems,
             trustAnchorRegistry: trustAnchorRegistry,
             l2capUsage: .disableL2CAP
         )
     }
-    
+
     func reset() {
         self.mdocReader?.reset()
     }
@@ -288,7 +381,7 @@ class MDocScanViewDelegate: ObservableObject & MdocProximityReader.Delegate {
     func cancel() {
         self.mdocReader?.disconnect()
     }
-    
+
     func connectionState(changedTo: SpruceIDMobileSdk.MdocProximityReader.State) {
         DispatchQueue.main.async {
             self.state = changedTo

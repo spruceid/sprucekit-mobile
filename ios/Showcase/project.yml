@@ -69,6 +69,15 @@ targets:
               - mdoc-openid4vp
         NSBluetoothAlwaysUsageDescription: "Secure transmission of mobile DL data"
         NSCameraUsageDescription: "We need to access your camera for scanning"
+        NFCReaderUsageDescription: "Used to read mobile driver's license credentials over NFC."
+        # AIDs the iOS pre-poller will try before delivering the tag. NDEF
+        # comes first because the ISO 18013-5 NFC engagement starts by
+        # reading the static handover from the holder's NDEF application
+        # (NFC Forum Type 4 Tag, AID D2760000850101); the mdoc data
+        # retrieval AID is listed as a fallback for non-standard holders.
+        com.apple.developer.nfc.readersession.iso7816.select-identifiers:
+          - D2760000850101 # NDEF Type 4 Tag application (NFC Forum)
+          - A0000002480400 # mDL application (ISO 18013-5 §8.3.3.1.2)
         ITSAppUsesNonExemptEncryption: "NO"
         LSRequiresIPhoneOS: true
         UIApplicationSceneManifest:
@@ -112,6 +121,11 @@ targets:
           - group.com.spruceid.mobile
         com.apple.developer.identity-document-services.document-provider.mobile-document-types:
           - "org.iso.18013.5.1.mDL"
+        # NFC reader mode for ISO 18013-5 NFC engagement. The "NFC Tag
+        # Reading" capability must also be enabled for this App ID in the
+        # Apple Developer portal for the entitlement to take effect.
+        com.apple.developer.nfc.readersession.formats:
+          - TAG
         # to be able to share the keychain with the dc api extension
         keychain-access-groups:
           - "$(AppIdentifierPrefix)keychain.com.spruceid.mobile"

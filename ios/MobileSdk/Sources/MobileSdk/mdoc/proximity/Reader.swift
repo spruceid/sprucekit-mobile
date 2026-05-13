@@ -5,7 +5,7 @@ import SpruceIDMobileSdkRs
 ///
 /// Dropping this class or calling `.disconnect()` will ensure that the underlying transmission services are cleaned up.
 public class MdocProximityReader {
-    private let qrCodePayload: String,
+    private let handover: ReaderHandover,
                 delegate: Delegate,
                 requestedItems: [String: [String: Bool]],
                 trustAnchorRegistry: [String]?,
@@ -13,14 +13,32 @@ public class MdocProximityReader {
 
     private var handle: DelegateWrapper?
 
-    public init(
+    /// Start a reading session from a holder-presented QR code.
+    public convenience init(
         fromHolderQrCode payload: String,
         delegate: Delegate,
         requestedItems: [String: [String: Bool]],
         trustAnchorRegistry: [String]? = nil,
         l2capUsage: L2CAPUsage = .disableL2CAP,
     ) {
-        qrCodePayload = payload
+        self.init(
+            fromHandover: ReaderHandover.newQr(qr: payload),
+            delegate: delegate,
+            requestedItems: requestedItems,
+            trustAnchorRegistry: trustAnchorRegistry,
+            l2capUsage: l2capUsage,
+        )
+    }
+
+    /// Start a reading session from a pre-built handover (e.g. produced by an NFC engagement).
+    public init(
+        fromHandover handover: ReaderHandover,
+        delegate: Delegate,
+        requestedItems: [String: [String: Bool]],
+        trustAnchorRegistry: [String]? = nil,
+        l2capUsage: L2CAPUsage = .disableL2CAP,
+    ) {
+        self.handover = handover
         self.delegate = delegate
         self.requestedItems = requestedItems
         self.trustAnchorRegistry = trustAnchorRegistry
@@ -34,7 +52,7 @@ public class MdocProximityReader {
         let session: MdlReaderSessionData
         do {
             session = try establishSession(
-                handover: ReaderHandover.newQr(qr: qrCodePayload),
+                handover: handover,
                 requestedItems: requestedItems,
                 trustAnchorRegistry: trustAnchorRegistry
             )
