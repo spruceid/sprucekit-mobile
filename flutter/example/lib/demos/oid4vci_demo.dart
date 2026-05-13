@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sprucekit_mobile/sprucekit_mobile.dart';
+
+const _authCodeRedirectUrl = 'example-oid4vci-redirect://callback';
+const _authCodeRedirectScheme = 'example-oid4vci-redirect';
 
 class Oid4vciDemo extends StatefulWidget {
   const Oid4vciDemo({super.key});
@@ -14,9 +18,6 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   final _api = Oid4vci();
   final _offerController = TextEditingController();
   final _clientIdController = TextEditingController(text: 'skit-demo-wallet');
-  final _redirectUrlController = TextEditingController(
-    text: 'https://spruceid.com',
-  );
   final _keyIdController = TextEditingController(text: 'default-signing-key');
   final _pinController = TextEditingController();
 
@@ -40,7 +41,6 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   void dispose() {
     _offerController.dispose();
     _clientIdController.dispose();
-    _redirectUrlController.dispose();
     _keyIdController.dispose();
     _pinController.dispose();
     super.dispose();
@@ -93,10 +93,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
         case GrantType.preAuthCodeWithTxCode:
           await _runTxCodeFlow(offer);
         case GrantType.authorizationCode:
-          setState(() {
-            _loading = false;
-            _error = 'Authorization code grant not supported in this demo';
-          });
+          await _runAuthCodeFlow(offer);
       }
     } catch (e) {
       setState(() {
@@ -110,7 +107,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     final result = await _api.runIssuance(
       offer,
       _clientIdController.text,
-      _redirectUrlController.text,
+      _authCodeRedirectUrl,
       _keyIdController.text,
       DidMethod.jwk,
       null,
@@ -132,12 +129,85 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       _clientIdController.text,
       _keyIdController.text,
       DidMethod.jwk,
+      null,
     );
     setState(() {
       _loading = false;
       _sessionId = session.sessionId;
       _txCodeMetadata = session.metadata.txCode;
       _showPinDialog = true;
+    });
+  }
+
+  Future<void> _runAuthCodeFlow(String offer) async {
+    final session = await _api.acceptOffer(
+      offer,
+      _clientIdController.text,
+      _keyIdController.text,
+      DidMethod.jwk,
+      _authCodeRedirectUrl,
+    );
+    final sessionId = session.sessionId;
+
+    final authUrl = await _api.buildAuthorizationUrl(sessionId);
+    if (authUrl == null) {
+      await _api.releaseSession(sessionId);
+      setState(() {
+        _loading = false;
+        _error = 'Failed to build authorization URL';
+      });
+      return;
+    }
+
+    Uri? redirect;
+    try {
+      final resultUrl = await FlutterWebAuth2.authenticate(
+        url: authUrl,
+        callbackUrlScheme: _authCodeRedirectScheme,
+      );
+      redirect = Uri.parse(resultUrl);
+    } catch (_) {
+      redirect = null;
+    }
+
+    if (redirect == null) {
+      await _api.releaseSession(sessionId);
+      setState(() {
+        _loading = false;
+        _error = 'Sign-in cancelled or browser error';
+      });
+      return;
+    }
+
+    final errorParam = redirect.queryParameters['error'];
+    if (errorParam != null) {
+      await _api.releaseSession(sessionId);
+      setState(() {
+        _loading = false;
+        _error = 'Authorization error: $errorParam';
+      });
+      return;
+    }
+
+    final code = redirect.queryParameters['code'];
+    if (code == null || code.isEmpty) {
+      await _api.releaseSession(sessionId);
+      setState(() {
+        _loading = false;
+        _error = 'Missing authorization code in callback';
+      });
+      return;
+    }
+
+    final result = await _api.continueWithAuthorizationCode(sessionId, code);
+    setState(() {
+      _loading = false;
+      switch (result) {
+        case Oid4vciSuccess(:final credentials):
+          _issuedCredentials = credentials;
+        case Oid4vciError(:final message):
+          _error = message;
+      }
     });
   }
 
@@ -222,14 +292,6 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
               controller: _clientIdController,
               decoration: const InputDecoration(
                 labelText: 'Client ID',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _redirectUrlController,
-              decoration: const InputDecoration(
-                labelText: 'Redirect URL',
                 border: OutlineInputBorder(),
               ),
             ),

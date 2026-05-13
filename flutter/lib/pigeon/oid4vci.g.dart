@@ -612,15 +612,21 @@ class Oid4vci {
   /// Callers must call `releaseSession` if the flow is abandoned before
   /// terminal.
   ///
+  /// The `redirectUrl` is stored on the session and consumed by
+  /// `buildAuthorizationUrl` when the grant is `authorizationCode`. Pass null
+  /// for grants that do not require a browser sign-in (pre-auth ± tx_code);
+  /// if a later `buildAuthorizationUrl` is invoked on a session that was
+  /// created with a null redirect, it returns null.
+  ///
   /// @throws when the offer cannot be resolved or the token request fails.
-  Future<OfferSession> acceptOffer(String credentialOffer, String clientId, String keyId, DidMethod didMethod) async {
+  Future<OfferSession> acceptOffer(String credentialOffer, String clientId, String keyId, DidMethod didMethod, String? redirectUrl) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.acceptOffer$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, keyId, didMethod]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, keyId, didMethod, redirectUrl]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -649,6 +655,65 @@ class Oid4vci {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, txCode]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    !;
+    return pigeonVar_replyValue as Oid4vciResult;
+  }
+
+  /// Build the issuer's authorization URL for the browser sign-in step.
+  ///
+  /// Returns the fully-formed authorization URL (client_id, redirect_uri,
+  /// response_type, scope, code_challenge, code_challenge_method, state) for
+  /// the wallet to hand to a system-managed browser surface.
+  ///
+  /// Returns null when the session is not in the authorization-code state,
+  /// when the session was created without a `redirectUrl`, or when URL
+  /// construction fails (e.g., issuer metadata fetch error).
+  ///
+  /// The session is preserved on success — the caller must follow up with
+  /// `continueWithAuthorizationCode` or `releaseSession`.
+  Future<String?> buildAuthorizationUrl(String sessionId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.buildAuthorizationUrl$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+    return pigeonVar_replyValue as String?;
+  }
+
+  /// Submit the authorization code returned by the issuer redirect and
+  /// complete the issuance.
+  ///
+  /// Returns `Oid4vciSuccess` on success or `Oid4vciError` for any failure
+  /// (token endpoint, state mismatch, network). Same upstream-error-erasure
+  /// constraint as `continueWithTxCode` applies — callers cannot distinguish
+  /// underlying causes at this layer.
+  ///
+  /// The session is consumed and removed from the registry in all cases.
+  Future<Oid4vciResult> continueWithAuthorizationCode(String sessionId, String code) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithAuthorizationCode$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, code]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(

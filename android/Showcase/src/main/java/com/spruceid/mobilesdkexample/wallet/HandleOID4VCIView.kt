@@ -1,7 +1,9 @@
 package com.spruceid.mobilesdkexample.wallet
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
@@ -39,6 +41,7 @@ import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -131,7 +134,32 @@ fun HandleOID4VCIView(
                 }
 
                 is CredentialTokenState.RequiresAuthorizationCode -> {
-                    err = "Authorization Code Grant not supported"
+                    Log.i("OID4VCI", "Authorization code grant — launching browser sign-in")
+                    val redirectUrl = "showcase-oid4vci-redirect://callback"
+                    val waiting = state.v1.proceed(httpClient, redirectUrl)
+                    val authUrl = waiting.redirectUrl()
+                    Log.i("OID4VCI", "Authorization URL: $authUrl")
+
+                    val customTabs = CustomTabsIntent.Builder().build()
+                    customTabs.launchUrl(ctx, Uri.parse(authUrl))
+
+                    val redirectUri = Oid4vciAuthCodeReceiver.flow.first()
+                    val errorParam = redirectUri.getQueryParameter("error")
+                    val codeParam = redirectUri.getQueryParameter("code")
+
+                    when {
+                        errorParam != null -> err = "Authorization error: $errorParam"
+                        codeParam.isNullOrEmpty() -> err = "Missing authorization code in callback"
+                        else -> {
+                            val token = waiting.proceed(httpClient, codeParam)
+                            val result = exchangeCredential(httpClient, oid4vciClient, clientId, credentialIssuer, signer, token)
+                            if (result != null) {
+                                credential = result
+                            } else {
+                                err = "Deferred credentials not supported"
+                            }
+                        }
+                    }
                 }
             }
         } catch (e: Exception) {

@@ -15,6 +15,7 @@ import com.spruceid.mobile.sdk.rs.Oid4vciClient
 import com.spruceid.mobile.sdk.rs.Oid4vciException
 import com.spruceid.mobile.sdk.rs.Proofs
 import com.spruceid.mobile.sdk.rs.ResolvedCredentialOffer
+import com.spruceid.mobile.sdk.rs.WaitingForAuthorizationCode
 import com.spruceid.mobile.sdk.rs.createJwtProof
 import com.spruceid.mobile.sdk.rs.decodeDerSignature
 import com.spruceid.mobile.sdk.rs.generateDidJwkUrl
@@ -38,6 +39,8 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         val clientId: String,
         val keyId: String,
         val httpClient: Oid4vciAsyncHttpClient,
+        val redirectUrl: String?,
+        var waitingForAuthCode: WaitingForAuthorizationCode? = null,
     )
 
     private val sessions = ConcurrentHashMap<String, SessionContext>()
@@ -86,6 +89,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         clientId: String,
         keyId: String,
         didMethod: DidMethod,
+        redirectUrl: String?,
         callback: (Result<OfferSession>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -105,6 +109,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                     clientId = derivedClientId,
                     keyId = keyId,
                     httpClient = httpClient,
+                    redirectUrl = redirectUrl,
                 )
                 callback(Result.success(
                     OfferSession(
@@ -137,6 +142,65 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
             }
             try {
                 val credentialToken = txState.v1.proceed(ctx.httpClient, txCode)
+                val credentials = exchangeCredentialWithToken(ctx, credentialToken)
+                sessions.remove(sessionId)
+                callback(Result.success(Oid4vciSuccess(credentials)))
+            } catch (e: Exception) {
+                sessions.remove(sessionId)
+                callback(Result.success(Oid4vciError(e.message ?: "unknown")))
+            }
+        }
+    }
+
+    override fun buildAuthorizationUrl(
+        sessionId: String,
+        callback: (Result<String?>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val ctx = sessions[sessionId]
+            if (ctx == null) {
+                callback(Result.success(null))
+                return@launch
+            }
+            val redirect = ctx.redirectUrl
+            if (redirect.isNullOrEmpty()) {
+                callback(Result.success(null))
+                return@launch
+            }
+            val authState = ctx.tokenState as? CredentialTokenState.RequiresAuthorizationCode
+            if (authState == null) {
+                callback(Result.success(null))
+                return@launch
+            }
+            try {
+                val waiting = authState.v1.proceed(ctx.httpClient, redirect)
+                ctx.waitingForAuthCode = waiting
+                callback(Result.success(waiting.redirectUrl()))
+            } catch (e: Exception) {
+                callback(Result.success(null))
+            }
+        }
+    }
+
+    override fun continueWithAuthorizationCode(
+        sessionId: String,
+        code: String,
+        callback: (Result<Oid4vciResult>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val ctx = sessions[sessionId]
+            if (ctx == null) {
+                callback(Result.success(Oid4vciError("session not found")))
+                return@launch
+            }
+            val waiting = ctx.waitingForAuthCode
+            if (waiting == null) {
+                sessions.remove(sessionId)
+                callback(Result.success(Oid4vciError("session not awaiting authorization code")))
+                return@launch
+            }
+            try {
+                val credentialToken = waiting.proceed(ctx.httpClient, code)
                 val credentials = exchangeCredentialWithToken(ctx, credentialToken)
                 sessions.remove(sessionId)
                 callback(Result.success(Oid4vciSuccess(credentials)))

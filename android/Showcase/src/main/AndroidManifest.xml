@@ -53,6 +53,7 @@
                 <data android:scheme="openid4vp" />
                 <data android:scheme="openid-credential-offer" />
                 <data android:scheme="mdoc-openid4vp" />
+                <data android:scheme="showcase-oid4vci-redirect" />
             </intent-filter>
         </activity>
 

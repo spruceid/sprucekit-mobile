@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import SwiftUI
@@ -99,8 +100,50 @@ struct HandleOID4VCIView: View {
                 let state = try await oid4vciClient.acceptOffer(httpClient: httpClient, credentialOffer: credentialOffer)
 
                 switch state {
-                case .requiresAuthorizationCode(_):
-                    err = "Authorization Code Grant not supported"
+                case .requiresAuthorizationCode(let authState):
+                    let redirectUrl = "showcase-oid4vci-redirect://callback"
+                    let waiting = try await authState.proceed(httpClient: httpClient, redirectUrl: redirectUrl)
+                    let authUrl = URL(string: waiting.redirectUrl())!
+
+                    let redirectUri: URL? = try await withCheckedThrowingContinuation { cont in
+                        let session = ASWebAuthenticationSession(
+                            url: authUrl,
+                            callbackURLScheme: "showcase-oid4vci-redirect"
+                        ) { callbackURL, error in
+                            if let _ = error { cont.resume(returning: nil); return }
+                            cont.resume(returning: callbackURL)
+                        }
+                        session.presentationContextProvider = WebAuthPresentationProvider.shared
+                        session.start()
+                    }
+
+                    if let uri = redirectUri,
+                       let comps = URLComponents(url: uri, resolvingAgainstBaseURL: false) {
+                        let errorParam = comps.queryItems?.first(where: { $0.name == "error" })?.value
+                        let codeParam = comps.queryItems?.first(where: { $0.name == "code" })?.value
+                        if let errorParam {
+                            err = "Authorization error: \(errorParam)"
+                        } else if let codeParam, !codeParam.isEmpty {
+                            let token = try await waiting.proceed(httpClient: httpClient, authorizationCode: codeParam)
+                            if let cred = try await completeIssuance(
+                                token: token,
+                                httpClient: httpClient,
+                                oid4vciClient: oid4vciClient,
+                                clientId: clientId,
+                                credentialIssuer: credentialIssuer,
+                                signer: signer
+                            ) {
+                                credential = cred
+                                onSuccess?()
+                            } else {
+                                err = "Deferred credentials not supported"
+                            }
+                        } else {
+                            err = "Missing authorization code in callback"
+                        }
+                    } else {
+                        err = "Sign-in cancelled"
+                    }
                 case .requiresTxCode(let txState):
                     self.pendingTxState = txState
                     self.showPinAlert = true
@@ -206,6 +249,20 @@ struct HandleOID4VCIView: View {
         } message: {
             Text("Please enter the PIN provided with the QR code.")
         }
+    }
+}
+
+/// Anchor provider for `ASWebAuthenticationSession`. Resolves the topmost
+/// active window so the auth session can present from anywhere in the
+/// navigation stack.
+final class WebAuthPresentationProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    static let shared = WebAuthPresentationProvider()
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        let scene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+        return scene?.keyWindow ?? ASPresentationAnchor()
     }
 }
 

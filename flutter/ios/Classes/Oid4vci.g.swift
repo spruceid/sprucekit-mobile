@@ -556,8 +556,14 @@ protocol Oid4vci {
   /// Callers must call `releaseSession` if the flow is abandoned before
   /// terminal.
   ///
+  /// The `redirectUrl` is stored on the session and consumed by
+  /// `buildAuthorizationUrl` when the grant is `authorizationCode`. Pass null
+  /// for grants that do not require a browser sign-in (pre-auth ± tx_code);
+  /// if a later `buildAuthorizationUrl` is invoked on a session that was
+  /// created with a null redirect, it returns null.
+  ///
   /// @throws when the offer cannot be resolved or the token request fails.
-  func acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, completion: @escaping (Result<OfferSession, Error>) -> Void)
+  func acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, redirectUrl: String?, completion: @escaping (Result<OfferSession, Error>) -> Void)
   /// Submit a transaction code (PIN) and complete the issuance.
   ///
   /// Returns `Oid4vciSuccess` on success or `Oid4vciError` on any failure
@@ -568,6 +574,29 @@ protocol Oid4vci {
   ///
   /// The session is consumed and removed from the registry in all cases.
   func continueWithTxCode(sessionId: String, txCode: String, completion: @escaping (Result<Oid4vciResult, Error>) -> Void)
+  /// Build the issuer's authorization URL for the browser sign-in step.
+  ///
+  /// Returns the fully-formed authorization URL (client_id, redirect_uri,
+  /// response_type, scope, code_challenge, code_challenge_method, state) for
+  /// the wallet to hand to a system-managed browser surface.
+  ///
+  /// Returns null when the session is not in the authorization-code state,
+  /// when the session was created without a `redirectUrl`, or when URL
+  /// construction fails (e.g., issuer metadata fetch error).
+  ///
+  /// The session is preserved on success — the caller must follow up with
+  /// `continueWithAuthorizationCode` or `releaseSession`.
+  func buildAuthorizationUrl(sessionId: String, completion: @escaping (Result<String?, Error>) -> Void)
+  /// Submit the authorization code returned by the issuer redirect and
+  /// complete the issuance.
+  ///
+  /// Returns `Oid4vciSuccess` on success or `Oid4vciError` for any failure
+  /// (token endpoint, state mismatch, network). Same upstream-error-erasure
+  /// constraint as `continueWithTxCode` applies — callers cannot distinguish
+  /// underlying causes at this layer.
+  ///
+  /// The session is consumed and removed from the registry in all cases.
+  func continueWithAuthorizationCode(sessionId: String, code: String, completion: @escaping (Result<Oid4vciResult, Error>) -> Void)
   /// Drop a session without consuming it (user abort).
   ///
   /// Safe to call with an unknown sessionId — no-op.
@@ -657,6 +686,12 @@ class Oid4vciSetup {
     /// Callers must call `releaseSession` if the flow is abandoned before
     /// terminal.
     ///
+    /// The `redirectUrl` is stored on the session and consumed by
+    /// `buildAuthorizationUrl` when the grant is `authorizationCode`. Pass null
+    /// for grants that do not require a browser sign-in (pre-auth ± tx_code);
+    /// if a later `buildAuthorizationUrl` is invoked on a session that was
+    /// created with a null redirect, it returns null.
+    ///
     /// @throws when the offer cannot be resolved or the token request fails.
     let acceptOfferChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.acceptOffer\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -666,7 +701,8 @@ class Oid4vciSetup {
         let clientIdArg = args[1] as! String
         let keyIdArg = args[2] as! String
         let didMethodArg = args[3] as! DidMethod
-        api.acceptOffer(credentialOffer: credentialOfferArg, clientId: clientIdArg, keyId: keyIdArg, didMethod: didMethodArg) { result in
+        let redirectUrlArg: String? = nilOrValue(args[4])
+        api.acceptOffer(credentialOffer: credentialOfferArg, clientId: clientIdArg, keyId: keyIdArg, didMethod: didMethodArg, redirectUrl: redirectUrlArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -704,6 +740,62 @@ class Oid4vciSetup {
       }
     } else {
       continueWithTxCodeChannel.setMessageHandler(nil)
+    }
+    /// Build the issuer's authorization URL for the browser sign-in step.
+    ///
+    /// Returns the fully-formed authorization URL (client_id, redirect_uri,
+    /// response_type, scope, code_challenge, code_challenge_method, state) for
+    /// the wallet to hand to a system-managed browser surface.
+    ///
+    /// Returns null when the session is not in the authorization-code state,
+    /// when the session was created without a `redirectUrl`, or when URL
+    /// construction fails (e.g., issuer metadata fetch error).
+    ///
+    /// The session is preserved on success — the caller must follow up with
+    /// `continueWithAuthorizationCode` or `releaseSession`.
+    let buildAuthorizationUrlChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.buildAuthorizationUrl\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      buildAuthorizationUrlChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let sessionIdArg = args[0] as! String
+        api.buildAuthorizationUrl(sessionId: sessionIdArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      buildAuthorizationUrlChannel.setMessageHandler(nil)
+    }
+    /// Submit the authorization code returned by the issuer redirect and
+    /// complete the issuance.
+    ///
+    /// Returns `Oid4vciSuccess` on success or `Oid4vciError` for any failure
+    /// (token endpoint, state mismatch, network). Same upstream-error-erasure
+    /// constraint as `continueWithTxCode` applies — callers cannot distinguish
+    /// underlying causes at this layer.
+    ///
+    /// The session is consumed and removed from the registry in all cases.
+    let continueWithAuthorizationCodeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithAuthorizationCode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      continueWithAuthorizationCodeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let sessionIdArg = args[0] as! String
+        let codeArg = args[1] as! String
+        api.continueWithAuthorizationCode(sessionId: sessionIdArg, code: codeArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      continueWithAuthorizationCodeChannel.setMessageHandler(nil)
     }
     /// Drop a session without consuming it (user abort).
     ///

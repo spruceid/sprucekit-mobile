@@ -1,5 +1,7 @@
 PODS:
   - Flutter (1.0.0)
+  - flutter_web_auth_2 (5.0.0):
+    - Flutter
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -17,9 +19,12 @@ PODS:
     - Flutter
     - SpruceIDMobileSdk (~> 0.15.6)
   - SwiftAlgorithms (1.0.0)
+  - url_launcher_ios (0.0.1):
+    - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - flutter_web_auth_2 (from `.symlinks/plugins/flutter_web_auth_2/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
@@ -28,6 +33,7 @@ DEPENDENCIES:
   - SpruceIDMobileSdkRsRustFramework (from `../../../`)
   - sprucekit_mobile (from `.symlinks/plugins/sprucekit_mobile/ios`)
   - SwiftAlgorithms (~> 1.0.0)
+  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 SPEC REPOS:
   trunk:
@@ -36,6 +42,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  flutter_web_auth_2:
+    :path: ".symlinks/plugins/flutter_web_auth_2/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
   permission_handler_apple:
@@ -50,9 +58,12 @@ EXTERNAL SOURCES:
     :path: "../../../"
   sprucekit_mobile:
     :path: ".symlinks/plugins/sprucekit_mobile/ios"
+  url_launcher_ios:
+    :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_web_auth_2: 646fc9df97a01c59e5eea99b237da2c6360f8439
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
@@ -61,6 +72,7 @@ SPEC CHECKSUMS:
   SpruceIDMobileSdkRsRustFramework: e48a09bc765a2267b8d7c7d0c76b40feb745ed4d
   sprucekit_mobile: c1001aa4774c14850b5b1df9a9b375de17e272a6
   SwiftAlgorithms: 38dda4731d19027fdeee1125f973111bf3386b53
+  url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 
 PODFILE CHECKSUM: b69b363296c914f73d8c30eef22e70abce1812bc
 

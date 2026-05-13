@@ -200,6 +200,12 @@ abstract class Oid4vci {
   /// Callers must call `releaseSession` if the flow is abandoned before
   /// terminal.
   ///
+  /// The `redirectUrl` is stored on the session and consumed by
+  /// `buildAuthorizationUrl` when the grant is `authorizationCode`. Pass null
+  /// for grants that do not require a browser sign-in (pre-auth ± tx_code);
+  /// if a later `buildAuthorizationUrl` is invoked on a session that was
+  /// created with a null redirect, it returns null.
+  ///
   /// @throws when the offer cannot be resolved or the token request fails.
   @async
   OfferSession acceptOffer(
@@ -207,6 +213,7 @@ abstract class Oid4vci {
     String clientId,
     String keyId,
     DidMethod didMethod,
+    String? redirectUrl,
   );
 
   /// Submit a transaction code (PIN) and complete the issuance.
@@ -220,6 +227,33 @@ abstract class Oid4vci {
   /// The session is consumed and removed from the registry in all cases.
   @async
   Oid4vciResult continueWithTxCode(String sessionId, String txCode);
+
+  /// Build the issuer's authorization URL for the browser sign-in step.
+  ///
+  /// Returns the fully-formed authorization URL (client_id, redirect_uri,
+  /// response_type, scope, code_challenge, code_challenge_method, state) for
+  /// the wallet to hand to a system-managed browser surface.
+  ///
+  /// Returns null when the session is not in the authorization-code state,
+  /// when the session was created without a `redirectUrl`, or when URL
+  /// construction fails (e.g., issuer metadata fetch error).
+  ///
+  /// The session is preserved on success — the caller must follow up with
+  /// `continueWithAuthorizationCode` or `releaseSession`.
+  @async
+  String? buildAuthorizationUrl(String sessionId);
+
+  /// Submit the authorization code returned by the issuer redirect and
+  /// complete the issuance.
+  ///
+  /// Returns `Oid4vciSuccess` on success or `Oid4vciError` for any failure
+  /// (token endpoint, state mismatch, network). Same upstream-error-erasure
+  /// constraint as `continueWithTxCode` applies — callers cannot distinguish
+  /// underlying causes at this layer.
+  ///
+  /// The session is consumed and removed from the registry in all cases.
+  @async
+  Oid4vciResult continueWithAuthorizationCode(String sessionId, String code);
 
   /// Drop a session without consuming it (user abort).
   ///

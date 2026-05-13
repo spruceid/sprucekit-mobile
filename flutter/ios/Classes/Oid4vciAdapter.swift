@@ -32,13 +32,35 @@ enum Oid4vciAdapterError: Error {
 // MARK: - Session Registry
 
 private actor Oid4vciSessionRegistry {
-    struct SessionContext {
+    final class SessionContext {
         let resolvedOffer: ResolvedCredentialOffer
         var tokenState: CredentialTokenState
         let signer: Oid4vciJwsSigner
         let clientId: String
         let keyId: String
         let httpClient: Oid4vciAsyncHttpClient
+        let redirectUrl: String?
+        var waitingForAuthCode: WaitingForAuthorizationCode?
+
+        init(
+            resolvedOffer: ResolvedCredentialOffer,
+            tokenState: CredentialTokenState,
+            signer: Oid4vciJwsSigner,
+            clientId: String,
+            keyId: String,
+            httpClient: Oid4vciAsyncHttpClient,
+            redirectUrl: String?,
+            waitingForAuthCode: WaitingForAuthorizationCode? = nil
+        ) {
+            self.resolvedOffer = resolvedOffer
+            self.tokenState = tokenState
+            self.signer = signer
+            self.clientId = clientId
+            self.keyId = keyId
+            self.httpClient = httpClient
+            self.redirectUrl = redirectUrl
+            self.waitingForAuthCode = waitingForAuthCode
+        }
     }
 
     private var sessions: [String: SessionContext] = [:]
@@ -106,6 +128,7 @@ class Oid4vciAdapter: Oid4vci {
         clientId: String,
         keyId: String,
         didMethod: DidMethod,
+        redirectUrl: String?,
         completion: @escaping (Result<OfferSession, Error>) -> Void
     ) {
         Task {
@@ -130,7 +153,8 @@ class Oid4vciAdapter: Oid4vci {
                     signer: signer,
                     clientId: derivedClientId,
                     keyId: keyId,
-                    httpClient: httpClient
+                    httpClient: httpClient,
+                    redirectUrl: redirectUrl
                 )
                 await registry.insert(id: sessionId, ctx: ctx)
                 completion(.success(OfferSession(
@@ -160,6 +184,60 @@ class Oid4vciAdapter: Oid4vci {
             }
             do {
                 let token = try await txState.proceed(httpClient: ctx.httpClient, txCode: txCode)
+                let credentials = try await exchangeCredentialWithToken(ctx: ctx, token: token)
+                await registry.remove(id: sessionId)
+                completion(.success(Oid4vciSuccess(credentials: credentials)))
+            } catch {
+                await registry.remove(id: sessionId)
+                completion(.success(Oid4vciError(message: error.localizedDescription)))
+            }
+        }
+    }
+
+    func buildAuthorizationUrl(
+        sessionId: String,
+        completion: @escaping (Result<String?, Error>) -> Void
+    ) {
+        Task {
+            guard let ctx = await registry.get(id: sessionId) else {
+                completion(.success(nil))
+                return
+            }
+            guard let redirect = ctx.redirectUrl, !redirect.isEmpty else {
+                completion(.success(nil))
+                return
+            }
+            guard case .requiresAuthorizationCode(let authState) = ctx.tokenState else {
+                completion(.success(nil))
+                return
+            }
+            do {
+                let waiting = try await authState.proceed(httpClient: ctx.httpClient, redirectUrl: redirect)
+                ctx.waitingForAuthCode = waiting
+                completion(.success(waiting.redirectUrl()))
+            } catch {
+                completion(.success(nil))
+            }
+        }
+    }
+
+    func continueWithAuthorizationCode(
+        sessionId: String,
+        code: String,
+        completion: @escaping (Result<Oid4vciResult, Error>) -> Void
+    ) {
+        Task {
+            guard let ctx = await registry.get(id: sessionId) else {
+                completion(.success(Oid4vciError(message: "session not found")))
+                return
+            }
+            guard let waiting = ctx.waitingForAuthCode else {
+                await registry.remove(id: sessionId)
+                completion(.success(Oid4vciError(message: "session not awaiting authorization code")))
+                return
+            }
+            do {
+                let token = try await waiting.proceed(httpClient: ctx.httpClient, authorizationCode: code)
                 let credentials = try await exchangeCredentialWithToken(ctx: ctx, token: token)
                 await registry.remove(id: sessionId)
                 completion(.success(Oid4vciSuccess(credentials: credentials)))
@@ -292,7 +370,7 @@ class Oid4vciAdapter: Oid4vci {
         }
     }
 
-    // MARK: - Legacy (slice-1) full-flow path
+    // MARK: - Legacy full-flow path (runIssuance wrapper)
 
     private func performIssuance(
         credentialOffer: String,

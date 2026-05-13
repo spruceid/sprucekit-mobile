@@ -584,9 +584,15 @@ interface Oid4vci {
    * Callers must call `releaseSession` if the flow is abandoned before
    * terminal.
    *
+   * The `redirectUrl` is stored on the session and consumed by
+   * `buildAuthorizationUrl` when the grant is `authorizationCode`. Pass null
+   * for grants that do not require a browser sign-in (pre-auth ± tx_code);
+   * if a later `buildAuthorizationUrl` is invoked on a session that was
+   * created with a null redirect, it returns null.
+   *
    * @throws when the offer cannot be resolved or the token request fails.
    */
-  fun acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, callback: (Result<OfferSession>) -> Unit)
+  fun acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, redirectUrl: String?, callback: (Result<OfferSession>) -> Unit)
   /**
    * Submit a transaction code (PIN) and complete the issuance.
    *
@@ -599,6 +605,33 @@ interface Oid4vci {
    * The session is consumed and removed from the registry in all cases.
    */
   fun continueWithTxCode(sessionId: String, txCode: String, callback: (Result<Oid4vciResult>) -> Unit)
+  /**
+   * Build the issuer's authorization URL for the browser sign-in step.
+   *
+   * Returns the fully-formed authorization URL (client_id, redirect_uri,
+   * response_type, scope, code_challenge, code_challenge_method, state) for
+   * the wallet to hand to a system-managed browser surface.
+   *
+   * Returns null when the session is not in the authorization-code state,
+   * when the session was created without a `redirectUrl`, or when URL
+   * construction fails (e.g., issuer metadata fetch error).
+   *
+   * The session is preserved on success — the caller must follow up with
+   * `continueWithAuthorizationCode` or `releaseSession`.
+   */
+  fun buildAuthorizationUrl(sessionId: String, callback: (Result<String?>) -> Unit)
+  /**
+   * Submit the authorization code returned by the issuer redirect and
+   * complete the issuance.
+   *
+   * Returns `Oid4vciSuccess` on success or `Oid4vciError` for any failure
+   * (token endpoint, state mismatch, network). Same upstream-error-erasure
+   * constraint as `continueWithTxCode` applies — callers cannot distinguish
+   * underlying causes at this layer.
+   *
+   * The session is consumed and removed from the registry in all cases.
+   */
+  fun continueWithAuthorizationCode(sessionId: String, code: String, callback: (Result<Oid4vciResult>) -> Unit)
   /**
    * Drop a session without consuming it (user abort).
    *
@@ -669,7 +702,8 @@ interface Oid4vci {
             val clientIdArg = args[1] as String
             val keyIdArg = args[2] as String
             val didMethodArg = args[3] as DidMethod
-            api.acceptOffer(credentialOfferArg, clientIdArg, keyIdArg, didMethodArg) { result: Result<OfferSession> ->
+            val redirectUrlArg = args[4] as String?
+            api.acceptOffer(credentialOfferArg, clientIdArg, keyIdArg, didMethodArg, redirectUrlArg) { result: Result<OfferSession> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(Oid4vciPigeonUtils.wrapError(error))
@@ -691,6 +725,47 @@ interface Oid4vci {
             val sessionIdArg = args[0] as String
             val txCodeArg = args[1] as String
             api.continueWithTxCode(sessionIdArg, txCodeArg) { result: Result<Oid4vciResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(Oid4vciPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(Oid4vciPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.buildAuthorizationUrl$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val sessionIdArg = args[0] as String
+            api.buildAuthorizationUrl(sessionIdArg) { result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(Oid4vciPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(Oid4vciPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithAuthorizationCode$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val sessionIdArg = args[0] as String
+            val codeArg = args[1] as String
+            api.continueWithAuthorizationCode(sessionIdArg, codeArg) { result: Result<Oid4vciResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(Oid4vciPigeonUtils.wrapError(error))
