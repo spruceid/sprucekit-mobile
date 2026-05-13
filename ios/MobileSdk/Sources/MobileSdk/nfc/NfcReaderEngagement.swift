@@ -200,10 +200,34 @@ extension NfcReaderEngagement: NFCTagReaderSessionDelegate {
         guard self.session === session else { return }
         let wasActive = active
         self.session = nil
+
+        // Transient transceive errors (tag moved, comm hiccup, retry exceeded)
+        // are not protocol failures — re-arm rather than forcing the caller to
+        // do it manually. The system modal shows the "try again" message while
+        // it dismisses; a fresh session opens after `rearmDelay`.
+        if wasActive, let nfcError = error as? NFCReaderError, Self.isTransient(nfcError) {
+            session.invalidate(errorMessage: "Hold the phones steady and try again.")
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.rearmDelay) { [weak self] in
+                self?.beginSession()
+            }
+            return
+        }
+
         active = false
         session.invalidate(errorMessage: error.localizedDescription)
         if wasActive {
             emit(.protocolError(error))
+        }
+    }
+
+    private static func isTransient(_ error: NFCReaderError) -> Bool {
+        switch error.code {
+        case .readerTransceiveErrorTagConnectionLost,
+             .readerTransceiveErrorRetryExceeded,
+             .readerTransceiveErrorTagResponseError:
+            return true
+        default:
+            return false
         }
     }
 
