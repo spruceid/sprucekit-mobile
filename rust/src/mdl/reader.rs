@@ -17,21 +17,22 @@ use isomdl::{
 };
 use uuid::Uuid;
 
-#[derive(uniffi::Object, Debug)]
-pub struct ReaderApduHandoverDriverInit(pub ReaderApduHandoverDriver, pub Vec<u8>);
+#[derive(uniffi::Record)]
+pub struct ReaderApduHandoverDriverInit {
+    pub driver: Arc<ReaderApduHandoverDriver>,
+    pub initial_apdu: Vec<u8>,
+}
 
+/// Create a new APDU handover driver for a reader.
+///
+/// Returns: the driver along with the initial APDU to send to the holder.
 #[uniffi::export]
-impl ReaderApduHandoverDriverInit {
-    #[uniffi::constructor]
-    #[allow(clippy::new_without_default)]
-    #[allow(clippy::new_ret_no_self)]
-    /// Create a new APDU handover driver for a reader.
-    ///
-    /// Returns: the driver along with the initial APDU.
-    pub fn new() -> Self {
-        let (driver, apdu) =
-            isomdl::definitions::device_engagement::nfc::ReaderApduHandoverDriver::new();
-        Self(ReaderApduHandoverDriver(Mutex::new(driver)), apdu)
+pub fn new_reader_apdu_handover_driver() -> ReaderApduHandoverDriverInit {
+    let (driver, apdu) =
+        isomdl::definitions::device_engagement::nfc::ReaderApduHandoverDriver::new();
+    ReaderApduHandoverDriverInit {
+        driver: Arc::new(ReaderApduHandoverDriver(Mutex::new(driver))),
+        initial_apdu: apdu,
     }
 }
 

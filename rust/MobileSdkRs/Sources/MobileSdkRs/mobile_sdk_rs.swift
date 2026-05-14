@@ -13134,124 +13134,6 @@ public func FfiConverterTypeReaderApduHandoverDriver_lower(_ value: ReaderApduHa
 
 
 
-public protocol ReaderApduHandoverDriverInitProtocol: AnyObject, Sendable {
-    
-}
-open class ReaderApduHandoverDriverInit: ReaderApduHandoverDriverInitProtocol, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_readerapduhandoverdriverinit(self.handle, $0) }
-    }
-    /**
-     * Create a new APDU handover driver for a reader.
-     *
-     * Returns: the driver along with the initial APDU.
-     */
-public convenience init() {
-    let handle =
-        try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_constructor_readerapduhandoverdriverinit_new($0
-    )
-}
-    self.init(unsafeFromHandle: handle)
-}
-
-    deinit {
-        if handle == 0 {
-            // Mock objects have handle=0 don't try to free them
-            return
-        }
-
-        try! rustCall { uniffi_mobile_sdk_rs_fn_free_readerapduhandoverdriverinit(handle, $0) }
-    }
-
-    
-
-    
-
-    
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeReaderApduHandoverDriverInit: FfiConverter {
-    typealias FfiType = UInt64
-    typealias SwiftType = ReaderApduHandoverDriverInit
-
-    public static func lift(_ handle: UInt64) throws -> ReaderApduHandoverDriverInit {
-        return ReaderApduHandoverDriverInit(unsafeFromHandle: handle)
-    }
-
-    public static func lower(_ value: ReaderApduHandoverDriverInit) -> UInt64 {
-        return value.uniffiCloneHandle()
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReaderApduHandoverDriverInit {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: ReaderApduHandoverDriverInit, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeReaderApduHandoverDriverInit_lift(_ handle: UInt64) throws -> ReaderApduHandoverDriverInit {
-    return try FfiConverterTypeReaderApduHandoverDriverInit.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeReaderApduHandoverDriverInit_lower(_ value: ReaderApduHandoverDriverInit) -> UInt64 {
-    return FfiConverterTypeReaderApduHandoverDriverInit.lower(value)
-}
-
-
-
-
-
-
 public protocol ReaderHandoverProtocol: AnyObject, Sendable {
     
 }
@@ -18681,6 +18563,60 @@ public func FfiConverterTypeRawCredential_lift(_ buf: RustBuffer) throws -> RawC
 #endif
 public func FfiConverterTypeRawCredential_lower(_ value: RawCredential) -> RustBuffer {
     return FfiConverterTypeRawCredential.lower(value)
+}
+
+
+public struct ReaderApduHandoverDriverInit {
+    public var driver: ReaderApduHandoverDriver
+    public var initialApdu: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(driver: ReaderApduHandoverDriver, initialApdu: Data) {
+        self.driver = driver
+        self.initialApdu = initialApdu
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ReaderApduHandoverDriverInit: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReaderApduHandoverDriverInit: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReaderApduHandoverDriverInit {
+        return
+            try ReaderApduHandoverDriverInit(
+                driver: FfiConverterTypeReaderApduHandoverDriver.read(from: &buf), 
+                initialApdu: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ReaderApduHandoverDriverInit, into buf: inout [UInt8]) {
+        FfiConverterTypeReaderApduHandoverDriver.write(value.driver, into: &buf)
+        FfiConverterData.write(value.initialApdu, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduHandoverDriverInit_lift(_ buf: RustBuffer) throws -> ReaderApduHandoverDriverInit {
+    return try FfiConverterTypeReaderApduHandoverDriverInit.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderApduHandoverDriverInit_lower(_ value: ReaderApduHandoverDriverInit) -> RustBuffer {
+    return FfiConverterTypeReaderApduHandoverDriverInit.lower(value)
 }
 
 
@@ -33005,6 +32941,17 @@ public func handleResponse(state: MdlSessionManager, response: Data)throws  -> M
     )
 })
 }
+/**
+ * Create a new APDU handover driver for a reader.
+ *
+ * Returns: the driver along with the initial APDU to send to the holder.
+ */
+public func newReaderApduHandoverDriver() -> ReaderApduHandoverDriverInit  {
+    return try!  FfiConverterTypeReaderApduHandoverDriverInit_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_new_reader_apdu_handover_driver($0
+    )
+})
+}
 public func verifiedResponseAsJsonString(response: MdlReaderResponseData)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseSerializeError_lift) {
     uniffi_mobile_sdk_rs_fn_func_verified_response_as_json_string(
@@ -33285,6 +33232,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 9521) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_new_reader_apdu_handover_driver() != 54309) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_verified_response_as_json_string() != 44695) {
@@ -34338,9 +34288,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_saattestationobjectvaluebuilder_new() != 13328) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_readerapduhandoverdriverinit_new() != 36929) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_readerhandover_new_qr() != 43836) {

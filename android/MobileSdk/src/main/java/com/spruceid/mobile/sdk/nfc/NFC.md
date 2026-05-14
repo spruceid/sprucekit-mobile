@@ -1,5 +1,62 @@
 # NFC for credential presentation
 
+This SDK supports NFC on both sides of an ISO 18013-5 mDL engagement:
+
+- **Holder (HCE)** — your wallet emulates a contactless card and is tapped by a verifier. See [Holder (HCE) NFC engagement](#holder-hce-nfc-engagement) below.
+- **Reader (verifier)** — your app drives the NFC controller to read a holder's tap. See [Reader (verifier) NFC engagement](#reader-verifier-nfc-engagement) below.
+
+The SDK manifest contributes the following automatically, so you do not need to add them in your app manifest:
+
+```xml
+<uses-permission android:name="android.permission.NFC" />
+<uses-feature android:name="android.hardware.nfc" android:required="false" />
+```
+
+If your app does not use any NFC features and you want the permission gone from your merged manifest, add this to your `AndroidManifest.xml` (ensure the `<manifest>` tag declares `xmlns:tools="http://schemas.android.com/tools"`):
+
+```xml
+<uses-permission android:name="android.permission.NFC" tools:node="remove" />
+```
+
+## Reader (verifier) NFC engagement
+
+For Compose-based verifier apps, `rememberNfcReaderEngagement` is a single entry point that handles activity discovery, lifecycle binding, NFC adapter state tracking, and the APDU exchange. The handover it returns is passed to `IsoMdlReader` to start the BLE session, exactly as with QR engagement.
+
+```kotlin
+@Composable
+fun MyVerifierScreen() {
+    val nfcActive = /* true while your UI is actively soliciting a tap */
+    val phase by rememberNfcReaderEngagement(
+        onHandover = { handover ->
+            // Start your BLE session, e.g.:
+            // IsoMdlReader(callback, handover, requestedItems, trustAnchors, bluetooth, context)
+        },
+        active = nfcActive,
+    )
+    when (phase) {
+        NfcReaderPhase.Unsupported -> Text("This device does not support NFC.")
+        NfcReaderPhase.Disabled -> Text("NFC is off. Enable it in system settings.")
+        NfcReaderPhase.WaitingForTag -> Text("Tap the holder's phone to share their credential.")
+        NfcReaderPhase.Exchanging -> CircularProgressIndicator()
+        is NfcReaderPhase.ProtocolError -> Text(
+            (phase as NfcReaderPhase.ProtocolError).cause.message ?: "Handover failed",
+        )
+    }
+}
+```
+
+Flip `active` off whenever your UI is foreground but not actively soliciting a tap — e.g. when the user is on a different tab, or while a BLE session is already running. Reader mode stays on so the device keeps the NFC controller in initiator role; this suppresses wallet pickers, foreign HCE services, and OS tag dispatchers from triggering on stray taps.
+
+For non-Compose hosts, the underlying `NfcReaderEngagement` class can be driven directly — see its KDoc.
+
+### Reader-side caveats
+
+- **Samsung camera/NFC mutex.** On Samsung devices, opening the camera forces NFC active polling off (`NfcService: setReaderMode: active polling is forced to disable now`). When the camera is then closed, Samsung's NfcService internally clears the app's reader mode and falls back to the default tag dispatcher, so the next tap surfaces the OS "new tag scanned" / "Unknown tag" overlay instead of hitting the app callback. `NfcReaderEngagement` watches `CameraManager.AvailabilityCallback` and re-arms reader mode whenever a camera transitions back to available — so for most consumers this is invisible. If the host UI has a camera preview *and* a reader simultaneously (e.g. a QR-or-NFC verifier screen), prefer releasing the camera fully before soliciting an NFC tap to avoid the brief overlay window between camera-close and the SDK's re-arm.
+
+- **Reader-mode tech set must be narrow.** Adding `FLAG_READER_NFC_F`, `FLAG_READER_NFC_V`, or `FLAG_READER_NFC_BARCODE` to the reader flags re-introduces the Samsung overlay even with the camera re-arm active. Mdoc engagement only needs NFC-A IsoDep; NFC-B is harmless. Don't be tempted to "claim every tech to suppress OS tag dispatch" — on Samsung it routes through a path the re-arm doesn't recover.
+
+## Holder (HCE) NFC engagement
+
 ### Creating the service handler
 
 You must create a class that inherits from SpruceKit's `BaseNfcPresentationService` for handling NFC messages.
