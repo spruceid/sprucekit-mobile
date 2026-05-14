@@ -103,7 +103,8 @@ enum class CredentialFormat(val raw: Int) {
   SD_JWT(2),
   DC_SD_JWT(3),
   MSO_MDOC(4),
-  CWT(5);
+  CWT(5),
+  OPTICAL_BARCODE(6);
 
   companion object {
     fun ofRaw(raw: Int): CredentialFormat? {

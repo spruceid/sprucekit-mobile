@@ -68,6 +68,7 @@ enum CredentialFormat {
   dcSdJwt,
   msoMdoc,
   cwt,
+  opticalBarcode,
 }
 
 /// A parsed credential with its metadata

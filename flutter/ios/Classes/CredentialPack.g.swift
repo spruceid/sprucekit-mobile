@@ -148,6 +148,7 @@ enum CredentialFormat: Int {
   case dcSdJwt = 3
   case msoMdoc = 4
   case cwt = 5
+  case opticalBarcode = 6
 }
 
 /// A parsed credential with its metadata

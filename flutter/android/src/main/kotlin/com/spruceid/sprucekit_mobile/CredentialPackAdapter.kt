@@ -368,6 +368,11 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
                 rawCredential = dcSdJwt.credentialClaims().toString()
                 vct = dcSdJwt.vct()
             }
+            this.asOpticalBarcodeCredential() != null -> {
+                val optical = this.asOpticalBarcodeCredential()!!
+                format = CredentialFormat.OPTICAL_BARCODE
+                rawCredential = optical.rawJsonld()
+            }
             else -> {
                 format = CredentialFormat.JWT_VC
             }
@@ -393,4 +398,5 @@ private fun CredentialFormat.toRustFormatString(): String = when (this) {
     CredentialFormat.SD_JWT -> "vcdm2_sd_jwt"
     CredentialFormat.DC_SD_JWT -> "dc+sd-jwt"
     CredentialFormat.CWT -> "cwt"
+    CredentialFormat.OPTICAL_BARCODE -> "optical_barcode_credential"
 }

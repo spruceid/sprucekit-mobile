@@ -189,6 +189,8 @@ class CredentialPackAdapter: CredentialPack {
                     } else {
                         claimsJson = ""
                     }
+                case .opticalBarcode:
+                    claimsJson = parsed.asOpticalBarcodeCredential()?.rawJsonld() ?? ""
                 }
 
                 if claimsJson.isEmpty {
@@ -451,6 +453,11 @@ extension SpruceIDMobileSdkRs.ParsedCredential {
                 rawCredential = (try? dcSdJwt.revealedClaimsAsJsonString()) ?? ""
                 vct = dcSdJwt.vct()
             }
+        case .opticalBarcodeCredential:
+            pigeonFormat = .opticalBarcode
+            if let optical = self.asOpticalBarcodeCredential() {
+                rawCredential = optical.rawJsonld()
+            }
         case .other(_):
             pigeonFormat = .jwtVc // default fallback
         }
@@ -496,6 +503,7 @@ extension CredentialFormat {
         case .sdJwt: return "vcdm2_sd_jwt"
         case .dcSdJwt: return "dc+sd-jwt"
         case .cwt: return "cwt"
+        case .opticalBarcode: return "optical_barcode_credential"
         }
     }
 }
