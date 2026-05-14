@@ -315,37 +315,66 @@ class Oid4vciAdapter: Oid4vci {
         )
     }
 
+    /// Exchange every credential in the offer against the token. Loops over
+    /// the offer's credential_configuration_ids and issues a fresh nonce + JWT
+    /// proof per credential (the protocol requires a unique proof per request).
+    private func exchangeAllCredentials(
+        httpClient: Oid4vciAsyncHttpClient,
+        clientId: String,
+        audience: String,
+        signer: Oid4vciJwsSigner,
+        token: CredentialToken,
+        configIds: [String]
+    ) async throws -> [IssuedCredential] {
+        let oid4vciClient = Oid4vciClient(clientId: clientId)
+        var result: [IssuedCredential] = []
+        for configId in configIds {
+            let nonce = try await token.getNonce(httpClient: httpClient)
+            let jwt = try await createJwtProof(
+                issuer: clientId,
+                audience: audience,
+                expireInSecs: nil,
+                nonce: nonce,
+                signer: signer
+            )
+            let proofs = Proofs.jwt([jwt])
+            let response = try await oid4vciClient.exchangeCredential(
+                httpClient: httpClient,
+                token: token,
+                credential: .configuration(configId),
+                proofs: proofs
+            )
+            switch response {
+            case .deferred:
+                throw NSError(
+                    domain: "OID4VCI",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "Deferred credentials not supported"]
+                )
+            case .immediate(let immediateResponse):
+                result.append(contentsOf: immediateResponse.credentials.map { cred in
+                    IssuedCredential(
+                        payload: String(decoding: Data(cred.payload), as: UTF8.self),
+                        format: formatToString(cred.format)
+                    )
+                })
+            }
+        }
+        return result
+    }
+
     private func exchangeCredentialWithToken(
         ctx: Oid4vciSessionRegistry.SessionContext,
         token: CredentialToken
     ) async throws -> [IssuedCredential] {
-        let credentialId = try token.defaultCredentialId()
-        let nonce = try await token.getNonce(httpClient: ctx.httpClient)
-        let jwt = try await createJwtProof(
-            issuer: ctx.clientId,
+        return try await exchangeAllCredentials(
+            httpClient: ctx.httpClient,
+            clientId: ctx.clientId,
             audience: ctx.resolvedOffer.credentialIssuer(),
-            expireInSecs: nil,
-            nonce: nonce,
-            signer: ctx.signer
+            signer: ctx.signer,
+            token: token,
+            configIds: ctx.resolvedOffer.credentialConfigurationIds()
         )
-        let proofs = Proofs.jwt([jwt])
-        let response = try await Oid4vciClient(clientId: ctx.clientId)
-            .exchangeCredential(httpClient: ctx.httpClient, token: token, credential: credentialId, proofs: proofs)
-        switch response {
-        case .deferred:
-            throw NSError(
-                domain: "OID4VCI",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "Deferred credentials not supported"]
-            )
-        case .immediate(let immediateResponse):
-            return immediateResponse.credentials.map { cred in
-                IssuedCredential(
-                    payload: String(decoding: Data(cred.payload), as: UTF8.self),
-                    format: formatToString(cred.format)
-                )
-            }
-        }
     }
 
     /// Convert native CredentialFormat enum to string for Pigeon API
@@ -365,6 +394,8 @@ class Oid4vciAdapter: Oid4vci {
             return "dc+sd-jwt"
         case .cwt:
             return "cwt"
+        case .opticalBarcodeCredential:
+            return "optical_barcode_credential"
         case .other(let value):
             return value
         }
@@ -397,34 +428,15 @@ class Oid4vciAdapter: Oid4vci {
         case .requiresTxCode(_):
             return Oid4vciError(message: "Transaction Code not supported")
         case .ready(let credentialToken):
-            let credentialId = try credentialToken.defaultCredentialId()
-            let nonce = try await credentialToken.getNonce(httpClient: httpClient)
-            let jwt = try await createJwtProof(
-                issuer: derivedClientId,
-                audience: credentialIssuer,
-                expireInSecs: nil,
-                nonce: nonce,
-                signer: signer
-            )
-            let proofs = Proofs.jwt([jwt])
-            let response = try await oid4vciClient.exchangeCredential(
+            let issuedCredentials = try await exchangeAllCredentials(
                 httpClient: httpClient,
+                clientId: derivedClientId,
+                audience: credentialIssuer,
+                signer: signer,
                 token: credentialToken,
-                credential: credentialId,
-                proofs: proofs
+                configIds: offer.credentialConfigurationIds()
             )
-            switch response {
-            case .deferred(_):
-                return Oid4vciError(message: "Deferred credentials not supported")
-            case .immediate(let immediateResponse):
-                let issuedCredentials = immediateResponse.credentials.map { cred in
-                    IssuedCredential(
-                        payload: String(decoding: Data(cred.payload), as: UTF8.self),
-                        format: formatToString(cred.format)
-                    )
-                }
-                return Oid4vciSuccess(credentials: issuedCredentials)
-            }
+            return Oid4vciSuccess(credentials: issuedCredentials)
         }
     }
 }

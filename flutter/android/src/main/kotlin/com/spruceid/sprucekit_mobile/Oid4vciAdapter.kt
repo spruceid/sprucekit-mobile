@@ -4,6 +4,7 @@ import android.content.Context
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.Oid4vciAsyncHttpClient
 import com.spruceid.mobile.sdk.rs.CredentialFormat as RsCredentialFormat
+import com.spruceid.mobile.sdk.rs.CredentialOrConfigurationId
 import com.spruceid.mobile.sdk.rs.CredentialResponse
 import com.spruceid.mobile.sdk.rs.CredentialToken
 import com.spruceid.mobile.sdk.rs.CredentialTokenState
@@ -272,32 +273,63 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         )
     }
 
+    /// Exchange every credential in the offer against the token. Loops over
+    /// the offer's credential_configuration_ids and issues a fresh nonce + JWT
+    /// proof per credential (the protocol requires a unique proof per request).
+    private suspend fun exchangeAllCredentials(
+        httpClient: Oid4vciAsyncHttpClient,
+        clientId: String,
+        audience: String,
+        signer: JwsSigner,
+        token: CredentialToken,
+        configIds: List<String>,
+    ): List<IssuedCredential> {
+        val client = Oid4vciClient(clientId)
+        val result = mutableListOf<IssuedCredential>()
+        for (configId in configIds) {
+            val nonce = token.getNonce(httpClient)
+            val jwt = createJwtProof(clientId, audience, null, nonce, signer)
+            val proofs = Proofs.Jwt(listOf(jwt))
+            val response = client.exchangeCredential(
+                httpClient,
+                token,
+                CredentialOrConfigurationId.Configuration(configId),
+                proofs,
+            )
+            when (response) {
+                is CredentialResponse.Immediate -> {
+                    result.addAll(response.v1.credentials.map { cred ->
+                        val formatString = when (cred.format) {
+                            is RsCredentialFormat.MsoMdoc -> "mso_mdoc"
+                            is RsCredentialFormat.JwtVcJson -> "jwt_vc_json"
+                            is RsCredentialFormat.JwtVcJsonLd -> "jwt_vc_json-ld"
+                            is RsCredentialFormat.LdpVc -> "ldp_vc"
+                            is RsCredentialFormat.Vcdm2SdJwt -> "vc+sd-jwt"
+                            is RsCredentialFormat.DcSdJwt -> "dc+sd-jwt"
+                            is RsCredentialFormat.Cwt -> "cwt"
+                            is RsCredentialFormat.OpticalBarcodeCredential -> "optical_barcode_credential"
+                            is RsCredentialFormat.Other -> (cred.format as RsCredentialFormat.Other).v1
+                        }
+                        IssuedCredential(payload = cred.payload.toString(Charsets.UTF_8), format = formatString)
+                    })
+                }
+                is CredentialResponse.Deferred -> throw IllegalStateException("Deferred credentials not supported")
+            }
+        }
+        return result
+    }
+
     private suspend fun exchangeCredentialWithToken(
         ctx: SessionContext,
         token: CredentialToken,
-    ): List<IssuedCredential> {
-        val credentialId = token.defaultCredentialId()
-        val nonce = token.getNonce(ctx.httpClient)
-        val jwt = createJwtProof(ctx.clientId, ctx.resolvedOffer.credentialIssuer(), null, nonce, ctx.signer)
-        val proofs = Proofs.Jwt(listOf(jwt))
-        val client = Oid4vciClient(ctx.clientId)
-        return when (val response = client.exchangeCredential(ctx.httpClient, token, credentialId, proofs)) {
-            is CredentialResponse.Immediate -> response.v1.credentials.map { cred ->
-                val formatString = when (cred.format) {
-                    is RsCredentialFormat.MsoMdoc -> "mso_mdoc"
-                    is RsCredentialFormat.JwtVcJson -> "jwt_vc_json"
-                    is RsCredentialFormat.JwtVcJsonLd -> "jwt_vc_json-ld"
-                    is RsCredentialFormat.LdpVc -> "ldp_vc"
-                    is RsCredentialFormat.Vcdm2SdJwt -> "vc+sd-jwt"
-                    is RsCredentialFormat.DcSdJwt -> "dc+sd-jwt"
-                    is RsCredentialFormat.Cwt -> "cwt"
-                    is RsCredentialFormat.Other -> (cred.format as RsCredentialFormat.Other).v1
-                }
-                IssuedCredential(payload = cred.payload.toString(Charsets.UTF_8), format = formatString)
-            }
-            is CredentialResponse.Deferred -> throw IllegalStateException("Deferred credentials not supported")
-        }
-    }
+    ): List<IssuedCredential> = exchangeAllCredentials(
+        httpClient = ctx.httpClient,
+        clientId = ctx.clientId,
+        audience = ctx.resolvedOffer.credentialIssuer(),
+        signer = ctx.signer,
+        token = token,
+        configIds = ctx.resolvedOffer.credentialConfigurationIds(),
+    )
 
     private suspend fun performIssuance(
         credentialOffer: String,
@@ -320,31 +352,15 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
             }
             is CredentialTokenState.Ready -> {
                 val credentialToken = state.v1
-                val credentialId = credentialToken.defaultCredentialId()
-                val nonce = credentialToken.getNonce(httpClient)
-                val jwt = createJwtProof(derivedClientId, credentialIssuer, null, nonce, signer)
-                val proofs = Proofs.Jwt(listOf(jwt))
-                val response = oid4vciClient.exchangeCredential(httpClient, credentialToken, credentialId, proofs)
-                when (response) {
-                    is CredentialResponse.Deferred -> Oid4vciError(message = "Deferred credentials not supported")
-                    is CredentialResponse.Immediate -> {
-                        val issuedCredentials = response.v1.credentials.map { cred ->
-                            val formatString = when (cred.format) {
-                                is RsCredentialFormat.MsoMdoc -> "mso_mdoc"
-                                is RsCredentialFormat.JwtVcJson -> "jwt_vc_json"
-                                is RsCredentialFormat.JwtVcJsonLd -> "jwt_vc_json-ld"
-                                is RsCredentialFormat.LdpVc -> "ldp_vc"
-                                is RsCredentialFormat.Vcdm2SdJwt -> "vc+sd-jwt"
-                                is RsCredentialFormat.DcSdJwt -> "dc+sd-jwt"
-                                is RsCredentialFormat.Cwt -> "cwt"
-                                is RsCredentialFormat.OpticalBarcodeCredential -> "optical_barcode_credential"
-                                is RsCredentialFormat.Other -> (cred.format as RsCredentialFormat.Other).v1
-                            }
-                            IssuedCredential(payload = cred.payload.toString(Charsets.UTF_8), format = formatString)
-                        }
-                        Oid4vciSuccess(credentials = issuedCredentials)
-                    }
-                }
+                val issuedCredentials = exchangeAllCredentials(
+                    httpClient = httpClient,
+                    clientId = derivedClientId,
+                    audience = credentialIssuer,
+                    signer = signer,
+                    token = credentialToken,
+                    configIds = offer.credentialConfigurationIds(),
+                )
+                Oid4vciSuccess(credentials = issuedCredentials)
             }
         }
     }
