@@ -135,7 +135,7 @@ fun HandleOID4VCIView(
 
                 is CredentialTokenState.RequiresAuthorizationCode -> {
                     Log.i("OID4VCI", "Authorization code grant — launching browser sign-in")
-                    val redirectUrl = "showcase-oid4vci-redirect://callback"
+                    val redirectUrl = "sk-showcase-oid4vci-redirect://callback"
                     val waiting = state.v1.proceed(httpClient, redirectUrl)
                     val authUrl = waiting.redirectUrl()
                     Log.i("OID4VCI", "Authorization URL: $authUrl")

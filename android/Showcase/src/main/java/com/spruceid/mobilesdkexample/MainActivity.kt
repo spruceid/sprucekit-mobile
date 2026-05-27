@@ -98,7 +98,7 @@ class MainActivity : ComponentActivity() {
                         intent.data.toString().replace("mdoc-openid4vp://", "")
                     )
                 )
-            } else if (intent.data!!.toString().startsWith("showcase-oid4vci-redirect")) {
+            } else if (intent.data!!.toString().startsWith("sk-showcase-oid4vci-redirect")) {
                 com.spruceid.mobilesdkexample.wallet.Oid4vciAuthCodeReceiver.publish(intent.data!!)
             }
         } else {

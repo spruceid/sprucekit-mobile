@@ -101,14 +101,14 @@ struct HandleOID4VCIView: View {
 
                 switch state {
                 case .requiresAuthorizationCode(let authState):
-                    let redirectUrl = "showcase-oid4vci-redirect://callback"
+                    let redirectUrl = "sk-showcase-oid4vci-redirect://callback"
                     let waiting = try await authState.proceed(httpClient: httpClient, redirectUrl: redirectUrl)
                     let authUrl = URL(string: waiting.redirectUrl())!
 
                     let redirectUri: URL? = try await withCheckedThrowingContinuation { cont in
                         let session = ASWebAuthenticationSession(
                             url: authUrl,
-                            callbackURLScheme: "showcase-oid4vci-redirect"
+                            callbackURLScheme: "sk-showcase-oid4vci-redirect"
                         ) { callbackURL, error in
                             if let _ = error { cont.resume(returning: nil); return }
                             cont.resume(returning: callbackURL)
