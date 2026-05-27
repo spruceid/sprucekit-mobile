@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sprucekit_mobile/sprucekit_mobile.dart';
+
+const _authCodeRedirectUrl = 'example-oid4vci-redirect://callback';
+const _authCodeRedirectScheme = 'example-oid4vci-redirect';
 
 class Oid4vciDemo extends StatefulWidget {
   const Oid4vciDemo({super.key});
@@ -14,16 +18,18 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   final _api = Oid4vci();
   final _offerController = TextEditingController();
   final _clientIdController = TextEditingController(text: 'skit-demo-wallet');
-  final _redirectUrlController = TextEditingController(
-    text: 'https://spruceid.com',
-  );
   final _keyIdController = TextEditingController(text: 'default-signing-key');
+  final _pinController = TextEditingController();
 
   bool _loading = false;
   bool _showScanner = false;
   bool _cameraGranted = false;
+  bool _showPinDialog = false;
   List<IssuedCredential> _issuedCredentials = [];
   String? _error;
+  ParsedOfferMetadata? _parsedMetadata;
+  String? _sessionId;
+  TxCodeMetadata? _txCodeMetadata;
 
   @override
   void initState() {
@@ -35,8 +41,8 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   void dispose() {
     _offerController.dispose();
     _clientIdController.dispose();
-    _redirectUrlController.dispose();
     _keyIdController.dispose();
+    _pinController.dispose();
     super.dispose();
   }
 
@@ -56,10 +62,10 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   void _handleScannedUrl(String url) {
     _closeScanner();
     _offerController.text = url;
-    _runIssuance();
+    _startIssuance();
   }
 
-  Future<void> _runIssuance() async {
+  Future<void> _startIssuance() async {
     FocusScope.of(context).unfocus();
 
     final offer = _offerController.text.trim();
@@ -71,21 +77,152 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     setState(() {
       _loading = true;
       _issuedCredentials = [];
+      _parsedMetadata = null;
+      _sessionId = null;
+      _txCodeMetadata = null;
       _error = null;
     });
 
     try {
-      final result = await _api.runIssuance(
-        offer,
-        _clientIdController.text,
-        _redirectUrlController.text,
-        _keyIdController.text,
-        DidMethod.jwk,
-        null,
-      );
+      final metadata = await _api.parseOffer(offer);
+      setState(() => _parsedMetadata = metadata);
 
+      switch (metadata.grantType) {
+        case GrantType.preAuthCodeNoTxCode:
+          await _runNoAuthFlow(offer);
+        case GrantType.preAuthCodeWithTxCode:
+          await _runTxCodeFlow(offer);
+        case GrantType.authorizationCode:
+          await _runAuthCodeFlow(offer);
+      }
+    } catch (e) {
       setState(() {
         _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  Future<void> _runNoAuthFlow(String offer) async {
+    final result = await _api.runIssuance(
+      offer,
+      _clientIdController.text,
+      _authCodeRedirectUrl,
+      _keyIdController.text,
+      DidMethod.jwk,
+      null,
+    );
+    setState(() {
+      _loading = false;
+      switch (result) {
+        case Oid4vciSuccess(:final credentials):
+          _issuedCredentials = credentials;
+        case Oid4vciError(:final message):
+          _error = message;
+      }
+    });
+  }
+
+  Future<void> _runTxCodeFlow(String offer) async {
+    final session = await _api.acceptOffer(
+      offer,
+      _clientIdController.text,
+      _keyIdController.text,
+      DidMethod.jwk,
+      null,
+    );
+    setState(() {
+      _loading = false;
+      _sessionId = session.sessionId;
+      _txCodeMetadata = session.metadata.txCode;
+      _showPinDialog = true;
+    });
+  }
+
+  Future<void> _runAuthCodeFlow(String offer) async {
+    final session = await _api.acceptOffer(
+      offer,
+      _clientIdController.text,
+      _keyIdController.text,
+      DidMethod.jwk,
+      _authCodeRedirectUrl,
+    );
+    final sessionId = session.sessionId;
+
+    final authUrl = await _api.buildAuthorizationUrl(sessionId);
+    if (authUrl == null) {
+      await _api.releaseSession(sessionId);
+      setState(() {
+        _loading = false;
+        _error = 'Failed to build authorization URL';
+      });
+      return;
+    }
+
+    Uri? redirect;
+    try {
+      final resultUrl = await FlutterWebAuth2.authenticate(
+        url: authUrl,
+        callbackUrlScheme: _authCodeRedirectScheme,
+      );
+      redirect = Uri.parse(resultUrl);
+    } catch (_) {
+      redirect = null;
+    }
+
+    if (redirect == null) {
+      await _api.releaseSession(sessionId);
+      setState(() {
+        _loading = false;
+        _error = 'Sign-in cancelled or browser error';
+      });
+      return;
+    }
+
+    final errorParam = redirect.queryParameters['error'];
+    if (errorParam != null) {
+      await _api.releaseSession(sessionId);
+      setState(() {
+        _loading = false;
+        _error = 'Authorization error: $errorParam';
+      });
+      return;
+    }
+
+    final code = redirect.queryParameters['code'];
+    if (code == null || code.isEmpty) {
+      await _api.releaseSession(sessionId);
+      setState(() {
+        _loading = false;
+        _error = 'Missing authorization code in callback';
+      });
+      return;
+    }
+
+    final result = await _api.continueWithAuthorizationCode(sessionId, code);
+    setState(() {
+      _loading = false;
+      switch (result) {
+        case Oid4vciSuccess(:final credentials):
+          _issuedCredentials = credentials;
+        case Oid4vciError(:final message):
+          _error = message;
+      }
+    });
+  }
+
+  Future<void> _submitPin(String pin) async {
+    final sessionId = _sessionId;
+    if (sessionId == null) return;
+    setState(() {
+      _showPinDialog = false;
+      _loading = true;
+    });
+    try {
+      final result = await _api.continueWithTxCode(sessionId, pin);
+      setState(() {
+        _loading = false;
+        _sessionId = null;
         switch (result) {
           case Oid4vciSuccess(:final credentials):
             _issuedCredentials = credentials;
@@ -96,9 +233,28 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     } catch (e) {
       setState(() {
         _loading = false;
+        _sessionId = null;
         _error = e.toString();
       });
     }
+  }
+
+  Future<void> _cancelPin() async {
+    final sessionId = _sessionId;
+    if (sessionId != null) {
+      try {
+        await _api.releaseSession(sessionId);
+      } catch (_) {
+        // best effort; don't surface
+      }
+    }
+    setState(() {
+      _showPinDialog = false;
+      _loading = false;
+      _sessionId = null;
+      _txCodeMetadata = null;
+      _error = 'PIN entry cancelled';
+    });
   }
 
   @override
@@ -141,14 +297,6 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: _redirectUrlController,
-              decoration: const InputDecoration(
-                labelText: 'Redirect URL',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
               controller: _keyIdController,
               decoration: const InputDecoration(
                 labelText: 'Key ID',
@@ -160,14 +308,14 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _loading ? null : _runIssuance,
+                    onPressed: _loading ? null : _startIssuance,
                     child: _loading
                         ? const SizedBox(
                             height: 20,
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Run Issuance'),
+                        : const Text('Start Issuance'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -178,11 +326,110 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
                       ? _openScanner
                       : _requestCameraPermission,
                   icon: const Icon(Icons.qr_code_scanner),
-                  label: Text(_cameraGranted ? 'Scan' : 'Camera'),
+                  label: Text(_cameraGranted ? 'Scan QR' : 'Camera'),
                 ),
               ],
             ),
             const SizedBox(height: 24),
+            if (_parsedMetadata != null) ...[
+              const Text(
+                'Parsed Offer Metadata:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text(
+                'Issuer: ${_parsedMetadata!.issuerDisplayName ?? "(no display name)"}',
+              ),
+              Text('Issuer ID: ${_parsedMetadata!.issuerId}'),
+              Text(
+                'Credentials: ${_parsedMetadata!.credentialConfigurationIds.join(", ")}',
+              ),
+              Text('Grant: ${_parsedMetadata!.grantType.name}'),
+              if (_parsedMetadata!.txCode != null)
+                Text(
+                  'Tx Code: inputMode=${_parsedMetadata!.txCode!.inputMode?.name ?? "(default numeric)"}, '
+                  'length=${_parsedMetadata!.txCode!.length ?? "(none)"}, '
+                  'description=${_parsedMetadata!.txCode!.description ?? "(none)"}',
+                ),
+              const SizedBox(height: 16),
+            ],
+            if (_showPinDialog) ...[
+              Card(
+                color: Colors.amber.shade50,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Enter PIN',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _txCodeMetadata?.description ??
+                            'Enter the PIN provided with the offer.',
+                      ),
+                      if (_txCodeMetadata?.length != null)
+                        Text(
+                          'Length hint: ${_txCodeMetadata!.length}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      if (_txCodeMetadata?.inputMode != null)
+                        Text(
+                          'Input mode: ${_txCodeMetadata!.inputMode!.name}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _pinController,
+                        keyboardType:
+                            _txCodeMetadata?.inputMode ==
+                                TxCodeInputMode.numeric
+                            ? TextInputType.number
+                            : TextInputType.text,
+                        decoration: const InputDecoration(
+                          labelText: 'PIN',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () {
+                                final pin = _pinController.text;
+                                _pinController.clear();
+                                _submitPin(pin);
+                              },
+                              child: const Text('Submit'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          TextButton(
+                            onPressed: () {
+                              _pinController.clear();
+                              _cancelPin();
+                            },
+                            child: const Text('Cancel'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             if (_error != null)
               Container(
                 padding: const EdgeInsets.all(12),

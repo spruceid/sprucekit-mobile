@@ -103,7 +103,8 @@ enum class CredentialFormat(val raw: Int) {
   SD_JWT(2),
   DC_SD_JWT(3),
   MSO_MDOC(4),
-  CWT(5);
+  CWT(5),
+  OPTICAL_BARCODE(6);
 
   companion object {
     fun ofRaw(raw: Int): CredentialFormat? {
@@ -157,6 +158,61 @@ data class ParsedCredentialData (
   }
   override fun equals(other: Any?): Boolean {
     if (other !is ParsedCredentialData) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return CredentialPackPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Stateless preview of a parsed credential, used to render claims BEFORE
+ * the user has agreed to persist the credential into their wallet.
+ *
+ * Unlike [ParsedCredentialData], this preview is not bound to a stored
+ * credential pack and carries the full claims map inline so callers can
+ * render it without a follow-up `getCredentialClaims` lookup.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class ParsedCredentialPreview (
+  /** The credential format. */
+  val format: CredentialFormat,
+  /** `MsoMdoc.doctype()` for mdoc credentials. Null otherwise. */
+  val doctype: String? = null,
+  /** `DcSdJwt.vct()` for IETF SD-JWT VC credentials. Null otherwise. */
+  val vct: String? = null,
+  /**
+   * JSON-encoded string of the credential claims. For mdoc, keys preserve
+   * the namespace path (e.g. `"org.iso.18013.5.1.given_name"`). Mirrors the
+   * shape returned by `getCredentialClaims` so callers can decode it the
+   * same way.
+   */
+  val claimsJson: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ParsedCredentialPreview {
+      val format = pigeonVar_list[0] as CredentialFormat
+      val doctype = pigeonVar_list[1] as String?
+      val vct = pigeonVar_list[2] as String?
+      val claimsJson = pigeonVar_list[3] as String
+      return ParsedCredentialPreview(format, doctype, vct, claimsJson)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      format,
+      doctype,
+      vct,
+      claimsJson,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is ParsedCredentialPreview) {
       return false
     }
     if (this === other) {
@@ -366,25 +422,30 @@ private open class CredentialPackPigeonCodec : StandardMessageCodec() {
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CredentialPackData.fromList(it)
+          ParsedCredentialPreview.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CredentialOperationSuccess.fromList(it)
+          CredentialPackData.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CredentialOperationError.fromList(it)
+          CredentialOperationSuccess.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AddCredentialSuccess.fromList(it)
+          CredentialOperationError.fromList(it)
         }
       }
       136.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          AddCredentialSuccess.fromList(it)
+        }
+      }
+      137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           AddCredentialError.fromList(it)
         }
@@ -406,24 +467,28 @@ private open class CredentialPackPigeonCodec : StandardMessageCodec() {
         stream.write(131)
         writeValue(stream, value.toList())
       }
-      is CredentialPackData -> {
+      is ParsedCredentialPreview -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is CredentialOperationSuccess -> {
+      is CredentialPackData -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is CredentialOperationError -> {
+      is CredentialOperationSuccess -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is AddCredentialSuccess -> {
+      is CredentialOperationError -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is AddCredentialError -> {
+      is AddCredentialSuccess -> {
         stream.write(136)
+        writeValue(stream, value.toList())
+      }
+      is AddCredentialError -> {
+        stream.write(137)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -463,6 +528,19 @@ interface CredentialPack {
    * @return AddCredentialResult with updated credentials or error
    */
   fun addRawCredential(packId: String, rawCredential: String, callback: (Result<AddCredentialResult>) -> Unit)
+  /**
+   * Parse a raw credential payload into a stateless preview, without
+   * persisting it. Used by issuance flows to render claims before the user
+   * agrees to add the credential to their wallet.
+   *
+   * @param rawCredential The raw credential payload (compact JWS for JWT-VC
+   *   / SD-JWT, JSON for ldp_vc, base64url-encoded CBOR for mdoc).
+   * @param format The credential format.
+   * @return A preview containing the parsed claims. The native side passes
+   *   a throwaway key alias internally; the credential is never bound to
+   *   any device key during parsing.
+   */
+  fun parseRawCredential(rawCredential: String, format: CredentialFormat, callback: (Result<ParsedCredentialPreview>) -> Unit)
   /**
    * Add a raw mDoc credential to a pack
    *
@@ -597,6 +675,27 @@ interface CredentialPack {
             val packIdArg = args[0] as String
             val rawCredentialArg = args[1] as String
             api.addRawCredential(packIdArg, rawCredentialArg) { result: Result<AddCredentialResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(CredentialPackPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(CredentialPackPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.CredentialPack.parseRawCredential$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val rawCredentialArg = args[0] as String
+            val formatArg = args[1] as CredentialFormat
+            api.parseRawCredential(rawCredentialArg, formatArg) { result: Result<ParsedCredentialPreview> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(CredentialPackPigeonUtils.wrapError(error))

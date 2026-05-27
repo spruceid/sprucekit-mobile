@@ -9,12 +9,13 @@ pub struct TxCodeRequired {
     inner: RwLock<Option<oid4vci::client::TxCodeRequired>>,
 }
 
+#[uniffi::export]
 impl TxCodeRequired {
     pub async fn proceed(
-        self,
+        &self,
         http_client: Arc<dyn AsyncHttpClient>,
-        tx_code: &str,
-    ) -> Result<CredentialToken, Oid4vciError> {
+        tx_code: String,
+    ) -> Result<Arc<CredentialToken>, Oid4vciError> {
         let state = self
             .inner
             .write()
@@ -23,9 +24,9 @@ impl TxCodeRequired {
             .ok_or(Oid4vciError::AlreadyProceeded)?;
 
         state
-            .proceed_async(&Oid4vciHttpClient(http_client), tx_code)
+            .proceed_async(&Oid4vciHttpClient(http_client), &tx_code)
             .await
-            .map(Into::into)
+            .map(|t| Arc::new(t.into()))
             .map_err(Into::into)
     }
 }

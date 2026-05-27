@@ -28,7 +28,15 @@ enum CredentialStatus {
 }
 
 /// Credential format type
-enum CredentialFormat { jwtVc, jsonVc, sdJwt, dcSdJwt, msoMdoc, cwt }
+enum CredentialFormat {
+  jwtVc,
+  jsonVc,
+  sdJwt,
+  dcSdJwt,
+  msoMdoc,
+  cwt,
+  opticalBarcode,
+}
 
 /// A parsed credential with its metadata
 class ParsedCredentialData {
@@ -55,6 +63,36 @@ class ParsedCredentialData {
     required this.rawCredential,
     this.doctype,
     this.vct,
+  });
+}
+
+/// Stateless preview of a parsed credential, used to render claims BEFORE
+/// the user has agreed to persist the credential into their wallet.
+///
+/// Unlike [ParsedCredentialData], this preview is not bound to a stored
+/// credential pack and carries the full claims map inline so callers can
+/// render it without a follow-up `getCredentialClaims` lookup.
+class ParsedCredentialPreview {
+  /// The credential format.
+  CredentialFormat format;
+
+  /// `MsoMdoc.doctype()` for mdoc credentials. Null otherwise.
+  String? doctype;
+
+  /// `DcSdJwt.vct()` for IETF SD-JWT VC credentials. Null otherwise.
+  String? vct;
+
+  /// JSON-encoded string of the credential claims. For mdoc, keys preserve
+  /// the namespace path (e.g. `"org.iso.18013.5.1.given_name"`). Mirrors the
+  /// shape returned by `getCredentialClaims` so callers can decode it the
+  /// same way.
+  String claimsJson;
+
+  ParsedCredentialPreview({
+    required this.format,
+    required this.doctype,
+    required this.vct,
+    required this.claimsJson,
   });
 }
 
@@ -127,6 +165,22 @@ abstract class CredentialPack {
   /// @return AddCredentialResult with updated credentials or error
   @async
   AddCredentialResult addRawCredential(String packId, String rawCredential);
+
+  /// Parse a raw credential payload into a stateless preview, without
+  /// persisting it. Used by issuance flows to render claims before the user
+  /// agrees to add the credential to their wallet.
+  ///
+  /// @param rawCredential The raw credential payload (compact JWS for JWT-VC
+  ///   / SD-JWT, JSON for ldp_vc, base64url-encoded CBOR for mdoc).
+  /// @param format The credential format.
+  /// @return A preview containing the parsed claims. The native side passes
+  ///   a throwaway key alias internally; the credential is never bound to
+  ///   any device key during parsing.
+  @async
+  ParsedCredentialPreview parseRawCredential(
+    String rawCredential,
+    CredentialFormat format,
+  );
 
   /// Add a raw mDoc credential to a pack
   ///

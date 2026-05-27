@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import SwiftUI
@@ -20,22 +21,62 @@ struct HandleOID4VCIView: View {
     @State var credential: String?
     @State var credentialPack: CredentialPack?
 
+    @State var showPinAlert: Bool = false
+    @State var pinInput: String = ""
+    @State var pendingTxState: TxCodeRequired?
+
+    // Hoisted so the PIN-submit callback can reach them after the initial Task completes.
+    @State var hoistedHttpClient: Oid4vciAsyncHttpClient?
+    @State var hoistedOid4vciClient: Oid4vciClient?
+    @State var hoistedClientId: String?
+    @State var hoistedCredentialIssuer: String?
+    @State var hoistedSigner: JwsSigner?
+
     @Binding var path: NavigationPath
     let url: String
     let onSuccess: (() -> Void)?
 
+    func completeIssuance(
+        token: CredentialToken,
+        httpClient: Oid4vciAsyncHttpClient,
+        oid4vciClient: Oid4vciClient,
+        clientId: String,
+        credentialIssuer: String,
+        signer: JwsSigner
+    ) async throws -> String? {
+        let credentialId = try token.defaultCredentialId()
+
+        let nonce = try await token.getNonce(httpClient: httpClient)
+        let jwt = try await createJwtProof(issuer: clientId, audience: credentialIssuer, expireInSecs: nil, nonce: nonce, signer: signer)
+        let proofs = Proofs.jwt([jwt])
+
+        let response = try await oid4vciClient.exchangeCredential(httpClient: httpClient, token: token, credential: credentialId, proofs: proofs)
+
+        switch response {
+        case .deferred(_):
+            return nil
+        case .immediate(let immediate):
+            guard let rawCredential = immediate.credentials.first else {
+                throw NSError(domain: "OID4VCI", code: 0, userInfo: [
+                    "CredentialIssuer": credentialIssuer
+                ])
+            }
+            return String(decoding: Data(rawCredential.payload), as: UTF8.self)
+        }
+    }
+
     func getCredential(credentialOffer: String) {
         loading = true
-        
+
         // Setup HTTP client.
         let httpClient = Oid4vciAsyncHttpClient()
-        
+
         // Setup signer.
         let jwk = KeyManager.getOrInsertJwk(id: DEFAULT_SIGNING_KEY_ID)
         let didUrl = generateDidJwkUrl(jwk: jwk)
         jwk.setKid(kid: didUrl.description)
         let signer = KeyManagerJwkSigner(id: DEFAULT_SIGNING_KEY_ID, jwk: jwk)
-        
+
         let clientId = didUrl.did().description
         let oid4vciClient = Oid4vciClient(clientId: clientId)
 
@@ -46,42 +87,81 @@ struct HandleOID4VCIView: View {
                 } else {
                     "openid-credential-offer://\(url)"
                 }
-                
+
                 let credentialOffer = try await oid4vciClient.resolveOfferUrl(httpClient: httpClient, credentialOfferUrl: offerUrl)
                 let credentialIssuer = credentialOffer.credentialIssuer()
-                
+
+                self.hoistedHttpClient = httpClient
+                self.hoistedOid4vciClient = oid4vciClient
+                self.hoistedClientId = clientId
+                self.hoistedCredentialIssuer = credentialIssuer
+                self.hoistedSigner = signer
+
                 let state = try await oid4vciClient.acceptOffer(httpClient: httpClient, credentialOffer: credentialOffer)
-                
+
                 switch state {
-                case .requiresAuthorizationCode(_):
-                    err = "Authorization Code Grant not supported"
-                case .requiresTxCode(_):
-                    err = "Transaction Code not supported"
-                case .ready(let credentialToken):
-                    let credentialId = try credentialToken.defaultCredentialId()
-                
-                    // Generate Proof of Possession.
-                    let nonce = try await credentialToken.getNonce(httpClient: httpClient)
-                    let jwt = try await createJwtProof(issuer: clientId, audience: credentialIssuer, expireInSecs: nil, nonce: nonce, signer: signer)
-                    let proofs = Proofs.jwt([jwt])
-                
-                    // Exchange token against credential.
-                    let response = try await oid4vciClient.exchangeCredential(httpClient: httpClient, token: credentialToken, credential: credentialId, proofs: proofs)
-                    
-                    switch response {
-                    case .deferred(_):
-                        err = "Deferred credentials not supported"
-                    case .immediate(let response):
-                        guard let rawCredential = response.credentials.first else {
-                            throw NSError(domain: "OID4VCI", code: 0, userInfo: [
-                                "CredentialOfferUrl": offerUrl,
-                                "CredentialIssuer": credentialIssuer
-                            ])
+                case .requiresAuthorizationCode(let authState):
+                    let redirectUrl = "sk-showcase-oid4vci-redirect://callback"
+                    let waiting = try await authState.proceed(httpClient: httpClient, redirectUrl: redirectUrl)
+                    let authUrl = URL(string: waiting.redirectUrl())!
+
+                    let redirectUri: URL? = try await withCheckedThrowingContinuation { cont in
+                        let session = ASWebAuthenticationSession(
+                            url: authUrl,
+                            callbackURLScheme: "sk-showcase-oid4vci-redirect"
+                        ) { callbackURL, error in
+                            if let _ = error { cont.resume(returning: nil); return }
+                            cont.resume(returning: callbackURL)
                         }
-                        
-                        credential = String(decoding: Data(rawCredential.payload), as: UTF8.self)
-                        
+                        session.presentationContextProvider = WebAuthPresentationProvider.shared
+                        session.start()
+                    }
+
+                    if let uri = redirectUri,
+                       let comps = URLComponents(url: uri, resolvingAgainstBaseURL: false) {
+                        let errorParam = comps.queryItems?.first(where: { $0.name == "error" })?.value
+                        let codeParam = comps.queryItems?.first(where: { $0.name == "code" })?.value
+                        if let errorParam {
+                            err = "Authorization error: \(errorParam)"
+                        } else if let codeParam, !codeParam.isEmpty {
+                            let token = try await waiting.proceed(httpClient: httpClient, authorizationCode: codeParam)
+                            if let cred = try await completeIssuance(
+                                token: token,
+                                httpClient: httpClient,
+                                oid4vciClient: oid4vciClient,
+                                clientId: clientId,
+                                credentialIssuer: credentialIssuer,
+                                signer: signer
+                            ) {
+                                credential = cred
+                                onSuccess?()
+                            } else {
+                                err = "Deferred credentials not supported"
+                            }
+                        } else {
+                            err = "Missing authorization code in callback"
+                        }
+                    } else {
+                        err = "Sign-in cancelled"
+                    }
+                case .requiresTxCode(let txState):
+                    self.pendingTxState = txState
+                    self.showPinAlert = true
+                    loading = false
+                    return
+                case .ready(let credentialToken):
+                    if let cred = try await completeIssuance(
+                        token: credentialToken,
+                        httpClient: httpClient,
+                        oid4vciClient: oid4vciClient,
+                        clientId: clientId,
+                        credentialIssuer: credentialIssuer,
+                        signer: signer
+                    ) {
+                        credential = cred
                         onSuccess?()
+                    } else {
+                        err = "Deferred credentials not supported"
                     }
                 }
             } catch {
@@ -113,25 +193,92 @@ struct HandleOID4VCIView: View {
                 AddToWalletView(path: _path, rawCredential: credential!)
             }
 
-        }.onAppear(perform: {
+        }
+        .onAppear(perform: {
             getCredential(credentialOffer: url)
         })
+        .alert("Enter Transaction Code", isPresented: $showPinAlert) {
+            TextField("PIN", text: $pinInput)
+                .keyboardType(.numberPad)
+            Button("Submit") {
+                let pin = pinInput
+                let txState = pendingTxState
+                let httpClient = hoistedHttpClient
+                let oid4vciClient = hoistedOid4vciClient
+                let clientId = hoistedClientId
+                let credentialIssuer = hoistedCredentialIssuer
+                let signer = hoistedSigner
+                pendingTxState = nil
+                pinInput = ""
+
+                guard let txState, let httpClient, let oid4vciClient,
+                      let clientId, let credentialIssuer, let signer
+                else {
+                    err = "Internal error: missing PIN context"
+                    return
+                }
+
+                loading = true
+                Task {
+                    do {
+                        let token = try await txState.proceed(httpClient: httpClient, txCode: pin)
+                        if let cred = try await completeIssuance(
+                            token: token,
+                            httpClient: httpClient,
+                            oid4vciClient: oid4vciClient,
+                            clientId: clientId,
+                            credentialIssuer: credentialIssuer,
+                            signer: signer
+                        ) {
+                            credential = cred
+                            onSuccess?()
+                        } else {
+                            err = "Deferred credentials not supported"
+                        }
+                    } catch {
+                        err = error.localizedDescription
+                    }
+                    loading = false
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                pendingTxState = nil
+                pinInput = ""
+                err = "Transaction code cancelled"
+            }
+        } message: {
+            Text("Please enter the PIN provided with the QR code.")
+        }
+    }
+}
+
+/// Anchor provider for `ASWebAuthenticationSession`. Resolves the topmost
+/// active window so the auth session can present from anywhere in the
+/// navigation stack.
+final class WebAuthPresentationProvider: NSObject, ASWebAuthenticationPresentationContextProviding {
+    static let shared = WebAuthPresentationProvider()
+
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        let scene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+        return scene?.keyWindow ?? ASPresentationAnchor()
     }
 }
 
 class KeyManagerJwkSigner: JwsSigner, @unchecked Sendable {
     let id: String
     let jwk: Jwk
-    
+
     init(id: String, jwk: Jwk) {
         self.id = id
         self.jwk = jwk
     }
-    
+
     func fetchInfo() async throws -> JwsSignerInfo {
         return try await jwk.fetchInfo()
     }
-    
+
     func signBytes(signingBytes: Data) async throws -> Data {
         return try decodeDerSignature(signatureDer: Data(KeyManager.signPayload(
             id: DEFAULT_SIGNING_KEY_ID,

@@ -148,6 +148,7 @@ enum CredentialFormat: Int {
   case dcSdJwt = 3
   case msoMdoc = 4
   case cwt = 5
+  case opticalBarcode = 6
 }
 
 /// A parsed credential with its metadata
@@ -194,6 +195,57 @@ struct ParsedCredentialData: Hashable {
     ]
   }
   static func == (lhs: ParsedCredentialData, rhs: ParsedCredentialData) -> Bool {
+    return deepEqualsCredentialPack(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashCredentialPack(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Stateless preview of a parsed credential, used to render claims BEFORE
+/// the user has agreed to persist the credential into their wallet.
+///
+/// Unlike [ParsedCredentialData], this preview is not bound to a stored
+/// credential pack and carries the full claims map inline so callers can
+/// render it without a follow-up `getCredentialClaims` lookup.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct ParsedCredentialPreview: Hashable {
+  /// The credential format.
+  var format: CredentialFormat
+  /// `MsoMdoc.doctype()` for mdoc credentials. Null otherwise.
+  var doctype: String? = nil
+  /// `DcSdJwt.vct()` for IETF SD-JWT VC credentials. Null otherwise.
+  var vct: String? = nil
+  /// JSON-encoded string of the credential claims. For mdoc, keys preserve
+  /// the namespace path (e.g. `"org.iso.18013.5.1.given_name"`). Mirrors the
+  /// shape returned by `getCredentialClaims` so callers can decode it the
+  /// same way.
+  var claimsJson: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> ParsedCredentialPreview? {
+    let format = pigeonVar_list[0] as! CredentialFormat
+    let doctype: String? = nilOrValue(pigeonVar_list[1])
+    let vct: String? = nilOrValue(pigeonVar_list[2])
+    let claimsJson = pigeonVar_list[3] as! String
+
+    return ParsedCredentialPreview(
+      format: format,
+      doctype: doctype,
+      vct: vct,
+      claimsJson: claimsJson
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      format,
+      doctype,
+      vct,
+      claimsJson,
+    ]
+  }
+  static func == (lhs: ParsedCredentialPreview, rhs: ParsedCredentialPreview) -> Bool {
     return deepEqualsCredentialPack(lhs.toList(), rhs.toList())  }
   func hash(into hasher: inout Hasher) {
     deepHashCredentialPack(value: toList(), hasher: &hasher)
@@ -376,14 +428,16 @@ private class CredentialPackPigeonCodecReader: FlutterStandardReader {
     case 131:
       return ParsedCredentialData.fromList(self.readValue() as! [Any?])
     case 132:
-      return CredentialPackData.fromList(self.readValue() as! [Any?])
+      return ParsedCredentialPreview.fromList(self.readValue() as! [Any?])
     case 133:
-      return CredentialOperationSuccess.fromList(self.readValue() as! [Any?])
+      return CredentialPackData.fromList(self.readValue() as! [Any?])
     case 134:
-      return CredentialOperationError.fromList(self.readValue() as! [Any?])
+      return CredentialOperationSuccess.fromList(self.readValue() as! [Any?])
     case 135:
-      return AddCredentialSuccess.fromList(self.readValue() as! [Any?])
+      return CredentialOperationError.fromList(self.readValue() as! [Any?])
     case 136:
+      return AddCredentialSuccess.fromList(self.readValue() as! [Any?])
+    case 137:
       return AddCredentialError.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -402,20 +456,23 @@ private class CredentialPackPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? ParsedCredentialData {
       super.writeByte(131)
       super.writeValue(value.toList())
-    } else if let value = value as? CredentialPackData {
+    } else if let value = value as? ParsedCredentialPreview {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? CredentialOperationSuccess {
+    } else if let value = value as? CredentialPackData {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? CredentialOperationError {
+    } else if let value = value as? CredentialOperationSuccess {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? AddCredentialSuccess {
+    } else if let value = value as? CredentialOperationError {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? AddCredentialError {
+    } else if let value = value as? AddCredentialSuccess {
       super.writeByte(136)
+      super.writeValue(value.toList())
+    } else if let value = value as? AddCredentialError {
+      super.writeByte(137)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -461,6 +518,17 @@ protocol CredentialPack {
   /// @param rawCredential The raw credential string
   /// @return AddCredentialResult with updated credentials or error
   func addRawCredential(packId: String, rawCredential: String, completion: @escaping (Result<AddCredentialResult, Error>) -> Void)
+  /// Parse a raw credential payload into a stateless preview, without
+  /// persisting it. Used by issuance flows to render claims before the user
+  /// agrees to add the credential to their wallet.
+  ///
+  /// @param rawCredential The raw credential payload (compact JWS for JWT-VC
+  ///   / SD-JWT, JSON for ldp_vc, base64url-encoded CBOR for mdoc).
+  /// @param format The credential format.
+  /// @return A preview containing the parsed claims. The native side passes
+  ///   a throwaway key alias internally; the credential is never bound to
+  ///   any device key during parsing.
+  func parseRawCredential(rawCredential: String, format: CredentialFormat, completion: @escaping (Result<ParsedCredentialPreview, Error>) -> Void)
   /// Add a raw mDoc credential to a pack
   ///
   /// @param packId The pack identifier
@@ -594,6 +662,34 @@ class CredentialPackSetup {
       }
     } else {
       addRawCredentialChannel.setMessageHandler(nil)
+    }
+    /// Parse a raw credential payload into a stateless preview, without
+    /// persisting it. Used by issuance flows to render claims before the user
+    /// agrees to add the credential to their wallet.
+    ///
+    /// @param rawCredential The raw credential payload (compact JWS for JWT-VC
+    ///   / SD-JWT, JSON for ldp_vc, base64url-encoded CBOR for mdoc).
+    /// @param format The credential format.
+    /// @return A preview containing the parsed claims. The native side passes
+    ///   a throwaway key alias internally; the credential is never bound to
+    ///   any device key during parsing.
+    let parseRawCredentialChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.CredentialPack.parseRawCredential\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      parseRawCredentialChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let rawCredentialArg = args[0] as! String
+        let formatArg = args[1] as! CredentialFormat
+        api.parseRawCredential(rawCredential: rawCredentialArg, format: formatArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      parseRawCredentialChannel.setMessageHandler(nil)
     }
     /// Add a raw mDoc credential to a pack
     ///

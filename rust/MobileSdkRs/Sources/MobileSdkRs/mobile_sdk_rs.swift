@@ -1529,9 +1529,8 @@ fileprivate struct UniffiCallbackInterfaceAsyncHttpClient {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceAsyncHttpClient] = [UniffiVTableCallbackInterfaceAsyncHttpClient(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceAsyncHttpClient = UniffiVTableCallbackInterfaceAsyncHttpClient(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterTypeAsyncHttpClient.handleMap.remove(handle: uniffiHandle)
@@ -1589,11 +1588,19 @@ fileprivate struct UniffiCallbackInterfaceAsyncHttpClient {
                 droppedCallback: uniffiOutDroppedCallback
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceAsyncHttpClient> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceAsyncHttpClient>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitAsyncHttpClient() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_asynchttpclient(UniffiCallbackInterfaceAsyncHttpClient.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_asynchttpclient(UniffiCallbackInterfaceAsyncHttpClient.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -2259,9 +2266,8 @@ fileprivate struct UniffiCallbackInterfaceCrypto {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceCrypto] = [UniffiVTableCallbackInterfaceCrypto(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceCrypto = UniffiVTableCallbackInterfaceCrypto(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterTypeCrypto.handleMap.remove(handle: uniffiHandle)
@@ -2304,11 +2310,19 @@ fileprivate struct UniffiCallbackInterfaceCrypto {
                 writeReturn: writeReturn
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceCrypto> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceCrypto>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitCrypto() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_crypto(UniffiCallbackInterfaceCrypto.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_crypto(UniffiCallbackInterfaceCrypto.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -4650,9 +4664,8 @@ fileprivate struct UniffiCallbackInterfaceDraft18RequestSignerInterface {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceDraft18RequestSignerInterface] = [UniffiVTableCallbackInterfaceDraft18RequestSignerInterface(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceDraft18RequestSignerInterface = UniffiVTableCallbackInterfaceDraft18RequestSignerInterface(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterTypeDraft18RequestSignerInterface.handleMap.remove(handle: uniffiHandle)
@@ -4756,11 +4769,19 @@ fileprivate struct UniffiCallbackInterfaceDraft18RequestSignerInterface {
                 droppedCallback: uniffiOutDroppedCallback
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18RequestSignerInterface> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDraft18RequestSignerInterface>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitDraft18RequestSignerInterface() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_draft18requestsignerinterface(UniffiCallbackInterfaceDraft18RequestSignerInterface.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_draft18requestsignerinterface(UniffiCallbackInterfaceDraft18RequestSignerInterface.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -7571,9 +7592,8 @@ fileprivate struct UniffiCallbackInterfaceJwsSigner {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceJwsSigner] = [UniffiVTableCallbackInterfaceJwsSigner(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceJwsSigner = UniffiVTableCallbackInterfaceJwsSigner(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterTypeJwsSigner.handleMap.remove(handle: uniffiHandle)
@@ -7672,11 +7692,19 @@ fileprivate struct UniffiCallbackInterfaceJwsSigner {
                 droppedCallback: uniffiOutDroppedCallback
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceJwsSigner> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceJwsSigner>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitJwsSigner() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_jwssigner(UniffiCallbackInterfaceJwsSigner.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_jwssigner(UniffiCallbackInterfaceJwsSigner.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -8101,9 +8129,8 @@ fileprivate struct UniffiCallbackInterfaceKeyStore {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceKeyStore] = [UniffiVTableCallbackInterfaceKeyStore(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceKeyStore = UniffiVTableCallbackInterfaceKeyStore(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterTypeKeyStore.handleMap.remove(handle: uniffiHandle)
@@ -8143,11 +8170,19 @@ fileprivate struct UniffiCallbackInterfaceKeyStore {
                 lowerError: FfiConverterTypeCryptoError_lower
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceKeyStore> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceKeyStore>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitKeyStore() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_keystore(UniffiCallbackInterfaceKeyStore.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_keystore(UniffiCallbackInterfaceKeyStore.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -8297,9 +8332,8 @@ fileprivate struct UniffiCallbackInterfaceLogWriter {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceLogWriter] = [UniffiVTableCallbackInterfaceLogWriter(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceLogWriter = UniffiVTableCallbackInterfaceLogWriter(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterTypeLogWriter.handleMap.remove(handle: uniffiHandle)
@@ -8360,11 +8394,19 @@ fileprivate struct UniffiCallbackInterfaceLogWriter {
                 writeReturn: writeReturn
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLogWriter> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLogWriter>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitLogWriter() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_logwriter(UniffiCallbackInterfaceLogWriter.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_logwriter(UniffiCallbackInterfaceLogWriter.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -13616,7 +13658,15 @@ public func FfiConverterTypeRequestedField_lower(_ value: RequestedField) -> UIn
 
 public protocol ResolvedCredentialOfferProtocol: AnyObject, Sendable {
     
+    func credentialConfigurationIds()  -> [String]
+    
     func credentialIssuer()  -> String
+    
+    func grantType()  -> GrantType
+    
+    func issuerDisplayName()  -> String?
+    
+    func txCodeDefinition()  -> TxCodeDefinition?
     
 }
 open class ResolvedCredentialOffer: ResolvedCredentialOfferProtocol, @unchecked Sendable {
@@ -13672,9 +13722,41 @@ open class ResolvedCredentialOffer: ResolvedCredentialOfferProtocol, @unchecked 
     
 
     
+open func credentialConfigurationIds() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_credential_configuration_ids(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
 open func credentialIssuer() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_credential_issuer(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func grantType() -> GrantType  {
+    return try!  FfiConverterTypeGrantType_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_grant_type(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func issuerDisplayName() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_issuer_display_name(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func txCodeDefinition() -> TxCodeDefinition?  {
+    return try!  FfiConverterOptionTypeTxCodeDefinition.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_resolvedcredentialoffer_tx_code_definition(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -14082,9 +14164,8 @@ fileprivate struct UniffiCallbackInterfaceSigningKey {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceSigningKey] = [UniffiVTableCallbackInterfaceSigningKey(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceSigningKey = UniffiVTableCallbackInterfaceSigningKey(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterTypeSigningKey.handleMap.remove(handle: uniffiHandle)
@@ -14147,11 +14228,19 @@ fileprivate struct UniffiCallbackInterfaceSigningKey {
                 lowerError: FfiConverterTypeCryptoError_lower
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceSigningKey> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceSigningKey>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitSigningKey() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_signingkey(UniffiCallbackInterfaceSigningKey.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_signingkey(UniffiCallbackInterfaceSigningKey.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -14840,9 +14929,8 @@ fileprivate struct UniffiCallbackInterfaceStorageManagerInterface {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceStorageManagerInterface] = [UniffiVTableCallbackInterfaceStorageManagerInterface(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceStorageManagerInterface = UniffiVTableCallbackInterfaceStorageManagerInterface(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterTypeStorageManagerInterface.handleMap.remove(handle: uniffiHandle)
@@ -15025,11 +15113,19 @@ fileprivate struct UniffiCallbackInterfaceStorageManagerInterface {
                 droppedCallback: uniffiOutDroppedCallback
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceStorageManagerInterface> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceStorageManagerInterface>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitStorageManagerInterface() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_storagemanagerinterface(UniffiCallbackInterfaceStorageManagerInterface.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_storagemanagerinterface(UniffiCallbackInterfaceStorageManagerInterface.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -15171,9 +15267,8 @@ fileprivate struct UniffiCallbackInterfaceSyncHttpClient {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceSyncHttpClient] = [UniffiVTableCallbackInterfaceSyncHttpClient(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceSyncHttpClient = UniffiVTableCallbackInterfaceSyncHttpClient(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterTypeSyncHttpClient.handleMap.remove(handle: uniffiHandle)
@@ -15213,11 +15308,19 @@ fileprivate struct UniffiCallbackInterfaceSyncHttpClient {
                 lowerError: FfiConverterTypeHttpClientError_lower
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceSyncHttpClient> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceSyncHttpClient>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitSyncHttpClient() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_synchttpclient(UniffiCallbackInterfaceSyncHttpClient.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_synchttpclient(UniffiCallbackInterfaceSyncHttpClient.vtablePtr)
 }
 
 #if swift(>=5.8)
@@ -15282,6 +15385,8 @@ public func FfiConverterTypeSyncHttpClient_lower(_ value: SyncHttpClient) -> UIn
 
 public protocol TxCodeRequiredProtocol: AnyObject, Sendable {
     
+    func proceed(httpClient: AsyncHttpClient, txCode: String) async throws  -> CredentialToken
+    
 }
 open class TxCodeRequired: TxCodeRequiredProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -15335,6 +15440,23 @@ open class TxCodeRequired: TxCodeRequiredProtocol, @unchecked Sendable {
 
     
 
+    
+open func proceed(httpClient: AsyncHttpClient, txCode: String)async throws  -> CredentialToken  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_txcoderequired_proceed(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeAsyncHttpClient_lower(httpClient),FfiConverterString.lower(txCode)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeCredentialToken_lift,
+            errorHandler: FfiConverterTypeOid4vciError_lift
+        )
+}
     
 
     
@@ -19002,6 +19124,72 @@ public func FfiConverterTypeTestMdlData_lower(_ value: TestMdlData) -> RustBuffe
 
 
 /**
+ * FFI mirror of [`oid4vci::offer::TxCodeDefinition`].
+ *
+ * uniffi requires a local `Record` struct with `#[derive(uniffi::Record)]`
+ * to cross the FFI boundary; conversion from the upstream type is delegated
+ * to `From`. Per OID4VCI §4.1.1, `input_mode` defaults to `Numeric` when
+ * absent upstream.
+ */
+public struct TxCodeDefinition: Equatable, Hashable {
+    public var inputMode: InputMode
+    public var length: UInt32?
+    public var description: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(inputMode: InputMode, length: UInt32?, description: String?) {
+        self.inputMode = inputMode
+        self.length = length
+        self.description = description
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TxCodeDefinition: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTxCodeDefinition: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TxCodeDefinition {
+        return
+            try TxCodeDefinition(
+                inputMode: FfiConverterTypeInputMode.read(from: &buf), 
+                length: FfiConverterOptionUInt32.read(from: &buf), 
+                description: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TxCodeDefinition, into buf: inout [UInt8]) {
+        FfiConverterTypeInputMode.write(value.inputMode, into: &buf)
+        FfiConverterOptionUInt32.write(value.length, into: &buf)
+        FfiConverterOptionString.write(value.description, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTxCodeDefinition_lift(_ buf: RustBuffer) throws -> TxCodeDefinition {
+    return try FfiConverterTypeTxCodeDefinition.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTxCodeDefinition_lower(_ value: TxCodeDefinition) -> RustBuffer {
+    return FfiConverterTypeTxCodeDefinition.lower(value)
+}
+
+
+/**
  * Parameters controlling VP token generation.
  *
  * `audience` and `nonce` are reserved for a future KB-JWT signing path; they
@@ -22639,6 +22827,86 @@ public func FfiConverterTypeFlowState_lower(_ value: FlowState) -> RustBuffer {
 }
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Grant type of an OID4VCI credential offer.
+ *
+ * Determines the authorization ceremony required before a credential can be
+ * issued: none, a transaction code (PIN), or a full authorization-code flow.
+ */
+
+public enum GrantType: Equatable, Hashable {
+    
+    case preAuthCodeNoTxCode
+    case preAuthCodeWithTxCode
+    case authorizationCode
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GrantType: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGrantType: FfiConverterRustBuffer {
+    typealias SwiftType = GrantType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GrantType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .preAuthCodeNoTxCode
+        
+        case 2: return .preAuthCodeWithTxCode
+        
+        case 3: return .authorizationCode
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GrantType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .preAuthCodeNoTxCode:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .preAuthCodeWithTxCode:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .authorizationCode:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrantType_lift(_ buf: RustBuffer) throws -> GrantType {
+    return try FfiConverterTypeGrantType.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrantType_lower(_ value: GrantType) -> RustBuffer {
+    return FfiConverterTypeGrantType.lower(value)
+}
+
+
 
 public enum HttpClientError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -22898,6 +23166,79 @@ public func FfiConverterTypeIetfSdJwtVcError_lift(_ buf: RustBuffer) throws -> I
 public func FfiConverterTypeIetfSdJwtVcError_lower(_ value: IetfSdJwtVcError) -> RustBuffer {
     return FfiConverterTypeIetfSdJwtVcError.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * FFI mirror of [`oid4vci::offer::InputMode`].
+ *
+ * uniffi requires a local enum with `#[derive(uniffi::Enum)]` to cross
+ * the FFI boundary; semantics delegate to the upstream type via `From`.
+ */
+
+public enum InputMode: Equatable, Hashable {
+    
+    case numeric
+    case text
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension InputMode: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInputMode: FfiConverterRustBuffer {
+    typealias SwiftType = InputMode
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InputMode {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .numeric
+        
+        case 2: return .text
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: InputMode, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .numeric:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .text:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInputMode_lift(_ buf: RustBuffer) throws -> InputMode {
+    return try FfiConverterTypeInputMode.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInputMode_lower(_ value: InputMode) -> RustBuffer {
+    return FfiConverterTypeInputMode.lower(value)
+}
+
 
 
 public enum InvalidClaims: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
@@ -28912,9 +29253,8 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceDraft18PresentationSigner] = [UniffiVTableCallbackInterfaceDraft18PresentationSigner(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceDraft18PresentationSigner = UniffiVTableCallbackInterfaceDraft18PresentationSigner(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterCallbackInterfaceDraft18PresentationSigner.handleMap.remove(handle: uniffiHandle)
@@ -29100,11 +29440,19 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
                 writeReturn: writeReturn
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18PresentationSigner> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDraft18PresentationSigner>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitDraft18PresentationSigner() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_draft18presentationsigner(UniffiCallbackInterfaceDraft18PresentationSigner.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_draft18presentationsigner(UniffiCallbackInterfaceDraft18PresentationSigner.vtablePtr)
 }
 
 // FfiConverter protocol for callback interfaces
@@ -29193,9 +29541,8 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfaceOid4vpPresentationSigner] = [UniffiVTableCallbackInterfaceOid4vpPresentationSigner(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceOid4vpPresentationSigner = UniffiVTableCallbackInterfaceOid4vpPresentationSigner(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterCallbackInterfaceOid4vpPresentationSigner.handleMap.remove(handle: uniffiHandle)
@@ -29381,11 +29728,19 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
                 writeReturn: writeReturn
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceOid4vpPresentationSigner> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceOid4vpPresentationSigner>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitOid4vpPresentationSigner() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_oid4vppresentationsigner(UniffiCallbackInterfaceOid4vpPresentationSigner.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_oid4vppresentationsigner(UniffiCallbackInterfaceOid4vpPresentationSigner.vtablePtr)
 }
 
 // FfiConverter protocol for callback interfaces
@@ -29519,9 +29874,8 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
     // Create the VTable using a series of closures.
     // Swift automatically converts these into C callback functions.
     //
-    // This creates 1-element array, since this seems to be the only way to construct a const
-    // pointer that we can pass to the Rust code.
-    static let vtable: [UniffiVTableCallbackInterfacePresentationSigner] = [UniffiVTableCallbackInterfacePresentationSigner(
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfacePresentationSigner = UniffiVTableCallbackInterfacePresentationSigner(
         uniffiFree: { (uniffiHandle: UInt64) -> () in
             do {
                 try FfiConverterCallbackInterfacePresentationSigner.handleMap.remove(handle: uniffiHandle)
@@ -29707,11 +30061,19 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
                 writeReturn: writeReturn
             )
         }
-    )]
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfacePresentationSigner> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfacePresentationSigner>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
 }
 
 private func uniffiCallbackInitPresentationSigner() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_presentationsigner(UniffiCallbackInterfacePresentationSigner.vtable)
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_presentationsigner(UniffiCallbackInterfacePresentationSigner.vtablePtr)
 }
 
 // FfiConverter protocol for callback interfaces
@@ -30297,6 +30659,30 @@ fileprivate struct FfiConverterOptionTypePeripheralServerDetails: FfiConverterRu
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypePeripheralServerDetails.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeTxCodeDefinition: FfiConverterRustBuffer {
+    typealias SwiftType = TxCodeDefinition?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTxCodeDefinition.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTxCodeDefinition.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -33786,7 +34172,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_resolve_offer_url() != 51427) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_credential_configuration_ids() != 53699) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_credential_issuer() != 56209) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_grant_type() != 61562) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_issuer_display_name() != 9881) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_tx_code_definition() != 62227) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_authorizationcoderequired_proceed() != 10740) {
@@ -33796,6 +34194,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_waitingforauthorizationcode_redirect_url() != 47402) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_txcoderequired_proceed() != 29775) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_credentialtoken_default_credential_id() != 30044) {

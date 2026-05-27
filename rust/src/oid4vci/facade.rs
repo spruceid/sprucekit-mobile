@@ -282,13 +282,13 @@ impl Oid4vciFacadeTxCodeRequired {
         let inner = Arc::into_inner(self).ok_or(Oid4vciError::AlreadyProceeded)?;
         inner
             .inner
-            .proceed(http_client, &tx_code)
+            .proceed(http_client, tx_code)
             .await
             .map(|token| Oid4vciFacadeCredentialToken {
                 version: Oid4vciVersion::V1,
                 inner: Oid4vciFacadeCredentialTokenInner::V1 {
                     client_id: inner.client_id,
-                    token: Arc::new(token),
+                    token,
                     fallback_legacy_offer: inner.fallback_legacy_offer,
                 },
             })
