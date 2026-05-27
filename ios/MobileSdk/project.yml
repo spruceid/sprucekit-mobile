@@ -9,7 +9,10 @@ packages:
     from: 1.2.0
   SwiftLint:
     url: https://github.com/realm/SwiftLint
-    from: 0.54.0
+    # Pinned: tag 0.63.3 exists without a published GitHub Release, so SPM
+    # resolves to it and then 404s on SwiftLintBinary.artifactbundle.zip.
+    # Track upstream fix: https://github.com/realm/SwiftLint/issues/6669
+    exactVersion: 0.63.2
 settings:
   ENABLE_USER_SCRIPT_SANDBOXING: YES
   GENERATE_INFOPLIST_FILE: YES
