@@ -45,6 +45,20 @@
 	<string>Bluetooth is required to share your mobile driver's license with verifiers</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is required to scan QR codes and barcodes</string>
+	<key>NFCReaderUsageDescription</key>
+	<string>NFC is required to read mobile driver's license credentials from a holder phone</string>
+	<!--
+	  AIDs the iOS pre-poller tries before delivering the tag. The NDEF
+	  Type 4 Tag application (D2760000850101) is listed first because the
+	  ISO 18013-5 NFC engagement starts by reading the static handover
+	  from the holder's NDEF application; the mdoc data retrieval AID
+	  (A0000002480400) is listed as a fallback for non-standard holders.
+	-->
+	<key>com.apple.developer.nfc.readersession.iso7816.select-identifiers</key>
+	<array>
+		<string>D2760000850101</string>
+		<string>A0000002480400</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

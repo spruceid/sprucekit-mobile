@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'demos/credential_pack_demo.dart';
 import 'demos/dc_api_demo.dart';
+import 'demos/mdl_reader_demo.dart';
 import 'demos/mdl_share_demo.dart';
 import 'demos/oid4vci_demo.dart';
 import 'demos/oid4vp_demo.dart';
@@ -39,6 +40,7 @@ class HomeScreen extends StatelessWidget {
       ('OID4VP', Icons.verified_user, const Oid4vpDemo()),
       ('OID4VP mDoc', Icons.credit_card, const Oid4vpMdocDemo()),
       ('Share mDL', Icons.share, const MdlShareDemo()),
+      ('Read mDL', Icons.contactless, const MdlReaderDemo()),
       ('DC API', Icons.web, const DcApiDemo()),
       ('Credential Pack', Icons.folder, const CredentialPackDemo()),
       ('Credential PDF', Icons.picture_as_pdf, const CredentialPdfDemo()),
