@@ -16,6 +16,7 @@ import com.spruceid.mobile.sdk.rs.verifiedResponseAsJsonString
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -326,6 +327,21 @@ internal class MdlReaderAdapter(
     }
 
     /**
+     * Fully release native + coroutine resources held by this adapter.
+     * Called by [SprucekitMobilePlugin.onDetachedFromEngine] when the
+     * Flutter engine is going away. After [dispose] this adapter is
+     * unusable; any pending state updates queued on [mainScope] are
+     * cancelled so they can't try to invoke the Flutter callback after
+     * the binary messenger is gone.
+     */
+    fun dispose() {
+        cleanupInternal()
+        mainScope.cancel()
+        flutterCallback = null
+        activityBinding = null
+    }
+
+    /**
      * Tear down SDK handles only. Does NOT emit a state update — callers
      * decide what state to land in after cleanup.
      */
@@ -338,7 +354,17 @@ internal class MdlReaderAdapter(
     private fun updateState(state: MdlReaderStateUpdate) {
         currentState = state
         // Pigeon FlutterApi callbacks must be invoked on the main thread.
-        mainScope.launch { flutterCallback?.onStateChange(state) { } }
+        // Wrap in try/catch as defense-in-depth: if the Flutter engine is
+        // tearing down while a BLE/NFC callback is still in flight, the
+        // BinaryMessenger may be unavailable and the call would throw.
+        // We swallow + log because there is no Flutter side left to notify.
+        mainScope.launch {
+            try {
+                flutterCallback?.onStateChange(state) { }
+            } catch (e: Throwable) {
+                Log.w(TAG, "Failed to deliver state update; engine likely gone", e)
+            }
+        }
     }
 
     /**

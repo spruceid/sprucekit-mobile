@@ -78,6 +78,11 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
         MdlReader.setUp(binding.binaryMessenger, null)
         Oid4vpMdoc.setUp(binding.binaryMessenger, null)
         DcApi.setUp(binding.binaryMessenger, null)
+        if (::mdlReaderAdapter.isInitialized) {
+            // Cancels mainScope + releases NFC/BLE handles so callbacks can't
+            // try to invoke the Flutter binary messenger after it's gone.
+            mdlReaderAdapter.dispose()
+        }
     }
 
     // ----- ActivityAware -----

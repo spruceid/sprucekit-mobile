@@ -58,11 +58,21 @@ class MdlReaderAdapter: NSObject, MdlReader {
                 case .unsupported:
                     self.updateState(MdlReaderStateUpdate(state: .nfcUnsupported))
                 case .idle:
-                    // Idle means session torn down (user cancel or terminal).
-                    // Don't surface as a state change unless we're not already
-                    // past it, otherwise we'd overwrite a success/error state.
-                    if self.currentState.state == .nfcWaitingForTag
-                        || self.currentState.state == .nfcExchanging {
+                    // `.idle` fires from two distinct paths:
+                    //   1. User-cancel before tap — was `.nfcWaitingForTag`,
+                    //      want to surface as `.uninitialized` so the host
+                    //      can drive a "tap to retry" UI.
+                    //   2. Successful handover delivery — `NfcReaderObservable`
+                    //      sets `phase = .idle` *immediately before*
+                    //      `pendingHandover = handover`. The two are separate
+                    //      `@Published` properties; the `$phase` sink runs
+                    //      first. If we emit `.uninitialized` here we'd
+                    //      flicker `.nfcExchanging → .uninitialized →
+                    //      .bleConnecting` on Dart side.
+                    // Only emit for path 1; the `.exchanging → .idle`
+                    // transition is swallowed and `pendingHandover` drives
+                    // the real next state.
+                    if self.currentState.state == .nfcWaitingForTag {
                         self.updateState(MdlReaderStateUpdate(state: .uninitialized))
                     }
                 case .waitingForTag:
