@@ -981,7 +981,7 @@ pub(crate) mod tests {
 
     use crate::oid4vp::dynamic_credential::{
         DcqlCredentialQueryJson, DynamicCredentialError, DynamicCredentialOffer,
-        DynamicCredentialProvider, MintedCredential, PresentationBinding,
+        DynamicCredentialProvider, IssuedCredential, PresentationBinding,
     };
     use serde_json::json;
 
@@ -994,6 +994,7 @@ pub(crate) mod tests {
     const MOCK_OFFER_ID: &str = "mock-offer";
     const MOCK_TITLE: &str = "Mock minted credential";
 
+    #[async_trait::async_trait]
     impl DynamicCredentialProvider for MockProvider {
         fn offers(&self, query: DcqlCredentialQueryJson) -> Vec<DynamicCredentialOffer> {
             let query = query.parse().expect("valid DCQL credential query JSON");
@@ -1009,19 +1010,19 @@ pub(crate) mod tests {
             }]
         }
 
-        fn mint(
+        async fn issue(
             &self,
             offer_id: String,
             binding: PresentationBinding,
-        ) -> Result<MintedCredential, DynamicCredentialError> {
+        ) -> Result<IssuedCredential, DynamicCredentialError> {
             if offer_id != MOCK_OFFER_ID {
-                return Err(DynamicCredentialError::MintFailed(format!(
+                return Err(DynamicCredentialError::IssuanceFailed(format!(
                     "unknown offer id: {offer_id}"
                 )));
             }
             // Echo the binding into the minted token so the test can confirm the
             // live nonce/client_id were threaded through.
-            Ok(MintedCredential {
+            Ok(IssuedCredential {
                 vp_token_item: format!("minted:{}:{}", binding.nonce, binding.client_id),
             })
         }

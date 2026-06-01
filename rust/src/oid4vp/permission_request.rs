@@ -449,7 +449,8 @@ impl PermissionRequest {
             })?;
 
             let minted = provider
-                .mint(offer.offer_id.clone(), binding.clone())
+                .issue(offer.offer_id.clone(), binding.clone())
+                .await
                 .map_err(|e| {
                     OID4VPError::from(PermissionRequestError::CredentialPresentation(format!(
                         "dynamic credential mint failed: {e}"

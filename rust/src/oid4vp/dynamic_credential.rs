@@ -77,7 +77,7 @@ pub struct PresentationBinding {
 
 /// A credential minted by a [`DynamicCredentialProvider`] for a presentation.
 #[derive(Debug, Clone, uniffi::Record)]
-pub struct MintedCredential {
+pub struct IssuedCredential {
     /// The `vp_token` entry, verbatim (e.g. a compact JWS). Placed under the
     /// offer's `credential_query_id`. The SDK does not interpret it.
     pub vp_token_item: String,
@@ -91,9 +91,9 @@ pub enum DynamicCredentialError {
     #[error("Dynamic credential minting was cancelled.")]
     Cancelled,
 
-    /// Minting failed for any other reason (signing, derivation, schema, etc.).
-    #[error("Failed to mint dynamic credential: {0}")]
-    MintFailed(String),
+    /// Issuing failed for any other reason (signing, derivation, schema, etc.).
+    #[error("Failed to issue dynamic credential: {0}")]
+    IssuanceFailed(String),
 }
 
 /// A foreign-implemented provider that can mint credentials on device during a
@@ -102,6 +102,7 @@ pub enum DynamicCredentialError {
 /// The provider owns its own keys, schema and derivation; the SDK passes it no
 /// key material and does not interpret what it mints.
 #[uniffi::export(with_foreign)]
+#[async_trait::async_trait]
 pub trait DynamicCredentialProvider: Send + Sync {
     /// Credentials this provider could mint to satisfy `query`.
     ///
@@ -113,14 +114,14 @@ pub trait DynamicCredentialProvider: Send + Sync {
     /// [`DcqlCredentialQueryJson::parse`] to inspect it.
     fn offers(&self, query: DcqlCredentialQueryJson) -> Vec<DynamicCredentialOffer>;
 
-    /// Mint the raw `vp_token` entry for a previously-offered credential, bound
+    /// Issue the raw `vp_token` entry for a previously-offered credential, bound
     /// to this presentation.
     ///
     /// Called only for offers the user selected. `offer_id` is the value from
     /// the [`DynamicCredentialOffer`] returned by [`Self::offers`].
-    fn mint(
+    async fn issue(
         &self,
         offer_id: String,
         binding: PresentationBinding,
-    ) -> Result<MintedCredential, DynamicCredentialError>;
+    ) -> Result<IssuedCredential, DynamicCredentialError>;
 }
