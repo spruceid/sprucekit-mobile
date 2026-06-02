@@ -1,5 +1,6 @@
 #![allow(deprecated)]
 
+use super::dynamic_credential::{DynamicCredentialOffer, DynamicCredentialProvider};
 use super::error::OID4VPError;
 use super::permission_request::*;
 use super::presentation::PresentationSigner;
@@ -93,6 +94,10 @@ pub struct Holder {
 
     /// Optional KeyStore for mdoc credential signing
     pub(crate) keystore: Option<Arc<dyn KeyStore>>,
+
+    /// Dynamic credential providers that can mint credentials on device during
+    /// a presentation. Empty by default; see [`DynamicCredentialProvider`].
+    pub(crate) providers: Vec<Arc<dyn DynamicCredentialProvider>>,
 }
 
 impl std::fmt::Debug for Holder {
@@ -103,6 +108,7 @@ impl std::fmt::Debug for Holder {
             .field("trusted_dids", &self.trusted_dids)
             .field("provided_credentials", &self.provided_credentials)
             .field("keystore", &self.keystore.as_ref().map(|_| "KeyStore"))
+            .field("providers", &self.providers.len())
             .finish()
     }
 }
@@ -118,6 +124,32 @@ impl Holder {
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, OID4VPError> {
+        Self::new_with_providers(
+            vdc_collection,
+            trusted_dids,
+            signer,
+            context_map,
+            keystore,
+            vec![],
+        )
+        .await
+    }
+
+    /// Like [`Holder::new`], but additionally registers a set of
+    /// [`DynamicCredentialProvider`]s that can mint credentials on device during
+    /// a presentation.
+    ///
+    /// This is purely additive: passing an empty `providers` vec is equivalent
+    /// to [`Holder::new`].
+    #[uniffi::constructor]
+    pub async fn new_with_providers(
+        vdc_collection: Arc<VdcCollection>,
+        trusted_dids: Vec<String>,
+        signer: Box<dyn PresentationSigner>,
+        context_map: Option<HashMap<String, String>>,
+        keystore: Option<Arc<dyn KeyStore>>,
+        providers: Vec<Arc<dyn DynamicCredentialProvider>>,
+    ) -> Result<Arc<Self>, OID4VPError> {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
 
@@ -130,6 +162,7 @@ impl Holder {
             signer: Arc::new(signer),
             context_map,
             keystore,
+            providers,
         }))
     }
 
@@ -146,6 +179,32 @@ impl Holder {
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, OID4VPError> {
+        Self::new_with_credentials_and_providers(
+            provided_credentials,
+            trusted_dids,
+            signer,
+            context_map,
+            keystore,
+            vec![],
+        )
+        .await
+    }
+
+    /// Like [`Holder::new_with_credentials`], but additionally registers a set
+    /// of [`DynamicCredentialProvider`]s that can mint credentials on device
+    /// during a presentation.
+    ///
+    /// This is purely additive: passing an empty `providers` vec is equivalent
+    /// to [`Holder::new_with_credentials`].
+    #[uniffi::constructor]
+    pub async fn new_with_credentials_and_providers(
+        provided_credentials: Vec<Arc<ParsedCredential>>,
+        trusted_dids: Vec<String>,
+        signer: Box<dyn PresentationSigner>,
+        context_map: Option<HashMap<String, String>>,
+        keystore: Option<Arc<dyn KeyStore>>,
+        providers: Vec<Arc<dyn DynamicCredentialProvider>>,
+    ) -> Result<Arc<Self>, OID4VPError> {
         let client = openid4vp::core::util::ReqwestClient::new()
             .map_err(|e| OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
 
@@ -158,6 +217,7 @@ impl Holder {
             signer: Arc::new(signer),
             context_map,
             keystore,
+            providers,
         }))
     }
 
@@ -322,12 +382,7 @@ impl Holder {
 
         let matched_credentials = self.search_credentials_vs_dcql_query(&dcql_query).await?;
 
-        if matched_credentials.is_empty() {
-            return Err(OID4VPError::PermissionRequest(
-                PermissionRequestError::NoCredentialsFound,
-            ));
-        }
-
+        // Stored credentials that matched the DCQL query.
         let credentials = matched_credentials
             .into_iter()
             .map(|(credential_query_id, c)| {
@@ -339,13 +394,42 @@ impl Holder {
             })
             .collect::<Vec<_>>();
 
-        Ok(PermissionRequest::new(
+        // Dynamic offers: for each DCQL credential query, ask every provider
+        // what it could mint, and surface those offers via a parallel accessor
+        // (`PermissionRequest::dynamic_offers`) — separate from the stored-only
+        // `credentials()`. Each offer is mapped back to its owning provider by
+        // `offer_id` so the response step can call back into `mint`.
+        let mut dynamic_offers: Vec<DynamicCredentialOffer> = Vec::new();
+        let mut offer_providers: HashMap<String, Arc<dyn DynamicCredentialProvider>> =
+            HashMap::new();
+        for provider in &self.providers {
+            for cred_query in dcql_query.credentials() {
+                let query_json =
+                    crate::oid4vp::dynamic_credential::DcqlCredentialQueryJson::from_query(
+                        cred_query,
+                    );
+                for offer in provider.offers(query_json) {
+                    offer_providers.insert(offer.offer_id.clone(), provider.clone());
+                    dynamic_offers.push(offer);
+                }
+            }
+        }
+
+        if credentials.is_empty() && dynamic_offers.is_empty() {
+            return Err(OID4VPError::PermissionRequest(
+                PermissionRequestError::NoCredentialsFound,
+            ));
+        }
+
+        Ok(PermissionRequest::new_with_offers(
             dcql_query,
             credentials,
             request,
             self.signer.clone(),
             self.context_map.clone(),
             self.keystore.clone(),
+            dynamic_offers,
+            offer_providers,
         ))
     }
 }
@@ -891,5 +975,146 @@ pub(crate) mod tests {
         holder.submit_permission_response(response).await?;
 
         Ok(())
+    }
+
+    // ---- DynamicCredentialProvider hook ----
+
+    use crate::oid4vp::dynamic_credential::{
+        DcqlCredentialQueryJson, DynamicCredentialError, DynamicCredentialOffer,
+        DynamicCredentialProvider, IssuedCredential, PresentationBinding,
+    };
+    use serde_json::json;
+
+    /// A mock provider that offers to mint a credential for any `jwt_vc_json`
+    /// credential query and mints a fixed `vp_token` string bound to the
+    /// presentation nonce.
+    #[derive(Debug)]
+    struct MockProvider;
+
+    const MOCK_OFFER_ID: &str = "mock-offer";
+    const MOCK_TITLE: &str = "Mock minted credential";
+
+    #[async_trait::async_trait]
+    impl DynamicCredentialProvider for MockProvider {
+        fn offers(&self, query: DcqlCredentialQueryJson) -> Vec<DynamicCredentialOffer> {
+            let query = query.parse().expect("valid DCQL credential query JSON");
+            // Only offer for `jwt_vc_json` queries.
+            let format = openid4vp::core::credential_format::ClaimFormatDesignation::JwtVcJson;
+            if *query.format() != format {
+                return vec![];
+            }
+            vec![DynamicCredentialOffer {
+                offer_id: MOCK_OFFER_ID.to_string(),
+                credential_query_id: query.id().to_string(),
+                title: MOCK_TITLE.to_string(),
+            }]
+        }
+
+        async fn issue(
+            &self,
+            offer_id: String,
+            binding: PresentationBinding,
+        ) -> Result<IssuedCredential, DynamicCredentialError> {
+            if offer_id != MOCK_OFFER_ID {
+                return Err(DynamicCredentialError::IssuanceFailed(format!(
+                    "unknown offer id: {offer_id}"
+                )));
+            }
+            // Echo the binding into the minted token so the test can confirm the
+            // live nonce/client_id were threaded through.
+            Ok(IssuedCredential {
+                vp_token_item: format!("minted:{}:{}", binding.nonce, binding.client_id),
+            })
+        }
+    }
+
+    fn dynamic_request() -> AuthorizationRequestObject {
+        let request = json!({
+            "client_id": "redirect_uri:https://wallet.example/callback",
+            "response_uri": "https://wallet.example/callback",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "state-dyn",
+            "nonce": "nonce-dyn",
+            "client_metadata": {
+                "vp_formats_supported": {
+                    "jwt_vc_json": { "alg_values": ["ES256"] }
+                }
+            },
+            "dcql_query": {
+                "credentials": [
+                    {
+                        "id": "mintable_0",
+                        "format": "jwt_vc_json"
+                    }
+                ]
+            }
+        })
+        .to_string();
+
+        serde_json::from_str(&request).expect("failed to parse dynamic test request")
+    }
+
+    #[tokio::test]
+    async fn dynamic_provider_offer_select_mint() {
+        let signer = KeySigner {
+            jwk: JWK::generate_p256(),
+        };
+
+        // Holder with no stored credentials, only the mock dynamic provider,
+        // registered via the additive `*_and_providers` constructor.
+        let holder = Holder::new_with_credentials_and_providers(
+            vec![],
+            vec![],
+            Box::new(signer),
+            None,
+            None,
+            vec![Arc::new(MockProvider)],
+        )
+        .await
+        .expect("failed to construct holder");
+
+        let permission_request = holder
+            .authorization_request(AuthRequest::Request(Box::new(dynamic_request())))
+            .await
+            .expect("failed to build permission request");
+
+        // Stored credentials are unchanged (none here); the provider's offer is
+        // surfaced via the parallel `dynamic_offers()` accessor.
+        assert!(permission_request.credentials().is_empty());
+        let offers = permission_request.dynamic_offers();
+        assert_eq!(offers.len(), 1);
+        let offer = &offers[0];
+        assert_eq!(offer.offer_id, MOCK_OFFER_ID);
+        assert_eq!(offer.credential_query_id, "mintable_0");
+        assert_eq!(offer.title, MOCK_TITLE);
+
+        // Select the offer and build the response via the additive method. No
+        // stored credentials are selected here.
+        let response = permission_request
+            .create_permission_response_with_offers(
+                vec![],
+                vec![],
+                vec![offer.clone()],
+                ResponseOptions::default(),
+            )
+            .await
+            .expect("failed to create permission response");
+
+        // The minted item lands in the vp_token under the offer's
+        // credential_query_id, bound to the request's nonce/client_id.
+        let vp_token_json = response.vp_token().expect("failed to serialize vp_token");
+        let vp_token: serde_json::Value =
+            serde_json::from_str(&vp_token_json).expect("vp_token is valid JSON");
+
+        let items = vp_token
+            .get("mintable_0")
+            .and_then(|v| v.as_array())
+            .expect("vp_token contains an array for mintable_0");
+        assert_eq!(items.len(), 1);
+        assert_eq!(
+            items[0].as_str().unwrap(),
+            "minted:nonce-dyn:redirect_uri:https://wallet.example/callback"
+        );
     }
 }
