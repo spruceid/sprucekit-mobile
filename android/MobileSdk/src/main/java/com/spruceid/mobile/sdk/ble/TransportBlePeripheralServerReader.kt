@@ -66,7 +66,29 @@ class TransportBlePeripheralServerReader(
                 logger.d("onStartSuccess")
             }
 
-            override fun onStartFailure(errorCode: Int) {}
+            /**
+             * Advertise failure was previously a silent no-op which meant
+             * `TOO_MANY_ADVERTISERS` (system advertiser slots saturated)
+             * presented to users as "stuck in scanning" with no diagnostic
+             * trail. Now logged and surfaced to the state machine so the
+             * session terminates cleanly with an actionable message.
+             */
+            override fun onStartFailure(errorCode: Int) {
+                val reason = "Advertise failed (code=$errorCode)"
+                logger.e(reason)
+                stateMachine.transitionTo(
+                    BleConnectionStateMachine.State.ERROR,
+                    reason,
+                )
+            }
+
+            override fun onError(error: Throwable) {
+                logger.e("Peripheral error: ${error.message}")
+                stateMachine.transitionTo(
+                    BleConnectionStateMachine.State.ERROR,
+                    error.message,
+                )
+            }
 
             override fun onLog(message: String) {
                 logger.d(message)
@@ -83,6 +105,15 @@ class TransportBlePeripheralServerReader(
         val gattServerCallback: GattServerCallback = object : GattServerCallback() {
             override fun onPeerConnected() {
                 logger.d("onPeerConnected")
+                // Stop advertising as soon as a peer connects. Reader is a
+                // 1:1 session — once the holder is on the GATT link there's
+                // no value in continuing to broadcast, and *staying* on the
+                // air keeps a system advertiser slot occupied for the full
+                // transfer duration. Repeated reader sessions without
+                // releasing the slot eventually trip
+                // `ADVERTISE_FAILED_TOO_MANY_ADVERTISERS` and the only
+                // recovery is restarting the host app.
+                blePeripheral.stopAdvertise()
                 gattServer.sendMessage(encodedEDeviceKeyBytes)
             }
 

@@ -49,7 +49,24 @@ class TransportBlePeripheralServerHolder(
             }
 
             override fun onStartFailure(errorCode: Int) {
-                logger.d("blePeripheralCallback.onStartFailure")
+                // Symmetric with `TransportBlePeripheralServerReader`:
+                // previously a silent debug log, now surfaced as a state-
+                // machine ERROR so the host can fail fast with an
+                // actionable message (especially `TOO_MANY_ADVERTISERS`).
+                val reason = "Advertise failed (code=$errorCode)"
+                logger.e(reason)
+                stateMachine.transitionTo(
+                    BleConnectionStateMachine.State.ERROR,
+                    reason,
+                )
+            }
+
+            override fun onError(error: Throwable) {
+                logger.e("Peripheral error: ${error.message}")
+                stateMachine.transitionTo(
+                    BleConnectionStateMachine.State.ERROR,
+                    error.message,
+                )
             }
 
             override fun onState(state: String) {
