@@ -184,8 +184,11 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
         return;
       }
 
-      // Handle authorization request
-      final authResult = await _oid4vp.handleAuthorizationRequest(url);
+      // Handle authorization request (auto-detect the OID4VP version)
+      final authResult = await _oid4vp.handleAuthorizationRequest(
+        url,
+        Oid4vpCompatibilityMode.auto,
+      );
 
       if (authResult is HandleAuthRequestError) {
         setState(() {
