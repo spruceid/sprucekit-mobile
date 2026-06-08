@@ -15,6 +15,13 @@ import 'package:pigeon/pigeon.dart';
     dartPackageName: 'sprucekit_mobile',
   ),
 )
+/// Selects which OID4VP protocol version the holder negotiates for a request.
+///
+/// - [auto] inspects the request and picks the matching version (recommended).
+/// - [v1] forces OID4VP 1.0 (final).
+/// - [draft18] forces OID4VP Draft 18.
+enum Oid4vpCompatibilityMode { auto, v1, draft18 }
+
 /// Options for creating the permission response
 class ResponseOptions {
   bool forceArraySerialization;
@@ -179,9 +186,14 @@ abstract class Oid4vp {
   /// Handle an authorization request URL
   ///
   /// @param url The authorization request URL (e.g., "openid4vp://...")
+  /// @param mode Which OID4VP version to negotiate. Use
+  ///   [Oid4vpCompatibilityMode.auto] to detect it from the request.
   /// @return HandleAuthRequestResult with matching credentials on success
   @async
-  HandleAuthRequestResult handleAuthorizationRequest(String url);
+  HandleAuthRequestResult handleAuthorizationRequest(
+    String url,
+    Oid4vpCompatibilityMode mode,
+  );
 
   /// Get requested fields for a credential
   ///

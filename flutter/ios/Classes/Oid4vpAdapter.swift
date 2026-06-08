@@ -8,7 +8,7 @@ enum Oid4vpSignerError: Error {
 }
 
 /// Signer implementation for OID4VP presentation
-class Oid4vpSigner: PresentationSigner {
+class Oid4vpSigner: Oid4vpPresentationSigner {
     private let keyId: String
     private let _jwk: String
     private let didJwk = DidMethodUtils(method: SpruceIDMobileSdkRs.DidMethod.jwk)
@@ -68,26 +68,61 @@ class Oid4vpSigner: PresentationSigner {
 
 /// OID4VP Pigeon Adapter for iOS
 ///
-/// Handles OpenID for Verifiable Presentation flow
+/// Handles OpenID for Verifiable Presentation flow.
+///
+/// Backed by the version-agnostic OID4VP facade (`Oid4vpHolder` /
+/// `Oid4vpSession`), which negotiates OID4VP 1.0 or Draft 18 per request.
+/// The negotiated version is chosen by the `mode` passed to
+/// `handleAuthorizationRequest`.
 class Oid4vpAdapter: Oid4vp {
 
     private let credentialPackAdapter: CredentialPackAdapter
     private let lock = NSLock()
 
     // Session state
-    private var holder: Holder?
-    private var permissionRequest: PermissionRequest?
+    private var holder: Oid4vpHolder?
+    private var session: Oid4vpSession?
     /// Resolves a Dart-side `PresentableCredentialKey` back to the live
-    /// `PresentableCredential` handle. Built from `credentialsGroupedByQuery()`
-    /// in `handleAuthorizationRequest`: each group entry contributes one
-    /// `(credentialId, credentialQueryId) -> credential` mapping. The same
-    /// underlying credential may appear under multiple keys if it satisfies
-    /// multiple DCQL queries — those are distinct `PresentableCredential`
-    /// instances on the Rust side, each carrying its own internal query id.
-    private var credentialsByKey: [PresentableCredentialKey: PresentableCredential] = [:]
+    /// `Oid4vpPresentableCredential` handle. Built from `session.credentials()`
+    /// in `handleAuthorizationRequest`, grouped by each credential's `matchId`
+    /// (the DCQL `credential_query_id` for v1, the input-descriptor id for
+    /// Draft 18). The same underlying credential may appear under multiple
+    /// keys when it satisfies multiple queries — those are distinct
+    /// `Oid4vpPresentableCredential` instances on the Rust side.
+    private var credentialsByKey: [PresentableCredentialKey: Oid4vpPresentableCredential] = [:]
 
     init(credentialPackAdapter: CredentialPackAdapter) {
         self.credentialPackAdapter = credentialPackAdapter
+    }
+
+    /// Maps the pigeon-facing compatibility mode to the Rust facade enum.
+    private func rustMode(
+        _ mode: Oid4vpCompatibilityMode
+    ) -> SpruceIDMobileSdkRs.Oid4vpCompatibilityMode {
+        switch mode {
+        case .auto: return .auto
+        case .v1: return .v1
+        case .draft18: return .draft18
+        }
+    }
+
+    /// Groups the session's presentable credentials by `matchId`, preserving
+    /// first-appearance order. Single source of truth for the key map, the
+    /// flat credential list and the grouped-by-query view.
+    private func groupedByQuery(
+        _ session: Oid4vpSession
+    ) -> [(qid: String, creds: [Oid4vpPresentableCredential])] {
+        var order: [String] = []
+        var map: [String: [Oid4vpPresentableCredential]] = [:]
+        for cred in session.credentials() {
+            let qid = cred.matchId()
+            if map[qid] == nil {
+                order.append(qid)
+                map[qid] = []
+            }
+            map[qid]?.append(cred)
+        }
+        return order.map { (qid: $0, creds: map[$0] ?? []) }
     }
 
     func createHolder(
@@ -114,8 +149,8 @@ class Oid4vpAdapter: Oid4vp {
                 // Create signer
                 let signer = try Oid4vpSigner(keyId: keyId)
 
-                // Create holder
-                let newHolder = try await Holder.newWithCredentials(
+                // Create holder (version-agnostic facade)
+                let newHolder = try await Oid4vpHolder.newWithCredentials(
                     providedCredentials: credentials,
                     trustedDids: trustedDids,
                     signer: signer,
@@ -136,6 +171,7 @@ class Oid4vpAdapter: Oid4vp {
 
     func handleAuthorizationRequest(
         url: String,
+        mode: Oid4vpCompatibilityMode,
         completion: @escaping (Result<HandleAuthRequestResult, any Error>) -> Void
     ) {
         Task {
@@ -151,20 +187,21 @@ class Oid4vpAdapter: Oid4vp {
                 // Handle URL format (remove "authorize" if present, similar to Showcase)
                 let processedUrl = url.replacingOccurrences(of: "authorize", with: "")
 
-                // Parse authorization request
-                let request = try await holder.authorizationRequest(req: Url(processedUrl))
+                // Start a session, negotiating the OID4VP version per `mode`.
+                let session = try await holder.startWithCompatibilityMode(
+                    request: processedUrl,
+                    compatibilityMode: rustMode(mode)
+                )
 
-                // Build (credentialId, credentialQueryId) -> credential map and
-                // the flat credential list for Dart from a single source: the
-                // grouped-by-query view. Rust groups by each credential's
-                // internal `credential_query_id` (1-to-1 with the flat list),
-                // so the union of group entries equals `request.credentials()`.
-                let groups = request.credentialsGroupedByQuery()
-                var keyMap: [PresentableCredentialKey: PresentableCredential] = [:]
+                // Build (credentialId, matchId) -> credential map and the flat
+                // credential list for Dart from a single source: credentials
+                // grouped by their `matchId`.
+                let groups = groupedByQuery(session)
+                var keyMap: [PresentableCredentialKey: Oid4vpPresentableCredential] = [:]
                 var credentialData: [PresentableCredentialData] = []
                 for group in groups {
-                    let qid = group.credentialQueryId
-                    for cred in group.credentials {
+                    let qid = group.qid
+                    for cred in group.creds {
                         let cid = cred.asParsedCredential().id()
                         let key = PresentableCredentialKey(
                             credentialId: cid,
@@ -180,7 +217,7 @@ class Oid4vpAdapter: Oid4vp {
                 }
 
                 lock.lock()
-                self.permissionRequest = request
+                self.session = session
                 self.credentialsByKey = keyMap
                 lock.unlock()
 
@@ -192,11 +229,11 @@ class Oid4vpAdapter: Oid4vp {
                 }
 
                 let info = PermissionRequestInfo(
-                    clientId: request.clientId(),
-                    domain: request.domain(),
-                    purpose: request.purpose(),
-                    isMultiCredentialSelection: request.isMultiCredentialSelection(),
-                    isMultiCredentialMatching: request.isMultiCredentialMatching()
+                    clientId: session.clientId(),
+                    domain: session.domain(),
+                    purpose: session.purpose(),
+                    isMultiCredentialSelection: session.isMultiCredentialSelection(),
+                    isMultiCredentialMatching: session.isMultiCredentialMatching()
                 )
 
                 completion(.success(HandleAuthRequestSuccess(
@@ -211,25 +248,25 @@ class Oid4vpAdapter: Oid4vp {
 
     func getRequestedFields(key: PresentableCredentialKey) throws -> [RequestedFieldData] {
         lock.lock()
-        guard let permissionRequest = self.permissionRequest,
+        guard let session = self.session,
               let credential = self.credentialsByKey[key] else {
             lock.unlock()
             return []
         }
         lock.unlock()
 
-        let fields = permissionRequest.requestedFields(credential: credential)
+        let fields = try session.requestedFields(credential: credential)
 
         return fields.map { field in
             RequestedFieldData(
-                id: field.id(),
-                name: field.name(),
-                path: field.path(),
-                required: field.required(),
-                retained: field.retained(),
-                purpose: field.purpose(),
-                credentialQueryId: field.credentialQueryId(),
-                rawFields: field.rawFields()
+                id: field.id,
+                name: field.name,
+                path: field.path,
+                required: field.required,
+                retained: field.retained,
+                purpose: field.purpose,
+                credentialQueryId: field.matchId,
+                rawFields: field.rawFields
             )
         }
     }
@@ -243,8 +280,7 @@ class Oid4vpAdapter: Oid4vp {
         Task {
             do {
                 lock.lock()
-                guard let holder = self.holder,
-                      let permissionRequest = self.permissionRequest else {
+                guard let session = self.session else {
                     lock.unlock()
                     completion(.success(Oid4vpError(message: "Session not initialized")))
                     return
@@ -259,20 +295,23 @@ class Oid4vpAdapter: Oid4vp {
                     return
                 }
 
-                // Create response options
-                let responseOptions = SpruceIDMobileSdkRs.ResponseOptions(
-                    forceArraySerialization: options.forceArraySerialization
+                // Create response options. `shouldStripQuotes` and
+                // `removeVpPathPrefix` are Draft 18-only knobs not surfaced by
+                // the pigeon API; default them off.
+                let responseOptions = SpruceIDMobileSdkRs.Oid4vpResponseOptions(
+                    forceArraySerialization: options.forceArraySerialization,
+                    shouldStripQuotes: false,
+                    removeVpPathPrefix: false
                 )
 
-                // Create permission response
-                let permissionResponse = try await permissionRequest.createPermissionResponse(
+                // Create and submit the permission response on the session.
+                let permissionResponse = try await session.createPermissionResponse(
                     selectedCredentials: resolvedCredentials,
                     selectedFields: selectedFieldPaths,
                     responseOptions: responseOptions
                 )
 
-                // Submit response
-                _ = try await holder.submitPermissionResponse(response: permissionResponse)
+                _ = try await session.submitPermissionResponse(response: permissionResponse)
 
                 completion(.success(Oid4vpSuccess(message: "Presentation submitted successfully")))
             } catch {
@@ -283,42 +322,30 @@ class Oid4vpAdapter: Oid4vp {
 
     func getCredentialRequirements() throws -> [CredentialRequirementData] {
         lock.lock()
-        guard let permissionRequest = self.permissionRequest else {
+        guard let session = self.session else {
             lock.unlock()
             return []
         }
-        let keyMap = self.credentialsByKey
         lock.unlock()
 
-        let requirements = permissionRequest.credentialRequirements()
+        let requirements = session.requirements()
         return requirements.map { req in
-            // For each credential in the requirement, pick the first
-            // credentialQueryId from `req.credentialQueryIds` (in order)
-            // for which `(credentialId, qid)` exists in `keyMap`. Rust's
-            // invariant guarantees at least one such qid exists per cred.
+            // The facade encodes the requirement's credential query ids as a
+            // "|"-joined string in `id`; split it back into the list. Each
+            // credential carries its own `matchId`, consistent with the key
+            // map built in `handleAuthorizationRequest`.
+            let queryIds = req.id.split(separator: "|").map(String.init)
             let creds = req.credentials.map { cred -> PresentableCredentialData in
-                let credId = cred.asParsedCredential().id()
-                guard let qid = req.credentialQueryIds.first(where: { qid in
-                    keyMap[PresentableCredentialKey(
-                        credentialId: credId,
-                        credentialQueryId: qid
-                    )] != nil
-                }) else {
-                    preconditionFailure(
-                        "No matching credentialQueryId for credentialId=\(credId) " +
-                        "in requirement '\(req.displayName)'"
-                    )
-                }
-                return PresentableCredentialData(
-                    credentialId: credId,
-                    credentialQueryId: qid,
+                PresentableCredentialData(
+                    credentialId: cred.asParsedCredential().id(),
+                    credentialQueryId: cred.matchId(),
                     selectiveDisclosable: cred.selectiveDisclosable()
                 )
             }
             return CredentialRequirementData(
                 displayName: req.displayName,
                 required: req.required,
-                credentialQueryIds: req.credentialQueryIds,
+                credentialQueryIds: queryIds,
                 credentials: creds
             )
         }
@@ -326,24 +353,22 @@ class Oid4vpAdapter: Oid4vp {
 
     func getCredentialsGroupedByQuery() throws -> [CredentialQueryGroupData] {
         lock.lock()
-        guard let permissionRequest = self.permissionRequest else {
+        guard let session = self.session else {
             lock.unlock()
             return []
         }
         lock.unlock()
 
-        let groups = permissionRequest.credentialsGroupedByQuery()
-        return groups.map { group in
-            let qid = group.credentialQueryId
-            let creds = group.credentials.map { cred in
+        return groupedByQuery(session).map { group in
+            let creds = group.creds.map { cred in
                 PresentableCredentialData(
                     credentialId: cred.asParsedCredential().id(),
-                    credentialQueryId: qid,
+                    credentialQueryId: group.qid,
                     selectiveDisclosable: cred.selectiveDisclosable()
                 )
             }
             return CredentialQueryGroupData(
-                credentialQueryId: qid,
+                credentialQueryId: group.qid,
                 credentials: creds
             )
         }
@@ -351,19 +376,19 @@ class Oid4vpAdapter: Oid4vp {
 
     func getCredentialQueryIds() throws -> [String] {
         lock.lock()
-        guard let permissionRequest = self.permissionRequest else {
+        guard let session = self.session else {
             lock.unlock()
             return []
         }
         lock.unlock()
 
-        return permissionRequest.credentialQueryIds()
+        return groupedByQuery(session).map { $0.qid }
     }
 
     func cancel() throws {
         lock.lock()
         holder = nil
-        permissionRequest = nil
+        session = nil
         credentialsByKey = [:]
         lock.unlock()
     }
