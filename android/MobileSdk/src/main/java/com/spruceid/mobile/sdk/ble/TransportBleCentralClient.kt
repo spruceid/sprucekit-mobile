@@ -14,6 +14,7 @@ import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.byteArrayToHex
 import com.spruceid.mobile.sdk.rs.RequestException
 import java.util.*
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * BLE Central Client - ISO 18013-5 Section 8.3.3.1.1.4 Table 11
@@ -336,8 +337,29 @@ class TransportBleCentralClient(
                     // Clear any existing timeout before setting new one
                     scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
 
+                    // Capture a fresh generation from the process-wide
+                    // counter (see [scanGenerationCounter]). Any earlier-
+                    // armed runnable — across this instance OR a stale
+                    // instance left over from a prior session whose
+                    // `terminate()` was skipped (e.g. because the shared
+                    // state machine refused the `transitionTo(DISCONNECTING)`
+                    // and `stopScan()` was never reached) — will observe
+                    // `currentGeneration != armedGeneration` when it fires
+                    // and short-circuit, instead of silently tearing down
+                    // a live BLE session that has since taken over the
+                    // shared transport.
+                    val armedGeneration = scanGenerationCounter.incrementAndGet()
+
                     scanTimeoutRunnable = Runnable {
                         synchronized(scanLock) {
+                            val current = scanGenerationCounter.get()
+                            if (armedGeneration != current) {
+                                logger.d(
+                                    "Stale scan timeout runnable " +
+                                        "(armed=$armedGeneration, current=$current); ignoring.",
+                                )
+                                return@Runnable
+                            }
                             if (scanning) {
                                 scanning = false
                                 try {
@@ -422,5 +444,25 @@ class TransportBleCentralClient(
         // 30s rolling window per Android's ScanThrottle; add a small
         // cushion so the next startScan call lands just outside the gate.
         const val SCAN_THROTTLE_BACKOFF_MS = 31_000L
+
+        /**
+         * Process-wide monotonic counter used to fence scan-timeout
+         * runnables against stale instances. Every call to [scan]
+         * `incrementAndGet`s this counter and the resulting value is
+         * captured by the runnable's closure as `armedGeneration`. When
+         * the runnable later fires it compares `armedGeneration` to the
+         * counter's current value — if a different instance (or the same
+         * instance via a fresh `scan()`) has since armed a newer
+         * generation, the stale runnable returns without touching state.
+         *
+         * Counter is `AtomicLong` so reads/writes from any thread are
+         * coherent without an extra lock; the per-instance `scanLock`
+         * still serializes the surrounding state mutations.
+         *
+         * Not reset between instances. A `Long` monotonically incremented
+         * at human-driven scan rates will not overflow within the device's
+         * useful lifetime.
+         */
+        val scanGenerationCounter = AtomicLong(0)
     }
 }
