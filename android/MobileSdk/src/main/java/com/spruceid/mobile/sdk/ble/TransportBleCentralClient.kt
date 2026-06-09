@@ -235,10 +235,8 @@ class TransportBleCentralClient(
 
     /**
      * Tracks scan-failed retry state so the SDK can auto-recover from
-     * `SCAN_FAILED_SCANNING_TOO_FREQUENTLY` (Android 30+ enforces ≤5 scans
-     * per 30s per app). Previously the [ScanCallback] only overrode
-     * `onScanResult`, so any `onScanFailed` was silently dropped and a
-     * throttled session would just hang until the 30s window cleared.
+     * `SCAN_FAILED_SCANNING_TOO_FREQUENTLY` since Android 30+ enforces ≤5 scans
+     * per 30s per app.
      */
     private var scanThrottleRetryAttempt = 0
     private val maxScanThrottleRetries = 1
@@ -252,14 +250,6 @@ class TransportBleCentralClient(
             gattClient.connect(result.device, identValue)
         }
 
-        /**
-         * Called by the platform when `startScan` fails. The most common
-         * production failure is `SCAN_FAILED_SCANNING_TOO_FREQUENTLY`
-         * (errorCode=6, API 30+) — the system silently drops scans after
-         * 5 within a rolling 30s window. We back off past the window and
-         * retry once before giving up. Other failure codes are surfaced
-         * to the caller without retry.
-         */
         override fun onScanFailed(errorCode: Int) {
             super.onScanFailed(errorCode)
             logger.e("BLE scan failed (code=$errorCode)")
@@ -337,17 +327,6 @@ class TransportBleCentralClient(
                     // Clear any existing timeout before setting new one
                     scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
 
-                    // Capture a fresh generation from the process-wide
-                    // counter (see [scanGenerationCounter]). Any earlier-
-                    // armed runnable — across this instance OR a stale
-                    // instance left over from a prior session whose
-                    // `terminate()` was skipped (e.g. because the shared
-                    // state machine refused the `transitionTo(DISCONNECTING)`
-                    // and `stopScan()` was never reached) — will observe
-                    // `currentGeneration != armedGeneration` when it fires
-                    // and short-circuit, instead of silently tearing down
-                    // a live BLE session that has since taken over the
-                    // shared transport.
                     val armedGeneration = scanGenerationCounter.incrementAndGet()
 
                     scanTimeoutRunnable = Runnable {
@@ -409,9 +388,6 @@ class TransportBleCentralClient(
             scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
             scanTimeoutRunnable = null
 
-            // Also cancel any pending scan-throttle retry — caller-initiated
-            // stop should be authoritative; we don't want a delayed retry
-            // resurrecting the scan after the host already moved on.
             scanThrottleRetryRunnable?.let { handler.removeCallbacks(it) }
             scanThrottleRetryRunnable = null
 
@@ -441,27 +417,12 @@ class TransportBleCentralClient(
     }
 
     private companion object {
-        // 30s rolling window per Android's ScanThrottle; add a small
-        // cushion so the next startScan call lands just outside the gate.
+        // 30s rolling window per Android's ScanThrottle;
         const val SCAN_THROTTLE_BACKOFF_MS = 31_000L
 
         /**
-         * Process-wide monotonic counter used to fence scan-timeout
-         * runnables against stale instances. Every call to [scan]
-         * `incrementAndGet`s this counter and the resulting value is
-         * captured by the runnable's closure as `armedGeneration`. When
-         * the runnable later fires it compares `armedGeneration` to the
-         * counter's current value — if a different instance (or the same
-         * instance via a fresh `scan()`) has since armed a newer
-         * generation, the stale runnable returns without touching state.
-         *
-         * Counter is `AtomicLong` so reads/writes from any thread are
-         * coherent without an extra lock; the per-instance `scanLock`
-         * still serializes the surrounding state mutations.
-         *
-         * Not reset between instances. A `Long` monotonically incremented
-         * at human-driven scan rates will not overflow within the device's
-         * useful lifetime.
+         * Process-wide atomic counter used to fence scan-timeout
+         * runnables against stale instances.
          */
         val scanGenerationCounter = AtomicLong(0)
     }

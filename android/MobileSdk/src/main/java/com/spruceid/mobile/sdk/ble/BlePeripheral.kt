@@ -13,10 +13,7 @@ import java.util.*
 abstract class BlePeripheralCallback {
     open fun onStartSuccess(settingsInEffect: AdvertiseSettings) {}
     /**
-     * Called when `startAdvertising` fails with one of the
-     * `AdvertiseCallback.ADVERTISE_FAILED_*` codes. The SDK only delivers
-     * the *final* failure — transient `ADVERTISE_FAILED_INTERNAL_ERROR`s
-     * are retried internally with a short backoff (see [BlePeripheral]).
+     * Called when `startAdvertising` fails.
      */
     open fun onStartFailure(errorCode: Int) {}
     open fun onError(error: Throwable) {}
@@ -33,25 +30,9 @@ class BlePeripheral(
     private val bluetoothAdapter: BluetoothAdapter = BleConnectionStateMachine.getInstance(stateMachineType).getBluetoothManager().adapter
     private val bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
 
-    /**
-     * Retry state for transient `ADVERTISE_FAILED_INTERNAL_ERROR` failures.
-     * `TOO_MANY_ADVERTISERS` is *not* retried automatically — it indicates
-     * the system advertiser slots are saturated (by this app or another),
-     * and the right recovery is for callers to release pressure (e.g. stop
-     * advertising once a peer has connected) rather than spinning. Other
-     * permanent codes (DATA_TOO_LARGE, FEATURE_UNSUPPORTED, ALREADY_STARTED)
-     * also fail fast.
-     */
     private val retryHandler = Handler(Looper.getMainLooper())
     private var transientRetryAttempt = 0
 
-    /**
-     * Advertisement callback. Each `startAdvertising` failure now delivers
-     * exactly one terminal error to [BlePeripheralCallback]; the previous
-     * implementation fired both a per-code error *and* an unconditional
-     * generic "Failed to start advertising." error, causing subscribers to
-     * double-handle a single failure.
-     */
     private val leAdvertiseCallback: AdvertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
             transientRetryAttempt = 0
@@ -60,9 +41,7 @@ class BlePeripheral(
         }
 
         override fun onStartFailure(errorCode: Int) {
-            // Retry `INTERNAL_ERROR` with exponential backoff — empirically
-            // it's the most-common transient (radio state churn, BT stack
-            // hiccup). All other codes are reported and left to the caller.
+            // Retry `INTERNAL_ERROR` with exponential backoff
             if (errorCode == ADVERTISE_FAILED_INTERNAL_ERROR &&
                 transientRetryAttempt < MAX_TRANSIENT_RETRIES) {
                 transientRetryAttempt++
@@ -124,9 +103,7 @@ class BlePeripheral(
     }
 
     /**
-     * Stops advertising the device/peripheral. Also cancels any pending
-     * transient-failure retry scheduled by [leAdvertiseCallback.onStartFailure]
-     * so a caller-initiated stop is authoritative.
+     * Stops advertising the device/peripheral and cleans up any pending work.
      */
     fun stopAdvertise() {
         retryHandler.removeCallbacksAndMessages(null)
