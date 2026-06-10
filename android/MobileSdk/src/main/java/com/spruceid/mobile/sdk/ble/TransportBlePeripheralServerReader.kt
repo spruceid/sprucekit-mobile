@@ -66,7 +66,22 @@ class TransportBlePeripheralServerReader(
                 logger.d("onStartSuccess")
             }
 
-            override fun onStartFailure(errorCode: Int) {}
+            override fun onStartFailure(errorCode: Int) {
+                val reason = "Advertise failed (code=$errorCode)"
+                logger.e(reason)
+                stateMachine.transitionTo(
+                    BleConnectionStateMachine.State.ERROR,
+                    reason,
+                )
+            }
+
+            override fun onError(error: Throwable) {
+                logger.e("Peripheral error: ${error.message}")
+                stateMachine.transitionTo(
+                    BleConnectionStateMachine.State.ERROR,
+                    error.message,
+                )
+            }
 
             override fun onLog(message: String) {
                 logger.d(message)
@@ -83,6 +98,7 @@ class TransportBlePeripheralServerReader(
         val gattServerCallback: GattServerCallback = object : GattServerCallback() {
             override fun onPeerConnected() {
                 logger.d("onPeerConnected")
+                blePeripheral.stopAdvertise()
                 gattServer.sendMessage(encodedEDeviceKeyBytes)
             }
 
