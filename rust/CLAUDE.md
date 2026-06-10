@@ -9,6 +9,10 @@ UniFFI library (`mobile-sdk-rs`) that generates Swift and Kotlin bindings for th
 ## Commands
 
 ```bash
+# Keep your toolchain up to date so local clippy/build matches CI's version
+# (CI may run a newer toolchain that flags lints your local version misses)
+rustup update
+
 # Build
 cargo build
 
@@ -17,10 +21,6 @@ cargo test
 
 # Lint (CI runs with RUSTFLAGS="-Dwarnings")
 cargo clippy
-
-# Keep your toolchain up to date so local clippy matches CI's version
-# (CI may run a newer clippy that flags lints your local version misses)
-rustup update
 
 # Format check
 cargo fmt -- --check
