@@ -16,12 +16,60 @@ use crate::oid4vp::presentation::{PresentationError, PresentationSigner};
 
 use super::exchange::{CryptosuiteEntry, Vpr};
 
-/// The `ecdsa-rdfc-2019` cryptosuite name — the only full-disclosure suite currently
-/// wired in. SD suites (`ecdsa-sd-2023`/`bbs-2023`) are recognized but not yet derived.
+/// The `ecdsa-rdfc-2019` cryptosuite name — the only VP-proof suite currently
+/// wired in. The `ecdsa-sd-2023` SD suite is satisfied at the CREDENTIAL layer
+/// (derive), never as the VP proof.
 const ECDSA_RDFC_2019: &str = "ecdsa-rdfc-2019";
 
-/// The `ecdsa-sd-2023` selective-disclosure cryptosuite name.
+/// The `ecdsa-sd-2023` selective-disclosure cryptosuite name. Mirrors
+/// `json_vc::DERIVABLE_SD_CRYPTOSUITES`.
 const ECDSA_SD_2023: &str = "ecdsa-sd-2023";
+
+/// Render a [`CryptosuiteEntry`] to its suite name.
+fn entry_name(entry: &CryptosuiteEntry) -> &str {
+    match entry {
+        CryptosuiteEntry::Name(name) => name.as_str(),
+        CryptosuiteEntry::Object { cryptosuite } => cryptosuite.as_str(),
+    }
+}
+
+/// §3.4.3.1 "cryptography suites among which the holder MUST choose": when
+/// `acceptedCryptosuites` lists exist (at ANY placement) and NONE names a suite
+/// this holder can produce — `ecdsa-rdfc-2019` for the VP proof, or
+/// `ecdsa-sd-2023` satisfied at the credential layer via SD derive — nothing the
+/// holder signs can be acceptable. Returns the union of listed names so the
+/// caller can fail with a precise [`VcalmError::NoAcceptedCryptosuite`]
+/// (refusing BEFORE user data is signed and transmitted), instead of the old
+/// warn-and-send-a-doomed-proof behavior.
+pub(crate) fn unsupported_cryptosuite_negotiation(vpr: &Vpr) -> Option<String> {
+    let mut listed: Vec<String> = Vec::new();
+    let mut collect = |entries: &Option<Vec<CryptosuiteEntry>>| {
+        if let Some(entries) = entries {
+            for e in entries {
+                let name = entry_name(e).to_string();
+                if !listed.contains(&name) {
+                    listed.push(name);
+                }
+            }
+        }
+    };
+    collect(&vpr.accepted_cryptosuites);
+    for query in &vpr.query {
+        collect(&query.accepted_cryptosuites);
+        for cq in &query.credential_query {
+            collect(&cq.accepted_cryptosuites);
+        }
+    }
+    if listed.is_empty()
+        || listed
+            .iter()
+            .any(|n| n == ECDSA_RDFC_2019 || n == ECDSA_SD_2023)
+    {
+        None
+    } else {
+        Some(listed.join(", "))
+    }
+}
 
 /// GATE 1: true iff the VPR's `acceptedCryptosuites` lists the
 /// `ecdsa-sd-2023` selective-disclosure suite. Reads the same `CryptosuiteEntry`
@@ -188,59 +236,17 @@ impl VpSigner {
         }
     }
 
-    /// Select the signing cryptosuite from the VPR's `acceptedCryptosuites`.
+    /// Select the signing cryptosuite for the VP proof.
     ///
-    /// The field is read from EVERY placement the spec and real servers use — the
-    /// VPR top level, the query level (§3.4.3.1, spec Examples 6/7), and inside
-    /// each `credentialQuery`. A single match over the suite *name*
-    /// — NOT a cryptosuite registry:
-    /// - no list anywhere ⇒ default to `ecdsa-rdfc-2019`.
-    /// - any list anywhere names `ecdsa-rdfc-2019` ⇒ select `ecdsa-rdfc-2019`.
-    /// - lists exist but none names `ecdsa-rdfc-2019` ⇒ the spec's "holder MUST
-    ///   choose among" (§3.4.3.1 L2038) cannot be satisfied with the single wired
-    ///   suite; warn loudly and fall through to the `ecdsa-rdfc-2019` default — do
-    ///   NOT error (the verifier will reject the proof, which surfaces the mismatch
-    ///   without bricking the wallet flow).
-    fn select_suite(vpr: &Vpr) -> AnySuite {
-        fn entries_list(entries: &[CryptosuiteEntry], wanted: &str) -> bool {
-            entries.iter().any(|entry| {
-                let name = match entry {
-                    CryptosuiteEntry::Name(name) => name.as_str(),
-                    CryptosuiteEntry::Object { cryptosuite } => cryptosuite.as_str(),
-                };
-                name == wanted
-            })
-        }
-
-        let mut any_list_present = vpr.accepted_cryptosuites.is_some();
-        let mut listed_ecdsa_rdfc_2019 = vpr
-            .accepted_cryptosuites
-            .as_ref()
-            .is_some_and(|e| entries_list(e, ECDSA_RDFC_2019));
-        for query in &vpr.query {
-            if let Some(entries) = &query.accepted_cryptosuites {
-                any_list_present = true;
-                listed_ecdsa_rdfc_2019 |= entries_list(entries, ECDSA_RDFC_2019);
-            }
-            for cq in &query.credential_query {
-                if let Some(entries) = &cq.accepted_cryptosuites {
-                    any_list_present = true;
-                    listed_ecdsa_rdfc_2019 |= entries_list(entries, ECDSA_RDFC_2019);
-                }
-            }
-        }
-
-        if any_list_present && !listed_ecdsa_rdfc_2019 {
-            // §3.4.3.1: "cryptography suites among which the holder MUST choose".
-            // The single wired suite isn't listed — warn (not debug: a MUST is
-            // being traded for interop) and fall through to the default.
-            log::warn!(
-                "VPR acceptedCryptosuites (any placement) lists no Phase-2-wired \
-                 suite; signing ecdsa-rdfc-2019 anyway — the verifier may reject \
-                 this proof (§3.4.3.1)"
-            );
-        }
-
+    /// Negotiation REFUSAL is handled before signing —
+    /// [`unsupported_cryptosuite_negotiation`] errors the whole submit when
+    /// `acceptedCryptosuites` lists exclude everything this holder can produce
+    /// (§3.4.3.1 "holder MUST choose among"). By the time `select_suite` runs,
+    /// the VPR either lists `ecdsa-rdfc-2019`, lists `ecdsa-sd-2023` (satisfied
+    /// at the credential layer; the VP proof stays `ecdsa-rdfc-2019` in the
+    /// two-layer model), or lists nothing — all of which select the single
+    /// wired suite.
+    fn select_suite(_vpr: &Vpr) -> AnySuite {
         AnySuite::EcdsaRdfc2019
     }
 

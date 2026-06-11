@@ -36,9 +36,19 @@ use uuid::Uuid;
 
 const ACCEPTED_CRYPTOSUITES: &[&str] = &["ecdsa-rdfc-2019"];
 
-/// Selective-disclosure cryptosuites recognized by the isolated SD derive seam
-/// ([`JsonVc::derive_sd_vp_credential`]).
-const SD_CRYPTOSUITES: &[&str] = &["ecdsa-sd-2023"];
+/// Selective-disclosure cryptosuites this SDK can DERIVE from a base proof.
+/// The single source of truth for the derive seam
+/// ([`JsonVc::derive_sd_vp_credential`]) and the holder's SD gate.
+pub(crate) const DERIVABLE_SD_CRYPTOSUITES: &[&str] = &["ecdsa-sd-2023"];
+
+/// Selective-disclosure BASE-proof cryptosuites that must never ride along on a
+/// presented credential (spec B.1: base proofs can carry holder-secret
+/// material). Superset of [`DERIVABLE_SD_CRYPTOSUITES`]: `bbs-2023` base proofs
+/// are recognized (never presented) but not yet derivable.
+pub(crate) const SD_BASE_PROOF_CRYPTOSUITES: &[&str] = &["ecdsa-sd-2023", "bbs-2023"];
+
+/// Backwards-compatible alias used by the derive seam below.
+const SD_CRYPTOSUITES: &[&str] = DERIVABLE_SD_CRYPTOSUITES;
 
 /// True iff `raw["proof"]` (object or array) carries a base proof whose
 /// `cryptosuite` is in [`SD_CRYPTOSUITES`].
@@ -82,6 +92,8 @@ pub enum JsonVcDeriveError {
     NotSdBaseProof,
     #[error("failed to decode base-proof credential JSON for selective disclosure")]
     Decode,
+    #[error("invalid JSON-LD context map for selective disclosure: {0}")]
+    Context(String),
     #[error("selective-disclosure derivation failed: {0}")]
     Select(String),
     #[error("failed to encode the derived selective-disclosure credential")]
@@ -217,14 +229,19 @@ impl JsonVc {
 
     /// Derive an `ecdsa-sd-2023` selective-disclosure credential from this
     /// credential's base proof, revealing only `selective_pointers` plus the
-    /// issuer-mandated `mandatoryPointers`.
+    /// issuer-mandated `mandatoryPointers`. `context_map` supplies the SDK's
+    /// bundled JSON-LD contexts so canonicalization resolves custom `@context`
+    /// URLs OFFLINE — the same loader the verify path uses
+    /// (`verify_raw_credential`); without it, derive fails for every credential
+    /// whose context is not built into `ssi`.
     pub(crate) async fn derive_sd_vp_credential(
         &self,
         selective_pointers: Vec<ssi::JsonPointerBuf>,
+        context_map: Option<std::collections::HashMap<String, String>>,
     ) -> Result<Json, JsonVcDeriveError> {
         match &self.parsed {
-            AnyJsonCredential::V1(_) => self.select_sd_proof(selective_pointers).await,
-            AnyJsonCredential::V2(_) => self.select_sd_proof(selective_pointers).await,
+            AnyJsonCredential::V1(_) => self.select_sd_proof(selective_pointers, context_map).await,
+            AnyJsonCredential::V2(_) => self.select_sd_proof(selective_pointers, context_map).await,
         }
     }
 
@@ -233,10 +250,12 @@ impl JsonVc {
     async fn select_sd_proof(
         &self,
         selective_pointers: Vec<ssi::JsonPointerBuf>,
+        context_map: Option<std::collections::HashMap<String, String>>,
     ) -> Result<Json, JsonVcDeriveError> {
         use ssi::claims::data_integrity::{AnyDataIntegrity, AnySelectionOptions};
         use ssi::claims::VerificationParameters;
         use ssi::dids::{AnyDidMethod, DIDResolver};
+        use ssi::json_ld::ContextLoader;
 
         if !is_sd_base_proof(&self.raw) {
             return Err(JsonVcDeriveError::NotSdBaseProof);
@@ -245,8 +264,16 @@ impl JsonVc {
         let input: AnyDataIntegrity =
             serde_json::from_value(self.raw.clone()).map_err(|_| JsonVcDeriveError::Decode)?;
 
-        let params =
+        let mut params =
             VerificationParameters::from_resolver(AnyDidMethod::default().into_vm_resolver());
+        if let Some(map) = context_map {
+            params = params.with_json_ld_loader(
+                ContextLoader::empty()
+                    .with_static_loader()
+                    .with_context_map_from(map)
+                    .map_err(|e| JsonVcDeriveError::Context(format!("{e:?}")))?,
+            );
+        }
 
         let mut options = AnySelectionOptions::default();
         options.selective_pointers = selective_pointers;
@@ -434,6 +461,17 @@ mod tests {
     use ssi::JWK;
 
     async fn issue_sd_base_proof(unsecured: Json, mandatory_pointers: &[&str]) -> Json {
+        issue_sd_base_proof_with_loader(unsecured, mandatory_pointers, false).await
+    }
+
+    /// Issue an `ecdsa-sd-2023` base proof; `bundled_contexts` arms a JSON-LD
+    /// loader carrying the SDK's bundled context map so signing can resolve
+    /// custom `@context` URLs offline (mirrors what a real issuer does).
+    async fn issue_sd_base_proof_with_loader(
+        unsecured: Json,
+        mandatory_pointers: &[&str],
+        bundled_contexts: bool,
+    ) -> Json {
         let issuer_jwk = JWK::generate_p256();
         let vm = DIDKey::generate_url(&issuer_jwk).expect("did:key Multikey VM");
         let vm_str = vm.to_string();
@@ -458,9 +496,22 @@ mod tests {
             .map(|p| p.parse().expect("valid mandatory JSON pointer"))
             .collect();
 
+        let json_ld_loader = if bundled_contexts {
+            ssi::json_ld::ContextLoader::empty()
+                .with_static_loader()
+                .with_context_map_from(crate::context::default_ld_json_context())
+                .expect("bundled context map loads")
+        } else {
+            ssi::json_ld::ContextLoader::default()
+        };
+        let env = SignatureEnvironment {
+            json_ld_loader,
+            eip712_loader: (),
+        };
+
         let signed: AnyDataIntegrity = suite
             .sign_with(
-                SignatureEnvironment::default(),
+                env,
                 input,
                 AnyDidMethod::default().into_vm_resolver(),
                 SingleSecretSigner::new(issuer_jwk).into_local(),
@@ -513,7 +564,7 @@ mod tests {
         );
 
         let derived = vc
-            .derive_sd_vp_credential(ptrs(&["/credentialSubject/givenName"]))
+            .derive_sd_vp_credential(ptrs(&["/credentialSubject/givenName"]), None)
             .await
             .expect("v1 SD derive must succeed (Open Question 2 retired)");
 
@@ -536,6 +587,57 @@ mod tests {
         assert!(
             verify_di(&derived).await,
             "derived v1 VC must verify against the issuer base proof"
+        );
+    }
+
+    #[tokio::test]
+    async fn sd_derive_resolves_bundled_contexts_offline() {
+        // H4 regression: a VC whose @context names a context only the SDK
+        // bundles (here the render-method v2rc2 context this repo ships) can
+        // only be derived when the SDK's context map is threaded into the
+        // derive — exactly the credentials this SDK targets. Without the map
+        // the loader cannot resolve the context and the derive must fail
+        // (it must NOT silently succeed with an unresolved context).
+        let unsecured = json!({
+            "@context": [
+                "https://www.w3.org/ns/credentials/v2",
+                // The trigger: a context document only the SDK's bundled map can
+                // resolve offline. (Subject terms are defined inline so the test
+                // isolates CONTEXT RESOLUTION, not term coverage.)
+                "https://w3id.org/vc/render-method/v2rc2",
+                { "@vocab": "https://example.org/vocab#" }
+            ],
+            "type": ["VerifiableCredential"],
+            "issuer": "https://issuer.example/",
+            "credentialSubject": {
+                "givenName": "Jane",
+                "familyName": "Doe"
+            }
+        });
+
+        let base_proof = issue_sd_base_proof_with_loader(unsecured, &["/issuer"], true).await;
+        let vc =
+            JsonVc::from_json(Uuid::new_v4(), base_proof, None).expect("base-proof JsonVc parses");
+
+        // WITHOUT the SDK context map: the bundled-only context is unresolvable.
+        let err = vc
+            .derive_sd_vp_credential(ptrs(&["/credentialSubject/givenName"]), None)
+            .await
+            .expect_err("derive without the SDK context map cannot resolve the context");
+        assert!(matches!(err, JsonVcDeriveError::Select(_)));
+
+        // WITH the SDK context map: derive succeeds offline.
+        let derived = vc
+            .derive_sd_vp_credential(
+                ptrs(&["/credentialSubject/givenName"]),
+                Some(crate::context::default_ld_json_context()),
+            )
+            .await
+            .expect("derive with the SDK context map succeeds offline");
+        assert_eq!(derived["credentialSubject"]["givenName"], json!("Jane"));
+        assert!(
+            derived["credentialSubject"].get("familyName").is_none(),
+            "non-requested field stays undisclosed"
         );
     }
 
@@ -565,10 +667,10 @@ mod tests {
         );
 
         let derived = vc
-            .derive_sd_vp_credential(ptrs(&[
-                "/credentialSubject/givenName",
-                "/credentialSubject/boards",
-            ]))
+            .derive_sd_vp_credential(
+                ptrs(&["/credentialSubject/givenName", "/credentialSubject/boards"]),
+                None,
+            )
             .await
             .expect("v2 SD derive must succeed");
 

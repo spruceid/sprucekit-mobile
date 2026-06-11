@@ -26,11 +26,43 @@ pub struct VcapiMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub verifiable_presentation: Option<serde_json::Value>,
     /// A terminal redirect target surfaced to the caller (never auto-followed).
+    /// Kept a STRING at the wire layer so a malformed value cannot poison the
+    /// deserialization of a message that also carries issued credentials;
+    /// [`classify`] parses it lazily.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub redirect_url: Option<Url>,
+    pub redirect_url: Option<String>,
     /// Opaque correlation id echoed back to the server on the next request.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference_id: Option<String>,
+}
+
+/// The top-level message properties §3.6 defines. Anything else in a received
+/// exchange message is surfaced as a warning by [`warn_on_unknown_keys`] — the
+/// spec expects custom properties "to trigger errors", but hard-failing every
+/// server extension would break interop, so the holder warns and proceeds.
+const KNOWN_MESSAGE_KEYS: &[&str] = &[
+    "verifiablePresentationRequest",
+    "verifiablePresentation",
+    "redirectUrl",
+    "referenceId",
+];
+
+/// Log a warning for every top-level key in `body` that §3.6 does not define.
+/// Logs key NAMES only — never server-controlled values.
+fn warn_on_unknown_keys(body: &str) {
+    let Ok(JsonValue::Object(map)) = serde_json::from_str::<JsonValue>(body) else {
+        return;
+    };
+    let unknown: Vec<&str> = map
+        .keys()
+        .map(String::as_str)
+        .filter(|k| !KNOWN_MESSAGE_KEYS.contains(k))
+        .collect();
+    if !unknown.is_empty() {
+        tracing::warn!(
+            "exchange message carried top-level properties outside §3.6: {unknown:?} — ignored"
+        );
+    }
 }
 
 /// Deserialize a field that may arrive as a single value OR an array of values
@@ -42,18 +74,37 @@ pub struct VcapiMessage {
 fn one_or_many<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: serde::Deserializer<'de>,
-    T: serde::Deserialize<'de>,
+    T: serde::de::DeserializeOwned,
 {
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum OneOrMany<T> {
-        One(T),
-        Many(Vec<T>),
+    // Branch on the concrete JSON shape, NOT an untagged One(T)|Many(Vec<T>)
+    // enum: serde derive can deserialize a struct from a SEQUENCE
+    // (tuple-style), so the untagged form parses `[]` as One(T::default()) — a
+    // phantom element.
+    let value = JsonValue::deserialize(deserializer)?;
+    match value {
+        JsonValue::Array(items) => items
+            .into_iter()
+            .map(|v| serde_json::from_value(v).map_err(serde::de::Error::custom))
+            .collect(),
+        single => Ok(vec![
+            serde_json::from_value(single).map_err(serde::de::Error::custom)?
+        ]),
     }
-    Ok(match OneOrMany::<T>::deserialize(deserializer)? {
-        OneOrMany::One(v) => vec![v],
-        OneOrMany::Many(v) => v,
-    })
+}
+
+/// Serialize a `Vec<T>` emitting a single element WITHOUT the array wrapper —
+/// the inverse of [`one_or_many`]. §3.4.2 defines `credentialQuery` as a single
+/// object; the array form is accepted leniently on receive, so a one-element
+/// vec must round-trip back to the spec's object form.
+fn one_as_object<S, T>(items: &[T], serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+    T: Serialize,
+{
+    match items {
+        [single] => single.serialize(serializer),
+        many => many.serialize(serializer),
+    }
 }
 
 /// A verifiable-presentation-request. Fully typed for losslessness; QBE/query
@@ -61,8 +112,9 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, uniffi::Record)]
 #[serde(rename_all = "camelCase")]
 pub struct Vpr {
-    /// The presentation query/queries. Interpreted in a later phase.
-    #[serde(default)]
+    /// The presentation query/queries. §3.4.1 permits a single query object OR
+    /// an array; both are normalized to a `Vec`.
+    #[serde(default, deserialize_with = "one_or_many")]
     pub query: Vec<Query>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub challenge: Option<String>,
@@ -94,11 +146,13 @@ pub struct Query {
     #[serde(rename = "type", default, deserialize_with = "one_or_many")]
     pub r#type: Vec<String>,
     /// The QueryByExample payload(s) (§3.4.2). Accepts a single object OR an
-    /// array of objects.The matcher walks each contained `example` as JSON.
+    /// array of objects. The matcher walks each contained `example` as JSON.
+    /// Re-serializes a single entry as the spec's bare-object form.
     #[serde(
         default,
         skip_serializing_if = "Vec::is_empty",
-        deserialize_with = "one_or_many"
+        deserialize_with = "one_or_many",
+        serialize_with = "one_as_object"
     )]
     pub credential_query: Vec<CredentialQuery>,
     /// §3.4.5 logical-operations group. Queries sharing the same `group` value are
@@ -145,6 +199,12 @@ pub struct CredentialQuery {
     /// `acceptedCryptosuites` — same string-or-object shape as the VPR's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub accepted_cryptosuites: Option<Vec<CryptosuiteEntry>>,
+    /// `acceptedEnvelopes` (§3.4.2) — THE placement the spec defines for
+    /// envelope-format negotiation. Parsed for losslessness; the holder only
+    /// emits bare Data Integrity presentations, so a list that omits them is
+    /// vacuously honored (no enveloped output path exists).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accepted_envelopes: Option<Vec<EnvelopeEntry>>,
 }
 
 /// An `acceptedCryptosuites` entry: either a bare cryptosuite name or an object
@@ -238,10 +298,13 @@ pub enum StepResult {
     /// The server requests a verifiable presentation; the caller should respond.
     Request { vpr: Vpr },
     /// The server offered verifiable presentation(s) (opaque, UNVERIFIED),
-    /// optionally with a follow-on request to continue the exchange.
+    /// optionally with a follow-on request to continue the exchange and/or a
+    /// terminal redirect to surface AFTER the offer is resolved (§3.6 allows a
+    /// message to combine properties — the redirect must not be dropped).
     Offer {
         vcs: serde_json::Value,
         next_vpr: Option<Vpr>,
+        redirect_url: Option<Url>,
     },
     /// A terminal redirect target. Surfaced as data — NEVER auto-followed.
     Redirect { url: Url },
@@ -255,21 +318,47 @@ pub enum StepResult {
 /// [`VcalmError`]. Pure, no HTTP, no retries.
 ///
 /// Precedence on a 2xx body (§3.6.5): `verifiablePresentation` (Offer, carrying any
-/// follow-on `verifiablePresentationRequest` as `next_vpr`) → `redirectUrl`
-/// (terminal) → `verifiablePresentationRequest` (Request) → `Complete`. An empty
+/// follow-on `verifiablePresentationRequest` as `next_vpr` AND any combined
+/// `redirectUrl` — neither is dropped) → `redirectUrl` (terminal) →
+/// `verifiablePresentationRequest` (Request) → `Complete`. An empty
 /// body is `Complete`. The Offer-before-Redirect order matters: §3.6 allows a
 /// message to combine "zero or more" properties, and a server that issues VCs and
 /// redirects in ONE message must not have its credentials silently dropped — the
-/// redirect is the recommendation, the VP is the payload.
+/// redirect rides along on the Offer.
+///
+/// `redirectUrl` is parsed lazily: a malformed value on an Offer-bearing message
+/// is dropped with a warning (the credentials win); a malformed value on a
+/// redirect-only message is a [`VcalmError::Deserialization`].
 ///
 /// A 4xx whose body parses as [`ProblemDetails`] is surfaced as `Ok(Problem)`;
-/// a malformed 4xx body, a 5xx response, or an undeserializable 2xx body are `Err`.
+/// an EMPTY 4xx body (e.g. a body-less 401) synthesizes an RFC 9457
+/// `about:blank` problem from the status line; a non-empty malformed 4xx body,
+/// a 5xx response, or an undeserializable 2xx body are `Err`.
 pub fn classify(status: reqwest::StatusCode, body: &str) -> Result<StepResult, VcalmError> {
     if status.is_success() {
         let message: VcapiMessage = if body.trim().is_empty() {
             VcapiMessage::default()
         } else {
+            warn_on_unknown_keys(body);
             serde_json::from_str(body).map_err(|e| VcalmError::Deserialization(e.to_string()))?
+        };
+
+        // Lazy redirect parse — see the doc comment for the failure policy.
+        let redirect = match message.redirect_url.as_deref().map(Url::parse) {
+            None => None,
+            Some(Ok(url)) => Some(url),
+            Some(Err(e)) => {
+                if message.verifiable_presentation.is_none() {
+                    return Err(VcalmError::Deserialization(format!(
+                        "invalid redirectUrl: {e}"
+                    )));
+                }
+                tracing::warn!(
+                    "exchange reply carried a malformed redirectUrl alongside an offer; \
+                     dropping the redirect, keeping the credentials"
+                );
+                None
+            }
         };
 
         // Field-presence precedence — first match wins. Offer outranks Redirect so a
@@ -278,8 +367,9 @@ pub fn classify(status: reqwest::StatusCode, body: &str) -> Result<StepResult, V
             Ok(StepResult::Offer {
                 vcs,
                 next_vpr: message.verifiable_presentation_request,
+                redirect_url: redirect,
             })
-        } else if let Some(url) = message.redirect_url {
+        } else if let Some(url) = redirect {
             Ok(StepResult::Redirect { url })
         } else if let Some(vpr) = message.verifiable_presentation_request {
             Ok(StepResult::Request { vpr })
@@ -287,7 +377,20 @@ pub fn classify(status: reqwest::StatusCode, body: &str) -> Result<StepResult, V
             Ok(StepResult::Complete)
         }
     } else if status.is_client_error() {
-        // 4xx: a well-formed problem-details is surfaced; malformed is an error.
+        // 4xx: a well-formed problem-details is surfaced; an empty body becomes
+        // a synthesized about:blank problem (RFC 9457 §4.2.1 — the status line IS
+        // the problem); a non-empty malformed body is an error.
+        if body.trim().is_empty() {
+            return Ok(StepResult::Problem {
+                details: ProblemDetails {
+                    problem_type: "about:blank".into(),
+                    status: Some(status.as_u16()),
+                    title: status.canonical_reason().map(str::to_string),
+                    detail: None,
+                    instance: None,
+                },
+            });
+        }
         match serde_json::from_str::<ProblemDetails>(body) {
             Ok(details) => Ok(StepResult::Problem { details }),
             Err(_) => Err(VcalmError::MalformedProblemDetails {
@@ -317,6 +420,78 @@ mod tests {
         fn all_none_vcapi_message_serializes_to_empty_object() {
             let msg = VcapiMessage::default();
             assert_eq!(serde_json::to_value(&msg).unwrap(), json!({}));
+        }
+
+        #[test]
+        fn vpr_query_accepts_single_object_and_arrays() {
+            // §3.4.1 permits `query` as a single object — normalized to a Vec.
+            let vpr: Vpr = serde_json::from_value(json!({
+                "query": { "type": "DIDAuthentication" }
+            }))
+            .unwrap();
+            assert_eq!(vpr.query.len(), 1);
+            assert_eq!(vpr.query[0].r#type, vec!["DIDAuthentication"]);
+
+            // An EMPTY array must stay empty — no phantom default element (the
+            // untagged-enum hazard: serde can build a struct from a sequence).
+            let vpr: Vpr = serde_json::from_value(json!({ "query": [] })).unwrap();
+            assert!(vpr.query.is_empty());
+            let q: Query = serde_json::from_value(json!({
+                "type": "QueryByExample",
+                "credentialQuery": []
+            }))
+            .unwrap();
+            assert!(q.credential_query.is_empty());
+        }
+
+        #[test]
+        fn single_credential_query_serializes_as_spec_object_form() {
+            // §3.4.2 defines credentialQuery as a single object; a one-element
+            // vec must round-trip back to the object form (array kept for many).
+            let q: Query = serde_json::from_value(json!({
+                "type": "QueryByExample",
+                "credentialQuery": { "reason": "r" }
+            }))
+            .unwrap();
+            let out = serde_json::to_value(&q).unwrap();
+            assert!(
+                out["credentialQuery"].is_object(),
+                "single entry re-serializes as an object, got {out:?}"
+            );
+
+            let q: Query = serde_json::from_value(json!({
+                "type": "QueryByExample",
+                "credentialQuery": [{ "reason": "a" }, { "reason": "b" }]
+            }))
+            .unwrap();
+            let out = serde_json::to_value(&q).unwrap();
+            assert!(out["credentialQuery"].is_array());
+        }
+
+        #[test]
+        fn credential_query_accepted_envelopes_spec_placement_parses() {
+            // §3.4.2 places acceptedEnvelopes INSIDE credentialQuery — both
+            // entry shapes are parsed losslessly.
+            let q: Query = serde_json::from_value(json!({
+                "type": "QueryByExample",
+                "credentialQuery": {
+                    "acceptedEnvelopes": [
+                        "application/vp+jwt",
+                        { "mediaType": "application/vp" }
+                    ]
+                }
+            }))
+            .unwrap();
+            let envelopes = q.credential_query[0].accepted_envelopes.as_ref().unwrap();
+            assert_eq!(
+                envelopes,
+                &vec![
+                    EnvelopeEntry::Name("application/vp+jwt".into()),
+                    EnvelopeEntry::Object {
+                        media_type: "application/vp".into()
+                    },
+                ]
+            );
         }
 
         #[test]
@@ -360,7 +535,7 @@ mod tests {
                 ..Default::default()
             };
             let with_redirect = VcapiMessage {
-                redirect_url: Some(Url::parse("https://example.com/done").unwrap()),
+                redirect_url: Some("https://example.com/done".into()),
                 ..Default::default()
             };
             let with_ref = VcapiMessage {
@@ -615,6 +790,7 @@ mod tests {
                 StepResult::Offer {
                     vcs: json!({"vp": "opaque"}),
                     next_vpr: None,
+                    redirect_url: None,
                 },
                 StepResult::Offer {
                     vcs: json!({"vp": "opaque"}),
@@ -622,6 +798,7 @@ mod tests {
                         domain: Some("d".into()),
                         ..Default::default()
                     }),
+                    redirect_url: Some(Url::parse("https://example.com/done").unwrap()),
                 },
                 StepResult::Redirect {
                     url: Url::parse("https://example.com/done").unwrap(),
@@ -659,6 +836,50 @@ mod tests {
         }
 
         #[test]
+        fn empty_4xx_body_synthesizes_about_blank_problem() {
+            // A body-less 401/403 is a legitimate terminal signal — RFC 9457
+            // about:blank means "the status line IS the problem".
+            match classify(status(401), "").unwrap() {
+                StepResult::Problem { details } => {
+                    assert_eq!(details.problem_type, "about:blank");
+                    assert_eq!(details.status, Some(401));
+                    assert_eq!(details.title.as_deref(), Some("Unauthorized"));
+                }
+                other => panic!("expected synthesized Problem, got {other:?}"),
+            }
+            // A NON-empty malformed 4xx body is still an error.
+            assert!(matches!(
+                classify(status(403), "Forbidden"),
+                Err(VcalmError::MalformedProblemDetails { status: 403, .. })
+            ));
+        }
+
+        #[test]
+        fn malformed_redirect_url_is_dropped_when_offer_present() {
+            // A bogus redirectUrl must not poison a message carrying credentials.
+            let body = json!({
+                "verifiablePresentation": {"vp": "opaque"},
+                "redirectUrl": "::not a url::"
+            })
+            .to_string();
+            match classify(status(200), &body).unwrap() {
+                StepResult::Offer {
+                    vcs, redirect_url, ..
+                } => {
+                    assert_eq!(vcs, json!({"vp": "opaque"}));
+                    assert!(redirect_url.is_none(), "malformed redirect dropped");
+                }
+                other => panic!("expected Offer, got {other:?}"),
+            }
+            // …but a redirect-ONLY message with a bogus URL is an error.
+            let body = json!({ "redirectUrl": "::not a url::" }).to_string();
+            assert!(matches!(
+                classify(status(200), &body),
+                Err(VcalmError::Deserialization(_))
+            ));
+        }
+
+        #[test]
         fn redirect_only_is_terminal_redirect() {
             let body = json!({
                 "redirectUrl": "https://example.com/done",
@@ -677,16 +898,25 @@ mod tests {
         fn offer_outranks_redirect_in_combined_message() {
             // §3.6: a message may combine "zero or more" properties. A server that
             // issues VCs AND recommends a redirect in one message must not have its
-            // credentials silently dropped — the Offer wins.
+            // credentials silently dropped — the Offer wins, and the redirect RIDES
+            // ALONG instead of being discarded.
             let body = json!({
                 "verifiablePresentation": {"vp": "opaque"},
                 "redirectUrl": "https://example.com/done"
             })
             .to_string();
             match classify(status(200), &body).unwrap() {
-                StepResult::Offer { vcs, next_vpr } => {
+                StepResult::Offer {
+                    vcs,
+                    next_vpr,
+                    redirect_url,
+                } => {
                     assert_eq!(vcs, json!({"vp": "opaque"}));
                     assert!(next_vpr.is_none());
+                    assert_eq!(
+                        redirect_url.map(|u| u.to_string()).as_deref(),
+                        Some("https://example.com/done")
+                    );
                 }
                 other => panic!("expected Offer, got {other:?}"),
             }
@@ -700,7 +930,7 @@ mod tests {
             })
             .to_string();
             match classify(status(200), &body).unwrap() {
-                StepResult::Offer { vcs, next_vpr } => {
+                StepResult::Offer { vcs, next_vpr, .. } => {
                     assert_eq!(vcs, json!({"vp": "opaque"}));
                     assert_eq!(next_vpr.unwrap().challenge.as_deref(), Some("next"));
                 }
