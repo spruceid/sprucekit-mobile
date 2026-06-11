@@ -180,7 +180,11 @@ internal class VcalmAdapter(
                 val keys = mutableListOf<VcalmCredentialKey>()
                 for (g in groups) {
                     Log.d(TAG, "matchedCredentials: query ${g.queryIndex} -> ${g.credentials.size} cred(s)")
-                    for (c in g.credentials) {
+                    for (m in g.credentials) {
+                        // Each match now carries its disclosure mode
+                        // (m.selectiveDisclosure); the Pigeon surface keeps the
+                        // lightweight key shape, so only the handle is retained here.
+                        val c = m.credential
                         val key = VcalmCredentialKey(
                             queryIndex = g.queryIndex.toLong(),
                             credentialId = c.id()
@@ -238,7 +242,9 @@ internal class VcalmAdapter(
                 // Suite is server-driven — no suite parameter.
                 val creds = selected.mapNotNull { keyMap[it] }
                 Log.d(TAG, "submitPresentation: resolved ${creds.size}/${selected.size} handle(s)")
-                val step = h.submitPresentation(creds)
+                // allowDomainMismatch=false: the §3.4.3.2 domain/channel anti-replay
+                // check refuses by default; a mismatch surfaces as a problem result.
+                val step = h.submitPresentation(creds, false)
                 Log.d(TAG, "submitPresentation: step=${step::class.simpleName}")
                 callback(Result.success(toPigeonStep(step)))
             } catch (e: Exception) {
@@ -387,6 +393,7 @@ internal class VcalmAdapter(
         OfferedValidity.TIME_BOUNDED -> "timeBounded"
         OfferedValidity.PROOF_INVALID -> "proofInvalid"
         OfferedValidity.ENVELOPED -> "enveloped"
+        OfferedValidity.UNSUPPORTED_PROOF -> "unsupportedProof"
         OfferedValidity.UNVERIFIABLE -> "unverifiable"
     }
 

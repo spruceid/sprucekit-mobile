@@ -184,7 +184,11 @@ class VcalmAdapter: Vcalm {
                 var keyMap: [VcalmCredentialKey: ParsedCredential] = [:]
                 var keys: [VcalmCredentialKey] = []
                 for group in groups {
-                    for cred in group.credentials {
+                    // Each match now carries its disclosure mode
+                    // (match.selectiveDisclosure); the Pigeon surface keeps the
+                    // lightweight key shape, so only the handle is retained here.
+                    for match in group.credentials {
+                        let cred = match.credential
                         let key = VcalmCredentialKey(
                             queryIndex: Int64(group.queryIndex),
                             credentialId: cred.id()
@@ -250,7 +254,12 @@ class VcalmAdapter: Vcalm {
                 lock.unlock()
                 log("submitPresentation: resolved \(resolved.count)/\(selected.count) handle(s)")
                 // Suite is server-driven — no suite parameter.
-                let step = try await holder.submitPresentation(selectedCredentials: resolved)
+                // allowDomainMismatch=false: the §3.4.3.2 domain/channel anti-replay
+                // check refuses by default; a mismatch surfaces as a problem result.
+                let step = try await holder.submitPresentation(
+                    selectedCredentials: resolved,
+                    allowDomainMismatch: false
+                )
                 completion(.success(try await toPigeonStep(step)))
             } catch {
                 log("submitPresentation FAILED: \(error)")
@@ -354,9 +363,11 @@ class VcalmAdapter: Vcalm {
                 purpose: vpr.query.flatMap { $0.credentialQuery }.compactMap { $0.reason }.first,
                 vprListsSdSuite: vprListsSd(vpr)
             )
-        case let .offer(_, nextVpr):
+        case let .offer(_, nextVpr, _):
             // `vcs` is an opaque JSON String — do NOT parse structurally; use the
-            // holder's read-only preview for display.
+            // holder's read-only preview for display. A combined redirectUrl (the
+            // third associated value) is consumed in Rust by acceptOffer, which
+            // surfaces it as the terminal Redirect step after storing.
             let offered = (try? await holder?.offeredCredentials()) ?? []
             return VcalmOffer(
                 credentials: offered.map(Self.projectOffered),
@@ -420,6 +431,7 @@ class VcalmAdapter: Vcalm {
         case .timeBounded: return "timeBounded"
         case .proofInvalid: return "proofInvalid"
         case .enveloped: return "enveloped"
+        case .unsupportedProof: return "unsupportedProof"
         case .unverifiable: return "unverifiable"
         }
     }
