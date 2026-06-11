@@ -1762,10 +1762,7 @@ mod tests {
             .iter()
             .find(|f| f.path == "credentialSubject.givenName")
             .expect("givenName field present");
-        assert_eq!(
-            given.value, "any value",
-            "\"\" leaf renders as any value"
-        );
+        assert_eq!(given.value, "any value", "\"\" leaf renders as any value");
         assert!(given.required, "required defaults to true");
     }
 
