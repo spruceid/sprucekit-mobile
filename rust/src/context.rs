@@ -42,6 +42,10 @@ pub fn vc_playground_context(mut context: HashMap<String, String>) -> HashMap<St
         include_str!("../tests/context/w3id_org_vc_render_method_v2rc1.json").into(),
     );
     context.insert(
+        "https://w3id.org/vc/render-method/v2rc2".into(),
+        include_str!("../tests/context/w3id_org_vc_render_method_v2rc2.json").into(),
+    );
+    context.insert(
         "https://examples.vcplayground.org/contexts/alumni/v2.json".into(),
         include_str!("../tests/context/examples_vcplayground_org_contexts_alumni_v2.json").into(),
     );
