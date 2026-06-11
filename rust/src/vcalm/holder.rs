@@ -1280,13 +1280,8 @@ fn strip_sd_base_proofs(raw: &serde_json::Value) -> serde_json::Value {
     };
     let kept = match obj.get("proof") {
         Some(serde_json::Value::Array(a)) => a.iter().filter(|p| !is_sd_base(p)).cloned().collect(),
-        Some(p @ serde_json::Value::Object(_)) => {
-            if is_sd_base(p) {
-                Vec::new()
-            } else {
-                return out; // single non-SD proof — nothing to strip
-            }
-        }
+        Some(p @ serde_json::Value::Object(_)) if is_sd_base(p) => Vec::new(),
+        Some(serde_json::Value::Object(_)) => return out, // single non-SD proof — nothing to strip
         _ => return out, // no proof (or non-object/array shape) — nothing to strip
     };
     if kept.is_empty() {
