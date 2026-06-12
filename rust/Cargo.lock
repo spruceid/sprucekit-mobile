@@ -2416,7 +2416,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "system-configuration 0.7.0",
  "tokio",
  "tower-service",
@@ -2743,7 +2743,7 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/isomdl?rev=fb19e7b#fb19e7bea3cd8ee087ee9c033e5357698c11ccec"
+source = "git+https://github.com/spruceid/isomdl?rev=9d53cf9#9d53cf94da3d5e6517dae726e8665a025e662344"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2763,7 +2763,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=fb19e7b)",
+ "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=9d53cf9)",
  "ndef-rs",
  "p256",
  "p384",
@@ -2799,7 +2799,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=fb19e7b#fb19e7bea3cd8ee087ee9c033e5357698c11ccec"
+source = "git+https://github.com/spruceid/isomdl?rev=9d53cf9#9d53cf94da3d5e6517dae726e8665a025e662344"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4453,7 +4453,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls 0.23.37",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -4490,7 +4490,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.3",
  "tracing",
  "windows-sys 0.60.2",
 ]
