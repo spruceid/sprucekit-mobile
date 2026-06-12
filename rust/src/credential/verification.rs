@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 
 use ssi::{
-    claims::{
-        jwt::ToDecodedJwt, sd_jwt::SdJwt, vc::v1::data_integrity::any_credential_from_json_slice,
-        Jws, VerificationParameters,
-    },
+    claims::{jwt::ToDecodedJwt, sd_jwt::SdJwt, Jws, VerificationParameters},
     dids::{AnyDidMethod, DIDResolver},
     json_ld::{ContextLoader, FromContextMapError},
+    prelude::{AnyJsonCredential, AnySuite, DataIntegrity},
 };
 
 use super::{CredentialFormat, RawCredential};
@@ -48,9 +46,11 @@ pub async fn verify_raw_credential(
                 .map_err(Into::into)
         }
         CredentialFormat::LdpVc => {
-            log::trace!("verifying a LdpVc");
-            let vc = any_credential_from_json_slice(&credential.payload)
-                .map_err(|_| VerificationError::InvalidCredentialPayload)?;
+            log::trace!("verifying a LdpVc (VCDM v1 or v2)");
+            // Decode version-agnostically into AnyJsonCredential (V1|V2).
+            let vc: DataIntegrity<AnyJsonCredential, AnySuite> =
+                serde_json::from_slice(&credential.payload)
+                    .map_err(|_| VerificationError::InvalidCredentialPayload)?;
             vc.verify(&params).await.map(Into::into).map_err(Into::into)
         }
         CredentialFormat::VCDM2SdJwt => {

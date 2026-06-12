@@ -22,6 +22,7 @@ pub mod storage_manager;
 #[cfg(test)]
 mod tests;
 pub mod trusted_roots;
+pub mod vcalm;
 pub mod vdc_collection;
 pub mod verifier;
 pub mod w3c_vc_barcodes;
