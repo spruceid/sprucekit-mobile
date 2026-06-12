@@ -21,6 +21,10 @@ public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
         let oid4vpAdapter = Oid4vpAdapter(credentialPackAdapter: credentialPackAdapter)
         Oid4vpSetup.setUp(binaryMessenger: messenger, api: oid4vpAdapter)
 
+        // Initialize VCALM adapter (needs access to credential pack adapter)
+        let vcalmAdapter = VcalmAdapter(credentialPackAdapter: credentialPackAdapter)
+        VcalmSetup.setUp(binaryMessenger: messenger, api: vcalmAdapter)
+
         // Initialize SpruceUtils adapter (needs access to credential pack adapter)
         let spruceUtilsAdapter = SpruceUtilsAdapter(credentialPackAdapter: credentialPackAdapter)
         SpruceUtilsSetup.setUp(binaryMessenger: messenger, api: spruceUtilsAdapter)

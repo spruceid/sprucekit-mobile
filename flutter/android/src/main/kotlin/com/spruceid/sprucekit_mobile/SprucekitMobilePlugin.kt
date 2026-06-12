@@ -17,6 +17,7 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
     private lateinit var oid4vciAdapter: Oid4vciAdapter
     private lateinit var credentialPackAdapter: CredentialPackAdapter
     private lateinit var oid4vpAdapter: Oid4vpAdapter
+    private lateinit var vcalmAdapter: VcalmAdapter
     private lateinit var spruceUtilsAdapter: SpruceUtilsAdapter
     private lateinit var mdlPresentationAdapter: MdlPresentationAdapter
     private lateinit var mdlReaderAdapter: MdlReaderAdapter
@@ -37,6 +38,10 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
         // Initialize OID4VP adapter (needs access to credential pack adapter)
         oid4vpAdapter = Oid4vpAdapter(context, credentialPackAdapter)
         Oid4vp.setUp(flutterPluginBinding.binaryMessenger, oid4vpAdapter)
+
+        // Initialize VCALM adapter (needs access to credential pack adapter)
+        vcalmAdapter = VcalmAdapter(context, credentialPackAdapter)
+        Vcalm.setUp(flutterPluginBinding.binaryMessenger, vcalmAdapter)
 
         // Initialize SpruceUtils adapter (needs access to credential pack adapter)
         spruceUtilsAdapter = SpruceUtilsAdapter(context, credentialPackAdapter)
@@ -73,6 +78,7 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
         Oid4vci.setUp(binding.binaryMessenger, null)
         CredentialPack.setUp(binding.binaryMessenger, null)
         Oid4vp.setUp(binding.binaryMessenger, null)
+        Vcalm.setUp(binding.binaryMessenger, null)
         SpruceUtils.setUp(binding.binaryMessenger, null)
         MdlPresentation.setUp(binding.binaryMessenger, null)
         MdlReader.setUp(binding.binaryMessenger, null)

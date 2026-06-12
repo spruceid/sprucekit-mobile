@@ -6,6 +6,7 @@ import 'demos/mdl_reader_demo.dart';
 import 'demos/mdl_share_demo.dart';
 import 'demos/oid4vci_demo.dart';
 import 'demos/oid4vp_demo.dart';
+import 'demos/vcalm_demo.dart';
 import 'demos/oid4vp_mdoc_demo.dart';
 import 'demos/credential_pdf_demo.dart';
 import 'demos/scanner_demo.dart';
@@ -38,6 +39,7 @@ class HomeScreen extends StatelessWidget {
     final demos = [
       ('OID4VCI Issuance', Icons.badge, const Oid4vciDemo()),
       ('OID4VP', Icons.verified_user, const Oid4vpDemo()),
+      ('VCALM', Icons.sync_alt, const VcalmDemo()),
       ('OID4VP mDoc', Icons.credit_card, const Oid4vpMdocDemo()),
       ('Share mDL', Icons.share, const MdlShareDemo()),
       ('Read mDL', Icons.contactless, const MdlReaderDemo()),

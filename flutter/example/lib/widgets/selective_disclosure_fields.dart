@@ -70,6 +70,25 @@ class SelectiveDisclosureFieldData {
     );
   }
 
+  /// Create from VCALM VcalmRequestedFieldData.
+  ///
+  /// VCALM fields carry path/value/required/purpose but no name/retained/id, so
+  /// the id reuses the path and the display name decodes the path. VCALM has no
+  /// retain concept, so [intentToRetain] is always false.
+  factory SelectiveDisclosureFieldData.fromVcalmRequestedField(
+    VcalmRequestedFieldData field,
+  ) {
+    return SelectiveDisclosureFieldData(
+      id: field.path,
+      displayName: decodeFieldPath(field.path),
+      displayValue: field.value,
+      purpose: field.purpose,
+      required: field.required,
+      selectivelyDisclosable: true,
+      intentToRetain: false,
+    );
+  }
+
   /// Create from mDoc RequestedField180137Data
   factory SelectiveDisclosureFieldData.fromMdocField(
     RequestedField180137Data field,
