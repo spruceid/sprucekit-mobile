@@ -324,32 +324,39 @@ class GattServer(
                         }
                     } // End synchronized block
 
-                    if (value[0].toInt() == 0x01) {
-                        if (value.size > mtu - 3) {
-                            callback.onError(
-                                Error(
+                    when (value[0].toInt()) {
+                        // 0x00 = final chunk; the message was already assembled
+                        // and delivered in the synchronized block above.
+                        0x00 -> {}
+                        // 0x01 = intermediate chunk; must fit within the MTU.
+                        0x01 -> {
+                            if (value.size > mtu - 3) {
+                                callback.onError(
+                                    Error(
+                                        "Invalid size ${value.size} of data written Client2Server " +
+                                                "characteristic, expected maximum size ${mtu - 3}"
+                                    )
+                                )
+                                logger.e(
                                     "Invalid size ${value.size} of data written Client2Server " +
                                             "characteristic, expected maximum size ${mtu - 3}"
                                 )
+                                return
+                            }
+                        }
+                        else -> {
+                            callback.onError(
+                                Error(
+                                    "Invalid first byte ${value[0].toInt()} in Client2Server " +
+                                            "data chunk, expected 0 or 1"
+                                )
                             )
                             logger.e(
-                                "Invalid size ${value.size} of data written Client2Server " +
-                                        "characteristic, expected maximum size ${mtu - 3}"
-                            )
-                            return
-                        }
-                    } else {
-                        callback.onError(
-                            Error(
                                 "Invalid first byte ${value[0].toInt()} in Client2Server " +
                                         "data chunk, expected 0 or 1"
                             )
-                        )
-                        logger.e(
-                            "Invalid first byte ${value[0].toInt()} in Client2Server " +
-                                    "data chunk, expected 0 or 1"
-                        )
-                        return
+                            return
+                        }
                     }
                     if (responseNeeded) {
                         try {
