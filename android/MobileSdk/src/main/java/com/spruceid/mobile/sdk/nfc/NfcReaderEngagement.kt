@@ -12,6 +12,7 @@ import android.nfc.TagLostException
 import android.nfc.tech.IsoDep
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -216,6 +217,11 @@ class NfcReaderEngagement(
             while (true) {
                 when (val progress = driverInit.driver.processRapdu(rapdu)) {
                     is ReaderApduProgress.InProgress -> {
+                        // TNEP minimum waiting time; 0 unless the holder asked
+                        // us to pause before the next read (e.g. Apple Wallet
+                        // preparing its Handover Select).
+                        val delayMs = driverInit.driver.recommendedDelayMs()
+                        if (delayMs > 0u) SystemClock.sleep(delayMs.toLong())
                         rapdu = isoDep.transceive(progress.v1)
                     }
                     is ReaderApduProgress.Done -> {
