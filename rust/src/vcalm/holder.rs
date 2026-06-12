@@ -584,14 +584,22 @@ impl VcalmHolder {
             let validity = match issuance::classify_offered_entry(entry) {
                 OfferedEntry::Enveloped => OfferedValidity::Enveloped,
                 OfferedEntry::BareDataIntegrity => match issuance::build_raw_credential(entry) {
-                    Ok(raw) => match verify_raw_credential(&raw, self.context_map.clone()).await {
-                        Ok(verification) => match verification.expect_verified() {
-                            Ok(()) => OfferedValidity::Valid,
-                            Err(InvalidCredential::Claims(_)) => OfferedValidity::TimeBounded,
-                            Err(InvalidCredential::Proof) => OfferedValidity::ProofInvalid,
-                        },
-                        Err(_) => OfferedValidity::Unverifiable,
-                    },
+                    Ok(raw) => {
+                        let context_map = self.context_map.clone();
+                        let verification = crate::big_stack::run_async(move || async move {
+                            verify_raw_credential(&raw, context_map).await
+                        })
+                        .await;
+                        match verification {
+                            Ok(Ok(verification)) => match verification.expect_verified() {
+                                Ok(()) => OfferedValidity::Valid,
+                                Err(InvalidCredential::Claims(_)) => OfferedValidity::TimeBounded,
+                                Err(InvalidCredential::Proof) => OfferedValidity::ProofInvalid,
+                            },
+                            // verify returned Err, or the worker thread failed to join.
+                            _ => OfferedValidity::Unverifiable,
+                        }
+                    }
                     Err(_) => OfferedValidity::Unverifiable,
                 },
             };
