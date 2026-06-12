@@ -182,6 +182,7 @@ extension NfcReaderEngagement: NFCTagReaderSessionDelegate {
                     // preparing its Handover Select).
                     let delayMs = driverInit.driver.recommendedDelayMs()
                     if delayMs > 0 {
+                        // Task.sleep(for:) needs iOS 16; the SDK targets 14.0.
                         try await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
                     }
                     rapdu = try await sendCommand(nextApdu, on: tag)
