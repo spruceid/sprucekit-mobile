@@ -1,6 +1,8 @@
 use serde_json::Value;
 
-use super::exchange::{AcceptedIssuerEntry, CredentialQuery, Query};
+use super::exchange::{
+    AcceptedIssuerEntry, AcceptedMethodEntry, CredentialQuery, CryptosuiteEntry, Query,
+};
 
 /// The VCALM 1.0 query `type` values (§3.4.2/§3.4.3). Anything else is unknown
 /// and unsatisfiable for matching.
@@ -15,7 +17,12 @@ const DID_AUTHENTICATION: &str = "DIDAuthentication";
 ///
 /// - object: every key in `want` must exist in `have` and recurse (§3.4.2
 ///   "every field in the example must be present").
-/// - array: every wanted element must match *some* element in `have` (subset).
+/// - array vs array: every wanted element must match *some* element in `have`
+///   (subset).
+/// - JSON-LD set normalization: a scalar/object `want` matches an array `have`
+///   when ANY element matches (multi-subject credentials, array-valued claims);
+///   an array `want` matches a scalar `have` when every wanted element matches
+///   it (the scalar is a one-element set).
 /// - leaf `""` (empty string): the field must be present, any value
 ///   (§3.4.2 "leave the value as an empty string"). A present key is guaranteed
 ///   by the object arm's `.get(k)`, so an empty-string leaf is unconditionally
@@ -34,6 +41,14 @@ fn value_is_subset(want: &Value, have: &Value) -> bool {
             w.iter()
                 .all(|we| h.iter().any(|he| value_is_subset(we, he)))
         }
+        // JSON-LD treats a scalar and a one-element set interchangeably: a
+        // non-array `want` is satisfied by ANY element of an array `have`
+        // (e.g. `credentialSubject` example object vs a multi-subject array,
+        // or a single wanted claim value vs an array-valued claim).
+        (w, Value::Array(h)) => h.iter().any(|he| value_is_subset(w, he)),
+        // …and an array `want` against a scalar `have` normalizes `have` to a
+        // one-element set: every wanted element must match it.
+        (Value::Array(w), h) => w.iter().all(|we| value_is_subset(we, h)),
         // leaf equality (covers strings, numbers, bools, null, and type mismatches).
         _ => want == have,
     }
@@ -75,7 +90,8 @@ fn accepted_issuer_value(item: &AcceptedIssuerEntry) -> Option<String> {
 
 /// Extract the VC's issuer identifier: a bare string `issuer`, or the `id` of an
 /// issuer object. Uses `.get(...)` so a missing/odd shape yields `None`, never a panic.
-fn vc_issuer(vc: &Value) -> Option<String> {
+/// Shared with [`super::issuance::stable_local_id`] (issuer-scoped storage ids).
+pub(crate) fn vc_issuer(vc: &Value) -> Option<String> {
     match vc.get("issuer")? {
         Value::String(s) => Some(s.clone()),
         Value::Object(o) => o.get("id").and_then(|v| v.as_str()).map(str::to_string),
@@ -294,14 +310,56 @@ pub(crate) fn resolve_groups(
     GroupResolution { groups, selected }
 }
 
+/// The single VP-proof cryptosuite this holder can produce. Mirrors
+/// `presentation::ECDSA_RDFC_2019`; kept local so matching stays
+/// presentation-independent.
+const SUPPORTED_VP_CRYPTOSUITE: &str = "ecdsa-rdfc-2019";
+
+/// The single DID method this holder can authenticate with.
+const SUPPORTED_DID_METHOD: &str = "key";
+
+/// §3.4.3.1/.2: whether THIS holder can satisfy a DIDAuthentication query's
+/// constraints. `acceptedMethods` absent/empty, or listing `key`, is
+/// satisfiable; `acceptedCryptosuites` (query-level) absent/empty, or listing
+/// `ecdsa-rdfc-2019`, is satisfiable. A DIDAuthentication query whose lists
+/// exclude both is NOT satisfiable — the group resolver routes around it
+/// instead of signing a response the spec says the verifier must reject.
+pub(crate) fn didauth_constraints_supported(query: &Query) -> bool {
+    let methods_ok = match &query.accepted_methods {
+        None => true,
+        Some(methods) if methods.is_empty() => true,
+        Some(methods) => methods.iter().any(|m| {
+            let name = match m {
+                AcceptedMethodEntry::Name(name) => name.as_str(),
+                AcceptedMethodEntry::Object { method } => method.as_str(),
+            };
+            name == SUPPORTED_DID_METHOD
+        }),
+    };
+    let suites_ok = match &query.accepted_cryptosuites {
+        None => true,
+        Some(suites) if suites.is_empty() => true,
+        Some(suites) => suites.iter().any(|entry| {
+            let name = match entry {
+                CryptosuiteEntry::Name(name) => name.as_str(),
+                CryptosuiteEntry::Object { cryptosuite } => cryptosuite.as_str(),
+            };
+            name == SUPPORTED_VP_CRYPTOSUITE
+        }),
+    };
+    methods_ok && suites_ok
+}
+
 /// Per-query satisfiability from the query kind alone, given whether a QBE query
-/// has at least one matched credential. DIDAuthentication is always satisfiable
-/// (satisfied by signing, no VC); Unknown is never satisfiable. The holder
-/// computes `qbe_has_match` by running [`example_matches`] over stored VCs.
+/// has at least one matched credential. DIDAuthentication is satisfiable iff its
+/// `acceptedMethods`/`acceptedCryptosuites` constraints don't exclude this
+/// holder ([`didauth_constraints_supported`]); Unknown is never satisfiable.
+/// The holder computes `qbe_has_match` by running [`example_matches`] over
+/// stored VCs.
 pub(crate) fn query_satisfiable_by_kind(query: &Query, qbe_has_match: bool) -> bool {
     match query_kind(query) {
         QueryKind::QueryByExample => qbe_has_match,
-        QueryKind::DidAuthentication => true,
+        QueryKind::DidAuthentication => didauth_constraints_supported(query),
         QueryKind::Unknown => false,
     }
 }
@@ -347,6 +405,82 @@ mod tests {
         // A context entry the VC lacks -> no match.
         let q = cq_example(json!({ "@context": ["https://other.example/ctx"] }));
         assert!(!example_matches(&q, &vc));
+    }
+
+    #[test]
+    fn json_ld_set_normalization_scalar_vs_array() {
+        // Multi-subject credential: `credentialSubject` is an ARRAY of subjects;
+        // an example OBJECT matches when ANY subject satisfies it.
+        let vc = json!({
+            "type": ["VerifiableCredential"],
+            "credentialSubject": [
+                { "name": "Alice", "role": "driver" },
+                { "name": "Bob", "role": "owner" }
+            ]
+        });
+        let q = cq_example(json!({ "credentialSubject": { "role": "owner" } }));
+        assert!(example_matches(&q, &vc), "any-subject match");
+        let q = cq_example(json!({ "credentialSubject": { "role": "pilot" } }));
+        assert!(!example_matches(&q, &vc));
+
+        // Array-valued claim: wanted scalar matches ANY element.
+        let vc = json!({
+            "type": ["VerifiableCredential"],
+            "credentialSubject": { "boards": ["alpha", "beta"] }
+        });
+        let q = cq_example(json!({ "credentialSubject": { "boards": "beta" } }));
+        assert!(example_matches(&q, &vc), "scalar-vs-array claim match");
+
+        // Wanted array vs scalar claim: the scalar is a one-element set.
+        let vc = json!({
+            "type": ["VerifiableCredential"],
+            "credentialSubject": { "board": "alpha" }
+        });
+        let q = cq_example(json!({ "credentialSubject": { "board": ["alpha"] } }));
+        assert!(example_matches(&q, &vc), "array-vs-scalar claim match");
+        let q = cq_example(json!({ "credentialSubject": { "board": ["alpha", "beta"] } }));
+        assert!(!example_matches(&q, &vc), "two wanted values, one present");
+    }
+
+    #[test]
+    fn didauth_constraints_gate_satisfiability() {
+        // Absent/empty lists, or lists naming what this holder produces, are
+        // satisfiable; lists excluding did:key / ecdsa-rdfc-2019 are not.
+        let q = |v: serde_json::Value| -> Query { serde_json::from_value(v).unwrap() };
+
+        let plain = q(json!({ "type": "DIDAuthentication" }));
+        assert!(query_satisfiable_by_kind(&plain, false));
+
+        let with_key = q(json!({
+            "type": "DIDAuthentication",
+            "acceptedMethods": [{"method": "key"}, "web"]
+        }));
+        assert!(query_satisfiable_by_kind(&with_key, false));
+
+        let web_only = q(json!({
+            "type": "DIDAuthentication",
+            "acceptedMethods": ["web"]
+        }));
+        assert!(
+            !query_satisfiable_by_kind(&web_only, false),
+            "acceptedMethods excluding `key` is unsatisfiable — never answered \
+             with a holder DID the verifier must reject"
+        );
+
+        let sd_suite_only = q(json!({
+            "type": "DIDAuthentication",
+            "acceptedCryptosuites": ["bbs-2023"]
+        }));
+        assert!(
+            !query_satisfiable_by_kind(&sd_suite_only, false),
+            "acceptedCryptosuites excluding ecdsa-rdfc-2019 is unsatisfiable"
+        );
+
+        let rdfc_listed = q(json!({
+            "type": "DIDAuthentication",
+            "acceptedCryptosuites": [{"cryptosuite": "ecdsa-rdfc-2019"}]
+        }));
+        assert!(query_satisfiable_by_kind(&rdfc_listed, false));
     }
 
     #[test]
