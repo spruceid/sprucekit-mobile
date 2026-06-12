@@ -134,11 +134,18 @@ class VcalmOfferedCredentialData {
   String? credentialSubject;
   String validity;
 
+  /// The full offered VC as a JSON string. `acceptOffer` stores the credential
+  /// only in the holder's own VdcCollection; the host app uses this raw VC to
+  /// persist it into its OWN wallet store so a VCALM-received credential appears
+  /// in the app's credential list.
+  String rawCredential;
+
   VcalmOfferedCredentialData({
     this.issuer,
     required this.types,
     this.credentialSubject,
     required this.validity,
+    required this.rawCredential,
   });
 }
 

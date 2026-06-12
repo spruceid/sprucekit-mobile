@@ -106,18 +106,14 @@ class VcalmAdapter: Vcalm {
         contextMap: [String: String]?,
         completion: @escaping (Result<VcalmResult, Error>) -> Void
     ) {
-        log("createHolder: keyId=\(keyId), trustedDids=\(trustedDids.count), packIds=\(credentialPackIds.count) (unused for VCALM)")
+        log("createHolder: keyId=\(keyId), trustedDids=\(trustedDids.count), packIds=\(credentialPackIds.count)")
         Task {
             do {
-                // `credentialPackIds` is intentionally unused for VCALM: unlike
-                // OID4VP (which pre-seeds the holder from packs), VCALM credentials
-                // arrive via Step-1 issuance (`acceptOffer`) into the holder's own
-                // `VdcCollection`. The parameter exists only for Pigeon-contract
-                // parity with the OID4VP surface.
-                _ = credentialPackIds
-
-                // Construct the holder from a VdcCollection (the QBE matcher
-                // enumerates it), not a flat credential list.
+                // The holder's own VdcCollection receives issuance (`acceptOffer`)
+                // credentials. To ALSO make the host app's existing wallet
+                // credentials presentable via QBE matching, load the passed packs
+                // into native ParsedCredential handles and seed the holder via
+                // provideCredentials.
                 let vdc = VdcCollection(engine: StorageManager(appGroupId: nil))
                 let signer = try VcalmSigner(keyId: keyId)
 
@@ -128,6 +124,18 @@ class VcalmAdapter: Vcalm {
                     contextMap: contextMap,
                     keystore: KeyManager()
                 )
+
+                if !credentialPackIds.isEmpty {
+                    var credentials: [SpruceIDMobileSdkRs.ParsedCredential] = []
+                    for packId in credentialPackIds {
+                        credentials.append(
+                            contentsOf: credentialPackAdapter.getNativeCredentials(packId: packId))
+                    }
+                    log("createHolder: seeding \(credentials.count) wallet credential(s) for QBE matching")
+                    if !credentials.isEmpty {
+                        try await newHolder.provideCredentials(credentials: credentials)
+                    }
+                }
 
                 lock.lock()
                 self.holder = newHolder
@@ -410,7 +418,8 @@ class VcalmAdapter: Vcalm {
             issuer: c.issuer,
             types: c.types,
             credentialSubject: c.credentialSubject,
-            validity: validityLabel(c.validity)
+            validity: validityLabel(c.validity),
+            rawCredential: c.rawCredential
         )
     }
 

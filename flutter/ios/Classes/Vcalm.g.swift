@@ -540,6 +540,11 @@ struct VcalmOfferedCredentialData: Hashable {
   var types: [String]
   var credentialSubject: String? = nil
   var validity: String
+  /// The full offered VC as a JSON string. `acceptOffer` stores the credential
+  /// only in the holder's own VdcCollection; the host app uses this raw VC to
+  /// persist it into its OWN wallet store so a VCALM-received credential appears
+  /// in the app's credential list.
+  var rawCredential: String
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -548,12 +553,14 @@ struct VcalmOfferedCredentialData: Hashable {
     let types = pigeonVar_list[1] as! [String]
     let credentialSubject: String? = nilOrValue(pigeonVar_list[2])
     let validity = pigeonVar_list[3] as! String
+    let rawCredential = pigeonVar_list[4] as! String
 
     return VcalmOfferedCredentialData(
       issuer: issuer,
       types: types,
       credentialSubject: credentialSubject,
-      validity: validity
+      validity: validity,
+      rawCredential: rawCredential
     )
   }
   func toList() -> [Any?] {
@@ -562,13 +569,14 @@ struct VcalmOfferedCredentialData: Hashable {
       types,
       credentialSubject,
       validity,
+      rawCredential,
     ]
   }
   static func == (lhs: VcalmOfferedCredentialData, rhs: VcalmOfferedCredentialData) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsVcalm(lhs.issuer, rhs.issuer) && deepEqualsVcalm(lhs.types, rhs.types) && deepEqualsVcalm(lhs.credentialSubject, rhs.credentialSubject) && deepEqualsVcalm(lhs.validity, rhs.validity)
+    return deepEqualsVcalm(lhs.issuer, rhs.issuer) && deepEqualsVcalm(lhs.types, rhs.types) && deepEqualsVcalm(lhs.credentialSubject, rhs.credentialSubject) && deepEqualsVcalm(lhs.validity, rhs.validity) && deepEqualsVcalm(lhs.rawCredential, rhs.rawCredential)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -577,6 +585,7 @@ struct VcalmOfferedCredentialData: Hashable {
     deepHashVcalm(value: types, hasher: &hasher)
     deepHashVcalm(value: credentialSubject, hasher: &hasher)
     deepHashVcalm(value: validity, hasher: &hasher)
+    deepHashVcalm(value: rawCredential, hasher: &hasher)
   }
 }
 
