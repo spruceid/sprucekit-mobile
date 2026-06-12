@@ -66,6 +66,13 @@ pub struct VcalmHolder {
     pub(crate) client: reqwest::Client,
     /// VCALM session state — interior-mutable because UniFFI methods take `&self`.
     pub(crate) state: tokio::sync::Mutex<ExchangeState>,
+    /// Host-provided credentials (the host app's wallet packs) to match against
+    /// for presentation. When set (via [`Self::provide_credentials`]), QBE
+    /// matching enumerates THESE instead of the holder's own `vdc_collection`, so
+    /// credentials the host app already stores (e.g. OID4VCI-issued) are
+    /// presentable via VCALM. Issuance (`accept_offer`) still stores into
+    /// `vdc_collection`.
+    pub(crate) provided_credentials: tokio::sync::Mutex<Option<Vec<Arc<ParsedCredential>>>>,
 }
 
 /// The discovery document returned for an `interaction:` initiation (§3.7.4).
@@ -119,7 +126,22 @@ impl VcalmHolder {
             keystore,
             client,
             state: tokio::sync::Mutex::new(ExchangeState::default()),
+            provided_credentials: tokio::sync::Mutex::new(None),
         }))
+    }
+
+    /// Seed the QBE matcher with credentials loaded from the host app's wallet
+    /// packs (mirrors OID4VP's `createHolder(packIds)` pre-seed). The native
+    /// adapter resolves the host app's pack ids to `ParsedCredential` handles and
+    /// calls this so wallet credentials become matchable for PRESENTATION. Without
+    /// it, matching falls back to the holder's own `vdc_collection`
+    /// (issuance-received credentials only).
+    pub async fn provide_credentials(&self, credentials: Vec<Arc<ParsedCredential>>) {
+        tracing::info!(
+            "VCALM provide_credentials: seeding matcher with {} host credential(s)",
+            credentials.len()
+        );
+        *self.provided_credentials.lock().await = Some(credentials);
     }
 
     /// Begin a `vcapi` exchange.
@@ -595,6 +617,13 @@ impl VcalmHolder {
     /// Enumerate every stored credential and parse it (read-only over the
     /// [`VdcCollection`]). No collection ⇒ empty vec (never an error).
     async fn enumerate_credentials(&self) -> Result<Vec<Arc<ParsedCredential>>, VcalmError> {
+        if let Some(provided) = self.provided_credentials.lock().await.as_ref() {
+            tracing::info!(
+                "VCALM enumerate: using {} host-provided credential(s)",
+                provided.len()
+            );
+            return Ok(provided.clone());
+        }
         let all = match &self.vdc_collection {
             None => {
                 tracing::info!("VCALM enumerate: no VdcCollection configured on holder");
@@ -971,6 +1000,10 @@ pub struct VcalmOfferedCredential {
     pub credential_subject: Option<String>,
     /// The read-only validity hint.
     pub validity: OfferedValidity,
+    /// The full offered VC as a JSON string. The SDK's `accept_offer` only stores
+    /// the credential in the holder's own `vdc_collection`; the host app needs the
+    /// raw VC to persist it into its OWN wallet store.
+    pub raw_credential: String,
 }
 
 impl VcalmOfferedCredential {
@@ -998,6 +1031,7 @@ impl VcalmOfferedCredential {
             types,
             credential_subject,
             validity,
+            raw_credential: entry.to_string(),
         }
     }
 }
