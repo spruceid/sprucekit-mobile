@@ -573,16 +573,25 @@ impl VcalmHolder {
             state.current_offer_redirect = None;
             return Ok(StepResult::Redirect { url });
         }
-        // No follow-on request — advance with an empty message. The offered
-        // credential is ALREADY verified and stored above, so a server reply that
-        // ends the exchange oddly (problem reply, malformed body, network failure)
-        // has NOT undone issuance. Server problem replies surface truthfully as
-        // StepResult::Problem (§3.8) instead of being remapped to Complete.
+        // No follow-on request bundled in the Offer. A vcapi exchange can deliver
+        // its NEXT step either bundled in the Offer (next_vpr / redirect, handled
+        // above) OR only on the next empty POST (multi-step exchanges), so we
+        // still advance to discover whether a next step exists.
         //
-        // The consumed Offer is cleared BEFORE the POST so a reply that carries a
-        // NEW Offer (stored inside post_message) is not clobbered; on an Err it is
-        // RESTORED so the caller can retry the advance (verify+store is
-        // idempotent, and post_message stores nothing on an error).
+        // The credential is ALREADY verified and stored above, so the advance is
+        // a discovery step that cannot undo issuance:
+        //   - Ok(Request/Offer/Redirect/Complete) → surface it (a real next step,
+        //     or clean completion).
+        //   - 4xx (a well-formed problem reply OR a malformed body) → the server
+        //     treats the issuance exchange as already complete and rejects the
+        //     extra POST (e.g. with a 403); issuance succeeded → report Complete.
+        //   - 5xx / network error → transient, NOT "complete": keep the Offer and
+        //     surface the error so the caller can retry (verify+store is
+        //     idempotent; post_message stores nothing on an error).
+        //
+        // The consumed Offer is cleared BEFORE the POST so a reply carrying a NEW
+        // Offer (stored inside post_message) is not clobbered; on a transient Err
+        // it is RESTORED.
         {
             let mut state = self.state.lock().await;
             state.current_offer = None;
@@ -590,6 +599,13 @@ impl VcalmHolder {
             state.current_offer_redirect = None;
         }
         match self.post_message(VcapiMessage::default()).await {
+            Ok(StepResult::Problem { .. }) | Err(VcalmError::MalformedProblemDetails { .. }) => {
+                tracing::debug!(
+                    "VCALM accept_offer: advance POST got a 4xx on a terminal issuance \
+                     Offer; the credential is stored — reporting Complete"
+                );
+                Ok(StepResult::Complete)
+            }
             Ok(step) => Ok(step),
             Err(e) => {
                 let mut state = self.state.lock().await;
@@ -599,9 +615,8 @@ impl VcalmHolder {
                     state.current_offer_redirect = None;
                 }
                 tracing::warn!(
-                    "VCALM accept_offer: advance POST failed ({e}); the offered \
-                     credential IS stored and the Offer is kept so the caller can \
-                     retry the advance"
+                    "VCALM accept_offer: advance POST failed transiently ({e}); the \
+                     credential IS stored and the Offer is kept so the caller can retry"
                 );
                 Err(e)
             }
@@ -2798,7 +2813,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn accept_advance_4xx_malformed_body_propagates_and_keeps_offer() {
+    async fn accept_advance_4xx_malformed_body_completes_after_store() {
+        // The advance reply is a 4xx with a NON-problem-details body (e.g. a
+        // 403 "Internal Server Error"): the server treats the issuance exchange
+        // as already complete and rejects the extra POST. The
+        // credential is already verified+stored, so issuance reports Complete and
+        // the consumed Offer is cleared.
         let server = MockServer::start().await;
         let base = server.uri();
         let vc = signed_offered_vc("urn:uuid:advance-403-1", "Dora").await;
@@ -2816,7 +2836,7 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/exchange"))
             .and(body_string_contains("ref-1"))
-            .respond_with(ResponseTemplate::new(403).set_body_string("Forbidden"))
+            .respond_with(ResponseTemplate::new(403).set_body_string("Internal Server Error"))
             .expect(1)
             .mount(&server)
             .await;
@@ -2828,26 +2848,21 @@ mod tests {
             .start_exchange(format!("{base}/exchange"), None)
             .await
             .expect("offer step");
-        // The advance reply is a 4xx with a NON-problem-details body: the error
-        // propagates truthfully (3.8), the credential is already stored, and the
-        // Offer is KEPT so the caller can retry the advance.
-        let err = holder.clone().accept_offer().await.unwrap_err();
-        assert!(matches!(
-            err,
-            VcalmError::MalformedProblemDetails { status: 403, .. }
-        ));
+        let step = holder.clone().accept_offer().await.expect("accept");
+        assert_eq!(step, StepResult::Complete);
         assert_eq!(vdc.all_entries().await.unwrap().len(), 1, "VC stored");
         assert!(
-            holder.state.lock().await.current_offer.is_some(),
-            "offer kept for retry after a failed advance"
+            holder.state.lock().await.current_offer.is_none(),
+            "consumed offer cleared after a completed issuance"
         );
     }
 
     #[tokio::test]
-    async fn accept_advance_problem_reply_surfaces_problem_after_storing() {
-        // Same terminal-offer server, with a valid RFC 9457 4xx body on the
-        // advance: the problem is surfaced TRUTHFULLY (3.8) instead of being
-        // remapped to Complete — the credential is already stored either way.
+    async fn accept_advance_4xx_problem_completes_after_store() {
+        // Same terminal-offer server, with a WELL-FORMED RFC 9457 4xx problem on
+        // the advance ("exchange already complete"): after a successful store the
+        // 4xx means the exchange is closed, so issuance reports Complete instead
+        // of surfacing a Problem — the credential is stored either way.
         let server = MockServer::start().await;
         let base = server.uri();
         let vc = signed_offered_vc("urn:uuid:advance-problem-1", "Eve").await;
@@ -2882,12 +2897,7 @@ mod tests {
             .await
             .expect("offer step");
         let step = holder.clone().accept_offer().await.expect("accept");
-        match step {
-            StepResult::Problem { details } => {
-                assert_eq!(details.status, Some(403));
-            }
-            other => panic!("expected the server problem surfaced, got {other:?}"),
-        }
+        assert_eq!(step, StepResult::Complete);
         assert_eq!(vdc.all_entries().await.unwrap().len(), 1, "VC stored");
     }
 

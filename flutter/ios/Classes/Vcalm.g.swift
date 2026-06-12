@@ -751,7 +751,11 @@ protocol Vcalm {
   /// The chosen cryptosuite is server-driven.
   ///
   /// @param selected Stable keys of the credentials the user selected
-  func submitPresentation(selected: [VcalmCredentialKey], completion: @escaping (Result<VcalmStepResult, Error>) -> Void)
+  /// @param allowDomainMismatch Proceed even if the VPR `domain` does not match
+  ///   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
+  ///   user consent — never as a default. A domain mismatch otherwise returns a
+  ///   [VcalmProblem] with `problemType == "domain-mismatch"`.
+  func submitPresentation(selected: [VcalmCredentialKey], allowDomainMismatch: Bool, completion: @escaping (Result<VcalmStepResult, Error>) -> Void)
   /// Preview the credentials offered in the current Offer.
   func offeredCredentials(completion: @escaping (Result<[VcalmOfferedCredentialData], Error>) -> Void)
   /// Accept the current Offer (verify + store), then advance the exchange.
@@ -860,12 +864,17 @@ class VcalmSetup {
     /// The chosen cryptosuite is server-driven.
     ///
     /// @param selected Stable keys of the credentials the user selected
+    /// @param allowDomainMismatch Proceed even if the VPR `domain` does not match
+    ///   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
+    ///   user consent — never as a default. A domain mismatch otherwise returns a
+    ///   [VcalmProblem] with `problemType == "domain-mismatch"`.
     let submitPresentationChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Vcalm.submitPresentation\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       submitPresentationChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let selectedArg = args[0] as! [VcalmCredentialKey]
-        api.submitPresentation(selected: selectedArg) { result in
+        let allowDomainMismatchArg = args[1] as! Bool
+        api.submitPresentation(selected: selectedArg, allowDomainMismatch: allowDomainMismatchArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

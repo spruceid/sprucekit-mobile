@@ -244,6 +244,7 @@ class VcalmAdapter: Vcalm {
 
     func submitPresentation(
         selected: [VcalmCredentialKey],
+        allowDomainMismatch: Bool,
         completion: @escaping (Result<VcalmStepResult, Error>) -> Void
     ) {
         Task {
@@ -260,15 +261,24 @@ class VcalmAdapter: Vcalm {
                 lock.lock()
                 let resolved = selected.compactMap { self.credentialsByKey[$0] }
                 lock.unlock()
-                log("submitPresentation: resolved \(resolved.count)/\(selected.count) handle(s)")
+                log("submitPresentation: resolved \(resolved.count)/\(selected.count) handle(s), allowDomainMismatch=\(allowDomainMismatch)")
                 // Suite is server-driven — no suite parameter.
-                // allowDomainMismatch=false: the §3.4.3.2 domain/channel anti-replay
-                // check refuses by default; a mismatch surfaces as a problem result.
                 let step = try await holder.submitPresentation(
                     selectedCredentials: resolved,
-                    allowDomainMismatch: false
+                    allowDomainMismatch: allowDomainMismatch
                 )
                 completion(.success(try await toPigeonStep(step)))
+            } catch VcalmError.DomainChannelMismatch(let domain, let channel) {
+                // §3.4.3.2 anti-replay refusal — surface a distinct problemType so the
+                // host app can ask the user for consent and retry with
+                // allowDomainMismatch = true.
+                log("submitPresentation: domain/channel mismatch (domain=\(domain), channel=\(channel))")
+                completion(.success(VcalmProblem(
+                    problemType: "domain-mismatch",
+                    status: nil,
+                    title: "Verifier domain does not match the exchange channel",
+                    detail: "domain=\(domain), channel=\(channel)"
+                )))
             } catch {
                 log("submitPresentation FAILED: \(error)")
                 completion(.success(VcalmProblem(

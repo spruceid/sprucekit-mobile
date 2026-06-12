@@ -211,8 +211,15 @@ abstract class Vcalm {
   /// The chosen cryptosuite is server-driven.
   ///
   /// @param selected Stable keys of the credentials the user selected
+  /// @param allowDomainMismatch Proceed even if the VPR `domain` does not match
+  ///   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
+  ///   user consent — never as a default. A domain mismatch otherwise returns a
+  ///   [VcalmProblem] with `problemType == "domain-mismatch"`.
   @async
-  VcalmStepResult submitPresentation(List<VcalmCredentialKey> selected);
+  VcalmStepResult submitPresentation(
+    List<VcalmCredentialKey> selected,
+    bool allowDomainMismatch,
+  );
 
   /// Preview the credentials offered in the current Offer.
   @async
