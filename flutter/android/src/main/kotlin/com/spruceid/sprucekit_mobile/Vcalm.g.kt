@@ -586,7 +586,14 @@ data class VcalmOfferedCredentialData (
   val issuer: String? = null,
   val types: List<String>,
   val credentialSubject: String? = null,
-  val validity: String
+  val validity: String,
+  /**
+   * The full offered VC as a JSON string. `acceptOffer` stores the credential
+   * only in the holder's own VdcCollection; the host app uses this raw VC to
+   * persist it into its OWN wallet store so a VCALM-received credential appears
+   * in the app's credential list.
+   */
+  val rawCredential: String
 )
  {
   companion object {
@@ -595,7 +602,8 @@ data class VcalmOfferedCredentialData (
       val types = pigeonVar_list[1] as List<String>
       val credentialSubject = pigeonVar_list[2] as String?
       val validity = pigeonVar_list[3] as String
-      return VcalmOfferedCredentialData(issuer, types, credentialSubject, validity)
+      val rawCredential = pigeonVar_list[4] as String
+      return VcalmOfferedCredentialData(issuer, types, credentialSubject, validity, rawCredential)
     }
   }
   fun toList(): List<Any?> {
@@ -604,6 +612,7 @@ data class VcalmOfferedCredentialData (
       types,
       credentialSubject,
       validity,
+      rawCredential,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -614,7 +623,7 @@ data class VcalmOfferedCredentialData (
       return true
     }
     val other = other as VcalmOfferedCredentialData
-    return VcalmPigeonUtils.deepEquals(this.issuer, other.issuer) && VcalmPigeonUtils.deepEquals(this.types, other.types) && VcalmPigeonUtils.deepEquals(this.credentialSubject, other.credentialSubject) && VcalmPigeonUtils.deepEquals(this.validity, other.validity)
+    return VcalmPigeonUtils.deepEquals(this.issuer, other.issuer) && VcalmPigeonUtils.deepEquals(this.types, other.types) && VcalmPigeonUtils.deepEquals(this.credentialSubject, other.credentialSubject) && VcalmPigeonUtils.deepEquals(this.validity, other.validity) && VcalmPigeonUtils.deepEquals(this.rawCredential, other.rawCredential)
   }
 
   override fun hashCode(): Int {
@@ -623,6 +632,7 @@ data class VcalmOfferedCredentialData (
     result = 31 * result + VcalmPigeonUtils.deepHash(this.types)
     result = 31 * result + VcalmPigeonUtils.deepHash(this.credentialSubject)
     result = 31 * result + VcalmPigeonUtils.deepHash(this.validity)
+    result = 31 * result + VcalmPigeonUtils.deepHash(this.rawCredential)
     return result
   }
 }

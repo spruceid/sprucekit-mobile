@@ -15746,6 +15746,16 @@ public protocol VcalmHolderProtocol: AnyObject, Sendable {
     func offeredCredentials() async throws  -> [VcalmOfferedCredential]
     
     /**
+     * Seed the QBE matcher with credentials loaded from the host app's wallet
+     * packs (mirrors OID4VP's `createHolder(packIds)` pre-seed). The native
+     * adapter resolves the host app's pack ids to `ParsedCredential` handles and
+     * calls this so wallet credentials become matchable for PRESENTATION. Without
+     * it, matching falls back to the holder's own `vdc_collection`
+     * (issuance-received credentials only).
+     */
+    func provideCredentials(credentials: [ParsedCredential]) async 
+    
+    /**
      * Reject the current Offer: advance the exchange WITHOUT storing anything.
      *
      * Requires a current Offer (same guard as [`accept_offer`]). The Offer is
@@ -15990,6 +16000,32 @@ open func offeredCredentials()async throws  -> [VcalmOfferedCredential]  {
             freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
             liftFunc: FfiConverterSequenceTypeVcalmOfferedCredential.lift,
             errorHandler: FfiConverterTypeVcalmError_lift
+        )
+}
+    
+    /**
+     * Seed the QBE matcher with credentials loaded from the host app's wallet
+     * packs (mirrors OID4VP's `createHolder(packIds)` pre-seed). The native
+     * adapter resolves the host app's pack ids to `ParsedCredential` handles and
+     * calls this so wallet credentials become matchable for PRESENTATION. Without
+     * it, matching falls back to the holder's own `vdc_collection`
+     * (issuance-received credentials only).
+     */
+open func provideCredentials(credentials: [ParsedCredential])async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcalmholder_provide_credentials(
+                    self.uniffiCloneHandle(),
+                    FfiConverterSequenceTypeParsedCredential.lower(credentials)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
         )
 }
     
@@ -20114,6 +20150,12 @@ public struct VcalmOfferedCredential: Equatable, Hashable {
      * The read-only validity hint.
      */
     public var validity: OfferedValidity
+    /**
+     * The full offered VC as a JSON string. The SDK's `accept_offer` only stores
+     * the credential in the holder's own `vdc_collection`; the host app needs the
+     * raw VC to persist it into its OWN wallet store.
+     */
+    public var rawCredential: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -20131,11 +20173,17 @@ public struct VcalmOfferedCredential: Equatable, Hashable {
          */credentialSubject: String?, 
         /**
          * The read-only validity hint.
-         */validity: OfferedValidity) {
+         */validity: OfferedValidity, 
+        /**
+         * The full offered VC as a JSON string. The SDK's `accept_offer` only stores
+         * the credential in the holder's own `vdc_collection`; the host app needs the
+         * raw VC to persist it into its OWN wallet store.
+         */rawCredential: String) {
         self.issuer = issuer
         self.types = types
         self.credentialSubject = credentialSubject
         self.validity = validity
+        self.rawCredential = rawCredential
     }
 
     
@@ -20157,7 +20205,8 @@ public struct FfiConverterTypeVcalmOfferedCredential: FfiConverterRustBuffer {
                 issuer: FfiConverterOptionString.read(from: &buf), 
                 types: FfiConverterSequenceString.read(from: &buf), 
                 credentialSubject: FfiConverterOptionString.read(from: &buf), 
-                validity: FfiConverterTypeOfferedValidity.read(from: &buf)
+                validity: FfiConverterTypeOfferedValidity.read(from: &buf), 
+                rawCredential: FfiConverterString.read(from: &buf)
         )
     }
 
@@ -20166,6 +20215,7 @@ public struct FfiConverterTypeVcalmOfferedCredential: FfiConverterRustBuffer {
         FfiConverterSequenceString.write(value.types, into: &buf)
         FfiConverterOptionString.write(value.credentialSubject, into: &buf)
         FfiConverterTypeOfferedValidity.write(value.validity, into: &buf)
+        FfiConverterString.write(value.rawCredential, into: &buf)
     }
 }
 

@@ -271,7 +271,7 @@ pub fn calculate_age_over_mapping(
         .filter_map(|(id, elem)| {
             id.strip_prefix("age_over_")
                 .and_then(age_from_str)
-                .and_then(|age| elem.as_ref().element_value.as_bool().map(|b| (age, b)))
+                .zip(elem.as_ref().element_value.as_bool())
         })
         .collect();
 

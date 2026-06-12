@@ -518,6 +518,7 @@ class VcalmOfferedCredentialData {
     required this.types,
     this.credentialSubject,
     required this.validity,
+    required this.rawCredential,
   });
 
   String? issuer;
@@ -528,12 +529,19 @@ class VcalmOfferedCredentialData {
 
   String validity;
 
+  /// The full offered VC as a JSON string. `acceptOffer` stores the credential
+  /// only in the holder's own VdcCollection; the host app uses this raw VC to
+  /// persist it into its OWN wallet store so a VCALM-received credential appears
+  /// in the app's credential list.
+  String rawCredential;
+
   List<Object?> _toList() {
     return <Object?>[
       issuer,
       types,
       credentialSubject,
       validity,
+      rawCredential,
     ];
   }
 
@@ -547,6 +555,7 @@ class VcalmOfferedCredentialData {
       types: (result[1]! as List<Object?>).cast<String>(),
       credentialSubject: result[2] as String?,
       validity: result[3]! as String,
+      rawCredential: result[4]! as String,
     );
   }
 
@@ -559,7 +568,7 @@ class VcalmOfferedCredentialData {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(issuer, other.issuer) && _deepEquals(types, other.types) && _deepEquals(credentialSubject, other.credentialSubject) && _deepEquals(validity, other.validity);
+    return _deepEquals(issuer, other.issuer) && _deepEquals(types, other.types) && _deepEquals(credentialSubject, other.credentialSubject) && _deepEquals(validity, other.validity) && _deepEquals(rawCredential, other.rawCredential);
   }
 
   @override

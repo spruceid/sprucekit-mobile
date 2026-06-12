@@ -115,23 +115,35 @@ internal class VcalmAdapter(
         // Bridge Rust `tracing` into logcat (tag "RustLogger"). Idempotent.
         RustLogger.enable()
         Log.d(TAG, "createHolder: keyId=$keyId, trustedDids=${trustedDids.size}, " +
-            "packIds=${credentialPackIds.size} (unused for VCALM)")
+            "packIds=${credentialPackIds.size}")
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // `credentialPackIds` is intentionally unused for VCALM: unlike
-                // OID4VP (which pre-seeds the holder from packs), VCALM credentials
-                // arrive via Step-1 issuance (acceptOffer) into the holder's own
-                // VdcCollection. The parameter exists only for Pigeon-contract
-                // parity with the OID4VP surface.
-
-                // Construct the holder from a VdcCollection (the QBE matcher
-                // enumerates it), not a flat credential list.
+                // The holder's own VdcCollection receives issuance (acceptOffer)
+                // credentials. To ALSO make the host app's existing wallet
+                // credentials presentable via QBE matching, load the passed packs
+                // into native ParsedCredential handles and seed the holder via
+                // provideCredentials.
                 val vdc = VdcCollection(StorageManager(context))
                 val signer = VcalmSigner(keyId)
                 Log.d(TAG, "createHolder: signer did=${signer.did()}")
 
                 val newHolder =
                     VcalmHolder.newSession(vdc, trustedDids, signer, contextMap, KeyManager())
+
+                if (credentialPackIds.isNotEmpty()) {
+                    val credentials = mutableListOf<ParsedCredential>()
+                    for (packId in credentialPackIds) {
+                        try {
+                            credentials.addAll(credentialPackAdapter.getNativeCredentials(packId))
+                        } catch (e: Exception) {
+                            Log.w(TAG, "createHolder: failed to load pack $packId", e)
+                        }
+                    }
+                    Log.d(TAG, "createHolder: seeding ${credentials.size} wallet credential(s) for QBE matching")
+                    if (credentials.isNotEmpty()) {
+                        newHolder.provideCredentials(credentials)
+                    }
+                }
 
                 synchronized(this@VcalmAdapter) {
                     this@VcalmAdapter.holder = newHolder
@@ -385,7 +397,8 @@ internal class VcalmAdapter(
             issuer = c.issuer,
             types = c.types,
             credentialSubject = c.credentialSubject,
-            validity = validityLabel(c.validity)
+            validity = validityLabel(c.validity),
+            rawCredential = c.rawCredential
         )
 
     private fun validityLabel(v: OfferedValidity): String = when (v) {
