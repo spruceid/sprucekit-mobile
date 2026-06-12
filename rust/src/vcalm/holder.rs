@@ -14,17 +14,22 @@ use ssi::prelude::{AnyJsonCredential, AnyJsonPresentation};
 use url::Url;
 use uuid::Uuid;
 
-use crate::credential::json_vc::JsonVc;
+use crate::credential::json_vc::{JsonVc, SD_BASE_PROOF_CRYPTOSUITES};
 use crate::credential::{verify_raw_credential, Credential, InvalidCredential, ParsedCredential};
 use crate::crypto::KeyStore;
 use crate::oid4vp::presentation::{PresentationError, PresentationSigner};
 use crate::vdc_collection::VdcCollection;
 
 use super::error::VcalmError;
-use super::exchange::{classify, AcceptedMethodEntry, Query, StepResult, VcapiMessage, Vpr};
+use super::exchange::{classify, AcceptedMethodEntry, StepResult, VcapiMessage, Vpr};
 use super::issuance::{self, OfferedEntry};
 use super::matching::{self, QueryKind};
-use super::presentation::{vpr_lists_sd_suite, VpSigner};
+use super::presentation::{unsupported_cryptosuite_negotiation, vpr_lists_sd_suite, VpSigner};
+
+/// Cap on a discovery/exchange response body (B.4: large payloads can trigger
+/// DoS incidents — a malicious or broken server must not be able to exhaust the
+/// wallet's memory). Generous for any plausible VPR/VP payload.
+const MAX_RESPONSE_BYTES: usize = 10 * 1024 * 1024;
 
 /// Interior, mutable session state retained across calls on a shared `Arc<VcalmHolder>`.
 /// Guarded by a `tokio::sync::Mutex` on the [`VcalmHolder`].
@@ -40,13 +45,18 @@ pub(crate) struct ExchangeState {
     pub(crate) auth_header: Option<String>,
     /// The offered VP's `vcs` (the `verifiablePresentation` envelope) captured when
     /// the last step was a [`StepResult::Offer`]. Cleared after a successful
-    /// accept/reject advance so a stale Offer is never re-accepted.
+    /// accept/reject advance so a stale Offer is never re-accepted. Kept across a
+    /// FAILED advance so the caller can retry (verify+store is idempotent).
     pub(crate) current_offer: Option<serde_json::Value>,
     /// The follow-on request the Offer carried, kept distinct from
     /// [`last_vpr`](Self::last_vpr) so `accept_offer` can decide whether to return it
     /// directly or POST an advance without re-reading state after a POST. Cleared
     /// alongside `current_offer`.
     pub(crate) current_offer_next_vpr: Option<Vpr>,
+    /// A `redirectUrl` that rode along on the Offer message (§3.6 combined
+    /// properties). Surfaced as the terminal step after a successful accept,
+    /// instead of an extra advance POST. Cleared alongside `current_offer`.
+    pub(crate) current_offer_redirect: Option<Url>,
 }
 
 /// A stateful VCALM holder session driving one `vcapi` exchange.
@@ -158,7 +168,13 @@ impl VcalmHolder {
         input: String,
         auth_header: Option<String>,
     ) -> Result<StepResult, VcalmError> {
-        let exchange_url = if let Some(discovery_url) = input.strip_prefix("interaction:") {
+        // §3.7.3 scheme matching is case-insensitive (URL schemes are).
+        let interaction_rest = input
+            .get(.."interaction:".len())
+            .filter(|prefix| prefix.eq_ignore_ascii_case("interaction:"))
+            .map(|_| &input["interaction:".len()..]);
+
+        let exchange_url = if let Some(discovery_url) = interaction_rest {
             self.discover_vcapi(discovery_url).await?
         } else {
             let url = Url::parse(&input)
@@ -175,14 +191,24 @@ impl VcalmHolder {
                         "unsupported interaction URL version: iuv={v} (expected 1)"
                     )))
                 }
-                None => url,
+                None => {
+                    // §3.7.1/B.2: HTTPS-only (loopback http allowed for local dev).
+                    validate_endpoint_url(&url)?;
+                    url
+                }
             }
         };
 
+        // Reset the WHOLE session state: a previous exchange's referenceId,
+        // last VPR, or pending Offer must never bleed into a new exchange
+        // (possibly against a different server).
         {
             let mut state = self.state.lock().await;
-            state.exchange_url = Some(exchange_url);
-            state.auth_header = auth_header;
+            *state = ExchangeState {
+                exchange_url: Some(exchange_url),
+                auth_header,
+                ..ExchangeState::default()
+            };
         }
 
         self.post_message(VcapiMessage::default()).await
@@ -205,15 +231,15 @@ impl VcalmHolder {
 
         let all_credentials = self.enumerate_credentials().await?;
 
-        // Log store size + each stored VC's type/@context so a no-match can be told
-        // apart from an empty store and an over-strict example.
-        tracing::info!(
+        // A. Privacy: wallet CONTENTS (stored types/@contexts) are sensitive —
+        // logged at trace only; counts at debug.
+        tracing::debug!(
             "VCALM matched_credentials: {} credential(s) enumerated from store",
             all_credentials.len()
         );
         for (i, cred) in all_credentials.iter().enumerate() {
             match cred.as_json_vc() {
-                Some(jv) => tracing::info!(
+                Some(jv) => tracing::trace!(
                     "VCALM store[{i}] type={} @context={}",
                     jv.raw
                         .get("type")
@@ -224,9 +250,12 @@ impl VcalmHolder {
                         .map(|v| v.to_string())
                         .unwrap_or_default()
                 ),
-                None => tracing::info!("VCALM store[{i}] not a JSON-LD VC (skipped by matcher)"),
+                None => tracing::trace!("VCALM store[{i}] not a JSON-LD VC (skipped by matcher)"),
             }
         }
+
+        // Whether presenting under THIS VPR would SD-derive (per credential below).
+        let sd_requested = vpr_lists_sd_suite(&vpr);
 
         let mut matched: Vec<VcalmMatchedCredentials> = Vec::new();
         for (query_index, query) in vpr.query.iter().enumerate() {
@@ -245,7 +274,7 @@ impl VcalmHolder {
             }
 
             for cq in &query.credential_query {
-                tracing::info!(
+                tracing::trace!(
                     "VCALM query[{query_index}] example type={} @context={}",
                     cq.example
                         .as_ref()
@@ -260,7 +289,7 @@ impl VcalmHolder {
                 );
             }
 
-            let mut hits: Vec<Arc<ParsedCredential>> = Vec::new();
+            let mut hits: Vec<VcalmMatchedCredential> = Vec::new();
             for cred in &all_credentials {
                 if let Some(json_vc) = cred.as_json_vc() {
                     // OR across the query's credentialQuery alternatives (e.g. a VCDM
@@ -269,11 +298,14 @@ impl VcalmHolder {
                         .credential_query
                         .iter()
                         .any(|cq| matching::example_matches(cq, &json_vc.raw));
-                    tracing::info!(
+                    tracing::debug!(
                         "VCALM query[{query_index}] vs stored VC -> match={matched_any}"
                     );
                     if matched_any {
-                        hits.push(cred.clone());
+                        hits.push(VcalmMatchedCredential {
+                            credential: cred.clone(),
+                            selective_disclosure: sd_requested && has_sd_base_proof(&json_vc.raw),
+                        });
                     }
                 }
             }
@@ -338,25 +370,42 @@ impl VcalmHolder {
     ///
     /// `selected_credentials` are the credentials the holder/user chose (e.g. from
     /// [`Self::matched_credentials`]). The VP is signed with `ecdsa-rdfc-2019`
-    /// (SELECTED from `vpr.accepted_cryptosuites`) and binds the VPR
-    /// `challenge`/`domain` (§3.4.3.2) with `ProofPurpose::Authentication`. A
-    /// DIDAuthentication-only request (no selected credentials) yields a signed VP
-    /// with an empty `verifiableCredential` array.
+    /// and binds the VPR `challenge`/`domain` (§3.4.3.2) with
+    /// `ProofPurpose::Authentication`. A DIDAuthentication-only request (no
+    /// selected credentials) yields a signed VP with an empty
+    /// `verifiableCredential` array.
+    ///
+    /// §3.4.3.2 anti-replay: when the VPR `domain` does not match the exchange
+    /// channel host, this REFUSES with [`VcalmError::DomainChannelMismatch`]
+    /// BEFORE anything is signed. `allow_domain_mismatch` is the explicit
+    /// host-app override for deployments that legitimately split the verifier
+    /// origin from the workflow-service channel — the host owns that consent,
+    /// and must pass `true` deliberately (never as a default).
     pub async fn submit_presentation(
         self: Arc<Self>,
         selected_credentials: Vec<Arc<ParsedCredential>>,
+        allow_domain_mismatch: bool,
     ) -> Result<StepResult, VcalmError> {
         let (vpr, exchange_url) = {
             let state = self.state.lock().await;
             (state.last_vpr.clone(), state.exchange_url.clone())
         };
         let vpr = vpr.ok_or_else(|| {
-            VcalmError::Network("no verifiable-presentation-request in session".into())
+            VcalmError::SessionState("no verifiable-presentation-request in session".into())
         })?;
 
-        // §3.4.3.2 anti-replay: the VPR `domain` must match the communication
-        // channel. Surfaced as a warning, not a failure — see the helper's doc.
-        warn_on_domain_channel_mismatch(vpr.domain.as_deref(), exchange_url.as_ref());
+        if let Some((domain, channel)) =
+            domain_channel_mismatch(vpr.domain.as_deref(), exchange_url.as_ref())
+        {
+            if !allow_domain_mismatch {
+                return Err(VcalmError::DomainChannelMismatch { domain, channel });
+            }
+            log::warn!(
+                "VPR domain ({domain}) does not match the exchange channel host \
+                 ({channel}) — §3.4.3.2 anti-replay check failed; proceeding because \
+                 the caller explicitly allowed the mismatch"
+            );
+        }
 
         // ssi's JSON-LD canonicalization recurses deep enough to overflow the
         // foreign thread's stack (UniFFI polls this future on the calling
@@ -385,31 +434,50 @@ impl VcalmHolder {
     ///
     /// Policy (atomic): verification runs over all entries FIRST. If any VC
     /// fails cryptographic proof verification, `accept_offer` returns
-    /// [`VcalmError::InvalidCredentialProof`] immediately, stores NOTHING, and does
-    /// NOT advance. A cryptographically-valid but time-bounded VC (expired/premature
+    /// [`VcalmError::InvalidCredentialProof`] (naming the entry index)
+    /// immediately, stores NOTHING, and does NOT advance. A
+    /// cryptographically-valid but time-bounded VC (expired/premature
     /// claims) is still stored and surfaced distinctly (a `tracing::warn!`
     /// keyed by the stable id; also reflected in the [`offered_credentials`] preview).
+    /// An `ecdsa-sd-2023` BASE-proof VC — the very thing an SD-capable wallet is
+    /// issued — is validated by deriving a full-reveal credential and verifying
+    /// THAT (base proofs are derivation material; they cannot be verified
+    /// directly), then the ORIGINAL base-proof VC is stored so later
+    /// presentations can SD-derive from it. A `bbs-2023` base proof (recognized,
+    /// not yet derivable) is refused with a typed
+    /// [`VcalmError::UnsupportedCredentialFormat`].
     /// Storage uses the deterministic [`issuance::stable_local_id`] so re-accepting the
     /// same credential OVERWRITES rather than duplicating (idempotent). When the
     /// Offer carried a follow-on request, accept returns
-    /// [`StepResult::Request`] WITHOUT a second POST; otherwise it POSTs the
-    /// empty advance message.
+    /// [`StepResult::Request`] WITHOUT a second POST; when it carried a combined
+    /// `redirectUrl`, accept returns [`StepResult::Redirect`]; otherwise it POSTs
+    /// the empty advance message.
+    ///
+    /// The Offer state is cleared only after a SUCCESSFUL advance — on an
+    /// advance failure the Offer survives so the caller can retry
+    /// (verify+store is idempotent). A server problem reply on the advance is
+    /// surfaced truthfully as [`StepResult::Problem`] (§3.8) — the credential is
+    /// already stored either way.
     ///
     /// `accept_offer` verifies each VC's OWN proof only — it does NOT gate storage on
     /// `trusted_dids`, so an untrusted-issuer but cryptographically-valid VC still
     /// stores. An `EnvelopedVerifiableCredential` is recognized and routed to a
     /// typed error (forward-compat, never silent-dropped).
     pub async fn accept_offer(self: Arc<Self>) -> Result<StepResult, VcalmError> {
-        let (vcs, next_vpr) = {
+        let (vcs, next_vpr, offer_redirect) = {
             let state = self.state.lock().await;
             match &state.current_offer {
-                Some(vcs) => (vcs.clone(), state.current_offer_next_vpr.clone()),
-                None => return Err(VcalmError::Network("no offer in session".into())),
+                Some(vcs) => (
+                    vcs.clone(),
+                    state.current_offer_next_vpr.clone(),
+                    state.current_offer_redirect.clone(),
+                ),
+                None => return Err(VcalmError::SessionState("no offer in session".into())),
             }
         };
 
         let entries = issuance::extract_offered_vcs(&vcs)?;
-        tracing::info!(
+        tracing::debug!(
             "VCALM accept_offer: {} offered VC(s) to verify+store",
             entries.len()
         );
@@ -418,34 +486,31 @@ impl VcalmHolder {
         // `Verification` objects (they are not Clone).
         let mut collected: Vec<(Uuid, OfferOutcome, Credential)> =
             Vec::with_capacity(entries.len());
-        for entry in &entries {
-            match issuance::classify_offered_entry(entry) {
-                OfferedEntry::Enveloped => {
-                    // Forward-compat: recognized but not yet decoded. Never
-                    // silently dropped — surface a typed, shape-only error.
-                    return Err(VcalmError::Deserialization(
-                        "EnvelopedVerifiableCredential is not yet supported".into(),
-                    ));
-                }
-                OfferedEntry::BareDataIntegrity => {}
-            }
-
-            let raw = issuance::build_raw_credential(entry)?;
-            // Same big-stack hop as submit_presentation: LDP-VC proof verification
-            // canonicalizes JSON-LD and can overflow the foreign caller's stack.
-            let context_map = self.context_map.clone();
-            let verification = crate::big_stack::run_async(move || async move {
-                verify_raw_credential(&raw, context_map).await
-            })
-            .await
-            .map_err(|e| VcalmError::Network(format!("big-stack verification thread: {e}")))??;
-            let outcome = match verification.expect_verified() {
-                Ok(()) => OfferOutcome::Valid,
-                // Expired/premature/other claims — still store, surface distinctly.
-                Err(InvalidCredential::Claims(_)) => OfferOutcome::ValidButTimeBounded,
-                // Proof failure is a hard, atomic abort — store nothing, do not advance.
-                Err(InvalidCredential::Proof) => return Err(VcalmError::InvalidCredentialProof),
-            };
+        for (index, entry) in entries.iter().enumerate() {
+            let outcome =
+                match Self::verify_offered_entry(entry.clone(), self.context_map.clone()).await? {
+                    OfferedVerifyOutcome::Valid => OfferOutcome::Valid,
+                    // Expired/premature/other claims — still store, surface distinctly.
+                    OfferedVerifyOutcome::TimeBounded => OfferOutcome::ValidButTimeBounded,
+                    // Proof failure is a hard, atomic abort — store nothing, do not advance.
+                    OfferedVerifyOutcome::ProofInvalid => {
+                        return Err(VcalmError::InvalidCredentialProof {
+                            index: index as u32,
+                        })
+                    }
+                    OfferedVerifyOutcome::Machinery(e) => return Err(e.into()),
+                    OfferedVerifyOutcome::Unsupported(reason) => {
+                        return Err(VcalmError::UnsupportedCredentialFormat(format!(
+                            "offered credential #{index}: {reason}"
+                        )))
+                    }
+                    OfferedVerifyOutcome::DeriveFailed(reason) => {
+                        return Err(VcalmError::SdDeriveFailed(format!(
+                            "offered credential #{index}: base-proof validation derive \
+                         failed: {reason}"
+                        )))
+                    }
+                };
 
             // Build the storable Credential now, overriding the local id with the
             // deterministic stable id and clearing key_alias (received full-disclosure
@@ -465,10 +530,10 @@ impl VcalmHolder {
         let vdc = self
             .vdc_collection
             .as_ref()
-            .ok_or_else(|| VcalmError::Network("no credential storage configured".into()))?;
+            .ok_or_else(|| VcalmError::SessionState("no credential storage configured".into()))?;
         for (stable_id, outcome, credential) in &collected {
             vdc.add(credential).await?; // overwrites on duplicate id ⇒ idempotent
-            tracing::info!("VCALM accept_offer: stored credential id={stable_id}");
+            tracing::debug!("VCALM accept_offer: stored credential id={stable_id}");
             if matches!(outcome, OfferOutcome::ValidButTimeBounded) {
                 // Distinct, non-failing signal so the UI can warn "stored, but
                 // expired/premature". Keyed by the stable id only — never the VC body.
@@ -481,81 +546,110 @@ impl VcalmHolder {
         // Confirm the post-store enumeration size from the SAME VdcCollection the
         // presentation step will read.
         if let Ok(entries) = vdc.all_entries().await {
-            tracing::info!(
+            tracing::debug!(
                 "VCALM accept_offer: VdcCollection now reports {} entry/entries after store",
                 entries.len()
             );
         }
 
-        // Advance. Clear the consumed Offer first so it can't be re-accepted.
+        // Advance. The Offer is cleared on each SUCCESSFUL terminal path; a failed
+        // advance keeps it so the caller can retry.
+        if let Some(vpr) = next_vpr {
+            // The Offer already carried the follow-on request — return it as a Request
+            // WITHOUT a second advance POST.
+            let mut state = self.state.lock().await;
+            state.current_offer = None;
+            state.current_offer_next_vpr = None;
+            state.current_offer_redirect = None;
+            state.last_vpr = Some(vpr.clone());
+            return Ok(StepResult::Request { vpr });
+        }
+        if let Some(url) = offer_redirect {
+            // §3.6 combined properties: the Offer carried a redirectUrl — that IS
+            // the terminal step; no extra advance POST.
+            let mut state = self.state.lock().await;
+            state.current_offer = None;
+            state.current_offer_next_vpr = None;
+            state.current_offer_redirect = None;
+            return Ok(StepResult::Redirect { url });
+        }
+        // No follow-on request bundled in the Offer. A vcapi exchange can deliver
+        // its NEXT step either bundled in the Offer (next_vpr / redirect, handled
+        // above) OR only on the next empty POST (multi-step exchanges), so we
+        // still advance to discover whether a next step exists.
+        //
+        // The credential is ALREADY verified and stored above, so the advance is
+        // a discovery step that cannot undo issuance:
+        //   - Ok(Request/Offer/Redirect/Complete) → surface it (a real next step,
+        //     or clean completion).
+        //   - 4xx (a well-formed problem reply OR a malformed body) → the server
+        //     treats the issuance exchange as already complete and rejects the
+        //     extra POST (e.g. with a 403); issuance succeeded → report Complete.
+        //   - 5xx / network error → transient, NOT "complete": keep the Offer and
+        //     surface the error so the caller can retry (verify+store is
+        //     idempotent; post_message stores nothing on an error).
+        //
+        // The consumed Offer is cleared BEFORE the POST so a reply carrying a NEW
+        // Offer (stored inside post_message) is not clobbered; on a transient Err
+        // it is RESTORED.
         {
             let mut state = self.state.lock().await;
             state.current_offer = None;
             state.current_offer_next_vpr = None;
+            state.current_offer_redirect = None;
         }
-        if let Some(vpr) = next_vpr {
-            // The Offer already carried the follow-on request — return it as a Request
-            // WITHOUT a second advance POST.
-            self.state.lock().await.last_vpr = Some(vpr.clone());
-            Ok(StepResult::Request { vpr })
-        } else {
-            // No follow-on request — attempt to advance with an empty message.
-            // The offered credential is ALREADY verified and stored above, so a
-            // server that treats the issuance Offer as terminal and rejects the
-            // extra POST with a 4xx has NOT undone issuance.
-            // Surface Complete for BOTH 4xx flavors — a parseable RFC 9457
-            // problem (`Ok(Problem)`) and a malformed 4xx body — so the terminal
-            // signal is consistent across server implementations. Anything else
-            // (network failure, 5xx) is NOT a "the exchange is over" signal:
-            // propagate it so the caller can retry, knowing the credential is safe.
-            match self.post_message(VcapiMessage::default()).await {
-                Ok(StepResult::Problem { details }) => {
-                    tracing::warn!(
-                        status = details.status,
-                        "VCALM accept_offer: server rejected the courtesy advance POST \
-                         with a problem reply; the offered credential is already stored \
-                         — treating issuance as complete"
-                    );
-                    Ok(StepResult::Complete)
+        match self.post_message(VcapiMessage::default()).await {
+            Ok(StepResult::Problem { .. }) | Err(VcalmError::MalformedProblemDetails { .. }) => {
+                tracing::debug!(
+                    "VCALM accept_offer: advance POST got a 4xx on a terminal issuance \
+                     Offer; the credential is stored — reporting Complete"
+                );
+                Ok(StepResult::Complete)
+            }
+            Ok(step) => Ok(step),
+            Err(e) => {
+                let mut state = self.state.lock().await;
+                if state.current_offer.is_none() {
+                    state.current_offer = Some(vcs);
+                    state.current_offer_next_vpr = None;
+                    state.current_offer_redirect = None;
                 }
-                Ok(step) => Ok(step),
-                Err(VcalmError::MalformedProblemDetails { status, .. }) => {
-                    tracing::warn!(
-                        status,
-                        "VCALM accept_offer: courtesy advance POST got a 4xx with a \
-                         non-problem-details body; the offered credential is already \
-                         stored — treating issuance as complete"
-                    );
-                    Ok(StepResult::Complete)
-                }
-                Err(e) => {
-                    tracing::warn!(
-                        "VCALM accept_offer: courtesy advance POST failed ({e}); the \
-                         offered credential IS stored — surfacing the error so the \
-                         caller can retry the advance"
-                    );
-                    Err(e)
-                }
+                tracing::warn!(
+                    "VCALM accept_offer: advance POST failed transiently ({e}); the \
+                     credential IS stored and the Offer is kept so the caller can retry"
+                );
+                Err(e)
             }
         }
     }
 
     /// Reject the current Offer: advance the exchange WITHOUT storing anything.
     ///
-    /// Requires a current Offer (same guard as [`accept_offer`]). Clears the Offer
-    /// state and POSTs the empty advance message. If the rejected Offer carried a
-    /// follow-on request, the resulting step surfaces it like any other reply — reject
-    /// does NOT special-case it and does NOT fabricate an RFC 9457 Problem.
+    /// Requires a current Offer (same guard as [`accept_offer`]). The Offer is
+    /// cleared BEFORE the advance POST (so a reply carrying a NEW Offer is not
+    /// clobbered) and RESTORED on a failed advance so the caller can retry. If
+    /// the rejected Offer carried a follow-on request, the resulting step
+    /// surfaces it like any other reply — reject does NOT special-case it and
+    /// does NOT fabricate an RFC 9457 Problem.
     pub async fn reject_offer(self: Arc<Self>) -> Result<StepResult, VcalmError> {
-        {
+        let consumed = {
+            let mut state = self.state.lock().await;
+            let Some(vcs) = state.current_offer.take() else {
+                return Err(VcalmError::SessionState("no offer in session".into()));
+            };
+            state.current_offer_next_vpr = None;
+            state.current_offer_redirect = None;
+            vcs
+        };
+        let result = self.post_message(VcapiMessage::default()).await;
+        if result.is_err() {
+            // post_message stores nothing on an error — restore for retry.
             let mut state = self.state.lock().await;
             if state.current_offer.is_none() {
-                return Err(VcalmError::Network("no offer in session".into()));
+                state.current_offer = Some(consumed);
             }
-            state.current_offer = None;
-            state.current_offer_next_vpr = None;
         }
-        self.post_message(VcapiMessage::default()).await
+        result
     }
 
     /// Preview the credentials offered in the current Offer for UI display.
@@ -581,27 +675,29 @@ impl VcalmHolder {
 
         let mut out = Vec::with_capacity(entries.len());
         for entry in &entries {
+            // Same verification core as accept_offer — including the big-stack
+            // hop (ssi JSON-LD canonicalization on an attacker-controlled VC must
+            // never run on the small foreign caller's stack) and the SD-base
+            // derive-then-verify path.
             let validity = match issuance::classify_offered_entry(entry) {
                 OfferedEntry::Enveloped => OfferedValidity::Enveloped,
-                OfferedEntry::BareDataIntegrity => match issuance::build_raw_credential(entry) {
-                    Ok(raw) => {
-                        let context_map = self.context_map.clone();
-                        let verification = crate::big_stack::run_async(move || async move {
-                            verify_raw_credential(&raw, context_map).await
-                        })
-                        .await;
-                        match verification {
-                            Ok(Ok(verification)) => match verification.expect_verified() {
-                                Ok(()) => OfferedValidity::Valid,
-                                Err(InvalidCredential::Claims(_)) => OfferedValidity::TimeBounded,
-                                Err(InvalidCredential::Proof) => OfferedValidity::ProofInvalid,
-                            },
-                            // verify returned Err, or the worker thread failed to join.
-                            _ => OfferedValidity::Unverifiable,
+                OfferedEntry::BareDataIntegrity => {
+                    match Self::verify_offered_entry(entry.clone(), self.context_map.clone()).await
+                    {
+                        Ok(OfferedVerifyOutcome::Valid) => OfferedValidity::Valid,
+                        Ok(OfferedVerifyOutcome::TimeBounded) => OfferedValidity::TimeBounded,
+                        Ok(OfferedVerifyOutcome::ProofInvalid)
+                        | Ok(OfferedVerifyOutcome::DeriveFailed(_)) => {
+                            OfferedValidity::ProofInvalid
                         }
+                        Ok(OfferedVerifyOutcome::Machinery(_)) => OfferedValidity::Unverifiable,
+                        Ok(OfferedVerifyOutcome::Unsupported(_)) => {
+                            OfferedValidity::UnsupportedProof
+                        }
+                        // A preview never errors the whole read.
+                        Err(_) => OfferedValidity::Unverifiable,
                     }
-                    Err(_) => OfferedValidity::Unverifiable,
-                },
+                }
             };
             out.push(VcalmOfferedCredential::from_entry(entry, validity));
         }
@@ -621,7 +717,109 @@ enum OfferOutcome {
     ValidButTimeBounded,
 }
 
+/// The rich outcome of verifying ONE offered entry — shared by
+/// [`VcalmHolder::accept_offer`] (which maps refusals to typed errors) and
+/// [`VcalmHolder::offered_credentials`] (which maps everything to a non-failing
+/// [`OfferedValidity`] preview hint).
+enum OfferedVerifyOutcome {
+    /// Proof verified; claims within their validity period.
+    Valid,
+    /// Proof verified; validity period failed (expired/premature/other claims).
+    TimeBounded,
+    /// The credential's own cryptographic proof failed.
+    ProofInvalid,
+    /// The verification machinery itself failed to run.
+    Machinery(crate::credential::VerificationError),
+    /// A recognized-but-unsupported format (enveloped VC, `bbs-2023` base proof).
+    Unsupported(String),
+    /// An `ecdsa-sd-2023` base proof whose validation derive failed.
+    DeriveFailed(String),
+}
+
 impl VcalmHolder {
+    /// Verify one offered entry, with the big-stack hop (ssi JSON-LD
+    /// canonicalization overflows the small foreign caller's stack) and
+    /// SD-base awareness:
+    ///
+    /// - `EnvelopedVerifiableCredential` → [`OfferedVerifyOutcome::Unsupported`].
+    /// - `bbs-2023` base proof (recognized, not derivable) →
+    ///   [`OfferedVerifyOutcome::Unsupported`].
+    /// - `ecdsa-sd-2023` base proof → base proofs are derivation material and
+    ///   cannot be verified directly (ssi rejects them by construction), so the
+    ///   entry is validated by deriving a full-subject-reveal credential and
+    ///   verifying THAT — a failed derive or an invalid derived proof rejects
+    ///   the entry. The caller stores the ORIGINAL base-proof VC.
+    /// - anything else → plain [`verify_raw_credential`].
+    ///
+    /// An associated fn (not `&self`) so the whole body can hop onto the
+    /// dedicated big-stack worker with owned captures.
+    async fn verify_offered_entry(
+        entry: serde_json::Value,
+        context_map: Option<HashMap<String, String>>,
+    ) -> Result<OfferedVerifyOutcome, VcalmError> {
+        if matches!(
+            issuance::classify_offered_entry(&entry),
+            OfferedEntry::Enveloped
+        ) {
+            return Ok(OfferedVerifyOutcome::Unsupported(
+                "EnvelopedVerifiableCredential is not yet supported".into(),
+            ));
+        }
+        if has_underivable_sd_base_proof(&entry) {
+            return Ok(OfferedVerifyOutcome::Unsupported(format!(
+                "credential carries a selective-disclosure base proof this SDK cannot \
+                 derive yet ({:?})",
+                proof_cryptosuites(&entry)
+            )));
+        }
+
+        let outcome = crate::big_stack::run_async(move || async move {
+            // For an ecdsa-sd-2023 base proof, verify via a full-reveal derive.
+            let to_verify = if has_sd_base_proof(&entry) {
+                let json_vc = match JsonVc::new_from_json(entry.to_string()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return OfferedVerifyOutcome::DeriveFailed(format!(
+                            "base-proof credential failed to parse: {e}"
+                        ))
+                    }
+                };
+                let full_reveal = selective_pointers_from_paths(std::slice::from_ref(
+                    &"credentialSubject".to_string(),
+                ));
+                match json_vc
+                    .derive_sd_vp_credential(full_reveal, context_map.clone())
+                    .await
+                {
+                    Ok(derived) => derived,
+                    Err(e) => return OfferedVerifyOutcome::DeriveFailed(e.to_string()),
+                }
+            } else {
+                entry
+            };
+
+            let raw = match issuance::build_raw_credential(&to_verify) {
+                Ok(raw) => raw,
+                Err(_) => {
+                    return OfferedVerifyOutcome::Machinery(
+                        crate::credential::VerificationError::InvalidCredentialPayload,
+                    )
+                }
+            };
+            match verify_raw_credential(&raw, context_map).await {
+                Ok(verification) => match verification.expect_verified() {
+                    Ok(()) => OfferedVerifyOutcome::Valid,
+                    Err(InvalidCredential::Claims(_)) => OfferedVerifyOutcome::TimeBounded,
+                    Err(InvalidCredential::Proof) => OfferedVerifyOutcome::ProofInvalid,
+                },
+                Err(e) => OfferedVerifyOutcome::Machinery(e),
+            }
+        })
+        .await
+        .map_err(|e| VcalmError::Network(format!("big-stack verification thread: {e}")))?;
+
+        Ok(outcome)
+    }
     /// Enumerate every stored credential and parse it (read-only over the
     /// [`VdcCollection`]). No collection ⇒ empty vec (never an error).
     async fn enumerate_credentials(&self) -> Result<Vec<Arc<ParsedCredential>>, VcalmError> {
@@ -634,7 +832,7 @@ impl VcalmHolder {
         }
         let all = match &self.vdc_collection {
             None => {
-                tracing::info!("VCALM enumerate: no VdcCollection configured on holder");
+                tracing::debug!("VCALM enumerate: no VdcCollection configured on holder");
                 vec![]
             }
             Some(vdc_collection) => {
@@ -642,7 +840,7 @@ impl VcalmHolder {
                 // list() count is pre-decrypt/parse, so it tells a genuinely empty
                 // store apart from one whose entries are dropped by a failing
                 // get/decrypt/parse (enumerate swallows those).
-                tracing::info!(
+                tracing::debug!(
                     "VCALM enumerate: {} id(s) listed in store (pre-decrypt/parse)",
                     ids.len()
                 );
@@ -677,24 +875,28 @@ impl VcalmHolder {
 
     /// Build and sign the VP for `vpr` from the holder-selected credentials.
     ///
-    /// Runs §3.4.5 group resolution ([`matching::resolve_groups`]) honoring the
-    /// caller's selection (the chosen credentials drive per-QBE-query satisfiability),
-    /// honors `acceptedMethods` (the holder DID method is `did:key` whether
-    /// `key` is listed or absent — other methods are recognized but never switch the
-    /// keystore), assembles an `AnyJsonPresentation` (DIDAuth-only ⇒ empty vec), and
-    /// signs it via the [`VpSigner`] glue.
+    /// Refuses up-front when the VPR's negotiation lists exclude everything this
+    /// holder can produce — `acceptedCryptosuites` (§3.4.3.1,
+    /// [`VcalmError::NoAcceptedCryptosuite`]) and `acceptedMethods` (§3.4.3.2,
+    /// [`VcalmError::NoAcceptedDidMethod`]) — instead of signing a response the
+    /// verifier must reject. Then runs §3.4.5 group resolution
+    /// ([`matching::resolve_groups`]) honoring the caller's selection (the chosen
+    /// credentials drive per-QBE-query satisfiability), assembles an
+    /// `AnyJsonPresentation` (DIDAuth-only ⇒ empty vec), and signs it via the
+    /// [`VpSigner`] glue.
     async fn build_and_sign_vp(
         &self,
         vpr: &Vpr,
         selected_credentials: &[Arc<ParsedCredential>],
     ) -> Result<ssi::prelude::DataIntegrity<AnyJsonPresentation, ssi::prelude::AnySuite>, VcalmError>
     {
-        // Honor `acceptedMethods`. Only `did:key` is wired; whether
-        // `acceptedMethods` lists `key`, is absent/empty, or lists other methods, the
-        // holder signs with its `did:key` signer default (the signer already produces
-        // a did:key holder). Other methods are recognized-but-do-NOT-fail — we never
-        // switch keystores or resolve an alternate DID method.
-        honor_accepted_methods(vpr);
+        // §3.4.3.1 "holder MUST choose among" — refuse before signing when no
+        // placement lists a producible suite.
+        if let Some(accepted) = unsupported_cryptosuite_negotiation(vpr) {
+            return Err(VcalmError::NoAcceptedCryptosuite { accepted });
+        }
+        // §3.4.3.2 — same for the holder DID method.
+        ensure_accepted_methods(vpr)?;
 
         // Forward-looking deps held on the holder are not consumed by the current
         // signing path (issuer-trust scoring and the mdoc keystore are not yet wired);
@@ -710,9 +912,9 @@ impl VcalmHolder {
         );
 
         // §3.4.5 group resolution: a QBE query is satisfiable iff at least one of the
-        // SELECTED credentials matches it; DIDAuthentication is always satisfiable;
-        // unknown types are never satisfiable. The first fully-satisfiable
-        // AND-group is the default selection.
+        // SELECTED credentials matches it; DIDAuthentication is satisfiable iff its
+        // constraints don't exclude this holder; unknown types are never satisfiable.
+        // The first fully-satisfiable AND-group is the default selection.
         let resolution = matching::resolve_groups(&vpr.query, |idx| {
             let query = &vpr.query[idx];
             let has_match = !query.credential_query.is_empty()
@@ -732,10 +934,14 @@ impl VcalmHolder {
         // Gather the credentials to present: the union of selected credentials that
         // match a QueryByExample query in the chosen AND-group. If no group is
         // satisfiable (e.g. DIDAuthentication-only), present no credentials.
+        //
+        // `present_paths[i]` accumulates the QBE-named field paths of exactly the
+        // queries that `present[i]` MATCHED — each credential's SD derive reveals
+        // only what was asked OF THAT CREDENTIAL, not the union across the whole
+        // request (a multi-query VPR must not leak query-A fields from a query-B
+        // credential).
         let mut present: Vec<Arc<ParsedCredential>> = Vec::new();
-        // QBE example-named fields for the chosen group — the source of the spec
-        // `selectivePointers` if the SD gate activates.
-        let mut qbe_requested: Vec<VcalmRequestedField> = Vec::new();
+        let mut present_paths: Vec<Vec<String>> = Vec::new();
         if resolution.is_satisfiable() {
             // SAFETY: is_satisfiable() <=> selected.is_some().
             let group_idx = resolution.selected.expect("satisfiable ⇒ a group selected");
@@ -745,25 +951,18 @@ impl VcalmHolder {
                 if matching::query_kind(query) != QueryKind::QueryByExample {
                     continue;
                 }
-                // Capture the example-named fields for the SD selectivePointers
-                // transform (reveal exactly the QBE-named fields), across
-                // all credentialQuery alternatives, deduped by path.
+                // The fields THIS query names, across all credentialQuery
+                // alternatives, deduped by path.
                 let mut seen_paths = std::collections::HashSet::new();
+                let mut query_paths: Vec<String> = Vec::new();
                 for cq in &query.credential_query {
                     let Some(example) = cq.example.as_ref() else {
                         continue;
                     };
                     for field in example_field_paths(example) {
-                        if !seen_paths.insert(field.path.clone()) {
-                            continue;
+                        if seen_paths.insert(field.path.clone()) {
+                            query_paths.push(field.path);
                         }
-                        qbe_requested.push(VcalmRequestedField {
-                            query_index: query_idx as u32,
-                            path: field.path,
-                            value: field.value,
-                            required: query.required.unwrap_or(true),
-                            purpose: cq.reason.clone(),
-                        });
                     }
                 }
                 for cred in selected_credentials {
@@ -772,9 +971,20 @@ impl VcalmHolder {
                             .credential_query
                             .iter()
                             .any(|cq| matching::example_matches(cq, &json_vc.raw))
-                            && !present.iter().any(|c| Arc::ptr_eq(c, cred))
                         {
-                            present.push(cred.clone());
+                            match present.iter().position(|c| Arc::ptr_eq(c, cred)) {
+                                Some(i) => {
+                                    for p in &query_paths {
+                                        if !present_paths[i].contains(p) {
+                                            present_paths[i].push(p.clone());
+                                        }
+                                    }
+                                }
+                                None => {
+                                    present.push(cred.clone());
+                                    present_paths.push(query_paths.clone());
+                                }
+                            }
                         }
                     }
                 }
@@ -786,28 +996,41 @@ impl VcalmHolder {
 
         // Two-gate SD activation. GATE 1: the VPR lists an SD suite. GATE 2
         // (per credential): the matched VC carries an `ecdsa-sd-2023` base proof. When
-        // both hold, derive the SD VC revealing exactly the QBE-named selectivePointers
-        // (+ issuer mandatory pointers, merged by the derive), wrap the derived
-        // VC in a VP, and sign through the UNCHANGED `sign_presentation` (the VP proof
-        // stays `ecdsa-rdfc-2019` and binds the VPR challenge/domain — two-layer model).
-        // If SD is requested but unsatisfiable (no SD base proof)
-        // or the derive errors, fall back to full disclosure — NOT an error.
+        // both hold, derive the SD VC revealing exactly the fields the credential's
+        // OWN matching queries named (+ issuer mandatory pointers, merged by the
+        // derive), wrap the derived VC in a VP, and sign through the UNCHANGED
+        // `sign_presentation` (the VP proof stays `ecdsa-rdfc-2019` and binds the
+        // VPR challenge/domain — two-layer model).
+        //
+        // A failed derive is a hard [`VcalmError::SdDeriveFailed`] — NEVER a silent
+        // fall back to full disclosure: the user consented to the SD subset, and
+        // silently widening that to the whole credential is an over-share.
+        // A credential with NO SD base proof under an SD-requesting VPR is still
+        // presented at full disclosure (the verifier sees a non-SD credential and
+        // decides) — that is a capability gap, not a consent violation.
         if vpr_lists_sd_suite(vpr) && !present.is_empty() {
-            let selective_pointers = selective_pointers_from_qbe(&qbe_requested);
             let mut presented_json: Vec<serde_json::Value> = Vec::new();
             let mut sd_derived = false;
-            let mut derive_failed = false;
 
-            for cred in &present {
-                let Some(json_vc) = cred.as_json_vc() else {
-                    // A non-LDP credential cannot be SD-derived; fall back wholesale.
-                    derive_failed = true;
-                    break;
-                };
+            for (cred, paths) in present.iter().zip(&present_paths) {
+                let json_vc = cred.as_json_vc().ok_or_else(|| {
+                    // Unreachable: only credentials that matched via as_json_vc are
+                    // collected into `present`.
+                    VcalmError::SdDeriveFailed("selected credential is not a JSON-LD VC".into())
+                })?;
                 if has_sd_base_proof(&json_vc.raw) {
-                    // GATE 2 holds — derive the selective-disclosure VC.
+                    // GATE 2 holds — derive the selective-disclosure VC. A type-only
+                    // example names no subject fields; reveal the whole subject via
+                    // the parent pointer (a derived VC without `credentialSubject`
+                    // would not be a valid VC at all).
+                    let mut selective_pointers = selective_pointers_from_paths(paths);
+                    if selective_pointers.is_empty() {
+                        selective_pointers = selective_pointers_from_paths(std::slice::from_ref(
+                            &"credentialSubject".to_string(),
+                        ));
+                    }
                     match json_vc
-                        .derive_sd_vp_credential(selective_pointers.clone())
+                        .derive_sd_vp_credential(selective_pointers, self.context_map.clone())
                         .await
                     {
                         Ok(derived) => {
@@ -815,46 +1038,48 @@ impl VcalmHolder {
                             presented_json.push(derived);
                         }
                         Err(e) => {
-                            log::warn!(
-                                "VCALM SD derive failed ({e}); falling back to \
-                                 full disclosure"
-                            );
-                            derive_failed = true;
-                            break;
+                            return Err(VcalmError::SdDeriveFailed(format!(
+                                "selective-disclosure derive failed for a matched \
+                                 credential: {e}"
+                            )));
                         }
                     }
                 } else {
                     // SD requested but THIS credential carries no ecdsa-sd-2023 base
                     // proof — present it at full disclosure alongside any SD-derived
-                    // ones. Still strip: it may carry a bbs-2023 base proof, which is
-                    // invisible to `has_sd_base_proof` but equally holder-secret (B.1).
-                    presented_json.push(strip_sd_base_proofs(&json_vc.raw));
+                    // ones, keeping only allowlisted proofs (B.1).
+                    presented_json.push(retain_presentable_proofs(&json_vc.raw)?);
                 }
             }
 
-            if !derive_failed && sd_derived {
+            if sd_derived {
                 let presentation = build_presentation_from_json(&holder_did, &presented_json)?;
                 let signed = glue.sign_presentation(presentation, vpr).await?;
                 return Ok(signed);
             }
 
-            if !sd_derived {
-                log::info!(
-                    "VCALM: VPR requested SD but no presented credential carries an \
-                     ecdsa-sd-2023 base proof; signing full disclosure"
-                );
-            }
+            log::info!(
+                "VCALM: VPR requested SD but no presented credential carries an \
+                 ecdsa-sd-2023 base proof; signing full disclosure"
+            );
         }
 
-        // Full-disclosure path (also the SD fallback).
+        // Full-disclosure path (also the no-SD-capable-credential fallback).
         let presentation = build_presentation(&holder_did, &present)?;
         let signed = glue.sign_presentation(presentation, vpr).await?;
         Ok(signed)
     }
 
     /// Resolve the `vcapi` exchange URL from an `interaction:` discovery endpoint.
-    /// The bearer token is intentionally NOT attached here.
+    /// The bearer token is intentionally NOT attached here. Both the discovery
+    /// URL and the discovered `vcapi` URL must pass [`validate_endpoint_url`]
+    /// (HTTPS, or loopback http for local dev — §3.7.1/B.2; also rejects
+    /// `file:`/other schemes a QR code could smuggle in).
     async fn discover_vcapi(&self, discovery_url: &str) -> Result<Url, VcalmError> {
+        let discovery_url = Url::parse(discovery_url)
+            .map_err(|e| VcalmError::Network(format!("invalid interaction URL: {e}")))?;
+        validate_endpoint_url(&discovery_url)?;
+
         let resp = self
             .client
             .get(discovery_url)
@@ -864,10 +1089,7 @@ impl VcalmHolder {
             .map_err(|e| VcalmError::Network(e.to_string()))?;
 
         let status = resp.status();
-        let body = resp
-            .text()
-            .await
-            .map_err(|e| VcalmError::Network(e.to_string()))?;
+        let body = read_body_capped(resp).await?;
 
         if !status.is_success() {
             return Err(VcalmError::ServerError {
@@ -884,7 +1106,10 @@ impl VcalmHolder {
             .get("vcapi")
             .ok_or(VcalmError::NoVcapiProtocol)?;
 
-        Url::parse(vcapi).map_err(|e| VcalmError::Network(format!("invalid vcapi URL: {e}")))
+        let vcapi = Url::parse(vcapi)
+            .map_err(|e| VcalmError::Network(format!("invalid vcapi URL: {e}")))?;
+        validate_endpoint_url(&vcapi)?;
+        Ok(vcapi)
     }
 
     /// POST one `vcapi` message and classify the reply (zero retries).
@@ -904,7 +1129,7 @@ impl VcalmHolder {
         };
 
         let exchange_url = exchange_url
-            .ok_or_else(|| VcalmError::Network("no active exchange URL in session".into()))?;
+            .ok_or_else(|| VcalmError::SessionState("no active exchange URL in session".into()))?;
 
         // Echo the server-issued referenceId on the outgoing request.
         if message.reference_id.is_none() {
@@ -921,35 +1146,42 @@ impl VcalmHolder {
             .await
             .map_err(|e| VcalmError::Network(e.to_string()))?;
         let status = resp.status();
-        let body = resp
-            .text()
-            .await
-            .map_err(|e| VcalmError::Network(e.to_string()))?;
+        let body = read_body_capped(resp).await?;
 
         let result = classify(status, &body)?;
 
-        // Capture referenceId echo target + last_vpr from the reply for the next step.
-        if status.is_success() && !body.trim().is_empty() {
-            if let Ok(reply) = serde_json::from_str::<VcapiMessage>(&body) {
-                if reply.reference_id.is_some() {
-                    let mut state = self.state.lock().await;
-                    state.reference_id = reply.reference_id;
-                }
-            }
+        // Track the referenceId echo target from every successful reply: the spec
+        // says echo "the same referenceId in its NEXT message", so a reply WITHOUT
+        // one clears the stored value (no stale echo after the server stops
+        // sending it).
+        if status.is_success() {
+            let reply_reference_id = if body.trim().is_empty() {
+                None
+            } else {
+                serde_json::from_str::<VcapiMessage>(&body)
+                    .ok()
+                    .and_then(|reply| reply.reference_id)
+            };
+            self.state.lock().await.reference_id = reply_reference_id;
         }
         match &result {
             StepResult::Request { vpr } => {
                 self.state.lock().await.last_vpr = Some(vpr.clone());
             }
-            StepResult::Offer { vcs, next_vpr } => {
+            StepResult::Offer {
+                vcs,
+                next_vpr,
+                redirect_url,
+            } => {
                 // Capture the Offer for accept_offer/reject_offer/offered_credentials.
-                // `current_offer` is ALWAYS set; `current_offer_next_vpr`
-                // mirrors the Offer's follow-on request (Some or None). Keep the
-                // existing `last_vpr` capture when next_vpr is present so reads that
-                // depend on it (e.g. matched_credentials) still work.
+                // `current_offer` is ALWAYS set; `current_offer_next_vpr` and
+                // `current_offer_redirect` mirror the Offer's combined properties.
+                // Keep the existing `last_vpr` capture when next_vpr is present so
+                // reads that depend on it (e.g. matched_credentials) still work.
                 let mut state = self.state.lock().await;
                 state.current_offer = Some(vcs.clone());
                 state.current_offer_next_vpr = next_vpr.clone();
+                state.current_offer_redirect = redirect_url.clone();
                 if let Some(vpr) = next_vpr {
                     state.last_vpr = Some(vpr.clone());
                 }
@@ -969,7 +1201,21 @@ pub struct VcalmMatchedCredentials {
     /// Index of the originating query in the VPR's `query[]` array.
     pub query_index: u32,
     /// The stored credentials that satisfied that query (may be empty).
-    pub credentials: Vec<Arc<ParsedCredential>>,
+    pub credentials: Vec<VcalmMatchedCredential>,
+}
+
+/// One matched credential plus its disclosure mode for THIS request, so consent
+/// UIs can say honestly whether presenting shares only the requested fields or
+/// the entire credential.
+#[derive(uniffi::Record)]
+pub struct VcalmMatchedCredential {
+    /// The stored credential that satisfied the query.
+    pub credential: Arc<ParsedCredential>,
+    /// `true` when presenting under the CURRENT VPR would selectively disclose
+    /// (the VPR lists an SD suite AND this credential carries a derivable SD
+    /// base proof); `false` means full disclosure — the WHOLE credential is
+    /// shared, not just the fields [`VcalmHolder::requested_fields`] names.
+    pub selective_disclosure: bool,
 }
 
 /// The validity hint surfaced for one previewed offered credential.
@@ -987,6 +1233,10 @@ pub enum OfferedValidity {
     ProofInvalid,
     /// An `EnvelopedVerifiableCredential` — recognized but not yet decodable.
     Enveloped,
+    /// A proof type/cryptosuite this SDK recognizes but cannot process yet
+    /// (e.g. a `bbs-2023` base proof). `accept_offer` would REJECT the Offer
+    /// with a typed unsupported-format error.
+    UnsupportedProof,
     /// The verification machinery could not run (bad payload / unsupported shape).
     Unverifiable,
 }
@@ -1067,23 +1317,77 @@ struct ExampleField {
     value: String,
 }
 
-/// Honor the VPR's per-query `acceptedMethods`. Only `did:key` is wired:
-/// whether `acceptedMethods` lists `key`, is absent/empty, or lists other
-/// methods, the holder signs with its `did:key` signer default. Other method strings
-/// are recognized but never switch the keystore (no error, no alternate DID
-/// resolution). This reads the field (it is no longer unused) and logs the intent.
-/// §3.4.3.2: "Holder implementations MUST ensure that the `domain` specified by the
-/// verifier matches the domain used for the current channel of communication" — the
-/// anti-replay defense the spec motivates at L2098 (a dishonest verifier naming a
-/// third party's domain could replay the signed VP there). Compared by host.
-///
-/// Playground deployments legitimately split the verifier UI origin from the
-/// workflow-service channel, so a mismatch is surfaced as a LOUD warning rather than a hard
-/// failure — this SDK is a library, and the host app owns the refusal policy.
-fn warn_on_domain_channel_mismatch(domain: Option<&str>, exchange_url: Option<&Url>) {
+/// Read a response body with a hard size cap (B.4). Checks `Content-Length`
+/// first, then enforces the cap while streaming, so a server that lies about
+/// (or omits) the length still cannot exhaust memory.
+async fn read_body_capped(mut resp: reqwest::Response) -> Result<String, VcalmError> {
+    if let Some(len) = resp.content_length() {
+        if len > MAX_RESPONSE_BYTES as u64 {
+            return Err(VcalmError::ResponseTooLarge {
+                limit_bytes: MAX_RESPONSE_BYTES as u64,
+            });
+        }
+    }
+    let mut buf: Vec<u8> = Vec::new();
+    while let Some(chunk) = resp
+        .chunk()
+        .await
+        .map_err(|e| VcalmError::Network(e.to_string()))?
+    {
+        if buf.len() + chunk.len() > MAX_RESPONSE_BYTES {
+            return Err(VcalmError::ResponseTooLarge {
+                limit_bytes: MAX_RESPONSE_BYTES as u64,
+            });
+        }
+        buf.extend_from_slice(&chunk);
+    }
+    String::from_utf8(buf)
+        .map_err(|e| VcalmError::Deserialization(format!("response body is not UTF-8: {e}")))
+}
+
+/// §3.7.1/B.2: interaction, discovery, and exchange URLs must be HTTPS — the
+/// HTTPS origin is the trust signal the whole interaction model hangs on, and a
+/// bearer token must never travel over plaintext. Plain `http` is allowed ONLY
+/// for loopback hosts (local development/test servers); every other scheme
+/// (`file:`, custom schemes a QR code could smuggle in) is rejected.
+fn validate_endpoint_url(url: &Url) -> Result<(), VcalmError> {
+    match url.scheme() {
+        "https" => Ok(()),
+        "http" => {
+            let loopback = match url.host() {
+                Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+                Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+                Some(url::Host::Domain(d)) => d.eq_ignore_ascii_case("localhost"),
+                None => false,
+            };
+            if loopback {
+                Ok(())
+            } else {
+                Err(VcalmError::InsecureUrl(format!(
+                    "plain http is only allowed for loopback hosts, got {url}"
+                )))
+            }
+        }
+        other => Err(VcalmError::InsecureUrl(format!(
+            "unsupported URL scheme `{other}`"
+        ))),
+    }
+}
+
+/// §3.4.3.2: "Holder implementations MUST ensure that the `domain` specified by
+/// the verifier matches the domain used for the current channel of
+/// communication" — the anti-replay defense the spec motivates with the
+/// bank-replay scenario. Returns `Some((domain_host, channel_host))` on a
+/// mismatch so [`VcalmHolder::submit_presentation`] can REFUSE before anything
+/// is signed (the caller may explicitly override after its own consent flow).
+/// `None` when the VPR carries no `domain` (spec-legal, OPTIONAL) or there is
+/// no channel to compare.
+fn domain_channel_mismatch(
+    domain: Option<&str>,
+    exchange_url: Option<&Url>,
+) -> Option<(String, String)> {
     let (Some(domain), Some(exchange_url)) = (domain, exchange_url) else {
-        // No `domain` in the VPR (spec-legal, OPTIONAL) or no channel to compare.
-        return;
+        return None;
     };
     // `domain` may arrive as a bare host ("verifier.example") or a full origin URL.
     let domain_host = Url::parse(domain)
@@ -1091,54 +1395,58 @@ fn warn_on_domain_channel_mismatch(domain: Option<&str>, exchange_url: Option<&U
         .and_then(|u| u.host_str().map(str::to_owned))
         .unwrap_or_else(|| domain.trim_end_matches('/').to_owned());
     let channel_host = exchange_url.host_str().unwrap_or_default();
-    if !domain_host.eq_ignore_ascii_case(channel_host) {
-        log::warn!(
-            "VPR domain ({domain_host}) does not match the exchange channel host \
-             ({channel_host}) — §3.4.3.2 anti-replay check failed; proceeding for \
-             playground interop, but a production host app should refuse to present"
-        );
+    if domain_host.eq_ignore_ascii_case(channel_host) {
+        None
+    } else {
+        Some((domain_host, channel_host.to_string()))
     }
 }
 
-fn honor_accepted_methods(vpr: &Vpr) {
-    let mut any_methods_listed = false;
-    let lists_key = vpr.query.iter().any(|query: &Query| {
-        query
-            .accepted_methods
-            .as_ref()
-            .map(|methods| {
-                any_methods_listed |= !methods.is_empty();
-                methods.iter().any(|m| {
-                    let name = match m {
-                        AcceptedMethodEntry::Name(name) => name.as_str(),
-                        AcceptedMethodEntry::Object { method } => method.as_str(),
-                    };
-                    name == "key"
-                })
-            })
-            .unwrap_or(false)
-    });
-    if lists_key {
-        log::debug!("VPR acceptedMethods lists `key`; holder signs with did:key");
-    } else if any_methods_listed {
-        // §3.4.3.2: the response `holder` "MUST be set to a specific DID that is of
-        // the type that was requested" — with only did:key wired, answering a
-        // methods-without-`key` request is off-spec. Warn (not debug: a MUST is
-        // being traded) and proceed; the verifier decides whether to accept.
-        log::warn!(
-            "VPR acceptedMethods lists DID methods but not `key`; signing with \
-             did:key anyway — the verifier may reject this holder DID (§3.4.3.2)"
-        );
-    } else {
+/// §3.4.3.2: the response `holder` "MUST be set to a specific DID that is of
+/// the type that was requested". Only `did:key` is wired: when one or more
+/// queries list `acceptedMethods` and NONE of them accepts `key`, refuse with
+/// a typed [`VcalmError::NoAcceptedDidMethod`] instead of signing a response
+/// the verifier must reject. Absent/empty lists (or any list naming `key`)
+/// proceed with the `did:key` default.
+fn ensure_accepted_methods(vpr: &Vpr) -> Result<(), VcalmError> {
+    let mut listed: Vec<String> = Vec::new();
+    let mut any_key = false;
+    for query in &vpr.query {
+        let Some(methods) = &query.accepted_methods else {
+            continue;
+        };
+        for m in methods {
+            let name = match m {
+                AcceptedMethodEntry::Name(name) => name.as_str(),
+                AcceptedMethodEntry::Object { method } => method.as_str(),
+            };
+            any_key |= name == "key";
+            if !listed.iter().any(|l| l == name) {
+                listed.push(name.to_string());
+            }
+        }
+    }
+    if listed.is_empty() {
         log::debug!("VPR acceptedMethods absent; defaulting to did:key");
+        Ok(())
+    } else if any_key {
+        log::debug!("VPR acceptedMethods lists `key`; holder signs with did:key");
+        Ok(())
+    } else {
+        Err(VcalmError::NoAcceptedDidMethod {
+            accepted: listed.join(", "),
+        })
     }
 }
 
 /// Assemble an `AnyJsonPresentation` from the holder DID and the credentials to
-/// present (V1/V2 arms). An empty credential
-/// slice yields a DIDAuthentication-only presentation with an empty
-/// `verifiableCredential` vec; the V1/V2 arm is then chosen by the
-/// first credential (defaulting to V1 when there are none).
+/// present (V1/V2 arms). An empty credential slice yields a
+/// DIDAuthentication-only presentation with an empty `verifiableCredential`
+/// vec, in the VCDM v2 data model (the spec's DIDAuth response examples use
+/// the v2 context). Mixing v1 and v2 credentials in ONE presentation is
+/// refused with [`VcalmError::MixedCredentialVersions`] — neither data model
+/// can embed the other's credentials; the caller should present one version
+/// at a time.
 fn build_presentation(
     holder_did: &str,
     credentials: &[Arc<ParsedCredential>],
@@ -1160,10 +1468,10 @@ fn build_presentation(
             // Only full-disclosure W3C JSON-LD VCs are presentable.
             continue;
         };
-        // B.1: never present an SD base proof — strip them before the credential is
-        // embedded at full disclosure (covers the SD fallback, where the VC whose
-        // SD derive failed or was unsatisfiable would otherwise carry its base proof).
-        let raw = strip_sd_base_proofs(&json_vc.raw);
+        // B.1: keep only allowlisted proofs before the credential is embedded at
+        // full disclosure — drops SD/unlinkable base proofs (holder-secret) AND
+        // unknown proof types; errors when nothing presentable remains.
+        let raw = retain_presentable_proofs(&json_vc.raw)?;
         let parsed: AnyJsonCredential = serde_json::from_value(raw.clone())
             .map_err(|e| PresentationError::Context(format!("credential decode: {e:?}")))?;
         match parsed {
@@ -1178,21 +1486,20 @@ fn build_presentation(
         }
     }
 
-    // Prefer V2 when any V2 credential is present (matches the credential's data
-    // model); otherwise V1 (also the empty / DIDAuth-only default).
-    if !v2_creds.is_empty() {
-        let holder_id = IdOr::Id(holder);
-        Ok(AnyJsonPresentation::V2(JsonPresentationV2::new(
-            Some(id),
-            vec![holder_id],
-            v2_creds,
-        )))
-    } else {
-        Ok(AnyJsonPresentation::V1(JsonPresentationV1::new(
+    match (v1_creds.is_empty(), v2_creds.is_empty()) {
+        // A v1+v2 mix would silently drop one side — refuse instead.
+        (false, false) => Err(VcalmError::MixedCredentialVersions),
+        (false, true) => Ok(AnyJsonPresentation::V1(JsonPresentationV1::new(
             Some(id),
             Some(holder),
             v1_creds,
-        )))
+        ))),
+        // V2 credentials, or the empty DIDAuth-only case (v2 default).
+        (true, _) => Ok(AnyJsonPresentation::V2(JsonPresentationV2::new(
+            Some(id),
+            vec![IdOr::Id(holder)],
+            v2_creds,
+        ))),
     }
 }
 
@@ -1230,19 +1537,19 @@ fn build_presentation_from_json(
         }
     }
 
-    if !v2_creds.is_empty() {
-        let holder_id = IdOr::Id(holder);
-        Ok(AnyJsonPresentation::V2(JsonPresentationV2::new(
-            Some(id),
-            vec![holder_id],
-            v2_creds,
-        )))
-    } else {
-        Ok(AnyJsonPresentation::V1(JsonPresentationV1::new(
+    match (v1_creds.is_empty(), v2_creds.is_empty()) {
+        // A v1+v2 mix would silently drop one side — refuse instead.
+        (false, false) => Err(VcalmError::MixedCredentialVersions),
+        (false, true) => Ok(AnyJsonPresentation::V1(JsonPresentationV1::new(
             Some(id),
             Some(holder),
             v1_creds,
-        )))
+        ))),
+        (true, _) => Ok(AnyJsonPresentation::V2(JsonPresentationV2::new(
+            Some(id),
+            vec![IdOr::Id(holder)],
+            v2_creds,
+        ))),
     }
 }
 
@@ -1282,64 +1589,117 @@ fn collect_subject_paths(prefix: &str, value: &serde_json::Value, out: &mut Vec<
     }
 }
 
-/// GATE 2: true iff `raw["proof"]` (object or array) carries a base proof
-/// whose `cryptosuite` is `ecdsa-sd-2023`. Handles the V2 proof shape
-/// (object-or-array), scoped to the SD gate.
-fn has_sd_base_proof(raw: &serde_json::Value) -> bool {
+/// The cryptosuite names found on `raw["proof"]` (object or array), for
+/// SD-base detection and precise error messages.
+fn proof_cryptosuites(raw: &serde_json::Value) -> Vec<String> {
     let proofs = match raw.get("proof") {
         Some(serde_json::Value::Array(a)) => a.clone(),
         Some(obj @ serde_json::Value::Object(_)) => vec![obj.clone()],
-        _ => return false,
+        _ => return vec![],
     };
     proofs
         .iter()
-        .any(|p| p.get("cryptosuite").and_then(|c| c.as_str()) == Some("ecdsa-sd-2023"))
+        .filter_map(|p| p.get("cryptosuite").and_then(|c| c.as_str()))
+        .map(str::to_string)
+        .collect()
 }
 
-/// SD base-proof cryptosuites that MUST NOT ride along on a full-disclosure-presented
-/// credential. Spec B.1: "It is vital that a wallet not present a base proof by
-/// accident, as it might include information that is secret to the holder." A
-/// DENYLIST (rather than an allowlist) so credentials secured with
-/// any non-SD suite (`ecdsa-rdfc-2019`, `eddsa-rdfc-2022`, …) keep their verifiable
-/// issuer proof — playground issuers sign with several non-SD suites.
-const SD_BASE_PROOF_CRYPTOSUITES: &[&str] = &["ecdsa-sd-2023", "bbs-2023"];
+/// GATE 2: true iff `raw["proof"]` (object or array) carries a base proof
+/// whose `cryptosuite` is `ecdsa-sd-2023` (the derivable SD suite —
+/// `json_vc::DERIVABLE_SD_CRYPTOSUITES`). Handles the V2 proof shape
+/// (object-or-array), scoped to the SD gate.
+fn has_sd_base_proof(raw: &serde_json::Value) -> bool {
+    proof_cryptosuites(raw)
+        .iter()
+        .any(|s| crate::credential::json_vc::DERIVABLE_SD_CRYPTOSUITES.contains(&s.as_str()))
+}
 
-/// Return a copy of `raw` with every SD base proof removed (B.1), preserving the
-/// original `proof` shape (single object stays an object, array stays an array).
-/// Non-SD proofs pass through verbatim. If EVERY proof was an SD base proof the
-/// credential is returned proof-less — unverifiable for the verifier, but the
-/// holder's secret base-proof material is never leaked.
-fn strip_sd_base_proofs(raw: &serde_json::Value) -> serde_json::Value {
-    fn is_sd_base(p: &serde_json::Value) -> bool {
-        p.get("cryptosuite")
+/// True iff the credential carries an SD-family base proof this SDK can
+/// recognize but NOT derive (today: `bbs-2023`). Such a credential can neither
+/// be verified directly (base proofs are derivation material) nor
+/// derive-verified — `accept_offer` refuses it with a typed error.
+fn has_underivable_sd_base_proof(raw: &serde_json::Value) -> bool {
+    proof_cryptosuites(raw).iter().any(|s| {
+        SD_BASE_PROOF_CRYPTOSUITES.contains(&s.as_str())
+            && !crate::credential::json_vc::DERIVABLE_SD_CRYPTOSUITES.contains(&s.as_str())
+    })
+}
+
+/// Proofs that are SAFE TO PRESENT on a full-disclosure credential — an
+/// ALLOWLIST per spec B.1 ("Unknown Proof Types"): an unknown proof type might
+/// be an SD/unlinkable base proof carrying holder-secret material, so unknown
+/// types are dropped by default instead of riding along. The list names the
+/// standard non-SD Data Integrity cryptosuites plus the pre-DI Ed25519 proof
+/// types real issuers still use. The known SD base suites
+/// ([`SD_BASE_PROOF_CRYPTOSUITES`]) are excluded by construction.
+const PRESENTABLE_PROOF_CRYPTOSUITES: &[&str] = &[
+    "ecdsa-rdfc-2019",
+    "eddsa-rdfc-2022",
+    "ecdsa-jcs-2019",
+    "eddsa-jcs-2022",
+];
+
+/// Non-DataIntegrityProof proof `type` values that are known-safe to present.
+const PRESENTABLE_PROOF_TYPES: &[&str] = &["Ed25519Signature2020", "Ed25519Signature2018"];
+
+/// True iff a single proof object is on the B.1 presentation allowlist.
+fn proof_is_presentable(p: &serde_json::Value) -> bool {
+    match p.get("type").and_then(|t| t.as_str()) {
+        Some("DataIntegrityProof") => p
+            .get("cryptosuite")
             .and_then(|c| c.as_str())
-            .is_some_and(|s| SD_BASE_PROOF_CRYPTOSUITES.contains(&s))
+            .is_some_and(|s| PRESENTABLE_PROOF_CRYPTOSUITES.contains(&s)),
+        Some(t) => PRESENTABLE_PROOF_TYPES.contains(&t),
+        None => false,
     }
+}
 
+/// Return a copy of `raw` keeping only allowlisted proofs (B.1), preserving the
+/// original `proof` shape (single object stays an object, array stays an array).
+/// A credential whose proofs are ALL dropped (e.g. only an `ecdsa-sd-2023` /
+/// `bbs-2023` base proof, or only unknown proof types) is refused with
+/// [`VcalmError::NoPresentableProof`] — presenting unverifiable PII helps
+/// nobody, and presenting a base proof leaks holder-secret material. A
+/// credential with no `proof` field at all passes through unchanged (nothing to
+/// leak; the verifier sees exactly what is stored).
+fn retain_presentable_proofs(raw: &serde_json::Value) -> Result<serde_json::Value, VcalmError> {
+    let credential_types = || {
+        raw.get("type")
+            .map(|t| t.to_string())
+            .unwrap_or_else(|| "<untyped>".into())
+    };
     let mut out = raw.clone();
     let Some(obj) = out.as_object_mut() else {
-        return out;
+        return Ok(out);
     };
-    let kept = match obj.get("proof") {
-        Some(serde_json::Value::Array(a)) => a.iter().filter(|p| !is_sd_base(p)).cloned().collect(),
-        Some(p @ serde_json::Value::Object(_)) if is_sd_base(p) => Vec::new(),
-        Some(serde_json::Value::Object(_)) => return out, // single non-SD proof — nothing to strip
-        _ => return out, // no proof (or non-object/array shape) — nothing to strip
+    let kept: Vec<serde_json::Value> = match obj.get("proof") {
+        Some(serde_json::Value::Array(a)) => a
+            .iter()
+            .filter(|p| proof_is_presentable(p))
+            .cloned()
+            .collect(),
+        Some(p @ serde_json::Value::Object(_)) => {
+            if proof_is_presentable(p) {
+                vec![p.clone()]
+            } else {
+                Vec::new()
+            }
+        }
+        // no `proof` field (or non-object/array shape) — nothing to strip.
+        _ => return Ok(out),
     };
     if kept.is_empty() {
-        log::warn!(
-            "VCALM full-disclosure: every proof on a presented credential was an SD \
-             base proof — stripped all (B.1); presenting it unverifiable rather than \
-             leaking holder-secret base-proof material"
-        );
-        obj.remove("proof");
-    } else if kept.len() == 1 && matches!(obj.get("proof"), Some(serde_json::Value::Object(_))) {
+        return Err(VcalmError::NoPresentableProof {
+            credential_types: credential_types(),
+        });
+    }
+    if kept.len() == 1 && matches!(obj.get("proof"), Some(serde_json::Value::Object(_))) {
         let single = kept.into_iter().next().expect("len checked == 1");
         obj.insert("proof".into(), single);
     } else {
         obj.insert("proof".into(), serde_json::Value::Array(kept));
     }
-    out
+    Ok(out)
 }
 
 /// Convert a dotted QBE path (`credentialSubject.givenName`) into an RFC 6901 JSON
@@ -1354,18 +1714,18 @@ fn dotted_to_pointer(dotted: &str) -> String {
     p
 }
 
-/// Transform the QBE-named fields into the spec `selectivePointers`: an
+/// Transform QBE-named field PATHS into the spec `selectivePointers`: an
 /// array of field-level RFC 6901 JSON pointers naming EXACTLY the QBE-requested
 /// `credentialSubject` fields. Structural/top-level keys (`type`, `@context`) are
 /// excluded — the derive auto-adds the issuer's `mandatoryPointers`, so the
 /// holder reveals only the QBE-named subject fields (no oversharing). Array-valued
 /// example fields already arrive here as a single parent path
 /// (`collect_subject_paths` treats arrays as leaves) → parent pointer.
-fn selective_pointers_from_qbe(requested: &[VcalmRequestedField]) -> Vec<ssi::JsonPointerBuf> {
-    requested
+fn selective_pointers_from_paths(paths: &[String]) -> Vec<ssi::JsonPointerBuf> {
+    paths
         .iter()
-        .filter(|f| f.path == "credentialSubject" || f.path.starts_with("credentialSubject."))
-        .filter_map(|f| ssi::JsonPointerBuf::new(dotted_to_pointer(&f.path)).ok())
+        .filter(|p| *p == "credentialSubject" || p.starts_with("credentialSubject."))
+        .filter_map(|p| ssi::JsonPointerBuf::new(dotted_to_pointer(p)).ok())
         .collect()
 }
 
@@ -1683,7 +2043,7 @@ mod tests {
         // DIDAuth-only (no QBE queries in this VPR) ⇒ pass no selected credentials.
         let step2 = holder
             .clone()
-            .submit_presentation(vec![])
+            .submit_presentation(vec![], false)
             .await
             .expect("step 2");
         match step2 {
@@ -1691,7 +2051,10 @@ mod tests {
             other => panic!("expected Offer, got {other:?}"),
         }
 
-        let step3 = holder.submit_presentation(vec![]).await.expect("step 3");
+        let step3 = holder
+            .submit_presentation(vec![], false)
+            .await
+            .expect("step 3");
         match step3 {
             StepResult::Redirect { url } => assert_eq!(url.as_str(), "https://example.com/done"),
             other => panic!("expected Redirect, got {other:?}"),
@@ -1887,15 +2250,307 @@ mod tests {
         assert!(matches!(step1, StepResult::Request { .. }));
 
         // Holder selects the matched credential and submits — build+sign happens
-        // internally, then POSTs through the existing loop.
+        // internally, then POSTs through the existing loop. The mock VPR names
+        // domain verifier.example while the channel is 127.0.0.1, so this also
+        // exercises the explicit allow_domain_mismatch=true override.
         let step2 = holder
-            .submit_presentation(vec![parsed])
+            .submit_presentation(vec![parsed], true)
             .await
             .expect("step 2 submit");
         match step2 {
             StepResult::Redirect { url } => assert_eq!(url.as_str(), "https://example.com/done"),
             other => panic!("expected Redirect, got {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn submit_refuses_domain_channel_mismatch_before_signing() {
+        // §3.4.3.2 MUST: the VPR domain must match the communication channel.
+        // Default behavior REFUSES with a typed error BEFORE signing/POSTing —
+        // the only POST the server sees is the initiation.
+        let server = MockServer::start().await;
+        let base = server.uri();
+
+        Mock::given(method("POST"))
+            .and(path("/exchange"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "verifiablePresentationRequest": {
+                    "query": [{ "type": ["DIDAuthentication"] }],
+                    "challenge": "c1",
+                    "domain": "https://evil.example"
+                }
+            })))
+            .expect(1) // ONLY the initiation POST — no VP must ever be sent
+            .mount(&server)
+            .await;
+
+        let holder = test_holder().await;
+        holder
+            .clone()
+            .start_exchange(format!("{base}/exchange"), None)
+            .await
+            .expect("step 1");
+
+        let err = holder
+            .submit_presentation(vec![], false)
+            .await
+            .expect_err("mismatched domain must refuse by default");
+        match err {
+            VcalmError::DomainChannelMismatch { domain, channel } => {
+                assert_eq!(domain, "evil.example");
+                assert_eq!(channel, "127.0.0.1");
+            }
+            other => panic!("expected DomainChannelMismatch, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn submit_refuses_when_no_accepted_cryptosuite_is_producible() {
+        // §3.4.3.1 "holder MUST choose among": lists that exclude everything
+        // this holder can produce refuse BEFORE signing.
+        let holder = test_holder().await;
+        let vpr: Vpr = serde_json::from_value(json!({
+            "query": [{ "type": ["DIDAuthentication"] }],
+            "challenge": "c1",
+            "acceptedCryptosuites": ["eddsa-rdfc-2022"]
+        }))
+        .unwrap();
+        let err = holder
+            .build_and_sign_vp(&vpr, &[])
+            .await
+            .expect_err("unsupported suite list must refuse");
+        match err {
+            VcalmError::NoAcceptedCryptosuite { accepted } => {
+                assert!(accepted.contains("eddsa-rdfc-2022"));
+            }
+            other => panic!("expected NoAcceptedCryptosuite, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn submit_refuses_when_accepted_methods_exclude_did_key() {
+        // §3.4.3.2: the holder DID "MUST be of the type that was requested".
+        let holder = test_holder().await;
+        let vpr: Vpr = serde_json::from_value(json!({
+            "query": [{ "type": ["DIDAuthentication"], "acceptedMethods": ["web"] }],
+            "challenge": "c1"
+        }))
+        .unwrap();
+        let err = holder
+            .build_and_sign_vp(&vpr, &[])
+            .await
+            .expect_err("methods excluding `key` must refuse");
+        match err {
+            VcalmError::NoAcceptedDidMethod { accepted } => assert_eq!(accepted, "web"),
+            other => panic!("expected NoAcceptedDidMethod, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn validate_endpoint_url_is_https_or_loopback() {
+        let ok = |u: &str| validate_endpoint_url(&Url::parse(u).unwrap()).is_ok();
+        assert!(ok("https://verifier.example/exchanges/1"));
+        assert!(
+            ok("http://127.0.0.1:8080/exchange"),
+            "loopback http allowed"
+        );
+        assert!(ok("http://localhost:8080/exchange"));
+        assert!(ok("http://[::1]:8080/exchange"));
+        assert!(!ok("http://evil.example/exchange"), "remote http rejected");
+        assert!(!ok("file:///etc/passwd"), "non-http scheme rejected");
+        assert!(!ok("ftp://example.com/x"));
+    }
+
+    #[tokio::test]
+    async fn start_exchange_rejects_insecure_urls_without_network() {
+        let holder = test_holder().await;
+        let err = holder
+            .clone()
+            .start_exchange("http://evil.example/exchange".into(), None)
+            .await
+            .expect_err("plain http to a remote host must be rejected");
+        assert!(matches!(err, VcalmError::InsecureUrl(_)));
+
+        let err = holder
+            .clone()
+            .start_exchange("interaction:file:///etc/passwd".into(), None)
+            .await
+            .expect_err("file: behind the interaction scheme must be rejected");
+        assert!(matches!(err, VcalmError::InsecureUrl(_)));
+    }
+
+    #[tokio::test]
+    async fn start_exchange_resets_previous_session_state() {
+        // Exchange A leaves referenceId + last_vpr + a pending Offer behind;
+        // starting exchange B must not leak ANY of it (different server!).
+        let server_a = MockServer::start().await;
+        let vc = signed_offered_vc("urn:uuid:reset-1", "Gail").await;
+        Mock::given(method("POST"))
+            .and(path("/a"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "verifiablePresentation": { "verifiableCredential": [vc] },
+                "verifiablePresentationRequest": { "query": [], "challenge": "a" },
+                "referenceId": "ref-a"
+            })))
+            .mount(&server_a)
+            .await;
+        let server_b = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/b"))
+            .and(body_json(json!({}))) // NO stale referenceId echo
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .expect(1)
+            .mount(&server_b)
+            .await;
+
+        let holder = test_holder().await;
+        holder
+            .clone()
+            .start_exchange(format!("{}/a", server_a.uri()), None)
+            .await
+            .expect("exchange A offer");
+        {
+            let state = holder.state.lock().await;
+            assert!(state.reference_id.is_some());
+            assert!(state.current_offer.is_some());
+            assert!(state.last_vpr.is_some());
+        }
+
+        let step = holder
+            .clone()
+            .start_exchange(format!("{}/b", server_b.uri()), None)
+            .await
+            .expect("exchange B start");
+        assert_eq!(step, StepResult::Complete);
+        let state = holder.state.lock().await;
+        assert!(state.reference_id.is_none(), "stale referenceId cleared");
+        assert!(state.current_offer.is_none(), "stale Offer cleared");
+        assert!(state.last_vpr.is_none(), "stale VPR cleared");
+    }
+
+    #[tokio::test]
+    async fn mixed_vcdm_versions_refuse_instead_of_dropping() {
+        let did = holder_did();
+        let v2 = parsed_ldp(v2_credential(&did, "Jane"));
+        let v1 = parsed_ldp(json!({
+            "@context": [
+                "https://www.w3.org/2018/credentials/v1",
+                { "givenName": "https://schema.org/givenName" }
+            ],
+            "type": ["VerifiableCredential"],
+            "issuer": "https://issuer.example/",
+            "issuanceDate": "2024-01-01T00:00:00Z",
+            "credentialSubject": { "id": did, "givenName": "Jane" }
+        }));
+        let err = build_presentation(&did, &[v1, v2])
+            .expect_err("a v1+v2 mix must refuse, not silently drop one side");
+        assert!(matches!(err, VcalmError::MixedCredentialVersions));
+    }
+
+    #[tokio::test]
+    async fn accept_sd_base_proof_offer_stores_original_base_credential() {
+        // H3 regression: an ecdsa-sd-2023 BASE-proof VC — the very credential an
+        // SD-capable wallet is issued — must be acceptable. ssi cannot verify a
+        // base proof directly; accept validates via a full-reveal derive and
+        // stores the ORIGINAL base-proof VC for later SD presentations.
+        let server = MockServer::start().await;
+        let base = server.uri();
+        let sd_vc = issue_sd_base_proof(
+            json!({
+                "@context": [
+                    "https://www.w3.org/ns/credentials/v2",
+                    { "@vocab": "https://example.org/vocab#" }
+                ],
+                "type": ["VerifiableCredential"],
+                "issuer": "https://issuer.example/",
+                "credentialSubject": { "givenName": "Jane", "familyName": "Doe" }
+            }),
+            &["/issuer"],
+        )
+        .await;
+
+        Mock::given(method("POST"))
+            .and(path("/exchange"))
+            .and(body_json(json!({})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "verifiablePresentation": { "verifiableCredential": [sd_vc.clone()] },
+                "referenceId": "ref-1"
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/exchange"))
+            .and(body_string_contains("ref-1"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let vdc = Arc::new(VdcCollection::new(Arc::new(LocalStore::new())));
+        let holder = test_holder_with_vdc(vdc.clone()).await;
+        holder
+            .clone()
+            .start_exchange(format!("{base}/exchange"), None)
+            .await
+            .expect("offer step");
+
+        // The preview must rate the base-proof VC Valid (derive-then-verify).
+        let preview = holder.offered_credentials().await.expect("preview");
+        assert_eq!(preview.len(), 1);
+        assert_eq!(
+            preview[0].validity,
+            OfferedValidity::Valid,
+            "an authentic SD base-proof VC previews as Valid"
+        );
+
+        let step = holder.clone().accept_offer().await.expect("accept SD VC");
+        assert_eq!(step, StepResult::Complete);
+
+        // The STORED credential keeps its base proof (needed for later derives).
+        let ids = vdc.all_entries().await.unwrap();
+        assert_eq!(ids.len(), 1);
+        let stored = vdc.get(ids[0]).await.unwrap().unwrap();
+        let parsed = stored.try_into_parsed().expect("stored VC parses");
+        let raw = &parsed.as_json_vc().expect("LDP VC").raw;
+        assert!(
+            has_sd_base_proof(raw),
+            "the ORIGINAL base-proof credential is stored, not the derived form"
+        );
+    }
+
+    #[tokio::test]
+    async fn accept_offer_with_combined_redirect_surfaces_redirect() {
+        // §3.6 combined properties: an Offer message carrying a redirectUrl —
+        // after storing, accept surfaces the Redirect (no extra advance POST).
+        let server = MockServer::start().await;
+        let base = server.uri();
+        let vc = signed_offered_vc("urn:uuid:redir-1", "Hugo").await;
+
+        Mock::given(method("POST"))
+            .and(path("/exchange"))
+            .and(body_json(json!({})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "verifiablePresentation": { "verifiableCredential": [vc] },
+                "redirectUrl": "https://example.com/done"
+            })))
+            .expect(1) // the ONLY POST — accept must not advance again
+            .mount(&server)
+            .await;
+
+        let vdc = Arc::new(VdcCollection::new(Arc::new(LocalStore::new())));
+        let holder = test_holder_with_vdc(vdc.clone()).await;
+        holder
+            .clone()
+            .start_exchange(format!("{base}/exchange"), None)
+            .await
+            .expect("offer step");
+        let step = holder.clone().accept_offer().await.expect("accept");
+        match step {
+            StepResult::Redirect { url } => assert_eq!(url.as_str(), "https://example.com/done"),
+            other => panic!("expected the combined redirect surfaced, got {other:?}"),
+        }
+        assert_eq!(vdc.all_entries().await.unwrap().len(), 1, "VC stored");
     }
 
     #[tokio::test]
@@ -1937,7 +2592,10 @@ mod tests {
             .expect("step 1");
         assert!(matches!(step1, StepResult::Request { .. }));
 
-        let step2 = holder.submit_presentation(vec![]).await.expect("submit");
+        let step2 = holder
+            .submit_presentation(vec![], false)
+            .await
+            .expect("submit");
         assert_eq!(step2, StepResult::Complete);
     }
 
@@ -2155,7 +2813,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn accept_advance_4xx_malformed_body_is_complete() {
+    async fn accept_advance_4xx_malformed_body_completes_after_store() {
+        // The advance reply is a 4xx with a NON-problem-details body (e.g. a
+        // 403 "Internal Server Error"): the server treats the issuance exchange
+        // as already complete and rejects the extra POST. The
+        // credential is already verified+stored, so issuance reports Complete and
+        // the consumed Offer is cleared.
         let server = MockServer::start().await;
         let base = server.uri();
         let vc = signed_offered_vc("urn:uuid:advance-403-1", "Dora").await;
@@ -2173,7 +2836,7 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/exchange"))
             .and(body_string_contains("ref-1"))
-            .respond_with(ResponseTemplate::new(403).set_body_string("Forbidden"))
+            .respond_with(ResponseTemplate::new(403).set_body_string("Internal Server Error"))
             .expect(1)
             .mount(&server)
             .await;
@@ -2188,12 +2851,18 @@ mod tests {
         let step = holder.clone().accept_offer().await.expect("accept");
         assert_eq!(step, StepResult::Complete);
         assert_eq!(vdc.all_entries().await.unwrap().len(), 1, "VC stored");
+        assert!(
+            holder.state.lock().await.current_offer.is_none(),
+            "consumed offer cleared after a completed issuance"
+        );
     }
 
     #[tokio::test]
-    async fn accept_advance_problem_reply_is_complete() {
-        // Same terminal-offer server, but its 4xx body IS valid RFC 9457 — the
-        // terminal signal must be consistent across both 4xx flavors.
+    async fn accept_advance_4xx_problem_completes_after_store() {
+        // Same terminal-offer server, with a WELL-FORMED RFC 9457 4xx problem on
+        // the advance ("exchange already complete"): after a successful store the
+        // 4xx means the exchange is closed, so issuance reports Complete instead
+        // of surfacing a Problem — the credential is stored either way.
         let server = MockServer::start().await;
         let base = server.uri();
         let vc = signed_offered_vc("urn:uuid:advance-problem-1", "Eve").await;
@@ -2404,7 +3073,7 @@ mod tests {
             .accept_offer()
             .await
             .expect_err("proof-invalid accept must error");
-        assert!(matches!(err, VcalmError::InvalidCredentialProof));
+        assert!(matches!(err, VcalmError::InvalidCredentialProof { .. }));
         assert!(
             vdc.all_entries().await.unwrap().is_empty(),
             "nothing stored on a proof failure (atomic)"
@@ -2529,7 +3198,7 @@ mod tests {
             .accept_offer()
             .await
             .expect_err("accept with no offer must error");
-        assert!(matches!(err, VcalmError::Network(_)));
+        assert!(matches!(err, VcalmError::SessionState(_)));
     }
 
     #[tokio::test]
@@ -2544,15 +3213,9 @@ mod tests {
 
     // --- two-gate selective disclosure (ecdsa-sd-2023) --------------------
 
-    /// Build a `VcalmRequestedField` for unit-testing the pointer transform.
-    fn req_field(path: &str) -> VcalmRequestedField {
-        VcalmRequestedField {
-            query_index: 0,
-            path: path.to_string(),
-            value: "any value".to_string(),
-            required: true,
-            purpose: None,
-        }
+    /// Build a dotted path for unit-testing the pointer transform.
+    fn req_field(path: &str) -> String {
+        path.to_string()
     }
 
     #[test]
@@ -2579,36 +3242,53 @@ mod tests {
     }
 
     #[test]
-    fn strip_sd_base_proofs_removes_secret_material_only() {
-        // Single SD base proof object ⇒ `proof` removed entirely (B.1: never
-        // present holder-secret base-proof material).
-        let stripped = strip_sd_base_proofs(&json!({
+    fn retain_presentable_proofs_is_a_b1_allowlist() {
+        // A credential whose ONLY proof is an SD base proof is refused — never
+        // presented proof-less, never leaking holder-secret base material (B.1).
+        let err = retain_presentable_proofs(&json!({
             "type": ["VerifiableCredential"],
             "proof": { "type": "DataIntegrityProof", "cryptosuite": "ecdsa-sd-2023" }
-        }));
-        assert!(stripped.get("proof").is_none());
+        }))
+        .unwrap_err();
+        assert!(matches!(err, VcalmError::NoPresentableProof { .. }));
 
-        // Mixed array ⇒ only non-SD proofs survive; bbs-2023 is stripped too
-        // (it is invisible to `has_sd_base_proof` but equally holder-secret).
-        let stripped = strip_sd_base_proofs(&json!({
+        // Mixed array ⇒ only allowlisted proofs survive; SD base proofs (incl.
+        // bbs-2023) AND unknown proof types are dropped.
+        let kept = retain_presentable_proofs(&json!({
             "proof": [
-                { "cryptosuite": "ecdsa-sd-2023" },
-                { "cryptosuite": "ecdsa-rdfc-2019" },
-                { "cryptosuite": "bbs-2023" }
+                { "type": "DataIntegrityProof", "cryptosuite": "ecdsa-sd-2023" },
+                { "type": "DataIntegrityProof", "cryptosuite": "ecdsa-rdfc-2019" },
+                { "type": "DataIntegrityProof", "cryptosuite": "bbs-2023" },
+                { "type": "TotallyUnknownProof2099" }
             ]
-        }));
+        }))
+        .unwrap();
         assert_eq!(
-            stripped["proof"],
-            json!([{ "cryptosuite": "ecdsa-rdfc-2019" }])
+            kept["proof"],
+            json!([{ "type": "DataIntegrityProof", "cryptosuite": "ecdsa-rdfc-2019" }])
         );
 
-        // Non-SD single proof ⇒ untouched, object shape preserved.
-        let original = json!({ "proof": { "cryptosuite": "eddsa-rdfc-2022" } });
-        assert_eq!(strip_sd_base_proofs(&original), original);
+        // Allowlisted single proof ⇒ untouched, object shape preserved.
+        let original = json!({
+            "proof": { "type": "DataIntegrityProof", "cryptosuite": "eddsa-rdfc-2022" }
+        });
+        assert_eq!(retain_presentable_proofs(&original).unwrap(), original);
 
-        // No proof at all ⇒ untouched.
+        // Pre-DI Ed25519 proof types are allowlisted.
+        let original = json!({ "proof": { "type": "Ed25519Signature2020" } });
+        assert_eq!(retain_presentable_proofs(&original).unwrap(), original);
+
+        // Unknown-only proof ⇒ refused (default-deny, not default-allow).
+        let err = retain_presentable_proofs(&json!({
+            "type": ["VerifiableCredential"],
+            "proof": { "type": "TotallyUnknownProof2099" }
+        }))
+        .unwrap_err();
+        assert!(matches!(err, VcalmError::NoPresentableProof { .. }));
+
+        // No proof at all ⇒ untouched (nothing to leak).
         let original = json!({ "type": ["VerifiableCredential"] });
-        assert_eq!(strip_sd_base_proofs(&original), original);
+        assert_eq!(retain_presentable_proofs(&original).unwrap(), original);
     }
 
     #[test]
@@ -2621,7 +3301,7 @@ mod tests {
             req_field("credentialSubject.a/b"),       // RFC 6901 `/` → ~1
             req_field("credentialSubject.c~d"),       // RFC 6901 `~` → ~0
         ];
-        let pointers: Vec<String> = selective_pointers_from_qbe(&requested)
+        let pointers: Vec<String> = selective_pointers_from_paths(&requested)
             .iter()
             .map(|p| p.as_str().to_string())
             .collect();
@@ -2845,10 +3525,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn sd_derive_error_falls_back_to_full_disclosure() {
+    async fn sd_derive_error_is_a_hard_error_not_silent_full_disclosure() {
         // GATE2 passes (a proof claims cryptosuite ecdsa-sd-2023) but the proof
-        // is bogus, so derive_sd_vp_credential errors ⇒ full-disclosure fallback, NOT a
-        // propagated error.
+        // is bogus, so derive_sd_vp_credential errors ⇒ a typed SdDeriveFailed.
+        // The user consented to the SD subset; silently widening to full
+        // disclosure would be an over-share.
         let holder = test_holder().await;
         let did = holder_did();
         let mut bogus = v2_credential(&did, "Jane");
@@ -2863,12 +3544,11 @@ mod tests {
         let cred = parsed_ldp(bogus);
         let vpr = sd_qbe_vpr();
 
-        let signed = holder
+        let err = holder
             .build_and_sign_vp(&vpr, &[cred])
             .await
-            .expect("a derive error must fall back to a signed full VP, not propagate");
-        let value = serde_json::to_value(&signed).unwrap();
-        assert_eq!(value["proof"]["proofPurpose"], json!("authentication"));
+            .expect_err("a derive error must surface, never silently over-disclose");
+        assert!(matches!(err, VcalmError::SdDeriveFailed(_)));
     }
 
     #[tokio::test]

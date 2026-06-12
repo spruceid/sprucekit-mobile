@@ -12,6 +12,7 @@ import com.spruceid.mobile.sdk.rs.OfferedValidity
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.StepResult
+import com.spruceid.mobile.sdk.rs.VcalmException
 import com.spruceid.mobile.sdk.rs.VcalmHolder
 import com.spruceid.mobile.sdk.rs.VcalmOfferedCredential
 import com.spruceid.mobile.sdk.rs.VdcCollection
@@ -192,7 +193,11 @@ internal class VcalmAdapter(
                 val keys = mutableListOf<VcalmCredentialKey>()
                 for (g in groups) {
                     Log.d(TAG, "matchedCredentials: query ${g.queryIndex} -> ${g.credentials.size} cred(s)")
-                    for (c in g.credentials) {
+                    for (m in g.credentials) {
+                        // Each match now carries its disclosure mode
+                        // (m.selectiveDisclosure); the Pigeon surface keeps the
+                        // lightweight key shape, so only the handle is retained here.
+                        val c = m.credential
                         val key = VcalmCredentialKey(
                             queryIndex = g.queryIndex.toLong(),
                             credentialId = c.id()
@@ -239,9 +244,10 @@ internal class VcalmAdapter(
 
     override fun submitPresentation(
         selected: List<VcalmCredentialKey>,
+        allowDomainMismatch: Boolean,
         callback: (Result<VcalmStepResult>) -> Unit
     ) {
-        Log.d(TAG, "submitPresentation: ${selected.size} selected key(s)")
+        Log.d(TAG, "submitPresentation: ${selected.size} selected key(s), allowDomainMismatch=$allowDomainMismatch")
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val h = currentHolder()
@@ -250,9 +256,20 @@ internal class VcalmAdapter(
                 // Suite is server-driven — no suite parameter.
                 val creds = selected.mapNotNull { keyMap[it] }
                 Log.d(TAG, "submitPresentation: resolved ${creds.size}/${selected.size} handle(s)")
-                val step = h.submitPresentation(creds)
+                val step = h.submitPresentation(creds, allowDomainMismatch)
                 Log.d(TAG, "submitPresentation: step=${step::class.simpleName}")
                 callback(Result.success(toPigeonStep(step)))
+            } catch (e: VcalmException.DomainChannelMismatch) {
+                // §3.4.3.2 anti-replay refusal — surface a distinct problemType so the
+                // host app can ask the user for consent and retry with
+                // allowDomainMismatch = true.
+                Log.w(TAG, "submitPresentation: domain/channel mismatch (domain=${e.domain}, channel=${e.channel})")
+                callback(Result.success(VcalmProblem(
+                    problemType = "domain-mismatch",
+                    status = null,
+                    title = "Verifier domain does not match the exchange channel",
+                    detail = "domain=${e.domain}, channel=${e.channel}"
+                )))
             } catch (e: Exception) {
                 Log.e(TAG, "submitPresentation failed", e)
                 callback(Result.success(problem("submit-error", "Presentation failed", e)))
@@ -400,6 +417,7 @@ internal class VcalmAdapter(
         OfferedValidity.TIME_BOUNDED -> "timeBounded"
         OfferedValidity.PROOF_INVALID -> "proofInvalid"
         OfferedValidity.ENVELOPED -> "enveloped"
+        OfferedValidity.UNSUPPORTED_PROOF -> "unsupportedProof"
         OfferedValidity.UNVERIFIABLE -> "unverifiable"
     }
 

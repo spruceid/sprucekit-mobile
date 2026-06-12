@@ -192,7 +192,11 @@ class VcalmAdapter: Vcalm {
                 var keyMap: [VcalmCredentialKey: ParsedCredential] = [:]
                 var keys: [VcalmCredentialKey] = []
                 for group in groups {
-                    for cred in group.credentials {
+                    // Each match now carries its disclosure mode
+                    // (match.selectiveDisclosure); the Pigeon surface keeps the
+                    // lightweight key shape, so only the handle is retained here.
+                    for match in group.credentials {
+                        let cred = match.credential
                         let key = VcalmCredentialKey(
                             queryIndex: Int64(group.queryIndex),
                             credentialId: cred.id()
@@ -240,6 +244,7 @@ class VcalmAdapter: Vcalm {
 
     func submitPresentation(
         selected: [VcalmCredentialKey],
+        allowDomainMismatch: Bool,
         completion: @escaping (Result<VcalmStepResult, Error>) -> Void
     ) {
         Task {
@@ -256,10 +261,24 @@ class VcalmAdapter: Vcalm {
                 lock.lock()
                 let resolved = selected.compactMap { self.credentialsByKey[$0] }
                 lock.unlock()
-                log("submitPresentation: resolved \(resolved.count)/\(selected.count) handle(s)")
+                log("submitPresentation: resolved \(resolved.count)/\(selected.count) handle(s), allowDomainMismatch=\(allowDomainMismatch)")
                 // Suite is server-driven — no suite parameter.
-                let step = try await holder.submitPresentation(selectedCredentials: resolved)
+                let step = try await holder.submitPresentation(
+                    selectedCredentials: resolved,
+                    allowDomainMismatch: allowDomainMismatch
+                )
                 completion(.success(try await toPigeonStep(step)))
+            } catch VcalmError.DomainChannelMismatch(let domain, let channel) {
+                // §3.4.3.2 anti-replay refusal — surface a distinct problemType so the
+                // host app can ask the user for consent and retry with
+                // allowDomainMismatch = true.
+                log("submitPresentation: domain/channel mismatch (domain=\(domain), channel=\(channel))")
+                completion(.success(VcalmProblem(
+                    problemType: "domain-mismatch",
+                    status: nil,
+                    title: "Verifier domain does not match the exchange channel",
+                    detail: "domain=\(domain), channel=\(channel)"
+                )))
             } catch {
                 log("submitPresentation FAILED: \(error)")
                 completion(.success(VcalmProblem(
@@ -362,9 +381,11 @@ class VcalmAdapter: Vcalm {
                 purpose: vpr.query.flatMap { $0.credentialQuery }.compactMap { $0.reason }.first,
                 vprListsSdSuite: vprListsSd(vpr)
             )
-        case let .offer(_, nextVpr):
+        case let .offer(_, nextVpr, _):
             // `vcs` is an opaque JSON String — do NOT parse structurally; use the
-            // holder's read-only preview for display.
+            // holder's read-only preview for display. A combined redirectUrl (the
+            // third associated value) is consumed in Rust by acceptOffer, which
+            // surfaces it as the terminal Redirect step after storing.
             let offered = (try? await holder?.offeredCredentials()) ?? []
             return VcalmOffer(
                 credentials: offered.map(Self.projectOffered),
@@ -429,6 +450,7 @@ class VcalmAdapter: Vcalm {
         case .timeBounded: return "timeBounded"
         case .proofInvalid: return "proofInvalid"
         case .enveloped: return "enveloped"
+        case .unsupportedProof: return "unsupportedProof"
         case .unverifiable: return "unverifiable"
         }
     }

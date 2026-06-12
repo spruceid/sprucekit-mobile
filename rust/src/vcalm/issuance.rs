@@ -19,16 +19,37 @@ pub(crate) enum OfferedEntry {
     Enveloped,
 }
 
+/// True iff the offered `verifiablePresentation` value is itself an
+/// `EnvelopedVerifiablePresentation` — a shape the holder cannot unwrap yet.
+/// Detected so the caller can surface a typed unsupported-format error instead
+/// of an indistinguishable-from-empty offer.
+pub(crate) fn is_enveloped_presentation(vcs: &Value) -> bool {
+    vcs.get("type").is_some_and(|t| {
+        t.as_str() == Some("EnvelopedVerifiablePresentation")
+            || t.as_array().is_some_and(|a| {
+                a.iter()
+                    .any(|x| x.as_str() == Some("EnvelopedVerifiablePresentation"))
+            })
+    })
+}
+
 /// Normalize the offered VP envelope's `verifiableCredential` field into a `Vec`.
 ///
 /// `vcs` is the [`StepResult::Offer`](super::exchange::StepResult) `vcs` value.
 /// Shaping rules:
+/// - `EnvelopedVerifiablePresentation` envelope →
+///   [`VcalmError::UnsupportedCredentialFormat`] (typed, never silently empty).
 /// - `Array` → cloned as-is.
 /// - single `Object` → one-element vec (single-VC offers omit the array wrapper).
 /// - `Null` / absent / empty array → [`VcalmError::NoOfferedCredentials`].
 /// - any other JSON type → [`VcalmError::Deserialization`] describing the shape
 ///   (no verbatim server body in the message).
 pub(crate) fn extract_offered_vcs(vcs: &Value) -> Result<Vec<Value>, VcalmError> {
+    if is_enveloped_presentation(vcs) {
+        return Err(VcalmError::UnsupportedCredentialFormat(
+            "EnvelopedVerifiablePresentation offers are not yet supported".into(),
+        ));
+    }
     let field = vcs.get("verifiableCredential");
     let list = match field {
         Some(Value::Array(a)) => a.clone(),
@@ -83,9 +104,21 @@ pub(crate) fn build_raw_credential(entry: &Value) -> Result<RawCredential, Vcalm
 }
 
 /// Derive a deterministic local storage id for an offered VC (idempotency).
+///
+/// The v5 name is SCOPED BY ISSUER (`"{issuer}\n{id}"`): `VdcCollection::add`
+/// replaces on duplicate key, so an id-only name would let a malicious issuer
+/// mint a VC whose `id` collides with — and silently overwrites — a different
+/// stored credential. Same issuer re-issuing the same `id` still overwrites
+/// (intended idempotent re-accept); a different issuer claiming the same `id`
+/// gets a distinct storage slot. VCs with no usable `id` fall back to a
+/// content-derived name (re-accepting identical content stays idempotent).
 pub(crate) fn stable_local_id(entry: &Value) -> Uuid {
+    let issuer = super::matching::vc_issuer(entry).unwrap_or_default();
     match entry.get("id").and_then(Value::as_str) {
-        Some(id) if !id.is_empty() => Uuid::new_v5(&Uuid::NAMESPACE_URL, id.as_bytes()),
+        Some(id) if !id.is_empty() => {
+            let name = format!("{issuer}\n{id}");
+            Uuid::new_v5(&Uuid::NAMESPACE_URL, name.as_bytes())
+        }
         _ => {
             let canonical = serde_json::to_vec(entry).unwrap_or_default();
             Uuid::new_v5(&Uuid::NAMESPACE_URL, &canonical)
@@ -212,11 +245,32 @@ mod tests {
 
     #[test]
     fn stable_local_id_same_id_collides() {
-        // Same VC `id`, different incidental content → SAME local id.
+        // Same ISSUER + same VC `id`, different incidental content → SAME local
+        // id (idempotent re-accept).
         let a = bare_vc("urn:uuid:same");
         let mut b = bare_vc("urn:uuid:same");
         b["credentialSubject"]["givenName"] = json!("Bob");
         assert_eq!(stable_local_id(&a), stable_local_id(&b));
+    }
+
+    #[test]
+    fn stable_local_id_is_issuer_scoped() {
+        // A DIFFERENT issuer claiming the same VC `id` must get a DISTINCT
+        // storage slot — otherwise a malicious issuer could mint a colliding
+        // `id` and silently overwrite a credential the user already holds.
+        let a = bare_vc("urn:uuid:same");
+        let mut b = bare_vc("urn:uuid:same");
+        b["issuer"] = json!("did:key:zMallory");
+        assert_ne!(stable_local_id(&a), stable_local_id(&b));
+
+        // Issuer-object form scopes by the issuer `id`.
+        let mut c = bare_vc("urn:uuid:same");
+        c["issuer"] = json!({ "id": "did:key:zExample" });
+        assert_eq!(
+            stable_local_id(&a),
+            stable_local_id(&c),
+            "string and {{id}} issuer forms with the same identifier agree"
+        );
     }
 
     #[test]

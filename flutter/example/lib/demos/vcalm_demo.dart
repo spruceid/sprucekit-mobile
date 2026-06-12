@@ -356,16 +356,46 @@ class _VcalmDemoState extends State<VcalmDemo> {
   Future<void> _submitPresentation() async {
     final key = _selectedKey;
     if (key == null) return;
+    await _doSubmit(key, allowDomainMismatch: false);
+  }
 
+  Future<void> _doSubmit(
+    VcalmCredentialKey key, {
+    required bool allowDomainMismatch,
+  }) async {
     setState(() {
       _presentationLoading = true;
       _presentationStatus = 'Submitting presentation...';
     });
 
     try {
-      _log('submitPresentation: key=${key.credentialId}');
-      final step = await _vcalm.submitPresentation([key]);
+      _log(
+        'submitPresentation: key=${key.credentialId}, '
+        'allowDomainMismatch=$allowDomainMismatch',
+      );
+      final step = await _vcalm.submitPresentation([key], allowDomainMismatch);
       _log('submitPresentation step: ${step.runtimeType}');
+      if (!mounted) return;
+
+      // A §3.4.3.2 domain/channel mismatch comes back as a typed problem. Ask
+      // the user for explicit consent, then retry allowing the mismatch (e.g. a
+      // verifier UI origin that differs from the workflow-service channel).
+      if (step is VcalmProblem &&
+          step.problemType == 'domain-mismatch' &&
+          !allowDomainMismatch) {
+        setState(() => _presentationLoading = false);
+        final proceed = await _confirmDomainMismatch(step.detail);
+        if (proceed == true) {
+          await _doSubmit(key, allowDomainMismatch: true);
+        } else {
+          setState(
+            () => _presentationStatus =
+                'Presentation cancelled (domain mismatch).',
+          );
+        }
+        return;
+      }
+
       setState(() {
         _presentationLoading = false;
         switch (step) {
@@ -396,6 +426,32 @@ class _VcalmDemoState extends State<VcalmDemo> {
         _presentationStatus = 'Error: $e';
       });
     }
+  }
+
+  Future<bool?> _confirmDomainMismatch(String? detail) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Verifier domain mismatch'),
+        content: Text(
+          'The verifier domain does not match the exchange channel '
+          '(§3.4.3.2 anti-replay check).\n\n'
+          '${detail ?? ''}\n\n'
+          'This is common when a verifier UI drives a separate workflow '
+          'service. Present anyway?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Present anyway'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _resetPresentation() {

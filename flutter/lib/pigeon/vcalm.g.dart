@@ -818,14 +818,18 @@ class Vcalm {
   /// The chosen cryptosuite is server-driven.
   ///
   /// @param selected Stable keys of the credentials the user selected
-  Future<VcalmStepResult> submitPresentation(List<VcalmCredentialKey> selected) async {
+  /// @param allowDomainMismatch Proceed even if the VPR `domain` does not match
+  ///   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
+  ///   user consent — never as a default. A domain mismatch otherwise returns a
+  ///   [VcalmProblem] with `problemType == "domain-mismatch"`.
+  Future<VcalmStepResult> submitPresentation(List<VcalmCredentialKey> selected, bool allowDomainMismatch) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.submitPresentation$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[selected]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[selected, allowDomainMismatch]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(

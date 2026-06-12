@@ -833,8 +833,12 @@ interface Vcalm {
    * The chosen cryptosuite is server-driven.
    *
    * @param selected Stable keys of the credentials the user selected
+   * @param allowDomainMismatch Proceed even if the VPR `domain` does not match
+   *   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
+   *   user consent — never as a default. A domain mismatch otherwise returns a
+   *   [VcalmProblem] with `problemType == "domain-mismatch"`.
    */
-  fun submitPresentation(selected: List<VcalmCredentialKey>, callback: (Result<VcalmStepResult>) -> Unit)
+  fun submitPresentation(selected: List<VcalmCredentialKey>, allowDomainMismatch: Boolean, callback: (Result<VcalmStepResult>) -> Unit)
   /** Preview the credentials offered in the current Offer. */
   fun offeredCredentials(callback: (Result<List<VcalmOfferedCredentialData>>) -> Unit)
   /** Accept the current Offer (verify + store), then advance the exchange. */
@@ -939,7 +943,8 @@ interface Vcalm {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val selectedArg = args[0] as List<VcalmCredentialKey>
-            api.submitPresentation(selectedArg) { result: Result<VcalmStepResult> ->
+            val allowDomainMismatchArg = args[1] as Boolean
+            api.submitPresentation(selectedArg, allowDomainMismatchArg) { result: Result<VcalmStepResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(VcalmPigeonUtils.wrapError(error))
