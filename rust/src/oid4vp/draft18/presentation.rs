@@ -95,8 +95,10 @@ pub trait CredentialPresentation {
             return false;
         };
 
-        // Check the JSON-encoded credential against the definition.
-        presentation_definition.is_credential_match(&json)
+        // Check the JSON-encoded credential against the definition. Match each
+        // input descriptor independently (OR), not the AND of all descriptors'
+        // fields -- see `matches_any_input_descriptor` for why.
+        super::credential::matches_any_input_descriptor(presentation_definition, &json)
     }
 
     /// Return the requested fields from the credential matching
@@ -309,11 +311,24 @@ impl Draft18PresentationOptions<'_> {
         let format = format.into();
         let suite = self.signer.cryptosuite();
 
-        // Retrieve the vp_formats from the authorization request object.
-        let vp_formats = self
-            .request
-            .vp_formats()
-            .map_err(|e| Draft18PresentationError::CryptographicSuite(format!("{e:?}")))?;
+        // Retrieve the vp_formats the verifier declared in `client_metadata`.
+        //
+        // A verifier MAY omit `vp_formats` (→ `Err`, "missing") or send it empty
+        // (→ `VpFormats({})`) to signal *no* format restriction -- common for
+        // draft-13 / playground verifiers. Per OID4VP an absent constraint is no
+        // constraint, so in that case we present optimistically in the holder's
+        // supported suite rather than hard-failing. When the verifier DOES
+        // declare formats, we enforce the negotiation exactly as before.
+        let vp_formats = match self.request.vp_formats() {
+            Ok(vp_formats) if !vp_formats.0.is_empty() => vp_formats,
+            other => {
+                tracing::warn!(
+                    "OID4VP: verifier declared no usable vp_formats ({other:?}); presenting \
+                     {format:?} with {suite:?} without verifier format negotiation."
+                );
+                return Ok(());
+            }
+        };
 
         if !vp_formats.supports_security_method(&format, &suite.to_string()) {
             let err_msg = format!("Cryptographic Suite not supported for this request format: {format:?} and suite: {suite:?}. Supported Cryptographic Suites: {vp_formats:?}");
