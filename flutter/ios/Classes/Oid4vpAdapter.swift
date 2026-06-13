@@ -103,6 +103,7 @@ class Oid4vpAdapter: Oid4vp {
         case .auto: return .auto
         case .v1: return .v1
         case .draft18: return .draft18
+        case .draft13: return .draft13
         }
     }
 

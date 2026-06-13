@@ -21,11 +21,28 @@ pub use verifier::*;
 pub enum Oid4vpVersion {
     V1,
     Draft18,
+    /// OpenID4VP draft 13 (the pre-`client_id_scheme`, Presentation-Exchange
+    /// era whose cross-device flow uses the bare `post` response mode and
+    /// delivers to `redirect_uri`). Served by translating the request onto the
+    /// draft-18 engine — see `facade::draft13_request_to_draft18`.
+    Draft13,
     Unsupported,
 }
 
 #[uniffi::export]
 pub fn get_oid4vp_version(request: String) -> Oid4vpVersion {
+    // Draft 13 is the ONLY version that uses the bare `post` response mode
+    // (draft 18 and v1 both use `direct_post`/`direct_post.jwt`). A request that
+    // carries `response_mode=post` by value is therefore unambiguously draft 13,
+    // and must be classified before the Presentation-Exchange / `request_uri`
+    // heuristics below would otherwise route it to draft 18. A draft-13 request
+    // delivered purely by `request_uri` (no inline `response_mode`) cannot be
+    // auto-detected here — callers force `Oid4vpVersion::Draft13` for that
+    // transport, mirroring the existing draft-18 `request_uri` limitation.
+    if response_mode_is_post(&request) {
+        return Oid4vpVersion::Draft13;
+    }
+
     let has_dcql = contains_oid4vp_parameter(&request, "dcql_query");
     let has_draft18_definition = contains_oid4vp_parameter(&request, "presentation_definition")
         || contains_oid4vp_parameter(&request, "presentation_definition_uri");
@@ -48,6 +65,19 @@ pub fn get_oid4vp_version(request: String) -> Oid4vpVersion {
     }
 
     Oid4vpVersion::Unsupported
+}
+
+/// True iff the request carries a `response_mode` whose value is exactly `post`
+/// (the draft-13 cross-device response mode). Deliberately exact-matches `post`
+/// so it never fires on draft-18 / v1 `direct_post` (which merely *contains* the
+/// substring). Reads the query parameter, the top-level JSON field, and the
+/// `request=`-nested object via [`extract_query_parameter`]/[`extract_json_string`].
+fn response_mode_is_post(request: &str) -> bool {
+    candidate_request_strings(request).iter().any(|candidate| {
+        let mode = extract_query_parameter(candidate, "response_mode")
+            .or_else(|| extract_json_string(candidate, "response_mode"));
+        mode.as_deref() == Some("post")
+    })
 }
 
 fn contains_oid4vp_parameter(request: &str, parameter: &str) -> bool {
@@ -242,5 +272,26 @@ mod tests {
             get_oid4vp_version(request.into()),
             Oid4vpVersion::Unsupported
         );
+    }
+
+    #[test]
+    fn get_oid4vp_version_detects_draft13_by_post_response_mode() {
+        // Bare `response_mode=post` is the unambiguous draft-13 marker — even
+        // though presentation_definition would otherwise route to draft 18.
+        let request = "openid4vp://?client_id=https%3A%2F%2Fclient.example.org%2Fcb&response_mode=post&redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb&presentation_definition=%7B%22input_descriptors%22%3A%5B%5D%7D&nonce=n-0S6";
+        assert_eq!(get_oid4vp_version(request.into()), Oid4vpVersion::Draft13);
+    }
+
+    #[test]
+    fn get_oid4vp_version_detects_draft13_from_request_object() {
+        let request = r#"{"client_id":"https://client.example.org/post","redirect_uri":"https://client.example.org/post","response_type":"vp_token","response_mode":"post","presentation_definition":{"input_descriptors":[]},"nonce":"n-0S6"}"#;
+        assert_eq!(get_oid4vp_version(request.into()), Oid4vpVersion::Draft13);
+    }
+
+    #[test]
+    fn get_oid4vp_version_does_not_confuse_direct_post_with_post() {
+        // `direct_post` must NOT be misread as the draft-13 bare `post`.
+        let request = "openid4vp://?client_id=redirect_uri%3Ahttps%3A%2F%2Fwallet.example%2Fcb&response_mode=direct_post&dcql_query=%7B%7D";
+        assert_eq!(get_oid4vp_version(request.into()), Oid4vpVersion::V1);
     }
 }

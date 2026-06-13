@@ -93,6 +93,20 @@ pub struct Draft18Holder {
     pub(crate) context_map: Option<HashMap<String, String>>,
 }
 
+/// Default the JSON-LD context map to the SDK's bundled contexts when the caller
+/// supplies none or an empty map — mirroring `VcalmHolder::new_session` and the
+/// v1 `Holder`. A VCALM-issued LDP-VC (e.g. a FirstResponderCredential using
+/// `w3id.org/first-responder/v1` + the render-method contexts) needs these to
+/// canonicalize when building the VP. An explicit non-empty map still overrides.
+fn with_default_contexts(
+    context_map: Option<HashMap<String, String>>,
+) -> Option<HashMap<String, String>> {
+    Some(match context_map {
+        Some(map) if !map.is_empty() => map,
+        _ => crate::context::default_ld_json_context(),
+    })
+}
+
 #[uniffi::export(async_runtime = "tokio")]
 impl Draft18Holder {
     /// Uses VDC collection to retrieve the credentials for a given presentation definition.
@@ -113,7 +127,7 @@ impl Draft18Holder {
             trusted_dids,
             provided_credentials: None,
             signer: Arc::new(signer),
-            context_map,
+            context_map: with_default_contexts(context_map),
         }))
     }
 
@@ -139,7 +153,7 @@ impl Draft18Holder {
             trusted_dids,
             provided_credentials: Some(provided_credentials),
             signer: Arc::new(signer),
-            context_map,
+            context_map: with_default_contexts(context_map),
         }))
     }
 
@@ -235,7 +249,7 @@ impl Draft18Holder {
         &self,
         definition: &mut PresentationDefinition,
     ) -> Result<Vec<Arc<ParsedCredential>>, Draft18OID4VPError> {
-        let credentials = match &self.provided_credentials {
+        let candidates = match &self.provided_credentials {
             // Use a pre-selected list of credentials if provided.
             Some(credentials) => credentials.to_owned(),
             None => match &self.vdc_collection {
@@ -254,15 +268,31 @@ impl Draft18Holder {
                         .await
                 }
             },
-        }
-        .into_iter()
-        .filter_map(
-            |cred| match cred.satisfies_presentation_definition(definition) {
-                true => Some(cred),
-                false => None,
-            },
-        )
-        .collect::<Vec<Arc<ParsedCredential>>>();
+        };
+
+        // Logged so a presentation failure can be told apart in the logs: zero
+        // candidates is a credential-source problem, while N candidates and zero
+        // matches is a presentation-definition matching problem.
+        tracing::debug!(
+            "Draft18 matching: {} candidate credential(s) against {} input descriptor(s).",
+            candidates.len(),
+            definition.input_descriptors().len(),
+        );
+
+        let credentials = candidates
+            .into_iter()
+            .filter_map(
+                |cred| match cred.satisfies_presentation_definition(definition) {
+                    true => Some(cred),
+                    false => None,
+                },
+            )
+            .collect::<Vec<Arc<ParsedCredential>>>();
+
+        tracing::debug!(
+            "Draft18 matching: {} credential(s) satisfied the presentation definition.",
+            credentials.len(),
+        );
 
         Ok(credentials)
     }

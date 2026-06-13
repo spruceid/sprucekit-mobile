@@ -126,6 +126,42 @@ fn credential_as_json(inner: &ParsedCredentialInner) -> Option<serde_json::Value
     }
 }
 
+/// Returns true if the credential satisfies *any* single input descriptor.
+///
+/// `PresentationDefinition::is_credential_match` flattens the required
+/// constraint fields across *all* input descriptors and requires every one to
+/// validate (`flat_map(..).all(..)`). That is correct for a single-descriptor
+/// definition, but wrong when a definition offers alternative descriptors --
+/// e.g. a verifier requesting either a `credentials/v2` or a `2018/credentials/v1`
+/// variant of the same credential. No single credential can ever satisfy the
+/// union of both, so matching always fails and the holder reports
+/// `NoCredentialsFound`.
+///
+/// Per Presentation Exchange, each input descriptor is an independent input; a
+/// credential is a viable candidate if it fulfills any one of them. We restore
+/// that by evaluating each descriptor in isolation (reusing the upstream
+/// matcher on a single-descriptor view, so the per-field validation -- including
+/// its array-element fallback -- stays identical) and OR-ing the results.
+pub(super) fn matches_any_input_descriptor(
+    definition: &PresentationDefinition,
+    credential: &serde_json::Value,
+) -> bool {
+    let descriptors = definition.input_descriptors();
+
+    // Degenerate definition with no input descriptors: defer to the upstream
+    // whole-definition check (which is vacuously true), rather than returning
+    // false from an empty `any`.
+    if descriptors.is_empty() {
+        return definition.is_credential_match(credential);
+    }
+
+    descriptors.iter().any(|descriptor| {
+        let mut single = definition.clone();
+        *single.input_descriptors_mut() = vec![descriptor.clone()];
+        single.is_credential_match(credential)
+    })
+}
+
 // -- Extension trait for ParsedCredential to add draft18-compatible methods --
 
 /// Extension methods for `ParsedCredential` that use draft18 `PresentationDefinition`.
@@ -148,22 +184,26 @@ impl ParsedCredentialDraft18Ext for ParsedCredential {
         // If the credential does not match the definition requested format,
         // then return false.
         if !definition.format().is_empty()
-            && !definition.contains_format(cred_fmt)
-            && !definition.contains_format(pres_fmt)
+            && !definition.contains_format(cred_fmt.clone())
+            && !definition.contains_format(pres_fmt.clone())
         {
-            log::debug!(
-                "Credential does not match the presentation definition requested format: {:?}.",
+            tracing::debug!(
+                "Credential ({cred_fmt:?} / {pres_fmt:?}) does not match the presentation \
+                 definition requested format: {:?}.",
                 definition.format()
             );
             return false;
         }
 
         let Some(json) = credential_as_json(&self.inner) else {
-            log::error!("Failed to serialize credential into JSON.");
+            tracing::error!(
+                "Credential ({cred_fmt:?}) has no JSON representation for matching; it cannot \
+                 satisfy any presentation definition."
+            );
             return false;
         };
 
-        definition.is_credential_match(&json)
+        matches_any_input_descriptor(definition, &json)
     }
 
     fn requested_fields(
@@ -500,7 +540,8 @@ impl Draft18PresentableCredential {
                 let mut cred_v2 = try_map_subjects(cred_v2, NonEmptyObject::try_from_object)
                     .map_err(|e| Draft18OID4VPError::EmptyCredentialSubject(format!("{e:?}")))?;
 
-                // Remove SD proof from the credential before adding it to the presentation.
+                // Remove the SD proof from the credential before embedding it in
+                // the presentation; only `ecdsa-rdfc-2019` proofs are presented.
                 if let Some(p) = cred_v2
                     .extra_properties
                     .get_mut("proof")
@@ -509,8 +550,16 @@ impl Draft18PresentableCredential {
                     *p = p
                         .iter_mut()
                         .flat_map(|p| p.as_object())
+                        // Keep proofs whose cryptosuite is in the accepted set. A
+                        // proof with no string cryptosuite is kept as-is.
+                        //
+                        // NOTE: this MUST be `if let`, not `while let`:
+                        // `obj.get("cryptosuite")` builds a fresh iterator each
+                        // call, so `while let ... .next()` re-reads the same first
+                        // element forever whenever `as_string()` returns `None`
+                        // (e.g. a data-integrity SD proof), spinning indefinitely.
                         .filter(|obj| {
-                            while let Some(cryptosuite) = obj.get("cryptosuite").next() {
+                            if let Some(cryptosuite) = obj.get("cryptosuite").next() {
                                 if let Some(suite) = cryptosuite.as_string() {
                                     return ACCEPTED_CRYPTOSUITES.contains(&suite);
                                 }
@@ -532,7 +581,10 @@ impl Draft18PresentableCredential {
             }
         };
 
-        let signed_presentation = options.sign_presentation(unsigned_presentation).await?;
+        let signed_presentation = options
+            .sign_presentation(unsigned_presentation)
+            .await
+            .inspect_err(|e| tracing::error!("Verifiable presentation signing failed: {e:?}"))?;
 
         Ok(VpTokenItem::from(signed_presentation))
     }
@@ -589,4 +641,123 @@ fn try_map_subjects<T, U, E: std::fmt::Debug>(
         refresh_services: cred.refresh_services,
         extra_properties: cred.extra_properties,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::matches_any_input_descriptor;
+    use openidvp_draft18::core::presentation_definition::PresentationDefinition;
+    use serde_json::{json, Value};
+
+    /// A VCDM v2 FirstResponderCredential, shaped like the VCALM-issued one that
+    /// triggered `NoCredentialsFound` from vcplayground.org.
+    fn first_responder_v2_credential() -> Value {
+        json!({
+            "@context": [
+                "https://www.w3.org/ns/credentials/v2",
+                "https://w3id.org/first-responder/v1",
+                "https://w3id.org/vc/render-method/v2rc1",
+                "https://w3id.org/vc/render-method/v2rc2"
+            ],
+            "type": ["VerifiableCredential", "FirstResponderCredential"],
+            "credentialSubject": { "id": "did:example:holder" }
+        })
+    }
+
+    fn context_field(consts: &[&str]) -> Value {
+        json!({
+            "path": ["$['@context']"],
+            "filter": {
+                "type": "array",
+                "allOf": consts
+                    .iter()
+                    .map(|c| json!({ "contains": { "type": "string", "const": c } }))
+                    .collect::<Vec<_>>()
+            }
+        })
+    }
+
+    fn type_field() -> Value {
+        json!({
+            "path": ["$.type"],
+            "filter": {
+                "type": "array",
+                "allOf": [{ "contains": { "type": "string", "const": "FirstResponderCredential" } }]
+            }
+        })
+    }
+
+    fn descriptor(id: &str, context_consts: &[&str]) -> Value {
+        json!({
+            "id": id,
+            "constraints": { "fields": [context_field(context_consts), type_field()] }
+        })
+    }
+
+    fn definition(descriptors: Vec<Value>) -> PresentationDefinition {
+        serde_json::from_value(json!({ "id": "test-def", "input_descriptors": descriptors }))
+            .expect("valid presentation definition")
+    }
+
+    const V2_CONTEXTS: &[&str] = &[
+        "https://www.w3.org/ns/credentials/v2",
+        "https://w3id.org/first-responder/v1",
+        "https://w3id.org/vc/render-method/v2rc1",
+        "https://w3id.org/vc/render-method/v2rc2",
+    ];
+    const V1_CONTEXTS: &[&str] = &[
+        "https://www.w3.org/2018/credentials/v1",
+        "https://w3id.org/first-responder/v1",
+        "https://www.w3.org/ns/credentials/examples/v2",
+        "https://w3id.org/vc/render-method/v2rc1",
+        "https://w3id.org/vc/render-method/v2rc2",
+    ];
+
+    /// The regression: a verifier offering alternative descriptors (a v2-context
+    /// and a v1-context variant of the same credential). A single v2 credential
+    /// satisfies descriptor 1 but not descriptor 2, so the upstream
+    /// AND-across-descriptors matcher rejects it -- our OR-per-descriptor matcher
+    /// must accept it.
+    #[test]
+    fn matches_when_one_of_several_alternative_descriptors_is_satisfied() {
+        let def = definition(vec![
+            descriptor("v2", V2_CONTEXTS),
+            descriptor("v1", V1_CONTEXTS),
+        ]);
+        let cred = first_responder_v2_credential();
+
+        assert!(
+            matches_any_input_descriptor(&def, &cred),
+            "credential satisfies the v2 descriptor and must be considered a match"
+        );
+        // Guard: the upstream whole-definition matcher ANDs across descriptors,
+        // so it still (incorrectly) fails. If this ever flips, the upstream bug
+        // was fixed and our wrapper can be reconsidered.
+        assert!(
+            !def.is_credential_match(&cred),
+            "upstream is_credential_match is expected to fail across alternative descriptors"
+        );
+    }
+
+    #[test]
+    fn does_not_match_when_no_descriptor_is_satisfied() {
+        // Only a v1 descriptor; the v2 credential lacks the required v1 contexts.
+        let def = definition(vec![descriptor("v1", V1_CONTEXTS)]);
+        assert!(!matches_any_input_descriptor(
+            &def,
+            &first_responder_v2_credential()
+        ));
+    }
+
+    #[test]
+    fn single_descriptor_match_is_unchanged() {
+        let def = definition(vec![descriptor("v2", V2_CONTEXTS)]);
+        let cred = first_responder_v2_credential();
+        // For a single descriptor the fixed and upstream matchers must agree.
+        assert!(matches_any_input_descriptor(&def, &cred));
+        assert_eq!(
+            matches_any_input_descriptor(&def, &cred),
+            def.is_credential_match(&cred)
+        );
+    }
 }

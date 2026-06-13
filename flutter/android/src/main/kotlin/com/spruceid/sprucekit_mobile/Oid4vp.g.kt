@@ -198,11 +198,16 @@ class Oid4vpFlutterError (
  * - [auto] inspects the request and picks the matching version (recommended).
  * - [v1] forces OID4VP 1.0 (final).
  * - [draft18] forces OID4VP Draft 18.
+ * - [draft13] forces OID4VP Draft 13 (served by translating onto the Draft 18
+ *   engine). `auto` detects draft 13 only when the link carries
+ *   `response_mode=post`; for draft-13 requests delivered purely by
+ *   `request_uri`, force this mode.
  */
 enum class Oid4vpCompatibilityMode(val raw: Int) {
   AUTO(0),
   V1(1),
-  DRAFT18(2);
+  DRAFT18(2),
+  DRAFT13(3);
 
   companion object {
     fun ofRaw(raw: Int): Oid4vpCompatibilityMode? {

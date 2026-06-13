@@ -101,6 +101,7 @@ internal class Oid4vpAdapter(
             Oid4vpCompatibilityMode.AUTO -> RsOid4vpCompatibilityMode.AUTO
             Oid4vpCompatibilityMode.V1 -> RsOid4vpCompatibilityMode.V1
             Oid4vpCompatibilityMode.DRAFT18 -> RsOid4vpCompatibilityMode.DRAFT18
+            Oid4vpCompatibilityMode.DRAFT13 -> RsOid4vpCompatibilityMode.DRAFT13
         }
 
     /**
