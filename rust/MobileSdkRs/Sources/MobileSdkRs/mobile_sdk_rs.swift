@@ -27915,6 +27915,12 @@ public enum Oid4vpCompatibilityMode: Equatable, Hashable {
     case auto
     case v1
     case draft18
+    /**
+     * Force the OpenID4VP draft-13 path (translated onto the draft-18 engine).
+     * Use this for draft-13 requests delivered purely by `request_uri`, which
+     * `Auto` cannot detect from the link alone.
+     */
+    case draft13
 
 
 
@@ -27942,6 +27948,8 @@ public struct FfiConverterTypeOid4vpCompatibilityMode: FfiConverterRustBuffer {
         
         case 3: return .draft18
         
+        case 4: return .draft13
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -27960,6 +27968,10 @@ public struct FfiConverterTypeOid4vpCompatibilityMode: FfiConverterRustBuffer {
         
         case .draft18:
             writeInt(&buf, Int32(3))
+        
+        
+        case .draft13:
+            writeInt(&buf, Int32(4))
         
         }
     }
@@ -28178,6 +28190,13 @@ public enum Oid4vpVersion: Equatable, Hashable {
     
     case v1
     case draft18
+    /**
+     * OpenID4VP draft 13 (the pre-`client_id_scheme`, Presentation-Exchange
+     * era whose cross-device flow uses the bare `post` response mode and
+     * delivers to `redirect_uri`). Served by translating the request onto the
+     * draft-18 engine — see `facade::draft13_request_to_draft18`.
+     */
+    case draft13
     case unsupported
 
 
@@ -28204,7 +28223,9 @@ public struct FfiConverterTypeOid4vpVersion: FfiConverterRustBuffer {
         
         case 2: return .draft18
         
-        case 3: return .unsupported
+        case 3: return .draft13
+        
+        case 4: return .unsupported
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -28222,8 +28243,12 @@ public struct FfiConverterTypeOid4vpVersion: FfiConverterRustBuffer {
             writeInt(&buf, Int32(2))
         
         
-        case .unsupported:
+        case .draft13:
             writeInt(&buf, Int32(3))
+        
+        
+        case .unsupported:
+            writeInt(&buf, Int32(4))
         
         }
     }

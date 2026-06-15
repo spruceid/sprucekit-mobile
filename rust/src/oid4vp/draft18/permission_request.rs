@@ -292,7 +292,10 @@ impl Draft18PermissionRequest {
                 .iter()
                 .map(|cred: &Arc<_>| cred.as_vp_token(&options)),
         )
-        .await?;
+        .await
+        .inspect_err(|e| {
+            tracing::error!("Building the VP token for the presentation failed: {e:?}")
+        })?;
 
         let vp_token = VpToken(token_items);
 

@@ -9,7 +9,10 @@ enum _ScanPurpose { issuance, presentation }
 /// Demo screen for the OID4VP (credential presentation) flow.
 ///
 /// Two-step flow:
-///   1. Issue a credential via OID4VCI (scan or paste an offer URL)
+///   1. Issue a credential by scanning/pasting an offer URL. The demo detects
+///      the issuance protocol from the offer and runs the matching workflow:
+///      OID4VCI (`openid-credential-offer://` / a `credential_offer[_uri]`
+///      link) or VCALM (an `interaction:` URL, or any link carrying `?iuv=`).
 ///   2. Present the issued credential via OID4VP (scan a verifier QR code)
 class Oid4vpDemo extends StatefulWidget {
   const Oid4vpDemo({super.key});
@@ -21,15 +24,29 @@ class Oid4vpDemo extends StatefulWidget {
 class _Oid4vpDemoState extends State<Oid4vpDemo> {
   // --- SDK instances ---
   final _oid4vci = Oid4vci();
+  final _vcalm = Vcalm();
   final _oid4vp = Oid4vp();
   final _credentialPack = CredentialPack();
 
   // --- Step 1: Issuance state ---
   final _offerController = TextEditingController();
   final _keyId = 'oid4vp_demo_key';
+  final _vcalmKeyId = 'oid4vp_demo_vcalm_key';
   bool _issuanceLoading = false;
   String? _issuanceError;
   List<IssuedCredential> _issuedCredentials = [];
+
+  /// Credential types issued via the VCALM workflow (stored in the holder's own
+  /// collection rather than returned as [IssuedCredential]s). Drives the Step-1
+  /// "done" state alongside [_issuedCredentials].
+  List<String> _vcalmIssuedTypes = [];
+
+  /// Credential pack holding the VCALM-issued credential(s). The native
+  /// `acceptOffer` only stores the credential in the VCALM holder's own
+  /// VdcCollection, so — mirroring ca-career-passport-pilot's
+  /// `VcalmService.persistOffered` — we also persist the raw VC into a
+  /// CredentialPack at accept time so the OID4VP holder in Step 2 can present it.
+  String? _vcalmPackId;
 
   // --- Step 2: Presentation state ---
   String _status = 'Ready';
@@ -42,6 +59,11 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   _ScanPurpose? _scanPurpose;
   bool _cameraGranted = false;
   String? _packId;
+
+  /// OID4VP version negotiation for the presentation request. `auto` detects
+  /// from the request; force `draft13` for a draft-13 request delivered purely
+  /// by `request_uri` (which `auto` cannot detect from the link alone).
+  Oid4vpCompatibilityMode _presentationMode = Oid4vpCompatibilityMode.auto;
 
   final _trustedDids = <String>[];
 
@@ -62,6 +84,17 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   // Step 1: OID4VCI Issuance
   // ──────────────────────────────────────────────
 
+  /// True iff the offer is a VCALM (VC-API) interaction rather than an OID4VCI
+  /// credential offer: an `interaction:` URL, or any link carrying an `iuv`
+  /// query parameter (the interaction-URL version marker). Everything else is
+  /// treated as an OID4VCI offer.
+  bool _isVcalmOffer(String url) {
+    final trimmed = url.trim();
+    if (trimmed.toLowerCase().startsWith('interaction:')) return true;
+    final uri = Uri.tryParse(trimmed);
+    return uri != null && uri.queryParameters.containsKey('iuv');
+  }
+
   Future<void> _runIssuance() async {
     FocusScope.of(context).unfocus();
 
@@ -71,9 +104,17 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
       return;
     }
 
+    // Route by detected issuance protocol.
+    if (_isVcalmOffer(offer)) {
+      await _runVcalmIssuance(offer);
+      return;
+    }
+
     setState(() {
       _issuanceLoading = true;
       _issuedCredentials = [];
+      _vcalmIssuedTypes = [];
+      _vcalmPackId = null;
       _issuanceError = null;
     });
 
@@ -96,6 +137,98 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
           case Oid4vciError(:final message):
             _issuanceError = message;
         }
+      });
+    } catch (e) {
+      setState(() {
+        _issuanceLoading = false;
+        _issuanceError = e.toString();
+      });
+    }
+  }
+
+  /// VCALM (VC-API) issuance: create a holder, start the exchange from the
+  /// interaction/exchange URL, and accept the offered credential into the
+  /// wallet's own collection. The demo carries no protocol logic — it renders
+  /// each [VcalmStepResult].
+  Future<void> _runVcalmIssuance(String url) async {
+    setState(() {
+      _issuanceLoading = true;
+      _issuedCredentials = [];
+      _vcalmIssuedTypes = [];
+      _vcalmPackId = null;
+      _issuanceError = null;
+    });
+
+    try {
+      final created = await _vcalm.createHolder(
+        [],
+        _trustedDids,
+        _vcalmKeyId,
+        null,
+      );
+      if (created is VcalmError) {
+        setState(() {
+          _issuanceLoading = false;
+          _issuanceError = 'VCALM createHolder failed: ${created.message}';
+        });
+        return;
+      }
+
+      final step = await _vcalm.startExchange(url, null);
+      if (step is! VcalmOffer) {
+        setState(() {
+          _issuanceLoading = false;
+          _issuanceError = step is VcalmProblem
+              ? 'VCALM exchange problem: ${step.detail ?? step.title ?? step.problemType}'
+              : 'VCALM exchange did not return a credential offer '
+                    '(got ${step.runtimeType}).';
+        });
+        return;
+      }
+
+      final offeredTypes = step.credentials
+          .expand((c) => c.types)
+          .toSet()
+          .toList();
+
+      // Accept the offer — the credential is verified and stored in the VCALM
+      // holder's own VdcCollection.
+      final accepted = await _vcalm.acceptOffer();
+      if (accepted is VcalmProblem) {
+        setState(() {
+          _issuanceLoading = false;
+          _issuanceError =
+              'VCALM accept failed: ${accepted.detail ?? accepted.title ?? accepted.problemType}';
+        });
+        return;
+      }
+
+      // Persist the accepted VC(s) into a CredentialPack so Step 2's OID4VP
+      // holder can present them — acceptOffer only stores them in the VCALM
+      // holder's own collection. Mirrors ca-career-passport-pilot's
+      // VcalmService.persistOffered (rawCredential -> wallet store).
+      final packId = await _credentialPack.createPack();
+      for (final credential in step.credentials) {
+        final add = await _credentialPack.addAnyFormat(
+          packId,
+          credential.rawCredential,
+          '',
+        );
+        if (add is AddCredentialError) {
+          setState(() {
+            _issuanceLoading = false;
+            _issuanceError = 'Failed to store VCALM credential: ${add.message}';
+          });
+          return;
+        }
+      }
+
+      setState(() {
+        _issuanceLoading = false;
+        _vcalmIssuedTypes = offeredTypes.isEmpty
+            ? ['Verifiable Credential']
+            : offeredTypes;
+        _vcalmPackId = packId;
       });
     } catch (e) {
       setState(() {
@@ -135,12 +268,18 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
       return;
     }
 
-    if (!url.startsWith('openid4vp://')) {
-      setState(() => _status = 'Invalid URL. Must start with openid4vp://');
+    // OID4VP requests arrive under many schemes — `openid4vp://`, vendor deep
+    // links (`mdoc-openid4vp://`, `openid-vc://`, `haip://`, …), or `https://`
+    // universal links / request_uri references. Accept any scheme-bearing URL
+    // and let the facade's version detection + error handling judge it, rather
+    // than hard-coding one scheme.
+    final parsed = Uri.tryParse(url.trim());
+    if (parsed == null || parsed.scheme.isEmpty) {
+      setState(() => _status = 'Invalid URL: $url');
       return;
     }
 
-    _handleAuthorizationUrl(url);
+    _handleAuthorizationUrl(url.trim());
   }
 
   Future<void> _handleAuthorizationUrl(String url) async {
@@ -150,21 +289,26 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
     });
 
     try {
-      // Add the first issued credential to a pack
-      final credential = _issuedCredentials.first;
-      _packId = await _credentialPack.createPack();
-      final addResult = await _credentialPack.addAnyFormat(
-        _packId!,
-        credential.payload,
-        '',
-      );
-
-      if (addResult is AddCredentialError) {
-        setState(() {
-          _status = 'Error adding credential: ${addResult.message}';
-          _presentationLoading = false;
-        });
-        return;
+      // Use the pack that holds the issued credential. VCALM persisted its VC
+      // into a pack at accept time; OID4VCI credentials are seeded here.
+      if (_vcalmPackId != null) {
+        _packId = _vcalmPackId;
+      } else {
+        _packId = await _credentialPack.createPack();
+        for (final credential in _issuedCredentials) {
+          final addResult = await _credentialPack.addAnyFormat(
+            _packId!,
+            credential.payload,
+            '',
+          );
+          if (addResult is AddCredentialError) {
+            setState(() {
+              _status = 'Error adding credential: ${addResult.message}';
+              _presentationLoading = false;
+            });
+            return;
+          }
+        }
       }
 
       setState(() => _status = 'Processing authorization request...');
@@ -185,10 +329,10 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
         return;
       }
 
-      // Handle authorization request (auto-detect the OID4VP version)
+      // Handle authorization request with the selected version mode.
       final authResult = await _oid4vp.handleAuthorizationRequest(
         url,
-        Oid4vpCompatibilityMode.auto,
+        _presentationMode,
       );
 
       if (authResult is HandleAuthRequestError) {
@@ -298,6 +442,8 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
     _resetPresentation();
     setState(() {
       _issuedCredentials = [];
+      _vcalmIssuedTypes = [];
+      _vcalmPackId = null;
       _issuanceError = null;
       _status = 'Ready';
     });
@@ -360,7 +506,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
         children: [
           _buildStep1Card(),
           const SizedBox(height: 16),
-          if (_issuedCredentials.isNotEmpty) ...[
+          if (_issuedCredentials.isNotEmpty || _vcalmPackId != null) ...[
             _buildStep2Card(),
             const SizedBox(height: 16),
           ],
@@ -372,7 +518,8 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
 
   // --- Step 1: Issuance card ---
   Widget _buildStep1Card() {
-    final isDone = _issuedCredentials.isNotEmpty;
+    final isDone =
+        _issuedCredentials.isNotEmpty || _vcalmIssuedTypes.isNotEmpty;
 
     return Card(
       color: isDone ? Colors.green.shade50 : null,
@@ -390,7 +537,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Issue Credential (OID4VCI)',
+                    'Issue Credential (OID4VCI or VCALM)',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
@@ -399,21 +546,26 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
             const SizedBox(height: 8),
             if (isDone) ...[
               Text(
-                'Issued ${_issuedCredentials.length} credential(s) '
-                '(${_issuedCredentials.first.format})',
+                _issuedCredentials.isNotEmpty
+                    ? 'Issued ${_issuedCredentials.length} credential(s) via '
+                          'OID4VCI (${_issuedCredentials.first.format})'
+                    : 'Issued via VCALM (${_vcalmIssuedTypes.join(", ")})',
                 style: TextStyle(color: Colors.green.shade800),
               ),
             ] else ...[
               const Text(
-                'Paste an OID4VCI offer URL from Animo Playground '
-                'to issue a DC+SD-JWT PID credential to this wallet.',
+                'Scan or paste an offer URL. The protocol is detected '
+                'automatically: an OID4VCI offer '
+                '(openid-credential-offer://…) runs the OID4VCI issuance flow; '
+                'a VCALM interaction URL (interaction:… or a link with ?iuv=) '
+                'runs the VC-API exchange and accepts the offered credential.',
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: _offerController,
                 decoration: const InputDecoration(
-                  labelText: 'Credential Offer URL',
-                  hintText: 'openid-credential-offer://...',
+                  labelText: 'Credential Offer / Interaction URL',
+                  hintText: 'openid-credential-offer://…  or  interaction:…',
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
@@ -479,8 +631,44 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Scan a QR code from a verifier that contains an '
-              'openid4vp:// URL to present your issued credential.',
+              'Scan a verifier QR code (openid4vp://, a vendor deep link, or '
+              'an https:// link) to present your issued credential.',
+            ),
+            const SizedBox(height: 12),
+            // OID4VP version negotiation. `auto` covers v1, draft 18, and
+            // inline draft-13 requests; force a version for request_uri-only
+            // links (notably draft 13, which auto cannot detect from the link).
+            Row(
+              children: [
+                const Text('OID4VP version: '),
+                const SizedBox(width: 8),
+                DropdownButton<Oid4vpCompatibilityMode>(
+                  value: _presentationMode,
+                  onChanged: (mode) {
+                    if (mode != null) {
+                      setState(() => _presentationMode = mode);
+                    }
+                  },
+                  items: const [
+                    DropdownMenuItem(
+                      value: Oid4vpCompatibilityMode.auto,
+                      child: Text('Auto-detect'),
+                    ),
+                    DropdownMenuItem(
+                      value: Oid4vpCompatibilityMode.v1,
+                      child: Text('v1 (final)'),
+                    ),
+                    DropdownMenuItem(
+                      value: Oid4vpCompatibilityMode.draft18,
+                      child: Text('Draft 18'),
+                    ),
+                    DropdownMenuItem(
+                      value: Oid4vpCompatibilityMode.draft13,
+                      child: Text('Draft 13'),
+                    ),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             _buildCameraPermissionCard(),
@@ -610,6 +798,14 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
               },
             ),
           ),
+          if (_status.contains('Error'))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Text(
+                _status,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -629,7 +825,8 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _selectedFields.isNotEmpty
+                    onPressed:
+                        (_selectedFields.isNotEmpty && !_presentationLoading)
                         ? _submitPresentation
                         : null,
                     child: const Text('Submit'),
