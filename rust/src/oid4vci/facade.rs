@@ -4,8 +4,9 @@ use std::sync::Arc;
 
 use super::{
     legacy, AsyncHttpClient, AuthorizationCodeRequired, CredentialOrConfigurationId,
-    CredentialResponse, CredentialToken, CredentialTokenState, Oid4vciClient, Oid4vciError, Proofs,
-    ResolvedCredentialOffer, TxCodeRequired, WaitingForAuthorizationCode,
+    CredentialResponse, CredentialToken, CredentialTokenState, GrantType, Oid4vciClient,
+    Oid4vciError, Proofs, ResolvedCredentialOffer, TxCodeDefinition, TxCodeRequired,
+    WaitingForAuthorizationCode,
 };
 
 #[deprecated(
@@ -225,6 +226,40 @@ impl Oid4vciFacadeResolvedOffer {
             Oid4vciFacadeResolvedOfferInner::V1(offer) => offer.credential_issuer(),
             Oid4vciFacadeResolvedOfferInner::Legacy(offer) => offer.credential_issuer().to_string(),
             Oid4vciFacadeResolvedOfferInner::Auto { current, .. } => current.credential_issuer(),
+        }
+    }
+
+    pub fn issuer_display_name(&self) -> Option<String> {
+        match &self.inner {
+            Oid4vciFacadeResolvedOfferInner::V1(offer) => offer.issuer_display_name(),
+            Oid4vciFacadeResolvedOfferInner::Legacy(_) => None,
+            Oid4vciFacadeResolvedOfferInner::Auto { current, .. } => current.issuer_display_name(),
+        }
+    }
+
+    pub fn credential_configuration_ids(&self) -> Vec<String> {
+        match &self.inner {
+            Oid4vciFacadeResolvedOfferInner::V1(offer) => offer.credential_configuration_ids(),
+            Oid4vciFacadeResolvedOfferInner::Legacy(offer) => offer.credential_configuration_ids(),
+            Oid4vciFacadeResolvedOfferInner::Auto { current, .. } => {
+                current.credential_configuration_ids()
+            }
+        }
+    }
+
+    pub fn grant_type(&self) -> GrantType {
+        match &self.inner {
+            Oid4vciFacadeResolvedOfferInner::V1(offer) => offer.grant_type(),
+            Oid4vciFacadeResolvedOfferInner::Legacy(_) => GrantType::PreAuthCodeNoTxCode,
+            Oid4vciFacadeResolvedOfferInner::Auto { current, .. } => current.grant_type(),
+        }
+    }
+
+    pub fn tx_code_definition(&self) -> Option<TxCodeDefinition> {
+        match &self.inner {
+            Oid4vciFacadeResolvedOfferInner::V1(offer) => offer.tx_code_definition(),
+            Oid4vciFacadeResolvedOfferInner::Legacy(_) => None,
+            Oid4vciFacadeResolvedOfferInner::Auto { current, .. } => current.tx_code_definition(),
         }
     }
 }

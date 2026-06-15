@@ -33,24 +33,24 @@ enum Oid4vciAdapterError: Error {
 
 private actor Oid4vciSessionRegistry {
     final class SessionContext {
-        let resolvedOffer: ResolvedCredentialOffer
-        var tokenState: CredentialTokenState
+        let resolvedOffer: Oid4vciFacadeResolvedOffer
+        var tokenState: Oid4vciFacadeCredentialTokenState
         let signer: Oid4vciJwsSigner
         let clientId: String
         let keyId: String
         let httpClient: Oid4vciAsyncHttpClient
         let redirectUrl: String?
-        var waitingForAuthCode: WaitingForAuthorizationCode?
+        var waitingForAuthCode: Oid4vciFacadeWaitingForAuthorizationCode?
 
         init(
-            resolvedOffer: ResolvedCredentialOffer,
-            tokenState: CredentialTokenState,
+            resolvedOffer: Oid4vciFacadeResolvedOffer,
+            tokenState: Oid4vciFacadeCredentialTokenState,
             signer: Oid4vciJwsSigner,
             clientId: String,
             keyId: String,
             httpClient: Oid4vciAsyncHttpClient,
             redirectUrl: String?,
-            waitingForAuthCode: WaitingForAuthorizationCode? = nil
+            waitingForAuthCode: Oid4vciFacadeWaitingForAuthorizationCode? = nil
         ) {
             self.resolvedOffer = resolvedOffer
             self.tokenState = tokenState
@@ -88,7 +88,7 @@ class Oid4vciAdapter: Oid4vci {
         Task {
             do {
                 let httpClient = Oid4vciAsyncHttpClient()
-                let client = Oid4vciClient(clientId: "parse-offer-only")
+                let client = facadeClient(clientId: "parse-offer-only")
                 let offerUrl = normalizeOfferUrl(credentialOffer)
                 let resolved = try await client.resolveOfferUrl(
                     httpClient: httpClient,
@@ -136,7 +136,7 @@ class Oid4vciAdapter: Oid4vci {
                 let httpClient = Oid4vciAsyncHttpClient()
                 let signer = buildJwsSigner(keyId: keyId)
                 let derivedClientId = derivedClientId(keyId: keyId)
-                let oid4vciClient = Oid4vciClient(clientId: derivedClientId)
+                let oid4vciClient = facadeClient(clientId: derivedClientId)
                 let offerUrl = normalizeOfferUrl(credentialOffer)
                 let resolved = try await oid4vciClient.resolveOfferUrl(
                     httpClient: httpClient,
@@ -266,6 +266,13 @@ class Oid4vciAdapter: Oid4vci {
             : "openid-credential-offer://\(credentialOffer)"
     }
 
+    /// Compatibility facade in Auto mode: prefers the OID4VCI 1.0 (final)
+    /// request format and transparently retries with the legacy draft format
+    /// when the issuer rejects the v1 credential request with a 400.
+    private func facadeClient(clientId: String) -> Oid4vciFacadeClient {
+        Oid4vciFacadeClient(clientId: clientId, compatibilityMode: .auto)
+    }
+
     private func buildJwsSigner(keyId: String) -> Oid4vciJwsSigner {
         let jwk = KeyManager.getOrInsertJwk(id: keyId)
         let didUrl = generateDidJwkUrl(jwk: jwk)
@@ -279,7 +286,7 @@ class Oid4vciAdapter: Oid4vci {
         return didUrl.did().description
     }
 
-    private func buildParsedOfferMetadata(resolved: ResolvedCredentialOffer) -> ParsedOfferMetadata {
+    private func buildParsedOfferMetadata(resolved: Oid4vciFacadeResolvedOffer) -> ParsedOfferMetadata {
         let rsGrantType: SpruceIDMobileSdkRs.GrantType = resolved.grantType()
         let grantType: GrantType
         switch rsGrantType {
@@ -299,7 +306,7 @@ class Oid4vciAdapter: Oid4vci {
         )
     }
 
-    private func buildTxCodeMetadata(resolved: ResolvedCredentialOffer) -> TxCodeMetadata? {
+    private func buildTxCodeMetadata(resolved: Oid4vciFacadeResolvedOffer) -> TxCodeMetadata? {
         guard let def = resolved.txCodeDefinition() else { return nil }
         let inputMode: TxCodeInputMode
         switch def.inputMode {
@@ -323,10 +330,9 @@ class Oid4vciAdapter: Oid4vci {
         clientId: String,
         audience: String,
         signer: Oid4vciJwsSigner,
-        token: CredentialToken,
+        token: Oid4vciFacadeCredentialToken,
         configIds: [String]
     ) async throws -> [IssuedCredential] {
-        let oid4vciClient = Oid4vciClient(clientId: clientId)
         var result: [IssuedCredential] = []
         for configId in configIds {
             let nonce = try await token.getNonce(httpClient: httpClient)
@@ -338,9 +344,8 @@ class Oid4vciAdapter: Oid4vci {
                 signer: signer
             )
             let proofs = Proofs.jwt([jwt])
-            let response = try await oid4vciClient.exchangeCredential(
+            let response = try await token.exchangeCredential(
                 httpClient: httpClient,
-                token: token,
                 credential: .configuration(configId),
                 proofs: proofs
             )
@@ -365,7 +370,7 @@ class Oid4vciAdapter: Oid4vci {
 
     private func exchangeCredentialWithToken(
         ctx: Oid4vciSessionRegistry.SessionContext,
-        token: CredentialToken
+        token: Oid4vciFacadeCredentialToken
     ) async throws -> [IssuedCredential] {
         return try await exchangeAllCredentials(
             httpClient: ctx.httpClient,
@@ -410,7 +415,7 @@ class Oid4vciAdapter: Oid4vci {
         let httpClient = Oid4vciAsyncHttpClient()
         let signer = buildJwsSigner(keyId: keyId)
         let derivedClientId = derivedClientId(keyId: keyId)
-        let oid4vciClient = Oid4vciClient(clientId: derivedClientId)
+        let oid4vciClient = facadeClient(clientId: derivedClientId)
         let offerUrl = normalizeOfferUrl(credentialOffer)
         let offer = try await oid4vciClient.resolveOfferUrl(
             httpClient: httpClient,

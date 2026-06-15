@@ -6,17 +6,18 @@ import com.spruceid.mobile.sdk.Oid4vciAsyncHttpClient
 import com.spruceid.mobile.sdk.rs.CredentialFormat as RsCredentialFormat
 import com.spruceid.mobile.sdk.rs.CredentialOrConfigurationId
 import com.spruceid.mobile.sdk.rs.CredentialResponse
-import com.spruceid.mobile.sdk.rs.CredentialToken
-import com.spruceid.mobile.sdk.rs.CredentialTokenState
 import com.spruceid.mobile.sdk.rs.GrantType as RsGrantType
 import com.spruceid.mobile.sdk.rs.InputMode as RsInputMode
 import com.spruceid.mobile.sdk.rs.JwsSigner
 import com.spruceid.mobile.sdk.rs.JwsSignerInfo
-import com.spruceid.mobile.sdk.rs.Oid4vciClient
+import com.spruceid.mobile.sdk.rs.Oid4vciCompatibilityMode
 import com.spruceid.mobile.sdk.rs.Oid4vciException
+import com.spruceid.mobile.sdk.rs.Oid4vciFacadeClient
+import com.spruceid.mobile.sdk.rs.Oid4vciFacadeCredentialToken
+import com.spruceid.mobile.sdk.rs.Oid4vciFacadeCredentialTokenState
+import com.spruceid.mobile.sdk.rs.Oid4vciFacadeResolvedOffer
+import com.spruceid.mobile.sdk.rs.Oid4vciFacadeWaitingForAuthorizationCode
 import com.spruceid.mobile.sdk.rs.Proofs
-import com.spruceid.mobile.sdk.rs.ResolvedCredentialOffer
-import com.spruceid.mobile.sdk.rs.WaitingForAuthorizationCode
 import com.spruceid.mobile.sdk.rs.createJwtProof
 import com.spruceid.mobile.sdk.rs.decodeDerSignature
 import com.spruceid.mobile.sdk.rs.generateDidJwkUrl
@@ -34,14 +35,14 @@ import kotlinx.coroutines.launch
 internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
 
     private data class SessionContext(
-        val resolvedOffer: ResolvedCredentialOffer,
-        var tokenState: CredentialTokenState,
+        val resolvedOffer: Oid4vciFacadeResolvedOffer,
+        var tokenState: Oid4vciFacadeCredentialTokenState,
         val signer: JwsSigner,
         val clientId: String,
         val keyId: String,
         val httpClient: Oid4vciAsyncHttpClient,
         val redirectUrl: String?,
-        var waitingForAuthCode: WaitingForAuthorizationCode? = null,
+        var waitingForAuthCode: Oid4vciFacadeWaitingForAuthorizationCode? = null,
     )
 
     private val sessions = ConcurrentHashMap<String, SessionContext>()
@@ -75,7 +76,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val httpClient = Oid4vciAsyncHttpClient()
-                val client = Oid4vciClient("parse-offer-only")
+                val client = facadeClient("parse-offer-only")
                 val offerUrl = normalizeOfferUrl(credentialOffer)
                 val resolved = client.resolveOfferUrl(httpClient, offerUrl)
                 callback(Result.success(buildParsedOfferMetadata(resolved)))
@@ -98,7 +99,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                 val httpClient = Oid4vciAsyncHttpClient()
                 val signer = buildJwsSigner(keyId)
                 val derivedClientId = derivedClientId(keyId)
-                val client = Oid4vciClient(derivedClientId)
+                val client = facadeClient(derivedClientId)
                 val offerUrl = normalizeOfferUrl(credentialOffer)
                 val resolved = client.resolveOfferUrl(httpClient, offerUrl)
                 val tokenState = client.acceptOffer(httpClient, resolved)
@@ -135,7 +136,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                 callback(Result.success(Oid4vciError("session not found")))
                 return@launch
             }
-            val txState = ctx.tokenState as? CredentialTokenState.RequiresTxCode
+            val txState = ctx.tokenState as? Oid4vciFacadeCredentialTokenState.RequiresTxCode
             if (txState == null) {
                 sessions.remove(sessionId)
                 callback(Result.success(Oid4vciError("session not in tx_code state")))
@@ -168,7 +169,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                 callback(Result.success(null))
                 return@launch
             }
-            val authState = ctx.tokenState as? CredentialTokenState.RequiresAuthorizationCode
+            val authState = ctx.tokenState as? Oid4vciFacadeCredentialTokenState.RequiresAuthorizationCode
             if (authState == null) {
                 callback(Result.success(null))
                 return@launch
@@ -226,6 +227,12 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         if (credentialOffer.startsWith("openid-credential-offer://")) credentialOffer
         else "openid-credential-offer://$credentialOffer"
 
+    /// Compatibility facade in Auto mode: prefers the OID4VCI 1.0 (final)
+    /// request format and transparently retries with the legacy draft format
+    /// when the issuer rejects the v1 credential request with a 400.
+    private fun facadeClient(clientId: String): Oid4vciFacadeClient =
+        Oid4vciFacadeClient(clientId, Oid4vciCompatibilityMode.AUTO)
+
     private fun derivedClientId(keyId: String): String {
         val keyManager = KeyManager()
         val jwk = keyManager.getOrInsertJwk(keyId)
@@ -245,7 +252,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         }
     }
 
-    private fun buildParsedOfferMetadata(resolved: ResolvedCredentialOffer): ParsedOfferMetadata {
+    private fun buildParsedOfferMetadata(resolved: Oid4vciFacadeResolvedOffer): ParsedOfferMetadata {
         val grantType = when (resolved.grantType()) {
             RsGrantType.PRE_AUTH_CODE_NO_TX_CODE -> GrantType.PRE_AUTH_CODE_NO_TX_CODE
             RsGrantType.PRE_AUTH_CODE_WITH_TX_CODE -> GrantType.PRE_AUTH_CODE_WITH_TX_CODE
@@ -260,7 +267,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         )
     }
 
-    private fun buildTxCodeMetadata(resolved: ResolvedCredentialOffer): TxCodeMetadata? {
+    private fun buildTxCodeMetadata(resolved: Oid4vciFacadeResolvedOffer): TxCodeMetadata? {
         val def = resolved.txCodeDefinition() ?: return null
         val inputMode = when (def.inputMode) {
             RsInputMode.TEXT -> TxCodeInputMode.TEXT
@@ -281,18 +288,16 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         clientId: String,
         audience: String,
         signer: JwsSigner,
-        token: CredentialToken,
+        token: Oid4vciFacadeCredentialToken,
         configIds: List<String>,
     ): List<IssuedCredential> {
-        val client = Oid4vciClient(clientId)
         val result = mutableListOf<IssuedCredential>()
         for (configId in configIds) {
             val nonce = token.getNonce(httpClient)
             val jwt = createJwtProof(clientId, audience, null, nonce, signer)
             val proofs = Proofs.Jwt(listOf(jwt))
-            val response = client.exchangeCredential(
+            val response = token.exchangeCredential(
                 httpClient,
-                token,
                 CredentialOrConfigurationId.Configuration(configId),
                 proofs,
             )
@@ -321,7 +326,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
 
     private suspend fun exchangeCredentialWithToken(
         ctx: SessionContext,
-        token: CredentialToken,
+        token: Oid4vciFacadeCredentialToken,
     ): List<IssuedCredential> = exchangeAllCredentials(
         httpClient = ctx.httpClient,
         clientId = ctx.clientId,
@@ -338,19 +343,19 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         val httpClient = Oid4vciAsyncHttpClient()
         val signer = buildJwsSigner(keyId)
         val derivedClientId = derivedClientId(keyId)
-        val oid4vciClient = Oid4vciClient(derivedClientId)
+        val oid4vciClient = facadeClient(derivedClientId)
         val offerUrl = normalizeOfferUrl(credentialOffer)
         val offer = oid4vciClient.resolveOfferUrl(httpClient, offerUrl)
         val credentialIssuer = offer.credentialIssuer()
 
         return when (val state = oid4vciClient.acceptOffer(httpClient, offer)) {
-            is CredentialTokenState.RequiresAuthorizationCode -> {
+            is Oid4vciFacadeCredentialTokenState.RequiresAuthorizationCode -> {
                 Oid4vciError(message = "Authorization Code Grant not supported")
             }
-            is CredentialTokenState.RequiresTxCode -> {
+            is Oid4vciFacadeCredentialTokenState.RequiresTxCode -> {
                 Oid4vciError(message = "Transaction Code not supported")
             }
-            is CredentialTokenState.Ready -> {
+            is Oid4vciFacadeCredentialTokenState.Ready -> {
                 val credentialToken = state.v1
                 val issuedCredentials = exchangeAllCredentials(
                     httpClient = httpClient,
