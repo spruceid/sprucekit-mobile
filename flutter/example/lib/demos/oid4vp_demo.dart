@@ -35,10 +35,12 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   bool _issuanceLoading = false;
   String? _issuanceError;
   List<IssuedCredential> _issuedCredentials = [];
+
   /// Credential types issued via the VCALM workflow (stored in the holder's own
   /// collection rather than returned as [IssuedCredential]s). Drives the Step-1
   /// "done" state alongside [_issuedCredentials].
   List<String> _vcalmIssuedTypes = [];
+
   /// Credential pack holding the VCALM-issued credential(s). The native
   /// `acceptOffer` only stores the credential in the VCALM holder's own
   /// VdcCollection, so — mirroring ca-career-passport-pilot's
@@ -57,6 +59,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   _ScanPurpose? _scanPurpose;
   bool _cameraGranted = false;
   String? _packId;
+
   /// OID4VP version negotiation for the presentation request. `auto` detects
   /// from the request; force `draft13` for a draft-13 request delivered purely
   /// by `request_uri` (which `auto` cannot detect from the link alone).
@@ -123,6 +126,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
         _keyId,
         DidMethod.jwk,
         null,
+        Oid4vciCompatibilityMode.auto,
       );
 
       setState(() {
@@ -156,7 +160,12 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
     });
 
     try {
-      final created = await _vcalm.createHolder([], _trustedDids, _vcalmKeyId, null);
+      final created = await _vcalm.createHolder(
+        [],
+        _trustedDids,
+        _vcalmKeyId,
+        null,
+      );
       if (created is VcalmError) {
         setState(() {
           _issuanceLoading = false;
@@ -172,13 +181,15 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
           _issuanceError = step is VcalmProblem
               ? 'VCALM exchange problem: ${step.detail ?? step.title ?? step.problemType}'
               : 'VCALM exchange did not return a credential offer '
-                  '(got ${step.runtimeType}).';
+                    '(got ${step.runtimeType}).';
         });
         return;
       }
 
-      final offeredTypes =
-          step.credentials.expand((c) => c.types).toSet().toList();
+      final offeredTypes = step.credentials
+          .expand((c) => c.types)
+          .toSet()
+          .toList();
 
       // Accept the offer — the credential is verified and stored in the VCALM
       // holder's own VdcCollection.
@@ -214,8 +225,9 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
 
       setState(() {
         _issuanceLoading = false;
-        _vcalmIssuedTypes =
-            offeredTypes.isEmpty ? ['Verifiable Credential'] : offeredTypes;
+        _vcalmIssuedTypes = offeredTypes.isEmpty
+            ? ['Verifiable Credential']
+            : offeredTypes;
         _vcalmPackId = packId;
       });
     } catch (e) {
@@ -536,7 +548,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
               Text(
                 _issuedCredentials.isNotEmpty
                     ? 'Issued ${_issuedCredentials.length} credential(s) via '
-                        'OID4VCI (${_issuedCredentials.first.format})'
+                          'OID4VCI (${_issuedCredentials.first.format})'
                     : 'Issued via VCALM (${_vcalmIssuedTypes.join(", ")})',
                 style: TextStyle(color: Colors.green.shade800),
               ),
@@ -813,7 +825,8 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: (_selectedFields.isNotEmpty && !_presentationLoading)
+                    onPressed:
+                        (_selectedFields.isNotEmpty && !_presentationLoading)
                         ? _submitPresentation
                         : null,
                     child: const Text('Submit'),
