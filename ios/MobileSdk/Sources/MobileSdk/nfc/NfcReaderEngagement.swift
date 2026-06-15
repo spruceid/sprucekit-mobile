@@ -177,6 +177,14 @@ extension NfcReaderEngagement: NFCTagReaderSessionDelegate {
                 let progress = try driverInit.driver.processRapdu(command: rapdu)
                 switch progress {
                 case .inProgress(let nextApdu):
+                    // TNEP minimum waiting time; 0 unless the holder asked us
+                    // to pause before the next read (e.g. Apple Wallet
+                    // preparing its Handover Select).
+                    let delayMs = driverInit.driver.recommendedDelayMs()
+                    if delayMs > 0 {
+                        // Task.sleep(for:) needs iOS 16; the SDK targets 14.0.
+                        try await Task.sleep(nanoseconds: UInt64(delayMs) * 1_000_000)
+                    }
                     rapdu = try await sendCommand(nextApdu, on: tag)
                 case .done(let handover):
                     // Bail if `stop()` or a new session replaced us during the
