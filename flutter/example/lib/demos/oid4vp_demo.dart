@@ -85,6 +85,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
         _keyId,
         DidMethod.jwk,
         null,
+        Oid4vciCompatibilityMode.auto,
       );
 
       setState(() {

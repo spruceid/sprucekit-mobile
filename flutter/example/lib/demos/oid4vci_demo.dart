@@ -30,6 +30,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   ParsedOfferMetadata? _parsedMetadata;
   String? _sessionId;
   TxCodeMetadata? _txCodeMetadata;
+  Oid4vciCompatibilityMode _compatibilityMode = Oid4vciCompatibilityMode.auto;
 
   @override
   void initState() {
@@ -84,7 +85,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     });
 
     try {
-      final metadata = await _api.parseOffer(offer);
+      final metadata = await _api.parseOffer(offer, _compatibilityMode);
       setState(() => _parsedMetadata = metadata);
 
       switch (metadata.grantType) {
@@ -111,6 +112,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       _keyIdController.text,
       DidMethod.jwk,
       null,
+      _compatibilityMode,
     );
     setState(() {
       _loading = false;
@@ -130,6 +132,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       _keyIdController.text,
       DidMethod.jwk,
       null,
+      _compatibilityMode,
     );
     setState(() {
       _loading = false;
@@ -146,6 +149,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       _keyIdController.text,
       DidMethod.jwk,
       _authCodeRedirectUrl,
+      _compatibilityMode,
     );
     final sessionId = session.sessionId;
 
@@ -302,6 +306,34 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
                 labelText: 'Key ID',
                 border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<Oid4vciCompatibilityMode>(
+              initialValue: _compatibilityMode,
+              decoration: const InputDecoration(
+                labelText: 'Compatibility mode',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: Oid4vciCompatibilityMode.auto,
+                  child: Text('Auto (v1, fall back to legacy on 400)'),
+                ),
+                DropdownMenuItem(
+                  value: Oid4vciCompatibilityMode.v1,
+                  child: Text('Force v1 (OID4VCI 1.0 final)'),
+                ),
+                DropdownMenuItem(
+                  value: Oid4vciCompatibilityMode.legacy,
+                  child: Text('Force legacy (draft 13)'),
+                ),
+              ],
+              onChanged: _loading
+                  ? null
+                  : (mode) => setState(
+                      () => _compatibilityMode =
+                          mode ?? Oid4vciCompatibilityMode.auto,
+                    ),
             ),
             const SizedBox(height: 24),
             Row(
