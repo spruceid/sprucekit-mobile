@@ -10294,7 +10294,15 @@ public func FfiConverterTypeOid4vciFacadeCredentialToken_lower(_ value: Oid4vciF
 
 public protocol Oid4vciFacadeResolvedOfferProtocol: AnyObject, Sendable {
     
+    func credentialConfigurationIds()  -> [String]
+    
     func credentialIssuer()  -> String
+    
+    func grantType()  -> GrantType
+    
+    func issuerDisplayName()  -> String?
+    
+    func txCodeDefinition()  -> TxCodeDefinition?
     
     func version()  -> Oid4vciVersion
     
@@ -10352,9 +10360,41 @@ open class Oid4vciFacadeResolvedOffer: Oid4vciFacadeResolvedOfferProtocol, @unch
     
 
     
+open func credentialConfigurationIds() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_credential_configuration_ids(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
 open func credentialIssuer() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_credential_issuer(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func grantType() -> GrantType  {
+    return try!  FfiConverterTypeGrantType_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_grant_type(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func issuerDisplayName() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_issuer_display_name(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func txCodeDefinition() -> TxCodeDefinition?  {
+    return try!  FfiConverterOptionTypeTxCodeDefinition.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_tx_code_definition(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -13021,6 +13061,13 @@ public protocol ReaderApduHandoverDriverProtocol: AnyObject, Sendable {
     
     func processRapdu(command: Data) throws  -> ReaderApduProgress
     
+    /**
+     * Recommended delay before transmitting the command returned by the last
+     * [Self::process_rapdu] call, per TNEP's minimum waiting time. 0 when no
+     * wait is needed.
+     */
+    func recommendedDelayMs()  -> UInt32
+    
 }
 open class ReaderApduHandoverDriver: ReaderApduHandoverDriverProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -13080,6 +13127,19 @@ open func processRapdu(command: Data)throws  -> ReaderApduProgress  {
     uniffi_mobile_sdk_rs_fn_method_readerapduhandoverdriver_process_rapdu(
             self.uniffiCloneHandle(),
         FfiConverterData.lower(command),$0
+    )
+})
+}
+    
+    /**
+     * Recommended delay before transmitting the command returned by the last
+     * [Self::process_rapdu] call, per TNEP's minimum waiting time. 0 when no
+     * wait is needed.
+     */
+open func recommendedDelayMs() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_readerapduhandoverdriver_recommended_delay_ms(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
@@ -36870,6 +36930,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_readerapduhandoverdriver_process_rapdu() != 40485) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_readerapduhandoverdriver_recommended_delay_ms() != 63656) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_accept_offer() != 42894) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -36936,7 +36999,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_version() != 32242) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_credential_configuration_ids() != 14236) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_credential_issuer() != 49957) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_grant_type() != 24628) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_issuer_display_name() != 982) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_tx_code_definition() != 35359) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_version() != 13680) {

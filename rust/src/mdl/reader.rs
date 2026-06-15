@@ -87,6 +87,13 @@ impl ReaderApduHandoverDriver {
             ))?
         }
     }
+
+    /// Recommended delay before transmitting the command returned by the last
+    /// [Self::process_rapdu] call, per TNEP's minimum waiting time. 0 when no
+    /// wait is needed.
+    pub fn recommended_delay_ms(&self) -> u32 {
+        self.0.lock().map(|d| d.recommended_delay_ms()).unwrap_or(0)
+    }
 }
 
 #[derive(thiserror::Error, uniffi::Error, Debug)]
