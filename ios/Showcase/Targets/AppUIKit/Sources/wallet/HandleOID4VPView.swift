@@ -230,7 +230,9 @@ struct HandleOID4VPView: View {
                     )
                     state = .err
                 }
-            case .draft18:
+            // Draft 13 requests are served by translating them onto the
+            // draft-18 engine, so they share the same flow here.
+            case .draft18, .draft13:
                 let signer = try Draft18Signer(keyId: DEFAULT_SIGNING_KEY_ID)
                 draft18Holder = try await Draft18Holder.newWithCredentials(
                     providedCredentials: credentials,
@@ -322,7 +324,9 @@ struct HandleOID4VPView: View {
                         )
                     }
                 }
-            case .draft18:
+            // Draft 13 requests are served by translating them onto the
+            // draft-18 engine, so they share the same flow here.
+            case .draft18, .draft13:
                 draft18PermissionResponse = try await draft18PermissionRequest?
                     .createPermissionResponse(
                         selectedCredentials: draft18SelectedCredentials!,
@@ -377,7 +381,7 @@ struct HandleOID4VPView: View {
                 onClose: back
             )
         case .selectCredential:
-            if requestVersion == .draft18 {
+            if requestVersion == .draft18 || requestVersion == .draft13 {
                 Draft18CredentialSelector(
                     requirements: draft18Requirements,
                     credentialClaims: credentialClaims,
@@ -408,7 +412,7 @@ struct HandleOID4VPView: View {
                 )
             }
         case .selectiveDisclosure:
-            if requestVersion == .draft18 {
+            if requestVersion == .draft18 || requestVersion == .draft13 {
                 let currentCredential = draft18SelectedCredentials![currentDisclosureIndex]
                 let totalCredentials = draft18SelectedCredentials!.count
 

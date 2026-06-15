@@ -263,6 +263,77 @@ where
     }
 }
 
+/// Owned signer usable from a `'static` context (i.e. the dedicated big-stack
+/// worker thread).
+#[derive(Clone, Debug)]
+pub(crate) struct OwnedDraft18Signer {
+    signer: Arc<Box<dyn Draft18PresentationSigner>>,
+}
+
+impl OwnedDraft18Signer {
+    /// Return the crypto curve utils based on the signing algorithm, e.g. ES256.
+    fn curve_utils(&self) -> Result<CryptoCurveUtils, Draft18PresentationError> {
+        match self.signer.algorithm() {
+            ssi::crypto::Algorithm::ES256 => Ok(CryptoCurveUtils::secp256r1()),
+            alg => Err(Draft18PresentationError::CryptographicSuite(format!(
+                "Unsupported curve utils for algorithm: {alg:?}"
+            ))),
+        }
+    }
+}
+
+impl MessageSigner<WithProtocol<ssi::crypto::Algorithm, AnyProtocol>> for OwnedDraft18Signer {
+    #[allow(async_fn_in_trait)]
+    async fn sign(
+        self,
+        WithProtocol(alg, _protocol): WithProtocol<AlgorithmInstance, AnyProtocol>,
+        message: &[u8],
+    ) -> Result<Vec<u8>, MessageSignatureError> {
+        if !self.signer.algorithm().is_compatible_with(alg.algorithm()) {
+            return Err(MessageSignatureError::UnsupportedAlgorithm(
+                self.signer.algorithm().to_string(),
+            ));
+        }
+
+        let signature_bytes = self
+            .signer
+            .sign(message.to_vec())
+            .await
+            .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
+
+        match self.signer.cryptosuite().as_ref() {
+            "ecdsa-rdfc-2019" => self
+                .curve_utils()
+                .map(|utils| utils.ensure_raw_fixed_width_signature_encoding(signature_bytes))
+                .map_err(|e| MessageSignatureError::UnsupportedAlgorithm(format!("{e:?}")))?
+                .ok_or(MessageSignatureError::UnsupportedAlgorithm(
+                    "Unsupported signature encoding".into(),
+                )),
+            _ => Err(MessageSignatureError::UnsupportedAlgorithm(
+                self.signer.cryptosuite().to_string(),
+            )),
+        }
+    }
+}
+
+impl<M> ssi::verification_methods::Signer<M> for OwnedDraft18Signer
+where
+    M: ssi::verification_methods::VerificationMethod,
+{
+    type MessageSigner = Self;
+
+    #[allow(async_fn_in_trait)]
+    async fn for_method(
+        &self,
+        method: std::borrow::Cow<'_, M>,
+    ) -> Result<Option<Self::MessageSigner>, ssi::claims::SignatureError> {
+        Ok(method
+            .controller()
+            .filter(|ctrl| **ctrl == self.signer.did())
+            .map(|_| self.clone()))
+    }
+}
+
 impl Draft18PresentationOptions<'_> {
     pub async fn verification_method_id(&self) -> Result<IriBuf, Draft18PresentationError> {
         self.signer
@@ -390,38 +461,55 @@ impl Draft18PresentationOptions<'_> {
             eip712_loader: (),
         };
 
-        // Use the cryptosuite-specific signing method to sign the presentation.
-        match suite.as_ref() {
-            "ecdsa-rdfc-2019" => {
-                AnySuite::EcdsaRdfc2019
-                    .sign_with(
-                        &env,
-                        presentation,
-                        resolver,
-                        self,
-                        proof_options,
-                        Default::default(),
-                    )
-                    .await
+        // Owned signer so the signing work can move onto a separate thread; the
+        // borrowed `Draft18PresentationOptions` cannot (it holds `&request`).
+        let signer = OwnedDraft18Signer {
+            signer: self.signer.clone(),
+        };
+
+        // ssi's data-integrity signing performs JSON-LD context expansion + RDF
+        // dataset canonicalization, which recurses deep enough to overflow the
+        // foreign thread's stack (UniFFI polls this future on the calling
+        // Kotlin/Swift thread -- ~1 MB on Android coroutine workers, ~512 KB on
+        // iOS child threads; crashes show up as a stack-overflow SIGSEGV). Hop
+        // onto the dedicated 8 MB worker for the signing, like `vcalm` and
+        // `w3c_vc_barcodes` do (see `crate::big_stack`).
+        crate::big_stack::run_async(move || async move {
+            // Use the cryptosuite-specific signing method to sign the presentation.
+            match suite.as_ref() {
+                "ecdsa-rdfc-2019" => {
+                    AnySuite::EcdsaRdfc2019
+                        .sign_with(
+                            &env,
+                            presentation,
+                            resolver,
+                            signer,
+                            proof_options,
+                            Default::default(),
+                        )
+                        .await
+                }
+                JsonWebSignature2020::NAME => {
+                    AnySuite::JsonWebSignature2020
+                        .sign_with(
+                            &env,
+                            presentation,
+                            resolver,
+                            signer,
+                            proof_options,
+                            Default::default(),
+                        )
+                        .await
+                }
+                _ => {
+                    return Err(Draft18PresentationError::CryptographicSuite(
+                        suite.to_string(),
+                    ))
+                }
             }
-            JsonWebSignature2020::NAME => {
-                AnySuite::JsonWebSignature2020
-                    .sign_with(
-                        &env,
-                        presentation,
-                        resolver,
-                        self,
-                        proof_options,
-                        Default::default(),
-                    )
-                    .await
-            }
-            _ => {
-                return Err(Draft18PresentationError::CryptographicSuite(
-                    suite.to_string(),
-                ))
-            }
-        }
-        .map_err(|e| Draft18PresentationError::Signing(format!("{e:?}")))
+            .map_err(|e| Draft18PresentationError::Signing(format!("{e:?}")))
+        })
+        .await
+        .map_err(|e| Draft18PresentationError::Signing(format!("big-stack signing thread: {e}")))?
     }
 }
