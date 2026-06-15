@@ -111,7 +111,14 @@ class TransportBlePeripheralServerReader(
 
             override fun onMessageSendProgress(progress: Int, max: Int) {}
             override fun onMessageReceived(data: ByteArray) {
-                logger.d(data.toString())
+                // Diagnostic: byte[] .toString() only yields an object hash.
+                // Log size + a short hex prefix so a capture can distinguish
+                // "no/short response over BLE" from "full response that failed
+                // to decrypt/parse downstream".
+                logger.d(
+                    "onMessageReceived: ${data.size} bytes, prefix=" +
+                        data.take(16).joinToString("") { "%02x".format(it) }
+                )
 
                 try {
                     gattServer.sendTransportSpecificTermination()
