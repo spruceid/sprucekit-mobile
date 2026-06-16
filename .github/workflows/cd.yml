@@ -15,8 +15,8 @@ jobs:
       - name: Validate main branch
         if: github.ref_name != github.event.repository.default_branch
         run: |
-          echo "Branch is not main"
-          exit 0
+          echo "CD must run from '${{ github.event.repository.default_branch }}', not '${{ github.ref_name }}'"
+          exit 1
       - name: Validate tag
         run: |
           echo "${{ github.event.inputs.version }}" | grep -P '^[0-9]+\.[0-9]+\.[0-9]+'
