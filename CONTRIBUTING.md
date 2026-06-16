@@ -168,9 +168,9 @@ touch local.properties  # if missing
 ## Releases
 
 ### SDKs
-Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version is the `x.y.z` format.
+Use the [`cd` Github Action](https://github.com/spruceid/sprucekit-mobile/actions/workflows/cd.yml) which is a manually triggered action, and provide the version in the `x.y.z` format.
 
-The Android SDK is published to Maven Central. The iOS pods are published to the private [`spruceid/cocoapods-specs`](https://github.com/spruceid/cocoapods-specs) Specs repo via `pod repo push`, authenticated with an SSH deploy key stored in the `COCOAPODS_SPECS_DEPLOY_KEY` secret.
+The Android SDK is published to Maven Central. The iOS pods are published to the private [`spruceid/cocoapods-specs`](https://github.com/spruceid/cocoapods-specs) Specs repo.
 
 ### Consuming the iOS SDK via CocoaPods
 The pods source their code from the release git tag, so add the private Specs repo alongside the CDN at the top of your `Podfile`:

@@ -81,7 +81,42 @@ jobs:
 
   ios:
     runs-on: macos-latest
-    needs: flutter
+    needs: validation
+    outputs:
+      checksum: ${{ steps.checksum.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: "aarch64-apple-ios-sim,aarch64-apple-ios,x86_64-apple-ios"
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: "true"
+          workspaces: "rust -> target"
+
+      - name: Install static version of cargo-swift
+        run: cargo install cargo-swift@^0.11
+
+      - name: Generate Swift package
+        run: cargo swift package -p ios -n MobileSdkRs --release
+        working-directory: rust
+
+      - name: Compress XCFramework
+        run: zip -9 -r RustFramework.xcframework.zip rust/MobileSdkRs/RustFramework.xcframework
+
+      - name: Compute checksum
+        id: checksum
+        run: echo "value=$(swift package compute-checksum RustFramework.xcframework.zip)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rust-xcframework
+          path: RustFramework.xcframework.zip
+
+  release:
+    runs-on: macos-latest
+    needs: [android, ios]
     permissions:
       contents: write
     steps:
@@ -106,35 +141,23 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
           ref: main
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: "aarch64-apple-ios-sim,aarch64-apple-ios,x86_64-apple-ios"
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: "true"
-          workspaces: "rust -> target"
 
-      # - uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: cargo-swift
-      # - name: Install unreleased version of cargo-swift
-      #   run: cargo install --git https://github.com/antoniusnaumann/cargo-swift
-      - name: Install static version of cargo-swift
-        run: cargo install cargo-swift@^0.11
-
-      - name: Generate Swift package
-        run: cargo swift package -p ios -n MobileSdkRs --release
-        working-directory: rust
-
-      - name: Compress XCFramework
+      # If this fails due to a new commit on the main branch, it's a feature not a bug!
+      # This way, there will be no confusion around what was included in the release.
+      - name: Ensure main has not moved since dispatch
         run: |
-          zip -9 -r RustFramework.xcframework.zip rust/MobileSdkRs/RustFramework.xcframework
-          echo "XCF_CHECKSUM=`swift package compute-checksum RustFramework.xcframework.zip`" >> $GITHUB_ENV
+          if [ "$(git rev-parse HEAD)" != "${{ github.sha }}" ]; then
+            echo "main advanced since dispatch (HEAD=$(git rev-parse HEAD), dispatch=${{ github.sha }})"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rust-xcframework
 
       - name: Update Swift Package definition
         run: |
-          sed -i '' 's/binaryTarget.*/binaryTarget(name: "RustFramework", url: "https:\/\/github.com\/spruceid\/sprucekit-mobile\/releases\/download\/${{ github.event.inputs.version }}\/RustFramework.xcframework.zip", checksum: "${{ env.XCF_CHECKSUM }}"),/' Package.swift
+          sed -i '' 's/binaryTarget.*/binaryTarget(name: "RustFramework", url: "https:\/\/github.com\/spruceid\/sprucekit-mobile\/releases\/download\/${{ github.event.inputs.version }}\/RustFramework.xcframework.zip", checksum: "${{ needs.ios.outputs.checksum }}"),/' Package.swift
 
       - name: Update CocoaPods podspecs
         run: |
@@ -143,12 +166,18 @@ jobs:
           sed -i '' "s/spec.version.*=.*/spec.version          = '${{ github.event.inputs.version }}'/" SpruceIDMobileSdk.podspec
           sed -i '' "s/spec.dependency 'SpruceIDMobileSdkRs'.*/spec.dependency 'SpruceIDMobileSdkRs', '~> ${{ github.event.inputs.version }}'/" SpruceIDMobileSdk.podspec
 
-      # If this fails due to a new commit on the main branch, it's a feature not a bug!
-      # This way, there will be no confusion around what was included in the release.
+      - name: Update Flutter plugin versions
+        run: |
+          sed -i '' "s/com.spruceid.mobile.sdk:mobilesdk:[0-9.]*/com.spruceid.mobile.sdk:mobilesdk:${{ github.event.inputs.version }}/" flutter/android/build.gradle
+          sed -i '' "s/com.spruceid.mobile.sdk.rs:mobilesdkrs:[0-9.]*/com.spruceid.mobile.sdk.rs:mobilesdkrs:${{ github.event.inputs.version }}/" flutter/android/build.gradle
+          sed -i '' "s/^version:.*/version: ${{ github.event.inputs.version }}/" flutter/pubspec.yaml
+          sed -i '' "s/s.version.*/s.version          = '${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
+          sed -i '' "s/s.dependency 'SpruceIDMobileSdk'.*/s.dependency 'SpruceIDMobileSdk', '~> ${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
+
       - name: Push changes and tag
         id: commit
         run: |
-          git add Package.swift SpruceIDMobileSdk.podspec SpruceIDMobileSdkRs.podspec SpruceIDMobileSdkRsRustFramework.podspec
+          git add Package.swift SpruceIDMobileSdk.podspec SpruceIDMobileSdkRs.podspec SpruceIDMobileSdkRsRustFramework.podspec flutter/
           git commit -m "Release ${{ github.event.inputs.version }}"
           git push
           git tag ${{ github.event.inputs.version }} -m "${{ github.event.inputs.version }}"
@@ -175,57 +204,9 @@ jobs:
           pod repo push spruce-specs SpruceIDMobileSdk.podspec --allow-warnings --skip-import-validation
 
       - name: Revert Package.swift for local development
-        if: steps.commit.outcome == 'success'
+        if: ${{ !cancelled() && steps.commit.outcome == 'success' }}
         run: |
-          git checkout HEAD~1 -- Package.swift
+          sed -i '' 's/binaryTarget.*/binaryTarget(name: "RustFramework", path: "rust\/MobileSdkRs\/RustFramework.xcframework"),/' Package.swift
+          git add Package.swift
           git commit -m "Revert Package.swift for local development"
           git push
-
-  flutter:
-    runs-on: macos-latest
-    needs: android
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ vars.MONOREPO_GH_APP_ID }}
-          private-key: ${{ secrets.MONOREPO_GH_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: |
-            sprucekit-mobile
-      - name: Get GitHub App User ID
-        id: get-user-id
-        run: echo "user-id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-      - run: |
-          git config --global user.name '${{ steps.app-token.outputs.app-slug }}[bot]'
-          git config --global user.email '${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com'
-
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          ref: main
-
-      - name: Pull latest changes
-        run: git pull --rebase
-
-      - name: Update Flutter plugin versions
-        run: |
-          sed -i '' "s/com.spruceid.mobile.sdk:mobilesdk:[0-9.]*/com.spruceid.mobile.sdk:mobilesdk:${{ github.event.inputs.version }}/" flutter/android/build.gradle
-          sed -i '' "s/com.spruceid.mobile.sdk.rs:mobilesdkrs:[0-9.]*/com.spruceid.mobile.sdk.rs:mobilesdkrs:${{ github.event.inputs.version }}/" flutter/android/build.gradle
-          sed -i '' "s/^version:.*/version: ${{ github.event.inputs.version }}/" flutter/pubspec.yaml
-          sed -i '' "s/s.version.*/s.version          = '${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
-          sed -i '' "s/s.dependency 'SpruceIDMobileSdk'.*/s.dependency 'SpruceIDMobileSdk', '~> ${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
-
-      - name: Push Flutter version updates
-        run: |
-          git add flutter/
-          if git diff --cached --quiet; then
-            echo "No Flutter version changes to commit (already up to date)"
-          else
-            git commit -m "Update Flutter plugin to ${{ github.event.inputs.version }}"
-            git push
-          fi
