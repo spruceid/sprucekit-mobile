@@ -268,7 +268,7 @@ class VcalmAdapter: Vcalm {
                     allowDomainMismatch: allowDomainMismatch
                 )
                 completion(.success(try await toPigeonStep(step)))
-            } catch VcalmError.DomainChannelMismatch(let domain, let channel) {
+            } catch SpruceIDMobileSdkRs.VcalmError.DomainChannelMismatch(let domain, let channel) {
                 // §3.4.3.2 anti-replay refusal — surface a distinct problemType so the
                 // host app can ask the user for consent and retry with
                 // allowDomainMismatch = true.
