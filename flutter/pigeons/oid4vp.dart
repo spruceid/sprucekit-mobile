@@ -15,16 +15,16 @@ import 'package:pigeon/pigeon.dart';
     dartPackageName: 'sprucekit_mobile',
   ),
 )
-/// Selects which OID4VP protocol version the holder negotiates for a request.
+/// An OID4VP protocol version the holder is willing to negotiate.
 ///
-/// - [auto] inspects the request and picks the matching version (recommended).
-/// - [v1] forces OID4VP 1.0 (final).
-/// - [draft18] forces OID4VP Draft 18.
-/// - [draft13] forces OID4VP Draft 13 (served by translating onto the Draft 18
-///   engine). `auto` detects draft 13 only when the link carries
-///   `response_mode=post`; for draft-13 requests delivered purely by
-///   `request_uri`, force this mode.
-enum Oid4vpCompatibilityMode { auto, v1, draft18, draft13 }
+/// - [v1] OID4VP 1.0 (final).
+/// - [draft18] OID4VP Draft 18.
+/// - [draft13] OID4VP Draft 13 (served by translating onto the Draft 18 engine).
+///
+/// Draft 13 and Draft 18 may not both be supported: a bare `request_uri` is
+/// indistinguishable between them until its single-use fetch, so the holder
+/// rejects that combination instead of risking a wrong-version fetch.
+enum Oid4vpVersion { v1, draft18, draft13 }
 
 /// Options for creating the permission response
 class ResponseOptions {
@@ -190,13 +190,17 @@ abstract class Oid4vp {
   /// Handle an authorization request URL
   ///
   /// @param url The authorization request URL (e.g., "openid4vp://...")
-  /// @param mode Which OID4VP version to negotiate. Use
-  ///   [Oid4vpCompatibilityMode.auto] to detect it from the request.
+  /// @param supportedVersions The OID4VP versions to negotiate against. An empty
+  ///   list detects the version from the request (any version). A non-empty list
+  ///   restricts detection to those versions, so an unsupported version is never
+  ///   selected — and never consumes a single-use `request_uri` on a wrong-version
+  ///   fetch. Supplying both [Oid4vpVersion.draft13] and [Oid4vpVersion.draft18]
+  ///   is rejected.
   /// @return HandleAuthRequestResult with matching credentials on success
   @async
   HandleAuthRequestResult handleAuthorizationRequest(
     String url,
-    Oid4vpCompatibilityMode mode,
+    List<Oid4vpVersion> supportedVersions,
   );
 
   /// Get requested fields for a credential

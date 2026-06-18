@@ -60,10 +60,11 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   bool _cameraGranted = false;
   String? _packId;
 
-  /// OID4VP version negotiation for the presentation request. `auto` detects
-  /// from the request; force `draft13` for a draft-13 request delivered purely
-  /// by `request_uri` (which `auto` cannot detect from the link alone).
-  Oid4vpCompatibilityMode _presentationMode = Oid4vpCompatibilityMode.auto;
+  /// OID4VP versions to negotiate against. Empty detects from the request; a
+  /// non-empty list restricts detection (e.g. exclude draft 18 so a bare
+  /// `request_uri` draft-13 request is not misrouted and its single-use fetch
+  /// is not burned). draft 13 and draft 18 cannot be combined.
+  List<Oid4vpVersion> _supportedVersions = const [];
 
   final _trustedDids = <String>[];
 
@@ -71,6 +72,18 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
   void initState() {
     super.initState();
     _checkCameraPermission();
+  }
+
+  void _toggleVersion(Oid4vpVersion version, bool selected) {
+    setState(() {
+      final next = [..._supportedVersions];
+      if (selected) {
+        next.add(version);
+      } else {
+        next.remove(version);
+      }
+      _supportedVersions = next;
+    });
   }
 
   @override
@@ -329,10 +342,9 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
         return;
       }
 
-      // Handle authorization request with the selected version mode.
       final authResult = await _oid4vp.handleAuthorizationRequest(
         url,
-        _presentationMode,
+        _supportedVersions,
       );
 
       if (authResult is HandleAuthRequestError) {
@@ -599,7 +611,10 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
                 const SizedBox(height: 8),
                 Text(
                   _issuanceError!,
-                  style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ],
@@ -635,38 +650,34 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
               'an https:// link) to present your issued credential.',
             ),
             const SizedBox(height: 12),
-            // OID4VP version negotiation. `auto` covers v1, draft 18, and
-            // inline draft-13 requests; force a version for request_uri-only
-            // links (notably draft 13, which auto cannot detect from the link).
-            Row(
+            const Text('OID4VP versions (none = auto-detect):'),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
               children: [
-                const Text('OID4VP version: '),
-                const SizedBox(width: 8),
-                DropdownButton<Oid4vpCompatibilityMode>(
-                  value: _presentationMode,
-                  onChanged: (mode) {
-                    if (mode != null) {
-                      setState(() => _presentationMode = mode);
-                    }
-                  },
-                  items: const [
-                    DropdownMenuItem(
-                      value: Oid4vpCompatibilityMode.auto,
-                      child: Text('Auto-detect'),
-                    ),
-                    DropdownMenuItem(
-                      value: Oid4vpCompatibilityMode.v1,
-                      child: Text('v1 (final)'),
-                    ),
-                    DropdownMenuItem(
-                      value: Oid4vpCompatibilityMode.draft18,
-                      child: Text('Draft 18'),
-                    ),
-                    DropdownMenuItem(
-                      value: Oid4vpCompatibilityMode.draft13,
-                      child: Text('Draft 13'),
-                    ),
-                  ],
+                FilterChip(
+                  label: const Text('v1'),
+                  selected: _supportedVersions.contains(Oid4vpVersion.v1),
+                  onSelected: (selected) =>
+                      _toggleVersion(Oid4vpVersion.v1, selected),
+                ),
+                FilterChip(
+                  label: const Text('draft 13'),
+                  selected: _supportedVersions.contains(Oid4vpVersion.draft13),
+                  onSelected:
+                      _supportedVersions.contains(Oid4vpVersion.draft18)
+                          ? null
+                          : (selected) =>
+                              _toggleVersion(Oid4vpVersion.draft13, selected),
+                ),
+                FilterChip(
+                  label: const Text('draft 18'),
+                  selected: _supportedVersions.contains(Oid4vpVersion.draft18),
+                  onSelected:
+                      _supportedVersions.contains(Oid4vpVersion.draft13)
+                          ? null
+                          : (selected) =>
+                              _toggleVersion(Oid4vpVersion.draft18, selected),
                 ),
               ],
             ),

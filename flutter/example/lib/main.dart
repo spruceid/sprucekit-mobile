@@ -23,7 +23,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SpruceKit Mobile Examples',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.green,
+          error: Colors.red.shade700,
+        ),
         useMaterial3: true,
       ),
       home: const HomeScreen(),
