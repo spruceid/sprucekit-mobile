@@ -664,20 +664,18 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
                 FilterChip(
                   label: const Text('draft 13'),
                   selected: _supportedVersions.contains(Oid4vpVersion.draft13),
-                  onSelected:
-                      _supportedVersions.contains(Oid4vpVersion.draft18)
-                          ? null
-                          : (selected) =>
-                              _toggleVersion(Oid4vpVersion.draft13, selected),
+                  onSelected: _supportedVersions.contains(Oid4vpVersion.draft18)
+                      ? null
+                      : (selected) =>
+                            _toggleVersion(Oid4vpVersion.draft13, selected),
                 ),
                 FilterChip(
                   label: const Text('draft 18'),
                   selected: _supportedVersions.contains(Oid4vpVersion.draft18),
-                  onSelected:
-                      _supportedVersions.contains(Oid4vpVersion.draft13)
-                          ? null
-                          : (selected) =>
-                              _toggleVersion(Oid4vpVersion.draft18, selected),
+                  onSelected: _supportedVersions.contains(Oid4vpVersion.draft13)
+                      ? null
+                      : (selected) =>
+                            _toggleVersion(Oid4vpVersion.draft18, selected),
                 ),
               ],
             ),

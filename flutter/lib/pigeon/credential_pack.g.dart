@@ -9,9 +9,9 @@ import 'package:flutter/foundation.dart' show ReadBuffer, WriteBuffer;
 import 'package:flutter/services.dart';
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -36,17 +36,20 @@ Object? _extractReplyValueOrThrow(
 bool _deepEquals(Object? a, Object? b) {
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-        .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
-    return a.length == b.length && a.entries.every((MapEntry<Object?, Object?> entry) =>
-        (b as Map<Object?, Object?>).containsKey(entry.key) &&
-        _deepEquals(entry.value, b[entry.key]));
+    return a.length == b.length &&
+        a.entries.every(
+          (MapEntry<Object?, Object?> entry) =>
+              (b as Map<Object?, Object?>).containsKey(entry.key) &&
+              _deepEquals(entry.value, b[entry.key]),
+        );
   }
   return a == b;
 }
-
 
 /// Credential status from status list
 enum CredentialStatus {
@@ -99,17 +102,12 @@ class ParsedCredentialData {
   String? vct;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      format,
-      rawCredential,
-      doctype,
-      vct,
-    ];
+    return <Object?>[id, format, rawCredential, doctype, vct];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ParsedCredentialData decode(Object result) {
     result as List<Object?>;
@@ -136,8 +134,7 @@ class ParsedCredentialData {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Stateless preview of a parsed credential, used to render claims BEFORE
@@ -170,16 +167,12 @@ class ParsedCredentialPreview {
   String claimsJson;
 
   List<Object?> _toList() {
-    return <Object?>[
-      format,
-      doctype,
-      vct,
-      claimsJson,
-    ];
+    return <Object?>[format, doctype, vct, claimsJson];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ParsedCredentialPreview decode(Object result) {
     result as List<Object?>;
@@ -205,16 +198,12 @@ class ParsedCredentialPreview {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// A credential pack with its credentials
 class CredentialPackData {
-  CredentialPackData({
-    required this.id,
-    required this.credentials,
-  });
+  CredentialPackData({required this.id, required this.credentials});
 
   /// Unique identifier for this pack
   String id;
@@ -223,14 +212,12 @@ class CredentialPackData {
   List<ParsedCredentialData> credentials;
 
   List<Object?> _toList() {
-    return <Object?>[
-      id,
-      credentials,
-    ];
+    return <Object?>[id, credentials];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CredentialPackData decode(Object result) {
     result as List<Object?>;
@@ -254,42 +241,36 @@ class CredentialPackData {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Result types for credential operations
-sealed class CredentialOperationResult {
-}
+sealed class CredentialOperationResult {}
 
 /// Operation succeeded
 class CredentialOperationSuccess extends CredentialOperationResult {
-  CredentialOperationSuccess({
-    this.unused,
-  });
+  CredentialOperationSuccess({this.unused});
 
   int? unused;
 
   List<Object?> _toList() {
-    return <Object?>[
-      unused,
-    ];
+    return <Object?>[unused];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CredentialOperationSuccess decode(Object result) {
     result as List<Object?>;
-    return CredentialOperationSuccess(
-      unused: result[0] as int?,
-    );
+    return CredentialOperationSuccess(unused: result[0] as int?);
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! CredentialOperationSuccess || other.runtimeType != runtimeType) {
+    if (other is! CredentialOperationSuccess ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -300,38 +281,33 @@ class CredentialOperationSuccess extends CredentialOperationResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Operation failed with error message
 class CredentialOperationError extends CredentialOperationResult {
-  CredentialOperationError({
-    required this.message,
-  });
+  CredentialOperationError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static CredentialOperationError decode(Object result) {
     result as List<Object?>;
-    return CredentialOperationError(
-      message: result[0]! as String,
-    );
+    return CredentialOperationError(message: result[0]! as String);
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! CredentialOperationError || other.runtimeType != runtimeType) {
+    if (other is! CredentialOperationError ||
+        other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
@@ -342,31 +318,26 @@ class CredentialOperationError extends CredentialOperationResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Result of adding a credential
-sealed class AddCredentialResult {
-}
+sealed class AddCredentialResult {}
 
 /// Adding credential succeeded
 class AddCredentialSuccess extends AddCredentialResult {
-  AddCredentialSuccess({
-    required this.credentials,
-  });
+  AddCredentialSuccess({required this.credentials});
 
   /// The updated list of credentials in the pack
   List<ParsedCredentialData> credentials;
 
   List<Object?> _toList() {
-    return <Object?>[
-      credentials,
-    ];
+    return <Object?>[credentials];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AddCredentialSuccess decode(Object result) {
     result as List<Object?>;
@@ -389,32 +360,26 @@ class AddCredentialSuccess extends AddCredentialResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// Adding credential failed
 class AddCredentialError extends AddCredentialResult {
-  AddCredentialError({
-    required this.message,
-  });
+  AddCredentialError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static AddCredentialError decode(Object result) {
     result as List<Object?>;
-    return AddCredentialError(
-      message: result[0]! as String,
-    );
+    return AddCredentialError(message: result[0]! as String);
   }
 
   @override
@@ -431,10 +396,8 @@ class AddCredentialError extends AddCredentialResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -443,31 +406,31 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is CredentialStatus) {
+    } else if (value is CredentialStatus) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is CredentialFormat) {
+    } else if (value is CredentialFormat) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is ParsedCredentialData) {
+    } else if (value is ParsedCredentialData) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is ParsedCredentialPreview) {
+    } else if (value is ParsedCredentialPreview) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is CredentialPackData) {
+    } else if (value is CredentialPackData) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is CredentialOperationSuccess) {
+    } else if (value is CredentialOperationSuccess) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is CredentialOperationError) {
+    } else if (value is CredentialOperationError) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is AddCredentialSuccess) {
+    } else if (value is AddCredentialSuccess) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is AddCredentialError) {
+    } else if (value is AddCredentialError) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else {
@@ -511,9 +474,13 @@ class CredentialPack {
   /// Constructor for [CredentialPack].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  CredentialPack({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  CredentialPack({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -524,7 +491,8 @@ class CredentialPack {
   ///
   /// @return The pack ID
   Future<String> createPack() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.createPack$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.createPack$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -534,11 +502,10 @@ class CredentialPack {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as String;
   }
 
@@ -547,21 +514,23 @@ class CredentialPack {
   /// @param packId The pack identifier
   /// @return The credential pack data, or null if not found
   Future<CredentialPackData?> getPack(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.getPack$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.getPack$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as CredentialPackData?;
   }
 
@@ -572,22 +541,27 @@ class CredentialPack {
   /// @param packId The pack identifier
   /// @param rawCredential The raw credential string
   /// @return AddCredentialResult with updated credentials or error
-  Future<AddCredentialResult> addRawCredential(String packId, String rawCredential) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addRawCredential$pigeonVar_messageChannelSuffix';
+  Future<AddCredentialResult> addRawCredential(
+    String packId,
+    String rawCredential,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addRawCredential$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, rawCredential]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId, rawCredential],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as AddCredentialResult;
   }
 
@@ -601,22 +575,27 @@ class CredentialPack {
   /// @return A preview containing the parsed claims. The native side passes
   ///   a throwaway key alias internally; the credential is never bound to
   ///   any device key during parsing.
-  Future<ParsedCredentialPreview> parseRawCredential(String rawCredential, CredentialFormat format) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.parseRawCredential$pigeonVar_messageChannelSuffix';
+  Future<ParsedCredentialPreview> parseRawCredential(
+    String rawCredential,
+    CredentialFormat format,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.parseRawCredential$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[rawCredential, format]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[rawCredential, format],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as ParsedCredentialPreview;
   }
 
@@ -626,22 +605,28 @@ class CredentialPack {
   /// @param rawCredential The raw mDoc credential
   /// @param keyAlias The key alias to use for the mDoc
   /// @return AddCredentialResult with updated credentials or error
-  Future<AddCredentialResult> addRawMdoc(String packId, String rawCredential, String keyAlias) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addRawMdoc$pigeonVar_messageChannelSuffix';
+  Future<AddCredentialResult> addRawMdoc(
+    String packId,
+    String rawCredential,
+    String keyAlias,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addRawMdoc$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, rawCredential, keyAlias]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId, rawCredential, keyAlias],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as AddCredentialResult;
   }
 
@@ -653,22 +638,28 @@ class CredentialPack {
   /// @param rawCredential The raw credential string
   /// @param mdocKeyAlias The key alias to use if parsing as mDoc
   /// @return AddCredentialResult with updated credentials or error
-  Future<AddCredentialResult> addAnyFormat(String packId, String rawCredential, String mdocKeyAlias) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormat$pigeonVar_messageChannelSuffix';
+  Future<AddCredentialResult> addAnyFormat(
+    String packId,
+    String rawCredential,
+    String mdocKeyAlias,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormat$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, rawCredential, mdocKeyAlias]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId, rawCredential, mdocKeyAlias],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as AddCredentialResult;
   }
 
@@ -677,21 +668,23 @@ class CredentialPack {
   /// @param packId The pack identifier
   /// @return List of credentials, empty if pack not found
   Future<List<ParsedCredentialData>> listCredentials(String packId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.listCredentials$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.listCredentials$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return (pigeonVar_replyValue as List<Object?>).cast<ParsedCredentialData>();
   }
 
@@ -701,22 +694,28 @@ class CredentialPack {
   /// @param credentialId The credential identifier
   /// @param claimNames Optional list of claim names to filter (empty = all claims)
   /// @return JSON string of claims, or null if not found
-  Future<String?> getCredentialClaims(String packId, String credentialId, List<String> claimNames) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.getCredentialClaims$pigeonVar_messageChannelSuffix';
+  Future<String?> getCredentialClaims(
+    String packId,
+    String credentialId,
+    List<String> claimNames,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.getCredentialClaims$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, credentialId, claimNames]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId, credentialId, claimNames],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
@@ -726,22 +725,28 @@ class CredentialPack {
   /// @param appGroupId Optional App Group ID (iOS) for persistent storage
   /// @param userHash Optional user hash for per-user isolation (null = device-global key)
   /// @return CredentialOperationResult indicating success or error
-  Future<CredentialOperationResult> deletePack(String packId, String? appGroupId, String? userHash) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.deletePack$pigeonVar_messageChannelSuffix';
+  Future<CredentialOperationResult> deletePack(
+    String packId,
+    String? appGroupId,
+    String? userHash,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.deletePack$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, appGroupId, userHash]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId, appGroupId, userHash],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as CredentialOperationResult;
   }
 
@@ -749,7 +754,8 @@ class CredentialPack {
   ///
   /// @return List of pack IDs (in-memory only)
   Future<List<String>> listPacks() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.listPacks$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.listPacks$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -759,11 +765,10 @@ class CredentialPack {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return (pigeonVar_replyValue as List<Object?>).cast<String>();
   }
 
@@ -776,22 +781,28 @@ class CredentialPack {
   /// @param appGroupId Optional App Group ID (iOS only) for shared storage with extensions
   /// @param userHash Optional user hash for per-user isolation (null = device-global key)
   /// @return CredentialOperationResult indicating success or error
-  Future<CredentialOperationResult> savePack(String packId, String? appGroupId, String? userHash) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.savePack$pigeonVar_messageChannelSuffix';
+  Future<CredentialOperationResult> savePack(
+    String packId,
+    String? appGroupId,
+    String? userHash,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.savePack$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, appGroupId, userHash]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId, appGroupId, userHash],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as CredentialOperationResult;
   }
 
@@ -803,22 +814,27 @@ class CredentialPack {
   /// @param appGroupId Optional App Group ID (iOS only) for shared storage with extensions
   /// @param userHash Optional user hash — when non-null, enumerates only this user's packs
   /// @return List of loaded pack IDs
-  Future<List<String>> loadAllPacks(String? appGroupId, String? userHash) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.loadAllPacks$pigeonVar_messageChannelSuffix';
+  Future<List<String>> loadAllPacks(
+    String? appGroupId,
+    String? userHash,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.loadAllPacks$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[appGroupId, userHash]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[appGroupId, userHash],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return (pigeonVar_replyValue as List<Object?>).cast<String>();
   }
 
@@ -829,22 +845,28 @@ class CredentialPack {
   /// @param appGroupId Optional App Group ID (iOS only) for shared storage
   /// @param userHash Optional user hash for per-user isolation
   /// @return CredentialOperationResult indicating success or error
-  Future<CredentialOperationResult> loadPack(String packId, String? appGroupId, String? userHash) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.loadPack$pigeonVar_messageChannelSuffix';
+  Future<CredentialOperationResult> loadPack(
+    String packId,
+    String? appGroupId,
+    String? userHash,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.loadPack$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, appGroupId, userHash]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[packId, appGroupId, userHash],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    !;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    )!;
     return pigeonVar_replyValue as CredentialOperationResult;
   }
 }

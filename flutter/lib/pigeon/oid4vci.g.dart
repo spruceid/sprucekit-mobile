@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,20 +97,18 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 /// DID method for proof of possession
-enum DidMethod {
-  jwk,
-  key,
-}
+enum DidMethod { jwk, key }
 
 /// Selects which OID4VCI protocol version the compatibility facade uses.
 enum Oid4vciCompatibilityMode {
   /// Attempt OID4VCI 1.0 (final) first and transparently retry the legacy
   /// draft-13 request shape if the issuer rejects the v1 request with a 400.
   auto,
+
   /// Force OID4VCI 1.0 (final) only. No legacy fallback.
   v1,
+
   /// Force the legacy draft-13 request shape only.
   legacy,
 }
@@ -121,9 +120,11 @@ enum GrantType {
   /// Pre-authorized code grant with no transaction code (PIN). No user
   /// authorization required beyond the wallet's confirmation.
   preAuthCodeNoTxCode,
+
   /// Pre-authorized code grant requiring a transaction code (PIN) provided
   /// out-of-band by the issuer.
   preAuthCodeWithTxCode,
+
   /// Authorization-code grant requiring the user to sign in via browser.
   authorizationCode,
 }
@@ -132,34 +133,26 @@ enum GrantType {
 ///
 /// Mirrors the upstream `oid4vci-rs` `InputMode` enum. The OID4VCI spec
 /// defines `numeric` as the default when the issuer omits the field.
-enum TxCodeInputMode {
-  numeric,
-  text,
-}
+enum TxCodeInputMode { numeric, text }
 
 /// Options for credential exchange
 class Oid4vciExchangeOptions {
-  Oid4vciExchangeOptions({
-    required this.verifyAfterExchange,
-  });
+  Oid4vciExchangeOptions({required this.verifyAfterExchange});
 
   /// Whether to verify the credential after exchange
   bool verifyAfterExchange;
 
   List<Object?> _toList() {
-    return <Object?>[
-      verifyAfterExchange,
-    ];
+    return <Object?>[verifyAfterExchange];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vciExchangeOptions decode(Object result) {
     result as List<Object?>;
-    return Oid4vciExchangeOptions(
-      verifyAfterExchange: result[0]! as bool,
-    );
+    return Oid4vciExchangeOptions(verifyAfterExchange: result[0]! as bool);
   }
 
   @override
@@ -181,10 +174,7 @@ class Oid4vciExchangeOptions {
 
 /// Credential received from issuance
 class IssuedCredential {
-  IssuedCredential({
-    required this.payload,
-    required this.format,
-  });
+  IssuedCredential({required this.payload, required this.format});
 
   /// The credential payload as string (JSON, JWT, etc.)
   String payload;
@@ -193,14 +183,12 @@ class IssuedCredential {
   String format;
 
   List<Object?> _toList() {
-    return <Object?>[
-      payload,
-      format,
-    ];
+    return <Object?>[payload, format];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static IssuedCredential decode(Object result) {
     result as List<Object?>;
@@ -219,7 +207,8 @@ class IssuedCredential {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(payload, other.payload) && _deepEquals(format, other.format);
+    return _deepEquals(payload, other.payload) &&
+        _deepEquals(format, other.format);
   }
 
   @override
@@ -232,11 +221,7 @@ class IssuedCredential {
 /// All fields are optional per OID4VCI §4.1.1. `tx_code: {}` (an empty
 /// object) is a valid signal that PIN is required but with no hints.
 class TxCodeMetadata {
-  TxCodeMetadata({
-    this.inputMode,
-    this.length,
-    this.description,
-  });
+  TxCodeMetadata({this.inputMode, this.length, this.description});
 
   /// Input character set. `null` ⇒ wallet treats as `numeric` (spec default).
   TxCodeInputMode? inputMode;
@@ -250,15 +235,12 @@ class TxCodeMetadata {
   String? description;
 
   List<Object?> _toList() {
-    return <Object?>[
-      inputMode,
-      length,
-      description,
-    ];
+    return <Object?>[inputMode, length, description];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static TxCodeMetadata decode(Object result) {
     result as List<Object?>;
@@ -278,7 +260,9 @@ class TxCodeMetadata {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(inputMode, other.inputMode) && _deepEquals(length, other.length) && _deepEquals(description, other.description);
+    return _deepEquals(inputMode, other.inputMode) &&
+        _deepEquals(length, other.length) &&
+        _deepEquals(description, other.description);
   }
 
   @override
@@ -292,10 +276,7 @@ class TxCodeMetadata {
 /// registry that holds the underlying Rust `Arc<...>` state handle. Callers
 /// must call `releaseSession` if the flow is abandoned before terminal.
 class OfferSession {
-  OfferSession({
-    required this.sessionId,
-    required this.metadata,
-  });
+  OfferSession({required this.sessionId, required this.metadata});
 
   String sessionId;
 
@@ -306,14 +287,12 @@ class OfferSession {
   ParsedOfferMetadata metadata;
 
   List<Object?> _toList() {
-    return <Object?>[
-      sessionId,
-      metadata,
-    ];
+    return <Object?>[sessionId, metadata];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static OfferSession decode(Object result) {
     result as List<Object?>;
@@ -332,7 +311,8 @@ class OfferSession {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(sessionId, other.sessionId) && _deepEquals(metadata, other.metadata);
+    return _deepEquals(sessionId, other.sessionId) &&
+        _deepEquals(metadata, other.metadata);
   }
 
   @override
@@ -382,7 +362,8 @@ class ParsedOfferMetadata {
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ParsedOfferMetadata decode(Object result) {
     result as List<Object?>;
@@ -404,7 +385,14 @@ class ParsedOfferMetadata {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(issuerId, other.issuerId) && _deepEquals(issuerDisplayName, other.issuerDisplayName) && _deepEquals(credentialConfigurationIds, other.credentialConfigurationIds) && _deepEquals(grantType, other.grantType) && _deepEquals(txCode, other.txCode);
+    return _deepEquals(issuerId, other.issuerId) &&
+        _deepEquals(issuerDisplayName, other.issuerDisplayName) &&
+        _deepEquals(
+          credentialConfigurationIds,
+          other.credentialConfigurationIds,
+        ) &&
+        _deepEquals(grantType, other.grantType) &&
+        _deepEquals(txCode, other.txCode);
   }
 
   @override
@@ -413,25 +401,21 @@ class ParsedOfferMetadata {
 }
 
 /// Result of OID4VCI issuance
-sealed class Oid4vciResult {
-}
+sealed class Oid4vciResult {}
 
 /// Issuance succeeded with credentials
 class Oid4vciSuccess extends Oid4vciResult {
-  Oid4vciSuccess({
-    required this.credentials,
-  });
+  Oid4vciSuccess({required this.credentials});
 
   List<IssuedCredential> credentials;
 
   List<Object?> _toList() {
-    return <Object?>[
-      credentials,
-    ];
+    return <Object?>[credentials];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vciSuccess decode(Object result) {
     result as List<Object?>;
@@ -459,26 +443,21 @@ class Oid4vciSuccess extends Oid4vciResult {
 
 /// Issuance failed with error
 class Oid4vciError extends Oid4vciResult {
-  Oid4vciError({
-    required this.message,
-  });
+  Oid4vciError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static Oid4vciError decode(Object result) {
     result as List<Object?>;
-    return Oid4vciError(
-      message: result[0]! as String,
-    );
+    return Oid4vciError(message: result[0]! as String);
   }
 
   @override
@@ -498,7 +477,6 @@ class Oid4vciError extends Oid4vciResult {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -506,37 +484,37 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is DidMethod) {
+    } else if (value is DidMethod) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is Oid4vciCompatibilityMode) {
+    } else if (value is Oid4vciCompatibilityMode) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is GrantType) {
+    } else if (value is GrantType) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is TxCodeInputMode) {
+    } else if (value is TxCodeInputMode) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is Oid4vciExchangeOptions) {
+    } else if (value is Oid4vciExchangeOptions) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is IssuedCredential) {
+    } else if (value is IssuedCredential) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is TxCodeMetadata) {
+    } else if (value is TxCodeMetadata) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is OfferSession) {
+    } else if (value is OfferSession) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is ParsedOfferMetadata) {
+    } else if (value is ParsedOfferMetadata) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vciSuccess) {
+    } else if (value is Oid4vciSuccess) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vciError) {
+    } else if (value is Oid4vciError) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
     } else {
@@ -587,8 +565,10 @@ class Oid4vci {
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   Oid4vci({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+    : pigeonVar_binaryMessenger = binaryMessenger,
+      pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+          ? '.$messageChannelSuffix'
+          : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -606,22 +586,27 @@ class Oid4vci {
   /// @return Pre-issuance metadata describing the issuer and the grant type
   ///   the user will need to complete.
   /// @throws when the URL is unparseable or the issuer metadata fetch fails.
-  Future<ParsedOfferMetadata> parseOffer(String credentialOffer, Oid4vciCompatibilityMode compatibilityMode) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.parseOffer$pigeonVar_messageChannelSuffix';
+  Future<ParsedOfferMetadata> parseOffer(
+    String credentialOffer,
+    Oid4vciCompatibilityMode compatibilityMode,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.parseOffer$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, compatibilityMode]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[credentialOffer, compatibilityMode],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as ParsedOfferMetadata;
   }
 
@@ -642,22 +627,39 @@ class Oid4vci {
   /// @param compatibilityMode Which protocol version the facade should use
   ///   (`auto` recommended).
   /// @return Oid4vciResult with credentials on success or error message on failure
-  Future<Oid4vciResult> runIssuance(String credentialOffer, String clientId, String redirectUrl, String keyId, DidMethod didMethod, Map<String, String>? contextMap, Oid4vciCompatibilityMode compatibilityMode) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.runIssuance$pigeonVar_messageChannelSuffix';
+  Future<Oid4vciResult> runIssuance(
+    String credentialOffer,
+    String clientId,
+    String redirectUrl,
+    String keyId,
+    DidMethod didMethod,
+    Map<String, String>? contextMap,
+    Oid4vciCompatibilityMode compatibilityMode,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.runIssuance$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, redirectUrl, keyId, didMethod, contextMap, compatibilityMode]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[
+          credentialOffer,
+          clientId,
+          redirectUrl,
+          keyId,
+          didMethod,
+          contextMap,
+          compatibilityMode,
+        ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as Oid4vciResult;
   }
 
@@ -682,22 +684,38 @@ class Oid4vci {
   /// created with a null redirect, it returns null.
   ///
   /// @throws when the offer cannot be resolved or the token request fails.
-  Future<OfferSession> acceptOffer(String credentialOffer, String clientId, String keyId, DidMethod didMethod, String? redirectUrl, Oid4vciCompatibilityMode compatibilityMode) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.acceptOffer$pigeonVar_messageChannelSuffix';
+  Future<OfferSession> acceptOffer(
+    String credentialOffer,
+    String clientId,
+    String keyId,
+    DidMethod didMethod,
+    String? redirectUrl,
+    Oid4vciCompatibilityMode compatibilityMode,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.acceptOffer$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, keyId, didMethod, redirectUrl, compatibilityMode]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[
+        credentialOffer,
+        clientId,
+        keyId,
+        didMethod,
+        redirectUrl,
+        compatibilityMode,
+      ],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as OfferSession;
   }
 
@@ -710,22 +728,27 @@ class Oid4vci {
   /// token-endpoint errors surface as `Oid4vciError("authorization failed")`.
   ///
   /// The session is consumed and removed from the registry in all cases.
-  Future<Oid4vciResult> continueWithTxCode(String sessionId, String txCode) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithTxCode$pigeonVar_messageChannelSuffix';
+  Future<Oid4vciResult> continueWithTxCode(
+    String sessionId,
+    String txCode,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithTxCode$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, txCode]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId, txCode],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as Oid4vciResult;
   }
 
@@ -742,21 +765,23 @@ class Oid4vci {
   /// The session is preserved on success — the caller must follow up with
   /// `continueWithAuthorizationCode` or `releaseSession`.
   Future<String?> buildAuthorizationUrl(String sessionId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.buildAuthorizationUrl$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.buildAuthorizationUrl$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
     return pigeonVar_replyValue as String?;
   }
 
@@ -769,22 +794,27 @@ class Oid4vci {
   /// underlying causes at this layer.
   ///
   /// The session is consumed and removed from the registry in all cases.
-  Future<Oid4vciResult> continueWithAuthorizationCode(String sessionId, String code) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithAuthorizationCode$pigeonVar_messageChannelSuffix';
+  Future<Oid4vciResult> continueWithAuthorizationCode(
+    String sessionId,
+    String code,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.continueWithAuthorizationCode$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId, code]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId, code],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as Oid4vciResult;
   }
 
@@ -792,20 +822,22 @@ class Oid4vci {
   ///
   /// Safe to call with an unknown sessionId — no-op.
   Future<void> releaseSession(String sessionId) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.releaseSession$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.releaseSession$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[sessionId]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[sessionId],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 }
