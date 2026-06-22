@@ -320,7 +320,9 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text('OID4VCI versions (none = auto, v1 with legacy fallback):'),
+            const Text(
+              'OID4VCI versions (none = auto, v1 with legacy fallback):',
+            ),
             const SizedBox(height: 4),
             Wrap(
               spacing: 8,
