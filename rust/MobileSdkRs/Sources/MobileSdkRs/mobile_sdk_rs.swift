@@ -10011,9 +10011,9 @@ public protocol Oid4vciFacadeClientProtocol: AnyObject, Sendable {
     
     func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: Oid4vciFacadeResolvedOffer) async throws  -> Oid4vciFacadeCredentialTokenState
     
-    func compatibilityMode()  -> Oid4vciCompatibilityMode
-    
     func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: String) async throws  -> Oid4vciFacadeResolvedOffer
+    
+    func supportedVersions()  -> [Oid4vciVersion]
     
 }
 open class Oid4vciFacadeClient: Oid4vciFacadeClientProtocol, @unchecked Sendable {
@@ -10055,12 +10055,12 @@ open class Oid4vciFacadeClient: Oid4vciFacadeClientProtocol, @unchecked Sendable
     public func uniffiCloneHandle() -> UInt64 {
         return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vcifacadeclient(self.handle, $0) }
     }
-public convenience init(clientId: String, compatibilityMode: Oid4vciCompatibilityMode) {
+public convenience init(clientId: String, supportedVersions: [Oid4vciVersion]) {
     let handle =
         try! rustCall() {
     uniffi_mobile_sdk_rs_fn_constructor_oid4vcifacadeclient_new(
         FfiConverterString.lower(clientId),
-        FfiConverterTypeOid4vciCompatibilityMode_lower(compatibilityMode),$0
+        FfiConverterSequenceTypeOid4vciVersion.lower(supportedVersions),$0
     )
 }
     self.init(unsafeFromHandle: handle)
@@ -10095,14 +10095,6 @@ open func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: Oid4vciFacad
         )
 }
     
-open func compatibilityMode() -> Oid4vciCompatibilityMode  {
-    return try!  FfiConverterTypeOid4vciCompatibilityMode_lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeclient_compatibility_mode(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
 open func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: String)async throws  -> Oid4vciFacadeResolvedOffer  {
     return
         try  await uniffiRustCallAsync(
@@ -10118,6 +10110,14 @@ open func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: Strin
             liftFunc: FfiConverterTypeOid4vciFacadeResolvedOffer_lift,
             errorHandler: FfiConverterTypeOid4vciError_lift
         )
+}
+    
+open func supportedVersions() -> [Oid4vciVersion]  {
+    return try!  FfiConverterSequenceTypeOid4vciVersion.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeclient_supported_versions(
+            self.uniffiCloneHandle(),$0
+    )
+})
 }
     
 
@@ -27424,80 +27424,6 @@ public func FfiConverterTypeOfferedValidity_lower(_ value: OfferedValidity) -> R
 }
 
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum Oid4vciCompatibilityMode: Equatable, Hashable {
-    
-    case auto
-    case forceV1
-    case forceLegacy
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension Oid4vciCompatibilityMode: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeOid4vciCompatibilityMode: FfiConverterRustBuffer {
-    typealias SwiftType = Oid4vciCompatibilityMode
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciCompatibilityMode {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .auto
-        
-        case 2: return .forceV1
-        
-        case 3: return .forceLegacy
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: Oid4vciCompatibilityMode, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .auto:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .forceV1:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .forceLegacy:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOid4vciCompatibilityMode_lift(_ buf: RustBuffer) throws -> Oid4vciCompatibilityMode {
-    return try FfiConverterTypeOid4vciCompatibilityMode.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOid4vciCompatibilityMode_lower(_ value: Oid4vciCompatibilityMode) -> RustBuffer {
-    return FfiConverterTypeOid4vciCompatibilityMode.lower(value)
-}
-
-
 
 public enum Oid4vciError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -34380,6 +34306,31 @@ fileprivate struct FfiConverterSequenceTypeMDocItem: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeOid4vciVersion: FfiConverterRustBuffer {
+    typealias SwiftType = [Oid4vciVersion]
+
+    public static func write(_ value: [Oid4vciVersion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOid4vciVersion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Oid4vciVersion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Oid4vciVersion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOid4vciVersion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeOid4vpVersion: FfiConverterRustBuffer {
     typealias SwiftType = [Oid4vpVersion]
 
@@ -37055,10 +37006,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_accept_offer() != 23985) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_compatibility_mode() != 13467) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 55352) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 55352) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_supported_versions() != 19725) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_default_credential_id() != 11991) {
@@ -37580,7 +37531,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vciclient_new() != 56300) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vcifacadeclient_new() != 59735) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vcifacadeclient_new() != 25979) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequest_new() != 12468) {

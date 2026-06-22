@@ -78,6 +78,11 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
     setState(() {
       final next = [..._supportedVersions];
       if (selected) {
+        if (version == Oid4vpVersion.draft13) {
+          next.remove(Oid4vpVersion.draft18);
+        } else if (version == Oid4vpVersion.draft18) {
+          next.remove(Oid4vpVersion.draft13);
+        }
         next.add(version);
       } else {
         next.remove(version);
@@ -139,7 +144,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
         _keyId,
         DidMethod.jwk,
         null,
-        Oid4vciCompatibilityMode.auto,
+        const [],
       );
 
       setState(() {
@@ -664,18 +669,14 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
                 FilterChip(
                   label: const Text('draft 13'),
                   selected: _supportedVersions.contains(Oid4vpVersion.draft13),
-                  onSelected: _supportedVersions.contains(Oid4vpVersion.draft18)
-                      ? null
-                      : (selected) =>
-                            _toggleVersion(Oid4vpVersion.draft13, selected),
+                  onSelected: (selected) =>
+                      _toggleVersion(Oid4vpVersion.draft13, selected),
                 ),
                 FilterChip(
                   label: const Text('draft 18'),
                   selected: _supportedVersions.contains(Oid4vpVersion.draft18),
-                  onSelected: _supportedVersions.contains(Oid4vpVersion.draft13)
-                      ? null
-                      : (selected) =>
-                            _toggleVersion(Oid4vpVersion.draft18, selected),
+                  onSelected: (selected) =>
+                      _toggleVersion(Oid4vpVersion.draft18, selected),
                 ),
               ],
             ),

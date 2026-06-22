@@ -10,7 +10,7 @@ import com.spruceid.mobile.sdk.rs.GrantType as RsGrantType
 import com.spruceid.mobile.sdk.rs.InputMode as RsInputMode
 import com.spruceid.mobile.sdk.rs.JwsSigner
 import com.spruceid.mobile.sdk.rs.JwsSignerInfo
-import com.spruceid.mobile.sdk.rs.Oid4vciCompatibilityMode as RsOid4vciCompatibilityMode
+import com.spruceid.mobile.sdk.rs.Oid4vciVersion as RsOid4vciVersion
 import com.spruceid.mobile.sdk.rs.Oid4vciException
 import com.spruceid.mobile.sdk.rs.Oid4vciFacadeClient
 import com.spruceid.mobile.sdk.rs.Oid4vciFacadeCredentialToken
@@ -54,7 +54,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         keyId: String,
         didMethod: DidMethod,
         contextMap: Map<String, String>?,
-        compatibilityMode: Oid4vciCompatibilityMode,
+        supportedVersions: List<Oid4vciVersion>,
         callback: (Result<Oid4vciResult>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -62,7 +62,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                 val result = performIssuance(
                     credentialOffer = credentialOffer,
                     keyId = keyId,
-                    mode = compatibilityMode,
+                    supportedVersions = supportedVersions,
                 )
                 callback(Result.success(result))
             } catch (e: Exception) {
@@ -73,13 +73,13 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
 
     override fun parseOffer(
         credentialOffer: String,
-        compatibilityMode: Oid4vciCompatibilityMode,
+        supportedVersions: List<Oid4vciVersion>,
         callback: (Result<ParsedOfferMetadata>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val httpClient = Oid4vciAsyncHttpClient()
-                val client = facadeClient("parse-offer-only", compatibilityMode)
+                val client = facadeClient("parse-offer-only", supportedVersions)
                 val offerUrl = normalizeOfferUrl(credentialOffer)
                 val resolved = client.resolveOfferUrl(httpClient, offerUrl)
                 callback(Result.success(buildParsedOfferMetadata(resolved)))
@@ -95,7 +95,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         keyId: String,
         didMethod: DidMethod,
         redirectUrl: String?,
-        compatibilityMode: Oid4vciCompatibilityMode,
+        supportedVersions: List<Oid4vciVersion>,
         callback: (Result<OfferSession>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -103,7 +103,7 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                 val httpClient = Oid4vciAsyncHttpClient()
                 val signer = buildJwsSigner(keyId)
                 val derivedClientId = derivedClientId(keyId)
-                val client = facadeClient(derivedClientId, compatibilityMode)
+                val client = facadeClient(derivedClientId, supportedVersions)
                 val offerUrl = normalizeOfferUrl(credentialOffer)
                 val resolved = client.resolveOfferUrl(httpClient, offerUrl)
                 val tokenState = client.acceptOffer(httpClient, resolved)
@@ -231,19 +231,21 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
         if (credentialOffer.startsWith("openid-credential-offer://")) credentialOffer
         else "openid-credential-offer://$credentialOffer"
 
-    /// Build the compatibility facade for the caller-selected mode. In `auto`
-    /// the facade prefers OID4VCI 1.0 (final) and transparently retries the
-    /// legacy draft format when the issuer rejects the v1 request with a 400.
+    /// Build the compatibility facade restricted to the caller-selected
+    /// versions. An empty set means auto: prefer OID4VCI 1.0 (final) and
+    /// transparently retry the legacy draft format when the issuer rejects the
+    /// v1 request with a 400.
     private fun facadeClient(
         clientId: String,
-        mode: Oid4vciCompatibilityMode,
-    ): Oid4vciFacadeClient = Oid4vciFacadeClient(clientId, rustMode(mode))
+        supportedVersions: List<Oid4vciVersion>,
+    ): Oid4vciFacadeClient = Oid4vciFacadeClient(clientId, rustVersions(supportedVersions))
 
-    private fun rustMode(mode: Oid4vciCompatibilityMode): RsOid4vciCompatibilityMode =
-        when (mode) {
-            Oid4vciCompatibilityMode.AUTO -> RsOid4vciCompatibilityMode.AUTO
-            Oid4vciCompatibilityMode.V1 -> RsOid4vciCompatibilityMode.FORCE_V1
-            Oid4vciCompatibilityMode.LEGACY -> RsOid4vciCompatibilityMode.FORCE_LEGACY
+    private fun rustVersions(versions: List<Oid4vciVersion>): List<RsOid4vciVersion> =
+        versions.map { version ->
+            when (version) {
+                Oid4vciVersion.V1 -> RsOid4vciVersion.V1
+                Oid4vciVersion.LEGACY -> RsOid4vciVersion.LEGACY
+            }
         }
 
     private fun derivedClientId(keyId: String): String {
@@ -352,12 +354,12 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
     private suspend fun performIssuance(
         credentialOffer: String,
         keyId: String,
-        mode: Oid4vciCompatibilityMode,
+        supportedVersions: List<Oid4vciVersion>,
     ): Oid4vciResult {
         val httpClient = Oid4vciAsyncHttpClient()
         val signer = buildJwsSigner(keyId)
         val derivedClientId = derivedClientId(keyId)
-        val oid4vciClient = facadeClient(derivedClientId, mode)
+        val oid4vciClient = facadeClient(derivedClientId, supportedVersions)
         val offerUrl = normalizeOfferUrl(credentialOffer)
         val offer = oid4vciClient.resolveOfferUrl(httpClient, offerUrl)
         val credentialIssuer = offer.credentialIssuer()

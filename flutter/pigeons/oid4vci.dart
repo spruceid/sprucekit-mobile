@@ -18,18 +18,15 @@ import 'package:pigeon/pigeon.dart';
 /// DID method for proof of possession
 enum DidMethod { jwk, key }
 
-/// Selects which OID4VCI protocol version the compatibility facade uses.
-enum Oid4vciCompatibilityMode {
-  /// Attempt OID4VCI 1.0 (final) first and transparently retry the legacy
-  /// draft-13 request shape if the issuer rejects the v1 request with a 400.
-  auto,
-
-  /// Force OID4VCI 1.0 (final) only. No legacy fallback.
-  v1,
-
-  /// Force the legacy draft-13 request shape only.
-  legacy,
-}
+/// An OID4VCI protocol version the compatibility facade is willing to use.
+///
+/// - [v1] OID4VCI 1.0 (final).
+/// - [legacy] The legacy draft-13 request shape.
+///
+/// Passed as a set of supported versions. An empty list means auto: probe
+/// both versions and prefer v1, transparently falling back to legacy if the
+/// issuer rejects the v1 request. `[v1, legacy]` is equivalent to auto.
+enum Oid4vciVersion { v1, legacy }
 
 /// Options for credential exchange
 class Oid4vciExchangeOptions {
@@ -168,15 +165,15 @@ abstract class Oid4vci {
   /// exchange or credential request. Safe to call before any user authorization.
   ///
   /// @param credentialOffer The full credential offer URL.
-  /// @param compatibilityMode Which protocol version the facade should use
-  ///   when resolving the offer (`auto` recommended).
+  /// @param supportedVersions The OID4VCI versions to resolve against. An empty
+  ///   list means auto (probe both, prefer v1 with legacy fallback).
   /// @return Pre-issuance metadata describing the issuer and the grant type
   ///   the user will need to complete.
   /// @throws when the URL is unparseable or the issuer metadata fetch fails.
   @async
   ParsedOfferMetadata parseOffer(
     String credentialOffer,
-    Oid4vciCompatibilityMode compatibilityMode,
+    List<Oid4vciVersion> supportedVersions,
   );
 
   /// Run the complete OID4VCI issuance flow
@@ -193,8 +190,8 @@ abstract class Oid4vci {
   /// @param keyId The key identifier for signing (will create if doesn't exist)
   /// @param didMethod The DID method for proof of possession
   /// @param contextMap Optional JSON-LD context map for credential parsing
-  /// @param compatibilityMode Which protocol version the facade should use
-  ///   (`auto` recommended).
+  /// @param supportedVersions The OID4VCI versions to resolve against. An empty
+  ///   list means auto (probe both, prefer v1 with legacy fallback).
   /// @return Oid4vciResult with credentials on success or error message on failure
   @async
   Oid4vciResult runIssuance(
@@ -204,7 +201,7 @@ abstract class Oid4vci {
     String keyId,
     DidMethod didMethod,
     Map<String, String>? contextMap,
-    Oid4vciCompatibilityMode compatibilityMode,
+    List<Oid4vciVersion> supportedVersions,
   );
 
   /// Resolve the offer URL and complete the token-endpoint exchange.
@@ -235,7 +232,7 @@ abstract class Oid4vci {
     String keyId,
     DidMethod didMethod,
     String? redirectUrl,
-    Oid4vciCompatibilityMode compatibilityMode,
+    List<Oid4vciVersion> supportedVersions,
   );
 
   /// Submit a transaction code (PIN) and complete the issuance.
