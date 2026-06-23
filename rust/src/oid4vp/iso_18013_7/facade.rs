@@ -1147,6 +1147,7 @@ fn find_presentation_definition_match(
         field_map,
         requested_fields: requested_fields.into_values().collect(),
         missing_fields: Default::default(),
+        validity_status: credential.validity_status(),
     })
 }
 

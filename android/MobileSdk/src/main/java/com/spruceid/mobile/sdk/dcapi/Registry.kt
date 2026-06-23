@@ -14,6 +14,7 @@ import androidx.credentials.registry.provider.digitalcredentials.VerificationEnt
 import androidx.credentials.registry.provider.digitalcredentials.VerificationFieldDisplayProperties
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.rs.Mdoc
+import com.spruceid.mobile.sdk.rs.MdocValidityStatus
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import java.util.UUID
 
@@ -113,7 +114,17 @@ class Registry(
         val givenName = mdoc.details()["org.iso.18013.5.1"]
             ?.firstOrNull { it.identifier == "given_name" }
             ?.value?.replace("\"", "")
-        val title = if (givenName != null) "Driver's License ($givenName)" else "Driver's License"
+        val baseTitle = if (givenName != null) "Driver's License ($givenName)" else "Driver's License"
+
+        // TODO: Do we want this?
+        // Annotate the selector entry when the credential is not currently valid.
+        // The credential remains selectable; the consent UI is responsible for
+        // warning the user before sharing. Validity enforcement is the verifier's.
+        val title = when (mdoc.validityStatus()) {
+            MdocValidityStatus.EXPIRED -> "$baseTitle — Expired"
+            MdocValidityStatus.NOT_YET_VALID -> "$baseTitle — Not yet valid"
+            MdocValidityStatus.VALID -> baseTitle
+        }
 
         // Build the list of MdocFields
         val fields = mutableListOf<MdocField>()

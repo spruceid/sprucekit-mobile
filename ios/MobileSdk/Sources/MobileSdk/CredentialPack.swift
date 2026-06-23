@@ -6,6 +6,28 @@ import SpruceIDMobileSdkRs
 import IdentityDocumentServices
 #endif
 
+/// Controls the `invalidationDate` supplied to iOS IdentityDocumentServices when
+/// an mdoc is registered for presentation over the Digital Credentials API.
+///
+/// `invalidationDate` is an OS-eviction hint: once it has passed, the system stops
+/// offering the document in the credential picker (and, for a single-credential
+/// wallet, hides the wallet entirely). It is independent of the credential's own
+/// signed validity window (MSO `validityInfo`), which always travels in the
+/// presented response for the verifier to evaluate.
+public enum MdocInvalidationPolicy: Sendable {
+    /// Set `invalidationDate` to the credential's MSO `validUntil`. Expired
+    /// credentials are evicted by the OS and disappear from the picker. This is
+    /// the default in order to preserve existing behavior for current SDK users.
+    case credentialExpiry
+    /// Do not set an `invalidationDate` (`nil`). The credential remains in the
+    /// picker after its natural expiry; the wallet is responsible for flagging
+    /// and gating use of expired credentials in its own request UI.
+    case never
+    /// Set an explicit `invalidationDate` for a known future OS eviction
+    /// (e.g. a scheduled rotation).
+    case date(Date)
+}
+
 /// A collection of ParsedCredentials with methods to interact with all instances.
 ///
 /// A CredentialPack is a semantic grouping of Credentials for display in the wallet. For example,
@@ -148,90 +170,136 @@ public class CredentialPack {
     }
 
     #if canImport(IdentityDocumentServices)
-    @available(iOS 26.0, *)
-    private func addMDocToIDProvider(mdoc: Mdoc) async throws {
-        if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
-            let store = IdentityDocumentProviderRegistrationStore()
-            do {
+        /// Resolve the `invalidationDate` to register for an mdoc, given a policy.
+        ///
+        /// Returns `nil` for `.never`, the supplied date for `.date`, and the parsed
+        /// MSO `validUntil` for `.credentialExpiry`.
+        @available(iOS 26.0, *)
+        private static func resolveInvalidationDate(
+            for mdoc: Mdoc,
+            policy: MdocInvalidationPolicy
+        ) throws -> Date? {
+            switch policy {
+            case .never:
+                return nil
+            case .date(let date):
+                return date
+            case .credentialExpiry:
                 let dateFormatter = ISO8601DateFormatter()
                 let isoDateString = try mdoc.invalidationDate()
                 // remove unsupported milliseconds
-                let trimmedIsoString = isoDateString.replacingOccurrences(of: "\\.\\d+",
-                                                                          with: "",
-                                                                          options: .regularExpression)
+                let trimmedIsoString = isoDateString.replacingOccurrences(
+                    of: "\\.\\d+",
+                    with: "",
+                    options: .regularExpression)
                 guard let dateUntil = dateFormatter.date(from: trimmedIsoString) else {
                     throw CredentialPackError.idService(
                         reason: NSError(
                             domain: "CredentialPack",
                             code: -1,
-                            userInfo: [NSLocalizedDescriptionKey: "Failed to parse invalidation date"]
+                            userInfo: [
+                                NSLocalizedDescriptionKey: "Failed to parse invalidation date"
+                            ]
                         )
                     )
                 }
-                let registration = MobileDocumentRegistration(
-                    mobileDocumentType: "org.iso.18013.5.1.mDL",
-                    supportedAuthorityKeyIdentifiers: [],  // TODO
-                    documentIdentifier: mdoc.id(),
-                    invalidationDate: dateUntil
-                )
-                try await store.addRegistration(registration)
-            } catch IdentityDocumentProviderRegistrationStore.RegistrationError.notAuthorized {
-                print("Device not authorized to use id document store, did the user disable document registration?")
-            } catch {
-                throw CredentialPackError.idService(
-                    reason: error
-                )
+                return dateUntil
             }
         }
-    }
+
+        @available(iOS 26.0, *)
+        private func addMDocToIDProvider(
+            mdoc: Mdoc,
+            invalidationPolicy: MdocInvalidationPolicy
+        ) async throws {
+            if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+                let store = IdentityDocumentProviderRegistrationStore()
+                do {
+                    let invalidationDate = try Self.resolveInvalidationDate(
+                        for: mdoc,
+                        policy: invalidationPolicy
+                    )
+                    let registration = MobileDocumentRegistration(
+                        mobileDocumentType: "org.iso.18013.5.1.mDL",
+                        supportedAuthorityKeyIdentifiers: [],  // TODO
+                        documentIdentifier: mdoc.id(),
+                        invalidationDate: invalidationDate
+                    )
+                    try await store.addRegistration(registration)
+                } catch IdentityDocumentProviderRegistrationStore.RegistrationError.notAuthorized {
+                    print(
+                        "Device not authorized to use id document store, did the user disable document registration?"
+                    )
+                } catch {
+                    throw CredentialPackError.idService(
+                        reason: error
+                    )
+                }
+            }
+        }
     #endif
 
-    public func registerUnregisteredIDProviderDocuments() async throws {
+    public func registerUnregisteredIDProviderDocuments(
+        invalidationPolicy: MdocInvalidationPolicy = .credentialExpiry
+    ) async throws {
         #if canImport(IdentityDocumentServices)
-        if #available(iOS 26.0, *) {
-            // checking first that there are any potential mdocs to add to the id provider
-            // to avoid the authorization popup if not necessary
-            var mdocs: [Mdoc] = []
-            for credential in self.credentials {
-                guard let mdoc = credential.asMsoMdoc() else { continue }
-                if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
-                    mdocs.append(mdoc)
+            if #available(iOS 26.0, *) {
+                // checking first that there are any potential mdocs to add to the id provider
+                // to avoid the authorization popup if not necessary
+                var mdocs: [Mdoc] = []
+                for credential in self.credentials {
+                    guard let mdoc = credential.asMsoMdoc() else { continue }
+                    if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+                        mdocs.append(mdoc)
+                    }
+                }
+                if mdocs.isEmpty {
+                    return
+                }
+                let store = IdentityDocumentProviderRegistrationStore()
+                var storedRegistrations: [any IdentityDocumentRegistration]
+                do {
+                    storedRegistrations = try await store.registrations
+                } catch IdentityDocumentProviderRegistrationStore.RegistrationError.notAuthorized {
+                    // fetching registrations before the app has been authorized by user to use the id provider
+                    // (which happens at the time of registration of a credential) results in this error
+                    storedRegistrations = []
+                } catch {
+                    throw CredentialPackError.idService(
+                        reason: error
+                    )
+                }
+                for mdoc in mdocs {
+                    let matchingRegistration = storedRegistrations.first { storedRegistration in
+                        storedRegistration.documentIdentifier == mdoc.id()
+                    }
+                    if matchingRegistration == nil {
+                        try await self.addMDocToIDProvider(
+                            mdoc: mdoc,
+                            invalidationPolicy: invalidationPolicy
+                        )
+                    }
                 }
             }
-            if mdocs.isEmpty {
-                return
-            }
-            let store = IdentityDocumentProviderRegistrationStore()
-            var storedRegistrations: [any IdentityDocumentRegistration]
-            do {
-                storedRegistrations = try await store.registrations
-            } catch IdentityDocumentProviderRegistrationStore.RegistrationError.notAuthorized {
-                // fetching registrations before the app has been authorized by user to use the id provider
-                // (which happens at the time of registration of a credential) results in this error
-                storedRegistrations = []
-            } catch {
-                throw CredentialPackError.idService(
-                    reason: error
-                )
-            }
-            for mdoc in mdocs {
-                let matchingRegistration = storedRegistrations.first { storedRegistration in
-                    storedRegistration.documentIdentifier == mdoc.id()
-                }
-                if matchingRegistration == nil {
-                    try await self.addMDocToIDProvider(mdoc: mdoc)
-                }
-            }
-        }
         #endif
     }
 
     /// Add an Mdoc to the CredentialPack.
-    public func addMDoc(mdoc: Mdoc) async throws -> [ParsedCredential] {
+    ///
+    /// - Parameter invalidationPolicy: Controls the `invalidationDate` registered
+    ///   with iOS IdentityDocumentServices. Defaults to `.credentialExpiry`, which
+    ///   preserves prior behavior (the OS hides the document once it expires). Pass
+    ///   `.never` to keep an expired credential visible in the picker and handle the
+    ///   expired state in your own request UI.
+    public func addMDoc(
+        mdoc: Mdoc,
+        invalidationPolicy: MdocInvalidationPolicy = .credentialExpiry
+    ) async throws -> [ParsedCredential] {
         #if canImport(IdentityDocumentServices)
-        if #available(iOS 26.0, *) {
-            try await self.addMDocToIDProvider(mdoc: mdoc)
-        }
+            if #available(iOS 26.0, *) {
+                try await self.addMDocToIDProvider(
+                    mdoc: mdoc, invalidationPolicy: invalidationPolicy)
+            }
         #endif
         credentials.append(ParsedCredential.newMsoMdoc(mdoc: mdoc))
         return credentials

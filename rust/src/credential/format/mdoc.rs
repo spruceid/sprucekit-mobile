@@ -50,6 +50,22 @@ pub struct Element {
     pub value: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+/// The validity of an mdoc relative to the current time, derived from the MSO
+/// `validityInfo` (`validFrom`/`validUntil`).
+///
+/// This is informational metadata for display purposes. Validity enforcement is
+/// a verifier responsibility per ISO/IEC 18013-5; a holder may still present an
+/// expired or not-yet-valid credential and let the verifier decide.
+pub enum MdocValidityStatus {
+    /// The current time is within `[validFrom, validUntil]`.
+    Valid,
+    /// `validUntil` is in the past.
+    Expired,
+    /// `validFrom` is in the future.
+    NotYetValid,
+}
+
 #[derive(uniffi::Object, Debug, Clone)]
 pub struct Mdoc {
     inner: Document,
@@ -190,6 +206,26 @@ impl Mdoc {
             .valid_until
             .format(&Iso8601::DEFAULT)
             .map_err(|e| MdocDateError::Formatting(format!("{e:?}")))
+    }
+
+    /// The validity of this mdoc relative to the current time, derived from the
+    /// MSO `validityInfo`. Intended for display; the verifier remains
+    /// responsible for enforcing validity at presentation time.
+    pub fn validity_status(&self) -> MdocValidityStatus {
+        let now = time::OffsetDateTime::now_utc();
+        let validity_info = &self.inner.mso.validity_info;
+        if now < validity_info.valid_from {
+            MdocValidityStatus::NotYetValid
+        } else if now > validity_info.valid_until {
+            MdocValidityStatus::Expired
+        } else {
+            MdocValidityStatus::Valid
+        }
+    }
+
+    /// Whether this mdoc is currently within its validity window.
+    pub fn is_currently_valid(&self) -> bool {
+        matches!(self.validity_status(), MdocValidityStatus::Valid)
     }
 
     pub async fn activity_log(
@@ -605,6 +641,29 @@ mod tests {
         .expect("failed to create mdoc");
 
         println!("Mdoc: {mdoc:?}")
+    }
+
+    #[test]
+    fn test_validity_status_is_consistent_with_is_currently_valid() {
+        let decoded_auth_data = BASE64_STANDARD
+            .decode(B64_AUTH_DATA)
+            .expect("failed to decode b64 auth data");
+
+        let decoded_provisioned_data = BASE64_STANDARD
+            .decode(B64_PROVISIONED_DATA)
+            .expect("failed to decode b64 provisioned data");
+
+        let mdoc = Mdoc::new_from_cbor_encoded_issuer_signed_dehydrated(
+            decoded_auth_data,
+            decoded_provisioned_data,
+            KeyAlias("default".into()),
+        )
+        .expect("failed to create mdoc");
+
+        assert_eq!(
+            mdoc.is_currently_valid(),
+            mdoc.validity_status() == super::MdocValidityStatus::Valid
+        );
     }
 
     /// Test that mdoc element values are preserved through storage roundtrip.
