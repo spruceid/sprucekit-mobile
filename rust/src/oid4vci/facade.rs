@@ -301,7 +301,7 @@ impl Oid4vciFacadeWaitingForAuthorizationCode {
 #[uniffi::export]
 impl Oid4vciFacadeTxCodeRequired {
     pub async fn proceed(
-        self: &Self,
+        &self,
         http_client: Arc<dyn AsyncHttpClient>,
         tx_code: String,
     ) -> Result<Oid4vciFacadeCredentialToken, Oid4vciError> {
