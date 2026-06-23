@@ -301,21 +301,19 @@ impl Oid4vciFacadeWaitingForAuthorizationCode {
 #[uniffi::export]
 impl Oid4vciFacadeTxCodeRequired {
     pub async fn proceed(
-        self: Arc<Self>,
+        self: &Self,
         http_client: Arc<dyn AsyncHttpClient>,
         tx_code: String,
     ) -> Result<Oid4vciFacadeCredentialToken, Oid4vciError> {
-        let inner = Arc::into_inner(self).ok_or(Oid4vciError::AlreadyProceeded)?;
-        inner
-            .inner
+        self.inner
             .proceed(http_client, tx_code)
             .await
             .map(|token| Oid4vciFacadeCredentialToken {
                 version: Oid4vciVersion::V1,
                 inner: Oid4vciFacadeCredentialTokenInner::V1 {
-                    client_id: inner.client_id,
+                    client_id: self.client_id.clone(),
                     token,
-                    fallback_legacy_offer: inner.fallback_legacy_offer,
+                    fallback_legacy_offer: self.fallback_legacy_offer.clone(),
                 },
             })
     }
