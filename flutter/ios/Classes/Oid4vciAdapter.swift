@@ -83,13 +83,13 @@ class Oid4vciAdapter: Oid4vci {
 
     func parseOffer(
         credentialOffer: String,
-        compatibilityMode: Oid4vciCompatibilityMode,
+        supportedVersions: [Oid4vciVersion],
         completion: @escaping (Result<ParsedOfferMetadata, Error>) -> Void
     ) {
         Task {
             do {
                 let httpClient = Oid4vciAsyncHttpClient()
-                let client = facadeClient(clientId: "parse-offer-only", mode: compatibilityMode)
+                let client = facadeClient(clientId: "parse-offer-only", supportedVersions: supportedVersions)
                 let offerUrl = normalizeOfferUrl(credentialOffer)
                 let resolved = try await client.resolveOfferUrl(
                     httpClient: httpClient,
@@ -109,7 +109,7 @@ class Oid4vciAdapter: Oid4vci {
         keyId: String,
         didMethod: DidMethod,
         contextMap: [String: String]?,
-        compatibilityMode: Oid4vciCompatibilityMode,
+        supportedVersions: [Oid4vciVersion],
         completion: @escaping (Result<Oid4vciResult, any Error>) -> Void
     ) {
         Task {
@@ -117,7 +117,7 @@ class Oid4vciAdapter: Oid4vci {
                 let result = try await performIssuance(
                     credentialOffer: credentialOffer,
                     keyId: keyId,
-                    mode: compatibilityMode
+                    supportedVersions: supportedVersions
                 )
                 completion(.success(result))
             } catch {
@@ -132,7 +132,7 @@ class Oid4vciAdapter: Oid4vci {
         keyId: String,
         didMethod: DidMethod,
         redirectUrl: String?,
-        compatibilityMode: Oid4vciCompatibilityMode,
+        supportedVersions: [Oid4vciVersion],
         completion: @escaping (Result<OfferSession, Error>) -> Void
     ) {
         Task {
@@ -140,7 +140,7 @@ class Oid4vciAdapter: Oid4vci {
                 let httpClient = Oid4vciAsyncHttpClient()
                 let signer = buildJwsSigner(keyId: keyId)
                 let derivedClientId = derivedClientId(keyId: keyId)
-                let oid4vciClient = facadeClient(clientId: derivedClientId, mode: compatibilityMode)
+                let oid4vciClient = facadeClient(clientId: derivedClientId, supportedVersions: supportedVersions)
                 let offerUrl = normalizeOfferUrl(credentialOffer)
                 let resolved = try await oid4vciClient.resolveOfferUrl(
                     httpClient: httpClient,
@@ -270,23 +270,25 @@ class Oid4vciAdapter: Oid4vci {
             : "openid-credential-offer://\(credentialOffer)"
     }
 
-    /// Build the compatibility facade for the caller-selected mode. In `auto`
-    /// the facade prefers OID4VCI 1.0 (final) and transparently retries the
-    /// legacy draft format when the issuer rejects the v1 request with a 400.
+    /// Build the compatibility facade restricted to the caller-selected
+    /// versions. An empty set means auto: prefer OID4VCI 1.0 (final) and
+    /// transparently retry the legacy draft format when the issuer rejects the
+    /// v1 request with a 400.
     private func facadeClient(
         clientId: String,
-        mode: Oid4vciCompatibilityMode
+        supportedVersions: [Oid4vciVersion]
     ) -> Oid4vciFacadeClient {
-        Oid4vciFacadeClient(clientId: clientId, compatibilityMode: rustMode(mode))
+        Oid4vciFacadeClient(clientId: clientId, supportedVersions: rustVersions(supportedVersions))
     }
 
-    private func rustMode(
-        _ mode: Oid4vciCompatibilityMode
-    ) -> SpruceIDMobileSdkRs.Oid4vciCompatibilityMode {
-        switch mode {
-        case .auto: return .auto
-        case .v1: return .forceV1
-        case .legacy: return .forceLegacy
+    private func rustVersions(
+        _ versions: [Oid4vciVersion]
+    ) -> [SpruceIDMobileSdkRs.Oid4vciVersion] {
+        versions.map { version in
+            switch version {
+            case .v1: return .v1
+            case .legacy: return .legacy
+            }
         }
     }
 
@@ -428,12 +430,12 @@ class Oid4vciAdapter: Oid4vci {
     private func performIssuance(
         credentialOffer: String,
         keyId: String,
-        mode: Oid4vciCompatibilityMode
+        supportedVersions: [Oid4vciVersion]
     ) async throws -> Oid4vciResult {
         let httpClient = Oid4vciAsyncHttpClient()
         let signer = buildJwsSigner(keyId: keyId)
         let derivedClientId = derivedClientId(keyId: keyId)
-        let oid4vciClient = facadeClient(clientId: derivedClientId, mode: mode)
+        let oid4vciClient = facadeClient(clientId: derivedClientId, supportedVersions: supportedVersions)
         let offerUrl = normalizeOfferUrl(credentialOffer)
         let offer = try await oid4vciClient.resolveOfferUrl(
             httpClient: httpClient,

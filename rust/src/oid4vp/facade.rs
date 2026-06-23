@@ -22,7 +22,7 @@ use super::permission_request::{
     PermissionRequest, PermissionRequestError, PermissionResponse, RequestedField, ResponseOptions,
 };
 use super::presentation::{PresentationError, PresentationSigner};
-use super::{get_oid4vp_version, Oid4vpVersion};
+use super::{select_oid4vp_version, Oid4vpVersion};
 use crate::oid4vp::draft18::error::Draft18OID4VPError;
 use crate::oid4vp::error::OID4VPError;
 use base64::prelude::{Engine as _, BASE64_URL_SAFE_NO_PAD};
@@ -40,6 +40,8 @@ pub enum Oid4vpFacadeError {
     RequestParsing(String),
     #[error("Version-specific OID4VP values were mixed in a single operation.")]
     VersionMismatch,
+    #[error("Draft 13 and Draft 18 cannot both be supported: a bare request_uri is indistinguishable between them before its single-use fetch.")]
+    ConflictingVersions,
     #[error(transparent)]
     V1(#[from] OID4VPError),
     #[error(transparent)]
@@ -60,21 +62,6 @@ pub struct Oid4vpResponseOptions {
     pub force_array_serialization: bool,
     pub should_strip_quotes: bool,
     pub remove_vp_path_prefix: bool,
-}
-
-#[deprecated(
-    note = "Compatibility facade for legacy OID4VP integrations only. Prefer the OID4VP v1 APIs for new integrations; this facade may be removed in a future release."
-)]
-#[derive(uniffi::Enum, Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Oid4vpCompatibilityMode {
-    #[default]
-    Auto,
-    V1,
-    Draft18,
-    /// Force the OpenID4VP draft-13 path (translated onto the draft-18 engine).
-    /// Use this for draft-13 requests delivered purely by `request_uri`, which
-    /// `Auto` cannot detect from the link alone.
-    Draft13,
 }
 
 #[deprecated(
@@ -306,27 +293,45 @@ impl Oid4vpHolder {
     }
 
     pub async fn start(&self, request: String) -> Result<Arc<Oid4vpSession>, Oid4vpFacadeError> {
-        self.start_with_compatibility_mode(request, Oid4vpCompatibilityMode::Auto)
+        self.start_with_supported_versions(request, Vec::new())
             .await
     }
 
-    pub async fn start_with_compatibility_mode(
+    /// Start a session, restricting version selection to `supported_versions`.
+    ///
+    /// An empty list means "any version" (auto-detection). A non-empty list
+    /// excludes every version not listed, so an unsupported version is never
+    /// selected — and never gets to consume a single-use `request_uri` on a
+    /// wrong-version fetch. Order is irrelevant; the list gates membership only.
+    ///
+    /// Draft 13 and Draft 18 may not both be supported: a bare `request_uri`
+    /// is indistinguishable between them until its single-use fetch, so keeping
+    /// both in scope would reintroduce the wrong-version-burns-the-request bug.
+    /// That combination is rejected up front with [`Oid4vpFacadeError::ConflictingVersions`].
+    pub async fn start_with_supported_versions(
         &self,
         request: String,
-        compatibility_mode: Oid4vpCompatibilityMode,
+        supported_versions: Vec<Oid4vpVersion>,
     ) -> Result<Arc<Oid4vpSession>, Oid4vpFacadeError> {
-        let version = match compatibility_mode {
-            Oid4vpCompatibilityMode::Auto => get_oid4vp_version(request.clone()),
-            Oid4vpCompatibilityMode::V1 => Oid4vpVersion::V1,
-            Oid4vpCompatibilityMode::Draft18 => Oid4vpVersion::Draft18,
-            Oid4vpCompatibilityMode::Draft13 => Oid4vpVersion::Draft13,
-        };
+        if supported_versions.contains(&Oid4vpVersion::Draft13)
+            && supported_versions.contains(&Oid4vpVersion::Draft18)
+        {
+            return Err(Oid4vpFacadeError::ConflictingVersions);
+        }
+        let version = select_oid4vp_version(&request, &supported_versions);
+        self.start_version(version, &request).await
+    }
 
+    async fn start_version(
+        &self,
+        version: Oid4vpVersion,
+        request: &str,
+    ) -> Result<Arc<Oid4vpSession>, Oid4vpFacadeError> {
         match version {
             Oid4vpVersion::V1 => {
                 let holder = self.new_v1_holder().await?;
                 let permission_request = holder
-                    .authorization_request(parse_v1_auth_request(&request)?)
+                    .authorization_request(parse_v1_auth_request(request)?)
                     .await?;
 
                 Ok(Arc::new(Oid4vpSession {
@@ -339,7 +344,7 @@ impl Oid4vpHolder {
             Oid4vpVersion::Draft18 => {
                 let holder = self.new_draft18_holder().await?;
                 let permission_request = holder
-                    .authorization_request(parse_draft18_auth_request(&request)?)
+                    .authorization_request(parse_draft18_auth_request(request)?)
                     .await?;
 
                 Ok(Arc::new(Oid4vpSession {
@@ -357,7 +362,7 @@ impl Oid4vpHolder {
                 // and the form-POST submission to the verifier are identical, and
                 // the resulting POST is exactly the draft-13 §7.2 response.
                 let holder = self.new_draft18_holder().await?;
-                let translated = draft13_request_to_draft18(&request).await?;
+                let translated = draft13_request_to_draft18(request).await?;
                 let permission_request = holder.authorization_request(translated).await?;
 
                 Ok(Arc::new(Oid4vpSession {
@@ -1291,7 +1296,7 @@ mod tests {
         .unwrap();
 
         let session = holder
-            .start_with_compatibility_mode(hybrid_request(), Oid4vpCompatibilityMode::V1)
+            .start_with_supported_versions(hybrid_request(), vec![Oid4vpVersion::V1])
             .await
             .unwrap();
 
@@ -1312,7 +1317,7 @@ mod tests {
         .unwrap();
 
         let session = holder
-            .start_with_compatibility_mode(hybrid_request(), Oid4vpCompatibilityMode::Draft18)
+            .start_with_supported_versions(hybrid_request(), vec![Oid4vpVersion::Draft18])
             .await
             .unwrap();
 
@@ -1472,7 +1477,7 @@ mod tests {
         // PE matching, requirements, requested fields, and vp_token — the session
         // simply reports the draft-13 version.
         let session = holder
-            .start_with_compatibility_mode(draft13_request(), Oid4vpCompatibilityMode::Draft13)
+            .start_with_supported_versions(draft13_request(), vec![Oid4vpVersion::Draft13])
             .await
             .unwrap();
 
@@ -1722,7 +1727,7 @@ mod tests {
         .unwrap();
 
         let session = holder
-            .start_with_compatibility_mode(request, Oid4vpCompatibilityMode::Draft13)
+            .start_with_supported_versions(request, vec![Oid4vpVersion::Draft13])
             .await
             .unwrap();
         assert_eq!(session.version(), Oid4vpVersion::Draft13);
@@ -1762,5 +1767,113 @@ mod tests {
             decoded.contains("\"path\":\"$\""),
             "single-VP descriptor_map root path must be \"$\" (draft-13 §6.2), got: {decoded}"
         );
+    }
+
+    /// Regression for the motivating bug: a draft-13 request delivered by a bare
+    /// `request_uri` (no `response_mode` in the outer link) is misclassified as
+    /// draft 18 under auto, whose fetch then burns the single-use `request_uri`
+    /// before failing. Excluding draft 18 from the supported set routes it to the
+    /// draft-13 flow, which fetches the `request_uri` exactly once.
+    #[tokio::test]
+    async fn facade_bare_request_uri_resolves_to_draft13_when_draft18_excluded() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        let redirect_uri = format!("{}/cb", server.uri());
+
+        // The draft-13 request object served behind the request_uri. Raw JSON,
+        // `response_mode=post` — the discriminator lives here, behind the fetch.
+        let request_object = json!({
+            "client_id": redirect_uri,
+            "redirect_uri": redirect_uri,
+            "response_type": "vp_token",
+            "response_mode": "post",
+            "nonce": "nonce-d13",
+            "client_metadata": {
+                "vp_formats": { "ldp_vp": { "proof_type": ["ecdsa-rdfc-2019"] } }
+            },
+            "presentation_definition": {
+                "id": "pd-alumni",
+                "input_descriptors": [{
+                    "id": "alumni_descriptor",
+                    "format": { "ldp_vc": { "proof_type": ["DataIntegrityProof"] } },
+                    "constraints": {
+                        "fields": [{ "path": ["$.credentialSubject.alumniOf.name"] }]
+                    }
+                }]
+            }
+        })
+        .to_string();
+
+        Mock::given(method("GET"))
+            .and(path("/request"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(request_object))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        // The outer link carries only a bare request_uri: the version cannot be
+        // told from it without fetching.
+        let link = format!(
+            "openid4vp://?client_id={}&request_uri={}",
+            urlencoding::encode(&redirect_uri),
+            urlencoding::encode(&format!("{}/request", server.uri()))
+        );
+
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_supported_versions(link, vec![Oid4vpVersion::V1, Oid4vpVersion::Draft13])
+            .await
+            .unwrap();
+
+        assert_eq!(session.version(), Oid4vpVersion::Draft13);
+
+        let received = server.received_requests().await.unwrap();
+        assert_eq!(
+            received
+                .iter()
+                .filter(|r| r.url.path() == "/request")
+                .count(),
+            1,
+            "the request_uri must be fetched exactly once, by the draft-13 flow"
+        );
+    }
+
+    /// Draft 13 and Draft 18 share a request shape that is only separable after
+    /// the single-use `request_uri` fetch, so supporting both at once is rejected
+    /// up front rather than risking a wrong-version fetch.
+    #[tokio::test]
+    async fn facade_rejects_draft13_and_draft18_together() {
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let result = holder
+            .start_with_supported_versions(
+                draft13_request(),
+                vec![Oid4vpVersion::Draft13, Oid4vpVersion::Draft18],
+            )
+            .await;
+
+        assert!(matches!(
+            result,
+            Err(Oid4vpFacadeError::ConflictingVersions)
+        ));
     }
 }

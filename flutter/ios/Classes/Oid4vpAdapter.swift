@@ -95,15 +95,16 @@ class Oid4vpAdapter: Oid4vp {
         self.credentialPackAdapter = credentialPackAdapter
     }
 
-    /// Maps the pigeon-facing compatibility mode to the Rust facade enum.
-    private func rustMode(
-        _ mode: Oid4vpCompatibilityMode
-    ) -> SpruceIDMobileSdkRs.Oid4vpCompatibilityMode {
-        switch mode {
-        case .auto: return .auto
-        case .v1: return .v1
-        case .draft18: return .draft18
-        case .draft13: return .draft13
+    /// Maps the pigeon-facing supported versions to the Rust facade enum.
+    private func rustVersions(
+        _ versions: [Oid4vpVersion]
+    ) -> [SpruceIDMobileSdkRs.Oid4vpVersion] {
+        versions.map { version in
+            switch version {
+            case .v1: return .v1
+            case .draft18: return .draft18
+            case .draft13: return .draft13
+            }
         }
     }
 
@@ -172,7 +173,7 @@ class Oid4vpAdapter: Oid4vp {
 
     func handleAuthorizationRequest(
         url: String,
-        mode: Oid4vpCompatibilityMode,
+        supportedVersions: [Oid4vpVersion],
         completion: @escaping (Result<HandleAuthRequestResult, any Error>) -> Void
     ) {
         Task {
@@ -188,10 +189,10 @@ class Oid4vpAdapter: Oid4vp {
                 // Handle URL format (remove "authorize" if present, similar to Showcase)
                 let processedUrl = url.replacingOccurrences(of: "authorize", with: "")
 
-                // Start a session, negotiating the OID4VP version per `mode`.
-                let session = try await holder.startWithCompatibilityMode(
+                // Start a session, restricting negotiation to `supportedVersions`.
+                let session = try await holder.startWithSupportedVersions(
                     request: processedUrl,
-                    compatibilityMode: rustMode(mode)
+                    supportedVersions: rustVersions(supportedVersions)
                 )
 
                 // Build (credentialId, matchId) -> credential map and the flat

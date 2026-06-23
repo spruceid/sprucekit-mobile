@@ -10011,9 +10011,9 @@ public protocol Oid4vciFacadeClientProtocol: AnyObject, Sendable {
     
     func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: Oid4vciFacadeResolvedOffer) async throws  -> Oid4vciFacadeCredentialTokenState
     
-    func compatibilityMode()  -> Oid4vciCompatibilityMode
-    
     func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: String) async throws  -> Oid4vciFacadeResolvedOffer
+    
+    func supportedVersions()  -> [Oid4vciVersion]
     
 }
 open class Oid4vciFacadeClient: Oid4vciFacadeClientProtocol, @unchecked Sendable {
@@ -10055,12 +10055,12 @@ open class Oid4vciFacadeClient: Oid4vciFacadeClientProtocol, @unchecked Sendable
     public func uniffiCloneHandle() -> UInt64 {
         return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vcifacadeclient(self.handle, $0) }
     }
-public convenience init(clientId: String, compatibilityMode: Oid4vciCompatibilityMode) {
+public convenience init(clientId: String, supportedVersions: [Oid4vciVersion]) {
     let handle =
         try! rustCall() {
     uniffi_mobile_sdk_rs_fn_constructor_oid4vcifacadeclient_new(
         FfiConverterString.lower(clientId),
-        FfiConverterTypeOid4vciCompatibilityMode_lower(compatibilityMode),$0
+        FfiConverterSequenceTypeOid4vciVersion.lower(supportedVersions),$0
     )
 }
     self.init(unsafeFromHandle: handle)
@@ -10095,14 +10095,6 @@ open func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: Oid4vciFacad
         )
 }
     
-open func compatibilityMode() -> Oid4vciCompatibilityMode  {
-    return try!  FfiConverterTypeOid4vciCompatibilityMode_lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeclient_compatibility_mode(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
 open func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: String)async throws  -> Oid4vciFacadeResolvedOffer  {
     return
         try  await uniffiRustCallAsync(
@@ -10118,6 +10110,14 @@ open func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: Strin
             liftFunc: FfiConverterTypeOid4vciFacadeResolvedOffer_lift,
             errorHandler: FfiConverterTypeOid4vciError_lift
         )
+}
+    
+open func supportedVersions() -> [Oid4vciVersion]  {
+    return try!  FfiConverterSequenceTypeOid4vciVersion.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeclient_supported_versions(
+            self.uniffiCloneHandle(),$0
+    )
+})
 }
     
 
@@ -11066,7 +11066,22 @@ public protocol Oid4vpHolderProtocol: AnyObject, Sendable {
     
     func start(request: String) async throws  -> Oid4vpSession
     
-    func startWithCompatibilityMode(request: String, compatibilityMode: Oid4vpCompatibilityMode) async throws  -> Oid4vpSession
+    func startVersion(version: Oid4vpVersion, request: String) async throws  -> Oid4vpSession
+    
+    /**
+     * Start a session, restricting version selection to `supported_versions`.
+     *
+     * An empty list means "any version" (auto-detection). A non-empty list
+     * excludes every version not listed, so an unsupported version is never
+     * selected — and never gets to consume a single-use `request_uri` on a
+     * wrong-version fetch. Order is irrelevant; the list gates membership only.
+     *
+     * Draft 13 and Draft 18 may not both be supported: a bare `request_uri`
+     * is indistinguishable between them until its single-use fetch, so keeping
+     * both in scope would reintroduce the wrong-version-burns-the-request bug.
+     * That combination is rejected up front with [`Oid4vpFacadeError::ConflictingVersions`].
+     */
+    func startWithSupportedVersions(request: String, supportedVersions: [Oid4vpVersion]) async throws  -> Oid4vpSession
     
 }
 open class Oid4vpHolder: Oid4vpHolderProtocol, @unchecked Sendable {
@@ -11204,13 +11219,43 @@ open func start(request: String)async throws  -> Oid4vpSession  {
         )
 }
     
-open func startWithCompatibilityMode(request: String, compatibilityMode: Oid4vpCompatibilityMode)async throws  -> Oid4vpSession  {
+open func startVersion(version: Oid4vpVersion, request: String)async throws  -> Oid4vpSession  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_method_oid4vpholder_start_with_compatibility_mode(
+                uniffi_mobile_sdk_rs_fn_method_oid4vpholder_start_version(
                     self.uniffiCloneHandle(),
-                    FfiConverterString.lower(request),FfiConverterTypeOid4vpCompatibilityMode_lower(compatibilityMode)
+                    FfiConverterTypeOid4vpVersion_lower(version),FfiConverterString.lower(request)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeOid4vpSession_lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
+}
+    
+    /**
+     * Start a session, restricting version selection to `supported_versions`.
+     *
+     * An empty list means "any version" (auto-detection). A non-empty list
+     * excludes every version not listed, so an unsupported version is never
+     * selected — and never gets to consume a single-use `request_uri` on a
+     * wrong-version fetch. Order is irrelevant; the list gates membership only.
+     *
+     * Draft 13 and Draft 18 may not both be supported: a bare `request_uri`
+     * is indistinguishable between them until its single-use fetch, so keeping
+     * both in scope would reintroduce the wrong-version-burns-the-request bug.
+     * That combination is rejected up front with [`Oid4vpFacadeError::ConflictingVersions`].
+     */
+open func startWithSupportedVersions(request: String, supportedVersions: [Oid4vpVersion])async throws  -> Oid4vpSession  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vpholder_start_with_supported_versions(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(request),FfiConverterSequenceTypeOid4vpVersion.lower(supportedVersions)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -27379,80 +27424,6 @@ public func FfiConverterTypeOfferedValidity_lower(_ value: OfferedValidity) -> R
 }
 
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum Oid4vciCompatibilityMode: Equatable, Hashable {
-    
-    case auto
-    case forceV1
-    case forceLegacy
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension Oid4vciCompatibilityMode: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeOid4vciCompatibilityMode: FfiConverterRustBuffer {
-    typealias SwiftType = Oid4vciCompatibilityMode
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciCompatibilityMode {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .auto
-        
-        case 2: return .forceV1
-        
-        case 3: return .forceLegacy
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: Oid4vciCompatibilityMode, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .auto:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .forceV1:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .forceLegacy:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOid4vciCompatibilityMode_lift(_ buf: RustBuffer) throws -> Oid4vciCompatibilityMode {
-    return try FfiConverterTypeOid4vciCompatibilityMode.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOid4vciCompatibilityMode_lower(_ value: Oid4vciCompatibilityMode) -> RustBuffer {
-    return FfiConverterTypeOid4vciCompatibilityMode.lower(value)
-}
-
-
 
 public enum Oid4vciError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -27907,92 +27878,6 @@ public func FfiConverterTypeOid4vp180137FacadeError_lower(_ value: Oid4vp180137F
     return FfiConverterTypeOid4vp180137FacadeError.lower(value)
 }
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum Oid4vpCompatibilityMode: Equatable, Hashable {
-    
-    case auto
-    case v1
-    case draft18
-    /**
-     * Force the OpenID4VP draft-13 path (translated onto the draft-18 engine).
-     * Use this for draft-13 requests delivered purely by `request_uri`, which
-     * `Auto` cannot detect from the link alone.
-     */
-    case draft13
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension Oid4vpCompatibilityMode: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeOid4vpCompatibilityMode: FfiConverterRustBuffer {
-    typealias SwiftType = Oid4vpCompatibilityMode
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vpCompatibilityMode {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .auto
-        
-        case 2: return .v1
-        
-        case 3: return .draft18
-        
-        case 4: return .draft13
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: Oid4vpCompatibilityMode, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .auto:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .v1:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .draft18:
-            writeInt(&buf, Int32(3))
-        
-        
-        case .draft13:
-            writeInt(&buf, Int32(4))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOid4vpCompatibilityMode_lift(_ buf: RustBuffer) throws -> Oid4vpCompatibilityMode {
-    return try FfiConverterTypeOid4vpCompatibilityMode.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOid4vpCompatibilityMode_lower(_ value: Oid4vpCompatibilityMode) -> RustBuffer {
-    return FfiConverterTypeOid4vpCompatibilityMode.lower(value)
-}
-
-
 
 public enum Oid4vpFacadeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -28002,6 +27887,7 @@ public enum Oid4vpFacadeError: Swift.Error, Equatable, Hashable, Foundation.Loca
     case RequestParsing(String
     )
     case VersionMismatch
+    case ConflictingVersions
     case V1(Oid4vpError
     )
     case Draft18(Draft18Oid4vpError
@@ -28040,10 +27926,11 @@ public struct FfiConverterTypeOid4vpFacadeError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 3: return .VersionMismatch
-        case 4: return .V1(
+        case 4: return .ConflictingVersions
+        case 5: return .V1(
             try FfiConverterTypeOID4VPError.read(from: &buf)
             )
-        case 5: return .Draft18(
+        case 6: return .Draft18(
             try FfiConverterTypeDraft18OID4VPError.read(from: &buf)
             )
 
@@ -28071,13 +27958,17 @@ public struct FfiConverterTypeOid4vpFacadeError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(3))
         
         
-        case let .V1(v1):
+        case .ConflictingVersions:
             writeInt(&buf, Int32(4))
+        
+        
+        case let .V1(v1):
+            writeInt(&buf, Int32(5))
             FfiConverterTypeOID4VPError.write(v1, into: &buf)
             
         
         case let .Draft18(v1):
-            writeInt(&buf, Int32(5))
+            writeInt(&buf, Int32(6))
             FfiConverterTypeDraft18OID4VPError.write(v1, into: &buf)
             
         }
@@ -34415,6 +34306,56 @@ fileprivate struct FfiConverterSequenceTypeMDocItem: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeOid4vciVersion: FfiConverterRustBuffer {
+    typealias SwiftType = [Oid4vciVersion]
+
+    public static func write(_ value: [Oid4vciVersion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOid4vciVersion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Oid4vciVersion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Oid4vciVersion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOid4vciVersion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeOid4vpVersion: FfiConverterRustBuffer {
+    typealias SwiftType = [Oid4vpVersion]
+
+    public static func write(_ value: [Oid4vpVersion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOid4vpVersion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Oid4vpVersion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Oid4vpVersion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOid4vpVersion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypePdfSupplement: FfiConverterRustBuffer {
     typealias SwiftType = [PdfSupplement]
 
@@ -37065,10 +37006,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_accept_offer() != 23985) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_compatibility_mode() != 13467) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 55352) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 55352) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_supported_versions() != 19725) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_default_credential_id() != 11991) {
@@ -37221,7 +37162,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start() != 11945) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start_with_compatibility_mode() != 60396) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start_version() != 62020) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start_with_supported_versions() != 51978) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vppermissionresponse_selected_credentials() != 5574) {
@@ -37587,7 +37531,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vciclient_new() != 56300) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vcifacadeclient_new() != 59735) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vcifacadeclient_new() != 25979) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequest_new() != 12468) {

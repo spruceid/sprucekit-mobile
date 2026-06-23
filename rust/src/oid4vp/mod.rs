@@ -31,37 +31,54 @@ pub enum Oid4vpVersion {
 
 #[uniffi::export]
 pub fn get_oid4vp_version(request: String) -> Oid4vpVersion {
-    // Draft 13 is the ONLY version that uses the bare `post` response mode
-    // (draft 18 and v1 both use `direct_post`/`direct_post.jwt`). A request that
-    // carries `response_mode=post` by value is therefore unambiguously draft 13,
-    // and must be classified before the Presentation-Exchange / `request_uri`
-    // heuristics below would otherwise route it to draft 18. A draft-13 request
-    // delivered purely by `request_uri` (no inline `response_mode`) cannot be
-    // auto-detected here — callers force `Oid4vpVersion::Draft13` for that
-    // transport, mirroring the existing draft-18 `request_uri` limitation.
-    if response_mode_is_post(&request) {
+    select_oid4vp_version(&request, &[])
+}
+
+/// Classify an OID4VP request, restricting the result to the `supported`
+/// versions. An empty slice means "any version" (the legacy auto-detection). A
+/// non-empty slice excludes every version not listed, so a version the
+/// integrator does not support is never selected — and never gets to consume a
+/// single-use `request_uri` on a wrong-version fetch. The heuristics' relative
+/// priority is unchanged; `supported` only gates which branch may fire.
+pub(crate) fn select_oid4vp_version(request: &str, supported: &[Oid4vpVersion]) -> Oid4vpVersion {
+    let allowed = |version| supported.is_empty() || supported.contains(&version);
+
+    // Draft 13 is the only version using the bare `post` response mode (draft 18
+    // and v1 use `direct_post`/`direct_post.jwt`), so it is unambiguously draft 13
+    // and is classified before the Presentation-Exchange / `request_uri`
+    // heuristics that would otherwise route it to draft 18.
+    if allowed(Oid4vpVersion::Draft13) && response_mode_is_post(request) {
         return Oid4vpVersion::Draft13;
     }
 
-    let has_dcql = contains_oid4vp_parameter(&request, "dcql_query");
-    let has_draft18_definition = contains_oid4vp_parameter(&request, "presentation_definition")
-        || contains_oid4vp_parameter(&request, "presentation_definition_uri");
-    let has_request_uri = contains_oid4vp_parameter(&request, "request_uri");
+    let has_dcql = contains_oid4vp_parameter(request, "dcql_query");
+    let has_draft18_definition = contains_oid4vp_parameter(request, "presentation_definition")
+        || contains_oid4vp_parameter(request, "presentation_definition_uri");
+    let has_request_uri = contains_oid4vp_parameter(request, "request_uri");
 
-    if has_dcql && client_id_is_v1_compatible(&request) {
+    if allowed(Oid4vpVersion::V1) && has_dcql && client_id_is_v1_compatible(request) {
         return Oid4vpVersion::V1;
     }
 
-    if has_request_uri && client_id_is_v1_compatible(&request) {
+    if allowed(Oid4vpVersion::V1) && has_request_uri && client_id_is_v1_compatible(request) {
         return Oid4vpVersion::V1;
     }
 
-    if has_draft18_definition || has_dcql {
+    if allowed(Oid4vpVersion::Draft18) && (has_draft18_definition || has_dcql) {
         return Oid4vpVersion::Draft18;
     }
 
-    if has_request_uri && request_uri_indicates_draft18(&request) {
+    if allowed(Oid4vpVersion::Draft18) && has_request_uri && request_uri_indicates_draft18(request)
+    {
         return Oid4vpVersion::Draft18;
+    }
+
+    // Draft 18 excluded: a Presentation-Exchange- or `request_uri`-shaped request
+    // can only be draft 13, the other PE version. This is what routes a
+    // bare-`request_uri` draft-13 request correctly for an integrator who
+    // supports draft 13 but not draft 18.
+    if allowed(Oid4vpVersion::Draft13) && (has_draft18_definition || has_request_uri) {
+        return Oid4vpVersion::Draft13;
     }
 
     Oid4vpVersion::Unsupported
@@ -207,7 +224,64 @@ fn json_contains_parameter(request: &str, parameter: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_oid4vp_version, Oid4vpVersion};
+    use super::{get_oid4vp_version, select_oid4vp_version, Oid4vpVersion};
+
+    // A minimal draft-13 cross-device link: only `client_id` + `request_uri` in
+    // the outer link. The discriminating `response_mode=post` lives inside the
+    // object fetched from `request_uri`, so detection cannot see it here.
+    const DRAFT13_REQUEST_URI: &str = "openid4vp://?client_id=https%3A%2F%2Fverifier.example%2Fcb&request_uri=https%3A%2F%2Fverifier.example%2Frequest%2Fabc";
+
+    #[test]
+    fn select_empty_supported_misroutes_bare_draft13_request_uri_to_draft18() {
+        // Documents the motivating limitation: with no supported set (auto), a
+        // bare-`request_uri` draft-13 request is misclassified as draft 18 (the
+        // wrong-version fetch then consumes the single-use `request_uri`).
+        assert_eq!(
+            select_oid4vp_version(DRAFT13_REQUEST_URI, &[]),
+            Oid4vpVersion::Draft18
+        );
+    }
+
+    #[test]
+    fn select_routes_bare_draft13_request_uri_to_draft13_when_draft18_excluded() {
+        // The fix: excluding draft 18 from the supported set makes the same
+        // request resolve to draft 13, so the correct flow does the single fetch.
+        assert_eq!(
+            select_oid4vp_version(DRAFT13_REQUEST_URI, &[Oid4vpVersion::Draft13]),
+            Oid4vpVersion::Draft13
+        );
+        assert_eq!(
+            select_oid4vp_version(
+                DRAFT13_REQUEST_URI,
+                &[Oid4vpVersion::V1, Oid4vpVersion::Draft13]
+            ),
+            Oid4vpVersion::Draft13
+        );
+    }
+
+    #[test]
+    fn select_distinguishes_v1_and_draft18_within_supported_set() {
+        let supported = [Oid4vpVersion::V1, Oid4vpVersion::Draft18];
+
+        let v1 = "openid4vp://?client_id=redirect_uri%3Ahttps%3A%2F%2Fwallet.example%2Fcb&dcql_query=%7B%22credentials%22%3A%5B%5D%7D";
+        assert_eq!(select_oid4vp_version(v1, &supported), Oid4vpVersion::V1);
+
+        let draft18 = "openid4vp://?client_id=test&presentation_definition=%7B%22input_descriptors%22%3A%5B%5D%7D";
+        assert_eq!(
+            select_oid4vp_version(draft18, &supported),
+            Oid4vpVersion::Draft18
+        );
+    }
+
+    #[test]
+    fn select_returns_unsupported_when_request_matches_no_supported_version() {
+        // A v1-shaped request, but only draft 13 is supported.
+        let v1 = "openid4vp://?client_id=redirect_uri%3Ahttps%3A%2F%2Fwallet.example%2Fcb&dcql_query=%7B%22credentials%22%3A%5B%5D%7D";
+        assert_eq!(
+            select_oid4vp_version(v1, &[Oid4vpVersion::Draft13]),
+            Oid4vpVersion::Unsupported
+        );
+    }
 
     #[test]
     fn get_oid4vp_version_prefers_v1_when_both_shapes_are_present() {

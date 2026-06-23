@@ -9,7 +9,7 @@ import com.spruceid.mobile.sdk.rs.Oid4vpPresentableCredential
 import com.spruceid.mobile.sdk.rs.Oid4vpPresentationSigner
 import com.spruceid.mobile.sdk.rs.Oid4vpSession
 import com.spruceid.mobile.sdk.rs.ParsedCredential
-import com.spruceid.mobile.sdk.rs.Oid4vpCompatibilityMode as RsOid4vpCompatibilityMode
+import com.spruceid.mobile.sdk.rs.Oid4vpVersion as RsOid4vpVersion
 import com.spruceid.mobile.sdk.rs.Oid4vpResponseOptions as RsResponseOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -95,13 +95,14 @@ internal class Oid4vpAdapter(
      */
     private var credentialsByKey: Map<PresentableCredentialKey, Oid4vpPresentableCredential> = emptyMap()
 
-    /** Maps the pigeon-facing compatibility mode to the Rust facade enum. */
-    private fun rustMode(mode: Oid4vpCompatibilityMode): RsOid4vpCompatibilityMode =
-        when (mode) {
-            Oid4vpCompatibilityMode.AUTO -> RsOid4vpCompatibilityMode.AUTO
-            Oid4vpCompatibilityMode.V1 -> RsOid4vpCompatibilityMode.V1
-            Oid4vpCompatibilityMode.DRAFT18 -> RsOid4vpCompatibilityMode.DRAFT18
-            Oid4vpCompatibilityMode.DRAFT13 -> RsOid4vpCompatibilityMode.DRAFT13
+    /** Maps the pigeon-facing supported versions to the Rust facade enum. */
+    private fun rustVersions(versions: List<Oid4vpVersion>): List<RsOid4vpVersion> =
+        versions.map { version ->
+            when (version) {
+                Oid4vpVersion.V1 -> RsOid4vpVersion.V1
+                Oid4vpVersion.DRAFT18 -> RsOid4vpVersion.DRAFT18
+                Oid4vpVersion.DRAFT13 -> RsOid4vpVersion.DRAFT13
+            }
         }
 
     /**
@@ -165,7 +166,7 @@ internal class Oid4vpAdapter(
 
     override fun handleAuthorizationRequest(
         url: String,
-        mode: Oid4vpCompatibilityMode,
+        supportedVersions: List<Oid4vpVersion>,
         callback: (Result<HandleAuthRequestResult>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -181,8 +182,8 @@ internal class Oid4vpAdapter(
                 // Handle URL format (remove "authorize" if present, similar to Showcase)
                 val processedUrl = url.replace("authorize", "")
 
-                // Start a session, negotiating the OID4VP version per `mode`.
-                val session = currentHolder.startWithCompatibilityMode(processedUrl, rustMode(mode))
+                // Start a session, restricting negotiation to `supportedVersions`.
+                val session = currentHolder.startWithSupportedVersions(processedUrl, rustVersions(supportedVersions))
 
                 // Build (credentialId, matchId) -> credential map and the flat
                 // credential list for Dart from a single source: credentials

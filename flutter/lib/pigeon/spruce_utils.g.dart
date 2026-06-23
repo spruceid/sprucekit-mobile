@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-    List<Object?>? replyList,
-    String channelName, {
-    required bool isNullValid,
+  List<Object?>? replyList,
+  String channelName, {
+  required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,8 +46,9 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -96,21 +97,14 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
-
 /// The type of a PDF supplement.
 ///
 /// New supplement types can be added here without changing the function
 /// signature of `generateCredentialPdf`.
-enum PdfSupplementType {
-  barcode,
-  opticalBarcodeCredential,
-}
+enum PdfSupplementType { barcode, opticalBarcodeCredential }
 
 /// Barcode type for PDF supplements
-enum PdfBarcodeType {
-  qrCode,
-  pdf417,
-}
+enum PdfBarcodeType { qrCode, pdf417 }
 
 /// Selective-disclosure mode for VP token generation.
 ///
@@ -118,14 +112,10 @@ enum PdfBarcodeType {
 /// keeps the Pigeon class extensible: future modes (path-based selection,
 /// presentation-definition driven, etc.) can be added without changing
 /// [generateCredentialVpToken]'s signature.
-enum DisclosureSelectionType {
-  hideOnly,
-  selectOnly,
-}
+enum DisclosureSelectionType { hideOnly, selectOnly }
 
 /// Result of generating a mock mDL
-sealed class GenerateMockMdlResult {
-}
+sealed class GenerateMockMdlResult {}
 
 /// Mock mDL generated successfully - stored in a CredentialPack
 class GenerateMockMdlSuccess extends GenerateMockMdlResult {
@@ -149,16 +139,12 @@ class GenerateMockMdlSuccess extends GenerateMockMdlResult {
   String keyAlias;
 
   List<Object?> _toList() {
-    return <Object?>[
-      packId,
-      credentialId,
-      rawCredential,
-      keyAlias,
-    ];
+    return <Object?>[packId, credentialId, rawCredential, keyAlias];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static GenerateMockMdlSuccess decode(Object result) {
     result as List<Object?>;
@@ -179,7 +165,10 @@ class GenerateMockMdlSuccess extends GenerateMockMdlResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(packId, other.packId) && _deepEquals(credentialId, other.credentialId) && _deepEquals(rawCredential, other.rawCredential) && _deepEquals(keyAlias, other.keyAlias);
+    return _deepEquals(packId, other.packId) &&
+        _deepEquals(credentialId, other.credentialId) &&
+        _deepEquals(rawCredential, other.rawCredential) &&
+        _deepEquals(keyAlias, other.keyAlias);
   }
 
   @override
@@ -189,26 +178,21 @@ class GenerateMockMdlSuccess extends GenerateMockMdlResult {
 
 /// Mock mDL generation failed
 class GenerateMockMdlError extends GenerateMockMdlResult {
-  GenerateMockMdlError({
-    required this.message,
-  });
+  GenerateMockMdlError({required this.message});
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[
-      message,
-    ];
+    return <Object?>[message];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static GenerateMockMdlError decode(Object result) {
     result as List<Object?>;
-    return GenerateMockMdlError(
-      message: result[0]! as String,
-    );
+    return GenerateMockMdlError(message: result[0]! as String);
   }
 
   @override
@@ -264,16 +248,12 @@ class PdfSupplement {
   String? jsonldVcb;
 
   List<Object?> _toList() {
-    return <Object?>[
-      type,
-      data,
-      barcodeType,
-      jsonldVcb,
-    ];
+    return <Object?>[type, data, barcodeType, jsonldVcb];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static PdfSupplement decode(Object result) {
     result as List<Object?>;
@@ -294,7 +274,10 @@ class PdfSupplement {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(type, other.type) && _deepEquals(data, other.data) && _deepEquals(barcodeType, other.barcodeType) && _deepEquals(jsonldVcb, other.jsonldVcb);
+    return _deepEquals(type, other.type) &&
+        _deepEquals(data, other.data) &&
+        _deepEquals(barcodeType, other.barcodeType) &&
+        _deepEquals(jsonldVcb, other.jsonldVcb);
   }
 
   @override
@@ -311,10 +294,7 @@ class PdfSupplement {
 /// `selectOnly` reveals **only** [fields]; ergonomic for narrow disclosures
 /// like age verification (`["age_over_21"]`).
 class DisclosureSelection {
-  DisclosureSelection({
-    required this.type,
-    required this.fields,
-  });
+  DisclosureSelection({required this.type, required this.fields});
 
   DisclosureSelectionType type;
 
@@ -323,14 +303,12 @@ class DisclosureSelection {
   List<String> fields;
 
   List<Object?> _toList() {
-    return <Object?>[
-      type,
-      fields,
-    ];
+    return <Object?>[type, fields];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static DisclosureSelection decode(Object result) {
     result as List<Object?>;
@@ -363,11 +341,7 @@ class DisclosureSelection {
 /// current implementation does not produce a key-binding JWT (suitable for
 /// offline PDF-embedded VPs).
 class VpTokenParams {
-  VpTokenParams({
-    required this.disclosure,
-    required this.audience,
-    this.nonce,
-  });
+  VpTokenParams({required this.disclosure, required this.audience, this.nonce});
 
   DisclosureSelection disclosure;
 
@@ -376,15 +350,12 @@ class VpTokenParams {
   String? nonce;
 
   List<Object?> _toList() {
-    return <Object?>[
-      disclosure,
-      audience,
-      nonce,
-    ];
+    return <Object?>[disclosure, audience, nonce];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static VpTokenParams decode(Object result) {
     result as List<Object?>;
@@ -404,14 +375,15 @@ class VpTokenParams {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(disclosure, other.disclosure) && _deepEquals(audience, other.audience) && _deepEquals(nonce, other.nonce);
+    return _deepEquals(disclosure, other.disclosure) &&
+        _deepEquals(audience, other.audience) &&
+        _deepEquals(nonce, other.nonce);
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -420,28 +392,28 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is PdfSupplementType) {
+    } else if (value is PdfSupplementType) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is PdfBarcodeType) {
+    } else if (value is PdfBarcodeType) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is DisclosureSelectionType) {
+    } else if (value is DisclosureSelectionType) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is GenerateMockMdlSuccess) {
+    } else if (value is GenerateMockMdlSuccess) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    }    else if (value is GenerateMockMdlError) {
+    } else if (value is GenerateMockMdlError) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is PdfSupplement) {
+    } else if (value is PdfSupplement) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is DisclosureSelection) {
+    } else if (value is DisclosureSelection) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is VpTokenParams) {
+    } else if (value is VpTokenParams) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
     } else {
@@ -482,9 +454,13 @@ class SpruceUtils {
   /// Constructor for [SpruceUtils].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  SpruceUtils({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  SpruceUtils({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -500,21 +476,23 @@ class SpruceUtils {
   /// @param keyAlias Optional key alias to use (defaults to "testMdl")
   /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
   Future<GenerateMockMdlResult> generateMockMdl(String? keyAlias) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateMockMdl$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateMockMdl$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[keyAlias]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[keyAlias],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as GenerateMockMdlResult;
   }
 
@@ -526,22 +504,27 @@ class SpruceUtils {
   /// @param rawMdoc Base64url-encoded IssuerSigned bytes of the mDL
   /// @param supplements Optional list of supplements to include in the PDF
   /// @return Raw PDF bytes ready to write to a file and share
-  Future<Uint8List> generateCredentialPdf(String rawMdoc, List<PdfSupplement> supplements) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCredentialPdf$pigeonVar_messageChannelSuffix';
+  Future<Uint8List> generateCredentialPdf(
+    String rawMdoc,
+    List<PdfSupplement> supplements,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCredentialPdf$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[rawMdoc, supplements]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[rawMdoc, supplements],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as Uint8List;
   }
 
@@ -559,22 +542,27 @@ class SpruceUtils {
   /// @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
   /// @param params Disclosure selection + reserved audience / nonce
   /// @return Compact SD-JWT VP token bytes (UTF-8)
-  Future<Uint8List> generateCredentialVpToken(String rawSdJwt, VpTokenParams params) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCredentialVpToken$pigeonVar_messageChannelSuffix';
+  Future<Uint8List> generateCredentialVpToken(
+    String rawSdJwt,
+    VpTokenParams params,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCredentialVpToken$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[rawSdJwt, params]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[rawSdJwt, params],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as Uint8List;
   }
 
@@ -596,22 +584,27 @@ class SpruceUtils {
   /// @param rawSdJwt Compact SD-JWT serialization of a VCDM2 SD-JWT credential
   /// @param params Disclosure selection + reserved audience / nonce
   /// @return QR-ready compressed bytes (UTF-8 ASCII, `"9"` prefix + base10 digits)
-  Future<Uint8List> generateCompressedVpToken(String rawSdJwt, VpTokenParams params) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCompressedVpToken$pigeonVar_messageChannelSuffix';
+  Future<Uint8List> generateCompressedVpToken(
+    String rawSdJwt,
+    VpTokenParams params,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateCompressedVpToken$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[rawSdJwt, params]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[rawSdJwt, params],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as Uint8List;
   }
 
@@ -628,7 +621,8 @@ class SpruceUtils {
   ///         to [generateCredentialVpToken] / [generateCompressedVpToken]
   ///         as `rawSdJwt`.
   Future<String> generateTestMdlSdJwtCompact() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateTestMdlSdJwtCompact$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateTestMdlSdJwtCompact$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -638,11 +632,10 @@ class SpruceUtils {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as String;
   }
 
@@ -660,21 +653,23 @@ class SpruceUtils {
   /// @param input Compact SD-JWT VP, or its `"9"`-prefixed compressed form
   ///              (e.g. straight from a [SpruceScanner] callback)
   Future<void> verifySdJwtVp(String input) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.verifySdJwtVp$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.verifySdJwtVp$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[input]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[input],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: true,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: true,
+    );
   }
 
   /// Decompress a `"9"`-prefixed base10 QR payload back into a compact
@@ -689,21 +684,23 @@ class SpruceUtils {
   /// @param qrPayload Bytes scanned from the QR (`"9"` prefix + base10 digits)
   /// @return Original compact SD-JWT VP token bytes (UTF-8)
   Future<Uint8List> decompressVpFromQr(Uint8List qrPayload) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.decompressVpFromQr$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.decompressVpFromQr$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[qrPayload]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[qrPayload],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as Uint8List;
   }
 
@@ -721,22 +718,27 @@ class SpruceUtils {
   ///   so compliant AAMVA readers can verify the credential offline against
   ///   the DL subfile. When null, only the DL subfile is emitted.
   /// @return Raw AAMVA bytes ready to be rendered as a PDF-417 barcode
-  Future<Uint8List> generateAamvaPdf417Bytes(String rawMdoc, Uint8List? vcBarcode) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateAamvaPdf417Bytes$pigeonVar_messageChannelSuffix';
+  Future<Uint8List> generateAamvaPdf417Bytes(
+    String rawMdoc,
+    Uint8List? vcBarcode,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateAamvaPdf417Bytes$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[rawMdoc, vcBarcode]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[rawMdoc, vcBarcode],
+    );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as Uint8List;
   }
 
@@ -752,7 +754,8 @@ class SpruceUtils {
   ///   [PdfSupplement] with `type == PdfSupplementType.opticalBarcodeCredential`
   ///   via the `jsonldVcb` field.
   Future<String> generateTestOpticalBarcodeCredential() async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateTestOpticalBarcodeCredential$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateTestOpticalBarcodeCredential$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -762,11 +765,10 @@ class SpruceUtils {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-        pigeonVar_replyList,
-        pigeonVar_channelName,
-        isNullValid: false,
-    )
-    ;
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
     return pigeonVar_replyValue! as String;
   }
 }
