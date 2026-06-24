@@ -228,6 +228,19 @@ abstract class CredentialPack {
     List<String> claimNames,
   );
 
+  /// Resolve the status list status of each credential in a pack.
+  ///
+  /// Mirrors the native `CredentialPack.getStatusListsAsync`. Credentials whose
+  /// status cannot be resolved (no status list, parse error) are reported as
+  /// [CredentialStatus.undefined]; when [hasConnection] is false, credentials
+  /// that would require a network fetch are reported as [CredentialStatus.unknown].
+  ///
+  /// @param packId The pack identifier
+  /// @param hasConnection Whether the device currently has network connectivity
+  /// @return Map of credentialId -> resolved status (empty if pack not found)
+  @async
+  Map<String, CredentialStatus> getStatusLists(String packId, bool hasConnection);
+
   /// Delete a credential pack
   ///
   /// @param packId The pack identifier
