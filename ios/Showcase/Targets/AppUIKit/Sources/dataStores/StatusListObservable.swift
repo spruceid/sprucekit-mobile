@@ -1,9 +1,14 @@
 import Foundation
+import Network
 import SpruceIDMobileSdk
 
 class StatusListObservable: ObservableObject {
     @Published var statusLists: [String: CredentialStatusList]
-    @Published var hasConnection: Bool
+    @Published private(set) var hasConnection: Bool
+
+    private let connectionMonitor = NWPathMonitor()
+    private let connectionMonitorQueue = DispatchQueue(
+        label: "com.spruceid.showcase.StatusListObservable.connectionMonitor")
 
     init(
         statusLists: [String: CredentialStatusList] = [:],
@@ -11,6 +16,21 @@ class StatusListObservable: ObservableObject {
     ) {
         self.statusLists = statusLists
         self.hasConnection = hasConnection
+        startMonitoringConnection()
+    }
+
+    deinit {
+        connectionMonitor.cancel()
+    }
+
+    private func startMonitoringConnection() {
+        connectionMonitor.pathUpdateHandler = { [weak self] path in
+            let isConnected = path.status == .satisfied
+            Task { @MainActor [weak self] in
+                self?.hasConnection = isConnected
+            }
+        }
+        connectionMonitor.start(queue: connectionMonitorQueue)
     }
 
     @MainActor func fetchAndUpdateStatus(credentialPack: CredentialPack) async
