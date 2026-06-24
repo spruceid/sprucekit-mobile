@@ -245,6 +245,30 @@ class CredentialPackAdapter: CredentialPack {
         }
     }
 
+    func getStatusLists(
+        packId: String,
+        hasConnection: Bool,
+        completion: @escaping (Result<[String: CredentialStatus], any Error>) -> Void
+    ) {
+        Task {
+            lock.lock()
+            let pack = packs[packId]
+            lock.unlock()
+
+            guard let pack = pack else {
+                completion(.success([:]))
+                return
+            }
+
+            let statuses = await pack.getStatusListsAsync(hasConnection: hasConnection)
+            var res = [String: CredentialStatus]()
+            for (credentialId, status) in statuses {
+                res[credentialId] = status.toPigeon()
+            }
+            completion(.success(res))
+        }
+    }
+
     func deletePack(
         packId: String,
         appGroupId: String?,
@@ -504,6 +528,22 @@ extension CredentialFormat {
         case .dcSdJwt: return "dc+sd-jwt"
         case .cwt: return "cwt"
         case .opticalBarcode: return "optical_barcode_credential"
+        }
+    }
+}
+
+extension SpruceIDMobileSdk.CredentialStatusList {
+    /// Map the native SDK `CredentialStatusList` to the Pigeon `CredentialStatus` enum.
+    func toPigeon() -> CredentialStatus {
+        switch self {
+        case .valid: return .valid
+        case .revoked: return .revoked
+        case .suspended: return .suspended
+        case .unknown: return .unknown
+        case .invalid: return .invalid
+        case .undefined: return .undefined
+        case .pending: return .pending
+        case .ready: return .ready
         }
     }
 }

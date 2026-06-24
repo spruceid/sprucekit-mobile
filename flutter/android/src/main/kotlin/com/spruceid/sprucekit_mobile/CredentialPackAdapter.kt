@@ -3,6 +3,7 @@ package com.spruceid.sprucekit_mobile
 import android.content.Context
 import android.util.Log
 import com.spruceid.mobile.sdk.CredentialPack as SdkCredentialPack
+import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.StorageManager
 import com.spruceid.mobile.sdk.credentialClaims
 import com.spruceid.mobile.sdk.jsonEncodedDetailsAll
@@ -190,6 +191,30 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
         val credential = pack.getCredentialById(credentialId) ?: return null
         val claims = pack.getCredentialClaims(credential, claimNames)
         return claims.toString()
+    }
+
+    override fun getStatusLists(
+        packId: String,
+        hasConnection: Boolean,
+        callback: (Result<Map<String, CredentialStatus>>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val pack = packs[packId]
+                if (pack == null) {
+                    callback(Result.success(emptyMap()))
+                    return@launch
+                }
+                val statuses = pack.getStatusListsAsync(hasConnection)
+                val res = statuses.entries.associate { (id, status) ->
+                    id.toString() to status.toPigeon()
+                }
+                callback(Result.success(res))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to resolve status lists: ${e.message}", e)
+                callback(Result.success(emptyMap()))
+            }
+        }
     }
 
     override fun deletePack(
@@ -399,4 +424,16 @@ private fun CredentialFormat.toRustFormatString(): String = when (this) {
     CredentialFormat.DC_SD_JWT -> "dc+sd-jwt"
     CredentialFormat.CWT -> "cwt"
     CredentialFormat.OPTICAL_BARCODE -> "optical_barcode_credential"
+}
+
+/// Map the native SDK [CredentialStatusList] to the Pigeon [CredentialStatus] enum.
+private fun CredentialStatusList.toPigeon(): CredentialStatus = when (this) {
+    CredentialStatusList.VALID -> CredentialStatus.VALID
+    CredentialStatusList.REVOKED -> CredentialStatus.REVOKED
+    CredentialStatusList.SUSPENDED -> CredentialStatus.SUSPENDED
+    CredentialStatusList.UNKNOWN -> CredentialStatus.UNKNOWN
+    CredentialStatusList.INVALID -> CredentialStatus.INVALID
+    CredentialStatusList.UNDEFINED -> CredentialStatus.UNDEFINED
+    CredentialStatusList.PENDING -> CredentialStatus.PENDING
+    CredentialStatusList.READY -> CredentialStatus.READY
 }
