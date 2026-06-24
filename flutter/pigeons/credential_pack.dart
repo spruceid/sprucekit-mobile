@@ -239,7 +239,10 @@ abstract class CredentialPack {
   /// @param hasConnection Whether the device currently has network connectivity
   /// @return Map of credentialId -> resolved status (empty if pack not found)
   @async
-  Map<String, CredentialStatus> getStatusLists(String packId, bool hasConnection);
+  Map<String, CredentialStatus> getStatusLists(
+    String packId,
+    bool hasConnection,
+  );
 
   /// Delete a credential pack
   ///
