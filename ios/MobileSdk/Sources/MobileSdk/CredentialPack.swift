@@ -92,20 +92,25 @@ public class CredentialPack {
     /**
      * Try to add a raw mDoc with specified keyAlias
      */
-    public func tryAddRawMdoc(rawCredential: String, keyAlias: String) async throws
-        -> [ParsedCredential] {
+    public func tryAddRawMdoc(
+        rawCredential: String,
+        keyAlias: String,
+        invalidationPolicy: MdocInvalidationPolicy = .credentialExpiry
+    ) async throws -> [ParsedCredential] {
         if let credentials = try? await addMDoc(
             mdoc: Mdoc.fromStringifiedDocument(
                 stringifiedDocument: rawCredential,
                 keyAlias: keyAlias
-            )
+            ),
+            invalidationPolicy: invalidationPolicy
         ) {
             return credentials
         } else if let credentials = try? await addMDoc(
             mdoc: Mdoc.newFromBase64urlEncodedIssuerSigned(
                 base64urlEncodedIssuerSigned: rawCredential,
                 keyAlias: keyAlias
-            )
+            ),
+            invalidationPolicy: invalidationPolicy
         ) {
             return credentials
         } else {
