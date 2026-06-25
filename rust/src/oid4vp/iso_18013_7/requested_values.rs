@@ -10,7 +10,7 @@ use openid4vp::core::dcql_query::{DcqlCredentialClaimsQueryPath, DcqlCredentialQ
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::credential::mdoc::Mdoc;
+use crate::credential::mdoc::{Mdoc, MdocValidityStatus};
 
 #[derive(Debug, Clone, uniffi::Object)]
 /// A viable match for the credential request.
@@ -19,6 +19,7 @@ pub struct RequestMatch180137 {
     pub field_map: FieldMap,
     pub requested_fields: Vec<RequestedField180137>,
     pub missing_fields: BTreeMap<String, String>,
+    pub validity_status: MdocValidityStatus,
 }
 
 uniffi::custom_newtype!(FieldId180137, String);
@@ -47,6 +48,10 @@ impl RequestMatch180137 {
 
     pub fn requested_fields(&self) -> Vec<RequestedField180137> {
         self.requested_fields.clone()
+    }
+
+    pub fn validity_status(&self) -> MdocValidityStatus {
+        self.validity_status
     }
 }
 
@@ -218,6 +223,7 @@ pub fn find_match(
         field_map,
         requested_fields,
         missing_fields,
+        validity_status: credential.validity_status(),
     })
 }
 

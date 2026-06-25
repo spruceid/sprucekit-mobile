@@ -8873,6 +8873,11 @@ public protocol MdocProtocol: AnyObject, Sendable {
     
     func keyAlias()  -> KeyAlias
     
+    /**
+     * The validity of this mdoc relative to the current time, derived from `validityInfo`.
+     */
+    func validityStatus()  -> MdocValidityStatus
+    
 }
 open class Mdoc: MdocProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -9061,6 +9066,17 @@ open func invalidationDate()throws  -> String  {
 open func keyAlias() -> KeyAlias  {
     return try!  FfiConverterTypeKeyAlias_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_mdoc_key_alias(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * The validity of this mdoc relative to the current time, derived from `validityInfo`.
+     */
+open func validityStatus() -> MdocValidityStatus  {
+    return try!  FfiConverterTypeMdocValidityStatus_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdoc_validity_status(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -13404,6 +13420,8 @@ public protocol RequestMatch180137Protocol: AnyObject, Sendable {
     
     func requestedFields()  -> [RequestedField180137]
     
+    func validityStatus()  -> MdocValidityStatus
+    
 }
 /**
  * A viable match for the credential request.
@@ -13472,6 +13490,14 @@ open func credentialId() -> Uuid  {
 open func requestedFields() -> [RequestedField180137]  {
     return try!  FfiConverterSequenceTypeRequestedField180137.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_requestmatch180137_requested_fields(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func validityStatus() -> MdocValidityStatus  {
+    return try!  FfiConverterTypeMdocValidityStatus_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestmatch180137_validity_status(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -26834,6 +26860,93 @@ public func FfiConverterTypeMdocInitError_lower(_ value: MdocInitError) -> RustB
     return FfiConverterTypeMdocInitError.lower(value)
 }
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The validity of an mdoc relative to the current time, derived from the MSO
+ * `validityInfo` (`validFrom`/`validUntil`).
+ */
+
+public enum MdocValidityStatus: Equatable, Hashable {
+    
+    /**
+     * The current time is within `[validFrom, validUntil]`.
+     */
+    case valid
+    /**
+     * `validUntil` is in the past.
+     */
+    case expired
+    /**
+     * `validFrom` is in the future.
+     */
+    case notYetValid
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MdocValidityStatus: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMdocValidityStatus: FfiConverterRustBuffer {
+    typealias SwiftType = MdocValidityStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdocValidityStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .valid
+        
+        case 2: return .expired
+        
+        case 3: return .notYetValid
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MdocValidityStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .valid:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .expired:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .notYetValid:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocValidityStatus_lift(_ buf: RustBuffer) throws -> MdocValidityStatus {
+    return try FfiConverterTypeMdocValidityStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocValidityStatus_lower(_ value: MdocValidityStatus) -> RustBuffer {
+    return FfiConverterTypeMdocValidityStatus.lower(value)
+}
+
+
 
 public enum Oid4vp180137Error: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -36676,6 +36789,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 45386) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_validity_status() != 13785) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_id() != 57284) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -37259,6 +37375,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_requested_fields() != 4609) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_validity_status() != 57220) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_client_id() != 38125) {
