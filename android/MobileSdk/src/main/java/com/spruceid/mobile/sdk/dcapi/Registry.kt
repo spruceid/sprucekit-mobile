@@ -114,7 +114,7 @@ class Registry(
         val givenName = mdoc.details()["org.iso.18013.5.1"]
             ?.firstOrNull { it.identifier == "given_name" }
             ?.value?.replace("\"", "")
-        val baseTitle = if (givenName != null) "Driver's License ($givenName)" else "Driver's License"
+        val title = if (givenName != null) "Driver's License ($givenName)" else "Driver's License"
 
         // Build the list of MdocFields
         val fields = mutableListOf<MdocField>()
