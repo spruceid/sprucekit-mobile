@@ -14,7 +14,6 @@ import androidx.credentials.registry.provider.digitalcredentials.VerificationEnt
 import androidx.credentials.registry.provider.digitalcredentials.VerificationFieldDisplayProperties
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.rs.Mdoc
-import com.spruceid.mobile.sdk.rs.MdocValidityStatus
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import java.util.UUID
 
