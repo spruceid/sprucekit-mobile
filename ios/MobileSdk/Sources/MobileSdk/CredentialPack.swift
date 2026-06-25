@@ -216,14 +216,6 @@ public class CredentialPack {
                         documentIdentifier: mdoc.id(),
                         invalidationDate: invalidationDate
                     )
-                    print("""
-                    🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
-                    🚨 GOT HERE: addMDocToIDProvider → addRegistration   🚨
-                    🚨 mdoc.id() = \(mdoc.id())
-                    🚨 policy = \(invalidationPolicy)
-                    🚨 invalidationDate FORCED TO nil (TEMPORARY TEST HACK) 🚨
-                    🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
-                    """)
                     try await store.addRegistration(registration)
                 } catch IdentityDocumentProviderRegistrationStore.RegistrationError.notAuthorized {
                     print(
