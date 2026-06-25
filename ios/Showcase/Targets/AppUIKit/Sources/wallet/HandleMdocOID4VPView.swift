@@ -160,6 +160,7 @@ struct HandleMdocOID4VPView: View {
                     back()
                 }
             )
+            .id(selectedMatch?.credentialId())
         case .loading:
             LoadingView(loadingText: "Loading...")
         case .none:
