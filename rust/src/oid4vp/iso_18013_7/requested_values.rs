@@ -19,7 +19,6 @@ pub struct RequestMatch180137 {
     pub field_map: FieldMap,
     pub requested_fields: Vec<RequestedField180137>,
     pub missing_fields: BTreeMap<String, String>,
-    /// Does not affect matching.
     pub validity_status: MdocValidityStatus,
 }
 

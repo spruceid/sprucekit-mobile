@@ -116,16 +116,6 @@ class Registry(
             ?.value?.replace("\"", "")
         val baseTitle = if (givenName != null) "Driver's License ($givenName)" else "Driver's License"
 
-        // TODO: Do we want this?
-        // Annotate the selector entry when the credential is not currently valid.
-        // The credential remains selectable; the consent UI is responsible for
-        // warning the user before sharing. Validity enforcement is the verifier's.
-        val title = when (mdoc.validityStatus()) {
-            MdocValidityStatus.EXPIRED -> "$baseTitle — Expired"
-            MdocValidityStatus.NOT_YET_VALID -> "$baseTitle — Not yet valid"
-            MdocValidityStatus.VALID -> baseTitle
-        }
-
         // Build the list of MdocFields
         val fields = mutableListOf<MdocField>()
         mdoc.details().forEach { (namespace, elements) ->
