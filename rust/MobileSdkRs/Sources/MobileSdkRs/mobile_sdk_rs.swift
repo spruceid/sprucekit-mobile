@@ -8871,17 +8871,10 @@ public protocol MdocProtocol: AnyObject, Sendable {
     
     func invalidationDate() throws  -> String
     
-    /**
-     * Whether this mdoc is currently within its validity window.
-     */
-    func isCurrentlyValid()  -> Bool
-    
     func keyAlias()  -> KeyAlias
     
     /**
-     * The validity of this mdoc relative to the current time, derived from the
-     * MSO `validityInfo`. Intended for display; the verifier remains
-     * responsible for enforcing validity at presentation time.
+     * The validity of this mdoc relative to the current time, derived from `validityInfo`.
      */
     func validityStatus()  -> MdocValidityStatus
     
@@ -9070,17 +9063,6 @@ open func invalidationDate()throws  -> String  {
 })
 }
     
-    /**
-     * Whether this mdoc is currently within its validity window.
-     */
-open func isCurrentlyValid() -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_mdoc_is_currently_valid(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
 open func keyAlias() -> KeyAlias  {
     return try!  FfiConverterTypeKeyAlias_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_mdoc_key_alias(
@@ -9090,9 +9072,7 @@ open func keyAlias() -> KeyAlias  {
 }
     
     /**
-     * The validity of this mdoc relative to the current time, derived from the
-     * MSO `validityInfo`. Intended for display; the verifier remains
-     * responsible for enforcing validity at presentation time.
+     * The validity of this mdoc relative to the current time, derived from `validityInfo`.
      */
 open func validityStatus() -> MdocValidityStatus  {
     return try!  FfiConverterTypeMdocValidityStatus_lift(try! rustCall() {
@@ -13395,10 +13375,6 @@ public protocol RequestMatch180137Protocol: AnyObject, Sendable {
     
     func requestedFields()  -> [RequestedField180137]
     
-    /**
-     * Validity of the matched credential relative to the current time.
-     * Selection UI can use this to flag expired / not-yet-valid credentials.
-     */
     func validityStatus()  -> MdocValidityStatus
     
 }
@@ -13474,10 +13450,6 @@ open func requestedFields() -> [RequestedField180137]  {
 })
 }
     
-    /**
-     * Validity of the matched credential relative to the current time.
-     * Selection UI can use this to flag expired / not-yet-valid credentials.
-     */
 open func validityStatus() -> MdocValidityStatus  {
     return try!  FfiConverterTypeMdocValidityStatus_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_requestmatch180137_validity_status(
@@ -26848,10 +26820,6 @@ public func FfiConverterTypeMdocInitError_lower(_ value: MdocInitError) -> RustB
 /**
  * The validity of an mdoc relative to the current time, derived from the MSO
  * `validityInfo` (`validFrom`/`validUntil`).
- *
- * This is informational metadata for display purposes. Validity enforcement is
- * a verifier responsibility per ISO/IEC 18013-5; a holder may still present an
- * expired or not-yet-valid credential and let the verifier decide.
  */
 
 public enum MdocValidityStatus: Equatable, Hashable {
@@ -36877,13 +36845,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_invalidation_date() != 52225) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_is_currently_valid() != 36629) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 45386) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_validity_status() != 15025) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_validity_status() != 13785) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_id() != 57284) {
@@ -37468,7 +37433,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_requested_fields() != 4609) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_validity_status() != 48497) {
+    if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_validity_status() != 57220) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_client_id() != 38125) {
