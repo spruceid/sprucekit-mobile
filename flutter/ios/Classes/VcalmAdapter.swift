@@ -2,6 +2,34 @@ import Foundation
 import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 
+/// In-memory `StorageManagerInterface`. Keeps the VCALM holder's base
+/// `VdcCollection` empty so matching is driven only by `provideCredentials` — the
+/// app-wide on-disk store leaked other users' credentials across logout.
+final class InMemoryVdcStorage: StorageManagerInterface, @unchecked Sendable {
+    private let lock = NSLock()
+    private var store: [String: Data] = [:]
+
+    func add(key: String, value: Data) async throws {
+        lock.lock(); defer { lock.unlock() }
+        store[key] = value
+    }
+
+    func get(key: String) async throws -> Data? {
+        lock.lock(); defer { lock.unlock() }
+        return store[key]
+    }
+
+    func list() async throws -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        return Array(store.keys)
+    }
+
+    func remove(key: String) async throws {
+        lock.lock(); defer { lock.unlock() }
+        store.removeValue(forKey: key)
+    }
+}
+
 /// Error types for the VCALM signer.
 enum VcalmSignerError: Error {
     case illegalArgumentException(reason: String)
@@ -109,12 +137,9 @@ class VcalmAdapter: Vcalm {
         log("createHolder: keyId=\(keyId), trustedDids=\(trustedDids.count), packIds=\(credentialPackIds.count)")
         Task {
             do {
-                // The holder's own VdcCollection receives issuance (`acceptOffer`)
-                // credentials. To ALSO make the host app's existing wallet
-                // credentials presentable via QBE matching, load the passed packs
-                // into native ParsedCredential handles and seed the holder via
-                // provideCredentials.
-                let vdc = VdcCollection(engine: StorageManager(appGroupId: nil))
+                // Isolated (in-memory), NOT the shared on-disk store: matching is
+                // seeded only by the wallet packs provided below. See InMemoryVdcStorage.
+                let vdc = VdcCollection(engine: InMemoryVdcStorage())
                 let signer = try VcalmSigner(keyId: keyId)
 
                 let newHolder = try await VcalmHolder.newSession(

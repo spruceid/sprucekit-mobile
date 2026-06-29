@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.RustLogger
-import com.spruceid.mobile.sdk.StorageManager
 import com.spruceid.mobile.sdk.rs.CryptosuiteEntry
 import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.DidMethodUtils
@@ -12,6 +11,7 @@ import com.spruceid.mobile.sdk.rs.OfferedValidity
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.StepResult
+import com.spruceid.mobile.sdk.rs.StorageManagerInterface
 import com.spruceid.mobile.sdk.rs.VcalmException
 import com.spruceid.mobile.sdk.rs.VcalmHolder
 import com.spruceid.mobile.sdk.rs.VcalmOfferedCredential
@@ -20,7 +20,21 @@ import com.spruceid.mobile.sdk.rs.Vpr
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 import org.json.JSONObject
+
+/**
+ * In-memory [StorageManagerInterface]. Keeps the VCALM holder's base
+ * [VdcCollection] empty so matching is driven only by `provideCredentials` — the
+ * app-wide on-disk store leaked other users' credentials across logout.
+ */
+internal class InMemoryVdcStorage : StorageManagerInterface {
+    private val store = ConcurrentHashMap<String, ByteArray>()
+    override suspend fun add(key: String, value: ByteArray) { store[key] = value }
+    override suspend fun get(key: String): ByteArray? = store[key]
+    override suspend fun list(): List<String> = store.keys.toList()
+    override suspend fun remove(key: String) { store.remove(key) }
+}
 
 /**
  * Signer for VCALM presentation.
@@ -119,12 +133,9 @@ internal class VcalmAdapter(
             "packIds=${credentialPackIds.size}")
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // The holder's own VdcCollection receives issuance (acceptOffer)
-                // credentials. To ALSO make the host app's existing wallet
-                // credentials presentable via QBE matching, load the passed packs
-                // into native ParsedCredential handles and seed the holder via
-                // provideCredentials.
-                val vdc = VdcCollection(StorageManager(context))
+                // Isolated (in-memory), NOT the shared on-disk store: matching is
+                // seeded only by the wallet packs provided below. See InMemoryVdcStorage.
+                val vdc = VdcCollection(InMemoryVdcStorage())
                 val signer = VcalmSigner(keyId)
                 Log.d(TAG, "createHolder: signer did=${signer.did()}")
 
