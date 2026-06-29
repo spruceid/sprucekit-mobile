@@ -159,6 +159,8 @@ mod tests {
             vec![credential.clone()],
             trusted_dids,
             Box::new(key_signer),
+            Default::default(),
+            String::new(),
             None,
             None,
         )

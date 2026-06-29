@@ -177,13 +177,18 @@ abstract class Oid4vp {
   ///
   /// @param credentialPackIds List of credential pack IDs to use
   /// @param trustedDids List of trusted DIDs for verification
-  /// @param keyId The key identifier for signing (will create if doesn't exist)
+  /// @param keyMap Per-credential signing keys: maps a credential id
+  ///   to the signing key id used to present that credential. Credentials with
+  ///   no entry fall back to [fallbackKeyId].
+  /// @param fallbackKeyId Signing key id used for credentials absent from
+  ///   [keyMap] (e.g. legacy credentials issued under a shared key).
   /// @param contextMap Optional JSON-LD context map
   @async
   Oid4vpResult createHolder(
     List<String> credentialPackIds,
     List<String> trustedDids,
-    String keyId,
+    Map<String, String> keyMap,
+    String fallbackKeyId,
     Map<String, String>? contextMap,
   );
 

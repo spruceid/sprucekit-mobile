@@ -40,55 +40,81 @@ enum VcalmSignerError: Error {
 /// Uses `did:key` (not `did:jwk`) because the target exchange server requires the
 /// holder DID to be `did:key`. Conforms to the base `PresentationSigner`.
 class VcalmSigner: PresentationSigner {
-    private let keyId: String
-    private let _jwk: String
-    private let didKey = DidMethodUtils(method: SpruceIDMobileSdkRs.DidMethod.key)
+    private static let defaultKeyId = "sprucekit/keymanager/vcalm/default"
 
-    init(keyId: String) throws {
-        self.keyId = keyId
-        if !KeyManager.keyExists(id: keyId) {
-            _ = KeyManager.generateSigningKey(id: keyId)
-        }
-        guard let jwk = KeyManager.getJwk(id: keyId) else {
-            throw VcalmSignerError.illegalArgumentException(reason: "Invalid kid")
-        }
-        self._jwk = jwk.description
+    private let didKey = DidMethodUtils(method: SpruceIDMobileSdkRs.DidMethod.key)
+    private let fallbackKeyId: String
+
+    init(fallbackKeyId: String) {
+        self.fallbackKeyId = fallbackKeyId
     }
 
-    func sign(payload: Data) async throws -> Data {
-        guard let signature = KeyManager.signPayload(id: keyId, payload: [UInt8](payload)) else {
+    // A per-credential key must already exist from issuance (else it can't match
+    // the credential's cnf binding); only the fallback/legacy key is created on demand.
+    private func resolveAlias(_ keyId: String) -> (id: String, mayGenerate: Bool) {
+        if keyId.isEmpty || keyId == fallbackKeyId {
+            let id = fallbackKeyId.isEmpty ? Self.defaultKeyId : fallbackKeyId
+            return (id, true)
+        }
+        return (keyId, false)
+    }
+
+    private func ensureKey(_ keyId: String) throws -> String {
+        let (id, mayGenerate) = resolveAlias(keyId)
+        if !KeyManager.keyExists(id: id) {
+            guard mayGenerate else {
+                throw VcalmSignerError.illegalArgumentException(
+                    reason: "No signing key for per-credential kid '\(id)'; it must exist from issuance")
+            }
+            _ = KeyManager.generateSigningKey(id: id)
+        }
+        return id
+    }
+
+    private func resolveJwk(_ keyId: String) throws -> String {
+        let id = try ensureKey(keyId)
+        guard let jwk = KeyManager.getJwk(id: id) else {
+            throw VcalmSignerError.illegalArgumentException(reason: "Invalid kid: \(id)")
+        }
+        return jwk.description
+    }
+
+    func sign(keyId: String, payload: Data) async throws -> Data {
+        let id = try ensureKey(keyId)
+        guard let signature = KeyManager.signPayload(id: id, payload: [UInt8](payload)) else {
             throw VcalmSignerError.illegalArgumentException(reason: "Failed to sign payload")
         }
         return Data(signature)
     }
 
     func algorithm() -> Algorithm {
-        if let data = _jwk.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let alg = json["alg"] as? String {
-            return alg
-        }
         return "ES256"
     }
 
-    func verificationMethod() async -> String {
+    func verificationMethod(keyId: String) async -> String {
         do {
-            return try await didKey.vmFromJwk(jwk: _jwk)
+            let jwk = try resolveJwk(keyId)
+            return try await didKey.vmFromJwk(jwk: jwk)
         } catch {
             fatalError("VcalmSigner: failed to derive verification method from JWK: \(error)")
         }
     }
 
-    func did() -> String {
+    func did(keyId: String) -> String {
         do {
-            return try didKey.didFromJwk(jwk: _jwk)
+            let jwk = try resolveJwk(keyId)
+            return try didKey.didFromJwk(jwk: jwk)
         } catch {
             fatalError("VcalmSigner: failed to derive DID from JWK: \(error)")
         }
     }
 
-    func jwk() -> String {
-        return _jwk
+    func jwk(keyId: String) -> String {
+        do {
+            return try resolveJwk(keyId)
+        } catch {
+            fatalError("VcalmSigner: failed to resolve JWK: \(error)")
+        }
     }
 
     // The VP-wrapper proof stays `ecdsa-rdfc-2019` for challenge/domain binding;
@@ -130,22 +156,25 @@ class VcalmAdapter: Vcalm {
     func createHolder(
         credentialPackIds: [String],
         trustedDids: [String],
-        keyId: String,
+        keyMap: [String: String],
+        fallbackKeyId: String,
         contextMap: [String: String]?,
         completion: @escaping (Result<VcalmResult, Error>) -> Void
     ) {
-        log("createHolder: keyId=\(keyId), trustedDids=\(trustedDids.count), packIds=\(credentialPackIds.count)")
+        log("createHolder: keyMap=\(keyMap.count) entries, fallbackKeyId=\(fallbackKeyId), trustedDids=\(trustedDids.count), packIds=\(credentialPackIds.count)")
         Task {
             do {
                 // Isolated (in-memory), NOT the shared on-disk store: matching is
                 // seeded only by the wallet packs provided below. See InMemoryVdcStorage.
                 let vdc = VdcCollection(engine: InMemoryVdcStorage())
-                let signer = try VcalmSigner(keyId: keyId)
+                let signer = VcalmSigner(fallbackKeyId: fallbackKeyId)
 
                 let newHolder = try await VcalmHolder.newSession(
                     vdcCollection: vdc,
                     trustedDids: trustedDids,
                     signer: signer,
+                    keyMap: keyMap,
+                    fallbackKeyId: fallbackKeyId,
                     contextMap: contextMap,
                     keystore: KeyManager()
                 )

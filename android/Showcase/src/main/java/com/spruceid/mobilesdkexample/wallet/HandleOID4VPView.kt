@@ -107,9 +107,9 @@ class Signer(keyId: String?) : PresentationSigner {
         this.jwk = keyManager.getJwk(this.keyId)?.toString() ?: throw IllegalArgumentException("Invalid kid")
     }
 
-    override suspend fun sign(payload: ByteArray): ByteArray {
+    override suspend fun sign(keyId: String, payload: ByteArray): ByteArray {
         val signature =
-            keyManager.signPayload(keyId, payload)
+            keyManager.signPayload(this.keyId, payload)
                 ?: throw IllegalStateException("Failed to sign payload")
 
         return signature
@@ -125,15 +125,15 @@ class Signer(keyId: String?) : PresentationSigner {
         }
     }
 
-    override suspend fun verificationMethod(): String {
+    override suspend fun verificationMethod(keyId: String): String {
         return didJwk.vmFromJwk(jwk)
     }
 
-    override fun did(): String {
+    override fun did(keyId: String): String {
         return didJwk.didFromJwk(jwk)
     }
 
-    override fun jwk(): String {
+    override fun jwk(keyId: String): String {
         return jwk
     }
 
@@ -297,6 +297,8 @@ fun HandleOID4VPView(
                                     credentials,
                                     trustedDids,
                                     signer,
+                                    emptyMap<String, String>(),
+                                    DEFAULT_SIGNING_KEY_ID,
                                     getVCPlaygroundOID4VCIContext(ctx),
                                     KeyManager()
                                 )
@@ -334,6 +336,8 @@ fun HandleOID4VPView(
                                     credentials,
                                     trustedDids,
                                     signer,
+                                    emptyMap<String, String>(),
+                                    DEFAULT_SIGNING_KEY_ID,
                                     getVCPlaygroundOID4VCIContext(ctx)
                                 )
                             val tempPermissionRequest = draft18Holder!!.authorizationRequest(newurl)

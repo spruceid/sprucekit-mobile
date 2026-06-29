@@ -177,13 +177,19 @@ abstract class Vcalm {
   ///
   /// @param credentialPackIds Credential pack IDs to enumerate for QBE matching
   /// @param trustedDids Trusted DIDs for verification (forward-looking)
-  /// @param keyId The keystore key identifier for signing (created if absent)
+  /// @param keyMap Per-credential signing keys: maps a credential id
+  ///   to the signing key id used to present it. A VCALM session signs one VP
+  ///   keyed off the presented credential; entries absent here use
+  ///   [fallbackKeyId].
+  /// @param fallbackKeyId Signing key id used when the presented credential has
+  ///   no [keyMap] entry (e.g. legacy credentials).
   /// @param contextMap Optional JSON-LD context map
   @async
   VcalmResult createHolder(
     List<String> credentialPackIds,
     List<String> trustedDids,
-    String keyId,
+    Map<String, String> keyMap,
+    String fallbackKeyId,
     Map<String, String>? contextMap,
   );
 

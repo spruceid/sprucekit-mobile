@@ -53,6 +53,8 @@ pub async fn test_vc_playground_oid4vp() {
         vec![credential.clone()],
         trusted_dids,
         Box::new(signer),
+        Default::default(),
+        String::new(),
         Some(default_ld_json_context()),
         None,
     )

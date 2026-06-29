@@ -3772,11 +3772,11 @@ open class Draft18Holder: Draft18HolderProtocol, @unchecked Sendable {
     /**
      * Uses VDC collection to retrieve the credentials for a given presentation definition.
      */
-public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: Draft18PresentationSigner, contextMap: [String: String]?)async throws  {
+public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: Draft18PresentationSigner, keyMap: [String: String], fallbackKeyId: String, contextMap: [String: String]?)async throws  {
     let handle =
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_draft18holder_new(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceDraft18PresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap)
+                uniffi_mobile_sdk_rs_fn_constructor_draft18holder_new(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceDraft18PresentationSigner_lower(signer),FfiConverterDictionaryStringString.lower(keyMap),FfiConverterString.lower(fallbackKeyId),FfiConverterOptionDictionaryStringString.lower(contextMap)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -3807,11 +3807,11 @@ public convenience init(vdcCollection: VdcCollection, trustedDids: [String], sig
      * This constructor will use the provided credentials for the presentation,
      * instead of searching for credentials in the VDC collection.
      */
-public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: Draft18PresentationSigner, contextMap: [String: String]?)async throws  -> Draft18Holder  {
+public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: Draft18PresentationSigner, keyMap: [String: String], fallbackKeyId: String, contextMap: [String: String]?)async throws  -> Draft18Holder  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_draft18holder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceDraft18PresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap)
+                uniffi_mobile_sdk_rs_fn_constructor_draft18holder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceDraft18PresentationSigner_lower(signer),FfiConverterDictionaryStringString.lower(keyMap),FfiConverterString.lower(fallbackKeyId),FfiConverterOptionDictionaryStringString.lower(contextMap)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -5146,11 +5146,11 @@ open class Holder: HolderProtocol, @unchecked Sendable {
     /**
      * Uses VDC collection to retrieve the credentials for a given presentation definition.
      */
-public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  {
+public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, keyMap: [String: String], fallbackKeyId: String, contextMap: [String: String]?, keystore: KeyStore?)async throws  {
     let handle =
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_holder_new(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
+                uniffi_mobile_sdk_rs_fn_constructor_holder_new(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterDictionaryStringString.lower(keyMap),FfiConverterString.lower(fallbackKeyId),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -5181,11 +5181,11 @@ public convenience init(vdcCollection: VdcCollection, trustedDids: [String], sig
      * This constructor will use the provided credentials for the presentation,
      * instead of searching for credentials in the VDC collection.
      */
-public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> Holder  {
+public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: PresentationSigner, keyMap: [String: String], fallbackKeyId: String, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> Holder  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
+                uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterDictionaryStringString.lower(keyMap),FfiConverterString.lower(fallbackKeyId),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -6905,7 +6905,7 @@ open class JsonLdPresentationBuilder: JsonLdPresentationBuilderProtocol, @unchec
     public func uniffiCloneHandle() -> UInt64 {
         return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_jsonldpresentationbuilder(self.handle, $0) }
     }
-public convenience init(id: String, holder: String, proofPurpose: String, challenge: String?, domain: String?, signer: PresentationSigner, contextMap: [String: String]?) {
+public convenience init(id: String, holder: String, proofPurpose: String, challenge: String?, domain: String?, signer: PresentationSigner, keyId: String, contextMap: [String: String]?) {
     let handle =
         try! rustCall() {
     uniffi_mobile_sdk_rs_fn_constructor_jsonldpresentationbuilder_new(
@@ -6915,6 +6915,7 @@ public convenience init(id: String, holder: String, proofPurpose: String, challe
         FfiConverterOptionString.lower(challenge),
         FfiConverterOptionString.lower(domain),
         FfiConverterCallbackInterfacePresentationSigner_lower(signer),
+        FfiConverterString.lower(keyId),
         FfiConverterOptionDictionaryStringString.lower(contextMap),$0
     )
 }
@@ -11139,11 +11140,11 @@ open class Oid4vpHolder: Oid4vpHolderProtocol, @unchecked Sendable {
     public func uniffiCloneHandle() -> UInt64 {
         return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vpholder(self.handle, $0) }
     }
-public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: Oid4vpPresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  {
+public convenience init(vdcCollection: VdcCollection, trustedDids: [String], signer: Oid4vpPresentationSigner, keyMap: [String: String], fallbackKeyId: String, contextMap: [String: String]?, keystore: KeyStore?)async throws  {
     let handle =
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_oid4vpholder_new(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceOid4vpPresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
+                uniffi_mobile_sdk_rs_fn_constructor_oid4vpholder_new(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceOid4vpPresentationSigner_lower(signer),FfiConverterDictionaryStringString.lower(keyMap),FfiConverterString.lower(fallbackKeyId),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -11167,11 +11168,11 @@ public convenience init(vdcCollection: VdcCollection, trustedDids: [String], sig
     }
 
     
-public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: Oid4vpPresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> Oid4vpHolder  {
+public static func newWithCredentials(providedCredentials: [ParsedCredential], trustedDids: [String], signer: Oid4vpPresentationSigner, keyMap: [String: String], fallbackKeyId: String, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> Oid4vpHolder  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_oid4vpholder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceOid4vpPresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
+                uniffi_mobile_sdk_rs_fn_constructor_oid4vpholder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceOid4vpPresentationSigner_lower(signer),FfiConverterDictionaryStringString.lower(keyMap),FfiConverterString.lower(fallbackKeyId),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -16072,11 +16073,11 @@ open class VcalmHolder: VcalmHolderProtocol, @unchecked Sendable {
      * A non-`new` name becomes a companion `suspend fun newSession(...)` (and a
      * Swift static `VcalmHolder.newSession(...)`), which both adapters call.
      */
-public static func newSession(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> VcalmHolder  {
+public static func newSession(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, keyMap: [String: String], fallbackKeyId: String, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> VcalmHolder  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_vcalmholder_new_session(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
+                uniffi_mobile_sdk_rs_fn_constructor_vcalmholder_new_session(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterDictionaryStringString.lower(keyMap),FfiConverterString.lower(fallbackKeyId),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -31571,11 +31572,11 @@ public func FfiConverterTypeX509CertChainOpts_lower(_ value: X509CertChainOpts) 
 public protocol Draft18PresentationSigner: AnyObject, Sendable {
     
     /**
-     * Sign the payload with the private key and return the signature.
+     * Sign the payload with the private key identified by `key_id`.
      *
      * The signing algorithm must match the `cryptosuite()` method result.
      */
-    func sign(payload: Data) async throws  -> Data
+    func sign(keyId: String, payload: Data) async throws  -> Data
     
     /**
      * Return the algorithm used for signing the vp token.
@@ -31585,14 +31586,14 @@ public protocol Draft18PresentationSigner: AnyObject, Sendable {
     func algorithm()  -> Algorithm
     
     /**
-     * Return the verification method associated with the signing key.
+     * Return the verification method associated with the signing key `key_id`.
      */
-    func verificationMethod() async  -> String
+    func verificationMethod(keyId: String) async  -> String
     
     /**
-     * Return the `DID` of the signing key.
+     * Return the `DID` of the signing key identified by `key_id`.
      */
-    func did()  -> String
+    func did(keyId: String)  -> String
     
     /**
      * Data Integrity Cryptographic Suite of the Signer.
@@ -31608,10 +31609,10 @@ public protocol Draft18PresentationSigner: AnyObject, Sendable {
     func cryptosuite()  -> CryptosuiteString
     
     /**
-     * Return the public JWK of the signing key.
-     * as a String-encoded JSON
+     * Return the public JWK of the signing key identified by `key_id`,
+     * as a String-encoded JSON.
      */
-    func jwk()  -> String
+    func jwk(keyId: String)  -> String
     
 }
 
@@ -31640,6 +31641,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
         },
         sign: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             payload: RustBuffer,
             uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
             uniffiCallbackData: UInt64,
@@ -31651,6 +31653,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return try await uniffiObj.sign(
+                     keyId: try FfiConverterString.lift(keyId),
                      payload: try FfiConverterData.lift(payload)
                 )
             }
@@ -31705,6 +31708,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
         },
         verificationMethod: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
             uniffiCallbackData: UInt64,
             uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
@@ -31715,6 +31719,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return await uniffiObj.verificationMethod(
+                     keyId: try FfiConverterString.lift(keyId)
                 )
             }
 
@@ -31745,6 +31750,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
         },
         did: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
@@ -31754,6 +31760,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return uniffiObj.did(
+                     keyId: try FfiConverterString.lift(keyId)
                 )
             }
 
@@ -31789,6 +31796,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
         },
         jwk: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
@@ -31798,6 +31806,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return uniffiObj.jwk(
+                     keyId: try FfiConverterString.lift(keyId)
                 )
             }
 
@@ -31889,17 +31898,17 @@ public func FfiConverterCallbackInterfaceDraft18PresentationSigner_lower(_ v: Dr
 
 public protocol Oid4vpPresentationSigner: AnyObject, Sendable {
     
-    func sign(payload: Data) async throws  -> Data
+    func sign(keyId: String, payload: Data) async throws  -> Data
     
     func algorithm()  -> Algorithm
     
-    func verificationMethod() async  -> String
+    func verificationMethod(keyId: String) async  -> String
     
-    func did()  -> String
+    func did(keyId: String)  -> String
     
     func cryptosuite()  -> CryptosuiteString
     
-    func jwk()  -> String
+    func jwk(keyId: String)  -> String
     
 }
 
@@ -31928,6 +31937,7 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
         },
         sign: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             payload: RustBuffer,
             uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
             uniffiCallbackData: UInt64,
@@ -31939,6 +31949,7 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return try await uniffiObj.sign(
+                     keyId: try FfiConverterString.lift(keyId),
                      payload: try FfiConverterData.lift(payload)
                 )
             }
@@ -31993,6 +32004,7 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
         },
         verificationMethod: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
             uniffiCallbackData: UInt64,
             uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
@@ -32003,6 +32015,7 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return await uniffiObj.verificationMethod(
+                     keyId: try FfiConverterString.lift(keyId)
                 )
             }
 
@@ -32033,6 +32046,7 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
         },
         did: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
@@ -32042,6 +32056,7 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return uniffiObj.did(
+                     keyId: try FfiConverterString.lift(keyId)
                 )
             }
 
@@ -32077,6 +32092,7 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
         },
         jwk: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
@@ -32086,6 +32102,7 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return uniffiObj.jwk(
+                     keyId: try FfiConverterString.lift(keyId)
                 )
             }
 
@@ -32191,11 +32208,12 @@ public func FfiConverterCallbackInterfaceOid4vpPresentationSigner_lower(_ v: Oid
 public protocol PresentationSigner: AnyObject, Sendable {
     
     /**
-     * Sign the payload with the private key and return the signature.
+     * Sign the payload with the private key identified by `key_id` and return
+     * the signature.
      *
      * The signing algorithm must match the `cryptosuite()` method result.
      */
-    func sign(payload: Data) async throws  -> Data
+    func sign(keyId: String, payload: Data) async throws  -> Data
     
     /**
      * Return the algorithm used for signing the vp token.
@@ -32205,14 +32223,14 @@ public protocol PresentationSigner: AnyObject, Sendable {
     func algorithm()  -> Algorithm
     
     /**
-     * Return the verification method associated with the signing key.
+     * Return the verification method associated with the signing key `key_id`.
      */
-    func verificationMethod() async  -> String
+    func verificationMethod(keyId: String) async  -> String
     
     /**
-     * Return the `DID` of the signing key.
+     * Return the `DID` of the signing key identified by `key_id`.
      */
-    func did()  -> String
+    func did(keyId: String)  -> String
     
     /**
      * Data Integrity Cryptographic Suite of the Signer.
@@ -32229,10 +32247,10 @@ public protocol PresentationSigner: AnyObject, Sendable {
     func cryptosuite()  -> CryptosuiteString
     
     /**
-     * Return the public JWK of the signing key.
-     * as a String-encoded JSON
+     * Return the public JWK of the signing key identified by `key_id`,
+     * as a String-encoded JSON.
      */
-    func jwk()  -> String
+    func jwk(keyId: String)  -> String
     
 }
 
@@ -32261,6 +32279,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
         },
         sign: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             payload: RustBuffer,
             uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
             uniffiCallbackData: UInt64,
@@ -32272,6 +32291,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return try await uniffiObj.sign(
+                     keyId: try FfiConverterString.lift(keyId),
                      payload: try FfiConverterData.lift(payload)
                 )
             }
@@ -32326,6 +32346,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
         },
         verificationMethod: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
             uniffiCallbackData: UInt64,
             uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
@@ -32336,6 +32357,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return await uniffiObj.verificationMethod(
+                     keyId: try FfiConverterString.lift(keyId)
                 )
             }
 
@@ -32366,6 +32388,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
         },
         did: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
@@ -32375,6 +32398,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return uniffiObj.did(
+                     keyId: try FfiConverterString.lift(keyId)
                 )
             }
 
@@ -32410,6 +32434,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
         },
         jwk: { (
             uniffiHandle: UInt64,
+            keyId: RustBuffer,
             uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
             uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
         ) in
@@ -32419,6 +32444,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return uniffiObj.jwk(
+                     keyId: try FfiConverterString.lift(keyId)
                 )
             }
 
@@ -37668,25 +37694,25 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequestpresentmentrequest_new() != 63257) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_draft18holder_new() != 29121) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_draft18holder_new() != 5584) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_draft18holder_new_with_credentials() != 20250) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_draft18holder_new_with_credentials() != 44342) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_draft18delegatedverifier_new_client() != 39564) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new() != 23779) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new() != 4338) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials() != 21422) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials() != 29942) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 14723) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 57723) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 922) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 6043) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137_new() != 49393) {
@@ -37698,10 +37724,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 46518) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_jsonldpresentationbuilder_new() != 20630) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_jsonldpresentationbuilder_new() != 38228) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_vcalmholder_new_session() != 22416) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_vcalmholder_new_session() != 63275) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_vdccollection_new() != 63831) {
@@ -37710,58 +37736,58 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_defaultverifier_new() != 47119) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_sign() != 33962) {
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_sign() != 35559) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_algorithm() != 52075) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_verification_method() != 29371) {
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_verification_method() != 20007) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_did() != 59929) {
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_did() != 13490) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_cryptosuite() != 2175) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_jwk() != 18531) {
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_jwk() != 14022) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_sign() != 43693) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_sign() != 15207) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_algorithm() != 51658) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_verification_method() != 4864) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_verification_method() != 14540) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_did() != 16233) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_did() != 40458) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_cryptosuite() != 23253) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_jwk() != 13104) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_jwk() != 49772) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_sign() != 57164) {
+    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_sign() != 59798) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_algorithm() != 27091) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_verification_method() != 42874) {
+    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_verification_method() != 34638) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_did() != 65046) {
+    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_did() != 34572) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_cryptosuite() != 62392) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_jwk() != 39716) {
+    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_jwk() != 60713) {
         return InitializationResult.apiChecksumMismatch
     }
 

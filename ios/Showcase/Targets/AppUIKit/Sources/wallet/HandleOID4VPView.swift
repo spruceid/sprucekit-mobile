@@ -32,7 +32,7 @@ class Signer: PresentationSigner {
         }
     }
 
-    func sign(payload: Data) async throws -> Data {
+    func sign(keyId _: String, payload: Data) async throws -> Data {
         let signature = KeyManager.signPayload(
             id: keyId, payload: [UInt8](payload))
         if signature == nil {
@@ -49,15 +49,15 @@ class Signer: PresentationSigner {
         return json?.dictValue?["alg"]?.toString() ?? "ES256"
     }
 
-    func verificationMethod() async -> String {
+    func verificationMethod(keyId _: String) async -> String {
         return try! await didJwk.vmFromJwk(jwk: _jwk)
     }
 
-    func did() -> String {
+    func did(keyId _: String) -> String {
         return try! didJwk.didFromJwk(jwk: _jwk)
     }
 
-    func jwk() -> String {
+    func jwk(keyId _: String) -> String {
         return _jwk
     }
 
@@ -201,6 +201,8 @@ struct HandleOID4VPView: View {
                     providedCredentials: credentials,
                     trustedDids: trustedDids,
                     signer: signer,
+                    keyMap: [:],
+                    fallbackKeyId: DEFAULT_SIGNING_KEY_ID,
                     contextMap: getVCPlaygroundOID4VCIContext(),
                     keystore: KeyManager()
                 )
@@ -238,6 +240,8 @@ struct HandleOID4VPView: View {
                     providedCredentials: credentials,
                     trustedDids: trustedDids,
                     signer: signer,
+                    keyMap: [:],
+                    fallbackKeyId: DEFAULT_SIGNING_KEY_ID,
                     contextMap: getVCPlaygroundOID4VCIContext()
                 )
                 let tmpPermissionRequest = try await draft18Holder!.authorizationRequest(req: newurl)

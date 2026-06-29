@@ -171,15 +171,22 @@ pub struct Draft18PermissionRequest {
     pub(crate) credentials: Vec<Arc<Draft18PresentableCredential>>,
     pub(crate) request: AuthorizationRequestObject,
     pub(crate) signer: Arc<Box<dyn Draft18PresentationSigner>>,
+    /// Map of credential id → signing key id for per-credential keys.
+    pub(crate) key_map: HashMap<String, String>,
+    /// Signing key id used for credentials absent from `key_map`.
+    pub(crate) fallback_key_id: String,
     pub(crate) context_map: Option<HashMap<String, String>>,
 }
 
 impl Draft18PermissionRequest {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         definition: PresentationDefinition,
         credentials: Vec<Arc<Draft18PresentableCredential>>,
         request: AuthorizationRequestObject,
         signer: Arc<Box<dyn Draft18PresentationSigner>>,
+        key_map: HashMap<String, String>,
+        fallback_key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Arc<Self> {
         Arc::new(Self {
@@ -187,6 +194,8 @@ impl Draft18PermissionRequest {
             credentials,
             request,
             signer,
+            key_map,
+            fallback_key_id,
             context_map,
         })
     }
@@ -279,23 +288,39 @@ impl Draft18PermissionRequest {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        // Set options for constructing a verifiable presentation.
-        let options = Draft18PresentationOptions {
-            request: &self.request,
-            signer: self.signer.clone(),
-            context_map: self.context_map.clone(),
-            response_options: &response_options,
-        };
+        let token_items =
+            futures::future::try_join_all(selected_credentials.iter().map(|cred: &Arc<_>| {
+                let request = &self.request;
+                let signer = self.signer.clone();
+                let key_map = &self.key_map;
+                let fallback_key_id = &self.fallback_key_id;
+                let context_map = self.context_map.clone();
+                let response_options = &response_options;
+                async move {
+                    // Resolve the per-credential signing key id,
+                    // falling back to the shared key for unmapped credentials.
+                    let cred_id = crate::credential::ParsedCredential {
+                        inner: cred.inner.clone(),
+                    }
+                    .id()
+                    .to_string();
+                    let active_key_id =
+                        crate::oid4vp::resolve_active_key_id(key_map, fallback_key_id, &cred_id);
 
-        let token_items = futures::future::try_join_all(
-            selected_credentials
-                .iter()
-                .map(|cred: &Arc<_>| cred.as_vp_token(&options)),
-        )
-        .await
-        .inspect_err(|e| {
-            tracing::error!("Building the VP token for the presentation failed: {e:?}")
-        })?;
+                    let options = Draft18PresentationOptions {
+                        request,
+                        signer,
+                        active_key_id,
+                        context_map,
+                        response_options,
+                    };
+                    cred.as_vp_token(&options).await
+                }
+            }))
+            .await
+            .inspect_err(|e| {
+                tracing::error!("Building the VP token for the presentation failed: {e:?}")
+            })?;
 
         let vp_token = VpToken(token_items);
 

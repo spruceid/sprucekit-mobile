@@ -730,9 +730,14 @@ protocol Vcalm {
   ///
   /// @param credentialPackIds Credential pack IDs to enumerate for QBE matching
   /// @param trustedDids Trusted DIDs for verification (forward-looking)
-  /// @param keyId The keystore key identifier for signing (created if absent)
+  /// @param keyMap Per-credential signing keys: maps a credential id
+  ///   to the signing key id used to present it. A VCALM session signs one VP
+  ///   keyed off the presented credential; entries absent here use
+  ///   [fallbackKeyId].
+  /// @param fallbackKeyId Signing key id used when the presented credential has
+  ///   no [keyMap] entry (e.g. legacy credentials).
   /// @param contextMap Optional JSON-LD context map
-  func createHolder(credentialPackIds: [String], trustedDids: [String], keyId: String, contextMap: [String: String]?, completion: @escaping (Result<VcalmResult, Error>) -> Void)
+  func createHolder(credentialPackIds: [String], trustedDids: [String], keyMap: [String: String], fallbackKeyId: String, contextMap: [String: String]?, completion: @escaping (Result<VcalmResult, Error>) -> Void)
   /// Start the exchange from an `interaction:`/`https` URL.
   ///
   /// @param url The exchange or discovery URL
@@ -779,7 +784,12 @@ class VcalmSetup {
     ///
     /// @param credentialPackIds Credential pack IDs to enumerate for QBE matching
     /// @param trustedDids Trusted DIDs for verification (forward-looking)
-    /// @param keyId The keystore key identifier for signing (created if absent)
+    /// @param keyMap Per-credential signing keys: maps a credential id
+    ///   to the signing key id used to present it. A VCALM session signs one VP
+    ///   keyed off the presented credential; entries absent here use
+    ///   [fallbackKeyId].
+    /// @param fallbackKeyId Signing key id used when the presented credential has
+    ///   no [keyMap] entry (e.g. legacy credentials).
     /// @param contextMap Optional JSON-LD context map
     let createHolderChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Vcalm.createHolder\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -787,9 +797,10 @@ class VcalmSetup {
         let args = message as! [Any?]
         let credentialPackIdsArg = args[0] as! [String]
         let trustedDidsArg = args[1] as! [String]
-        let keyIdArg = args[2] as! String
-        let contextMapArg: [String: String]? = nilOrValue(args[3])
-        api.createHolder(credentialPackIds: credentialPackIdsArg, trustedDids: trustedDidsArg, keyId: keyIdArg, contextMap: contextMapArg) { result in
+        let keyMapArg = args[2] as! [String: String]
+        let fallbackKeyIdArg = args[3] as! String
+        let contextMapArg: [String: String]? = nilOrValue(args[4])
+        api.createHolder(credentialPackIds: credentialPackIdsArg, trustedDids: trustedDidsArg, keyMap: keyMapArg, fallbackKeyId: fallbackKeyIdArg, contextMap: contextMapArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

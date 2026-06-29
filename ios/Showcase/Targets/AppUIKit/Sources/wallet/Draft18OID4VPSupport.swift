@@ -21,7 +21,7 @@ class Draft18Signer: Draft18PresentationSigner {
         jwkString = jwk.description
     }
 
-    func sign(payload: Data) async throws -> Data {
+    func sign(keyId _: String, payload: Data) async throws -> Data {
         guard let signature = KeyManager.signPayload(id: keyId, payload: [UInt8](payload)) else {
             throw Oid4vpSignerError.illegalArgumentException(reason: "Failed to sign payload")
         }
@@ -34,11 +34,11 @@ class Draft18Signer: Draft18PresentationSigner {
         return json?.dictValue?["alg"]?.toString() ?? "ES256"
     }
 
-    func verificationMethod() async -> String {
+    func verificationMethod(keyId _: String) async -> String {
         try! await didJwk.vmFromJwk(jwk: jwkString)
     }
 
-    func did() -> String {
+    func did(keyId _: String) -> String {
         try! didJwk.didFromJwk(jwk: jwkString)
     }
 
@@ -46,7 +46,7 @@ class Draft18Signer: Draft18PresentationSigner {
         "ecdsa-rdfc-2019"
     }
 
-    func jwk() -> String {
+    func jwk(keyId _: String) -> String {
         jwkString
     }
 }

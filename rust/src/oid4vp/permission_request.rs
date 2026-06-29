@@ -215,6 +215,10 @@ pub struct PermissionRequest {
     pub(crate) credentials: Vec<Arc<PresentableCredential>>,
     pub(crate) request: AuthorizationRequestObject,
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+    /// Map of credential id -> signing key id for per-credential keys.
+    pub(crate) key_map: HashMap<String, String>,
+    /// Signing key id used for credentials absent from `key_map`.
+    pub(crate) fallback_key_id: String,
     pub(crate) context_map: Option<HashMap<String, String>>,
     pub(crate) keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
 }
@@ -232,11 +236,14 @@ impl std::fmt::Debug for PermissionRequest {
 }
 
 impl PermissionRequest {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         dcql_query: DcqlQuery,
         credentials: Vec<Arc<PresentableCredential>>,
         request: AuthorizationRequestObject,
         signer: Arc<Box<dyn PresentationSigner>>,
+        key_map: HashMap<String, String>,
+        fallback_key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
     ) -> Arc<Self> {
@@ -245,6 +252,8 @@ impl PermissionRequest {
             credentials,
             request,
             signer,
+            key_map,
+            fallback_key_id,
             context_map,
             keystore,
         })
@@ -328,18 +337,31 @@ impl PermissionRequest {
             })
             .collect();
 
-        // Set options for constructing a verifiable presentation.
-        let options = PresentationOptions {
-            request: &self.request,
-            signer: self.signer.clone(),
-            context_map: self.context_map.clone(),
-            response_options: &response_options,
-            keystore: self.keystore.clone(),
-        };
-
         let mut vp_token_map: HashMap<String, Vec<VpTokenItem>> = HashMap::new();
 
         for cred in &selected_credentials {
+            let cred_id = ParsedCredential {
+                inner: cred.inner.clone(),
+            }
+            .id()
+            .to_string();
+            let active_key_id = crate::oid4vp::resolve_active_key_id(
+                &self.key_map,
+                &self.fallback_key_id,
+                &cred_id,
+            );
+
+            // Set options for constructing this credential's verifiable
+            // presentation, pinned to its resolved signing key.
+            let options = PresentationOptions {
+                request: &self.request,
+                signer: self.signer.clone(),
+                active_key_id,
+                context_map: self.context_map.clone(),
+                response_options: &response_options,
+                keystore: self.keystore.clone(),
+            };
+
             let token_item = cred.as_vp_token(&options).await?;
             vp_token_map
                 .entry(cred.credential_query_id.clone())

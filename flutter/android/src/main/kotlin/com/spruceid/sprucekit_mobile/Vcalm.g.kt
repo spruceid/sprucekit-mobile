@@ -806,10 +806,15 @@ interface Vcalm {
    *
    * @param credentialPackIds Credential pack IDs to enumerate for QBE matching
    * @param trustedDids Trusted DIDs for verification (forward-looking)
-   * @param keyId The keystore key identifier for signing (created if absent)
+   * @param keyMap Per-credential signing keys: maps a credential id
+   *   to the signing key id used to present it. A VCALM session signs one VP
+   *   keyed off the presented credential; entries absent here use
+   *   [fallbackKeyId].
+   * @param fallbackKeyId Signing key id used when the presented credential has
+   *   no [keyMap] entry (e.g. legacy credentials).
    * @param contextMap Optional JSON-LD context map
    */
-  fun createHolder(credentialPackIds: List<String>, trustedDids: List<String>, keyId: String, contextMap: Map<String, String>?, callback: (Result<VcalmResult>) -> Unit)
+  fun createHolder(credentialPackIds: List<String>, trustedDids: List<String>, keyMap: Map<String, String>, fallbackKeyId: String, contextMap: Map<String, String>?, callback: (Result<VcalmResult>) -> Unit)
   /**
    * Start the exchange from an `interaction:`/`https` URL.
    *
@@ -864,9 +869,10 @@ interface Vcalm {
             val args = message as List<Any?>
             val credentialPackIdsArg = args[0] as List<String>
             val trustedDidsArg = args[1] as List<String>
-            val keyIdArg = args[2] as String
-            val contextMapArg = args[3] as Map<String, String>?
-            api.createHolder(credentialPackIdsArg, trustedDidsArg, keyIdArg, contextMapArg) { result: Result<VcalmResult> ->
+            val keyMapArg = args[2] as Map<String, String>
+            val fallbackKeyIdArg = args[3] as String
+            val contextMapArg = args[4] as Map<String, String>?
+            api.createHolder(credentialPackIdsArg, trustedDidsArg, keyMapArg, fallbackKeyIdArg, contextMapArg) { result: Result<VcalmResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(VcalmPigeonUtils.wrapError(error))

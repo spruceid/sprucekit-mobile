@@ -21,7 +21,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
-import org.json.JSONObject
 
 /**
  * In-memory [StorageManagerInterface]. Keeps the VCALM holder's base
@@ -37,50 +36,51 @@ internal class InMemoryVdcStorage : StorageManagerInterface {
 }
 
 /**
- * Signer for VCALM presentation.
+ * Signer for VCALM presentation. 
  *
  * Uses `did:key` (not `did:jwk`) because the target exchange server requires the
  * holder DID to be `did:key`. Conforms to the base [PresentationSigner].
  */
-class VcalmSigner(keyId: String?) : PresentationSigner {
-    private val keyId = keyId ?: "vcalm_demo_key"
+class VcalmSigner(private val fallbackKeyId: String) : PresentationSigner {
     private val keyManager = KeyManager()
-    private var jwk: String
-
     private val didKey = DidMethodUtils(DidMethod.KEY)
 
-    init {
-        if (!keyManager.keyExists(this.keyId)) {
-            keyManager.generateSigningKey(id = this.keyId)
+    // Only the fallback/legacy key is created on demand; a per-credential key
+    // must already exist from issuance, else it can't match the cnf binding.
+    private fun ensureKey(keyId: String): String {
+        val mayGenerate = keyId.isEmpty() || keyId == fallbackKeyId
+        val resolvedId = if (mayGenerate) fallbackKeyId.ifEmpty { DEFAULT_KEY_ID } else keyId
+        if (!keyManager.keyExists(resolvedId)) {
+            require(mayGenerate) {
+                "No signing key for per-credential kid '$resolvedId'; it must exist from issuance"
+            }
+            keyManager.generateSigningKey(id = resolvedId)
         }
-        this.jwk = keyManager.getJwk(this.keyId)?.toString()
-            ?: throw IllegalArgumentException("Invalid kid")
+        return resolvedId
     }
 
-    override suspend fun sign(payload: ByteArray): ByteArray {
-        val signature = keyManager.signPayload(keyId, payload)
+    private fun jwkFor(keyId: String): String =
+        keyManager.getJwk(ensureKey(keyId))?.toString()
+            ?: throw IllegalArgumentException("Invalid kid: $keyId")
+
+    override suspend fun sign(keyId: String, payload: ByteArray): ByteArray =
+        keyManager.signPayload(ensureKey(keyId), payload)
             ?: throw IllegalStateException("Failed to sign payload")
-        return signature
-    }
 
     override fun algorithm(): String {
-        return try {
-            JSONObject(jwk).getString("alg")
-        } catch (_: Exception) {
-            "ES256"
-        }
+        return "ES256"
     }
 
-    override suspend fun verificationMethod(): String {
-        return didKey.vmFromJwk(jwk)
+    override suspend fun verificationMethod(keyId: String): String {
+        return didKey.vmFromJwk(jwkFor(keyId))
     }
 
-    override fun did(): String {
-        return didKey.didFromJwk(jwk)
+    override fun did(keyId: String): String {
+        return didKey.didFromJwk(jwkFor(keyId))
     }
 
-    override fun jwk(): String {
-        return jwk
+    override fun jwk(keyId: String): String {
+        return jwkFor(keyId)
     }
 
     // The VP-wrapper proof stays `ecdsa-rdfc-2019` for challenge/domain binding;
@@ -88,6 +88,10 @@ class VcalmSigner(keyId: String?) : PresentationSigner {
     // (derived in Rust), not on the VP wrapper.
     override fun cryptosuite(): String {
         return "ecdsa-rdfc-2019"
+    }
+
+    private companion object {
+        const val DEFAULT_KEY_ID = "vcalm_demo_key"
     }
 }
 
@@ -123,24 +127,33 @@ internal class VcalmAdapter(
     override fun createHolder(
         credentialPackIds: List<String>,
         trustedDids: List<String>,
-        keyId: String,
+        keyMap: Map<String, String>,
+        fallbackKeyId: String,
         contextMap: Map<String, String>?,
         callback: (Result<VcalmResult>) -> Unit
     ) {
         // Bridge Rust `tracing` into logcat (tag "RustLogger"). Idempotent.
         RustLogger.enable()
-        Log.d(TAG, "createHolder: keyId=$keyId, trustedDids=${trustedDids.size}, " +
-            "packIds=${credentialPackIds.size}")
+        Log.d(TAG, "createHolder: fallbackKeyId=$fallbackKeyId, keyMap=${keyMap.size}, " +
+            "trustedDids=${trustedDids.size}, packIds=${credentialPackIds.size}")
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 // Isolated (in-memory), NOT the shared on-disk store: matching is
                 // seeded only by the wallet packs provided below. See InMemoryVdcStorage.
                 val vdc = VdcCollection(InMemoryVdcStorage())
-                val signer = VcalmSigner(keyId)
-                Log.d(TAG, "createHolder: signer did=${signer.did()}")
+                val signer = VcalmSigner(fallbackKeyId)
+                Log.d(TAG, "createHolder: signer fallback did=${signer.did(fallbackKeyId)}")
 
                 val newHolder =
-                    VcalmHolder.newSession(vdc, trustedDids, signer, contextMap, KeyManager())
+                    VcalmHolder.newSession(
+                        vdc,
+                        trustedDids,
+                        signer,
+                        keyMap,
+                        fallbackKeyId,
+                        contextMap,
+                        KeyManager()
+                    )
 
                 if (credentialPackIds.isNotEmpty()) {
                     val credentials = mutableListOf<ParsedCredential>()
