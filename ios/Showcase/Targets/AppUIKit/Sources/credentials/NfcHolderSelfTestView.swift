@@ -82,6 +82,7 @@ final class NfcHolderSelfTestRunner: ObservableObject {
     private var finished = false
     private var holderEngaged = false
     private var readerAdvertising = false
+    private var runToken = 0
 
     init(mdoc: Mdoc) {
         self.mdoc = mdoc
@@ -90,6 +91,8 @@ final class NfcHolderSelfTestRunner: ObservableObject {
     func run() {
         guard !isRunning else { return }
         isRunning = true
+        runToken += 1
+        let token = runToken
         finished = false
         succeeded = false
         outcome = nil
@@ -122,7 +125,8 @@ final class NfcHolderSelfTestRunner: ObservableObject {
             append("Holder scanning + reader advertising over BLE…")
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 15) { [weak self] in
-                self?.fail("Holder/reader did not reach ready states in time — check Bluetooth permission")
+                guard let self, token == self.runToken else { return }
+                self.fail("Holder/reader did not reach ready states in time — check Bluetooth permission")
             }
         } catch {
             fail("Loopback failed: \(error)")
@@ -130,6 +134,7 @@ final class NfcHolderSelfTestRunner: ObservableObject {
     }
 
     func stop() {
+        runToken += 1
         holder?.disconnect()
         reader?.disconnect()
         holder = nil

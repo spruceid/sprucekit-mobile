@@ -76,8 +76,9 @@ public struct ShareMdocQR: View {
                 authorizeBluetooth
             case .connecting(let qrPayload):
                 connectingView(qrPayload: qrPayload)
+            // ShareMdocView only uses QR engagement; this state never occurs here.
             case .connectingViaNfc:
-                connectingViaNfcView
+                EmptyView()
             case .connected:
                 connectedView
             case .receivingRequest(let bytesSoFar, let total):
@@ -170,14 +171,6 @@ public struct ShareMdocQR: View {
             .resizable()
             .scaledToFit()
             .aspectRatio(contentMode: .fit)
-    }
-
-    @ViewBuilder
-    var connectingViaNfcView: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Hold your phone near the reader…")
-        }
     }
 
     @ViewBuilder

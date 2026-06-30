@@ -61,11 +61,16 @@ public class MdocProximityPresentationManager {
         case let .NFC(carrier):
             // NFC static handover is BLE central-client-mode only, on the UUID fixed by the handover.
             var l2capUsage: L2CAPUsage = .disableL2CAP
+            var hasCentralMode = false
             for mode in transmissionModes {
                 if case let .bleMdocCentralMode(usage) = mode {
                     l2capUsage = usage
+                    hasCentralMode = true
                     break
                 }
+            }
+            if !hasCentralMode {
+                print("NFC engagement forces BLE mdoc central client mode; ignoring the provided transmission modes")
             }
             central = CentralManager(mdoc: handle, serviceUuid: carrier.getUuid(), l2capUsage)
         }
