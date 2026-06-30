@@ -15,6 +15,7 @@ use isomdl::{
     },
     presentation::{authentication::AuthenticationStatus as IsoMdlAuthenticationStatus, reader},
 };
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(uniffi::Record)]
@@ -346,24 +347,34 @@ pub enum MDLReaderResponseSerializeError {
     Generic { value: String },
 }
 
+/// Serialize a verified namespace map (namespace -> element -> value) to JSON.
+///
+/// Shared by the reader-session response ([`MDLReaderResponseData`]) and the standalone
+/// verification result ([`MDLDeviceResponseVerification`]).
+fn verified_response_to_json(
+    verified_response: &HashMap<String, HashMap<String, MDocItem>>,
+) -> Result<serde_json::Value, MDLReaderResponseSerializeError> {
+    serde_json::to_value(
+        verified_response
+            .iter()
+            .map(|(k, v)| {
+                (
+                    k.clone(),
+                    v.iter().map(|(k, v)| (k.clone(), v.into())).collect(),
+                )
+            })
+            .collect::<HashMap<String, HashMap<String, serde_json::Value>>>(),
+    )
+    .map_err(|e| MDLReaderResponseSerializeError::Generic {
+        value: e.to_string(),
+    })
+}
+
 impl MDLReaderResponseData {
     pub fn verified_response_as_json(
         &self,
     ) -> Result<serde_json::Value, MDLReaderResponseSerializeError> {
-        serde_json::to_value(
-            self.verified_response
-                .iter()
-                .map(|(k, v)| {
-                    (
-                        k.clone(),
-                        v.iter().map(|(k, v)| (k.clone(), v.into())).collect(),
-                    )
-                })
-                .collect::<HashMap<String, HashMap<String, serde_json::Value>>>(),
-        )
-        .map_err(|e| MDLReaderResponseSerializeError::Generic {
-            value: e.to_string(),
-        })
+        verified_response_to_json(&self.verified_response)
     }
 }
 
@@ -378,15 +389,14 @@ pub fn verified_response_as_json_string(
     })
 }
 
-#[uniffi::export]
-pub fn handle_response(
-    state: Arc<MDLSessionManager>,
-    response: Vec<u8>,
-) -> Result<MDLReaderResponseData, MDLReaderResponseError> {
-    let mut state = state.0.clone();
-    // blocking to avoid turning all functions async as revocation checks are currently unused due
-    // to `()`
-    let validated_response = super::block_on(state.handle_response(&response, &()));
+/// Convert an isomdl [`ResponseAuthenticationOutcome`] into the verified namespace map and a
+/// JSON-serialized error string, shared by [`handle_response`] (reader session) and
+/// [`verify_device_response`] (externally-supplied session transcript).
+///
+/// [`ResponseAuthenticationOutcome`]: isomdl::presentation::authentication::ResponseAuthenticationOutcome
+fn verified_namespaces_and_errors(
+    validated_response: &isomdl::presentation::authentication::ResponseAuthenticationOutcome,
+) -> Result<(HashMap<String, HashMap<String, MDocItem>>, Option<String>), MDLReaderResponseError> {
     let errors = if !validated_response.errors.is_empty() {
         Some(
             serde_json::to_string(&validated_response.errors).map_err(|e| {
@@ -400,7 +410,7 @@ pub fn handle_response(
     };
     let verified_response: Result<_, _> = validated_response
         .response
-        .into_iter()
+        .iter()
         .map(|(namespace, items)| {
             if let Some(items) = items.as_object() {
                 let items = items
@@ -418,6 +428,19 @@ pub fn handle_response(
     let verified_response = verified_response.map_err(|e| MDLReaderResponseError::Generic {
         value: format!("Unable to parse response: {e:?}"),
     })?;
+    Ok((verified_response, errors))
+}
+
+#[uniffi::export]
+pub fn handle_response(
+    state: Arc<MDLSessionManager>,
+    response: Vec<u8>,
+) -> Result<MDLReaderResponseData, MDLReaderResponseError> {
+    let mut state = state.0.clone();
+    // blocking to avoid turning all functions async as revocation checks are currently unused due
+    // to `()`
+    let validated_response = super::block_on(state.handle_response(&response, &()));
+    let (verified_response, errors) = verified_namespaces_and_errors(&validated_response)?;
     Ok(MDLReaderResponseData {
         state: Arc::new(MDLSessionManager(state)),
         verified_response,
@@ -426,4 +449,197 @@ pub fn handle_response(
         device_authentication: AuthenticationStatus::from(validated_response.device_authentication),
         errors,
     })
+}
+
+/// A `SessionTranscript` supplied by an external transport rather than negotiated by an `isomdl`
+/// reader session — for example the session transcript handed to the wallet/verifier by an iOS
+/// data transfer request (the Digital Credentials API), which binds the exchange to the device
+/// response.
+///
+/// ISO/IEC 18013-5 device authentication signs (or MACs) over a `DeviceAuthentication` structure
+/// that embeds the `SessionTranscript`. To verify that signature we must reproduce the exact bytes
+/// the holder authenticated, so we decode the supplied transcript into a CBOR [`ciborium::Value`]
+/// and re-encode it verbatim — preserving its structure byte-for-byte — instead of reconstructing
+/// it from engagement data.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct ProvidedSessionTranscript(ciborium::Value);
+
+impl isomdl::definitions::session::SessionTranscript for ProvidedSessionTranscript {}
+
+/// The result of verifying a `DeviceResponse` against an externally-supplied session transcript.
+///
+/// Mirrors [`MDLReaderResponseData`] but carries no reader [`MDLSessionManager`], since the
+/// transcript is provided directly rather than established during BLE/NFC engagement.
+#[derive(uniffi::Record, Debug)]
+pub struct MDLDeviceResponseVerification {
+    /// Contains the namespaces for the mDL directly, without top-level doc types.
+    verified_response: HashMap<String, HashMap<String, MDocItem>>,
+    /// Document types (doctypes) from the presented credentials.
+    pub doc_types: Vec<String>,
+    /// Outcome of issuer authentication.
+    pub issuer_authentication: AuthenticationStatus,
+    /// Outcome of device authentication.
+    pub device_authentication: AuthenticationStatus,
+    /// Errors that occurred during response processing.
+    pub errors: Option<String>,
+}
+
+impl MDLDeviceResponseVerification {
+    pub fn verified_response_as_json(
+        &self,
+    ) -> Result<serde_json::Value, MDLReaderResponseSerializeError> {
+        verified_response_to_json(&self.verified_response)
+    }
+}
+
+#[uniffi::export]
+pub fn device_response_verification_as_json_string(
+    response: MDLDeviceResponseVerification,
+) -> Result<String, MDLReaderResponseSerializeError> {
+    serde_json::to_string(&response.verified_response_as_json()?).map_err(|e| {
+        MDLReaderResponseSerializeError::Generic {
+            value: e.to_string(),
+        }
+    })
+}
+
+/// Parse and verify an ISO/IEC 18013-5 `DeviceResponse` using an externally-supplied
+/// `SessionTranscript`.
+///
+/// Unlike [`handle_response`] — which relies on a reader [`MDLSessionManager`] that already holds
+/// the session transcript negotiated during BLE/NFC engagement (and first decrypts the transport
+/// `SessionData`) — this entry point is for flows where the platform provides the transcript and
+/// the device response directly. The motivating case is an iOS data transfer request (Digital
+/// Credentials API), where the OS hands back both the (already-decrypted) `DeviceResponse` and the
+/// session transcript it bound the exchange to.
+///
+/// Arguments:
+/// * `device_response` — CBOR-encoded `DeviceResponse`.
+/// * `session_transcript` — CBOR-encoded `SessionTranscript` exactly as the holder authenticated
+///   over it (the bytes that occupy the `SessionTranscript` slot of `DeviceAuthentication`).
+/// * `trust_anchor_registry` — optional list of PEM-encoded IACA root certificates used for issuer
+///   authentication. When omitted (or empty) issuer authentication will not validate against any
+///   trusted root.
+///
+/// Device authentication is verified via the COSE_Sign1 signature over the reconstructed
+/// `DeviceAuthentication` payload. MAC-based device authentication (ISO 18013-5 §9.1.3.5) requires
+/// the reader's ephemeral private key, which is not available in this flow, so it is not supported.
+/// Certificate revocation (CRL) checks are skipped, matching [`handle_response`].
+#[uniffi::export]
+pub fn verify_device_response(
+    device_response: Vec<u8>,
+    session_transcript: Vec<u8>,
+    ephemeral_reader_key: Vec<u8>,
+    trust_anchor_registry: Option<Vec<String>>,
+) -> Result<MDLDeviceResponseVerification, MDLReaderResponseError> {
+    let device_response: isomdl::definitions::DeviceResponse =
+        isomdl::cbor::from_slice(&device_response).map_err(|e| {
+            MDLReaderResponseError::Generic {
+                value: format!("unable to decode device response: {e:?}"),
+            }
+        })?;
+
+    // Preserve the transcript's CBOR structure so the `DeviceAuthentication` payload is
+    // reconstructed byte-for-byte during device authentication.
+    let session_transcript: ciborium::Value = isomdl::cbor::from_slice(&session_transcript)
+        .map_err(|e| MDLReaderResponseError::Generic {
+            value: format!("unable to decode session transcript: {e:?}"),
+        })?;
+    let session_transcript = ProvidedSessionTranscript(session_transcript);
+
+    let registry = TrustAnchorRegistry::from_pem_certificates(
+        trust_anchor_registry
+            .into_iter()
+            .flatten()
+            .map(|certificate_pem| PemTrustAnchor {
+                certificate_pem,
+                purpose: x509::trust_anchor::TrustPurpose::Iaca,
+            })
+            .collect(),
+    )
+    .map_err(|e| MDLReaderResponseError::Generic {
+        value: format!("unable to construct TrustAnchorRegistry: {e:?}"),
+    })?;
+
+    let (document, x5chain, namespaces) =
+        reader::parse(&device_response).map_err(|e| MDLReaderResponseError::Generic {
+            value: format!("unable to parse device response: {e:?}"),
+        })?;
+
+    let doc_types: Vec<String> = device_response
+        .documents
+        .as_ref()
+        .map(|docs| docs.iter().map(|d| d.doc_type.clone()).collect())
+        .unwrap_or_default();
+
+    // `e_reader_key_private` is only consulted for MAC-based device auth (unsupported here), so a
+    // zeroed key is passed. Revocation checks are skipped via `&()`.
+    let validated_response =
+        super::block_on(isomdl::presentation::reader_utils::validate_response(
+            session_transcript,
+            registry,
+            x5chain,
+            document.clone(),
+            namespaces,
+            doc_types,
+            &(),
+            if ephemeral_reader_key.is_empty() {
+                [0u8; 32]
+            } else {
+                ephemeral_reader_key
+                    .try_into()
+                    .map_err(|e| MDLReaderResponseError::Generic {
+                        value: format!("unable to parse ephemeral_reader_key: {e:?}"),
+                    })?
+            },
+        ));
+
+    let (verified_response, errors) = verified_namespaces_and_errors(&validated_response)?;
+    Ok(MDLDeviceResponseVerification {
+        verified_response,
+        doc_types: validated_response.doc_types,
+        issuer_authentication: AuthenticationStatus::from(validated_response.issuer_authentication),
+        device_authentication: AuthenticationStatus::from(validated_response.device_authentication),
+        errors,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Device authentication verifies a signature over a `DeviceAuthentication` structure that
+    /// embeds the `SessionTranscript`. For verification to succeed against an externally-supplied
+    /// transcript, [`ProvidedSessionTranscript`] must re-encode it byte-for-byte — so a transparent
+    /// decode/encode round-trip of deterministic CBOR must be the identity.
+    #[test]
+    fn provided_session_transcript_roundtrips_cbor_verbatim() {
+        // A representative, deterministically-encoded session-transcript-shaped value:
+        // a 3-element array of [ #6.24(bstr), {1: 2}, "QR" ].
+        let bytes: Vec<u8> = vec![
+            0x83, // array(3)
+            0xd8, 0x18, 0x43, 0x01, 0x02, 0x03, // 24(h'010203')
+            0xa1, 0x01, 0x02, // map: {1: 2}
+            0x62, 0x51, 0x52, // text: "QR"
+        ];
+
+        let transcript: ProvidedSessionTranscript =
+            isomdl::cbor::from_slice(&bytes).expect("decode session transcript");
+        let reencoded = isomdl::cbor::to_vec(&transcript).expect("encode session transcript");
+
+        assert_eq!(
+            bytes, reencoded,
+            "session transcript must round-trip byte-for-byte"
+        );
+    }
+
+    /// An invalid CBOR device response surfaces as an error rather than panicking.
+    #[test]
+    fn verify_device_response_rejects_malformed_cbor() {
+        let result = verify_device_response(vec![0xff, 0xff, 0xff], vec![0x80], vec![], None);
+        assert!(matches!(
+            result,
+            Err(MDLReaderResponseError::Generic { .. })
+        ));
+    }
 }
