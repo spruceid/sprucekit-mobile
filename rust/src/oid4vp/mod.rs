@@ -40,7 +40,21 @@ pub fn get_oid4vp_version(request: String) -> Oid4vpVersion {
 /// integrator does not support is never selected — and never gets to consume a
 /// single-use `request_uri` on a wrong-version fetch. The heuristics' relative
 /// priority is unchanged; `supported` only gates which branch may fire.
+///
+/// A slice naming exactly one version is an explicit caller override (the
+/// pre-0.17 `Oid4vpCompatibilityMode::{V1,Draft18}` behavior): that version is
+/// returned directly, without requiring the shape heuristics to independently
+/// re-confirm it. With only one version permitted there is nothing to
+/// disambiguate, and forcing it preserves integrations that select a single
+/// version for request shapes the heuristics do not recognize (e.g. a Draft 18
+/// `request_uri` whose `client_id` uses the `redirect_uri:` prefix and whose
+/// `request_uri` carries no `OID4VP-draft18` marker, which would otherwise fall
+/// through to [`Oid4vpVersion::Unsupported`]).
 pub(crate) fn select_oid4vp_version(request: &str, supported: &[Oid4vpVersion]) -> Oid4vpVersion {
+    if let [only] = supported {
+        return *only;
+    }
+
     let allowed = |version| supported.is_empty() || supported.contains(&version);
 
     // Draft 13 is the only version using the bare `post` response mode (draft 18
@@ -274,13 +288,47 @@ mod tests {
     }
 
     #[test]
-    fn select_returns_unsupported_when_request_matches_no_supported_version() {
-        // A v1-shaped request, but only draft 13 is supported.
+    fn select_forces_the_sole_supported_version_even_when_the_shape_disagrees() {
+        // A single supported version is an explicit caller override: it is
+        // honored even for a request the heuristics would otherwise classify as
+        // a different version. Here a v1-shaped request with only draft 13
+        // supported is forced to draft 13 (pre-0.17 forced-mode behavior).
         let v1 = "openid4vp://?client_id=redirect_uri%3Ahttps%3A%2F%2Fwallet.example%2Fcb&dcql_query=%7B%22credentials%22%3A%5B%5D%7D";
         assert_eq!(
             select_oid4vp_version(v1, &[Oid4vpVersion::Draft13]),
+            Oid4vpVersion::Draft13
+        );
+    }
+
+    #[test]
+    fn select_returns_unsupported_when_no_permitted_version_matches() {
+        // With more than one version permitted the heuristics still run, so an
+        // unrecognized shape resolves to Unsupported (the override shortcut only
+        // applies to a single supported version).
+        let unknown = "openid4vp://?client_id=test&nonce=123";
+        assert_eq!(
+            select_oid4vp_version(unknown, &[Oid4vpVersion::V1, Oid4vpVersion::Draft18]),
             Oid4vpVersion::Unsupported
         );
+    }
+
+    #[test]
+    fn select_forces_draft18_for_redirect_uri_prefixed_request_uri_shape() {
+        // Regression (Veres sandbox): a Draft 18 request whose `client_id` uses
+        // the `redirect_uri:` prefix and whose bare `request_uri` carries no
+        // `OID4VP-draft18` marker is not recognized by the request_uri
+        // heuristics. With Draft 18 as the sole supported version it must still
+        // be forced to Draft 18 rather than resolving to Unsupported — which had
+        // surfaced as Oid4vpFacadeError::UnsupportedRequest before the holder
+        // could even be built.
+        let veres = "openid4vp://?client_id=redirect_uri%3Ahttps%3A%2F%2Fsandbox.platform.veres.dev%2Fworkflows%2Fz1A6xHHmw9xpm2CZjfPoN9WPP%2Fexchanges%2Fz1ABrtc3z2aDM7y1VYfCo2nek%2Fopenid%2Fclients%2Fdefault%2Fauthorization%2Fresponse&request_uri=https%3A%2F%2Fsandbox.platform.veres.dev%2Fworkflows%2Fz1A6xHHmw9xpm2CZjfPoN9WPP%2Fexchanges%2Fz1ABrtc3z2aDM7y1VYfCo2nek%2Fopenid%2Fclients%2Fdefault%2Fauthorization%2Frequest&request_uri_method=post";
+        assert_eq!(
+            select_oid4vp_version(veres, &[Oid4vpVersion::Draft18]),
+            Oid4vpVersion::Draft18
+        );
+        // In auto mode (no restriction) the same request still routes to V1 via
+        // its v1-compatible `redirect_uri:` client_id — the app-side mitigation.
+        assert_eq!(select_oid4vp_version(veres, &[]), Oid4vpVersion::V1);
     }
 
     #[test]
