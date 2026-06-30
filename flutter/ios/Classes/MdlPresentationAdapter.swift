@@ -161,6 +161,10 @@ private class PresentationDelegate: MdocProximityPresentationManager.Delegate {
                 ))
             }
 
+        case .connectingViaNfc:
+            // Unreachable via the plugin's pigeon today; map to the nearest existing state for now.
+            adapter?.updateState(MdlPresentationStateUpdate(state: .initializing))
+
         case .connected:
             adapter?.updateState(MdlPresentationStateUpdate(state: .connected))
 

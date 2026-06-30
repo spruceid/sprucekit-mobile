@@ -38,23 +38,36 @@ public class MdocProximityPresentationManager {
 
         var central: CentralManager?
         var peripheral: PeripheralManager?
-        let handle = DelegateWrapper(delegate: delegate, mdoc: mdoc)
+        let handle = DelegateWrapper(delegate: delegate, mdoc: mdoc, engagement: engagement)
 
-        for mode in transmissionModes {
-            switch mode {
-            case let .bleMdocCentralMode(l2capUsage):
-                if central != nil {
-                    print("multiple .bleMdocCentralMode instances provided, ignoring all but the first")
-                    break
+        switch engagement {
+        case .QRCode:
+            for mode in transmissionModes {
+                switch mode {
+                case let .bleMdocCentralMode(l2capUsage):
+                    if central != nil {
+                        print("multiple .bleMdocCentralMode instances provided, ignoring all but the first")
+                        break
+                    }
+                    central = CentralManager(mdoc: handle, l2capUsage)
+                case let .bleMdocPeripheralMode(l2capUsage):
+                    if peripheral != nil {
+                        print("multiple .bleMdocPeripheralMode instances provided, ignoring all but the first")
+                        break
+                    }
+                    peripheral = PeripheralManager(mdoc: handle, l2capUsage)
                 }
-                central = CentralManager(mdoc: handle, l2capUsage)
-            case let .bleMdocPeripheralMode(l2capUsage):
-                if peripheral != nil {
-                    print("multiple .bleMdocPeripheralMode instances provided, ignoring all but the first")
-                    break
-                }
-                peripheral = PeripheralManager(mdoc: handle, l2capUsage)
             }
+        case let .NFC(carrier):
+            // NFC static handover is BLE central-client-mode only, on the UUID fixed by the handover.
+            var l2capUsage: L2CAPUsage = .disableL2CAP
+            for mode in transmissionModes {
+                if case let .bleMdocCentralMode(usage) = mode {
+                    l2capUsage = usage
+                    break
+                }
+            }
+            central = CentralManager(mdoc: handle, serviceUuid: carrier.getUuid(), l2capUsage)
         }
 
         handle.set(bleCentral: central)
@@ -80,6 +93,7 @@ public class MdocProximityPresentationManager {
     class DelegateWrapper: NSObject & TransportCallback {
         private let inner: Delegate
         private let mdoc: Mdoc
+        private let engagement: DeviceEngagement
 
         private let backgroundQueue = DispatchQueue(
             label: "com.spruceid.mobilesdk.mdoc.proximity.presentationmanager",
@@ -94,19 +108,24 @@ public class MdocProximityPresentationManager {
                 case .initializing:
                     state = .initializing
                 case let .connecting(connecting):
-                    do {
-                        guard let data = try connecting.session.getQrHandover().data(using: .ascii) else {
-                            print("failed to parse QR code")
+                    switch engagement {
+                    case .QRCode:
+                        do {
+                            guard let data = try connecting.session.getQrHandover().data(using: .ascii) else {
+                                print("failed to parse QR code")
+                                self.state = .error
+                                return
+                            }
+                            state = .connecting(qrPayload: data)
+                        } catch {
+                            // Should be unreachable - get_qr_handover() only returns Err if the session mutex
+                            // is poisoned, which should never be able to happen.
+                            print("failed to obtain QR code")
                             self.state = .error
                             return
                         }
-                        state = .connecting(qrPayload: data)
-                    } catch {
-                        // Should be unreachable - get_qr_handover() only returns Err if the session mutex
-                        // is poisoned, which should never be able to happen.
-                        print("failed to obtain QR code")
-                        self.state = .error
-                        return
+                    case .NFC:
+                        state = .connectingViaNfc
                     }
                 case .connected:
                     state = .connected
@@ -123,9 +142,10 @@ public class MdocProximityPresentationManager {
             }
         }
 
-        init(delegate: Delegate, mdoc: Mdoc) {
+        init(delegate: Delegate, mdoc: Mdoc, engagement: DeviceEngagement) {
             inner = delegate
             self.mdoc = mdoc
+            self.engagement = engagement
             backgroundQueue.suspend()
         }
 
@@ -244,13 +264,24 @@ public class MdocProximityPresentationManager {
         }
 
         private func setupSession(_ initializing: Initializing) {
+            let engagementData: DeviceEngagementData
+            let peripheralServerMode: PeripheralServerDetails?
+            switch engagement {
+            case .QRCode:
+                engagementData = .qr
+                peripheralServerMode = initializing.peripheralDetails
+            case let .NFC(carrier):
+                engagementData = .nfc(carrier)
+                peripheralServerMode = nil
+            }
+
             let session: MdlPresentationSession
             do {
                 session = try initializeMdlPresentationFromBytes(
                     mdoc: mdoc,
                     centralClientMode: initializing.centralDetails,
-                    peripheralServerMode: initializing.peripheralDetails,
-                    engagement: .qr,
+                    peripheralServerMode: peripheralServerMode,
+                    engagement: engagementData,
                 )
             } catch {
                 print("unexpected error preparing the session: \(error.localizedDescription)")
@@ -367,6 +398,8 @@ public class MdocProximityPresentationManager {
         case action(required: RequiredAction)
         /// Attempting to establish a connection with the reader.
         case connecting(qrPayload: Data)
+        /// Awaiting the reader; engagement was delivered over NFC, so there's no QR payload.
+        case connectingViaNfc
         /// The reader has connected.
         case connected
         /// Receiving a request from the reader.
@@ -496,5 +529,8 @@ public class MdocProximityPresentationManager {
     public enum DeviceEngagement {
         /// Engage using a QR code.
         case QRCode
+        /// Engage using NFC static handover (ISO 18013-5). The carrier (BLE UUID + ephemeral keys) comes
+        /// from an `ApduHandoverDriver` driven by the platform NFC/SE layer; BLE is central-client-mode only.
+        case NFC(NegotiatedCarrierInfo)
     }
 }

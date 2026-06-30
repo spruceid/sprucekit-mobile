@@ -76,6 +76,8 @@ public struct ShareMdocQR: View {
                 authorizeBluetooth
             case .connecting(let qrPayload):
                 connectingView(qrPayload: qrPayload)
+            case .connectingViaNfc:
+                connectingViaNfcView
             case .connected:
                 connectedView
             case .receivingRequest(let bytesSoFar, let total):
@@ -168,6 +170,14 @@ public struct ShareMdocQR: View {
             .resizable()
             .scaledToFit()
             .aspectRatio(contentMode: .fit)
+    }
+
+    @ViewBuilder
+    var connectingViaNfcView: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+            Text("Hold your phone near the reader…")
+        }
     }
 
     @ViewBuilder
