@@ -17,6 +17,10 @@ use super::draft18::{
     presentation::{Draft18PresentationError, Draft18PresentationSigner},
     Draft18Holder,
 };
+use openidvp_draft18::core::presentation_definition::{
+    PresentationDefinition, SubmissionRequirement, SubmissionRequirementBase,
+};
+
 use super::holder::{AuthRequest, Holder};
 use super::permission_request::{
     PermissionRequest, PermissionRequestError, PermissionResponse, RequestedField, ResponseOptions,
@@ -737,8 +741,48 @@ fn draft18_requirements(request: &Arc<Draft18PermissionRequest>) -> Vec<Oid4vpRe
             .push(Oid4vpPresentableCredential::from_draft18(credential));
     }
 
-    request
-        .definition
+    let definition = &request.definition;
+
+    // When the presentation definition carries `submission_requirements`
+    // (PEX §5.2), those — not the bare input_descriptors — define what the
+    // user must satisfy. A `pick`/`from` group is an OR: its descriptors are
+    // alternatives, so they collapse into a single requirement whose candidate
+    // list is the union of their matches. Without this, every input_descriptor
+    // becomes its own mandatory requirement and an OR is presented as an AND.
+    if let Some(submission_requirements) = definition.submission_requirements() {
+        if !submission_requirements.is_empty() {
+            return submission_requirements
+                .iter()
+                .map(|requirement| {
+                    let mut descriptor_ids = Vec::new();
+                    collect_submission_descriptor_ids(definition, requirement, &mut descriptor_ids);
+
+                    let mut seen = std::collections::HashSet::new();
+                    let credentials: Vec<Arc<Oid4vpPresentableCredential>> = descriptor_ids
+                        .iter()
+                        .filter_map(|id| credentials_by_descriptor.get(id))
+                        .flatten()
+                        .filter(|cred| seen.insert(cred.as_parsed_credential().id()))
+                        .cloned()
+                        .collect();
+
+                    let display_name = submission_requirement_label(requirement)
+                        .unwrap_or_else(|| descriptor_ids.join(" / "));
+
+                    Oid4vpRequirement {
+                        id: descriptor_ids.join("|"),
+                        display_name,
+                        required: submission_requirement_is_required(requirement),
+                        credentials,
+                    }
+                })
+                .collect();
+        }
+    }
+
+    // No submission_requirements: each input_descriptor is its own mandatory
+    // requirement (PEX default — all listed descriptors must be satisfied).
+    definition
         .input_descriptors()
         .iter()
         .map(|descriptor| {
@@ -758,6 +802,65 @@ fn draft18_requirements(request: &Arc<Draft18PermissionRequest>) -> Vec<Oid4vpRe
             }
         })
         .collect()
+}
+
+/// Resolve the input_descriptor IDs referenced by a submission requirement,
+/// following `from` (a group the descriptors opt into via their `groups`) and
+/// recursing into `from_nested`. IDs are de-duplicated preserving order.
+fn collect_submission_descriptor_ids(
+    definition: &PresentationDefinition,
+    requirement: &SubmissionRequirement,
+    out: &mut Vec<String>,
+) {
+    let base = match requirement {
+        SubmissionRequirement::All(base) => base,
+        SubmissionRequirement::Pick(pick) => &pick.submission_requirement,
+    };
+    match base {
+        SubmissionRequirementBase::From { from, .. } => {
+            for descriptor in definition.input_descriptors() {
+                if descriptor.groups.contains(from) && !out.contains(&descriptor.id) {
+                    out.push(descriptor.id.clone());
+                }
+            }
+        }
+        SubmissionRequirementBase::FromNested { from_nested, .. } => {
+            for nested in from_nested {
+                collect_submission_descriptor_ids(definition, nested, out);
+            }
+        }
+    }
+}
+
+/// Whether a submission requirement obliges the user to present something.
+/// `all` always does; `pick` does when it wants at least one selection
+/// (`count >= 1` or `min >= 1`). A `pick` that only caps `max` is optional.
+fn submission_requirement_is_required(requirement: &SubmissionRequirement) -> bool {
+    match requirement {
+        SubmissionRequirement::All(_) => true,
+        SubmissionRequirement::Pick(pick) => {
+            pick.count.unwrap_or(0) >= 1 || pick.min.unwrap_or(0) >= 1
+        }
+    }
+}
+
+/// The verifier-supplied display label for a submission requirement, if any.
+fn submission_requirement_label(requirement: &SubmissionRequirement) -> Option<String> {
+    let base = match requirement {
+        SubmissionRequirement::All(base) => base,
+        SubmissionRequirement::Pick(pick) => &pick.submission_requirement,
+    };
+    let object = match base {
+        SubmissionRequirementBase::From {
+            submission_requirement_base,
+            ..
+        } => submission_requirement_base,
+        SubmissionRequirementBase::FromNested {
+            submission_requirement_base,
+            ..
+        } => submission_requirement_base,
+    };
+    object.name.clone().or_else(|| object.purpose.clone())
 }
 
 fn parse_v1_auth_request(request: &str) -> Result<AuthRequest, Oid4vpFacadeError> {
