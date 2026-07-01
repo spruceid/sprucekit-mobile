@@ -76,6 +76,9 @@ public struct ShareMdocQR: View {
                 authorizeBluetooth
             case .connecting(let qrPayload):
                 connectingView(qrPayload: qrPayload)
+            // ShareMdocView only uses QR engagement; this state never occurs here.
+            case .connectingViaNfc:
+                EmptyView()
             case .connected:
                 connectedView
             case .receivingRequest(let bytesSoFar, let total):
