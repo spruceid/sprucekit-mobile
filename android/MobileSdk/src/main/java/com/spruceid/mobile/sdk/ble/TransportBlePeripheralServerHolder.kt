@@ -6,6 +6,7 @@ import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
 import android.util.Log
 import androidx.annotation.RequiresPermission
+import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import java.util.*
 
 /**
@@ -15,7 +16,8 @@ import java.util.*
 class TransportBlePeripheralServerHolder(
     private var application: String,
     private var serviceUUID: UUID,
-    private var updateRequestData: ((data: ByteArray) -> Boolean)?
+    private var updateRequestData: ((data: ByteArray) -> Boolean)?,
+    private var callback: BLESessionStateDelegate? = null
 ) {
 
     private val stateMachine = BleConnectionStateMachine.getInstance(BleConnectionStateMachineInstanceType.SERVER)
@@ -24,6 +26,9 @@ class TransportBlePeripheralServerHolder(
         stateMachine.getBluetoothManager().adapter
     }
     private var logger = BleLogger.getInstance("TransportBlePeripheralServerHolder")
+
+    // Forwards session lifecycle to the host delegate (see BleSessionEmitter).
+    private val emitter = BleSessionEmitter(callback)
 
     private lateinit var blePeripheral: BlePeripheral
     private lateinit var gattServer: GattServer
@@ -55,6 +60,7 @@ class TransportBlePeripheralServerHolder(
                     BleConnectionStateMachine.State.ERROR,
                     reason,
                 )
+                emitter.error(reason)
             }
 
             override fun onError(error: Throwable) {
@@ -63,6 +69,7 @@ class TransportBlePeripheralServerHolder(
                     BleConnectionStateMachine.State.ERROR,
                     error.message,
                 )
+                emitter.error(error.message)
             }
 
             override fun onState(state: String) {
@@ -84,6 +91,7 @@ class TransportBlePeripheralServerHolder(
                         "Failed to transition to CONNECTED state"
                     )
                 }
+                emitter.connected()
             }
 
             override fun onPeerDisconnected() {
@@ -93,6 +101,7 @@ class TransportBlePeripheralServerHolder(
                 // Transition to disconnected state
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 gattServer.stop()
+                emitter.disconnected()
             }
 
             override fun onMessageSendProgress(progress: Int, max: Int) {
@@ -101,12 +110,14 @@ class TransportBlePeripheralServerHolder(
                 )
 
                 blePeripheral.stopAdvertise()
+                emitter.sendProgress(progress, max)
             }
 
             override fun onTransportSpecificSessionTermination() {
                 // Transition to disconnected state on termination
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
                 gattServer.stop()
+                emitter.disconnected()
             }
 
             override fun onMessageReceived(data: ByteArray) {
