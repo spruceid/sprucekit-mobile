@@ -77,7 +77,7 @@ fun HandleOID4VCIView(
 
         // Setup signer.
         val keyManager = KeyManager()
-        val jwk = keyManager.getOrInsertJwk(DEFAULT_SIGNING_KEY_ID)
+        val jwk = keyManager.getOrInsertJwk(DEFAULT_SIGNING_KEY_ID).copy()
         val didUrl = generateDidJwkUrl(jwk)
         jwk.setKid(didUrl.toString())
 

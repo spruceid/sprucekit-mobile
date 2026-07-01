@@ -7279,6 +7279,11 @@ public func FfiConverterTypeJsonVc_lower(_ value: JsonVc) -> UInt64 {
 public protocol JwkProtocol: AnyObject, Sendable {
     
     /**
+     * Returns a copy of this JWK.
+     */
+    func copy()  -> Jwk
+    
+    /**
      * Returns the key identifier (`kid` parameter) value.
      */
     func getKid()  -> String?
@@ -7356,6 +7361,17 @@ public static func fromString(json: String)throws  -> Jwk  {
 }
     
 
+    
+    /**
+     * Returns a copy of this JWK.
+     */
+open func copy() -> Jwk  {
+    return try!  FfiConverterTypeJwk_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_jwk_copy(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
     
     /**
      * Returns the key identifier (`kid` parameter) value.
@@ -36910,6 +36926,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_nonce() != 50382) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_jwk_copy() != 54187) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_jwk_get_kid() != 19621) {
