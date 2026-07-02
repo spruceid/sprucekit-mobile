@@ -9,6 +9,7 @@ pub mod presentation;
 pub mod verifier;
 
 use serde_json::Value;
+use std::collections::HashMap;
 use url::Url;
 
 pub use facade::*;
@@ -16,6 +17,68 @@ pub use holder::*;
 pub use permission_request::*;
 pub use presentation::*;
 pub use verifier::*;
+
+/// Resolve the per-credential signing key id.
+///
+/// Returns the key id mapped to `credential_id` in `key_map`, or
+/// `fallback_key_id` when the credential has no mapping (e.g. a legacy
+/// credential issued under the shared key).
+pub(crate) fn resolve_active_key_id(
+    key_map: &HashMap<String, String>,
+    fallback_key_id: &str,
+    credential_id: &str,
+) -> String {
+    key_map
+        .get(credential_id)
+        .cloned()
+        .unwrap_or_else(|| fallback_key_id.to_string())
+}
+
+#[cfg(test)]
+mod key_resolution_tests {
+    use super::resolve_active_key_id;
+    use std::collections::HashMap;
+
+    #[test]
+    fn each_mapped_credential_uses_its_own_key() {
+        let key_map = HashMap::from([
+            ("cred-a".to_string(), "key-a".to_string()),
+            ("cred-b".to_string(), "key-b".to_string()),
+        ]);
+        // Distinct credentials resolve to distinct keys — the unlinkability property.
+        assert_eq!(
+            resolve_active_key_id(&key_map, "fallback", "cred-a"),
+            "key-a"
+        );
+        assert_eq!(
+            resolve_active_key_id(&key_map, "fallback", "cred-b"),
+            "key-b"
+        );
+    }
+
+    #[test]
+    fn unmapped_credential_falls_back_to_shared_key() {
+        let key_map = HashMap::new();
+        // Legacy credentials (no per-credential entry) keep working on the shared key.
+        assert_eq!(
+            resolve_active_key_id(&key_map, "oid4vp_presentation_key", "legacy-cred"),
+            "oid4vp_presentation_key"
+        );
+    }
+
+    #[test]
+    fn partial_map_mixes_per_credential_and_fallback() {
+        let key_map = HashMap::from([("new-cred".to_string(), "fresh-key".to_string())]);
+        assert_eq!(
+            resolve_active_key_id(&key_map, "fallback", "new-cred"),
+            "fresh-key"
+        );
+        assert_eq!(
+            resolve_active_key_id(&key_map, "fallback", "old-cred"),
+            "fallback"
+        );
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum Oid4vpVersion {

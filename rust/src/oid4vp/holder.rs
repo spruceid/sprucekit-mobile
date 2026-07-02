@@ -88,6 +88,13 @@ pub struct Holder {
     /// Foreign Interface for the [PresentationSigner]
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
 
+    /// Map of credential id -> signing key id for per-credential keys.
+    pub(crate) key_map: HashMap<String, String>,
+
+    /// Signing key id used for credentials absent from `key_map` (e.g. legacy
+    /// credentials issued under the shared key).
+    pub(crate) fallback_key_id: String,
+
     /// Optional context map for resolving specific contexts
     pub(crate) context_map: Option<HashMap<String, String>>,
 
@@ -131,6 +138,8 @@ impl Holder {
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
         signer: Box<dyn PresentationSigner>,
+        key_map: HashMap<String, String>,
+        fallback_key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, OID4VPError> {
@@ -144,6 +153,8 @@ impl Holder {
             trusted_dids,
             provided_credentials: None,
             signer: Arc::new(signer),
+            key_map,
+            fallback_key_id,
             context_map: with_default_contexts(context_map),
             keystore,
         }))
@@ -159,6 +170,8 @@ impl Holder {
         provided_credentials: Vec<Arc<ParsedCredential>>,
         trusted_dids: Vec<String>,
         signer: Box<dyn PresentationSigner>,
+        key_map: HashMap<String, String>,
+        fallback_key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, OID4VPError> {
@@ -172,6 +185,8 @@ impl Holder {
             trusted_dids,
             provided_credentials: Some(provided_credentials),
             signer: Arc::new(signer),
+            key_map,
+            fallback_key_id,
             context_map: with_default_contexts(context_map),
             keystore,
         }))
@@ -360,6 +375,8 @@ impl Holder {
             credentials,
             request,
             self.signer.clone(),
+            self.key_map.clone(),
+            self.fallback_key_id.clone(),
             self.context_map.clone(),
             self.keystore.clone(),
         ))
@@ -506,7 +523,12 @@ pub(crate) mod tests {
 
     #[async_trait::async_trait]
     impl PresentationSigner for KeySigner {
-        async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
+        // The test signer holds a single key, so `key_id` is ignored.
+        async fn sign(
+            &self,
+            _key_id: String,
+            payload: Vec<u8>,
+        ) -> Result<Vec<u8>, PresentationError> {
             let sig = self
                 .jwk
                 .sign_bytes(&payload)
@@ -526,9 +548,9 @@ pub(crate) mod tests {
                 .unwrap_or(Algorithm::ES256)
         }
 
-        async fn verification_method(&self) -> String {
+        async fn verification_method(&self, _key_id: String) -> String {
             DidMethod::Key
-                .vm_from_jwk(&self.jwk())
+                .vm_from_jwk(&self.public_jwk_string())
                 .await
                 // SAFETY: The JWK should always be well-formed and this method should not panic.
                 .unwrap()
@@ -536,9 +558,9 @@ pub(crate) mod tests {
                 .to_string()
         }
 
-        fn did(&self) -> String {
+        fn did(&self, _key_id: String) -> String {
             DidMethod::Key
-                .did_from_jwk(&self.jwk())
+                .did_from_jwk(&self.public_jwk_string())
                 // SAFETY: The JWK should always be well-formed and this method should not panic.
                 .unwrap()
                 .to_string()
@@ -548,7 +570,13 @@ pub(crate) mod tests {
             CryptosuiteString::new("ecdsa-rdfc-2019".to_string()).unwrap()
         }
 
-        fn jwk(&self) -> String {
+        fn jwk(&self, _key_id: String) -> String {
+            self.public_jwk_string()
+        }
+    }
+
+    impl KeySigner {
+        fn public_jwk_string(&self) -> String {
             serde_json::to_string(&self.jwk.to_public()).unwrap()
         }
     }
@@ -586,6 +614,8 @@ pub(crate) mod tests {
             vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(key_signer),
+            Default::default(),
+            String::new(),
             None,
             None,
         )
@@ -660,6 +690,8 @@ pub(crate) mod tests {
             vec![credential.clone()],
             vec![],
             Box::new(key_signer),
+            Default::default(),
+            String::new(),
             Some(context),
             None,
         )
@@ -715,6 +747,8 @@ pub(crate) mod tests {
             vec![mdl],
             vec![],
             Box::new(key_signer),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -789,6 +823,8 @@ pub(crate) mod tests {
             vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(key_signer),
+            Default::default(),
+            String::new(),
             None,
             None,
         )
@@ -866,6 +902,8 @@ pub(crate) mod tests {
             vec![credential.clone()],
             vec!["did:web:localhost%3A3000:oid4vp:client".into()],
             Box::new(signer),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )

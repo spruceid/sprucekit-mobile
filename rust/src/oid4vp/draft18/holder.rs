@@ -89,6 +89,12 @@ pub struct Draft18Holder {
     /// Foreign Interface for the [Draft18PresentationSigner]
     pub(crate) signer: Arc<Box<dyn Draft18PresentationSigner>>,
 
+    /// Map of credential id → signing key id for per-credential keys.
+    pub(crate) key_map: HashMap<String, String>,
+
+    /// Signing key id used for credentials absent from `key_map`.
+    pub(crate) fallback_key_id: String,
+
     /// Optional context map for resolving specific contexts
     pub(crate) context_map: Option<HashMap<String, String>>,
 }
@@ -115,6 +121,8 @@ impl Draft18Holder {
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Draft18PresentationSigner>,
+        key_map: HashMap<String, String>,
+        fallback_key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, Draft18OID4VPError> {
         let client = openidvp_draft18::core::util::ReqwestClient::new()
@@ -127,6 +135,8 @@ impl Draft18Holder {
             trusted_dids,
             provided_credentials: None,
             signer: Arc::new(signer),
+            key_map,
+            fallback_key_id,
             context_map: with_default_contexts(context_map),
         }))
     }
@@ -141,6 +151,8 @@ impl Draft18Holder {
         provided_credentials: Vec<Arc<ParsedCredential>>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Draft18PresentationSigner>,
+        key_map: HashMap<String, String>,
+        fallback_key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, Draft18OID4VPError> {
         let client = openidvp_draft18::core::util::ReqwestClient::new()
@@ -153,6 +165,8 @@ impl Draft18Holder {
             trusted_dids,
             provided_credentials: Some(provided_credentials),
             signer: Arc::new(signer),
+            key_map,
+            fallback_key_id,
             context_map: with_default_contexts(context_map),
         }))
     }
@@ -372,6 +386,8 @@ impl Draft18Holder {
             credentials.clone(),
             request,
             self.signer.clone(),
+            self.key_map.clone(),
+            self.fallback_key_id.clone(),
             self.context_map.clone(),
         ))
     }

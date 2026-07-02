@@ -88,7 +88,13 @@ class _VcalmDemoState extends State<VcalmDemo> {
     // the Rust holder defaults to the SDK's bundled JSON-LD contexts
     // (default_ld_json_context — the full bundled set), exactly like the
     // Showcase app, so offered VCs verify offline regardless of credential type.
-    final result = await _vcalm.createHolder([], _trustedDids, _keyId, null);
+    final result = await _vcalm.createHolder(
+      [],
+      _trustedDids,
+      <String, String>{},
+      _keyId,
+      null,
+    );
     switch (result) {
       case VcalmSuccess():
         _log('createHolder: success');

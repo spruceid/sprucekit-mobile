@@ -74,8 +74,8 @@ class Draft18Signer(keyId: String?) : Draft18PresentationSigner {
             ?: throw IllegalArgumentException("Invalid kid")
     }
 
-    override suspend fun sign(payload: ByteArray): ByteArray {
-        return keyManager.signPayload(keyId, payload)
+    override suspend fun sign(keyId: String, payload: ByteArray): ByteArray {
+        return keyManager.signPayload(this.keyId, payload)
             ?: throw IllegalStateException("Failed to sign payload")
     }
 
@@ -88,15 +88,15 @@ class Draft18Signer(keyId: String?) : Draft18PresentationSigner {
         }
     }
 
-    override suspend fun verificationMethod(): String {
+    override suspend fun verificationMethod(keyId: String): String {
         return didJwk.vmFromJwk(jwk)
     }
 
-    override fun did(): String {
+    override fun did(keyId: String): String {
         return didJwk.didFromJwk(jwk)
     }
 
-    override fun jwk(): String {
+    override fun jwk(keyId: String): String {
         return jwk
     }
 

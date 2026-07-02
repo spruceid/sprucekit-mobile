@@ -7,58 +7,82 @@ enum Oid4vpSignerError: Error {
     case illegalArgumentException(reason: String)
 }
 
-/// Signer implementation for OID4VP presentation
 class Oid4vpSigner: Oid4vpPresentationSigner {
-    private let keyId: String
-    private let _jwk: String
-    private let didJwk = DidMethodUtils(method: SpruceIDMobileSdkRs.DidMethod.jwk)
+    private static let defaultKeyId = "sprucekit/keymanager/oid4vp/default"
 
-    init(keyId: String) throws {
-        self.keyId = keyId
-        if !KeyManager.keyExists(id: keyId) {
-            _ = KeyManager.generateSigningKey(id: keyId)
-        }
-        guard let jwk = KeyManager.getJwk(id: keyId) else {
-            throw Oid4vpSignerError.illegalArgumentException(reason: "Invalid kid")
-        }
-        self._jwk = jwk.description
+    private let didJwk = DidMethodUtils(method: SpruceIDMobileSdkRs.DidMethod.jwk)
+    private let fallbackKeyId: String
+
+    init(fallbackKeyId: String) {
+        self.fallbackKeyId = fallbackKeyId
     }
 
-    func sign(payload: Data) async throws -> Data {
-        guard let signature = KeyManager.signPayload(id: keyId, payload: [UInt8](payload)) else {
+    // A per-credential key must already exist from issuance (else it can't match
+    // the credential's cnf binding); only the fallback/legacy key is created on demand.
+    private func resolveAlias(_ keyId: String) -> (id: String, mayGenerate: Bool) {
+        if keyId.isEmpty || keyId == fallbackKeyId {
+            let id = fallbackKeyId.isEmpty ? Self.defaultKeyId : fallbackKeyId
+            return (id, true)
+        }
+        return (keyId, false)
+    }
+
+    private func ensureKey(_ keyId: String) throws -> String {
+        let (id, mayGenerate) = resolveAlias(keyId)
+        if !KeyManager.keyExists(id: id) {
+            guard mayGenerate else {
+                throw Oid4vpSignerError.illegalArgumentException(
+                    reason: "No signing key for per-credential kid '\(id)'; it must exist from issuance")
+            }
+            _ = KeyManager.generateSigningKey(id: id)
+        }
+        return id
+    }
+
+    private func resolveJwk(_ keyId: String) throws -> String {
+        let id = try ensureKey(keyId)
+        guard let jwk = KeyManager.getJwk(id: id) else {
+            throw Oid4vpSignerError.illegalArgumentException(reason: "Invalid kid: \(id)")
+        }
+        return jwk.description
+    }
+
+    func sign(keyId: String, payload: Data) async throws -> Data {
+        let id = try ensureKey(keyId)
+        guard let signature = KeyManager.signPayload(id: id, payload: [UInt8](payload)) else {
             throw Oid4vpSignerError.illegalArgumentException(reason: "Failed to sign payload")
         }
         return Data(signature)
     }
 
     func algorithm() -> String {
-        // Parse the jwk as a JSON object and return the "alg" field
-        if let data = _jwk.data(using: .utf8),
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let alg = json["alg"] as? String {
-            return alg
-        }
         return "ES256"
     }
 
-    func verificationMethod() async -> String {
+    func verificationMethod(keyId: String) async -> String {
         do {
-            return try await didJwk.vmFromJwk(jwk: _jwk)
+            let jwk = try resolveJwk(keyId)
+            return try await didJwk.vmFromJwk(jwk: jwk)
         } catch {
             fatalError("Oid4vpSigner: failed to derive verification method from JWK: \(error)")
         }
     }
 
-    func did() -> String {
+    func did(keyId: String) -> String {
         do {
-            return try didJwk.didFromJwk(jwk: _jwk)
+            let jwk = try resolveJwk(keyId)
+            return try didJwk.didFromJwk(jwk: jwk)
         } catch {
             fatalError("Oid4vpSigner: failed to derive DID from JWK: \(error)")
         }
     }
 
-    func jwk() -> String {
-        return _jwk
+    func jwk(keyId: String) -> String {
+        do {
+            return try resolveJwk(keyId)
+        } catch {
+            fatalError("Oid4vpSigner: failed to resolve JWK: \(error)")
+        }
     }
 
     func cryptosuite() -> String {
@@ -130,7 +154,8 @@ class Oid4vpAdapter: Oid4vp {
     func createHolder(
         credentialPackIds: [String],
         trustedDids: [String],
-        keyId: String,
+        keyMap: [String: String],
+        fallbackKeyId: String,
         contextMap: [String: String]?,
         completion: @escaping (Result<Oid4vpResult, any Error>) -> Void
     ) {
@@ -148,14 +173,15 @@ class Oid4vpAdapter: Oid4vp {
                     return
                 }
 
-                // Create signer
-                let signer = try Oid4vpSigner(keyId: keyId)
+                let signer = Oid4vpSigner(fallbackKeyId: fallbackKeyId)
 
                 // Create holder (version-agnostic facade)
                 let newHolder = try await Oid4vpHolder.newWithCredentials(
                     providedCredentials: credentials,
                     trustedDids: trustedDids,
                     signer: signer,
+                    keyMap: keyMap,
+                    fallbackKeyId: fallbackKeyId,
                     contextMap: contextMap,
                     keystore: KeyManager()
                 )

@@ -202,7 +202,7 @@ impl CredentialPresentation for JwtVc {
         _selected_fields: Option<Vec<String>>,
     ) -> Result<VpTokenItem, OID4VPError> {
         let vm = options.verification_method_id().await?.to_string();
-        let holder_id = options.signer.did();
+        let holder_id = options.subject();
 
         let subject = self
             .credential()
@@ -280,7 +280,10 @@ impl CredentialPresentation for JwtVc {
         // Sign the `vp_token` if a `signer` is provided in the `VpTokenOptions`.
         let signature = options
             .signer
-            .sign(unsigned_vp_token_jwt.as_bytes().to_vec())
+            .sign(
+                options.active_key_id.clone(),
+                unsigned_vp_token_jwt.as_bytes().to_vec(),
+            )
             .await
             .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
 

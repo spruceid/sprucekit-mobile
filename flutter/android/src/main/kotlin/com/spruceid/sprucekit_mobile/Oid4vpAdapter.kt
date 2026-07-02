@@ -14,54 +14,48 @@ import com.spruceid.mobile.sdk.rs.Oid4vpResponseOptions as RsResponseOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 /**
  * Signer implementation for OID4VP presentation
  */
-class Oid4vpSigner(keyId: String?) : Oid4vpPresentationSigner {
-    private val keyId = keyId ?: "default_signing_key"
+class Oid4vpSigner(private val fallbackKeyId: String) : Oid4vpPresentationSigner {
     private val keyManager = KeyManager()
-    private var jwk: String
     private val didJwk = DidMethodUtils(DidMethod.JWK)
 
-    init {
-        if (!keyManager.keyExists(this.keyId)) {
-            keyManager.generateSigningKey(id = this.keyId)
+    // Only the fallback/legacy key is created on demand; a per-credential key
+    // must already exist from issuance, else it can't match the cnf binding.
+    private fun ensureKey(keyId: String): String {
+        val mayGenerate = keyId.isEmpty() || keyId == fallbackKeyId
+        val resolvedId = if (mayGenerate) fallbackKeyId.ifEmpty { DEFAULT_KEY_ID } else keyId
+        if (!keyManager.keyExists(resolvedId)) {
+            require(mayGenerate) {
+                "No signing key for per-credential kid '$resolvedId'; it must exist from issuance"
+            }
+            keyManager.generateSigningKey(id = resolvedId)
         }
-        this.jwk = keyManager.getJwk(this.keyId)?.toString()
-            ?: throw IllegalArgumentException("Invalid kid")
+        return resolvedId
     }
 
-    override suspend fun sign(payload: ByteArray): ByteArray {
-        val signature = keyManager.signPayload(keyId, payload)
+    private fun jwkFor(keyId: String): String =
+        keyManager.getJwk(ensureKey(keyId))?.toString()
+            ?: throw IllegalArgumentException("Invalid kid: $keyId")
+
+    override suspend fun sign(keyId: String, payload: ByteArray): ByteArray =
+        keyManager.signPayload(ensureKey(keyId), payload)
             ?: throw IllegalStateException("Failed to sign payload")
-        return signature
-    }
 
-    override fun algorithm(): String {
-        return try {
-            val json = JSONObject(jwk)
-            json.getString("alg")
-        } catch (_: Exception) {
-            "ES256"
-        }
-    }
+    override fun algorithm(): String = "ES256"
 
-    override suspend fun verificationMethod(): String {
-        return didJwk.vmFromJwk(jwk)
-    }
+    override suspend fun verificationMethod(keyId: String): String = didJwk.vmFromJwk(jwkFor(keyId))
 
-    override fun did(): String {
-        return didJwk.didFromJwk(jwk)
-    }
+    override fun did(keyId: String): String = didJwk.didFromJwk(jwkFor(keyId))
 
-    override fun jwk(): String {
-        return jwk
-    }
+    override fun jwk(keyId: String): String = jwkFor(keyId)
 
-    override fun cryptosuite(): String {
-        return "ecdsa-rdfc-2019"
+    override fun cryptosuite(): String = "ecdsa-rdfc-2019"
+
+    private companion object {
+        const val DEFAULT_KEY_ID = "default_signing_key"
     }
 }
 
@@ -123,7 +117,8 @@ internal class Oid4vpAdapter(
     override fun createHolder(
         credentialPackIds: List<String>,
         trustedDids: List<String>,
-        keyId: String,
+        keyMap: Map<String, String>,
+        fallbackKeyId: String,
         contextMap: Map<String, String>?,
         callback: (Result<Oid4vpResult>) -> Unit
     ) {
@@ -141,14 +136,15 @@ internal class Oid4vpAdapter(
                     return@launch
                 }
 
-                // Create signer
-                val signer = Oid4vpSigner(keyId)
+                val signer = Oid4vpSigner(fallbackKeyId)
 
                 // Create holder (version-agnostic facade)
                 val newHolder = Oid4vpHolder.newWithCredentials(
                     credentials,
                     trustedDids,
                     signer,
+                    keyMap,
+                    fallbackKeyId,
                     contextMap,
                     KeyManager()
                 )

@@ -181,6 +181,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
       final created = await _vcalm.createHolder(
         [],
         _trustedDids,
+        <String, String>{},
         _vcalmKeyId,
         null,
       );
@@ -335,6 +336,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
       final createResult = await _oid4vp.createHolder(
         [_packId!],
         _trustedDids,
+        <String, String>{},
         _keyId,
         null,
       );

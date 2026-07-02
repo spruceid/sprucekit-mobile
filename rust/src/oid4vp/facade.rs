@@ -104,6 +104,8 @@ pub struct Oid4vpHolder {
     source: Oid4vpHolderSource,
     trusted_dids: Vec<String>,
     signer: Arc<Box<dyn Oid4vpPresentationSigner>>,
+    key_map: HashMap<String, String>,
+    fallback_key_id: String,
     context_map: Option<HashMap<String, String>>,
     keystore: Option<Arc<dyn KeyStore>>,
 }
@@ -177,12 +179,12 @@ pub struct Oid4vpPermissionResponse {
 #[uniffi::export(callback_interface)]
 #[async_trait::async_trait]
 pub trait Oid4vpPresentationSigner: Send + Sync + std::fmt::Debug {
-    async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, Oid4vpFacadeError>;
+    async fn sign(&self, key_id: String, payload: Vec<u8>) -> Result<Vec<u8>, Oid4vpFacadeError>;
     fn algorithm(&self) -> Algorithm;
-    async fn verification_method(&self) -> String;
-    fn did(&self) -> String;
+    async fn verification_method(&self, key_id: String) -> String;
+    fn did(&self, key_id: String) -> String;
     fn cryptosuite(&self) -> CryptosuiteString;
-    fn jwk(&self) -> String;
+    fn jwk(&self, key_id: String) -> String;
 }
 
 #[derive(Debug)]
@@ -192,9 +194,10 @@ struct V1SignerAdapter {
 
 #[async_trait::async_trait]
 impl PresentationSigner for V1SignerAdapter {
-    async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
+    // Forward the per-credential `key_id` to the foreign signer.
+    async fn sign(&self, key_id: String, payload: Vec<u8>) -> Result<Vec<u8>, PresentationError> {
         self.signer
-            .sign(payload)
+            .sign(key_id, payload)
             .await
             .map_err(|e| PresentationError::Signing(e.to_string()))
     }
@@ -203,20 +206,20 @@ impl PresentationSigner for V1SignerAdapter {
         self.signer.algorithm()
     }
 
-    async fn verification_method(&self) -> String {
-        self.signer.verification_method().await
+    async fn verification_method(&self, key_id: String) -> String {
+        self.signer.verification_method(key_id).await
     }
 
-    fn did(&self) -> String {
-        self.signer.did()
+    fn did(&self, key_id: String) -> String {
+        self.signer.did(key_id)
     }
 
     fn cryptosuite(&self) -> CryptosuiteString {
         self.signer.cryptosuite()
     }
 
-    fn jwk(&self) -> String {
-        self.signer.jwk()
+    fn jwk(&self, key_id: String) -> String {
+        self.signer.jwk(key_id)
     }
 }
 
@@ -227,9 +230,14 @@ struct Draft18SignerAdapter {
 
 #[async_trait::async_trait]
 impl Draft18PresentationSigner for Draft18SignerAdapter {
-    async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, Draft18PresentationError> {
+    // Forward the per-credential `key_id` to the foreign signer.
+    async fn sign(
+        &self,
+        key_id: String,
+        payload: Vec<u8>,
+    ) -> Result<Vec<u8>, Draft18PresentationError> {
         self.signer
-            .sign(payload)
+            .sign(key_id, payload)
             .await
             .map_err(|e| Draft18PresentationError::Signing(e.to_string()))
     }
@@ -238,20 +246,20 @@ impl Draft18PresentationSigner for Draft18SignerAdapter {
         self.signer.algorithm()
     }
 
-    async fn verification_method(&self) -> String {
-        self.signer.verification_method().await
+    async fn verification_method(&self, key_id: String) -> String {
+        self.signer.verification_method(key_id).await
     }
 
-    fn did(&self) -> String {
-        self.signer.did()
+    fn did(&self, key_id: String) -> String {
+        self.signer.did(key_id)
     }
 
     fn cryptosuite(&self) -> CryptosuiteString {
         self.signer.cryptosuite()
     }
 
-    fn jwk(&self) -> String {
-        self.signer.jwk()
+    fn jwk(&self, key_id: String) -> String {
+        self.signer.jwk(key_id)
     }
 }
 
@@ -263,6 +271,8 @@ impl Oid4vpHolder {
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Oid4vpPresentationSigner>,
+        key_map: HashMap<String, String>,
+        fallback_key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, Oid4vpFacadeError> {
@@ -270,6 +280,8 @@ impl Oid4vpHolder {
             source: Oid4vpHolderSource::Collection(vdc_collection),
             trusted_dids,
             signer: Arc::new(signer),
+            key_map,
+            fallback_key_id,
             context_map,
             keystore,
         }))
@@ -280,6 +292,8 @@ impl Oid4vpHolder {
         provided_credentials: Vec<Arc<ParsedCredential>>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Oid4vpPresentationSigner>,
+        key_map: HashMap<String, String>,
+        fallback_key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, Oid4vpFacadeError> {
@@ -287,6 +301,8 @@ impl Oid4vpHolder {
             source: Oid4vpHolderSource::Credentials(provided_credentials),
             trusted_dids,
             signer: Arc::new(signer),
+            key_map,
+            fallback_key_id,
             context_map,
             keystore,
         }))
@@ -387,6 +403,8 @@ impl Oid4vpHolder {
                 vdc_collection.clone(),
                 self.trusted_dids.clone(),
                 signer,
+                self.key_map.clone(),
+                self.fallback_key_id.clone(),
                 self.context_map.clone(),
                 self.keystore.clone(),
             )
@@ -396,6 +414,8 @@ impl Oid4vpHolder {
                 credentials.clone(),
                 self.trusted_dids.clone(),
                 signer,
+                self.key_map.clone(),
+                self.fallback_key_id.clone(),
                 self.context_map.clone(),
                 self.keystore.clone(),
             )
@@ -414,6 +434,8 @@ impl Oid4vpHolder {
                 vdc_collection.clone(),
                 self.trusted_dids.clone(),
                 signer,
+                self.key_map.clone(),
+                self.fallback_key_id.clone(),
                 self.context_map.clone(),
             )
             .await
@@ -422,6 +444,8 @@ impl Oid4vpHolder {
                 credentials.clone(),
                 self.trusted_dids.clone(),
                 signer,
+                self.key_map.clone(),
+                self.fallback_key_id.clone(),
                 self.context_map.clone(),
             )
             .await
@@ -983,7 +1007,12 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Oid4vpPresentationSigner for TestSigner {
-        async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, Oid4vpFacadeError> {
+        // The test signer holds a single key, so `key_id` is ignored.
+        async fn sign(
+            &self,
+            _key_id: String,
+            payload: Vec<u8>,
+        ) -> Result<Vec<u8>, Oid4vpFacadeError> {
             let sig = self
                 .jwk
                 .sign_bytes(&payload)
@@ -1002,18 +1031,18 @@ mod tests {
                 .unwrap_or(Algorithm::ES256)
         }
 
-        async fn verification_method(&self) -> String {
+        async fn verification_method(&self, _key_id: String) -> String {
             DidMethod::Key
-                .vm_from_jwk(&self.jwk())
+                .vm_from_jwk(&self.jwk(String::new()))
                 .await
                 .unwrap()
                 .id
                 .to_string()
         }
 
-        fn did(&self) -> String {
+        fn did(&self, _key_id: String) -> String {
             DidMethod::Key
-                .did_from_jwk(&self.jwk())
+                .did_from_jwk(&self.jwk(String::new()))
                 .unwrap()
                 .to_string()
         }
@@ -1022,7 +1051,7 @@ mod tests {
             CryptosuiteString::new("ecdsa-rdfc-2019".to_string()).unwrap()
         }
 
-        fn jwk(&self) -> String {
+        fn jwk(&self, _key_id: String) -> String {
             serde_json::to_string(&self.jwk.to_public()).unwrap()
         }
     }
@@ -1270,6 +1299,8 @@ mod tests {
             Box::new(TestSigner {
                 jwk: JWK::generate_p256(),
             }),
+            Default::default(),
+            String::new(),
             None,
             None,
         )
@@ -1289,6 +1320,8 @@ mod tests {
             vec![credential],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1310,6 +1343,8 @@ mod tests {
             vec![credential],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1331,6 +1366,8 @@ mod tests {
             vec![credential.clone()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1385,6 +1422,8 @@ mod tests {
             vec![credential.clone()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1448,6 +1487,8 @@ mod tests {
             vec![credential],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1467,6 +1508,8 @@ mod tests {
             vec![credential.clone()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1720,6 +1763,8 @@ mod tests {
             vec![alumni_credential()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1825,6 +1870,8 @@ mod tests {
             vec![alumni_credential()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -1858,6 +1905,8 @@ mod tests {
             vec![alumni_credential()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            Default::default(),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
