@@ -162,21 +162,25 @@ pub trait CredentialPresentation {
 #[uniffi::export(callback_interface)]
 #[async_trait::async_trait]
 pub trait Draft18PresentationSigner: Send + Sync + std::fmt::Debug {
-    /// Sign the payload with the private key and return the signature.
+    /// Sign the payload with the private key identified by `key_id`.
     ///
     /// The signing algorithm must match the `cryptosuite()` method result.
-    async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, Draft18PresentationError>;
+    async fn sign(
+        &self,
+        key_id: String,
+        payload: Vec<u8>,
+    ) -> Result<Vec<u8>, Draft18PresentationError>;
 
     /// Return the algorithm used for signing the vp token.
     ///
     /// E.g., "ES256"
     fn algorithm(&self) -> Algorithm;
 
-    /// Return the verification method associated with the signing key.
-    async fn verification_method(&self) -> String;
+    /// Return the verification method associated with the signing key `key_id`.
+    async fn verification_method(&self, key_id: String) -> String;
 
-    /// Return the `DID` of the signing key.
-    fn did(&self) -> String;
+    /// Return the `DID` of the signing key identified by `key_id`.
+    fn did(&self, key_id: String) -> String;
 
     /// Data Integrity Cryptographic Suite of the Signer.
     ///
@@ -189,9 +193,9 @@ pub trait Draft18PresentationSigner: Send + Sync + std::fmt::Debug {
     /// E.g., JsonWebSignature2020, ecdsa-rdfc-2019
     fn cryptosuite(&self) -> CryptosuiteString;
 
-    /// Return the public JWK of the signing key.
-    /// as a String-encoded JSON
-    fn jwk(&self) -> String;
+    /// Return the public JWK of the signing key identified by `key_id`,
+    /// as a String-encoded JSON.
+    fn jwk(&self, key_id: String) -> String;
 }
 
 /// Internal options for constructing a VP Token, and optionally signing it.
@@ -204,6 +208,8 @@ pub struct Draft18PresentationOptions<'a> {
     pub(crate) request: &'a AuthorizationRequestObject,
     /// Signing callback interface that can be used to sign the `vp_token`.
     pub(crate) signer: Arc<Box<dyn Draft18PresentationSigner>>,
+    /// Per-credential signing key id used with `signer`.
+    pub(crate) key_id: String,
     /// Optional context map for the presentation.
     pub(crate) context_map: Option<HashMap<String, String>>,
     pub(crate) response_options: &'a Draft18ResponseOptions,
@@ -226,7 +232,7 @@ impl MessageSigner<WithProtocol<ssi::crypto::Algorithm, AnyProtocol>>
 
         let signature_bytes = self
             .signer
-            .sign(message.to_vec())
+            .sign(self.key_id.clone(), message.to_vec())
             .await
             .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
@@ -258,7 +264,7 @@ where
     ) -> Result<Option<Self::MessageSigner>, ssi::claims::SignatureError> {
         Ok(method
             .controller()
-            .filter(|ctrl| **ctrl == self.signer.did())
+            .filter(|ctrl| **ctrl == self.signer.did(self.key_id.clone()))
             .map(|_| self.clone()))
     }
 }
@@ -268,6 +274,8 @@ where
 #[derive(Clone, Debug)]
 pub(crate) struct OwnedDraft18Signer {
     signer: Arc<Box<dyn Draft18PresentationSigner>>,
+    /// Per-credential signing key id used with `signer`.
+    key_id: String,
 }
 
 impl OwnedDraft18Signer {
@@ -297,7 +305,7 @@ impl MessageSigner<WithProtocol<ssi::crypto::Algorithm, AnyProtocol>> for OwnedD
 
         let signature_bytes = self
             .signer
-            .sign(message.to_vec())
+            .sign(self.key_id.clone(), message.to_vec())
             .await
             .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
@@ -329,7 +337,7 @@ where
     ) -> Result<Option<Self::MessageSigner>, ssi::claims::SignatureError> {
         Ok(method
             .controller()
-            .filter(|ctrl| **ctrl == self.signer.did())
+            .filter(|ctrl| **ctrl == self.signer.did(self.key_id.clone()))
             .map(|_| self.clone()))
     }
 }
@@ -337,7 +345,7 @@ where
 impl Draft18PresentationOptions<'_> {
     pub async fn verification_method_id(&self) -> Result<IriBuf, Draft18PresentationError> {
         self.signer
-            .verification_method()
+            .verification_method(self.key_id.clone())
             .await
             .parse()
             .map_err(|e| Draft18PresentationError::VerificationMethod(format!("{e:?}")))
@@ -352,15 +360,15 @@ impl Draft18PresentationOptions<'_> {
     }
 
     pub fn issuer(&self) -> String {
-        self.signer.did()
+        self.signer.did(self.key_id.clone())
     }
 
     pub fn subject(&self) -> String {
-        self.signer.did()
+        self.signer.did(self.key_id.clone())
     }
 
     pub fn jwk(&self) -> Result<JWK, Draft18PresentationError> {
-        JWK::from_str(&self.signer.jwk())
+        JWK::from_str(&self.signer.jwk(self.key_id.clone()))
             .map_err(|e| Draft18PresentationError::JWK(format!("{e:?}")))
     }
 
@@ -465,6 +473,7 @@ impl Draft18PresentationOptions<'_> {
         // borrowed `Draft18PresentationOptions` cannot (it holds `&request`).
         let signer = OwnedDraft18Signer {
             signer: self.signer.clone(),
+            key_id: self.key_id.clone(),
         };
 
         // ssi's data-integrity signing performs JSON-LD context expansion + RDF

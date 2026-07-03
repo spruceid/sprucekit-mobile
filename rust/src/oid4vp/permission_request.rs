@@ -215,6 +215,8 @@ pub struct PermissionRequest {
     pub(crate) credentials: Vec<Arc<PresentableCredential>>,
     pub(crate) request: AuthorizationRequestObject,
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+    /// Signing key id used for credentials with no `key_alias`.
+    pub(crate) key_id: String,
     pub(crate) context_map: Option<HashMap<String, String>>,
     pub(crate) keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
 }
@@ -232,11 +234,13 @@ impl std::fmt::Debug for PermissionRequest {
 }
 
 impl PermissionRequest {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         dcql_query: DcqlQuery,
         credentials: Vec<Arc<PresentableCredential>>,
         request: AuthorizationRequestObject,
         signer: Arc<Box<dyn PresentationSigner>>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
     ) -> Arc<Self> {
@@ -245,6 +249,7 @@ impl PermissionRequest {
             credentials,
             request,
             signer,
+            key_id,
             context_map,
             keystore,
         })
@@ -328,18 +333,28 @@ impl PermissionRequest {
             })
             .collect();
 
-        // Set options for constructing a verifiable presentation.
-        let options = PresentationOptions {
-            request: &self.request,
-            signer: self.signer.clone(),
-            context_map: self.context_map.clone(),
-            response_options: &response_options,
-            keystore: self.keystore.clone(),
-        };
-
         let mut vp_token_map: HashMap<String, Vec<VpTokenItem>> = HashMap::new();
 
         for cred in &selected_credentials {
+            let key_alias = ParsedCredential {
+                inner: cred.inner.clone(),
+            }
+            .key_alias();
+            let key_id = key_alias
+                .map(|alias| alias.0)
+                .unwrap_or_else(|| self.key_id.clone());
+
+            // Set options for constructing this credential's verifiable
+            // presentation, pinned to its resolved signing key.
+            let options = PresentationOptions {
+                request: &self.request,
+                signer: self.signer.clone(),
+                key_id,
+                context_map: self.context_map.clone(),
+                response_options: &response_options,
+                keystore: self.keystore.clone(),
+            };
+
             let token_item = cred.as_vp_token(&options).await?;
             vp_token_map
                 .entry(cred.credential_query_id.clone())

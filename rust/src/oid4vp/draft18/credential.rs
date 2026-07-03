@@ -375,7 +375,7 @@ impl Draft18PresentableCredential {
         options: &'a Draft18PresentationOptions<'a>,
     ) -> Result<VpTokenItem, Draft18OID4VPError> {
         let vm = options.verification_method_id().await?.to_string();
-        let holder_id = options.signer.did();
+        let holder_id = options.subject();
 
         let subject = vc
             .credential()
@@ -447,7 +447,10 @@ impl Draft18PresentableCredential {
 
         let signature = options
             .signer
-            .sign(unsigned_vp_token_jwt.as_bytes().to_vec())
+            .sign(
+                options.key_id.clone(),
+                unsigned_vp_token_jwt.as_bytes().to_vec(),
+            )
             .await
             .map_err(|e| CredentialEncodingError::VpToken(format!("{e:?}")))?;
 
@@ -523,7 +526,7 @@ impl Draft18PresentableCredential {
 
         let unsigned_presentation = match parsed {
             AnyJsonCredential::V1(cred_v1) => {
-                let holder_id: UriBuf = options.signer.did().parse().map_err(|e| {
+                let holder_id: UriBuf = options.subject().parse().map_err(|e| {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?;
 
@@ -570,7 +573,7 @@ impl Draft18PresentableCredential {
                         .collect::<Vec<_>>();
                 }
 
-                let holder_id = IdOr::Id(options.signer.did().parse().map_err(|e| {
+                let holder_id = IdOr::Id(options.subject().parse().map_err(|e| {
                     CredentialEncodingError::VpToken(format!("Error parsing DID: {e:?}"))
                 })?);
 

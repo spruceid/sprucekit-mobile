@@ -68,6 +68,8 @@ pub struct VcalmHolder {
     pub(crate) trusted_dids: Vec<String>,
     /// Foreign interface for the [`PresentationSigner`] used to sign the VP.
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+    /// Signing key id used when the presented credential has no `key_alias`.
+    pub(crate) key_id: String,
     /// Optional context map for resolving JSON-LD contexts during signing.
     pub(crate) context_map: Option<HashMap<String, String>>,
     /// Optional KeyStore for credential signing (forward-looking).
@@ -107,6 +109,7 @@ impl VcalmHolder {
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
         signer: Box<dyn PresentationSigner>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, VcalmError> {
@@ -132,6 +135,7 @@ impl VcalmHolder {
             vdc_collection: Some(vdc_collection),
             trusted_dids,
             signer: Arc::new(signer),
+            key_id,
             context_map,
             keystore,
             client,
@@ -991,8 +995,18 @@ impl VcalmHolder {
             }
         }
 
-        let holder_did = self.signer.did();
-        let glue = VpSigner::new(self.signer.clone(), self.context_map.clone());
+        // A VCALM session signs ONE VP with a single holder key.
+        // Single-credential presentations (the common case) use that
+        // credential's own key; a multi-credential VP uses the primary
+        // (first-presented) credential's key, falling back to the shared key when
+        // the credential has no alias (e.g. legacy credentials).
+        let active_key_id = present
+            .first()
+            .and_then(|cred| cred.key_alias())
+            .map(|alias| alias.0)
+            .unwrap_or_else(|| self.key_id.clone());
+        let holder_did = self.signer.did(active_key_id.clone());
+        let glue = VpSigner::new(self.signer.clone(), active_key_id, self.context_map.clone());
 
         // Two-gate SD activation. GATE 1: the VPR lists an SD suite. GATE 2
         // (per credential): the matched VC carries an `ecdsa-sd-2023` base proof. When
@@ -1760,6 +1774,7 @@ mod tests {
             vdc,
             vec![],
             signer,
+            String::new(),
             Some(crate::context::default_ld_json_context()),
             None,
         )
@@ -1769,7 +1784,7 @@ mod tests {
 
     /// The holder's `did:key` (matches the `KeySigner` test double).
     fn holder_did() -> String {
-        crate::tests::load_signer().did()
+        crate::tests::load_signer().did(String::new())
     }
 
     /// Seed a VdcCollection with one LdpVc built from `raw` JSON, returning the parsed
@@ -2621,6 +2636,7 @@ mod tests {
         let signer: Box<dyn PresentationSigner> = Box::new(crate::tests::load_signer());
         let glue = VpSigner::new(
             Arc::new(signer),
+            String::new(),
             Some(crate::context::default_ld_json_context()),
         );
 

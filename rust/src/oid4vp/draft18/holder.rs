@@ -89,6 +89,9 @@ pub struct Draft18Holder {
     /// Foreign Interface for the [Draft18PresentationSigner]
     pub(crate) signer: Arc<Box<dyn Draft18PresentationSigner>>,
 
+    /// Signing key id used for credentials with no `key_alias`.
+    pub(crate) key_id: String,
+
     /// Optional context map for resolving specific contexts
     pub(crate) context_map: Option<HashMap<String, String>>,
 }
@@ -115,6 +118,7 @@ impl Draft18Holder {
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Draft18PresentationSigner>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, Draft18OID4VPError> {
         let client = openidvp_draft18::core::util::ReqwestClient::new()
@@ -127,6 +131,7 @@ impl Draft18Holder {
             trusted_dids,
             provided_credentials: None,
             signer: Arc::new(signer),
+            key_id,
             context_map: with_default_contexts(context_map),
         }))
     }
@@ -141,6 +146,7 @@ impl Draft18Holder {
         provided_credentials: Vec<Arc<ParsedCredential>>,
         trusted_dids: Vec<String>,
         signer: Box<dyn Draft18PresentationSigner>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, Draft18OID4VPError> {
         let client = openidvp_draft18::core::util::ReqwestClient::new()
@@ -153,6 +159,7 @@ impl Draft18Holder {
             trusted_dids,
             provided_credentials: Some(provided_credentials),
             signer: Arc::new(signer),
+            key_id,
             context_map: with_default_contexts(context_map),
         }))
     }
@@ -372,6 +379,7 @@ impl Draft18Holder {
             credentials.clone(),
             request,
             self.signer.clone(),
+            self.key_id.clone(),
             self.context_map.clone(),
         ))
     }

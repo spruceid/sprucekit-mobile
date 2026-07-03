@@ -127,6 +127,8 @@ pub(crate) fn vpr_lists_sd_suite(vpr: &Vpr) -> bool {
 pub struct VpSigner {
     /// Signing callback interface that signs the canonicalized proof bytes.
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+    /// Per-credential signing key id used with `signer`.
+    pub(crate) key_id: String,
     /// Optional context map for resolving JSON-LD contexts during canonicalization.
     pub(crate) context_map: Option<HashMap<String, String>>,
 }
@@ -158,7 +160,7 @@ impl MessageSigner<WithProtocol<Algorithm, AnyProtocol>> for VpSigner {
 
         let signature_bytes = self
             .signer
-            .sign(message.to_vec())
+            .sign(self.key_id.clone(), message.to_vec())
             .await
             .map_err(|e| MessageSignatureError::signature_failed(format!("{e:?}")))?;
 
@@ -190,7 +192,7 @@ where
     ) -> Result<Option<Self::MessageSigner>, ssi::claims::SignatureError> {
         Ok(method
             .controller()
-            .filter(|ctrl| **ctrl == self.signer.did())
+            .filter(|ctrl| **ctrl == self.signer.did(self.key_id.clone()))
             .map(|_| self.clone()))
     }
 }
@@ -199,10 +201,12 @@ impl VpSigner {
     /// Construct a new VP signer glue over the holder's `PresentationSigner` callback.
     pub(crate) fn new(
         signer: Arc<Box<dyn PresentationSigner>>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Self {
         Self {
             signer,
+            key_id,
             context_map,
         }
     }
@@ -210,7 +214,7 @@ impl VpSigner {
     /// The verification method IRI for the signing key.
     pub async fn verification_method_id(&self) -> Result<IriBuf, PresentationError> {
         self.signer
-            .verification_method()
+            .verification_method(self.key_id.clone())
             .await
             .parse()
             .map_err(|e| PresentationError::VerificationMethod(format!("{e:?}")))
@@ -218,12 +222,13 @@ impl VpSigner {
 
     /// The signing key's holder DID (e.g. a `did:key:...`).
     pub fn did(&self) -> String {
-        self.signer.did()
+        self.signer.did(self.key_id.clone())
     }
 
     /// The signing key's public JWK.
     pub fn jwk(&self) -> Result<JWK, PresentationError> {
-        JWK::from_str(&self.signer.jwk()).map_err(|e| PresentationError::JWK(format!("{e:?}")))
+        JWK::from_str(&self.signer.jwk(self.key_id.clone()))
+            .map_err(|e| PresentationError::JWK(format!("{e:?}")))
     }
 
     /// Return the crypto curve utils based on the signing algorithm.
@@ -342,6 +347,7 @@ mod tests {
         let signer: Box<dyn PresentationSigner> = Box::new(crate::tests::load_signer());
         VpSigner::new(
             Arc::new(signer),
+            String::new(),
             Some(crate::context::default_ld_json_context()),
         )
     }
