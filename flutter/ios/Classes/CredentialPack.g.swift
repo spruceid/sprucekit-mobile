@@ -632,15 +632,26 @@ protocol CredentialPack {
   /// @param keyAlias The key alias to use for the mDoc
   /// @return AddCredentialResult with updated credentials or error
   func addRawMdoc(packId: String, rawCredential: String, keyAlias: String, completion: @escaping (Result<AddCredentialResult, Error>) -> Void)
-  /// Add a credential in any supported format
+  /// Add a credential in any supported format, optionally binding it to a
+  /// per-credential key alias.
   ///
-  /// Tries standard formats first, then mDoc with the provided key alias
+  /// When [keyAlias] is non-null it is applied to every format (SD-JWT VC,
+  /// JWT-VC, mDoc, ...) so the stored credential's `key_alias` is the key used
+  /// to sign its presentation. For per-credential unlinkability, pass the same
+  /// key id used to sign the OID4VCI proof at issuance (so it matches the
+  /// credential's `cnf`).
+  ///
+  /// When [keyAlias] is null the credential is stored without a per-credential
+  /// key and presents via the shared/fallback key passed to `createHolder` —
+  /// valid only for issuer-signed non-mDoc formats. An mDoc is device-bound and
+  /// has no keyless form, so a null alias for an mDoc payload fails rather than
+  /// binding a key that would not match its MSO.
   ///
   /// @param packId The pack identifier
   /// @param rawCredential The raw credential string
-  /// @param mdocKeyAlias The key alias to use if parsing as mDoc
+  /// @param keyAlias The per-credential key alias, or null to store keyless
   /// @return AddCredentialResult with updated credentials or error
-  func addAnyFormat(packId: String, rawCredential: String, mdocKeyAlias: String, completion: @escaping (Result<AddCredentialResult, Error>) -> Void)
+  func addAnyFormat(packId: String, rawCredential: String, keyAlias: String?, completion: @escaping (Result<AddCredentialResult, Error>) -> Void)
   /// Get all credentials in a pack
   ///
   /// @param packId The pack identifier
@@ -823,13 +834,24 @@ class CredentialPackSetup {
     } else {
       addRawMdocChannel.setMessageHandler(nil)
     }
-    /// Add a credential in any supported format
+    /// Add a credential in any supported format, optionally binding it to a
+    /// per-credential key alias.
     ///
-    /// Tries standard formats first, then mDoc with the provided key alias
+    /// When [keyAlias] is non-null it is applied to every format (SD-JWT VC,
+    /// JWT-VC, mDoc, ...) so the stored credential's `key_alias` is the key used
+    /// to sign its presentation. For per-credential unlinkability, pass the same
+    /// key id used to sign the OID4VCI proof at issuance (so it matches the
+    /// credential's `cnf`).
+    ///
+    /// When [keyAlias] is null the credential is stored without a per-credential
+    /// key and presents via the shared/fallback key passed to `createHolder` —
+    /// valid only for issuer-signed non-mDoc formats. An mDoc is device-bound and
+    /// has no keyless form, so a null alias for an mDoc payload fails rather than
+    /// binding a key that would not match its MSO.
     ///
     /// @param packId The pack identifier
     /// @param rawCredential The raw credential string
-    /// @param mdocKeyAlias The key alias to use if parsing as mDoc
+    /// @param keyAlias The per-credential key alias, or null to store keyless
     /// @return AddCredentialResult with updated credentials or error
     let addAnyFormatChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormat\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -837,8 +859,8 @@ class CredentialPackSetup {
         let args = message as! [Any?]
         let packIdArg = args[0] as! String
         let rawCredentialArg = args[1] as! String
-        let mdocKeyAliasArg = args[2] as! String
-        api.addAnyFormat(packId: packIdArg, rawCredential: rawCredentialArg, mdocKeyAlias: mdocKeyAliasArg) { result in
+        let keyAliasArg: String? = nilOrValue(args[2])
+        api.addAnyFormat(packId: packIdArg, rawCredential: rawCredentialArg, keyAlias: keyAliasArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

@@ -687,22 +687,33 @@ class CredentialPack {
     return pigeonVar_replyValue! as AddCredentialResult;
   }
 
-  /// Add a credential in any supported format
+  /// Add a credential in any supported format, optionally binding it to a
+  /// per-credential key alias.
   ///
-  /// Tries standard formats first, then mDoc with the provided key alias
+  /// When [keyAlias] is non-null it is applied to every format (SD-JWT VC,
+  /// JWT-VC, mDoc, ...) so the stored credential's `key_alias` is the key used
+  /// to sign its presentation. For per-credential unlinkability, pass the same
+  /// key id used to sign the OID4VCI proof at issuance (so it matches the
+  /// credential's `cnf`).
+  ///
+  /// When [keyAlias] is null the credential is stored without a per-credential
+  /// key and presents via the shared/fallback key passed to `createHolder` —
+  /// valid only for issuer-signed non-mDoc formats. An mDoc is device-bound and
+  /// has no keyless form, so a null alias for an mDoc payload fails rather than
+  /// binding a key that would not match its MSO.
   ///
   /// @param packId The pack identifier
   /// @param rawCredential The raw credential string
-  /// @param mdocKeyAlias The key alias to use if parsing as mDoc
+  /// @param keyAlias The per-credential key alias, or null to store keyless
   /// @return AddCredentialResult with updated credentials or error
-  Future<AddCredentialResult> addAnyFormat(String packId, String rawCredential, String mdocKeyAlias) async {
+  Future<AddCredentialResult> addAnyFormat(String packId, String rawCredential, String? keyAlias) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormat$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, rawCredential, mdocKeyAlias]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[packId, rawCredential, keyAlias]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(

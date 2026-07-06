@@ -715,16 +715,27 @@ interface CredentialPack {
    */
   fun addRawMdoc(packId: String, rawCredential: String, keyAlias: String, callback: (Result<AddCredentialResult>) -> Unit)
   /**
-   * Add a credential in any supported format
+   * Add a credential in any supported format, optionally binding it to a
+   * per-credential key alias.
    *
-   * Tries standard formats first, then mDoc with the provided key alias
+   * When [keyAlias] is non-null it is applied to every format (SD-JWT VC,
+   * JWT-VC, mDoc, ...) so the stored credential's `key_alias` is the key used
+   * to sign its presentation. For per-credential unlinkability, pass the same
+   * key id used to sign the OID4VCI proof at issuance (so it matches the
+   * credential's `cnf`).
+   *
+   * When [keyAlias] is null the credential is stored without a per-credential
+   * key and presents via the shared/fallback key passed to `createHolder` —
+   * valid only for issuer-signed non-mDoc formats. An mDoc is device-bound and
+   * has no keyless form, so a null alias for an mDoc payload fails rather than
+   * binding a key that would not match its MSO.
    *
    * @param packId The pack identifier
    * @param rawCredential The raw credential string
-   * @param mdocKeyAlias The key alias to use if parsing as mDoc
+   * @param keyAlias The per-credential key alias, or null to store keyless
    * @return AddCredentialResult with updated credentials or error
    */
-  fun addAnyFormat(packId: String, rawCredential: String, mdocKeyAlias: String, callback: (Result<AddCredentialResult>) -> Unit)
+  fun addAnyFormat(packId: String, rawCredential: String, keyAlias: String?, callback: (Result<AddCredentialResult>) -> Unit)
   /**
    * Get all credentials in a pack
    *
@@ -915,8 +926,8 @@ interface CredentialPack {
             val args = message as List<Any?>
             val packIdArg = args[0] as String
             val rawCredentialArg = args[1] as String
-            val mdocKeyAliasArg = args[2] as String
-            api.addAnyFormat(packIdArg, rawCredentialArg, mdocKeyAliasArg) { result: Result<AddCredentialResult> ->
+            val keyAliasArg = args[2] as String?
+            api.addAnyFormat(packIdArg, rawCredentialArg, keyAliasArg) { result: Result<AddCredentialResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(CredentialPackPigeonUtils.wrapError(error))

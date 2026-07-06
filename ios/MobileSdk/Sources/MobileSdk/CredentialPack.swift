@@ -81,6 +81,39 @@ public class CredentialPack {
     }
 
     /**
+     * Try to add a credential, binding it to the provided per-credential key
+     * alias, and throws a ParsingException if not possible.
+     */
+    public func tryAddRawCredential(rawCredential: String, keyAlias: String) throws
+        -> [ParsedCredential] {
+        if let credentials = try? addJwtVc(
+            jwtVc: JwtVc.newFromCompactJwsWithKey(jws: rawCredential, keyAlias: keyAlias)
+        ) {
+            return credentials
+        } else if let credentials = try? addJsonVc(
+            jsonVc: JsonVc.newFromJsonWithKey(utf8JsonString: rawCredential, keyAlias: keyAlias)
+        ) {
+            return credentials
+        } else if let credentials = try? addSdJwt(
+            sdJwt: Vcdm2SdJwt.newFromCompactSdJwtWithKey(input: rawCredential, keyAlias: keyAlias)
+        ) {
+            return credentials
+        } else if let credentials = try? addDcSdJwt(
+            dcSdJwt: IetfSdJwtVc.newFromCompactSdJwtWithKey(input: rawCredential, keyAlias: keyAlias)
+        ) {
+            return credentials
+        } else if let credentials = try? addCwt(
+            cwt: Cwt.newFromBase10(payload: rawCredential)
+        ) {
+            return credentials
+        } else {
+            throw CredentialPackError.credentialParsing(
+                reason: "Couldn't parse credential: \(rawCredential)"
+            )
+        }
+    }
+
+    /**
      * Try to add a raw mDoc with specified keyAlias
      */
     public func tryAddRawMdoc(
@@ -113,25 +146,38 @@ public class CredentialPack {
     }
 
     /**
-     * Try to add a credential in any supported format (standard credential or mdoc).
-     * Attempts to parse as standard credential first, then as mdoc with specified keyAlias if that fails.
+     * Try to add a credential in any supported format (standard credential or mdoc),
+     * optionally binding it to a per-credential key alias.
      *
      * @param rawCredential The raw credential data as a string
-     * @param mdocKeyAlias The key alias to use if parsing as mdoc is needed
+     * @param keyAlias The per-credential key alias, or nil to store keyless
      * @return List of parsed credentials
      * @throws CredentialPackError if the credential cannot be parsed in any supported format
      */
-    public func tryAddAnyFormat(rawCredential: String, mdocKeyAlias: String)
+    public func tryAddAnyFormat(rawCredential: String, keyAlias: String? = nil)
         async throws -> [ParsedCredential] {
-        // First try our standard formats (which already include mdoc but with random keyAlias)
+        guard let keyAlias else {
+            do {
+                return try tryAddRawCredential(rawCredential: rawCredential)
+            } catch {
+                throw CredentialPackError.credentialParsing(
+                    reason:
+                        "Could not parse credential without a keyAlias. mdoc credentials require " +
+                        "the device-key alias provisioned at issuance. Credential = \(rawCredential)"
+                )
+            }
+        }
+        if !KeyManager.keyExists(id: keyAlias) {
+            _ = KeyManager.generateSigningKey(id: keyAlias)
+        }
         do {
-            return try tryAddRawCredential(rawCredential: rawCredential)
+            return try tryAddRawCredential(rawCredential: rawCredential, keyAlias: keyAlias)
         } catch {
-            // If that fails, try specifically with the provided keyAlias
+            // If that fails, try specifically as an mdoc with the provided keyAlias
             do {
                 return try await tryAddRawMdoc(
                     rawCredential: rawCredential,
-                    keyAlias: mdocKeyAlias
+                    keyAlias: keyAlias
                 )
             } catch {
                 throw CredentialPackError.credentialParsing(
