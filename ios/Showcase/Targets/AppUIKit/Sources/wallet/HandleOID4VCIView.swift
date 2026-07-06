@@ -18,7 +18,7 @@ struct HandleOID4VCI: Hashable {
 struct HandleOID4VCIView: View {
     @State var loading: Bool = false
     @State var err: String?
-    @State var credential: String?
+    @State var credentials: [String] = []
     @State var credentialPack: CredentialPack?
 
     @State var showPinAlert: Bool = false
@@ -31,38 +31,47 @@ struct HandleOID4VCIView: View {
     @State var hoistedClientId: String?
     @State var hoistedCredentialIssuer: String?
     @State var hoistedSigner: JwsSigner?
+    @State var hoistedConfigIds: [String]?
 
     @Binding var path: NavigationPath
     let url: String
     let onSuccess: (() -> Void)?
 
+    // Exchanges every credential in the offer against the token, one request
+    // per credential_configuration_id (each requires its own fresh nonce/proof).
     func completeIssuance(
         token: CredentialToken,
         httpClient: Oid4vciAsyncHttpClient,
         oid4vciClient: Oid4vciClient,
         clientId: String,
         credentialIssuer: String,
-        signer: JwsSigner
-    ) async throws -> String? {
-        let credentialId = try token.defaultCredentialId()
+        signer: JwsSigner,
+        configIds: [String]
+    ) async throws -> [String]? {
+        var results: [String] = []
 
-        let nonce = try await token.getNonce(httpClient: httpClient)
-        let jwt = try await createJwtProof(issuer: clientId, audience: credentialIssuer, expireInSecs: nil, nonce: nonce, signer: signer)
-        let proofs = Proofs.jwt([jwt])
+        for configId in configIds {
+            let nonce = try await token.getNonce(httpClient: httpClient)
+            let jwt = try await createJwtProof(issuer: clientId, audience: credentialIssuer, expireInSecs: nil, nonce: nonce, signer: signer)
+            let proofs = Proofs.jwt([jwt])
 
-        let response = try await oid4vciClient.exchangeCredential(httpClient: httpClient, token: token, credential: credentialId, proofs: proofs)
+            let credentialId = CredentialOrConfigurationId.configuration(configId)
+            let response = try await oid4vciClient.exchangeCredential(httpClient: httpClient, token: token, credential: credentialId, proofs: proofs)
 
-        switch response {
-        case .deferred(_):
-            return nil
-        case .immediate(let immediate):
-            guard let rawCredential = immediate.credentials.first else {
-                throw NSError(domain: "OID4VCI", code: 0, userInfo: [
-                    "CredentialIssuer": credentialIssuer
-                ])
+            switch response {
+            case .deferred(_):
+                return nil
+            case .immediate(let immediate):
+                guard let rawCredential = immediate.credentials.first else {
+                    throw NSError(domain: "OID4VCI", code: 0, userInfo: [
+                        "CredentialIssuer": credentialIssuer
+                    ])
+                }
+                results.append(String(decoding: Data(rawCredential.payload), as: UTF8.self))
             }
-            return String(decoding: Data(rawCredential.payload), as: UTF8.self)
         }
+
+        return results
     }
 
     func getCredential(credentialOffer: String) {
@@ -90,12 +99,14 @@ struct HandleOID4VCIView: View {
 
                 let credentialOffer = try await oid4vciClient.resolveOfferUrl(httpClient: httpClient, credentialOfferUrl: offerUrl)
                 let credentialIssuer = credentialOffer.credentialIssuer()
+                let configIds = credentialOffer.credentialConfigurationIds()
 
                 self.hoistedHttpClient = httpClient
                 self.hoistedOid4vciClient = oid4vciClient
                 self.hoistedClientId = clientId
                 self.hoistedCredentialIssuer = credentialIssuer
                 self.hoistedSigner = signer
+                self.hoistedConfigIds = configIds
 
                 let state = try await oid4vciClient.acceptOffer(httpClient: httpClient, credentialOffer: credentialOffer)
 
@@ -125,15 +136,16 @@ struct HandleOID4VCIView: View {
                             err = "Authorization error: \(errorParam)"
                         } else if let codeParam, !codeParam.isEmpty {
                             let token = try await waiting.proceed(httpClient: httpClient, authorizationCode: codeParam)
-                            if let cred = try await completeIssuance(
+                            if let creds = try await completeIssuance(
                                 token: token,
                                 httpClient: httpClient,
                                 oid4vciClient: oid4vciClient,
                                 clientId: clientId,
                                 credentialIssuer: credentialIssuer,
-                                signer: signer
+                                signer: signer,
+                                configIds: configIds
                             ) {
-                                credential = cred
+                                credentials = creds
                                 onSuccess?()
                             } else {
                                 err = "Deferred credentials not supported"
@@ -150,15 +162,16 @@ struct HandleOID4VCIView: View {
                     loading = false
                     return
                 case .ready(let credentialToken):
-                    if let cred = try await completeIssuance(
+                    if let creds = try await completeIssuance(
                         token: credentialToken,
                         httpClient: httpClient,
                         oid4vciClient: oid4vciClient,
                         clientId: clientId,
                         credentialIssuer: credentialIssuer,
-                        signer: signer
+                        signer: signer,
+                        configIds: configIds
                     ) {
-                        credential = cred
+                        credentials = creds
                         onSuccess?()
                     } else {
                         err = "Deferred credentials not supported"
@@ -189,8 +202,8 @@ struct HandleOID4VCIView: View {
                 ) {
                     back()
                 }
-            } else if credential != nil {
-                AddToWalletView(path: _path, rawCredential: credential!)
+            } else if !credentials.isEmpty {
+                AddToWalletView(path: _path, rawCredentials: credentials)
             }
 
         }
@@ -208,11 +221,12 @@ struct HandleOID4VCIView: View {
                 let clientId = hoistedClientId
                 let credentialIssuer = hoistedCredentialIssuer
                 let signer = hoistedSigner
+                let configIds = hoistedConfigIds
                 pendingTxState = nil
                 pinInput = ""
 
                 guard let txState, let httpClient, let oid4vciClient,
-                      let clientId, let credentialIssuer, let signer
+                      let clientId, let credentialIssuer, let signer, let configIds
                 else {
                     err = "Internal error: missing PIN context"
                     return
@@ -222,15 +236,16 @@ struct HandleOID4VCIView: View {
                 Task {
                     do {
                         let token = try await txState.proceed(httpClient: httpClient, txCode: pin)
-                        if let cred = try await completeIssuance(
+                        if let creds = try await completeIssuance(
                             token: token,
                             httpClient: httpClient,
                             oid4vciClient: oid4vciClient,
                             clientId: clientId,
                             credentialIssuer: credentialIssuer,
-                            signer: signer
+                            signer: signer,
+                            configIds: configIds
                         ) {
-                            credential = cred
+                            credentials = creds
                             onSuccess?()
                         } else {
                             err = "Deferred credentials not supported"

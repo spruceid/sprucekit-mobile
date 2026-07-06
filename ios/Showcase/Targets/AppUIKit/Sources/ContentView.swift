@@ -149,7 +149,7 @@ public struct ContentView: View {
                         addToWalletParams in
                         AddToWalletView(
                             path: $path,
-                            rawCredential: addToWalletParams.rawCredential
+                            rawCredentials: [addToWalletParams.rawCredential]
                         )
                     }
                     .navigationDestination(for: HandleOID4VCI.self) {

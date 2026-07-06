@@ -1,7 +1,10 @@
 package com.spruceid.mobilesdkexample.credentials
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -40,21 +43,22 @@ import kotlinx.coroutines.launch
 @Composable
 fun AddToWalletView(
     navController: NavHostController,
-    rawCredential: String,
+    rawCredentials: List<String>,
     onSuccess: (() -> Unit)? = null
 ) {
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
     val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
     val statusListViewModel: StatusListViewModel = activityHiltViewModel()
-    var credentialItem by remember { mutableStateOf<ICredentialView?>(null) }
+    var credentialItems by remember { mutableStateOf<List<ICredentialView>>(emptyList()) }
     var err by remember { mutableStateOf<String?>(null) }
     var storing by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
-        credentialItem =
+        credentialItems = rawCredentials.map { rawCredential ->
             credentialDisplaySelector(rawCredential, statusListViewModel, null, null, null)
+        }
     }
 
     fun back() {
@@ -69,24 +73,26 @@ fun AddToWalletView(
             var error: String? = null
             this.async(Dispatchers.Default) {
                 try {
-                    val credentialPack = CredentialPack()
+                    for (rawCredential in rawCredentials) {
+                        val credentialPack = CredentialPack()
 
-                    // Try add credential in any supported format
-                    credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
+                        // Try add credential in any supported format
+                        credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
 
-                    credentialPacksViewModel.saveCredentialPack(credentialPack)
-                    val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
-                    walletActivityLogsViewModel.saveWalletActivityLog(
-                        walletActivityLogs = WalletActivityLogs(
-                            credentialPackId = credentialPack.id().toString(),
-                            credentialId = credentialInfo.first,
-                            credentialTitle = credentialInfo.second,
-                            issuer = credentialInfo.third,
-                            action = "Claimed",
-                            dateTime = getCurrentSqlDate(),
-                            additionalInformation = ""
+                        credentialPacksViewModel.saveCredentialPack(credentialPack)
+                        val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+                        walletActivityLogsViewModel.saveWalletActivityLog(
+                            walletActivityLogs = WalletActivityLogs(
+                                credentialPackId = credentialPack.id().toString(),
+                                credentialId = credentialInfo.first,
+                                credentialTitle = credentialInfo.second,
+                                issuer = credentialInfo.third,
+                                action = "Claimed",
+                                dateTime = getCurrentSqlDate(),
+                                additionalInformation = ""
+                            )
                         )
-                    )
+                    }
                 } catch (e: Exception) {
                     error = e.localizedMessage
                 }
@@ -113,47 +119,54 @@ fun AddToWalletView(
         LoadingView(
             loadingText = "Storing credential..."
         )
-    } else if (credentialItem != null) {
-        credentialItem!!.CredentialReviewInfo(footerActions = {
-            Button(
-                onClick = {
-                    saveCredential()
-                },
-                shape = RoundedCornerShape(5.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ColorEmerald700,
-                    contentColor = Color.White,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                Text(
-                    text = "Add to Wallet",
-                    fontFamily = Inter,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
-                )
-            }
+    } else if (credentialItems.isNotEmpty()) {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            credentialItems.forEachIndexed { index, credentialItem ->
+                val isLast = index == credentialItems.lastIndex
+                credentialItem.CredentialReviewInfo(footerActions = {
+                    if (isLast) {
+                        Button(
+                            onClick = {
+                                saveCredential()
+                            },
+                            shape = RoundedCornerShape(5.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ColorEmerald700,
+                                contentColor = Color.White,
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Add to Wallet",
+                                fontFamily = Inter,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White,
+                            )
+                        }
 
-            Button(
-                onClick = {
-                    back()
-                },
-                shape = RoundedCornerShape(5.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = ColorRose600,
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-            ) {
-                Text(
-                    text = "Close",
-                    fontFamily = Inter,
-                    fontWeight = FontWeight.SemiBold,
-                    color = ColorRose600,
-                )
+                        Button(
+                            onClick = {
+                                back()
+                            },
+                            shape = RoundedCornerShape(5.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = ColorRose600,
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Close",
+                                fontFamily = Inter,
+                                fontWeight = FontWeight.SemiBold,
+                                color = ColorRose600,
+                            )
+                        }
+                    }
+                })
             }
-        })
+        }
     }
 }
