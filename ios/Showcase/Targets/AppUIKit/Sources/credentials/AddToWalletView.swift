@@ -11,6 +11,7 @@ struct AddToWalletView: View {
         CredentialPackObservable
     @Binding var path: NavigationPath
     var rawCredential: String
+    var keyAlias: String?
     var credential: GenericJSON?
     @State var presentError: Bool
     @State var errorDetails: String
@@ -18,9 +19,10 @@ struct AddToWalletView: View {
 
     @State var credentialItem: (any ICredentialView)?
 
-    init(path: Binding<NavigationPath>, rawCredential: String) {
+    init(path: Binding<NavigationPath>, rawCredential: String, keyAlias: String? = nil) {
         self._path = path
         self.rawCredential = rawCredential
+        self.keyAlias = keyAlias
         self.credentialItem = nil
         self.presentError = false
         self.errorDetails = ""
@@ -36,9 +38,10 @@ struct AddToWalletView: View {
         storing = true
         do {
             let credentialPack = CredentialPack()
+            let alias = keyAlias ?? DEFAULT_SIGNING_KEY_ID
             _ = try await credentialPack.tryAddAnyFormat(
                 rawCredential: rawCredential,
-                mdocKeyAlias: DEFAULT_SIGNING_KEY_ID
+                keyAlias: alias
             )
             try await credentialPackObservable.add(
                 credentialPack: credentialPack

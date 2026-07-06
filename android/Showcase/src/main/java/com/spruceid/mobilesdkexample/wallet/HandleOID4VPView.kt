@@ -94,48 +94,40 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-class Signer(keyId: String?) : PresentationSigner {
-    private val keyId = keyId ?: DEFAULT_SIGNING_KEY_ID
+class Signer(private val keyId: String = DEFAULT_SIGNING_KEY_ID) : PresentationSigner {
     private val keyManager = KeyManager()
-    private var jwk: String
     private val didJwk = DidMethodUtils(DidMethod.JWK)
 
     init {
-        if (!keyManager.keyExists(this.keyId)) {
-            keyManager.generateSigningKey(id = this.keyId)
+        // Bootstrap the shared/legacy key so credentials with no per-credential
+        // alias (key_alias == None) can still present via the fallback key.
+        if (!keyManager.keyExists(keyId)) {
+            keyManager.generateSigningKey(id = keyId)
         }
-        this.jwk = keyManager.getJwk(this.keyId)?.toString() ?: throw IllegalArgumentException("Invalid kid")
     }
 
-    override suspend fun sign(payload: ByteArray): ByteArray {
-        val signature =
-            keyManager.signPayload(keyId, payload)
-                ?: throw IllegalStateException("Failed to sign payload")
+    private fun jwkFor(keyId: String): String =
+        keyManager.getJwk(keyId)?.toString()
+            ?: throw IllegalArgumentException("No signing key for id $keyId")
 
-        return signature
-    }
+    override suspend fun sign(keyId: String, payload: ByteArray): ByteArray =
+        keyManager.signPayload(keyId, payload)
+            ?: throw IllegalStateException("Failed to sign payload with key $keyId")
 
     override fun algorithm(): String {
-        // Parse the jwk as a JSON object and return the "alg" field
-        val json = JSONObject(jwk)
+        // Parse the fallback key's jwk as a JSON object and return the "alg" field
         return try {
-            json.getString("alg")
+            JSONObject(jwkFor(keyId)).getString("alg")
         } catch (_: Exception) {
             "ES256"
         }
     }
 
-    override suspend fun verificationMethod(): String {
-        return didJwk.vmFromJwk(jwk)
-    }
+    override suspend fun verificationMethod(keyId: String): String = didJwk.vmFromJwk(jwkFor(keyId))
 
-    override fun did(): String {
-        return didJwk.didFromJwk(jwk)
-    }
+    override fun did(keyId: String): String = didJwk.didFromJwk(jwkFor(keyId))
 
-    override fun jwk(): String {
-        return jwk
-    }
+    override fun jwk(keyId: String): String = jwkFor(keyId)
 
     override fun cryptosuite(): String {
         // TODO: Add an uniffi enum type for crypto suites.
@@ -297,6 +289,7 @@ fun HandleOID4VPView(
                                     credentials,
                                     trustedDids,
                                     signer,
+                                    DEFAULT_SIGNING_KEY_ID,
                                     getVCPlaygroundOID4VCIContext(ctx),
                                     KeyManager()
                                 )
@@ -334,6 +327,7 @@ fun HandleOID4VPView(
                                     credentials,
                                     trustedDids,
                                     signer,
+                                    DEFAULT_SIGNING_KEY_ID,
                                     getVCPlaygroundOID4VCIContext(ctx)
                                 )
                             val tempPermissionRequest = draft18Holder!!.authorizationRequest(newurl)

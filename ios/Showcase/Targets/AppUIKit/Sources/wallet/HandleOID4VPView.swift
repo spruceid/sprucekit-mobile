@@ -13,8 +13,8 @@ enum Oid4vpSignerError: Error {
 }
 
 class Signer: PresentationSigner {
+    // The shared/legacy fallback key.    
     private let keyId: String
-    private let _jwk: String
     private let didJwk = DidMethodUtils(method: DidMethod.jwk)
 
     init(keyId: String?) throws {
@@ -23,16 +23,17 @@ class Signer: PresentationSigner {
         if !KeyManager.keyExists(id: self.keyId) {
             _ = KeyManager.generateSigningKey(id: self.keyId)
         }
-        let jwk = KeyManager.getJwk(id: self.keyId)
-        if jwk == nil {
-            throw Oid4vpSignerError.illegalArgumentException(
-                reason: "Invalid kid")
-        } else {
-            self._jwk = jwk!.description
-        }
     }
 
-    func sign(payload: Data) async throws -> Data {
+    private func jwkFor(_ keyId: String) throws -> String {
+        guard let jwk = KeyManager.getJwk(id: keyId) else {
+            throw Oid4vpSignerError.illegalArgumentException(
+                reason: "No signing key for id \(keyId)")
+        }
+        return jwk.description
+    }
+
+    func sign(keyId: String, payload: Data) async throws -> Data {
         let signature = KeyManager.signPayload(
             id: keyId, payload: [UInt8](payload))
         if signature == nil {
@@ -44,21 +45,22 @@ class Signer: PresentationSigner {
     }
 
     func algorithm() -> String {
-        // Parse the jwk as a JSON object and return the "alg" field
-        var json = getGenericJSON(jsonString: _jwk)
+        // Parse the fallback key's jwk as a JSON object and return the "alg" field
+        let jwk = (try? jwkFor(self.keyId)) ?? ""
+        let json = getGenericJSON(jsonString: jwk)
         return json?.dictValue?["alg"]?.toString() ?? "ES256"
     }
 
-    func verificationMethod() async -> String {
-        return try! await didJwk.vmFromJwk(jwk: _jwk)
+    func verificationMethod(keyId: String) async -> String {
+        return try! await didJwk.vmFromJwk(jwk: jwkFor(keyId))
     }
 
-    func did() -> String {
-        return try! didJwk.didFromJwk(jwk: _jwk)
+    func did(keyId: String) -> String {
+        return try! didJwk.didFromJwk(jwk: jwkFor(keyId))
     }
 
-    func jwk() -> String {
-        return _jwk
+    func jwk(keyId: String) -> String {
+        return try! jwkFor(keyId)
     }
 
     func cryptosuite() -> String {
@@ -201,6 +203,7 @@ struct HandleOID4VPView: View {
                     providedCredentials: credentials,
                     trustedDids: trustedDids,
                     signer: signer,
+                    keyId: DEFAULT_SIGNING_KEY_ID,
                     contextMap: getVCPlaygroundOID4VCIContext(),
                     keystore: KeyManager()
                 )
@@ -238,6 +241,7 @@ struct HandleOID4VPView: View {
                     providedCredentials: credentials,
                     trustedDids: trustedDids,
                     signer: signer,
+                    keyId: DEFAULT_SIGNING_KEY_ID,
                     contextMap: getVCPlaygroundOID4VCIContext()
                 )
                 let tmpPermissionRequest = try await draft18Holder!.authorizationRequest(req: newurl)

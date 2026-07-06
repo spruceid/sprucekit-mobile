@@ -35,7 +35,6 @@ import com.spruceid.mobile.sdk.rs.createJwtProof
 import com.spruceid.mobile.sdk.rs.decodeDerSignature
 import com.spruceid.mobile.sdk.rs.generateDidJwkUrl
 import com.spruceid.mobile.sdk.rs.verifyRawCredential
-import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.R
@@ -43,6 +42,7 @@ import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 @Composable
 fun HandleOID4VCIView(
@@ -52,6 +52,9 @@ fun HandleOID4VCIView(
     var loading by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
     var credential by remember { mutableStateOf<String?>(null) }
+    // The fresh per-credential key alias generated for this issuance, carried
+    // to AddToWalletView so it is stored as the credential's key_alias.
+    var credentialKeyAlias by remember { mutableStateOf<String?>(null) }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val callback =
@@ -77,11 +80,12 @@ fun HandleOID4VCIView(
 
         // Setup signer.
         val keyManager = KeyManager()
-        val jwk = keyManager.getOrInsertJwk(DEFAULT_SIGNING_KEY_ID).copy()
+        val keyAlias = "credential/" + UUID.randomUUID().toString()
+        keyManager.generateSigningKey(id = keyAlias)
+        credentialKeyAlias = keyAlias
+        val jwk = keyManager.getJwk(keyAlias)!!.copy()
         val didUrl = generateDidJwkUrl(jwk)
         jwk.setKid(didUrl.toString())
-
-        val jwk2 = keyManager.getJwk(DEFAULT_SIGNING_KEY_ID)!!
 
         Log.i("OID4VCI", "JWK = $jwk")
 
@@ -91,7 +95,7 @@ fun HandleOID4VCIView(
             }
 
             override suspend fun signBytes(signingBytes: ByteArray): ByteArray {
-                return decodeDerSignature(keyManager.signPayload(DEFAULT_SIGNING_KEY_ID, signingBytes)!!)
+                return decodeDerSignature(keyManager.signPayload(keyAlias, signingBytes)!!)
             }
         }
         hoistedSigner = signer
@@ -240,6 +244,7 @@ fun HandleOID4VCIView(
         AddToWalletView(
             navController = navController,
             rawCredential = credential!!,
+            keyAlias = credentialKeyAlias,
             onSuccess = {
                 scope.launch {
                     callback?.invoke()
@@ -277,6 +282,8 @@ private suspend fun exchangeCredential(
         }
         is CredentialResponse.Immediate -> {
             Log.i("OID4VCI", "Credential exchanged!")
+            // TODO(batch issuance): only the first credential is taken. Per-credential
+            // key + proof for each credential in a batch is a future effort.
             val rawCredential = checkNotNull(response.v1.credentials.first()) { "Missing Credential" }
             rawCredential.payload.toString(Charsets.UTF_8)
         }

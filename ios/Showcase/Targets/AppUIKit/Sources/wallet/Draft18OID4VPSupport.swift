@@ -3,25 +3,30 @@ import SpruceIDMobileSdkRs
 import SwiftUI
 
 class Draft18Signer: Draft18PresentationSigner {
+    // The shared/legacy fallback key. Per-call methods resolve the actual key
+    // from the `keyId` Rust passes; this is only used where no per-call key
+    // applies (e.g. `algorithm()`).
     private let keyId: String
-    private let jwkString: String
     private let didJwk = DidMethodUtils(method: DidMethod.jwk)
 
     init(keyId: String?) throws {
         self.keyId = keyId ?? DEFAULT_SIGNING_KEY_ID
 
+        // Bootstrap the fallback key so legacy credentials (key_alias == nil)
+        // can still present.
         if !KeyManager.keyExists(id: self.keyId) {
             _ = KeyManager.generateSigningKey(id: self.keyId)
         }
-
-        guard let jwk = KeyManager.getJwk(id: self.keyId) else {
-            throw Oid4vpSignerError.illegalArgumentException(reason: "Invalid kid")
-        }
-
-        jwkString = jwk.description
     }
 
-    func sign(payload: Data) async throws -> Data {
+    private func jwkFor(_ keyId: String) throws -> String {
+        guard let jwk = KeyManager.getJwk(id: keyId) else {
+            throw Oid4vpSignerError.illegalArgumentException(reason: "No signing key for id \(keyId)")
+        }
+        return jwk.description
+    }
+
+    func sign(keyId: String, payload: Data) async throws -> Data {
         guard let signature = KeyManager.signPayload(id: keyId, payload: [UInt8](payload)) else {
             throw Oid4vpSignerError.illegalArgumentException(reason: "Failed to sign payload")
         }
@@ -30,24 +35,25 @@ class Draft18Signer: Draft18PresentationSigner {
     }
 
     func algorithm() -> String {
-        let json = getGenericJSON(jsonString: jwkString)
+        let jwk = (try? jwkFor(self.keyId)) ?? ""
+        let json = getGenericJSON(jsonString: jwk)
         return json?.dictValue?["alg"]?.toString() ?? "ES256"
     }
 
-    func verificationMethod() async -> String {
-        try! await didJwk.vmFromJwk(jwk: jwkString)
+    func verificationMethod(keyId: String) async -> String {
+        return try! await didJwk.vmFromJwk(jwk: jwkFor(keyId))
     }
 
-    func did() -> String {
-        try! didJwk.didFromJwk(jwk: jwkString)
+    func did(keyId: String) -> String {
+        return try! didJwk.didFromJwk(jwk: jwkFor(keyId))
     }
 
     func cryptosuite() -> String {
         "ecdsa-rdfc-2019"
     }
 
-    func jwk() -> String {
-        jwkString
+    func jwk(keyId: String) -> String {
+        return try! jwkFor(keyId)
     }
 }
 
