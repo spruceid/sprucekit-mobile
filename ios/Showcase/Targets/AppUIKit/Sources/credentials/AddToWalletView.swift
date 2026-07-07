@@ -30,6 +30,12 @@ struct AddToWalletView: View {
         }
     }
 
+    // Opens the `any ICredentialView` existential outside of a ViewBuilder
+    // context, since Swift can't open it implicitly inside a ForEach closure.
+    func reviewCard(for item: any ICredentialView) -> AnyView {
+        AnyView(item.credentialReviewInfo())
+    }
+
     func addToWallet() async {
         storing = true
         do {
@@ -81,7 +87,7 @@ struct AddToWalletView: View {
                 ScrollView {
                     VStack {
                         ForEach(0..<credentialItems.count, id: \.self) { idx in
-                            AnyView(credentialItems[idx].credentialReviewInfo())
+                            reviewCard(for: credentialItems[idx])
                         }
                     }
                 }
