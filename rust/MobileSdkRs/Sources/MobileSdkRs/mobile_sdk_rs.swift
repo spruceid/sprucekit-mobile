@@ -36291,30 +36291,6 @@ public func verifiedResponseAsJsonString(response: MdlReaderResponseData)throws 
     )
 })
 }
-/**
- * Parse and verify an ISO/IEC 18013-5 `DeviceResponse` using an externally-supplied
- * `SessionTranscript`.
- *
- * Unlike [`handle_response`] — which relies on a reader [`MDLSessionManager`] that already holds
- * the session transcript negotiated during BLE/NFC engagement (and first decrypts the transport
- * `SessionData`) — this entry point is for flows where the platform provides the transcript and
- * the device response directly. The motivating case is an iOS data transfer request (Digital
- * Credentials API), where the OS hands back both the (already-decrypted) `DeviceResponse` and the
- * session transcript it bound the exchange to.
- *
- * Arguments:
- * * `device_response` — CBOR-encoded `DeviceResponse`.
- * * `session_transcript` — CBOR-encoded `SessionTranscript` exactly as the holder authenticated
- * over it (the bytes that occupy the `SessionTranscript` slot of `DeviceAuthentication`).
- * * `trust_anchor_registry` — optional list of PEM-encoded IACA root certificates used for issuer
- * authentication. When omitted (or empty) issuer authentication will not validate against any
- * trusted root.
- *
- * Device authentication is verified via the COSE_Sign1 signature over the reconstructed
- * `DeviceAuthentication` payload. MAC-based device authentication (ISO 18013-5 §9.1.3.5) requires
- * the reader's ephemeral private key, which is not available in this flow, so it is not supported.
- * Certificate revocation (CRL) checks are skipped, matching [`handle_response`].
- */
 public func verifyDeviceResponse(deviceResponse: Data, sessionTranscript: Data, ephemeralReaderKey: Data, trustAnchorRegistry: [String]?)throws  -> MdlDeviceResponseVerification  {
     return try  FfiConverterTypeMDLDeviceResponseVerification_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
     uniffi_mobile_sdk_rs_fn_func_verify_device_response(
@@ -36609,7 +36585,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verified_response_as_json_string() != 44695) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 26654) {
+    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 27348) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 16030) {

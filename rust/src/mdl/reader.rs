@@ -385,9 +385,12 @@ pub fn verified_response_as_json_string(
     })
 }
 
+type VerifiedNamespaces = HashMap<String, HashMap<String, MDocItem>>;
+type VerifiedNamespacesAndErrors = (VerifiedNamespaces, Option<String>);
+
 fn verified_namespaces_and_errors(
     validated_response: &isomdl::presentation::authentication::ResponseAuthenticationOutcome,
-) -> Result<(HashMap<String, HashMap<String, MDocItem>>, Option<String>), MDLReaderResponseError> {
+) -> Result<VerifiedNamespacesAndErrors, MDLReaderResponseError> {
     let errors = if !validated_response.errors.is_empty() {
         Some(
             serde_json::to_string(&validated_response.errors).map_err(|e| {
