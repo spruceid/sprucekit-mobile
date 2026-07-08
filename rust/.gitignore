@@ -14,3 +14,4 @@ kotlin/local.properties
 **.idea
 MobileSdkRs/Package.swift
 MobileSdkRs/RustFramework*
+MobileSdkRs/*.xcframework
