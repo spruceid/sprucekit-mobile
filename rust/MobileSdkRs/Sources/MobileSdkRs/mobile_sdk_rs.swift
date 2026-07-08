@@ -18978,6 +18978,108 @@ public func FfiConverterTypeJwsSignerInfo_lower(_ value: JwsSignerInfo) -> RustB
 }
 
 
+/**
+ * The result of verifying a `DeviceResponse` against an externally-supplied session transcript.
+ *
+ * Mirrors [`MDLReaderResponseData`] but carries no reader [`MDLSessionManager`], since the
+ * transcript is provided directly rather than established during BLE/NFC engagement.
+ */
+public struct MdlDeviceResponseVerification: Equatable, Hashable {
+    /**
+     * Contains the namespaces for the mDL directly, without top-level doc types.
+     */
+    public var verifiedResponse: [String: [String: MDocItem]]
+    /**
+     * Document types (doctypes) from the presented credentials.
+     */
+    public var docTypes: [String]
+    /**
+     * Outcome of issuer authentication.
+     */
+    public var issuerAuthentication: AuthenticationStatus
+    /**
+     * Outcome of device authentication.
+     */
+    public var deviceAuthentication: AuthenticationStatus
+    /**
+     * Errors that occurred during response processing.
+     */
+    public var errors: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Contains the namespaces for the mDL directly, without top-level doc types.
+         */verifiedResponse: [String: [String: MDocItem]], 
+        /**
+         * Document types (doctypes) from the presented credentials.
+         */docTypes: [String], 
+        /**
+         * Outcome of issuer authentication.
+         */issuerAuthentication: AuthenticationStatus, 
+        /**
+         * Outcome of device authentication.
+         */deviceAuthentication: AuthenticationStatus, 
+        /**
+         * Errors that occurred during response processing.
+         */errors: String?) {
+        self.verifiedResponse = verifiedResponse
+        self.docTypes = docTypes
+        self.issuerAuthentication = issuerAuthentication
+        self.deviceAuthentication = deviceAuthentication
+        self.errors = errors
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MdlDeviceResponseVerification: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMDLDeviceResponseVerification: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdlDeviceResponseVerification {
+        return
+            try MdlDeviceResponseVerification(
+                verifiedResponse: FfiConverterDictionaryStringDictionaryStringTypeMDocItem.read(from: &buf), 
+                docTypes: FfiConverterSequenceString.read(from: &buf), 
+                issuerAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
+                deviceAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
+                errors: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MdlDeviceResponseVerification, into buf: inout [UInt8]) {
+        FfiConverterDictionaryStringDictionaryStringTypeMDocItem.write(value.verifiedResponse, into: &buf)
+        FfiConverterSequenceString.write(value.docTypes, into: &buf)
+        FfiConverterTypeAuthenticationStatus.write(value.issuerAuthentication, into: &buf)
+        FfiConverterTypeAuthenticationStatus.write(value.deviceAuthentication, into: &buf)
+        FfiConverterOptionString.write(value.errors, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMDLDeviceResponseVerification_lift(_ buf: RustBuffer) throws -> MdlDeviceResponseVerification {
+    return try FfiConverterTypeMDLDeviceResponseVerification.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMDLDeviceResponseVerification_lower(_ value: MdlDeviceResponseVerification) -> RustBuffer {
+    return FfiConverterTypeMDLDeviceResponseVerification.lower(value)
+}
+
+
 public struct MdlReaderResponseData {
     public var state: MdlSessionManager
     /**
@@ -36231,6 +36333,13 @@ public func initializeMdlPresentationFromBytes(mdoc: Mdoc, centralClientMode: Ce
     )
 })
 }
+public func deviceResponseVerificationAsJsonString(response: MdlDeviceResponseVerification)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseSerializeError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_device_response_verification_as_json_string(
+        FfiConverterTypeMDLDeviceResponseVerification_lower(response),$0
+    )
+})
+}
 public func establishSession(handover: ReaderHandover, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?)throws  -> MdlReaderSessionData  {
     return try  FfiConverterTypeMDLReaderSessionData_lift(try rustCallWithError(FfiConverterTypeMDLReaderSessionError_lift) {
     uniffi_mobile_sdk_rs_fn_func_establish_session(
@@ -36263,6 +36372,30 @@ public func verifiedResponseAsJsonString(response: MdlReaderResponseData)throws 
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseSerializeError_lift) {
     uniffi_mobile_sdk_rs_fn_func_verified_response_as_json_string(
         FfiConverterTypeMDLReaderResponseData_lower(response),$0
+    )
+})
+}
+/**
+ * Verifies an mDL device response by using the session transcript and ephemeral
+ * reader key, and an optional trust anchor registry.
+ *
+ * Arguments:
+ * device_response: cbor encoded `isomdl::definitions::DeviceResponse`
+ * session_transcript: cbor encoded `isomdl::definitions::session::SessionTranscript`
+ * ephemeral_reader_key: 32-byte private key
+ * trust_anchor_registry: optional list of PEM encoded certificates
+ *
+ * Returns:
+ * An object with the verified response, document types, issuer authentication result,
+ * device authentication result, and an optional error string.
+ */
+public func verifyDeviceResponse(deviceResponse: Data, sessionTranscript: Data, ephemeralReaderKey: Data, trustAnchorRegistry: [String]?)throws  -> MdlDeviceResponseVerification  {
+    return try  FfiConverterTypeMDLDeviceResponseVerification_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_verify_device_response(
+        FfiConverterData.lower(deviceResponse),
+        FfiConverterData.lower(sessionTranscript),
+        FfiConverterData.lower(ephemeralReaderKey),
+        FfiConverterOptionSequenceString.lower(trustAnchorRegistry),$0
     )
 })
 }
@@ -36535,6 +36668,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 43986) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_device_response_verification_as_json_string() != 22202) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 7717) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -36545,6 +36681,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_verified_response_as_json_string() != 44695) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 11409) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 16030) {
