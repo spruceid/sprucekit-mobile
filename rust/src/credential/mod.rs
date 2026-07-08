@@ -89,6 +89,31 @@ pub(crate) enum ParsedCredentialInner {
     OpticalBarcodeCredential(Arc<OpticalBarcodeCred>),
 }
 
+/// The per-credential signing key alias carried by a parsed credential, if any.
+/// mdoc is always device-bound so it always has one; issuer-signed non-mdoc
+/// formats may be keyless (`None`), in which case presentation falls back to
+/// the holder's shared key.
+pub(crate) fn key_alias_of(inner: &ParsedCredentialInner) -> Option<KeyAlias> {
+    match inner {
+        ParsedCredentialInner::MsoMdoc(arc) => Some(arc.key_alias()),
+        ParsedCredentialInner::JwtVcJson(arc) => arc.key_alias(),
+        ParsedCredentialInner::JwtVcJsonLd(arc) => arc.key_alias(),
+        ParsedCredentialInner::LdpVc(arc) => arc.key_alias(),
+        ParsedCredentialInner::VCDM2SdJwt(arc) => arc.key_alias(),
+        ParsedCredentialInner::DcSdJwt(arc) => arc.key_alias(),
+        ParsedCredentialInner::Cwt(arc) => arc.key_alias(),
+        ParsedCredentialInner::OpticalBarcodeCredential(arc) => arc.key_alias(),
+    }
+}
+
+/// Resolve the signing key id from an optional per-credential alias, falling
+/// back to the holder's shared key for legacy credentials stored without one.
+pub(crate) fn resolve_key_id(alias: Option<KeyAlias>, fallback: &str) -> String {
+    alias
+        .map(|alias| alias.0)
+        .unwrap_or_else(|| fallback.to_string())
+}
+
 #[uniffi::export]
 impl PresentableCredential {
     /// Converts to the primitive ParsedCredential type
@@ -116,6 +141,27 @@ impl PresentableCredential {
     /// Return true if the credential is an mdoc (mso_mdoc format).
     pub fn is_mdoc(&self) -> bool {
         matches!(&self.inner, ParsedCredentialInner::MsoMdoc(_))
+    }
+}
+
+impl PresentableCredential {
+    /// The per-credential signing key alias, if this credential was stored with one.
+    pub(crate) fn key_alias(&self) -> Option<KeyAlias> {
+        key_alias_of(&self.inner)
+    }
+
+    /// Resolve this credential's signing key id, falling back to the holder's
+    /// shared key when it has no per-credential alias.
+    pub(crate) fn resolve_key_id(&self, fallback: &str) -> String {
+        resolve_key_id(self.key_alias(), fallback)
+    }
+}
+
+impl ParsedCredential {
+    /// Resolve this credential's signing key id, falling back to the holder's
+    /// shared key when it has no per-credential alias.
+    pub(crate) fn resolve_key_id(&self, fallback: &str) -> String {
+        resolve_key_id(self.key_alias(), fallback)
     }
 }
 
@@ -397,16 +443,7 @@ impl ParsedCredential {
 
     /// Get the key alias for this credential.
     pub fn key_alias(&self) -> Option<KeyAlias> {
-        match &self.inner {
-            ParsedCredentialInner::MsoMdoc(arc) => Some(arc.key_alias()),
-            ParsedCredentialInner::JwtVcJson(arc) => arc.key_alias(),
-            ParsedCredentialInner::JwtVcJsonLd(arc) => arc.key_alias(),
-            ParsedCredentialInner::LdpVc(arc) => arc.key_alias(),
-            ParsedCredentialInner::VCDM2SdJwt(arc) => arc.key_alias(),
-            ParsedCredentialInner::DcSdJwt(arc) => arc.key_alias(),
-            ParsedCredentialInner::Cwt(arc) => arc.key_alias(),
-            ParsedCredentialInner::OpticalBarcodeCredential(arc) => arc.key_alias(),
-        }
+        key_alias_of(&self.inner)
     }
 
     /// Return the CredentialType from the parsed credential.

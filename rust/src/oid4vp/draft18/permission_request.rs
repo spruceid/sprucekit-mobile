@@ -292,13 +292,7 @@ impl Draft18PermissionRequest {
                 let context_map = self.context_map.clone();
                 let response_options = &response_options;
                 async move {
-                    let key_alias = crate::credential::ParsedCredential {
-                        inner: cred.inner.clone(),
-                    }
-                    .key_alias();
-                    let key_id = key_alias
-                        .map(|alias| alias.0)
-                        .unwrap_or_else(|| key_id.to_string());
+                    let key_id = cred.resolve_key_id(key_id);
 
                     let options = Draft18PresentationOptions {
                         request,

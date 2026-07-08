@@ -76,6 +76,19 @@ impl Draft18PresentableCredential {
     }
 }
 
+impl Draft18PresentableCredential {
+    /// The per-credential signing key alias, if this credential was stored with one.
+    pub(crate) fn key_alias(&self) -> Option<crate::crypto::KeyAlias> {
+        crate::credential::key_alias_of(&self.inner)
+    }
+
+    /// Resolve this credential's signing key id, falling back to the holder's
+    /// shared key when it has no per-credential alias.
+    pub(crate) fn resolve_key_id(&self, fallback: &str) -> String {
+        crate::credential::resolve_key_id(self.key_alias(), fallback)
+    }
+}
+
 // -- Helpers for getting credential format designations using openidvp_draft18 types --
 
 fn credential_format_designation(inner: &ParsedCredentialInner) -> ClaimFormatDesignation {

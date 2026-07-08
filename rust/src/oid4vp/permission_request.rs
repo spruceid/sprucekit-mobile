@@ -336,13 +336,7 @@ impl PermissionRequest {
         let mut vp_token_map: HashMap<String, Vec<VpTokenItem>> = HashMap::new();
 
         for cred in &selected_credentials {
-            let key_alias = ParsedCredential {
-                inner: cred.inner.clone(),
-            }
-            .key_alias();
-            let key_id = key_alias
-                .map(|alias| alias.0)
-                .unwrap_or_else(|| self.key_id.clone());
+            let key_id = cred.resolve_key_id(&self.key_id);
 
             // Set options for constructing this credential's verifiable
             // presentation, pinned to its resolved signing key.
