@@ -77,11 +77,24 @@ def markerFile(taskName) {
 }
 
 def rustUpdated(taskName) {
-    def srcTree = fileTree("../../rust/src")
-    def manifest = files("../../rust/Cargo.toml", "../../rust/Cargo.lock")
+    def srcTree = fileTree("../../rust/src") + fileTree("../../rust/mobile-toolkit/src")
+    def manifest = files(
+            "../../rust/Cargo.toml",
+            "../../rust/Cargo.lock",
+            "../../rust/mobile-toolkit/Cargo.toml",
+    )
     def markerFile = markerFile(taskName)
 
     if (!markerFile.exists()) {
+        return true
+    }
+
+    if (taskName.startsWith("buildCargoNdk")
+            && fileTree(dir: "src/main/jniLibs", include: "**/*.so").isEmpty()) {
+        return true
+    }
+    if (taskName == "bindGen"
+            && fileTree(dir: "src/main/java", include: "**/mobile_sdk_rs.kt").isEmpty()) {
         return true
     }
 
