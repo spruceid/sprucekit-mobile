@@ -149,10 +149,31 @@ public class CredentialPack {
      * Try to add a credential in any supported format (standard credential or mdoc),
      * optionally binding it to a per-credential key alias.
      *
+     * When `keyAlias` is non-nil it is applied to every format so the stored
+     * credential's `key_alias` is the key used to sign its presentation. Pass the
+     * same key used to sign the OID4VCI proof at issuance, so it matches the
+     * credential's `cnf`. The key must ALREADY EXIST: a missing alias throws
+     * rather than minting a fresh key, because a freshly-generated key cannot
+     * match a `cnf` fixed at issuance — the credential would store fine but could
+     * never present successfully.
+     *
+     * BREAKING CHANGE: this parameter was previously `mdocKeyAlias` and only bound
+     * the key to mdoc credentials (non-mdoc formats were stored keyless). It now
+     * binds the key to ALL formats. Callers migrating from the old parameter must
+     * ensure the alias matches each credential's holder binding (`cnf` for
+     * non-mdoc, the MSO device key for mdoc); otherwise the resulting presentation
+     * will fail verification.
+     *
+     * When `keyAlias` is nil the credential is stored without a per-credential key
+     * (`key_alias == None`) and presents via the shared/fallback key — valid only
+     * for issuer-signed non-mdoc formats. mdoc is device-bound and has no keyless
+     * form, so a nil alias for an mdoc payload is rejected.
+     *
      * @param rawCredential The raw credential data as a string
-     * @param keyAlias The per-credential key alias, or nil to store keyless
+     * @param keyAlias The per-credential key alias (must already exist), or nil to store keyless
      * @return List of parsed credentials
-     * @throws CredentialPackError if the credential cannot be parsed in any supported format
+     * @throws CredentialPackError if the credential cannot be parsed in any supported
+     *   format, or if `keyAlias` is non-nil but no key exists for it
      */
     public func tryAddAnyFormat(rawCredential: String, keyAlias: String? = nil)
         async throws -> [ParsedCredential] {
@@ -162,13 +183,19 @@ public class CredentialPack {
             } catch {
                 throw CredentialPackError.credentialParsing(
                     reason:
-                        "Could not parse credential without a keyAlias. mdoc credentials require " +
-                        "the device-key alias provisioned at issuance. Credential = \(rawCredential)"
+                        "The credential format is not supported. Credential = \(rawCredential). " +
+                        "(If this is an mdoc, it is device-bound and requires the key alias " +
+                        "provisioned at issuance — pass a non-nil keyAlias.)"
                 )
             }
         }
         if !KeyManager.keyExists(id: keyAlias) {
-            _ = KeyManager.generateSigningKey(id: keyAlias)
+            throw CredentialPackError.credentialParsing(
+                reason:
+                    "No signing key exists for alias '\(keyAlias)'. A per-credential key must " +
+                    "already exist from issuance so it matches the credential's cnf binding; " +
+                    "minting one here would produce a credential that can never present."
+            )
         }
         do {
             return try tryAddRawCredential(rawCredential: rawCredential, keyAlias: keyAlias)

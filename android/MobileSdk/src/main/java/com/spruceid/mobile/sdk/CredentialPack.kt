@@ -162,19 +162,30 @@ class CredentialPack {
      *
      * When [keyAlias] is non-null it is applied to every format so the stored
      * credential's `key_alias` is the key used to sign its presentation. Pass
-     * the same key id used to sign the OID4VCI proof at issuance (so it matches
-     * the credential's `cnf`).
+     * the same key used to sign the OID4VCI proof at issuance, so it matches the
+     * credential's `cnf`. The key must ALREADY EXIST: a missing alias throws
+     * rather than minting a fresh key, because a freshly-generated key cannot
+     * match a `cnf` fixed at issuance — the credential would store fine but could
+     * never present successfully.
+     *
+     * BREAKING CHANGE: this parameter was previously `mdocKeyAlias` and only
+     * bound the key to mdoc credentials (non-mdoc formats were stored keyless).
+     * It now binds the key to ALL formats. Callers migrating from the old
+     * parameter must ensure the alias matches each credential's holder binding
+     * (`cnf` for non-mdoc, the MSO device key for mdoc); otherwise the resulting
+     * presentation will fail verification.
      *
      * When [keyAlias] is null the credential is stored without a per-credential
      * key (`key_alias == None`) and presents via the shared/fallback key — this
      * is only valid for issuer-signed non-mdoc formats. mdoc is device-bound and
      * has no keyless form (its MSO commits to a specific device key), so a null
-     * alias for an mdoc payload throws rather than minting a mismatched key.
+     * alias for an mdoc payload is rejected.
      *
      * @param rawCredential The raw credential data as a string
-     * @param keyAlias The per-credential key alias, or null to store keyless
+     * @param keyAlias The per-credential key alias (must already exist), or null to store keyless
      * @return List of parsed credentials
-     * @throws ParsingException if the credential cannot be parsed in any supported format
+     * @throws ParsingException if the credential cannot be parsed in any supported
+     *   format, or if [keyAlias] is non-null but no key exists for it
      */
     @Throws(ParsingException::class)
     fun tryAddAnyFormat(rawCredential: String, keyAlias: String? = null): List<ParsedCredential> {
@@ -183,15 +194,20 @@ class CredentialPack {
                 tryAddRawCredential(rawCredential)
             } catch (e: Exception) {
                 throw ParsingException(
-                    message = "Could not parse credential without a keyAlias. mdoc credentials " +
-                        "require the device-key alias provisioned at issuance. Credential = $rawCredential",
+                    message = "The credential format is not supported. Credential = $rawCredential. " +
+                        "(If this is an mdoc, it is device-bound and requires the key alias " +
+                        "provisioned at issuance — pass a non-null keyAlias.)",
                     cause = e
                 )
             }
         }
         val keyManager = KeyManager()
         if (!keyManager.keyExists(keyAlias)) {
-            keyManager.generateSigningKey(keyAlias)
+            throw ParsingException(
+                message = "No signing key exists for alias '$keyAlias'. A per-credential key must " +
+                    "already exist from issuance so it matches the credential's cnf binding."
+                cause = null
+            )
         }
         try {
             return tryAddRawCredential(rawCredential, keyAlias)

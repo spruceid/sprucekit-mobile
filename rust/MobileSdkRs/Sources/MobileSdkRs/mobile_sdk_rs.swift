@@ -30616,6 +30616,13 @@ public enum VcalmError: Swift.Error, Equatable, Hashable, Foundation.LocalizedEr
      */
     case MixedCredentialVersions
     /**
+     * The selected credentials resolve to distinct per-credential signing keys.
+     * A single VCALM VP is signed with one holder key, so only the first
+     * credential's binding would verify; present credentials that share a
+     * signing key (or one credential at a time).
+     */
+    case MixedCredentialKeys
+    /**
      * A selected credential carries no proof that is safe to present (B.1
      * allowlist) — e.g. only an SD/bbs base proof.
      */
@@ -30722,13 +30729,14 @@ public struct FfiConverterTypeVcalmError: FfiConverterRustBuffer {
             accepted: try FfiConverterString.read(from: &buf)
             )
         case 21: return .MixedCredentialVersions
-        case 22: return .NoPresentableProof(
+        case 22: return .MixedCredentialKeys
+        case 23: return .NoPresentableProof(
             credentialTypes: try FfiConverterString.read(from: &buf)
             )
-        case 23: return .SdDeriveFailed(
+        case 24: return .SdDeriveFailed(
             try FfiConverterString.read(from: &buf)
             )
-        case 24: return .UnsupportedCredentialFormat(
+        case 25: return .UnsupportedCredentialFormat(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -30848,18 +30856,22 @@ public struct FfiConverterTypeVcalmError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(21))
         
         
-        case let .NoPresentableProof(credentialTypes):
+        case .MixedCredentialKeys:
             writeInt(&buf, Int32(22))
+        
+        
+        case let .NoPresentableProof(credentialTypes):
+            writeInt(&buf, Int32(23))
             FfiConverterString.write(credentialTypes, into: &buf)
             
         
         case let .SdDeriveFailed(v1):
-            writeInt(&buf, Int32(23))
+            writeInt(&buf, Int32(24))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .UnsupportedCredentialFormat(v1):
-            writeInt(&buf, Int32(24))
+            writeInt(&buf, Int32(25))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -31598,6 +31610,12 @@ public protocol Draft18PresentationSigner: AnyObject, Sendable {
      * Return the algorithm used for signing the vp token.
      *
      * E.g., "ES256"
+     *
+     * NOTE: unlike `sign`/`verification_method`/`did`/`jwk`, this is NOT keyed
+     * by `key_id`. Per-credential signing keys are assumed to all share one
+     * signing algorithm (P-256 / ES256). If a holder ever mixes keys of
+     * different algorithms, this must be keyed by `key_id` too (as must
+     * `cryptosuite`).
      */
     func algorithm()  -> Algorithm
     
@@ -31916,6 +31934,12 @@ public protocol Oid4vpPresentationSigner: AnyObject, Sendable {
     
     func sign(keyId: String, payload: Data) async throws  -> Data
     
+    /**
+     * The signing algorithm. NOTE: unlike the `key_id`-keyed methods below,
+     * `algorithm` and `cryptosuite` are not keyed — per-credential signing keys
+     * are assumed to all share one algorithm (P-256 / ES256). Mixing keys of
+     * different algorithms would require keying these too.
+     */
     func algorithm()  -> Algorithm
     
     func verificationMethod(keyId: String) async  -> String
@@ -32235,6 +32259,12 @@ public protocol PresentationSigner: AnyObject, Sendable {
      * Return the algorithm used for signing the vp token.
      *
      * E.g., "ES256"
+     *
+     * NOTE: unlike `sign`/`verification_method`/`did`/`jwk`, this is NOT keyed
+     * by `key_id`. Per-credential signing keys are assumed to all share one
+     * signing algorithm (P-256 / ES256). If a holder ever mixes keys of
+     * different algorithms, this must be keyed by `key_id` too (as must
+     * `cryptosuite`).
      */
     func algorithm()  -> Algorithm
     
@@ -37758,7 +37788,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_sign() != 35559) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_algorithm() != 52075) {
+    if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_algorithm() != 64924) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_draft18presentationsigner_verification_method() != 20007) {
@@ -37776,7 +37806,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_sign() != 15207) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_algorithm() != 51658) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_algorithm() != 26347) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vppresentationsigner_verification_method() != 14540) {
@@ -37794,7 +37824,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_sign() != 59798) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_algorithm() != 27091) {
+    if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_algorithm() != 6727) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_presentationsigner_verification_method() != 34638) {
