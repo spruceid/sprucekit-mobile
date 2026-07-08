@@ -29,3 +29,10 @@ pub mod w3c_vc_barcodes;
 pub use common::*;
 pub use mdl::reader::*;
 pub use mdl::*;
+
+pub use mobile_toolkit::{
+    common::{Key, Value},
+    crypto::{CryptoError, KeyAlias, KeyStore, SigningKey},
+    http_client::{AsyncHttpClient, HttpClientError, HttpRequest, HttpResponse},
+    storage_manager::{StorageManagerError, StorageManagerInterface},
+};

@@ -1,3 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["mobile-toolkit"]
+
 [package]
 name = "mobile-sdk-rs"
 version = "0.15.2"
@@ -16,6 +20,7 @@ name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 
 [dependencies]
+mobile-toolkit = { path = "mobile-toolkit" }
 cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", features = [
     "time",
 ] }

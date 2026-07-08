@@ -3544,6 +3544,7 @@ dependencies = [
  "json-syntax",
  "log",
  "miniz_oxide 0.7.4",
+ "mobile-toolkit",
  "num-bigint",
  "num-traits",
  "oid4vci 0.1.0 (git+https://github.com/spruceid/oid4vci-rs?rev=490c135)",
@@ -3578,6 +3579,18 @@ dependencies = [
  "w3c-vc-barcodes",
  "wiremock",
  "x509-cert",
+]
+
+[[package]]
+name = "mobile-toolkit"
+version = "0.15.2"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "ssi",
+ "thiserror 1.0.69",
+ "uniffi",
 ]
 
 [[package]]
