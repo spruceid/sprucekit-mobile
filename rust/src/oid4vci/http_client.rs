@@ -35,9 +35,59 @@ fn http_to_ext_response(res: HttpResponse) -> Result<ExtHttpResponse, HttpClient
         .map_err(|_| HttpClientError::ResponseBuilder)
 }
 
+#[derive(thiserror::Error, uniffi::Error, Debug)]
+pub enum SyncHttpClientError {
+    #[error("failed to build request")]
+    RequestBuilder,
+
+    #[error("failed to build response")]
+    ResponseBuilder,
+
+    #[error("failed to parse url")]
+    UrlParse,
+
+    #[error("failed to parse method")]
+    MethodParse,
+
+    #[error("failed to parse header")]
+    HeaderParse,
+
+    #[error("failed to parse header key: {key}")]
+    HeaderKeyParse { key: String },
+
+    #[error("failed to parse header value: {value}")]
+    HeaderValueParse { value: String },
+
+    #[error("failed to parse header entry: ({key}, {value})")]
+    HeaderEntryParse { key: String, value: String },
+
+    #[error("other error: {error}")]
+    Other { error: String },
+}
+
+impl From<SyncHttpClientError> for HttpClientError {
+    fn from(value: SyncHttpClientError) -> Self {
+        match value {
+            SyncHttpClientError::RequestBuilder => HttpClientError::RequestBuilder,
+            SyncHttpClientError::ResponseBuilder => HttpClientError::ResponseBuilder,
+            SyncHttpClientError::UrlParse => HttpClientError::UrlParse,
+            SyncHttpClientError::MethodParse => HttpClientError::MethodParse,
+            SyncHttpClientError::HeaderParse => HttpClientError::HeaderParse,
+            SyncHttpClientError::HeaderKeyParse { key } => HttpClientError::HeaderKeyParse { key },
+            SyncHttpClientError::HeaderValueParse { value } => {
+                HttpClientError::HeaderValueParse { value }
+            }
+            SyncHttpClientError::HeaderEntryParse { key, value } => {
+                HttpClientError::HeaderEntryParse { key, value }
+            }
+            SyncHttpClientError::Other { error } => HttpClientError::Other { error },
+        }
+    }
+}
+
 #[uniffi::export(with_foreign)]
 pub trait SyncHttpClient: Send + Sync {
-    fn http_client(&self, request: HttpRequest) -> Result<HttpResponse, HttpClientError>;
+    fn http_client(&self, request: HttpRequest) -> Result<HttpResponse, SyncHttpClientError>;
 }
 
 impl ExtSyncHttpClient for dyn SyncHttpClient {

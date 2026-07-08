@@ -8,9 +8,9 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import com.spruceid.mobile.sdk.rs.CryptoCurveUtils
 import com.spruceid.mobile.sdk.rs.Jwk
-import com.spruceid.mobile.sdk.rs.KeyAlias
-import com.spruceid.mobile.sdk.rs.KeyStore as SpruceKitKeyStore
-import com.spruceid.mobile.sdk.rs.SigningKey
+import uniffi.mobile_toolkit.KeyAlias
+import uniffi.mobile_toolkit.KeyStore as SpruceKitKeyStore
+import uniffi.mobile_toolkit.SigningKey
 import com.spruceid.mobile.sdk.rs.coseKeyEc2P256PublicKey
 import com.spruceid.mobile.sdk.rs.jwkFromPublicP256
 import java.security.KeyPairGenerator

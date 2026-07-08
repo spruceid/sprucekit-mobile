@@ -3,7 +3,7 @@ package com.spruceid.mobile.sdk
 import android.content.Context
 import android.util.Base64
 import com.spruceid.mobile.sdk.KeyManager
-import com.spruceid.mobile.sdk.rs.StorageManagerInterface
+import uniffi.mobile_toolkit.StorageManagerInterface
 import java.io.File
 import java.io.FileNotFoundException
 import java.security.SecureRandom
