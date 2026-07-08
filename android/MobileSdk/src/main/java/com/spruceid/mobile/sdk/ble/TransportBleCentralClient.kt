@@ -251,11 +251,11 @@ class TransportBleCentralClient(
             super.onScanFailed(errorCode)
             logger.e("BLE scan failed (code=$errorCode)")
 
-            // Stop tracking the failed scan so we can retry cleanly.
+            // Unregister the failed/lingering scan and clear pending runnables so a
+            // failed registration can't accumulate. stopScanInternal() already handles
+            // the SecurityException and resets the scanning flag.
             synchronized(scanLock) {
-                scanning = false
-                scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
-                scanTimeoutRunnable = null
+                stopScanInternal()
             }
 
             if (errorCode == SCAN_FAILED_SCANNING_TOO_FREQUENTLY &&
@@ -328,25 +328,37 @@ class TransportBleCentralClient(
 
                     scanTimeoutRunnable = Runnable {
                         synchronized(scanLock) {
-                            val current = scanGenerationCounter.get()
-                            if (armedGeneration != current) {
-                                logger.d(
-                                    "Stale scan timeout runnable " +
-                                        "(armed=$armedGeneration, current=$current); ignoring.",
-                                )
-                                return@Runnable
-                            }
-                            if (scanning) {
+                            val action = scanTimeoutAction(
+                                wasScanning = scanning,
+                                armedGeneration = armedGeneration,
+                                currentGeneration = scanGenerationCounter.get(),
+                            )
+                            // STOP_SCAN_ONLY and STOP_SCAN_AND_TEARDOWN both release THIS instance's
+                            // own scan, even when stale — never skip the stopScan, or an orphaned
+                            // instance leaks its registration (→ SCAN_FAILED_APPLICATION_REGISTRATION_FAILED,
+                            // needs a BLE restart). Only the teardown is fenced behind staleness.
+                            if (action != ScanTimeoutAction.NONE) {
                                 scanning = false
                                 try {
                                     bluetoothLeScanner.stopScan(leScanCallback)
                                 } catch (e: Exception) {
                                     logger.e("${e.message}")
                                 }
-                                scanTimeoutRunnable = null
-                                logger.i("connection timeout")
-                                emitter.timeout()
-                                disconnect()
+                            }
+                            scanTimeoutRunnable = null
+
+                            when (action) {
+                                ScanTimeoutAction.STOP_SCAN_AND_TEARDOWN -> {
+                                    logger.i("connection timeout")
+                                    emitter.timeout()
+                                    disconnect()
+                                }
+                                ScanTimeoutAction.STOP_SCAN_ONLY -> logger.d(
+                                    "Stale scan timeout runnable (armed=$armedGeneration, " +
+                                        "current=${scanGenerationCounter.get()}); " +
+                                        "unregistered own scan, skipping teardown.",
+                                )
+                                ScanTimeoutAction.NONE -> {}
                             }
                         }
                     }
@@ -423,4 +435,25 @@ class TransportBleCentralClient(
          */
         val scanGenerationCounter = AtomicLong(0)
     }
+}
+
+/** What a fired scan-timeout runnable should do (see [scanTimeoutAction]). */
+internal enum class ScanTimeoutAction { NONE, STOP_SCAN_ONLY, STOP_SCAN_AND_TEARDOWN }
+
+/**
+ * Decide what a fired scan-timeout runnable does. Invariant (regression fixed from #316): a stale
+ * timeout — one whose [armedGeneration] no longer matches the process-wide [currentGeneration]
+ * because a newer scan started — must STILL unregister its own scan (STOP_SCAN_ONLY); only the
+ * session teardown is skipped. Skipping the stopScan too (the previous behaviour) orphaned the scan
+ * registration and eventually exhausted Android's per-app scanner limit, surfacing as
+ * SCAN_FAILED_APPLICATION_REGISTRATION_FAILED (unrecoverable without a BLE/device restart).
+ */
+internal fun scanTimeoutAction(
+    wasScanning: Boolean,
+    armedGeneration: Long,
+    currentGeneration: Long,
+): ScanTimeoutAction = when {
+    !wasScanning -> ScanTimeoutAction.NONE
+    armedGeneration != currentGeneration -> ScanTimeoutAction.STOP_SCAN_ONLY
+    else -> ScanTimeoutAction.STOP_SCAN_AND_TEARDOWN
 }
