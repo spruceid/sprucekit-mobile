@@ -218,19 +218,10 @@ pub fn establish_session(
                 value: format!("Unable to build namespaces: {e:?}"),
             })?;
 
-    let registry = TrustAnchorRegistry::from_pem_certificates(
-        trust_anchor_registry
-            .into_iter()
-            .flat_map(|v| v.into_iter())
-            .map(|certificate_pem| PemTrustAnchor {
-                certificate_pem,
-                purpose: x509::trust_anchor::TrustPurpose::Iaca,
-            })
-            .collect(),
-    )
-    .map_err(|e| MDLReaderSessionError::Generic {
-        value: format!("unable to construct TrustAnchorRegistry: {e:?}"),
-    })?;
+    let registry =
+        build_registry(trust_anchor_registry).map_err(|e| MDLReaderSessionError::Generic {
+            value: format!("unable to construct TrustAnchorRegistry: {e:?}"),
+        })?;
 
     let (manager, request, ble_ident) =
         reader::SessionManager::establish_session(handover.0.clone(), namespaces, registry)
@@ -243,6 +234,23 @@ pub fn establish_session(
         request,
         ble_ident: ble_ident.to_vec(),
     })
+}
+
+fn build_registry(
+    trust_anchor_registry: Option<Vec<String>>,
+) -> Result<TrustAnchorRegistry, anyhow::Error> {
+    let registry = TrustAnchorRegistry::from_pem_certificates(
+        trust_anchor_registry
+            .into_iter()
+            .flat_map(|v| v.into_iter())
+            .map(|certificate_pem| PemTrustAnchor {
+                certificate_pem,
+                purpose: x509::trust_anchor::TrustPurpose::Iaca,
+            })
+            .collect(),
+    )?;
+
+    Ok(registry)
 }
 
 #[derive(thiserror::Error, uniffi::Error, Debug, PartialEq)]
@@ -487,6 +495,18 @@ pub fn device_response_verification_as_json_string(
     })
 }
 
+/// Verifies an mDL device response by using the session transcript and ephemeral
+/// reader key, and an optional trust anchor registry.
+///
+/// Arguments:
+/// device_response: cbor encoded `isomdl::definitions::DeviceResponse`
+/// session_transcript: cbor encoded `isomdl::definitions::session::SessionTranscript`
+/// ephemeral_reader_key: 32-byte private key
+/// trust_anchor_registry: optional list of PEM encoded certificates
+///
+/// Returns:
+/// An object with the verified response, document types, issuer authentication result,
+/// device authentication result, and an optional error string.
 #[uniffi::export]
 pub fn verify_device_response(
     device_response: Vec<u8>,
@@ -507,23 +527,15 @@ pub fn verify_device_response(
         })?;
     let session_transcript = ProvidedSessionTranscript(session_transcript);
 
-    let registry = TrustAnchorRegistry::from_pem_certificates(
-        trust_anchor_registry
-            .into_iter()
-            .flatten()
-            .map(|certificate_pem| PemTrustAnchor {
-                certificate_pem,
-                purpose: x509::trust_anchor::TrustPurpose::Iaca,
-            })
-            .collect(),
-    )
-    .map_err(|e| MDLReaderResponseError::Generic {
-        value: format!("unable to construct TrustAnchorRegistry: {e:?}"),
-    })?;
+    let registry =
+        build_registry(trust_anchor_registry).map_err(|e| MDLReaderResponseError::Generic {
+            value: format!("unable to construct TrustAnchorRegistry: {e:?}"),
+        })?;
 
+    // Tries to parse and verify an mDL among the document responses.
     let (document, x5chain, namespaces) =
         reader::parse(&device_response).map_err(|e| MDLReaderResponseError::Generic {
-            value: format!("unable to parse device response: {e:?}"),
+            value: format!("unable to obtain mDL from device response: {e:?}"),
         })?;
 
     let doc_types: Vec<String> = device_response
@@ -544,11 +556,14 @@ pub fn verify_device_response(
             if ephemeral_reader_key.is_empty() {
                 [0u8; 32]
             } else {
-                ephemeral_reader_key
-                    .try_into()
-                    .map_err(|e| MDLReaderResponseError::Generic {
-                        value: format!("unable to parse ephemeral_reader_key: {e:?}"),
-                    })?
+                ephemeral_reader_key.try_into().map_err(|e: Vec<u8>| {
+                    MDLReaderResponseError::Generic {
+                        value: format!(
+                            "unable to parse ephemeral_reader_key: expected 32 bytes, got {}",
+                            e.len()
+                        ),
+                    }
+                })?
             },
         ));
 

@@ -36375,6 +36375,20 @@ public func verifiedResponseAsJsonString(response: MdlReaderResponseData)throws 
     )
 })
 }
+/**
+ * Verifies an mDL device response by using the session transcript and ephemeral
+ * reader key, and an optional trust anchor registry.
+ *
+ * Arguments:
+ * device_response: cbor encoded `isomdl::definitions::DeviceResponse`
+ * session_transcript: cbor encoded `isomdl::definitions::session::SessionTranscript`
+ * ephemeral_reader_key: 32-byte private key
+ * trust_anchor_registry: optional list of PEM encoded certificates
+ *
+ * Returns:
+ * An object with the verified response, document types, issuer authentication result,
+ * device authentication result, and an optional error string.
+ */
 public func verifyDeviceResponse(deviceResponse: Data, sessionTranscript: Data, ephemeralReaderKey: Data, trustAnchorRegistry: [String]?)throws  -> MdlDeviceResponseVerification  {
     return try  FfiConverterTypeMDLDeviceResponseVerification_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
     uniffi_mobile_sdk_rs_fn_func_verify_device_response(
@@ -36669,7 +36683,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verified_response_as_json_string() != 44695) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 27348) {
+    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 11409) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 16030) {
