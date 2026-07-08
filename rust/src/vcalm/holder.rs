@@ -995,16 +995,23 @@ impl VcalmHolder {
             }
         }
 
-        // A VCALM session signs ONE VP with a single holder key.
-        // Single-credential presentations (the common case) use that
-        // credential's own key; a multi-credential VP uses the primary
-        // (first-presented) credential's key, falling back to the shared key when
-        // the credential has no alias (e.g. legacy credentials).
+        // A VCALM session signs ONE VP with a single holder key, so every
+        // presented credential must resolve to the SAME signing key: its own
+        // `key_alias`, or the shared key for legacy credentials with no alias.
+        // A VP whose credentials carried distinct per-credential keys could only
+        // bind the first key, silently failing holder-binding verification for
+        // the rest — reject it up front rather than emit a partially verifiable
+        // VP. (Empty `present` falls back to the shared key.)
         let active_key_id = present
             .first()
-            .and_then(|cred| cred.key_alias())
-            .map(|alias| alias.0)
+            .map(|cred| cred.resolve_key_id(&self.key_id))
             .unwrap_or_else(|| self.key_id.clone());
+        if present
+            .iter()
+            .any(|cred| cred.resolve_key_id(&self.key_id) != active_key_id)
+        {
+            return Err(VcalmError::MixedCredentialKeys);
+        }
         let holder_did = self.signer.did(active_key_id.clone());
         let glue = VpSigner::new(self.signer.clone(), active_key_id, self.context_map.clone());
 

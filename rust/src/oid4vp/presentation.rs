@@ -153,6 +153,12 @@ pub trait PresentationSigner: Send + Sync + std::fmt::Debug {
     /// Return the algorithm used for signing the vp token.
     ///
     /// E.g., "ES256"
+    ///
+    /// NOTE: unlike `sign`/`verification_method`/`did`/`jwk`, this is NOT keyed
+    /// by `key_id`. Per-credential signing keys are assumed to all share one
+    /// signing algorithm (P-256 / ES256). If a holder ever mixes keys of
+    /// different algorithms, this must be keyed by `key_id` too (as must
+    /// `cryptosuite`).
     fn algorithm(&self) -> Algorithm;
 
     /// Return the verification method associated with the signing key `key_id`.

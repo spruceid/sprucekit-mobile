@@ -52,15 +52,15 @@ class Signer: PresentationSigner {
     }
 
     func verificationMethod(keyId: String) async -> String {
-        return try! await didJwk.vmFromJwk(jwk: jwkFor(keyId))
+        return (try? await didJwk.vmFromJwk(jwk: jwkFor(keyId))) ?? ""
     }
 
     func did(keyId: String) -> String {
-        return try! didJwk.didFromJwk(jwk: jwkFor(keyId))
+        return (try? didJwk.didFromJwk(jwk: jwkFor(keyId))) ?? ""
     }
 
     func jwk(keyId: String) -> String {
-        return try! jwkFor(keyId)
+        return (try? jwkFor(keyId)) ?? ""
     }
 
     func cryptosuite() -> String {

@@ -3,9 +3,7 @@ import SpruceIDMobileSdkRs
 import SwiftUI
 
 class Draft18Signer: Draft18PresentationSigner {
-    // The shared/legacy fallback key. Per-call methods resolve the actual key
-    // from the `keyId` Rust passes; this is only used where no per-call key
-    // applies (e.g. `algorithm()`).
+    // The shared/legacy fallback key.
     private let keyId: String
     private let didJwk = DidMethodUtils(method: DidMethod.jwk)
 
@@ -41,11 +39,11 @@ class Draft18Signer: Draft18PresentationSigner {
     }
 
     func verificationMethod(keyId: String) async -> String {
-        return try! await didJwk.vmFromJwk(jwk: jwkFor(keyId))
+        return (try? await didJwk.vmFromJwk(jwk: jwkFor(keyId))) ?? ""
     }
 
     func did(keyId: String) -> String {
-        return try! didJwk.didFromJwk(jwk: jwkFor(keyId))
+        return (try? didJwk.didFromJwk(jwk: jwkFor(keyId))) ?? ""
     }
 
     func cryptosuite() -> String {
@@ -53,7 +51,7 @@ class Draft18Signer: Draft18PresentationSigner {
     }
 
     func jwk(keyId: String) -> String {
-        return try! jwkFor(keyId)
+        return (try? jwkFor(keyId)) ?? ""
     }
 }
 

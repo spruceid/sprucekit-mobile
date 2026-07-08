@@ -179,6 +179,10 @@ pub struct Oid4vpPermissionResponse {
 #[async_trait::async_trait]
 pub trait Oid4vpPresentationSigner: Send + Sync + std::fmt::Debug {
     async fn sign(&self, key_id: String, payload: Vec<u8>) -> Result<Vec<u8>, Oid4vpFacadeError>;
+    /// The signing algorithm. NOTE: unlike the `key_id`-keyed methods below,
+    /// `algorithm` and `cryptosuite` are not keyed — per-credential signing keys
+    /// are assumed to all share one algorithm (P-256 / ES256). Mixing keys of
+    /// different algorithms would require keying these too.
     fn algorithm(&self) -> Algorithm;
     async fn verification_method(&self, key_id: String) -> String;
     fn did(&self, key_id: String) -> String;

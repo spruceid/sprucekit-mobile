@@ -52,8 +52,6 @@ fun HandleOID4VCIView(
     var loading by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
     var credential by remember { mutableStateOf<String?>(null) }
-    // The fresh per-credential key alias generated for this issuance, carried
-    // to AddToWalletView so it is stored as the credential's key_alias.
     var credentialKeyAlias by remember { mutableStateOf<String?>(null) }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()

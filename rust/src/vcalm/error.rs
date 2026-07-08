@@ -93,6 +93,13 @@ pub enum VcalmError {
     #[error("selected credentials mix VCDM v1 and v2; present one data-model version at a time")]
     MixedCredentialVersions,
 
+    /// The selected credentials resolve to distinct per-credential signing keys.
+    /// A single VCALM VP is signed with one holder key, so only the first
+    /// credential's binding would verify; present credentials that share a
+    /// signing key (or one credential at a time).
+    #[error("selected credentials resolve to distinct per-credential signing keys; a single VP is signed with one holder key")]
+    MixedCredentialKeys,
+
     /// A selected credential carries no proof that is safe to present (B.1
     /// allowlist) — e.g. only an SD/bbs base proof.
     #[error("credential carries no presentable proof (B.1 allowlist): {credential_types}")]
