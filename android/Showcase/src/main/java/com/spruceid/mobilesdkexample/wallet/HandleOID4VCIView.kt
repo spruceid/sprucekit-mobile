@@ -126,7 +126,7 @@ fun HandleOID4VCIView(
                         httpClient, oid4vciClient, clientId, credentialIssuer, signer,
                         credentialToken, credentialOffer.credentialConfigurationIds()
                     )
-                    if (result != null) {
+                    if (result.isNotEmpty()) {
                         credentials = result
                     } else {
                         err = "Deferred credentials not supported"
@@ -162,7 +162,7 @@ fun HandleOID4VCIView(
                                 httpClient, oid4vciClient, clientId, credentialIssuer, signer,
                                 token, credentialOffer.credentialConfigurationIds()
                             )
-                            if (result != null) {
+                            if (result.isNotEmpty()) {
                                 credentials = result
                             } else {
                                 err = "Deferred credentials not supported"
@@ -218,7 +218,7 @@ fun HandleOID4VCIView(
                                 httpClient, oid4vciClient, clientId, credentialIssuer, signer,
                                 token, configIds
                             )
-                            if (result != null) {
+                            if (result.isNotEmpty()) {
                                 credentials = result
                             } else {
                                 err = "Deferred credentials not supported"
@@ -265,6 +265,8 @@ fun HandleOID4VCIView(
 
 // Exchanges every credential in the offer against the token, one request per
 // credential_configuration_id (each requires its own fresh nonce/proof).
+// Deferred credentials are skipped rather than aborting the whole batch, so
+// other credentials in the same offer still get issued.
 private suspend fun exchangeCredentials(
     httpClient: Oid4vciAsyncHttpClient,
     oid4vciClient: Oid4vciClient,
@@ -273,7 +275,7 @@ private suspend fun exchangeCredentials(
     signer: JwsSigner,
     credentialToken: CredentialToken,
     configIds: List<String>,
-): List<String>? {
+): List<String> {
     val results = mutableListOf<String>()
 
     for (configId in configIds) {
@@ -291,8 +293,7 @@ private suspend fun exchangeCredentials(
         Log.i("OID4VCI", "Exchanging Credential...")
         when (val response = oid4vciClient.exchangeCredential(httpClient, credentialToken, credentialId, proofs)) {
             is CredentialResponse.Deferred -> {
-                Log.i("OID4VCI", "Deferred credential received")
-                return null
+                Log.i("OID4VCI", "Deferred credential received, skipping")
             }
             is CredentialResponse.Immediate -> {
                 Log.i("OID4VCI", "Credential exchanged!")

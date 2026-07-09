@@ -73,12 +73,16 @@ fun AddToWalletView(
             var error: String? = null
             this.async(Dispatchers.Default) {
                 try {
-                    for (rawCredential in rawCredentials) {
+                    // Parse every credential before persisting any of them, so a
+                    // single unparseable credential can't leave the wallet with a
+                    // partially-saved batch.
+                    val credentialPacks = rawCredentials.map { rawCredential ->
                         val credentialPack = CredentialPack()
-
-                        // Try add credential in any supported format
                         credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
+                        credentialPack
+                    }
 
+                    for (credentialPack in credentialPacks) {
                         credentialPacksViewModel.saveCredentialPack(credentialPack)
                         val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
                         walletActivityLogsViewModel.saveWalletActivityLog(
