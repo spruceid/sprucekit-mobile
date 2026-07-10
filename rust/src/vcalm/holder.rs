@@ -419,8 +419,19 @@ impl VcalmHolder {
         .await
         .map_err(|e| VcalmError::Network(format!("big-stack signing thread: {e}")))??;
 
-        let value = serde_json::to_value(&signed)
+        let mut value = serde_json::to_value(&signed)
             .map_err(|e| VcalmError::Deserialization(e.to_string()))?;
+
+        // vcapi §3.6.5: `verifiableCredential` MUST be an array. ssi compacts a
+        // single credential to a bare object; re-wrap it. Signature-safe: the VP
+        // proof canonicalizes to RDF (ecdsa-rdfc-2019), and an object vs a
+        // one-element array yield identical N-Quads.
+        if let Some(vc) = value.get_mut("verifiableCredential") {
+            if !vc.is_array() {
+                let single = vc.take();
+                *vc = serde_json::Value::Array(vec![single]);
+            }
+        }
 
         let message = VcapiMessage {
             verifiable_presentation: Some(value),
@@ -1019,14 +1030,18 @@ impl VcalmHolder {
                     VcalmError::SdDeriveFailed("selected credential is not a JSON-LD VC".into())
                 })?;
                 if has_sd_base_proof(&json_vc.raw) {
-                    // GATE 2 holds — derive the selective-disclosure VC. A type-only
-                    // example names no subject fields; reveal the whole subject via
-                    // the parent pointer (a derived VC without `credentialSubject`
+                    // GATE 2 holds — derive the selective-disclosure VC. An example
+                    // naming no subject fields (type-only, or e.g. only
+                    // `credentialStatus`) still reveals the whole subject via the
+                    // parent pointer (a derived VC without `credentialSubject`
                     // would not be a valid VC at all).
                     let mut selective_pointers = selective_pointers_from_paths(paths);
-                    if selective_pointers.is_empty() {
-                        selective_pointers = selective_pointers_from_paths(std::slice::from_ref(
-                            &"credentialSubject".to_string(),
+                    let names_subject = paths
+                        .iter()
+                        .any(|p| p == "credentialSubject" || p.starts_with("credentialSubject."));
+                    if !names_subject {
+                        selective_pointers.extend(selective_pointers_from_paths(
+                            std::slice::from_ref(&"credentialSubject".to_string()),
                         ));
                     }
                     match json_vc
@@ -1136,6 +1151,11 @@ impl VcalmHolder {
             message.reference_id = reference_id;
         }
 
+        tracing::debug!(
+            "VCALM post_message request body: {}",
+            serde_json::to_string(&message).unwrap_or_else(|e| format!("<serialize error: {e}>"))
+        );
+
         let mut request = self.client.post(exchange_url).json(&message);
         if let Some(token) = &auth_header {
             request = request.header(AUTHORIZATION, format!("Bearer {token}"));
@@ -1147,6 +1167,8 @@ impl VcalmHolder {
             .map_err(|e| VcalmError::Network(e.to_string()))?;
         let status = resp.status();
         let body = read_body_capped(resp).await?;
+
+        tracing::debug!("VCALM post_message response status={status} body: {body}");
 
         let result = classify(status, &body)?;
 
@@ -1554,8 +1576,11 @@ fn build_presentation_from_json(
 }
 
 /// Extract the example-named fields (informational) from a QBE `example`:
-/// top-level `type`/`@context` (rendered as their JSON) and each `credentialSubject`
-/// key recursively. A leaf `""` renders as `"any value"` (§3.4.2).
+/// top-level `type`/`@context` (rendered as their JSON), each `credentialSubject`
+/// key recursively, and every OTHER top-level example property (e.g.
+/// `credentialStatus`) — the example names what the response credential must
+/// contain (§3.4.2), so those properties are displayed AND SD-revealed too.
+/// A leaf `""` renders as `"any value"` (§3.4.2).
 fn example_field_paths(example: &serde_json::Value) -> Vec<ExampleField> {
     let mut out = Vec::new();
     if let Some(obj) = example.as_object() {
@@ -1569,6 +1594,12 @@ fn example_field_paths(example: &serde_json::Value) -> Vec<ExampleField> {
         }
         if let Some(subject) = obj.get("credentialSubject") {
             collect_subject_paths("credentialSubject", subject, &mut out);
+        }
+        for (key, value) in obj {
+            if matches!(key.as_str(), "type" | "@context" | "credentialSubject") {
+                continue;
+            }
+            collect_subject_paths(key, value, &mut out);
         }
     }
     out
@@ -1716,15 +1747,20 @@ fn dotted_to_pointer(dotted: &str) -> String {
 
 /// Transform QBE-named field PATHS into the spec `selectivePointers`: an
 /// array of field-level RFC 6901 JSON pointers naming EXACTLY the QBE-requested
-/// `credentialSubject` fields. Structural/top-level keys (`type`, `@context`) are
-/// excluded — the derive auto-adds the issuer's `mandatoryPointers`, so the
-/// holder reveals only the QBE-named subject fields (no oversharing). Array-valued
-/// example fields already arrive here as a single parent path
-/// (`collect_subject_paths` treats arrays as leaves) → parent pointer.
+/// fields (`credentialSubject.*` plus other example-named properties such as
+/// `credentialStatus` — the response credential must contain what the example
+/// names, §3.4.2). Structural keys (`type`, `@context`) are excluded — the
+/// derive auto-adds the issuer's `mandatoryPointers`, so the holder reveals only
+/// the QBE-named fields (no oversharing). Array-valued example fields already
+/// arrive here as a single parent path (`collect_subject_paths` treats arrays as
+/// leaves) → parent pointer.
 fn selective_pointers_from_paths(paths: &[String]) -> Vec<ssi::JsonPointerBuf> {
     paths
         .iter()
-        .filter(|p| *p == "credentialSubject" || p.starts_with("credentialSubject."))
+        .filter(|p| {
+            let top = p.split('.').next().unwrap_or(p);
+            !matches!(top, "type" | "@context")
+        })
         .filter_map(|p| ssi::JsonPointerBuf::new(dotted_to_pointer(p)).ok())
         .collect()
 }
