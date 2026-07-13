@@ -39,6 +39,8 @@ struct HandleOID4VCIView: View {
 
     // Exchanges every credential in the offer against the token, one request
     // per credential_configuration_id (each requires its own fresh nonce/proof).
+    // Deferred credentials are skipped rather than aborting the whole batch,
+    // so other credentials in the same offer still get issued.
     func completeIssuance(
         token: CredentialToken,
         httpClient: Oid4vciAsyncHttpClient,
@@ -47,7 +49,7 @@ struct HandleOID4VCIView: View {
         credentialIssuer: String,
         signer: JwsSigner,
         configIds: [String]
-    ) async throws -> [String]? {
+    ) async throws -> [String] {
         var results: [String] = []
 
         for configId in configIds {
@@ -60,7 +62,7 @@ struct HandleOID4VCIView: View {
 
             switch response {
             case .deferred(_):
-                return nil
+                continue
             case .immediate(let immediate):
                 guard let rawCredential = immediate.credentials.first else {
                     throw NSError(domain: "OID4VCI", code: 0, userInfo: [
@@ -136,7 +138,7 @@ struct HandleOID4VCIView: View {
                             err = "Authorization error: \(errorParam)"
                         } else if let codeParam, !codeParam.isEmpty {
                             let token = try await waiting.proceed(httpClient: httpClient, authorizationCode: codeParam)
-                            if let creds = try await completeIssuance(
+                            let creds = try await completeIssuance(
                                 token: token,
                                 httpClient: httpClient,
                                 oid4vciClient: oid4vciClient,
@@ -144,7 +146,8 @@ struct HandleOID4VCIView: View {
                                 credentialIssuer: credentialIssuer,
                                 signer: signer,
                                 configIds: configIds
-                            ) {
+                            )
+                            if !creds.isEmpty {
                                 credentials = creds
                                 onSuccess?()
                             } else {
@@ -162,7 +165,7 @@ struct HandleOID4VCIView: View {
                     loading = false
                     return
                 case .ready(let credentialToken):
-                    if let creds = try await completeIssuance(
+                    let creds = try await completeIssuance(
                         token: credentialToken,
                         httpClient: httpClient,
                         oid4vciClient: oid4vciClient,
@@ -170,7 +173,8 @@ struct HandleOID4VCIView: View {
                         credentialIssuer: credentialIssuer,
                         signer: signer,
                         configIds: configIds
-                    ) {
+                    )
+                    if !creds.isEmpty {
                         credentials = creds
                         onSuccess?()
                     } else {
@@ -236,7 +240,7 @@ struct HandleOID4VCIView: View {
                 Task {
                     do {
                         let token = try await txState.proceed(httpClient: httpClient, txCode: pin)
-                        if let creds = try await completeIssuance(
+                        let creds = try await completeIssuance(
                             token: token,
                             httpClient: httpClient,
                             oid4vciClient: oid4vciClient,
@@ -244,7 +248,8 @@ struct HandleOID4VCIView: View {
                             credentialIssuer: credentialIssuer,
                             signer: signer,
                             configIds: configIds
-                        ) {
+                        )
+                        if !creds.isEmpty {
                             credentials = creds
                             onSuccess?()
                         } else {

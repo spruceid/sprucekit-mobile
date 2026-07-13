@@ -1,7 +1,15 @@
 package com.spruceid.mobilesdkexample.credentials
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -11,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -26,9 +35,12 @@ import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
 import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
@@ -36,9 +48,17 @@ import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+
+/**
+ * A single step in the acceptance flow: either the credential parsed
+ * successfully and is ready to review, or it didn't and the step can only
+ * be skipped.
+ */
+sealed class CredentialStepItem {
+    data class Parsed(val item: ICredentialView) : CredentialStepItem()
+    data class Failed(val message: String) : CredentialStepItem()
+}
 
 @Composable
 fun AddToWalletView(
@@ -49,127 +69,192 @@ fun AddToWalletView(
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
     val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
     val statusListViewModel: StatusListViewModel = activityHiltViewModel()
-    var credentialItems by remember { mutableStateOf<List<ICredentialView>>(emptyList()) }
-    var err by remember { mutableStateOf<String?>(null) }
+    var stepItems by remember { mutableStateOf<List<CredentialStepItem>>(emptyList()) }
+    var acceptedCount by remember { mutableIntStateOf(0) }
     var storing by remember { mutableStateOf(false) }
+    // Swiping the pager back to an already-decided step shouldn't let the
+    // user accept/decline it again.
+    var decidedIndices by remember { mutableStateOf<Set<Int>>(emptySet()) }
 
     val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { stepItems.size })
 
     LaunchedEffect(Unit) {
-        credentialItems = rawCredentials.map { rawCredential ->
-            credentialDisplaySelector(rawCredential, statusListViewModel, null, null, null)
+        stepItems = rawCredentials.map { rawCredential ->
+            try {
+                CredentialStepItem.Parsed(
+                    credentialDisplaySelector(rawCredential, statusListViewModel, null, null, null)
+                )
+            } catch (e: Exception) {
+                CredentialStepItem.Failed(e.localizedMessage ?: "Unable to parse credential")
+            }
+        }
+        if (stepItems.isEmpty()) {
+            navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
         }
     }
 
-    fun back() {
-        navController.navigate(Screen.HomeScreen.route) {
-            popUpTo(0)
+    // Advances past the current step, or finishes the whole flow if this was
+    // the last one. Accept and decline are independent per-credential
+    // actions: declining one credential has no effect on the others.
+    fun advance() {
+        val currentIndex = pagerState.currentPage
+        if (currentIndex + 1 >= stepItems.size) {
+            Toast.showSuccess("$acceptedCount of ${stepItems.size} credentials accepted")
+            onSuccess?.invoke()
+            navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+        } else {
+            scope.launch {
+                pagerState.animateScrollToPage(currentIndex + 1)
+            }
         }
     }
 
-    fun saveCredential() {
+    fun acceptCurrent() {
+        val currentIndex = pagerState.currentPage
+        if (decidedIndices.contains(currentIndex)) return
+        decidedIndices = decidedIndices + currentIndex
+        val rawCredential = rawCredentials[currentIndex]
         scope.launch {
             storing = true
-            var error: String? = null
-            this.async(Dispatchers.Default) {
-                try {
-                    // Parse every credential before persisting any of them, so a
-                    // single unparseable credential can't leave the wallet with a
-                    // partially-saved batch.
-                    val credentialPacks = rawCredentials.map { rawCredential ->
-                        val credentialPack = CredentialPack()
-                        credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
-                        credentialPack
-                    }
-
-                    for (credentialPack in credentialPacks) {
-                        credentialPacksViewModel.saveCredentialPack(credentialPack)
-                        val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
-                        walletActivityLogsViewModel.saveWalletActivityLog(
-                            walletActivityLogs = WalletActivityLogs(
-                                credentialPackId = credentialPack.id().toString(),
-                                credentialId = credentialInfo.first,
-                                credentialTitle = credentialInfo.second,
-                                issuer = credentialInfo.third,
-                                action = "Claimed",
-                                dateTime = getCurrentSqlDate(),
-                                additionalInformation = ""
-                            )
-                        )
-                    }
-                } catch (e: Exception) {
-                    error = e.localizedMessage
-                }
-            }.await()
-            if (error == null) {
-                onSuccess?.invoke()
-                back()
-            } else {
-                err = error
-                storing = false
+            try {
+                val credentialPack = CredentialPack()
+                credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
+                credentialPacksViewModel.saveCredentialPack(credentialPack)
+                val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+                walletActivityLogsViewModel.saveWalletActivityLog(
+                    walletActivityLogs = WalletActivityLogs(
+                        credentialPackId = credentialPack.id().toString(),
+                        credentialId = credentialInfo.first,
+                        credentialTitle = credentialInfo.second,
+                        issuer = credentialInfo.third,
+                        action = "Claimed",
+                        dateTime = getCurrentSqlDate(),
+                        additionalInformation = ""
+                    )
+                )
+                acceptedCount += 1
+            } catch (e: Exception) {
+                // Treat a save failure like a decline for this credential
+                // rather than blocking the rest of the flow.
             }
+            storing = false
+            advance()
         }
     }
 
-    if (err != null) {
-        ErrorView(
-            errorTitle = "Error Adding Credential",
-            errorDetails = err!!,
-            onClose = {
-                back()
-            }
-        )
-    } else if (storing) {
+    fun declineCurrent() {
+        val currentIndex = pagerState.currentPage
+        if (decidedIndices.contains(currentIndex)) return
+        decidedIndices = decidedIndices + currentIndex
+        advance()
+    }
+
+    if (storing) {
         LoadingView(
             loadingText = "Storing credential..."
         )
-    } else if (credentialItems.isNotEmpty()) {
-        Column(Modifier.verticalScroll(rememberScrollState())) {
-            credentialItems.forEachIndexed { index, credentialItem ->
-                val isLast = index == credentialItems.lastIndex
-                credentialItem.CredentialReviewInfo(footerActions = {
-                    if (isLast) {
-                        Button(
-                            onClick = {
-                                saveCredential()
-                            },
-                            shape = RoundedCornerShape(5.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ColorEmerald700,
-                                contentColor = Color.White,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Add to Wallet",
-                                fontFamily = Inter,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White,
-                            )
-                        }
+    } else if (stepItems.isNotEmpty()) {
+        Column {
+            StepProgressView(current = pagerState.currentPage, total = stepItems.size)
 
-                        Button(
-                            onClick = {
-                                back()
-                            },
-                            shape = RoundedCornerShape(5.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.Transparent,
-                                contentColor = ColorRose600,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Close",
-                                fontFamily = Inter,
-                                fontWeight = FontWeight.SemiBold,
-                                color = ColorRose600,
-                            )
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = false,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                when (val step = stepItems[page]) {
+                    is CredentialStepItem.Failed -> {
+                        ErrorView(
+                            errorTitle = "Unable to Parse Credential",
+                            errorDetails = step.message,
+                            closeButtonLabel = "Skip",
+                            onClose = { declineCurrent() }
+                        )
+                    }
+
+                    is CredentialStepItem.Parsed -> {
+                        Column(Modifier.verticalScroll(rememberScrollState())) {
+                            step.item.CredentialReviewInfo(footerActions = {
+                                Button(
+                                    onClick = {
+                                        acceptCurrent()
+                                    },
+                                    shape = RoundedCornerShape(5.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = ColorEmerald700,
+                                        contentColor = Color.White,
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "Add to Wallet",
+                                        fontFamily = Inter,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White,
+                                    )
+                                }
+
+                                Button(
+                                    onClick = {
+                                        declineCurrent()
+                                    },
+                                    shape = RoundedCornerShape(5.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color.Transparent,
+                                        contentColor = ColorRose600,
+                                    ),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "Decline",
+                                        fontFamily = Inter,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = ColorRose600,
+                                    )
+                                }
+                            })
                         }
                     }
-                })
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Shows "Credential X of Y" plus a row of segments indicating progress
+ * through a multi-credential acceptance flow.
+ */
+@Composable
+fun StepProgressView(current: Int, total: Int) {
+    if (total > 1) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+            Text(
+                text = "Credential ${current + 1} of $total",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Medium,
+                color = ColorStone950,
+            )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            ) {
+                for (idx in 0 until total) {
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .height(4.dp)
+                            .padding(end = if (idx == total - 1) 0.dp else 4.dp)
+                            .background(
+                                color = if (idx <= current) ColorEmerald700 else ColorBase150,
+                                shape = RoundedCornerShape(2.dp)
+                            )
+                    )
+                }
             }
         }
     }
