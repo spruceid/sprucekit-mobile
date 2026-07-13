@@ -106,7 +106,9 @@ pub(crate) fn vc_issuer(vc: &Value) -> Option<String> {
 /// 1. `example.type` subset of the VC `type` array;
 /// 2. `example.@context` subset of the VC `@context` array;
 /// 3. recursive `credentialSubject` subset (`""` = present, every named field required);
-/// 4. the issuer filter — if `acceptedIssuers`/`trustedIssuer` is present and
+/// 4. every OTHER example-named property (e.g. `credentialStatus`) present and
+///    matching, recursively (`""` = present with any value);
+/// 5. the issuer filter — if `acceptedIssuers`/`trustedIssuer` is present and
 ///    non-empty, the VC issuer must string-equal (RAW, no URL normalization) some
 ///    accepted-issuer value; absent -> unconstrained.
 ///
@@ -134,6 +136,22 @@ pub(crate) fn example_matches(query: &CredentialQuery, vc_raw: &Value) -> bool {
             let have_subject = vc_raw.get("credentialSubject").unwrap_or(&Value::Null);
             if !value_is_subset(want_subject, have_subject) {
                 return false;
+            }
+        }
+        // 4. every OTHER example-named property (e.g. `credentialStatus`) must be
+        //    present in the VC and match (§3.4.2 — the example names what the
+        //    credential must contain; `""` = present with any value).
+        if let Some(obj) = example.as_object() {
+            for (key, want) in obj {
+                if matches!(key.as_str(), "type" | "@context" | "credentialSubject") {
+                    continue;
+                }
+                let Some(have) = vc_raw.get(key) else {
+                    return false;
+                };
+                if !value_is_subset(want, have) {
+                    return false;
+                }
             }
         }
     }
