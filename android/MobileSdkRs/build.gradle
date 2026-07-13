@@ -81,7 +81,9 @@ def rustUpdated(taskName) {
     def manifest = files(
             "../../rust/Cargo.toml",
             "../../rust/Cargo.lock",
+            "../../rust/uniffi.toml",
             "../../rust/mobile-toolkit/Cargo.toml",
+            "../../rust/mobile-toolkit/uniffi.toml",
     )
     def markerFile = markerFile(taskName)
 

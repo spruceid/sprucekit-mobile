@@ -24,7 +24,6 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
-import com.spruceid.mobile.sdk.rs.KeyStore as SpruceKitKeyStore
 
 /** Implementation of the secure key management with Strongbox and TEE as backup. */
 class KeyManager : SpruceKitKeyStore {

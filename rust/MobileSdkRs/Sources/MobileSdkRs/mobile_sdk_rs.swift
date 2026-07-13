@@ -573,7 +573,11 @@ fileprivate struct FfiConverterString: FfiConverter {
             return String()
         }
         let bytes = UnsafeBufferPointer<UInt8>(start: value.data!, count: Int(value.len))
-        return String(bytes: bytes, encoding: String.Encoding.utf8)!
+        // Use Swift's native UTF-8 decoder; `String(bytes:encoding:.utf8)` goes
+        // through Foundation's NSString and silently strips a leading U+FEFF BOM.
+        // Invalid UTF-8 substitutes U+FFFD instead of trapping (unreachable
+        // given Rust's `String` invariant).
+        return String(decoding: bytes, as: UTF8.self)
     }
 
     public static func lower(_ value: String) -> RustBuffer {
@@ -589,7 +593,8 @@ fileprivate struct FfiConverterString: FfiConverter {
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
         let len: Int32 = try readInt(&buf)
-        return String(bytes: try readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
+        // See `lift` above for why we avoid Foundation's NSString-backed decoder here.
+        return String(decoding: try readBytes(&buf, count: Int(len)), as: UTF8.self)
     }
 
     public static func write(_ value: String, into buf: inout [UInt8]) {
@@ -2093,7 +2098,11 @@ fileprivate struct UniffiCallbackInterfaceCrypto {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceCrypto> = {
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceCrypto> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceCrypto>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -4552,7 +4561,11 @@ fileprivate struct UniffiCallbackInterfaceDraft18RequestSignerInterface {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18RequestSignerInterface> = {
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18RequestSignerInterface> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDraft18RequestSignerInterface>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -5092,7 +5105,11 @@ fileprivate struct UniffiCallbackInterfaceDynamicCredentialProvider {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider> = {
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -7843,7 +7860,11 @@ fileprivate struct UniffiCallbackInterfaceJwsSigner {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceJwsSigner> = {
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceJwsSigner> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceJwsSigner>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -8336,7 +8357,11 @@ fileprivate struct UniffiCallbackInterfaceLogWriter {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLogWriter> = {
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLogWriter> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLogWriter>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -14727,7 +14752,11 @@ fileprivate struct UniffiCallbackInterfaceSyncHttpClient {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceSyncHttpClient> = {
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceSyncHttpClient> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceSyncHttpClient>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -18864,6 +18893,217 @@ public func FfiConverterTypePresentationBinding_lower(_ value: PresentationBindi
 
 
 /**
+ * RFC 9457 problem-details, surfaced verbatim to the caller on a 4xx (§3.8).
+ *
+ * Note: the string fields are server-provided, caller-facing data — not to be
+ * logged verbatim at info level.
+ */
+public struct ProblemDetails: Equatable, Hashable {
+    /**
+     * The problem type URI/identifier. §3.8: MUST be present.
+     */
+    public var problemType: String
+    public var status: UInt16?
+    public var title: String?
+    public var detail: String?
+    public var instance: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The problem type URI/identifier. §3.8: MUST be present.
+         */problemType: String, status: UInt16?, title: String?, detail: String?, instance: String?) {
+        self.problemType = problemType
+        self.status = status
+        self.title = title
+        self.detail = detail
+        self.instance = instance
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProblemDetails: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProblemDetails: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProblemDetails {
+        return
+            try ProblemDetails(
+                problemType: FfiConverterString.read(from: &buf), 
+                status: FfiConverterOptionUInt16.read(from: &buf), 
+                title: FfiConverterOptionString.read(from: &buf), 
+                detail: FfiConverterOptionString.read(from: &buf), 
+                instance: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProblemDetails, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.problemType, into: &buf)
+        FfiConverterOptionUInt16.write(value.status, into: &buf)
+        FfiConverterOptionString.write(value.title, into: &buf)
+        FfiConverterOptionString.write(value.detail, into: &buf)
+        FfiConverterOptionString.write(value.instance, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProblemDetails_lift(_ buf: RustBuffer) throws -> ProblemDetails {
+    return try FfiConverterTypeProblemDetails.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProblemDetails_lower(_ value: ProblemDetails) -> RustBuffer {
+    return FfiConverterTypeProblemDetails.lower(value)
+}
+
+
+/**
+ * A single presentation query inside a [`Vpr`].
+ *
+ * `credentialQuery` is a typed [`CredentialQuery`] (§3.4.2), and the §3.4.5
+ * `group` / §3.4.3.1 `required` logical-operation fields plus §3.4.3
+ * `acceptedMethods` are surfaced. Unknown query `type` values are carried
+ * losslessly in `r#type` — an unrecognized type is unsatisfiable for matching,
+ * never an error.
+ */
+public struct Query: Equatable, Hashable {
+    /**
+     * The query type(s). Accepts a bare string (`"QueryByExample"`) OR an array
+     * (`["QueryByExample"]`).
+     */
+    public var type: [String]
+    /**
+     * The QueryByExample payload(s) (§3.4.2). Accepts a single object OR an
+     * array of objects. The matcher walks each contained `example` as JSON.
+     * Re-serializes a single entry as the spec's bare-object form.
+     */
+    public var credentialQuery: [CredentialQuery]
+    /**
+     * §3.4.5 logical-operations group. Queries sharing the same `group` value are
+     * ANDed; absent or differing values are ORed. Kept `Option` so absence
+     * (its own singleton OR-alternative) is distinguishable from a named group.
+     */
+    public var group: String?
+    /**
+     * §3.4.3.1 `required`. Absence is treated as `true` at the use-site; kept
+     * `Option` so absence is distinguishable from an explicit value.
+     */
+    public var required: Bool?
+    /**
+     * §3.4.3 `acceptedMethods` — each entry is a bare name OR a `{method}` object.
+     */
+    public var acceptedMethods: [AcceptedMethodEntry]?
+    /**
+     * §3.4.3.1 `acceptedCryptosuites` at the QUERY level — the placement the spec's
+     * Examples 6/7 use (a sibling of `acceptedMethods` on a DIDAuthentication
+     * query). Same string-or-object entry shape as the VPR-top-level and
+     * per-`credentialQuery` placements; suite selection consults all three.
+     */
+    public var acceptedCryptosuites: [CryptosuiteEntry]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The query type(s). Accepts a bare string (`"QueryByExample"`) OR an array
+         * (`["QueryByExample"]`).
+         */type: [String], 
+        /**
+         * The QueryByExample payload(s) (§3.4.2). Accepts a single object OR an
+         * array of objects. The matcher walks each contained `example` as JSON.
+         * Re-serializes a single entry as the spec's bare-object form.
+         */credentialQuery: [CredentialQuery], 
+        /**
+         * §3.4.5 logical-operations group. Queries sharing the same `group` value are
+         * ANDed; absent or differing values are ORed. Kept `Option` so absence
+         * (its own singleton OR-alternative) is distinguishable from a named group.
+         */group: String?, 
+        /**
+         * §3.4.3.1 `required`. Absence is treated as `true` at the use-site; kept
+         * `Option` so absence is distinguishable from an explicit value.
+         */required: Bool?, 
+        /**
+         * §3.4.3 `acceptedMethods` — each entry is a bare name OR a `{method}` object.
+         */acceptedMethods: [AcceptedMethodEntry]?, 
+        /**
+         * §3.4.3.1 `acceptedCryptosuites` at the QUERY level — the placement the spec's
+         * Examples 6/7 use (a sibling of `acceptedMethods` on a DIDAuthentication
+         * query). Same string-or-object entry shape as the VPR-top-level and
+         * per-`credentialQuery` placements; suite selection consults all three.
+         */acceptedCryptosuites: [CryptosuiteEntry]?) {
+        self.type = type
+        self.credentialQuery = credentialQuery
+        self.group = group
+        self.required = required
+        self.acceptedMethods = acceptedMethods
+        self.acceptedCryptosuites = acceptedCryptosuites
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Query: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeQuery: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Query {
+        return
+            try Query(
+                type: FfiConverterSequenceString.read(from: &buf), 
+                credentialQuery: FfiConverterSequenceTypeCredentialQuery.read(from: &buf), 
+                group: FfiConverterOptionString.read(from: &buf), 
+                required: FfiConverterOptionBool.read(from: &buf), 
+                acceptedMethods: FfiConverterOptionSequenceTypeAcceptedMethodEntry.read(from: &buf), 
+                acceptedCryptosuites: FfiConverterOptionSequenceTypeCryptosuiteEntry.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Query, into buf: inout [UInt8]) {
+        FfiConverterSequenceString.write(value.type, into: &buf)
+        FfiConverterSequenceTypeCredentialQuery.write(value.credentialQuery, into: &buf)
+        FfiConverterOptionString.write(value.group, into: &buf)
+        FfiConverterOptionBool.write(value.required, into: &buf)
+        FfiConverterOptionSequenceTypeAcceptedMethodEntry.write(value.acceptedMethods, into: &buf)
+        FfiConverterOptionSequenceTypeCryptosuiteEntry.write(value.acceptedCryptosuites, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQuery_lift(_ buf: RustBuffer) throws -> Query {
+    return try FfiConverterTypeQuery.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQuery_lower(_ value: Query) -> RustBuffer {
+    return FfiConverterTypeQuery.lower(value)
+}
+
+
+/**
  * Raw Credential, not registered in the wallet.
  */
 public struct RawCredential: Equatable, Hashable {
@@ -21779,6 +22019,90 @@ public func FfiConverterTypeCredentialTokenState_lift(_ buf: RustBuffer) throws 
 #endif
 public func FfiConverterTypeCredentialTokenState_lower(_ value: CredentialTokenState) -> RustBuffer {
     return FfiConverterTypeCredentialTokenState.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * An `acceptedCryptosuites` entry: either a bare cryptosuite name or an object
+ * carrying a `cryptosuite` field. `#[serde(untagged)]` is the ONLY sanctioned
+ * untagged use in this module — it is NEVER applied to the envelope.
+ */
+
+public enum CryptosuiteEntry: Equatable, Hashable {
+    
+    /**
+     * A bare cryptosuite name, e.g. `"ecdsa-rdfc-2019"`.
+     */
+    case name(String
+    )
+    /**
+     * An object form, e.g. `{"cryptosuite": "ecdsa-sd-2023"}`.
+     */
+    case object(cryptosuite: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CryptosuiteEntry: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCryptosuiteEntry: FfiConverterRustBuffer {
+    typealias SwiftType = CryptosuiteEntry
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CryptosuiteEntry {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .name(try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .object(cryptosuite: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CryptosuiteEntry, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .name(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .object(cryptosuite):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(cryptosuite, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCryptosuiteEntry_lift(_ buf: RustBuffer) throws -> CryptosuiteEntry {
+    return try FfiConverterTypeCryptosuiteEntry.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCryptosuiteEntry_lower(_ value: CryptosuiteEntry) -> RustBuffer {
+    return FfiConverterTypeCryptosuiteEntry.lower(value)
 }
 
 
@@ -30892,7 +31216,11 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18PresentationSigner> = {
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18PresentationSigner> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDraft18PresentationSigner>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -31180,7 +31508,11 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceOid4vpPresentationSigner> = {
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceOid4vpPresentationSigner> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceOid4vpPresentationSigner>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -31513,7 +31845,11 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfacePresentationSigner> = {
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfacePresentationSigner> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfacePresentationSigner>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -32419,6 +32755,30 @@ fileprivate struct FfiConverterOptionDictionaryStringString: FfiConverterRustBuf
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterDictionaryStringString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeJsonValue: FfiConverterRustBuffer {
+    typealias SwiftType = JsonValue?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeJsonValue.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeJsonValue.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -35533,6 +35893,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verified_response_as_json_string() != 44695) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 11409) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 36962) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -36067,6 +36430,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_readerapduhandoverdriver_process_rapdu() != 40485) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_readerapduhandoverdriver_recommended_delay_ms() != 63656) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_accept_offer() != 49318) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -36115,10 +36481,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_accept_offer() != 50025) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 55352) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 44572) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 44572) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_supported_versions() != 19725) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_default_credential_id() != 11991) {
@@ -36454,6 +36820,30 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_jsonldpresentationbuilder_issue_presentation() != 26995) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_accept_offer() != 62992) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_matched_credentials() != 29110) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_offered_credentials() != 28301) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_provide_credentials() != 10583) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_reject_offer() != 20065) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_requested_fields() != 47235) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_start_exchange() != 41719) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 8285) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_add() != 62104) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -36671,6 +37061,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_jsonldpresentationbuilder_new() != 20630) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_vcalmholder_new_session() != 28660) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_vdccollection_new() != 3535) {

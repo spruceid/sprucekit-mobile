@@ -11,7 +11,7 @@ import com.spruceid.mobile.sdk.rs.OfferedValidity
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.StepResult
-import com.spruceid.mobile.sdk.rs.StorageManagerInterface
+import uniffi.mobile_toolkit.StorageManagerInterface
 import com.spruceid.mobile.sdk.rs.VcalmException
 import com.spruceid.mobile.sdk.rs.VcalmHolder
 import com.spruceid.mobile.sdk.rs.VcalmOfferedCredential

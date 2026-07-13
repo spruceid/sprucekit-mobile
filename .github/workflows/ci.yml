@@ -74,7 +74,7 @@ jobs:
           workspaces: "rust -> target"
 
       - run: brew install swiftlint
-      # uniffi-bindgen-swift + xcodebuild (cargo-swift can't package the
+      # uniffi library-mode bindgen + xcodebuild (cargo-swift can't package the
       # multi-uniffi-crate workspace) — see rust/build-ios.sh.
       - name: Generate Swift package
         run: ./build-ios.sh --simulator-only --debug

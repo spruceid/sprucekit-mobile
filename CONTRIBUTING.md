@@ -93,8 +93,10 @@ CLASSPATH="/path/to/jna-5.14.0.jar:/path/to/kotlinx-coroutines-core-jvm-1.6.4.ja
 
 #### Rust layer
 
-The workspace contains two UniFFI crates (`mobile-sdk-rs` and `mobile-toolkit`), so the Swift
-package is generated with uniffi's `uniffi-bindgen-swift` — it emits one Swift file and one
+The workspace contains two UniFFI crates (`mobile-sdk-rs` and `mobile-toolkit`), each with its
+own C module (`RustFramework` / `mobile_toolkitFFI`). `rust/build-ios.sh` generates the per-crate
+Swift bindings in uniffi library mode and assembles the xcframework with both modules declared
+in one top-level `Headers/module.modulemap`.
 
 In `./rust/`
 ```bash

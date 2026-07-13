@@ -19,10 +19,6 @@ name = "mobile_sdk_rs"
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"
 
-[[bin]]
-name = "uniffi-bindgen-swift"
-path = "uniffi-bindgen-swift.rs"
-
 [dependencies]
 mobile-toolkit = { path = "mobile-toolkit" }
 cose-rs = { git = "https://github.com/spruceid/cose-rs", rev = "0018c9b", features = [

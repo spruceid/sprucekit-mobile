@@ -95,7 +95,7 @@ jobs:
           cache-on-failure: "true"
           workspaces: "rust -> target"
 
-      # uniffi-bindgen-swift + xcodebuild
+      # uniffi library-mode bindgen + xcodebuild — see rust/build-ios.sh
       - name: Generate Swift package
         run: ./build-ios.sh
         working-directory: rust

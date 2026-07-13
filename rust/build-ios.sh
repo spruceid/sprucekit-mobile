@@ -3,10 +3,14 @@
 # UniFFI Swift bindings, and assemble MobileSdkRs/RustFramework.xcframework.
 #
 # The workspace contains two UniFFI crates (mobile-sdk-rs and mobile-toolkit),
-# so bindings are generated with uniffi's first-class uniffi-bindgen-swift: one
-# Swift file and one header per crate, plus a single `RustFramework` modulemap
-# covering both (each crate's uniffi.toml sets ffi_module_name accordingly).
-# cargo-swift is not used — it only supports single-crate libraries.
+# each with its own C module (RustFramework and mobile_toolkitFFI — the names
+# must stay distinct or uniffi's swift test harness fails on a duplicate module
+# declaration). Bindings are generated in uniffi library mode: one Swift file,
+# one header, and one modulemap per crate. Both modulemaps are installed as a
+# single top-level Headers/module.modulemap (concatenating distinct modules is
+# valid — uniffi's own test harness does the same), which clang auto-discovers
+# for either `import`. cargo-swift is not used — it only supports single-crate
+# libraries and buries the modulemap where only one module is discoverable.
 #
 # Usage: ./build-ios.sh [--simulator-only] [--debug]
 #   --simulator-only  build only the arm64-simulator slice (used by CI)
@@ -47,11 +51,16 @@ done
 # Any built slice works as the bindgen metadata source.
 bindgen_lib="target/${targets[0]}/$profile/$lib"
 
-cargo run --bin uniffi-bindgen-swift -- --swift-sources \
-  "$bindgen_lib" MobileSdkRs/Sources/MobileSdkRs
-cargo run --bin uniffi-bindgen-swift -- --headers --modulemap \
-  --module-name RustFramework --modulemap-filename module.modulemap \
-  "$bindgen_lib" target/ios-headers
+gen_dir=target/swift-bindgen
+rm -rf "$gen_dir" target/ios-headers
+cargo run --bin uniffi-bindgen -- generate --library "$bindgen_lib" \
+  --language swift --no-format --out-dir "$gen_dir"
+
+mv "$gen_dir"/*.swift MobileSdkRs/Sources/MobileSdkRs/
+mkdir -p target/ios-headers
+mv "$gen_dir"/*.h target/ios-headers/
+# awk 1 normalizes missing trailing newlines so the module blocks don't run together.
+awk 1 "$gen_dir"/*.modulemap > target/ios-headers/module.modulemap
 
 xcframework_args=()
 if "$simulator_only"; then
