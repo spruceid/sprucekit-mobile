@@ -3588,7 +3588,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "serde",
- "ssi",
  "thiserror 1.0.69",
  "uniffi",
 ]
