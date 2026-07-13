@@ -83,6 +83,7 @@ def rustUpdated(taskName) {
             "../../rust/Cargo.lock",
             "../../rust/uniffi.toml",
             "../../rust/mobile-toolkit/Cargo.toml",
+            "../../rust/mobile-toolkit/Cargo.lock",
             "../../rust/mobile-toolkit/uniffi.toml",
     )
     def markerFile = markerFile(taskName)
