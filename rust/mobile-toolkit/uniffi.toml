@@ -1,0 +1,11 @@
+# Swift: both workspace crates share the single "RustFramework" C module —
+# uniffi-bindgen-swift generates one modulemap for the whole library
+# (--module-name RustFramework), so this crate's Swift bindings must import
+# that module instead of the default "mobile_toolkitFFI". The header filename
+# stays distinct so it cannot clobber the root crate's RustFramework.h.
+#
+# Kotlin deliberately has no overrides here: the shared types live in the
+# uniffi.mobile_toolkit package (only the root crate remaps its package name).
+[bindings.swift]
+ffi_module_name = "RustFramework"
+ffi_module_filename = "mobile_toolkitFFI"

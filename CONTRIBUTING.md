@@ -35,8 +35,6 @@ rustup target install \
 ```
 - `cargo-ndk`
   - `cargo install cargo-ndk` (or use `cargo binstall` for a faster install)
-- `cargo-swift` 0.11
-  - `cargo install cargo-swift@0.11.0`
 
 ### Android
 
@@ -95,10 +93,19 @@ CLASSPATH="/path/to/jna-5.14.0.jar:/path/to/kotlinx-coroutines-core-jvm-1.6.4.ja
 
 #### Rust layer
 
+The workspace contains two UniFFI crates (`mobile-sdk-rs` and `mobile-toolkit`), so the Swift
+package is generated with uniffi's `uniffi-bindgen-swift` — it emits one Swift file and one
+
 In `./rust/`
 ```bash
-cargo swift package -p ios -n MobileSdkRs
+./build-ios.sh                     # release, device + simulator (what CD ships)
+./build-ios.sh --debug             # faster local iteration
+./build-ios.sh --simulator-only --debug   # what CI runs
 ```
+
+The script cross-compiles the workspace, regenerates the Swift bindings into
+`MobileSdkRs/Sources/MobileSdkRs/`, and assembles `MobileSdkRs/RustFramework.xcframework`.
+Commit any changes to the generated `*.swift` files — CI fails if the committed bindings are stale.
 
 #### SDK
 
@@ -146,7 +153,7 @@ Run these locally before opening a PR to catch the same failures CI will catch.
 
 **Rust** — see commands in `rust/CLAUDE.md`. Make sure to set `RUSTFLAGS="-Dwarnings"` for build and clippy, as CI treats warnings as errors.
 
-**iOS Swift bindings** — after any Rust change, regenerate (see `rust/CLAUDE.md`) and commit any changes to `rust/MobileSdkRs/`. CI fails if the committed bindings are out of date.
+**iOS Swift bindings** — after any Rust change, regenerate (see [iOS → Rust layer](#rust-layer) above) and commit any changes to `rust/MobileSdkRs/`. CI fails if the committed bindings are out of date.
 
 **Flutter** — use `fvm` to match the pinned Flutter version (see `flutter/.fvmrc`):
 

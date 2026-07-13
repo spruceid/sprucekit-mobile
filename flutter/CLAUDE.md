@@ -77,10 +77,10 @@ dart run pigeon --input pigeons/dc_api.dart
   1. Clean and rebuild the Rust iOS framework + Swift bindings:
      ```bash
      cd rust
-     cargo clean                                    # Prevent stale build cache
-     cargo swift package -p ios -n MobileSdkRs      # Rebuild xcframework + Swift bindings
+     cargo clean
+      ./build-ios.sh --debug # Rebuild xcframework + Swift bindings
      ```
-     > **Important:** Always run `cargo clean` before `cargo swift package` if you've pulled new commits or switched branches. Without it, the xcframework may contain stale object files that don't match the regenerated Swift bindings, causing "Cannot find type/symbol" errors at build time.
+     > **Important:** Always run `cargo clean` first if you've pulled new commits or switched branches. Without it, the xcframework may contain stale object files that don't match the regenerated Swift bindings, causing "Cannot find type/symbol" errors at build time.
   2. Re-install pods and build:
      ```bash
      cd flutter/example/ios
@@ -90,4 +90,4 @@ dart run pigeon --input pigeons/dc_api.dart
      ```
   3. No changes to commit — the Podfile is already configured for local development, and `RustFramework.xcframework` is in `.gitignore`.
 
-  > **Tip:** If you see Swift errors like "Cannot find type 'UniffiVTableCallback...'" or "Cannot find 'uniffi_mobile_sdk_rs_checksum_...'", it almost always means the xcframework is stale. Run `cargo clean && cargo swift package -p ios -n MobileSdkRs` to fix it.
+  > **Tip:** If you see Swift errors like "Cannot find type 'UniffiVTableCallback...'", "Cannot find type 'RustBuffer'", or "Cannot find 'uniffi_mobile_sdk_rs_checksum_...'", it almost always means the xcframework is stale or missing a module. Run `cargo clean && ./build-ios.sh --debug` to fix it.

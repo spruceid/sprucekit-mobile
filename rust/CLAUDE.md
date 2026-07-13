@@ -21,10 +21,9 @@ cargo clippy
 # Format check
 cargo fmt -- --check
 
-# Generate iOS Swift bindings (from rust/)
-cargo swift package -p ios -n MobileSdkRs
-# For simulator-only builds:
-cargo swift package -p ios -n MobileSdkRs --target aarch64-apple-ios-sim
+# Generate iOS Swift bindings + xcframework (from rust/):
+./build-ios.sh              # release, device + simulator
+./build-ios.sh --debug      # faster local iteration
 ```
 
 ### Kotlin UniFFI Test Setup

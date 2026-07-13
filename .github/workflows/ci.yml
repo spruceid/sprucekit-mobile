@@ -73,17 +73,14 @@ jobs:
           cache-on-failure: "true"
           workspaces: "rust -> target"
 
-      # - uses: taiki-e/install-action@v2
-      #   with:
-      #     tool: cargo-swift
-      - name: Install static version of cargo-swift
-        run: cargo install cargo-swift@^0.11
       - run: brew install swiftlint
+      # uniffi-bindgen-swift + xcodebuild (cargo-swift can't package the
+      # multi-uniffi-crate workspace) — see rust/build-ios.sh.
       - name: Generate Swift package
-        run: cargo swift package -p ios -n MobileSdkRs --target aarch64-apple-ios-sim
+        run: ./build-ios.sh --simulator-only --debug
         working-directory: rust
       - name: Fail if generated swift code needs update
-        run: git diff --exit-code rust/MobileSdkRs/Sources/MobileSdkRs/mobile_sdk_rs.swift
+        run: git diff --exit-code rust/MobileSdkRs/Sources/MobileSdkRs/
 
       - name: Install Homebrew
         uses: Homebrew/actions/setup-homebrew@master
