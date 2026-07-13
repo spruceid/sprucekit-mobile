@@ -91,6 +91,27 @@ enum class DidMethod(val raw: Int) {
 }
 
 /**
+ * An OID4VCI protocol version the compatibility facade is willing to use.
+ *
+ * - [v1] OID4VCI 1.0 (final).
+ * - [legacy] The legacy draft-13 request shape.
+ *
+ * Passed as a set of supported versions. An empty list means auto: probe
+ * both versions and prefer v1, transparently falling back to legacy if the
+ * issuer rejects the v1 request. `[v1, legacy]` is equivalent to auto.
+ */
+enum class Oid4vciVersion(val raw: Int) {
+  V1(0),
+  LEGACY(1);
+
+  companion object {
+    fun ofRaw(raw: Int): Oid4vciVersion? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/**
  * Grant type discriminator for an OID4VCI credential offer.
  *
  * Mirrors the Rust `GrantType` enum on `ResolvedCredentialOffer`.
@@ -437,45 +458,50 @@ private open class Oid4vciPigeonCodec : StandardMessageCodec() {
       }
       130.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          GrantType.ofRaw(it.toInt())
+          Oid4vciVersion.ofRaw(it.toInt())
         }
       }
       131.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          TxCodeInputMode.ofRaw(it.toInt())
+          GrantType.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          Oid4vciExchangeOptions.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          TxCodeInputMode.ofRaw(it.toInt())
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          IssuedCredential.fromList(it)
+          Oid4vciExchangeOptions.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          TxCodeMetadata.fromList(it)
+          IssuedCredential.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          OfferSession.fromList(it)
+          TxCodeMetadata.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          ParsedOfferMetadata.fromList(it)
+          OfferSession.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          Oid4vciSuccess.fromList(it)
+          ParsedOfferMetadata.fromList(it)
         }
       }
       138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          Oid4vciSuccess.fromList(it)
+        }
+      }
+      139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           Oid4vciError.fromList(it)
         }
@@ -489,40 +515,44 @@ private open class Oid4vciPigeonCodec : StandardMessageCodec() {
         stream.write(129)
         writeValue(stream, value.raw.toLong())
       }
-      is GrantType -> {
+      is Oid4vciVersion -> {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is TxCodeInputMode -> {
+      is GrantType -> {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is Oid4vciExchangeOptions -> {
+      is TxCodeInputMode -> {
         stream.write(132)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is IssuedCredential -> {
+      is Oid4vciExchangeOptions -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is TxCodeMetadata -> {
+      is IssuedCredential -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is OfferSession -> {
+      is TxCodeMetadata -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is ParsedOfferMetadata -> {
+      is OfferSession -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is Oid4vciSuccess -> {
+      is ParsedOfferMetadata -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is Oid4vciError -> {
+      is Oid4vciSuccess -> {
         stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is Oid4vciError -> {
+        stream.write(139)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -546,11 +576,13 @@ interface Oid4vci {
    * exchange or credential request. Safe to call before any user authorization.
    *
    * @param credentialOffer The full credential offer URL.
+   * @param supportedVersions The OID4VCI versions to resolve against. An empty
+   *   list means auto (probe both, prefer v1 with legacy fallback).
    * @return Pre-issuance metadata describing the issuer and the grant type
    *   the user will need to complete.
    * @throws when the URL is unparseable or the issuer metadata fetch fails.
    */
-  fun parseOffer(credentialOffer: String, callback: (Result<ParsedOfferMetadata>) -> Unit)
+  fun parseOffer(credentialOffer: String, supportedVersions: List<Oid4vciVersion>, callback: (Result<ParsedOfferMetadata>) -> Unit)
   /**
    * Run the complete OID4VCI issuance flow
    *
@@ -566,9 +598,11 @@ interface Oid4vci {
    * @param keyId The key identifier for signing (will create if doesn't exist)
    * @param didMethod The DID method for proof of possession
    * @param contextMap Optional JSON-LD context map for credential parsing
+   * @param supportedVersions The OID4VCI versions to resolve against. An empty
+   *   list means auto (probe both, prefer v1 with legacy fallback).
    * @return Oid4vciResult with credentials on success or error message on failure
    */
-  fun runIssuance(credentialOffer: String, clientId: String, redirectUrl: String, keyId: String, didMethod: DidMethod, contextMap: Map<String, String>?, callback: (Result<Oid4vciResult>) -> Unit)
+  fun runIssuance(credentialOffer: String, clientId: String, redirectUrl: String, keyId: String, didMethod: DidMethod, contextMap: Map<String, String>?, supportedVersions: List<Oid4vciVersion>, callback: (Result<Oid4vciResult>) -> Unit)
   /**
    * Resolve the offer URL and complete the token-endpoint exchange.
    *
@@ -592,7 +626,7 @@ interface Oid4vci {
    *
    * @throws when the offer cannot be resolved or the token request fails.
    */
-  fun acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, redirectUrl: String?, callback: (Result<OfferSession>) -> Unit)
+  fun acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, redirectUrl: String?, supportedVersions: List<Oid4vciVersion>, callback: (Result<OfferSession>) -> Unit)
   /**
    * Submit a transaction code (PIN) and complete the issuance.
    *
@@ -654,7 +688,8 @@ interface Oid4vci {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val credentialOfferArg = args[0] as String
-            api.parseOffer(credentialOfferArg) { result: Result<ParsedOfferMetadata> ->
+            val supportedVersionsArg = args[1] as List<Oid4vciVersion>
+            api.parseOffer(credentialOfferArg, supportedVersionsArg) { result: Result<ParsedOfferMetadata> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(Oid4vciPigeonUtils.wrapError(error))
@@ -679,7 +714,8 @@ interface Oid4vci {
             val keyIdArg = args[3] as String
             val didMethodArg = args[4] as DidMethod
             val contextMapArg = args[5] as Map<String, String>?
-            api.runIssuance(credentialOfferArg, clientIdArg, redirectUrlArg, keyIdArg, didMethodArg, contextMapArg) { result: Result<Oid4vciResult> ->
+            val supportedVersionsArg = args[6] as List<Oid4vciVersion>
+            api.runIssuance(credentialOfferArg, clientIdArg, redirectUrlArg, keyIdArg, didMethodArg, contextMapArg, supportedVersionsArg) { result: Result<Oid4vciResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(Oid4vciPigeonUtils.wrapError(error))
@@ -703,7 +739,8 @@ interface Oid4vci {
             val keyIdArg = args[2] as String
             val didMethodArg = args[3] as DidMethod
             val redirectUrlArg = args[4] as String?
-            api.acceptOffer(credentialOfferArg, clientIdArg, keyIdArg, didMethodArg, redirectUrlArg) { result: Result<OfferSession> ->
+            val supportedVersionsArg = args[5] as List<Oid4vciVersion>
+            api.acceptOffer(credentialOfferArg, clientIdArg, keyIdArg, didMethodArg, redirectUrlArg, supportedVersionsArg) { result: Result<OfferSession> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(Oid4vciPigeonUtils.wrapError(error))

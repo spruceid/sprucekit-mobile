@@ -36,6 +36,16 @@ class TransportBle {
          */
         if (deviceRetrievalOption == "Central") {
             logger.d("Selecting Transport Central Client $application")
+            // Release any previous central-client instance before replacing the field —
+            // once overwritten nothing else references it, so its still-registered scan
+            // callback could never be stopped and would accumulate.
+            if (this::transportBleCentralClient.isInitialized) {
+                try {
+                    transportBleCentralClient.hardReset()
+                } catch (e: Exception) {
+                    logger.e("Error resetting previous central client", e)
+                }
+            }
             if (application == "Holder" && updateRequestData != null) {
                 // Holder as Central: receives request, sends response
                 transportBleCentralClient = TransportBleCentralClient(
@@ -66,7 +76,7 @@ class TransportBle {
             logger.d("Selecting Peripheral Server Holder")
 
             transportBlePeripheralServerHolder = TransportBlePeripheralServerHolder(
-                application, serviceUUID, updateRequestData
+                application, serviceUUID, updateRequestData, callback
             )
             transportBlePeripheralServerHolder.start()
         }

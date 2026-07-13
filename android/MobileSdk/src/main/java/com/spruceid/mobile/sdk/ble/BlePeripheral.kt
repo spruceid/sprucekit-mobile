@@ -4,12 +4,17 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelUuid
 import java.util.*
 
 
 abstract class BlePeripheralCallback {
     open fun onStartSuccess(settingsInEffect: AdvertiseSettings) {}
+    /**
+     * Called when `startAdvertising` fails.
+     */
     open fun onStartFailure(errorCode: Int) {}
     open fun onError(error: Throwable) {}
     open fun onLog(message: String) {}
@@ -25,45 +30,58 @@ class BlePeripheral(
     private val bluetoothAdapter: BluetoothAdapter = BleConnectionStateMachine.getInstance(stateMachineType).getBluetoothManager().adapter
     private val bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
 
-    /**
-     * Advertisement callback.
-     */
+    private val retryHandler = Handler(Looper.getMainLooper())
+    private var transientRetryAttempt = 0
+
     private val leAdvertiseCallback: AdvertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+            transientRetryAttempt = 0
             callback.onState(BleStates.AdvertisementStarted.string)
             callback.onLog("Advertisement has started with $serviceUUID service id.")
         }
 
         override fun onStartFailure(errorCode: Int) {
-            if (errorCode == ADVERTISE_FAILED_ALREADY_STARTED) {
-                callback.onError(Error("Advertise Failed Already Started."))
+            // Retry `INTERNAL_ERROR` with exponential backoff
+            if (errorCode == ADVERTISE_FAILED_INTERNAL_ERROR &&
+                transientRetryAttempt < MAX_TRANSIENT_RETRIES) {
+                transientRetryAttempt++
+                val delay = RETRY_BASE_DELAY_MS shl (transientRetryAttempt - 1)
+                callback.onLog(
+                    "Advertise failed with INTERNAL_ERROR; retrying in " +
+                        "${delay}ms (attempt $transientRetryAttempt/$MAX_TRANSIENT_RETRIES)."
+                )
+                retryHandler.postDelayed({ startAdvertisingInternal() }, delay)
+                return
             }
 
-            if (errorCode == ADVERTISE_FAILED_DATA_TOO_LARGE) {
-                callback.onError(Error("Advertise Failed Data Too Large."))
+            val message = when (errorCode) {
+                ADVERTISE_FAILED_ALREADY_STARTED -> "Advertise Failed Already Started."
+                ADVERTISE_FAILED_DATA_TOO_LARGE -> "Advertise Failed Data Too Large."
+                ADVERTISE_FAILED_FEATURE_UNSUPPORTED -> "Advertise Failed Feature Unsupported."
+                ADVERTISE_FAILED_INTERNAL_ERROR ->
+                    "Advertise Failed Internal Error (after $transientRetryAttempt retries)."
+                ADVERTISE_FAILED_TOO_MANY_ADVERTISERS ->
+                    "Advertise Failed Too Many Advertisers (system advertiser slots " +
+                        "saturated — ensure previous sessions stopped advertising)."
+                else -> "Failed to start advertising (code=$errorCode)."
             }
-
-            if (errorCode == ADVERTISE_FAILED_FEATURE_UNSUPPORTED) {
-                callback.onError(Error("Advertise Failed Feature Unsupported."))
-            }
-
-            if (errorCode == ADVERTISE_FAILED_INTERNAL_ERROR) {
-                callback.onError(Error("Advertise Failed Internal Error."))
-            }
-
-            if (errorCode == ADVERTISE_FAILED_TOO_MANY_ADVERTISERS) {
-                callback.onError(Error("Advertise Failed Too Many Advertisers."))
-            }
-
             callback.onState(BleStates.AdvertisementFailed.string)
-            callback.onError(Error("Failed to start advertising."))
+            callback.onStartFailure(errorCode)
+            callback.onError(Error(message))
         }
     }
 
     /**
-     * Starts to advertise the device/peripheral for connection.
+     * Starts to advertise the device/peripheral for connection. Resets any
+     * lingering retry state so a fresh call after [stopAdvertise] starts
+     * with a full retry budget.
      */
     fun advertise() {
+        transientRetryAttempt = 0
+        startAdvertisingInternal()
+    }
+
+    private fun startAdvertisingInternal() {
         val settings = AdvertiseSettings.Builder()
             .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
             .setConnectable(true)
@@ -85,9 +103,11 @@ class BlePeripheral(
     }
 
     /**
-     * Stops advertising the device/peripheral.
+     * Stops advertising the device/peripheral and cleans up any pending work.
      */
     fun stopAdvertise() {
+        retryHandler.removeCallbacksAndMessages(null)
+        transientRetryAttempt = 0
         try {
             bluetoothLeAdvertiser.stopAdvertising(leAdvertiseCallback)
             callback.onState(BleStates.StopAdvertise.string)
@@ -95,5 +115,10 @@ class BlePeripheral(
         } catch (error: SecurityException) {
             callback.onError(error)
         }
+    }
+
+    companion object {
+        private const val MAX_TRANSIENT_RETRIES = 2
+        private const val RETRY_BASE_DELAY_MS = 500L
     }
 }

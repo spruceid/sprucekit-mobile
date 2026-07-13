@@ -82,6 +82,15 @@ class CentralManager: NSObject & Transport {
         self.init(delegate: .mdoc(mdoc), UUID(), l2capUsage)
     }
 
+    /// Setup the central client for the mdoc on a pre-negotiated service UUID (e.g. fixed by an NFC static handover).
+    convenience init(
+        mdoc: MdocProximityPresentationManager.DelegateWrapper,
+        serviceUuid: String,
+        _ l2capUsage: L2CAPUsage,
+    ) {
+        self.init(delegate: .mdoc(mdoc), UUID(uuidString: serviceUuid), l2capUsage)
+    }
+
     enum State {
         case initializing
         /// Scanning for the peripheral.

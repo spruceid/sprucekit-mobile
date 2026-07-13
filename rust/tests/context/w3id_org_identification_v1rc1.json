@@ -1,0 +1,108 @@
+{
+  "@context": {
+    "@protected": true,
+
+    "id": "@id",
+    "type": "@type",
+
+    "name": "https://schema.org/name",
+
+    "IdentificationDocumentCredential": "https://w3id.org/identification#IdentificationDocumentCredential",
+
+    "IdentificationDocument": {
+      "@id": "https://w3id.org/identification#IdentificationDocument",
+      "@context": {
+        "@protected": true,
+
+        "id": "@id",
+        "type": "@type",
+
+        "aamvaDhsCompliance": "https://w3id.org/vdl/aamva#dhsCompliance",
+        "aamvaDhsComplianceText": "https://w3id.org/vdl/aamva#dhsCompliance_text",
+        "aamvaDomesticDrivingPrivileges": {
+          "@id": "https://w3id.org/vdl/aamva#domesticDrivingPrivileges",
+          "@type": "@json"
+        },
+        "documentIdentifier": "https://w3id.org/identification#documentIdentifier",
+        "issuer": {
+          "@id": "https://www.w3.org/2018/credentials#issuer",
+          "@type": "@id"
+        },
+        "restrictions": "https://w3id.org/identification#restrictions",
+        "validFrom": {
+          "@id": "https://www.w3.org/2018/credentials#validFrom",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "validUntil": {
+          "@id": "https://www.w3.org/2018/credentials#validUntil",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        }
+      }
+    },
+
+    "Observation": {
+      "@id": "https://schema.org/Observation",
+      "@context": {
+        "@protected": true,
+
+        "id": "@id",
+        "type": "@type",
+
+        "description": "https://schema.org/description",
+        "observationDate": {
+          "@id": "https://schema.org/observationDate",
+          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+        },
+        "unitCode": "https://schema.org/unitCode",
+        "value": {
+          "@id": "https://schema.org/value",
+          "@type": "http://www.w3.org/2001/XMLSchema#unsignedInt"
+        },
+        "variableMeasured": "https://schema.org/variableMeasured"
+      }
+    },
+
+    "PostalAddress": {
+      "@id": "https://schema.org/PostalAddress",
+      "@context": {
+        "@protected": true,
+
+        "id": "@id",
+        "type": "@type",
+
+        "streetAddress": "https://schema.org/streetAddress",
+        "addressRegion": "https://schema.org/addressRegion",
+        "addressLocality": "https://schema.org/addressLocality",
+        "addressCountry": "https://schema.org/addressCountry",
+        "postalCode": "https://schema.org/postalCode"
+      }
+    },
+
+    "Person": {
+      "@id": "https://schema.org/Person",
+      "@context": {
+        "@protected": true,
+
+        "id": "@id",
+        "type": "@type",
+
+        "additionalName": "https://schema.org/additionalName",
+        "address": "https://schema.org/address",
+        "birthDate": {
+          "@id": "https://schema.org/birthDate",
+          "@type": "https://schema.org/Date"
+        },
+        "email": "https://schema.org/email",
+        "eyeColor": "https://w3id.org/vdl#eyeColour",
+        "familyName": "https://schema.org/familyName",
+        "givenName": "https://schema.org/givenName",
+        "height": "https://schema.org/height",
+        "hairColor": "https://w3id.org/vdl#hairColour",
+        "identificationDocument": "https://w3id.org/identification#identificationDocument",
+        "image": "https://schema.org/image",
+        "telephone": "https://schema.org/telephone",
+        "weight": "https://schema.org/weight"
+      }
+    }
+  }
+}

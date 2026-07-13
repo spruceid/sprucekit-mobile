@@ -7410,6 +7410,11 @@ public func FfiConverterTypeJsonVc_lower(_ value: JsonVc) -> UInt64 {
 public protocol JwkProtocol: AnyObject, Sendable {
     
     /**
+     * Returns a copy of this JWK.
+     */
+    func copy()  -> Jwk
+    
+    /**
      * Returns the key identifier (`kid` parameter) value.
      */
     func getKid()  -> String?
@@ -7487,6 +7492,17 @@ public static func fromString(json: String)throws  -> Jwk  {
 }
     
 
+    
+    /**
+     * Returns a copy of this JWK.
+     */
+open func copy() -> Jwk  {
+    return try!  FfiConverterTypeJwk_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_jwk_copy(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
     
     /**
      * Returns the key identifier (`kid` parameter) value.
@@ -8795,6 +8811,11 @@ public protocol MdocProtocol: AnyObject, Sendable {
     
     func keyAlias()  -> KeyAlias
     
+    /**
+     * The validity of this mdoc relative to the current time, derived from `validityInfo`.
+     */
+    func validityStatus()  -> MdocValidityStatus
+    
 }
 open class Mdoc: MdocProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -8983,6 +9004,17 @@ open func invalidationDate()throws  -> String  {
 open func keyAlias() -> KeyAlias  {
     return try!  FfiConverterTypeKeyAlias_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_mdoc_key_alias(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * The validity of this mdoc relative to the current time, derived from `validityInfo`.
+     */
+open func validityStatus() -> MdocValidityStatus  {
+    return try!  FfiConverterTypeMdocValidityStatus_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdoc_validity_status(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -9933,9 +9965,9 @@ public protocol Oid4vciFacadeClientProtocol: AnyObject, Sendable {
     
     func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: Oid4vciFacadeResolvedOffer) async throws  -> Oid4vciFacadeCredentialTokenState
     
-    func compatibilityMode()  -> Oid4vciCompatibilityMode
-    
     func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: String) async throws  -> Oid4vciFacadeResolvedOffer
+    
+    func supportedVersions()  -> [Oid4vciVersion]
     
 }
 open class Oid4vciFacadeClient: Oid4vciFacadeClientProtocol, @unchecked Sendable {
@@ -9977,12 +10009,12 @@ open class Oid4vciFacadeClient: Oid4vciFacadeClientProtocol, @unchecked Sendable
     public func uniffiCloneHandle() -> UInt64 {
         return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_oid4vcifacadeclient(self.handle, $0) }
     }
-public convenience init(clientId: String, compatibilityMode: Oid4vciCompatibilityMode) {
+public convenience init(clientId: String, supportedVersions: [Oid4vciVersion]) {
     let handle =
         try! rustCall() {
     uniffi_mobile_sdk_rs_fn_constructor_oid4vcifacadeclient_new(
         FfiConverterString.lower(clientId),
-        FfiConverterTypeOid4vciCompatibilityMode_lower(compatibilityMode),$0
+        FfiConverterSequenceTypeOid4vciVersion.lower(supportedVersions),$0
     )
 }
     self.init(unsafeFromHandle: handle)
@@ -10017,14 +10049,6 @@ open func acceptOffer(httpClient: AsyncHttpClient, credentialOffer: Oid4vciFacad
         )
 }
     
-open func compatibilityMode() -> Oid4vciCompatibilityMode  {
-    return try!  FfiConverterTypeOid4vciCompatibilityMode_lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeclient_compatibility_mode(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
 open func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: String)async throws  -> Oid4vciFacadeResolvedOffer  {
     return
         try  await uniffiRustCallAsync(
@@ -10040,6 +10064,14 @@ open func resolveOfferUrl(httpClient: AsyncHttpClient, credentialOfferUrl: Strin
             liftFunc: FfiConverterTypeOid4vciFacadeResolvedOffer_lift,
             errorHandler: FfiConverterTypeOid4vciError_lift
         )
+}
+    
+open func supportedVersions() -> [Oid4vciVersion]  {
+    return try!  FfiConverterSequenceTypeOid4vciVersion.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacadeclient_supported_versions(
+            self.uniffiCloneHandle(),$0
+    )
+})
 }
     
 
@@ -10258,7 +10290,15 @@ public func FfiConverterTypeOid4vciFacadeCredentialToken_lower(_ value: Oid4vciF
 
 public protocol Oid4vciFacadeResolvedOfferProtocol: AnyObject, Sendable {
     
+    func credentialConfigurationIds()  -> [String]
+    
     func credentialIssuer()  -> String
+    
+    func grantType()  -> GrantType
+    
+    func issuerDisplayName()  -> String?
+    
+    func txCodeDefinition()  -> TxCodeDefinition?
     
     func version()  -> Oid4vciVersion
     
@@ -10316,9 +10356,41 @@ open class Oid4vciFacadeResolvedOffer: Oid4vciFacadeResolvedOfferProtocol, @unch
     
 
     
+open func credentialConfigurationIds() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_credential_configuration_ids(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
 open func credentialIssuer() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_credential_issuer(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func grantType() -> GrantType  {
+    return try!  FfiConverterTypeGrantType_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_grant_type(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func issuerDisplayName() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_issuer_display_name(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func txCodeDefinition() -> TxCodeDefinition?  {
+    return try!  FfiConverterOptionTypeTxCodeDefinition.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vcifacaderesolvedoffer_tx_code_definition(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -10948,7 +11020,22 @@ public protocol Oid4vpHolderProtocol: AnyObject, Sendable {
     
     func start(request: String) async throws  -> Oid4vpSession
     
-    func startWithCompatibilityMode(request: String, compatibilityMode: Oid4vpCompatibilityMode) async throws  -> Oid4vpSession
+    func startVersion(version: Oid4vpVersion, request: String) async throws  -> Oid4vpSession
+    
+    /**
+     * Start a session, restricting version selection to `supported_versions`.
+     *
+     * An empty list means "any version" (auto-detection). A non-empty list
+     * excludes every version not listed, so an unsupported version is never
+     * selected — and never gets to consume a single-use `request_uri` on a
+     * wrong-version fetch. Order is irrelevant; the list gates membership only.
+     *
+     * Draft 13 and Draft 18 may not both be supported: a bare `request_uri`
+     * is indistinguishable between them until its single-use fetch, so keeping
+     * both in scope would reintroduce the wrong-version-burns-the-request bug.
+     * That combination is rejected up front with [`Oid4vpFacadeError::ConflictingVersions`].
+     */
+    func startWithSupportedVersions(request: String, supportedVersions: [Oid4vpVersion]) async throws  -> Oid4vpSession
     
 }
 open class Oid4vpHolder: Oid4vpHolderProtocol, @unchecked Sendable {
@@ -11086,13 +11173,43 @@ open func start(request: String)async throws  -> Oid4vpSession  {
         )
 }
     
-open func startWithCompatibilityMode(request: String, compatibilityMode: Oid4vpCompatibilityMode)async throws  -> Oid4vpSession  {
+open func startVersion(version: Oid4vpVersion, request: String)async throws  -> Oid4vpSession  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_method_oid4vpholder_start_with_compatibility_mode(
+                uniffi_mobile_sdk_rs_fn_method_oid4vpholder_start_version(
                     self.uniffiCloneHandle(),
-                    FfiConverterString.lower(request),FfiConverterTypeOid4vpCompatibilityMode_lower(compatibilityMode)
+                    FfiConverterTypeOid4vpVersion_lower(version),FfiConverterString.lower(request)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeOid4vpSession_lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
+}
+    
+    /**
+     * Start a session, restricting version selection to `supported_versions`.
+     *
+     * An empty list means "any version" (auto-detection). A non-empty list
+     * excludes every version not listed, so an unsupported version is never
+     * selected — and never gets to consume a single-use `request_uri` on a
+     * wrong-version fetch. Order is irrelevant; the list gates membership only.
+     *
+     * Draft 13 and Draft 18 may not both be supported: a bare `request_uri`
+     * is indistinguishable between them until its single-use fetch, so keeping
+     * both in scope would reintroduce the wrong-version-burns-the-request bug.
+     * That combination is rejected up front with [`Oid4vpFacadeError::ConflictingVersions`].
+     */
+open func startWithSupportedVersions(request: String, supportedVersions: [Oid4vpVersion])async throws  -> Oid4vpSession  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vpholder_start_with_supported_versions(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(request),FfiConverterSequenceTypeOid4vpVersion.lower(supportedVersions)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -13062,6 +13179,13 @@ public protocol ReaderApduHandoverDriverProtocol: AnyObject, Sendable {
     
     func processRapdu(command: Data) throws  -> ReaderApduProgress
     
+    /**
+     * Recommended delay before transmitting the command returned by the last
+     * [Self::process_rapdu] call, per TNEP's minimum waiting time. 0 when no
+     * wait is needed.
+     */
+    func recommendedDelayMs()  -> UInt32
+    
 }
 open class ReaderApduHandoverDriver: ReaderApduHandoverDriverProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -13121,6 +13245,19 @@ open func processRapdu(command: Data)throws  -> ReaderApduProgress  {
     uniffi_mobile_sdk_rs_fn_method_readerapduhandoverdriver_process_rapdu(
             self.uniffiCloneHandle(),
         FfiConverterData.lower(command),$0
+    )
+})
+}
+    
+    /**
+     * Recommended delay before transmitting the command returned by the last
+     * [Self::process_rapdu] call, per TNEP's minimum waiting time. 0 when no
+     * wait is needed.
+     */
+open func recommendedDelayMs() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_readerapduhandoverdriver_recommended_delay_ms(
+            self.uniffiCloneHandle(),$0
     )
 })
 }
@@ -13298,6 +13435,8 @@ public protocol RequestMatch180137Protocol: AnyObject, Sendable {
     
     func requestedFields()  -> [RequestedField180137]
     
+    func validityStatus()  -> MdocValidityStatus
+    
 }
 /**
  * A viable match for the credential request.
@@ -13366,6 +13505,14 @@ open func credentialId() -> Uuid  {
 open func requestedFields() -> [RequestedField180137]  {
     return try!  FfiConverterSequenceTypeRequestedField180137.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_requestmatch180137_requested_fields(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+open func validityStatus() -> MdocValidityStatus  {
+    return try!  FfiConverterTypeMdocValidityStatus_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_requestmatch180137_validity_status(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -15009,6 +15156,525 @@ public func FfiConverterTypeVCDM2SdJwt_lower(_ value: Vcdm2SdJwt) -> UInt64 {
 
 
 /**
+ * A stateful VCALM holder session driving one `vcapi` exchange.
+ */
+public protocol VcalmHolderProtocol: AnyObject, Sendable {
+    
+    /**
+     * Accept the credentials offered in the current Offer: verify EVERY offered VC's
+     * own issuer proof, store them all, then advance the exchange.
+     *
+     * Policy (atomic): verification runs over all entries FIRST. If any VC
+     * fails cryptographic proof verification, `accept_offer` returns
+     * [`VcalmError::InvalidCredentialProof`] (naming the entry index)
+     * immediately, stores NOTHING, and does NOT advance. A
+     * cryptographically-valid but time-bounded VC (expired/premature
+     * claims) is still stored and surfaced distinctly (a `tracing::warn!`
+     * keyed by the stable id; also reflected in the [`offered_credentials`] preview).
+     * An `ecdsa-sd-2023` BASE-proof VC — the very thing an SD-capable wallet is
+     * issued — is validated by deriving a full-reveal credential and verifying
+     * THAT (base proofs are derivation material; they cannot be verified
+     * directly), then the ORIGINAL base-proof VC is stored so later
+     * presentations can SD-derive from it. A `bbs-2023` base proof (recognized,
+     * not yet derivable) is refused with a typed
+     * [`VcalmError::UnsupportedCredentialFormat`].
+     * Storage uses the deterministic [`issuance::stable_local_id`] so re-accepting the
+     * same credential OVERWRITES rather than duplicating (idempotent). When the
+     * Offer carried a follow-on request, accept returns
+     * [`StepResult::Request`] WITHOUT a second POST; when it carried a combined
+     * `redirectUrl`, accept returns [`StepResult::Redirect`]; otherwise it POSTs
+     * the empty advance message.
+     *
+     * The Offer state is cleared only after a SUCCESSFUL advance — on an
+     * advance failure the Offer survives so the caller can retry
+     * (verify+store is idempotent). A server problem reply on the advance is
+     * surfaced truthfully as [`StepResult::Problem`] (§3.8) — the credential is
+     * already stored either way.
+     *
+     * `accept_offer` verifies each VC's OWN proof only — it does NOT gate storage on
+     * `trusted_dids`, so an untrusted-issuer but cryptographically-valid VC still
+     * stores. An `EnvelopedVerifiableCredential` is recognized and routed to a
+     * typed error (forward-compat, never silent-dropped).
+     */
+    func acceptOffer() async throws  -> StepResult
+    
+    /**
+     * Return, per current-VPR QueryByExample query, the stored credentials that
+     * match that query. The result is keyed by a per-query index so the
+     * caller can select which credential(s) to present.
+     *
+     * Enumerates the [`VdcCollection`], keeps only full-disclosure W3C JSON-LD VCs
+     * (`LdpVc`/`JsonVc`), and runs [`matching::example_matches`] (type/@context/
+     * recursive credentialSubject subset + issuer filter) against each. A no-match
+     * query yields an empty match list — NEVER an error; a VPR
+     * with no QueryByExample queries yields an empty result.
+     */
+    func matchedCredentials() async throws  -> [VcalmMatchedCredentials]
+    
+    /**
+     * Preview the credentials offered in the current Offer for UI display.
+     *
+     * Read-only: no storage, no advance. Returns an empty vec when there is no current
+     * Offer (or it carries no credentials). Each previewed VC carries its issuer,
+     * type(s), a JSON rendering of its `credentialSubject`, and a `validity` hint
+     * derived by verifying the VC's proof/claims (so the UI can warn before the user
+     * accepts). Verification here never stores and never errors the
+     * whole preview: a VC whose machinery fails is surfaced as `unverifiable`.
+     */
+    func offeredCredentials() async throws  -> [VcalmOfferedCredential]
+    
+    /**
+     * Seed the QBE matcher with credentials loaded from the host app's wallet
+     * packs (mirrors OID4VP's `createHolder(packIds)` pre-seed). The native
+     * adapter resolves the host app's pack ids to `ParsedCredential` handles and
+     * calls this so wallet credentials become matchable for PRESENTATION. Without
+     * it, matching falls back to the holder's own `vdc_collection`
+     * (issuance-received credentials only).
+     */
+    func provideCredentials(credentials: [ParsedCredential]) async 
+    
+    /**
+     * Reject the current Offer: advance the exchange WITHOUT storing anything.
+     *
+     * Requires a current Offer (same guard as [`accept_offer`]). The Offer is
+     * cleared BEFORE the advance POST (so a reply carrying a NEW Offer is not
+     * clobbered) and RESTORED on a failed advance so the caller can retry. If
+     * the rejected Offer carried a follow-on request, the resulting step
+     * surfaces it like any other reply — reject does NOT special-case it and
+     * does NOT fabricate an RFC 9457 Problem.
+     */
+    func rejectOffer() async throws  -> StepResult
+    
+    /**
+     * Report, per current-VPR QueryByExample query, the fields NAMED by that query's
+     * `example`. Informational only: `ecdsa-rdfc-2019` reveals the entire
+     * credential, so this surfaces what will be shared for user display — it does
+     * NOT limit fields. `""` example leaf values render as `"any value"`.
+     *
+     * An empty VPR (or a VPR with no QueryByExample queries) yields an empty result;
+     * never an error.
+     */
+    func requestedFields() async throws  -> [VcalmRequestedField]
+    
+    /**
+     * Begin a `vcapi` exchange.
+     *
+     * `interaction:<url>` inputs and bare `http(s)` URLs carrying `?iuv=1`
+     * (§3.7.1 — the interaction QR format) trigger a discovery GET that extracts
+     * the `vcapi` exchange URL; any other `http(s)` URL is treated as the exchange
+     * URL directly (no discovery). An optional bearer token
+     * is stored for the loop's exchange POSTs — it is NEVER sent on
+     * the discovery GET (initiation needs no auth, §3.6.5 L3262). Begins by POSTing an
+     * empty `{}` message and returns the first [`StepResult`].
+     */
+    func startExchange(input: String, authHeader: String?) async throws  -> StepResult
+    
+    /**
+     * Continue the exchange by building and signing a real W3C Verifiable
+     * Presentation from the holder-selected credentials, then POSTing it through the
+     * existing `post_message` loop.
+     *
+     * `selected_credentials` are the credentials the holder/user chose (e.g. from
+     * [`Self::matched_credentials`]). The VP is signed with `ecdsa-rdfc-2019`
+     * and binds the VPR `challenge`/`domain` (§3.4.3.2) with
+     * `ProofPurpose::Authentication`. A DIDAuthentication-only request (no
+     * selected credentials) yields a signed VP with an empty
+     * `verifiableCredential` array.
+     *
+     * §3.4.3.2 anti-replay: when the VPR `domain` does not match the exchange
+     * channel host, this REFUSES with [`VcalmError::DomainChannelMismatch`]
+     * BEFORE anything is signed. `allow_domain_mismatch` is the explicit
+     * host-app override for deployments that legitimately split the verifier
+     * origin from the workflow-service channel — the host owns that consent,
+     * and must pass `true` deliberately (never as a default).
+     */
+    func submitPresentation(selectedCredentials: [ParsedCredential], allowDomainMismatch: Bool) async throws  -> StepResult
+    
+}
+/**
+ * A stateful VCALM holder session driving one `vcapi` exchange.
+ */
+open class VcalmHolder: VcalmHolderProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_vcalmholder(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_vcalmholder(handle, $0) }
+    }
+
+    
+    /**
+     * Construct a holder session. Adds the default, empty [`ExchangeState`].
+     *
+     * NOTE: named `new_session`, NOT `new`. uniffi maps an async constructor
+     * literally named `new` onto the Kotlin *primary* constructor — which can't
+     * be `suspend` — so it generates neither a usable constructor nor a
+     * companion factory (the binding emits "no constructor generated for this
+     * object as it is async"), making the object unconstructable from Kotlin.
+     * A non-`new` name becomes a companion `suspend fun newSession(...)` (and a
+     * Swift static `VcalmHolder.newSession(...)`), which both adapters call.
+     */
+public static func newSession(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> VcalmHolder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_vcalmholder_new_session(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeVcalmHolder_lift,
+            errorHandler: FfiConverterTypeVcalmError_lift
+        )
+}
+    
+
+    
+    /**
+     * Accept the credentials offered in the current Offer: verify EVERY offered VC's
+     * own issuer proof, store them all, then advance the exchange.
+     *
+     * Policy (atomic): verification runs over all entries FIRST. If any VC
+     * fails cryptographic proof verification, `accept_offer` returns
+     * [`VcalmError::InvalidCredentialProof`] (naming the entry index)
+     * immediately, stores NOTHING, and does NOT advance. A
+     * cryptographically-valid but time-bounded VC (expired/premature
+     * claims) is still stored and surfaced distinctly (a `tracing::warn!`
+     * keyed by the stable id; also reflected in the [`offered_credentials`] preview).
+     * An `ecdsa-sd-2023` BASE-proof VC — the very thing an SD-capable wallet is
+     * issued — is validated by deriving a full-reveal credential and verifying
+     * THAT (base proofs are derivation material; they cannot be verified
+     * directly), then the ORIGINAL base-proof VC is stored so later
+     * presentations can SD-derive from it. A `bbs-2023` base proof (recognized,
+     * not yet derivable) is refused with a typed
+     * [`VcalmError::UnsupportedCredentialFormat`].
+     * Storage uses the deterministic [`issuance::stable_local_id`] so re-accepting the
+     * same credential OVERWRITES rather than duplicating (idempotent). When the
+     * Offer carried a follow-on request, accept returns
+     * [`StepResult::Request`] WITHOUT a second POST; when it carried a combined
+     * `redirectUrl`, accept returns [`StepResult::Redirect`]; otherwise it POSTs
+     * the empty advance message.
+     *
+     * The Offer state is cleared only after a SUCCESSFUL advance — on an
+     * advance failure the Offer survives so the caller can retry
+     * (verify+store is idempotent). A server problem reply on the advance is
+     * surfaced truthfully as [`StepResult::Problem`] (§3.8) — the credential is
+     * already stored either way.
+     *
+     * `accept_offer` verifies each VC's OWN proof only — it does NOT gate storage on
+     * `trusted_dids`, so an untrusted-issuer but cryptographically-valid VC still
+     * stores. An `EnvelopedVerifiableCredential` is recognized and routed to a
+     * typed error (forward-compat, never silent-dropped).
+     */
+open func acceptOffer()async throws  -> StepResult  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcalmholder_accept_offer(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeStepResult_lift,
+            errorHandler: FfiConverterTypeVcalmError_lift
+        )
+}
+    
+    /**
+     * Return, per current-VPR QueryByExample query, the stored credentials that
+     * match that query. The result is keyed by a per-query index so the
+     * caller can select which credential(s) to present.
+     *
+     * Enumerates the [`VdcCollection`], keeps only full-disclosure W3C JSON-LD VCs
+     * (`LdpVc`/`JsonVc`), and runs [`matching::example_matches`] (type/@context/
+     * recursive credentialSubject subset + issuer filter) against each. A no-match
+     * query yields an empty match list — NEVER an error; a VPR
+     * with no QueryByExample queries yields an empty result.
+     */
+open func matchedCredentials()async throws  -> [VcalmMatchedCredentials]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcalmholder_matched_credentials(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeVcalmMatchedCredentials.lift,
+            errorHandler: FfiConverterTypeVcalmError_lift
+        )
+}
+    
+    /**
+     * Preview the credentials offered in the current Offer for UI display.
+     *
+     * Read-only: no storage, no advance. Returns an empty vec when there is no current
+     * Offer (or it carries no credentials). Each previewed VC carries its issuer,
+     * type(s), a JSON rendering of its `credentialSubject`, and a `validity` hint
+     * derived by verifying the VC's proof/claims (so the UI can warn before the user
+     * accepts). Verification here never stores and never errors the
+     * whole preview: a VC whose machinery fails is surfaced as `unverifiable`.
+     */
+open func offeredCredentials()async throws  -> [VcalmOfferedCredential]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcalmholder_offered_credentials(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeVcalmOfferedCredential.lift,
+            errorHandler: FfiConverterTypeVcalmError_lift
+        )
+}
+    
+    /**
+     * Seed the QBE matcher with credentials loaded from the host app's wallet
+     * packs (mirrors OID4VP's `createHolder(packIds)` pre-seed). The native
+     * adapter resolves the host app's pack ids to `ParsedCredential` handles and
+     * calls this so wallet credentials become matchable for PRESENTATION. Without
+     * it, matching falls back to the holder's own `vdc_collection`
+     * (issuance-received credentials only).
+     */
+open func provideCredentials(credentials: [ParsedCredential])async   {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcalmholder_provide_credentials(
+                    self.uniffiCloneHandle(),
+                    FfiConverterSequenceTypeParsedCredential.lower(credentials)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
+            liftFunc: { $0 },
+            errorHandler: nil
+            
+        )
+}
+    
+    /**
+     * Reject the current Offer: advance the exchange WITHOUT storing anything.
+     *
+     * Requires a current Offer (same guard as [`accept_offer`]). The Offer is
+     * cleared BEFORE the advance POST (so a reply carrying a NEW Offer is not
+     * clobbered) and RESTORED on a failed advance so the caller can retry. If
+     * the rejected Offer carried a follow-on request, the resulting step
+     * surfaces it like any other reply — reject does NOT special-case it and
+     * does NOT fabricate an RFC 9457 Problem.
+     */
+open func rejectOffer()async throws  -> StepResult  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcalmholder_reject_offer(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeStepResult_lift,
+            errorHandler: FfiConverterTypeVcalmError_lift
+        )
+}
+    
+    /**
+     * Report, per current-VPR QueryByExample query, the fields NAMED by that query's
+     * `example`. Informational only: `ecdsa-rdfc-2019` reveals the entire
+     * credential, so this surfaces what will be shared for user display — it does
+     * NOT limit fields. `""` example leaf values render as `"any value"`.
+     *
+     * An empty VPR (or a VPR with no QueryByExample queries) yields an empty result;
+     * never an error.
+     */
+open func requestedFields()async throws  -> [VcalmRequestedField]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcalmholder_requested_fields(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeVcalmRequestedField.lift,
+            errorHandler: FfiConverterTypeVcalmError_lift
+        )
+}
+    
+    /**
+     * Begin a `vcapi` exchange.
+     *
+     * `interaction:<url>` inputs and bare `http(s)` URLs carrying `?iuv=1`
+     * (§3.7.1 — the interaction QR format) trigger a discovery GET that extracts
+     * the `vcapi` exchange URL; any other `http(s)` URL is treated as the exchange
+     * URL directly (no discovery). An optional bearer token
+     * is stored for the loop's exchange POSTs — it is NEVER sent on
+     * the discovery GET (initiation needs no auth, §3.6.5 L3262). Begins by POSTing an
+     * empty `{}` message and returns the first [`StepResult`].
+     */
+open func startExchange(input: String, authHeader: String?)async throws  -> StepResult  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcalmholder_start_exchange(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(input),FfiConverterOptionString.lower(authHeader)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeStepResult_lift,
+            errorHandler: FfiConverterTypeVcalmError_lift
+        )
+}
+    
+    /**
+     * Continue the exchange by building and signing a real W3C Verifiable
+     * Presentation from the holder-selected credentials, then POSTing it through the
+     * existing `post_message` loop.
+     *
+     * `selected_credentials` are the credentials the holder/user chose (e.g. from
+     * [`Self::matched_credentials`]). The VP is signed with `ecdsa-rdfc-2019`
+     * and binds the VPR `challenge`/`domain` (§3.4.3.2) with
+     * `ProofPurpose::Authentication`. A DIDAuthentication-only request (no
+     * selected credentials) yields a signed VP with an empty
+     * `verifiableCredential` array.
+     *
+     * §3.4.3.2 anti-replay: when the VPR `domain` does not match the exchange
+     * channel host, this REFUSES with [`VcalmError::DomainChannelMismatch`]
+     * BEFORE anything is signed. `allow_domain_mismatch` is the explicit
+     * host-app override for deployments that legitimately split the verifier
+     * origin from the workflow-service channel — the host owns that consent,
+     * and must pass `true` deliberately (never as a default).
+     */
+open func submitPresentation(selectedCredentials: [ParsedCredential], allowDomainMismatch: Bool)async throws  -> StepResult  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_vcalmholder_submit_presentation(
+                    self.uniffiCloneHandle(),
+                    FfiConverterSequenceTypeParsedCredential.lower(selectedCredentials),FfiConverterBool.lower(allowDomainMismatch)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeStepResult_lift,
+            errorHandler: FfiConverterTypeVcalmError_lift
+        )
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVcalmHolder: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = VcalmHolder
+
+    public static func lift(_ handle: UInt64) throws -> VcalmHolder {
+        return VcalmHolder(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: VcalmHolder) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VcalmHolder {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: VcalmHolder, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmHolder_lift(_ handle: UInt64) throws -> VcalmHolder {
+    return try FfiConverterTypeVcalmHolder.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmHolder_lower(_ value: VcalmHolder) -> UInt64 {
+    return FfiConverterTypeVcalmHolder.lower(value)
+}
+
+
+
+
+
+
+/**
  * Verifiable Digital Credential Collection
  *
  * This is the main interface to credentials.
@@ -16324,6 +16990,126 @@ public func FfiConverterTypeCredentialInfo_lower(_ value: CredentialInfo) -> Rus
 
 
 /**
+ * The QueryByExample `credentialQuery` payload (§3.4.2).
+ *
+ * `example` stays an opaque [`serde_json::Value`] — the matcher walks it as JSON
+ * (`type`/`@context` subset and recursive `credentialSubject` subset, with `""`
+ * meaning "field present, any value"). The issuer filter accepts both
+ * `acceptedIssuers` (§3.4.2) and `trustedIssuer` (alt-key).
+ */
+public struct CredentialQuery: Equatable, Hashable {
+    /**
+     * Human-readable reason the credential is requested.
+     */
+    public var reason: String?
+    /**
+     * The example credential to subset-match against (carried as JSON).
+     */
+    public var example: JsonValue?
+    /**
+     * `acceptedIssuers` (§3.4.2) — string / `{id}` / `{issuer}` / `{recognizedIn}`.
+     */
+    public var acceptedIssuers: [AcceptedIssuerEntry]?
+    /**
+     * `trustedIssuer` — alt-key for the issuer filter, same shapes.
+     */
+    public var trustedIssuer: [AcceptedIssuerEntry]?
+    /**
+     * `acceptedCryptosuites` — same string-or-object shape as the VPR's.
+     */
+    public var acceptedCryptosuites: [CryptosuiteEntry]?
+    /**
+     * `acceptedEnvelopes` (§3.4.2) — THE placement the spec defines for
+     * envelope-format negotiation. Parsed for losslessness; the holder only
+     * emits bare Data Integrity presentations, so a list that omits them is
+     * vacuously honored (no enveloped output path exists).
+     */
+    public var acceptedEnvelopes: [EnvelopeEntry]?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Human-readable reason the credential is requested.
+         */reason: String?, 
+        /**
+         * The example credential to subset-match against (carried as JSON).
+         */example: JsonValue?, 
+        /**
+         * `acceptedIssuers` (§3.4.2) — string / `{id}` / `{issuer}` / `{recognizedIn}`.
+         */acceptedIssuers: [AcceptedIssuerEntry]?, 
+        /**
+         * `trustedIssuer` — alt-key for the issuer filter, same shapes.
+         */trustedIssuer: [AcceptedIssuerEntry]?, 
+        /**
+         * `acceptedCryptosuites` — same string-or-object shape as the VPR's.
+         */acceptedCryptosuites: [CryptosuiteEntry]?, 
+        /**
+         * `acceptedEnvelopes` (§3.4.2) — THE placement the spec defines for
+         * envelope-format negotiation. Parsed for losslessness; the holder only
+         * emits bare Data Integrity presentations, so a list that omits them is
+         * vacuously honored (no enveloped output path exists).
+         */acceptedEnvelopes: [EnvelopeEntry]?) {
+        self.reason = reason
+        self.example = example
+        self.acceptedIssuers = acceptedIssuers
+        self.trustedIssuer = trustedIssuer
+        self.acceptedCryptosuites = acceptedCryptosuites
+        self.acceptedEnvelopes = acceptedEnvelopes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CredentialQuery: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCredentialQuery: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CredentialQuery {
+        return
+            try CredentialQuery(
+                reason: FfiConverterOptionString.read(from: &buf), 
+                example: FfiConverterOptionTypeJsonValue.read(from: &buf), 
+                acceptedIssuers: FfiConverterOptionSequenceTypeAcceptedIssuerEntry.read(from: &buf), 
+                trustedIssuer: FfiConverterOptionSequenceTypeAcceptedIssuerEntry.read(from: &buf), 
+                acceptedCryptosuites: FfiConverterOptionSequenceTypeCryptosuiteEntry.read(from: &buf), 
+                acceptedEnvelopes: FfiConverterOptionSequenceTypeEnvelopeEntry.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CredentialQuery, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.reason, into: &buf)
+        FfiConverterOptionTypeJsonValue.write(value.example, into: &buf)
+        FfiConverterOptionSequenceTypeAcceptedIssuerEntry.write(value.acceptedIssuers, into: &buf)
+        FfiConverterOptionSequenceTypeAcceptedIssuerEntry.write(value.trustedIssuer, into: &buf)
+        FfiConverterOptionSequenceTypeCryptosuiteEntry.write(value.acceptedCryptosuites, into: &buf)
+        FfiConverterOptionSequenceTypeEnvelopeEntry.write(value.acceptedEnvelopes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCredentialQuery_lift(_ buf: RustBuffer) throws -> CredentialQuery {
+    return try FfiConverterTypeCredentialQuery.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCredentialQuery_lower(_ value: CredentialQuery) -> RustBuffer {
+    return FfiConverterTypeCredentialQuery.lower(value)
+}
+
+
+/**
  * A group of credentials that match a specific credential query.
  *
  * This struct is used to group credentials by their credential_query_id,
@@ -17476,6 +18262,108 @@ public func FfiConverterTypeJwsSignerInfo_lower(_ value: JwsSignerInfo) -> RustB
 }
 
 
+/**
+ * The result of verifying a `DeviceResponse` against an externally-supplied session transcript.
+ *
+ * Mirrors [`MDLReaderResponseData`] but carries no reader [`MDLSessionManager`], since the
+ * transcript is provided directly rather than established during BLE/NFC engagement.
+ */
+public struct MdlDeviceResponseVerification: Equatable, Hashable {
+    /**
+     * Contains the namespaces for the mDL directly, without top-level doc types.
+     */
+    public var verifiedResponse: [String: [String: MDocItem]]
+    /**
+     * Document types (doctypes) from the presented credentials.
+     */
+    public var docTypes: [String]
+    /**
+     * Outcome of issuer authentication.
+     */
+    public var issuerAuthentication: AuthenticationStatus
+    /**
+     * Outcome of device authentication.
+     */
+    public var deviceAuthentication: AuthenticationStatus
+    /**
+     * Errors that occurred during response processing.
+     */
+    public var errors: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Contains the namespaces for the mDL directly, without top-level doc types.
+         */verifiedResponse: [String: [String: MDocItem]], 
+        /**
+         * Document types (doctypes) from the presented credentials.
+         */docTypes: [String], 
+        /**
+         * Outcome of issuer authentication.
+         */issuerAuthentication: AuthenticationStatus, 
+        /**
+         * Outcome of device authentication.
+         */deviceAuthentication: AuthenticationStatus, 
+        /**
+         * Errors that occurred during response processing.
+         */errors: String?) {
+        self.verifiedResponse = verifiedResponse
+        self.docTypes = docTypes
+        self.issuerAuthentication = issuerAuthentication
+        self.deviceAuthentication = deviceAuthentication
+        self.errors = errors
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MdlDeviceResponseVerification: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMDLDeviceResponseVerification: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdlDeviceResponseVerification {
+        return
+            try MdlDeviceResponseVerification(
+                verifiedResponse: FfiConverterDictionaryStringDictionaryStringTypeMDocItem.read(from: &buf), 
+                docTypes: FfiConverterSequenceString.read(from: &buf), 
+                issuerAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
+                deviceAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
+                errors: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MdlDeviceResponseVerification, into buf: inout [UInt8]) {
+        FfiConverterDictionaryStringDictionaryStringTypeMDocItem.write(value.verifiedResponse, into: &buf)
+        FfiConverterSequenceString.write(value.docTypes, into: &buf)
+        FfiConverterTypeAuthenticationStatus.write(value.issuerAuthentication, into: &buf)
+        FfiConverterTypeAuthenticationStatus.write(value.deviceAuthentication, into: &buf)
+        FfiConverterOptionString.write(value.errors, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMDLDeviceResponseVerification_lift(_ buf: RustBuffer) throws -> MdlDeviceResponseVerification {
+    return try FfiConverterTypeMDLDeviceResponseVerification.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMDLDeviceResponseVerification_lower(_ value: MdlDeviceResponseVerification) -> RustBuffer {
+    return FfiConverterTypeMDLDeviceResponseVerification.lower(value)
+}
+
+
 public struct MdlReaderResponseData {
     public var state: MdlSessionManager
     /**
@@ -18546,6 +19434,366 @@ public func FfiConverterTypeTxCodeDefinition_lower(_ value: TxCodeDefinition) ->
 
 
 /**
+ * One matched credential plus its disclosure mode for THIS request, so consent
+ * UIs can say honestly whether presenting shares only the requested fields or
+ * the entire credential.
+ */
+public struct VcalmMatchedCredential {
+    /**
+     * The stored credential that satisfied the query.
+     */
+    public var credential: ParsedCredential
+    /**
+     * `true` when presenting under the CURRENT VPR would selectively disclose
+     * (the VPR lists an SD suite AND this credential carries a derivable SD
+     * base proof); `false` means full disclosure — the WHOLE credential is
+     * shared, not just the fields [`VcalmHolder::requested_fields`] names.
+     */
+    public var selectiveDisclosure: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The stored credential that satisfied the query.
+         */credential: ParsedCredential, 
+        /**
+         * `true` when presenting under the CURRENT VPR would selectively disclose
+         * (the VPR lists an SD suite AND this credential carries a derivable SD
+         * base proof); `false` means full disclosure — the WHOLE credential is
+         * shared, not just the fields [`VcalmHolder::requested_fields`] names.
+         */selectiveDisclosure: Bool) {
+        self.credential = credential
+        self.selectiveDisclosure = selectiveDisclosure
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VcalmMatchedCredential: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVcalmMatchedCredential: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VcalmMatchedCredential {
+        return
+            try VcalmMatchedCredential(
+                credential: FfiConverterTypeParsedCredential.read(from: &buf), 
+                selectiveDisclosure: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VcalmMatchedCredential, into buf: inout [UInt8]) {
+        FfiConverterTypeParsedCredential.write(value.credential, into: &buf)
+        FfiConverterBool.write(value.selectiveDisclosure, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmMatchedCredential_lift(_ buf: RustBuffer) throws -> VcalmMatchedCredential {
+    return try FfiConverterTypeVcalmMatchedCredential.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmMatchedCredential_lower(_ value: VcalmMatchedCredential) -> RustBuffer {
+    return FfiConverterTypeVcalmMatchedCredential.lower(value)
+}
+
+
+/**
+ * The credentials matching one QueryByExample query in the current VPR.
+ * `query_index` is the position of the query in `vpr.query`, so the caller can map
+ * a selection back to the originating query.
+ */
+public struct VcalmMatchedCredentials {
+    /**
+     * Index of the originating query in the VPR's `query[]` array.
+     */
+    public var queryIndex: UInt32
+    /**
+     * The stored credentials that satisfied that query (may be empty).
+     */
+    public var credentials: [VcalmMatchedCredential]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Index of the originating query in the VPR's `query[]` array.
+         */queryIndex: UInt32, 
+        /**
+         * The stored credentials that satisfied that query (may be empty).
+         */credentials: [VcalmMatchedCredential]) {
+        self.queryIndex = queryIndex
+        self.credentials = credentials
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VcalmMatchedCredentials: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVcalmMatchedCredentials: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VcalmMatchedCredentials {
+        return
+            try VcalmMatchedCredentials(
+                queryIndex: FfiConverterUInt32.read(from: &buf), 
+                credentials: FfiConverterSequenceTypeVcalmMatchedCredential.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VcalmMatchedCredentials, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.queryIndex, into: &buf)
+        FfiConverterSequenceTypeVcalmMatchedCredential.write(value.credentials, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmMatchedCredentials_lift(_ buf: RustBuffer) throws -> VcalmMatchedCredentials {
+    return try FfiConverterTypeVcalmMatchedCredentials.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmMatchedCredentials_lower(_ value: VcalmMatchedCredentials) -> RustBuffer {
+    return FfiConverterTypeVcalmMatchedCredentials.lower(value)
+}
+
+
+/**
+ * One credential offered in the current Offer, previewed for UI display.
+ * Read-only projection — mirrors the [`VcalmMatchedCredentials`]/[`VcalmRequestedField`]
+ * Record style. It surfaces enough for a consent screen (issuer, type(s),
+ * `credentialSubject`) plus a [`validity`](Self::validity) hint, without any storage
+ * side-effect.
+ */
+public struct VcalmOfferedCredential: Equatable, Hashable {
+    /**
+     * The VC's `issuer` rendered as a string (the bare id, or the `id` of an issuer
+     * object). `None` when absent or unrecognized.
+     */
+    public var issuer: String?
+    /**
+     * The VC's `type` values (excluding nothing — surfaced verbatim for display).
+     */
+    public var types: [String]
+    /**
+     * The VC's `credentialSubject` rendered as a compact JSON string for display.
+     * `None` when absent.
+     */
+    public var credentialSubject: String?
+    /**
+     * The read-only validity hint.
+     */
+    public var validity: OfferedValidity
+    /**
+     * The full offered VC as a JSON string. The SDK's `accept_offer` only stores
+     * the credential in the holder's own `vdc_collection`; the host app needs the
+     * raw VC to persist it into its OWN wallet store.
+     */
+    public var rawCredential: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The VC's `issuer` rendered as a string (the bare id, or the `id` of an issuer
+         * object). `None` when absent or unrecognized.
+         */issuer: String?, 
+        /**
+         * The VC's `type` values (excluding nothing — surfaced verbatim for display).
+         */types: [String], 
+        /**
+         * The VC's `credentialSubject` rendered as a compact JSON string for display.
+         * `None` when absent.
+         */credentialSubject: String?, 
+        /**
+         * The read-only validity hint.
+         */validity: OfferedValidity, 
+        /**
+         * The full offered VC as a JSON string. The SDK's `accept_offer` only stores
+         * the credential in the holder's own `vdc_collection`; the host app needs the
+         * raw VC to persist it into its OWN wallet store.
+         */rawCredential: String) {
+        self.issuer = issuer
+        self.types = types
+        self.credentialSubject = credentialSubject
+        self.validity = validity
+        self.rawCredential = rawCredential
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VcalmOfferedCredential: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVcalmOfferedCredential: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VcalmOfferedCredential {
+        return
+            try VcalmOfferedCredential(
+                issuer: FfiConverterOptionString.read(from: &buf), 
+                types: FfiConverterSequenceString.read(from: &buf), 
+                credentialSubject: FfiConverterOptionString.read(from: &buf), 
+                validity: FfiConverterTypeOfferedValidity.read(from: &buf), 
+                rawCredential: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VcalmOfferedCredential, into buf: inout [UInt8]) {
+        FfiConverterOptionString.write(value.issuer, into: &buf)
+        FfiConverterSequenceString.write(value.types, into: &buf)
+        FfiConverterOptionString.write(value.credentialSubject, into: &buf)
+        FfiConverterTypeOfferedValidity.write(value.validity, into: &buf)
+        FfiConverterString.write(value.rawCredential, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmOfferedCredential_lift(_ buf: RustBuffer) throws -> VcalmOfferedCredential {
+    return try FfiConverterTypeVcalmOfferedCredential.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmOfferedCredential_lower(_ value: VcalmOfferedCredential) -> RustBuffer {
+    return FfiConverterTypeVcalmOfferedCredential.lower(value)
+}
+
+
+/**
+ * One field NAMED by a QueryByExample `example`. Informational only — it
+ * surfaces what a full-disclosure presentation will share, mirroring the
+ * `Oid4vpRequestedField` shape; it does NOT limit disclosed fields.
+ */
+public struct VcalmRequestedField: Equatable, Hashable {
+    /**
+     * Index of the originating query in the VPR's `query[]` array.
+     */
+    public var queryIndex: UInt32
+    /**
+     * Dotted path of the named field, e.g. `credentialSubject.givenName`.
+     */
+    public var path: String
+    /**
+     * The example value for the field; an `""` example leaf renders as `"any value"`.
+     */
+    public var value: String
+    /**
+     * Whether the originating query is required (`required` defaults to `true`).
+     */
+    public var required: Bool
+    /**
+     * The query's human-readable `reason`, if any.
+     */
+    public var purpose: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Index of the originating query in the VPR's `query[]` array.
+         */queryIndex: UInt32, 
+        /**
+         * Dotted path of the named field, e.g. `credentialSubject.givenName`.
+         */path: String, 
+        /**
+         * The example value for the field; an `""` example leaf renders as `"any value"`.
+         */value: String, 
+        /**
+         * Whether the originating query is required (`required` defaults to `true`).
+         */required: Bool, 
+        /**
+         * The query's human-readable `reason`, if any.
+         */purpose: String?) {
+        self.queryIndex = queryIndex
+        self.path = path
+        self.value = value
+        self.required = required
+        self.purpose = purpose
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VcalmRequestedField: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVcalmRequestedField: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VcalmRequestedField {
+        return
+            try VcalmRequestedField(
+                queryIndex: FfiConverterUInt32.read(from: &buf), 
+                path: FfiConverterString.read(from: &buf), 
+                value: FfiConverterString.read(from: &buf), 
+                required: FfiConverterBool.read(from: &buf), 
+                purpose: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VcalmRequestedField, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.queryIndex, into: &buf)
+        FfiConverterString.write(value.path, into: &buf)
+        FfiConverterString.write(value.value, into: &buf)
+        FfiConverterBool.write(value.required, into: &buf)
+        FfiConverterOptionString.write(value.purpose, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmRequestedField_lift(_ buf: RustBuffer) throws -> VcalmRequestedField {
+    return try FfiConverterTypeVcalmRequestedField.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmRequestedField_lower(_ value: VcalmRequestedField) -> RustBuffer {
+    return FfiConverterTypeVcalmRequestedField.lower(value)
+}
+
+
+/**
  * Parameters controlling VP token generation.
  *
  * `audience` and `nonce` are reserved for a future KB-JWT signing path; they
@@ -18606,6 +19854,106 @@ public func FfiConverterTypeVpTokenParams_lift(_ buf: RustBuffer) throws -> VpTo
 #endif
 public func FfiConverterTypeVpTokenParams_lower(_ value: VpTokenParams) -> RustBuffer {
     return FfiConverterTypeVpTokenParams.lower(value)
+}
+
+
+/**
+ * A verifiable-presentation-request. Fully typed for losslessness; QBE/query
+ * interpretation is a later phase, so query internals are kept defensively loose.
+ */
+public struct Vpr: Equatable, Hashable {
+    /**
+     * The presentation query/queries. §3.4.1 permits a single query object OR
+     * an array; both are normalized to a `Vec`.
+     */
+    public var query: [Query]
+    public var challenge: String?
+    public var domain: String?
+    /**
+     * Accepted cryptosuites — each entry is a bare name OR an object.
+     */
+    public var acceptedCryptosuites: [CryptosuiteEntry]?
+    /**
+     * Accepted envelope formats — same string-or-object shape.
+     */
+    public var acceptedEnvelopes: [EnvelopeEntry]?
+    /**
+     * Interaction hints. Not consumed — carried opaquely for losslessness.
+     */
+    public var interact: JsonValue?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The presentation query/queries. §3.4.1 permits a single query object OR
+         * an array; both are normalized to a `Vec`.
+         */query: [Query], challenge: String?, domain: String?, 
+        /**
+         * Accepted cryptosuites — each entry is a bare name OR an object.
+         */acceptedCryptosuites: [CryptosuiteEntry]?, 
+        /**
+         * Accepted envelope formats — same string-or-object shape.
+         */acceptedEnvelopes: [EnvelopeEntry]?, 
+        /**
+         * Interaction hints. Not consumed — carried opaquely for losslessness.
+         */interact: JsonValue?) {
+        self.query = query
+        self.challenge = challenge
+        self.domain = domain
+        self.acceptedCryptosuites = acceptedCryptosuites
+        self.acceptedEnvelopes = acceptedEnvelopes
+        self.interact = interact
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Vpr: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVpr: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Vpr {
+        return
+            try Vpr(
+                query: FfiConverterSequenceTypeQuery.read(from: &buf), 
+                challenge: FfiConverterOptionString.read(from: &buf), 
+                domain: FfiConverterOptionString.read(from: &buf), 
+                acceptedCryptosuites: FfiConverterOptionSequenceTypeCryptosuiteEntry.read(from: &buf), 
+                acceptedEnvelopes: FfiConverterOptionSequenceTypeEnvelopeEntry.read(from: &buf), 
+                interact: FfiConverterOptionTypeJsonValue.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Vpr, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeQuery.write(value.query, into: &buf)
+        FfiConverterOptionString.write(value.challenge, into: &buf)
+        FfiConverterOptionString.write(value.domain, into: &buf)
+        FfiConverterOptionSequenceTypeCryptosuiteEntry.write(value.acceptedCryptosuites, into: &buf)
+        FfiConverterOptionSequenceTypeEnvelopeEntry.write(value.acceptedEnvelopes, into: &buf)
+        FfiConverterOptionTypeJsonValue.write(value.interact, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVpr_lift(_ buf: RustBuffer) throws -> Vpr {
+    return try FfiConverterTypeVpr.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVpr_lower(_ value: Vpr) -> RustBuffer {
+    return FfiConverterTypeVpr.lower(value)
 }
 
 
@@ -18697,6 +20045,176 @@ public func FfiConverterTypeAamvaEncodeError_lift(_ buf: RustBuffer) throws -> A
 public func FfiConverterTypeAamvaEncodeError_lower(_ value: AamvaEncodeError) -> RustBuffer {
     return FfiConverterTypeAamvaEncodeError.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * An `acceptedIssuers`/`trustedIssuer` entry (§3.4.2). Uses the sanctioned
+ * [`CryptosuiteEntry`] untagged pattern: a bare issuer URL string, or an object
+ * carrying `id`, `issuer`, or `recognizedIn`. The `{recognizedIn}` form is
+ * carried but NOT resolved — the matcher treats it as non-matching.
+ */
+
+public enum AcceptedIssuerEntry: Equatable, Hashable {
+    
+    /**
+     * A bare issuer identifier, e.g. `"did:web:red-issuer.example"`.
+     */
+    case id(String
+    )
+    /**
+     * An object form: `{"id": ...}`, `{"issuer": ...}`, or `{"recognizedIn": ...}`.
+     */
+    case object(id: String?, issuer: String?, recognizedIn: JsonValue?
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AcceptedIssuerEntry: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAcceptedIssuerEntry: FfiConverterRustBuffer {
+    typealias SwiftType = AcceptedIssuerEntry
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AcceptedIssuerEntry {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .id(try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .object(id: try FfiConverterOptionString.read(from: &buf), issuer: try FfiConverterOptionString.read(from: &buf), recognizedIn: try FfiConverterOptionTypeJsonValue.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AcceptedIssuerEntry, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .id(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .object(id,issuer,recognizedIn):
+            writeInt(&buf, Int32(2))
+            FfiConverterOptionString.write(id, into: &buf)
+            FfiConverterOptionString.write(issuer, into: &buf)
+            FfiConverterOptionTypeJsonValue.write(recognizedIn, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAcceptedIssuerEntry_lift(_ buf: RustBuffer) throws -> AcceptedIssuerEntry {
+    return try FfiConverterTypeAcceptedIssuerEntry.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAcceptedIssuerEntry_lower(_ value: AcceptedIssuerEntry) -> RustBuffer {
+    return FfiConverterTypeAcceptedIssuerEntry.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * An `acceptedMethods` entry (§3.4.3). Same string-or-object shape: a bare DID
+ * method name, e.g. `"key"`, or an object `{"method": "key"}`.
+ */
+
+public enum AcceptedMethodEntry: Equatable, Hashable {
+    
+    /**
+     * A bare method name, e.g. `"key"`.
+     */
+    case name(String
+    )
+    /**
+     * An object form, e.g. `{"method": "key"}`.
+     */
+    case object(method: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AcceptedMethodEntry: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAcceptedMethodEntry: FfiConverterRustBuffer {
+    typealias SwiftType = AcceptedMethodEntry
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AcceptedMethodEntry {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .name(try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .object(method: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AcceptedMethodEntry, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .name(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .object(method):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(method, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAcceptedMethodEntry_lift(_ buf: RustBuffer) throws -> AcceptedMethodEntry {
+    return try FfiConverterTypeAcceptedMethodEntry.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAcceptedMethodEntry_lower(_ value: AcceptedMethodEntry) -> RustBuffer {
+    return FfiConverterTypeAcceptedMethodEntry.lower(value)
+}
+
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -22098,6 +23616,89 @@ public func FfiConverterTypeDynamicCredentialError_lower(_ value: DynamicCredent
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
+ * An `acceptedEnvelopes` entry: a bare media-type string or an object carrying a
+ * `mediaType` field. Same string-or-object backward-compat shape.
+ */
+
+public enum EnvelopeEntry: Equatable, Hashable {
+    
+    /**
+     * A bare media-type, e.g. `"application/vp+jwt"`.
+     */
+    case name(String
+    )
+    /**
+     * An object form, e.g. `{"mediaType": "application/vp+jwt"}`.
+     */
+    case object(mediaType: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EnvelopeEntry: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEnvelopeEntry: FfiConverterRustBuffer {
+    typealias SwiftType = EnvelopeEntry
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EnvelopeEntry {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .name(try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .object(mediaType: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EnvelopeEntry, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .name(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .object(mediaType):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(mediaType, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnvelopeEntry_lift(_ buf: RustBuffer) throws -> EnvelopeEntry {
+    return try FfiConverterTypeEnvelopeEntry.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnvelopeEntry_lower(_ value: EnvelopeEntry) -> RustBuffer {
+    return FfiConverterTypeEnvelopeEntry.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
  * Issuance flow state.
  */
 
@@ -24318,6 +25919,93 @@ public func FfiConverterTypeMdocInitError_lower(_ value: MdocInitError) -> RustB
     return FfiConverterTypeMdocInitError.lower(value)
 }
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The validity of an mdoc relative to the current time, derived from the MSO
+ * `validityInfo` (`validFrom`/`validUntil`).
+ */
+
+public enum MdocValidityStatus: Equatable, Hashable {
+    
+    /**
+     * The current time is within `[validFrom, validUntil]`.
+     */
+    case valid
+    /**
+     * `validUntil` is in the past.
+     */
+    case expired
+    /**
+     * `validFrom` is in the future.
+     */
+    case notYetValid
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MdocValidityStatus: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMdocValidityStatus: FfiConverterRustBuffer {
+    typealias SwiftType = MdocValidityStatus
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdocValidityStatus {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .valid
+        
+        case 2: return .expired
+        
+        case 3: return .notYetValid
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MdocValidityStatus, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .valid:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .expired:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .notYetValid:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocValidityStatus_lift(_ buf: RustBuffer) throws -> MdocValidityStatus {
+    return try FfiConverterTypeMdocValidityStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocValidityStatus_lower(_ value: MdocValidityStatus) -> RustBuffer {
+    return FfiConverterTypeMdocValidityStatus.lower(value)
+}
+
+
 
 public enum Oid4vp180137Error: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -24788,12 +26476,42 @@ public func FfiConverterTypeOID4VPError_lower(_ value: Oid4vpError) -> RustBuffe
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The validity hint surfaced for one previewed offered credential.
+ * Derived by verifying the VC's proof/claims read-only, BEFORE the user accepts, so
+ * the UI can warn about an expired/unverifiable credential up front.
+ */
 
-public enum Oid4vciCompatibilityMode: Equatable, Hashable {
+public enum OfferedValidity: Equatable, Hashable {
     
-    case auto
-    case forceV1
-    case forceLegacy
+    /**
+     * Proof verified and the validity period is current.
+     */
+    case valid
+    /**
+     * Proof verified but the validity period failed (expired/premature/other claims).
+     * `accept_offer` would still STORE this, with a distinct warning.
+     */
+    case timeBounded
+    /**
+     * The credential's own cryptographic proof failed — `accept_offer` would REJECT
+     * the whole Offer.
+     */
+    case proofInvalid
+    /**
+     * An `EnvelopedVerifiableCredential` — recognized but not yet decodable.
+     */
+    case enveloped
+    /**
+     * A proof type/cryptosuite this SDK recognizes but cannot process yet
+     * (e.g. a `bbs-2023` base proof). `accept_offer` would REJECT the Offer
+     * with a typed unsupported-format error.
+     */
+    case unsupportedProof
+    /**
+     * The verification machinery could not run (bad payload / unsupported shape).
+     */
+    case unverifiable
 
 
 
@@ -24802,43 +26520,61 @@ public enum Oid4vciCompatibilityMode: Equatable, Hashable {
 }
 
 #if compiler(>=6)
-extension Oid4vciCompatibilityMode: Sendable {}
+extension OfferedValidity: Sendable {}
 #endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeOid4vciCompatibilityMode: FfiConverterRustBuffer {
-    typealias SwiftType = Oid4vciCompatibilityMode
+public struct FfiConverterTypeOfferedValidity: FfiConverterRustBuffer {
+    typealias SwiftType = OfferedValidity
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vciCompatibilityMode {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OfferedValidity {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .auto
+        case 1: return .valid
         
-        case 2: return .forceV1
+        case 2: return .timeBounded
         
-        case 3: return .forceLegacy
+        case 3: return .proofInvalid
+        
+        case 4: return .enveloped
+        
+        case 5: return .unsupportedProof
+        
+        case 6: return .unverifiable
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
-    public static func write(_ value: Oid4vciCompatibilityMode, into buf: inout [UInt8]) {
+    public static func write(_ value: OfferedValidity, into buf: inout [UInt8]) {
         switch value {
         
         
-        case .auto:
+        case .valid:
             writeInt(&buf, Int32(1))
         
         
-        case .forceV1:
+        case .timeBounded:
             writeInt(&buf, Int32(2))
         
         
-        case .forceLegacy:
+        case .proofInvalid:
             writeInt(&buf, Int32(3))
+        
+        
+        case .enveloped:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .unsupportedProof:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .unverifiable:
+            writeInt(&buf, Int32(6))
         
         }
     }
@@ -24848,15 +26584,15 @@ public struct FfiConverterTypeOid4vciCompatibilityMode: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeOid4vciCompatibilityMode_lift(_ buf: RustBuffer) throws -> Oid4vciCompatibilityMode {
-    return try FfiConverterTypeOid4vciCompatibilityMode.lift(buf)
+public func FfiConverterTypeOfferedValidity_lift(_ buf: RustBuffer) throws -> OfferedValidity {
+    return try FfiConverterTypeOfferedValidity.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeOid4vciCompatibilityMode_lower(_ value: Oid4vciCompatibilityMode) -> RustBuffer {
-    return FfiConverterTypeOid4vciCompatibilityMode.lower(value)
+public func FfiConverterTypeOfferedValidity_lower(_ value: OfferedValidity) -> RustBuffer {
+    return FfiConverterTypeOfferedValidity.lower(value)
 }
 
 
@@ -25314,80 +27050,6 @@ public func FfiConverterTypeOid4vp180137FacadeError_lower(_ value: Oid4vp180137F
     return FfiConverterTypeOid4vp180137FacadeError.lower(value)
 }
 
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum Oid4vpCompatibilityMode: Equatable, Hashable {
-    
-    case auto
-    case v1
-    case draft18
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension Oid4vpCompatibilityMode: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeOid4vpCompatibilityMode: FfiConverterRustBuffer {
-    typealias SwiftType = Oid4vpCompatibilityMode
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Oid4vpCompatibilityMode {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .auto
-        
-        case 2: return .v1
-        
-        case 3: return .draft18
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: Oid4vpCompatibilityMode, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .auto:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .v1:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .draft18:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOid4vpCompatibilityMode_lift(_ buf: RustBuffer) throws -> Oid4vpCompatibilityMode {
-    return try FfiConverterTypeOid4vpCompatibilityMode.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeOid4vpCompatibilityMode_lower(_ value: Oid4vpCompatibilityMode) -> RustBuffer {
-    return FfiConverterTypeOid4vpCompatibilityMode.lower(value)
-}
-
-
 
 public enum Oid4vpFacadeError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -25397,6 +27059,7 @@ public enum Oid4vpFacadeError: Swift.Error, Equatable, Hashable, Foundation.Loca
     case RequestParsing(String
     )
     case VersionMismatch
+    case ConflictingVersions
     case V1(Oid4vpError
     )
     case Draft18(Draft18Oid4vpError
@@ -25435,10 +27098,11 @@ public struct FfiConverterTypeOid4vpFacadeError: FfiConverterRustBuffer {
             try FfiConverterString.read(from: &buf)
             )
         case 3: return .VersionMismatch
-        case 4: return .V1(
+        case 4: return .ConflictingVersions
+        case 5: return .V1(
             try FfiConverterTypeOID4VPError.read(from: &buf)
             )
-        case 5: return .Draft18(
+        case 6: return .Draft18(
             try FfiConverterTypeDraft18OID4VPError.read(from: &buf)
             )
 
@@ -25466,13 +27130,17 @@ public struct FfiConverterTypeOid4vpFacadeError: FfiConverterRustBuffer {
             writeInt(&buf, Int32(3))
         
         
-        case let .V1(v1):
+        case .ConflictingVersions:
             writeInt(&buf, Int32(4))
+        
+        
+        case let .V1(v1):
+            writeInt(&buf, Int32(5))
             FfiConverterTypeOID4VPError.write(v1, into: &buf)
             
         
         case let .Draft18(v1):
-            writeInt(&buf, Int32(5))
+            writeInt(&buf, Int32(6))
             FfiConverterTypeDraft18OID4VPError.write(v1, into: &buf)
             
         }
@@ -25585,6 +27253,13 @@ public enum Oid4vpVersion: Equatable, Hashable {
     
     case v1
     case draft18
+    /**
+     * OpenID4VP draft 13 (the pre-`client_id_scheme`, Presentation-Exchange
+     * era whose cross-device flow uses the bare `post` response mode and
+     * delivers to `redirect_uri`). Served by translating the request onto the
+     * draft-18 engine — see `facade::draft13_request_to_draft18`.
+     */
+    case draft13
     case unsupported
 
 
@@ -25611,7 +27286,9 @@ public struct FfiConverterTypeOid4vpVersion: FfiConverterRustBuffer {
         
         case 2: return .draft18
         
-        case 3: return .unsupported
+        case 3: return .draft13
+        
+        case 4: return .unsupported
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -25629,8 +27306,12 @@ public struct FfiConverterTypeOid4vpVersion: FfiConverterRustBuffer {
             writeInt(&buf, Int32(2))
         
         
-        case .unsupported:
+        case .draft13:
             writeInt(&buf, Int32(3))
+        
+        
+        case .unsupported:
+            writeInt(&buf, Int32(4))
         
         }
     }
@@ -27291,6 +28972,133 @@ public func FfiConverterTypeStatusListError_lower(_ value: StatusListError) -> R
     return FfiConverterTypeStatusListError.lower(value)
 }
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The stable, app-facing outcome of one exchange step.
+ *
+ * This is the `uniffi::Enum` the holder session returns to the native caller for
+ * every server reply. `serde` is derived only for the round-trip unit tests; the
+ * actual wire types are [`VcapiMessage`]/[`ProblemDetails`].
+ */
+
+public enum StepResult: Equatable, Hashable {
+    
+    /**
+     * The server requests a verifiable presentation; the caller should respond.
+     */
+    case request(vpr: Vpr
+    )
+    /**
+     * The server offered verifiable presentation(s) (opaque, UNVERIFIED),
+     * optionally with a follow-on request to continue the exchange and/or a
+     * terminal redirect to surface AFTER the offer is resolved (§3.6 allows a
+     * message to combine properties — the redirect must not be dropped).
+     */
+    case offer(vcs: JsonValue, nextVpr: Vpr?, redirectUrl: Url?
+    )
+    /**
+     * A terminal redirect target. Surfaced as data — NEVER auto-followed.
+     */
+    case redirect(url: Url
+    )
+    /**
+     * The exchange completed successfully with no further action.
+     */
+    case complete
+    /**
+     * The server returned an RFC 9457 problem (a surfaced 4xx, NOT an error).
+     */
+    case problem(details: ProblemDetails
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension StepResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeStepResult: FfiConverterRustBuffer {
+    typealias SwiftType = StepResult
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StepResult {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .request(vpr: try FfiConverterTypeVpr.read(from: &buf)
+        )
+        
+        case 2: return .offer(vcs: try FfiConverterTypeJsonValue.read(from: &buf), nextVpr: try FfiConverterOptionTypeVpr.read(from: &buf), redirectUrl: try FfiConverterOptionTypeUrl.read(from: &buf)
+        )
+        
+        case 3: return .redirect(url: try FfiConverterTypeUrl.read(from: &buf)
+        )
+        
+        case 4: return .complete
+        
+        case 5: return .problem(details: try FfiConverterTypeProblemDetails.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: StepResult, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .request(vpr):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeVpr.write(vpr, into: &buf)
+            
+        
+        case let .offer(vcs,nextVpr,redirectUrl):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeJsonValue.write(vcs, into: &buf)
+            FfiConverterOptionTypeVpr.write(nextVpr, into: &buf)
+            FfiConverterOptionTypeUrl.write(redirectUrl, into: &buf)
+            
+        
+        case let .redirect(url):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeUrl.write(url, into: &buf)
+            
+        
+        case .complete:
+            writeInt(&buf, Int32(4))
+        
+        
+        case let .problem(details):
+            writeInt(&buf, Int32(5))
+            FfiConverterTypeProblemDetails.write(details, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStepResult_lift(_ buf: RustBuffer) throws -> StepResult {
+    return try FfiConverterTypeStepResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeStepResult_lower(_ value: StepResult) -> RustBuffer {
+    return FfiConverterTypeStepResult.lower(value)
+}
+
+
 
 public enum SyncHttpClientError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -27749,6 +29557,390 @@ public func FfiConverterTypeVPError_lift(_ buf: RustBuffer) throws -> VpError {
 #endif
 public func FfiConverterTypeVPError_lower(_ value: VpError) -> RustBuffer {
     return FfiConverterTypeVPError.lower(value)
+}
+
+
+/**
+ * Errors that can occur while driving a VCALM `vcapi` exchange.
+ */
+public enum VcalmError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    /**
+     * An unexpected foreign-callback error occurred across the FFI boundary.
+     */
+    case UnexpectedUniFfiCallbackError(String
+    )
+    /**
+     * A transport-level failure (stringified `reqwest::Error`).
+     */
+    case Network(String
+    )
+    /**
+     * A response body failed to deserialize (stringified `serde_json::Error`).
+     */
+    case Deserialization(String
+    )
+    /**
+     * The discovery response's `protocols` map lacked a `vcapi` key.
+     */
+    case NoVcapiProtocol
+    /**
+     * A 4xx response whose body failed to parse as RFC 9457 problem-details.
+     */
+    case MalformedProblemDetails(status: UInt16, body: String
+    )
+    /**
+     * A 5xx (or otherwise non-2xx/4xx) server response.
+     */
+    case ServerError(status: UInt16, body: String
+    )
+    /**
+     * Errors bubbling up from the VDC collection.
+     */
+    case VdcCollection(VdcCollectionError
+    )
+    /**
+     * Presentation/signing errors.
+     */
+    case Presentation(PresentationError
+    )
+    /**
+     * A credential's cryptographic verification machinery failed to run.
+     */
+    case Verification(VerificationError
+    )
+    /**
+     * A credential ran the verification machinery but was judged invalid
+     * (claims or proof).
+     */
+    case InvalidCredentialDetail(InvalidCredential
+    )
+    /**
+     * A received credential failed to decode into a parsed credential.
+     */
+    case CredentialDecoding(CredentialDecodingError
+    )
+    /**
+     * A parsed credential failed to re-encode into its storable generic form.
+     */
+    case CredentialEncoding(CredentialEncodingError
+    )
+    /**
+     * The offered presentation carried no verifiable credentials.
+     */
+    case NoOfferedCredentials
+    /**
+     * An offered credential failed cryptographic proof verification.
+     * `index` is the credential's position in the offer.
+     */
+    case InvalidCredentialProof(index: UInt32
+    )
+    /**
+     * A session method was called in the wrong state (no active exchange, no
+     * pending offer, no storage configured, …).
+     */
+    case SessionState(String
+    )
+    /**
+     * A non-HTTPS (or non-HTTP-scheme) URL was rejected (§3.7.1 / B.2). Plain
+     * `http` is only accepted for loopback hosts (local development).
+     */
+    case InsecureUrl(String
+    )
+    /**
+     * A response body exceeded the configured size cap (B.4).
+     */
+    case ResponseTooLarge(limitBytes: UInt64
+    )
+    /**
+     * §3.4.3.2: the VPR `domain` does not match the exchange channel host.
+     * Refused before signing; the caller may explicitly override.
+     */
+    case DomainChannelMismatch(domain: String, channel: String
+    )
+    /**
+     * §3.4.3.1: the VPR's `acceptedCryptosuites` lists no suite this holder
+     * can produce.
+     */
+    case NoAcceptedCryptosuite(accepted: String
+    )
+    /**
+     * §3.4.3.2: every DIDAuthentication query's `acceptedMethods` excludes the
+     * holder's `did:key`.
+     */
+    case NoAcceptedDidMethod(accepted: String
+    )
+    /**
+     * The selected credentials mix VCDM v1 and v2 data models, which cannot be
+     * embedded in a single presentation. Select same-version credentials.
+     */
+    case MixedCredentialVersions
+    /**
+     * A selected credential carries no proof that is safe to present (B.1
+     * allowlist) — e.g. only an SD/bbs base proof.
+     */
+    case NoPresentableProof(credentialTypes: String
+    )
+    /**
+     * Selective-disclosure derivation failed for a credential the VPR asked to
+     * SD-derive. NOT silently downgraded to full disclosure.
+     */
+    case SdDeriveFailed(String
+    )
+    /**
+     * A credential format/proof type this holder cannot process yet
+     * (e.g. `EnvelopedVerifiableCredential`, a `bbs-2023` base proof).
+     */
+    case UnsupportedCredentialFormat(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension VcalmError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVcalmError: FfiConverterRustBuffer {
+    typealias SwiftType = VcalmError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VcalmError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .UnexpectedUniFfiCallbackError(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .Network(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .Deserialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .NoVcapiProtocol
+        case 5: return .MalformedProblemDetails(
+            status: try FfiConverterUInt16.read(from: &buf), 
+            body: try FfiConverterString.read(from: &buf)
+            )
+        case 6: return .ServerError(
+            status: try FfiConverterUInt16.read(from: &buf), 
+            body: try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .VdcCollection(
+            try FfiConverterTypeVdcCollectionError.read(from: &buf)
+            )
+        case 8: return .Presentation(
+            try FfiConverterTypePresentationError.read(from: &buf)
+            )
+        case 9: return .Verification(
+            try FfiConverterTypeVerificationError.read(from: &buf)
+            )
+        case 10: return .InvalidCredentialDetail(
+            try FfiConverterTypeInvalidCredential.read(from: &buf)
+            )
+        case 11: return .CredentialDecoding(
+            try FfiConverterTypeCredentialDecodingError.read(from: &buf)
+            )
+        case 12: return .CredentialEncoding(
+            try FfiConverterTypeCredentialEncodingError.read(from: &buf)
+            )
+        case 13: return .NoOfferedCredentials
+        case 14: return .InvalidCredentialProof(
+            index: try FfiConverterUInt32.read(from: &buf)
+            )
+        case 15: return .SessionState(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 16: return .InsecureUrl(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 17: return .ResponseTooLarge(
+            limitBytes: try FfiConverterUInt64.read(from: &buf)
+            )
+        case 18: return .DomainChannelMismatch(
+            domain: try FfiConverterString.read(from: &buf), 
+            channel: try FfiConverterString.read(from: &buf)
+            )
+        case 19: return .NoAcceptedCryptosuite(
+            accepted: try FfiConverterString.read(from: &buf)
+            )
+        case 20: return .NoAcceptedDidMethod(
+            accepted: try FfiConverterString.read(from: &buf)
+            )
+        case 21: return .MixedCredentialVersions
+        case 22: return .NoPresentableProof(
+            credentialTypes: try FfiConverterString.read(from: &buf)
+            )
+        case 23: return .SdDeriveFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 24: return .UnsupportedCredentialFormat(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VcalmError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .UnexpectedUniFfiCallbackError(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Network(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .Deserialization(v1):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case .NoVcapiProtocol:
+            writeInt(&buf, Int32(4))
+        
+        
+        case let .MalformedProblemDetails(status,body):
+            writeInt(&buf, Int32(5))
+            FfiConverterUInt16.write(status, into: &buf)
+            FfiConverterString.write(body, into: &buf)
+            
+        
+        case let .ServerError(status,body):
+            writeInt(&buf, Int32(6))
+            FfiConverterUInt16.write(status, into: &buf)
+            FfiConverterString.write(body, into: &buf)
+            
+        
+        case let .VdcCollection(v1):
+            writeInt(&buf, Int32(7))
+            FfiConverterTypeVdcCollectionError.write(v1, into: &buf)
+            
+        
+        case let .Presentation(v1):
+            writeInt(&buf, Int32(8))
+            FfiConverterTypePresentationError.write(v1, into: &buf)
+            
+        
+        case let .Verification(v1):
+            writeInt(&buf, Int32(9))
+            FfiConverterTypeVerificationError.write(v1, into: &buf)
+            
+        
+        case let .InvalidCredentialDetail(v1):
+            writeInt(&buf, Int32(10))
+            FfiConverterTypeInvalidCredential.write(v1, into: &buf)
+            
+        
+        case let .CredentialDecoding(v1):
+            writeInt(&buf, Int32(11))
+            FfiConverterTypeCredentialDecodingError.write(v1, into: &buf)
+            
+        
+        case let .CredentialEncoding(v1):
+            writeInt(&buf, Int32(12))
+            FfiConverterTypeCredentialEncodingError.write(v1, into: &buf)
+            
+        
+        case .NoOfferedCredentials:
+            writeInt(&buf, Int32(13))
+        
+        
+        case let .InvalidCredentialProof(index):
+            writeInt(&buf, Int32(14))
+            FfiConverterUInt32.write(index, into: &buf)
+            
+        
+        case let .SessionState(v1):
+            writeInt(&buf, Int32(15))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InsecureUrl(v1):
+            writeInt(&buf, Int32(16))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ResponseTooLarge(limitBytes):
+            writeInt(&buf, Int32(17))
+            FfiConverterUInt64.write(limitBytes, into: &buf)
+            
+        
+        case let .DomainChannelMismatch(domain,channel):
+            writeInt(&buf, Int32(18))
+            FfiConverterString.write(domain, into: &buf)
+            FfiConverterString.write(channel, into: &buf)
+            
+        
+        case let .NoAcceptedCryptosuite(accepted):
+            writeInt(&buf, Int32(19))
+            FfiConverterString.write(accepted, into: &buf)
+            
+        
+        case let .NoAcceptedDidMethod(accepted):
+            writeInt(&buf, Int32(20))
+            FfiConverterString.write(accepted, into: &buf)
+            
+        
+        case .MixedCredentialVersions:
+            writeInt(&buf, Int32(21))
+        
+        
+        case let .NoPresentableProof(credentialTypes):
+            writeInt(&buf, Int32(22))
+            FfiConverterString.write(credentialTypes, into: &buf)
+            
+        
+        case let .SdDeriveFailed(v1):
+            writeInt(&buf, Int32(23))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .UnsupportedCredentialFormat(v1):
+            writeInt(&buf, Int32(24))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmError_lift(_ buf: RustBuffer) throws -> VcalmError {
+    return try FfiConverterTypeVcalmError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVcalmError_lower(_ value: VcalmError) -> RustBuffer {
+    return FfiConverterTypeVcalmError.lower(value)
 }
 
 
@@ -29395,6 +31587,30 @@ public func FfiConverterCallbackInterfacePresentationSigner_lower(_ v: Presentat
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionUInt16: FfiConverterRustBuffer {
+    typealias SwiftType = UInt16?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterUInt16.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterUInt16.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
     typealias SwiftType = UInt32?
 
@@ -29459,6 +31675,30 @@ fileprivate struct FfiConverterOptionInt64: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionBool: FfiConverterRustBuffer {
+    typealias SwiftType = Bool?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterBool.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterBool.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -29947,6 +32187,30 @@ fileprivate struct FfiConverterOptionTypeTxCodeDefinition: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeVpr: FfiConverterRustBuffer {
+    typealias SwiftType = Vpr?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeVpr.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeVpr.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeActivityLogEntryType: FfiConverterRustBuffer {
     typealias SwiftType = ActivityLogEntryType?
 
@@ -30035,6 +32299,102 @@ fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterSequenceString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceTypeAcceptedIssuerEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [AcceptedIssuerEntry]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceTypeAcceptedIssuerEntry.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceTypeAcceptedIssuerEntry.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceTypeAcceptedMethodEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [AcceptedMethodEntry]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceTypeAcceptedMethodEntry.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceTypeAcceptedMethodEntry.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceTypeCryptosuiteEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [CryptosuiteEntry]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceTypeCryptosuiteEntry.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceTypeCryptosuiteEntry.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceTypeEnvelopeEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [EnvelopeEntry]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceTypeEnvelopeEntry.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceTypeEnvelopeEntry.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -30565,6 +32925,31 @@ fileprivate struct FfiConverterSequenceTypeCentralClientDetails: FfiConverterRus
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCredentialQuery: FfiConverterRustBuffer {
+    typealias SwiftType = [CredentialQuery]
+
+    public static func write(_ value: [CredentialQuery], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCredentialQuery.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CredentialQuery] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CredentialQuery]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCredentialQuery.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCredentialQueryGroup: FfiConverterRustBuffer {
     typealias SwiftType = [CredentialQueryGroup]
 
@@ -30765,6 +33150,31 @@ fileprivate struct FfiConverterSequenceTypePeripheralServerDetails: FfiConverter
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeQuery: FfiConverterRustBuffer {
+    typealias SwiftType = [Query]
+
+    public static func write(_ value: [Query], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeQuery.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Query] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Query]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeQuery.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeRawCredential: FfiConverterRustBuffer {
     typealias SwiftType = [RawCredential]
 
@@ -30840,6 +33250,156 @@ fileprivate struct FfiConverterSequenceTypeStatusMessage: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeVcalmMatchedCredential: FfiConverterRustBuffer {
+    typealias SwiftType = [VcalmMatchedCredential]
+
+    public static func write(_ value: [VcalmMatchedCredential], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVcalmMatchedCredential.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VcalmMatchedCredential] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VcalmMatchedCredential]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVcalmMatchedCredential.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVcalmMatchedCredentials: FfiConverterRustBuffer {
+    typealias SwiftType = [VcalmMatchedCredentials]
+
+    public static func write(_ value: [VcalmMatchedCredentials], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVcalmMatchedCredentials.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VcalmMatchedCredentials] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VcalmMatchedCredentials]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVcalmMatchedCredentials.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVcalmOfferedCredential: FfiConverterRustBuffer {
+    typealias SwiftType = [VcalmOfferedCredential]
+
+    public static func write(_ value: [VcalmOfferedCredential], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVcalmOfferedCredential.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VcalmOfferedCredential] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VcalmOfferedCredential]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVcalmOfferedCredential.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVcalmRequestedField: FfiConverterRustBuffer {
+    typealias SwiftType = [VcalmRequestedField]
+
+    public static func write(_ value: [VcalmRequestedField], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVcalmRequestedField.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VcalmRequestedField] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VcalmRequestedField]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVcalmRequestedField.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAcceptedIssuerEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [AcceptedIssuerEntry]
+
+    public static func write(_ value: [AcceptedIssuerEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAcceptedIssuerEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AcceptedIssuerEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AcceptedIssuerEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAcceptedIssuerEntry.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAcceptedMethodEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [AcceptedMethodEntry]
+
+    public static func write(_ value: [AcceptedMethodEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAcceptedMethodEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AcceptedMethodEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AcceptedMethodEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAcceptedMethodEntry.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCborValue: FfiConverterRustBuffer {
     typealias SwiftType = [CborValue]
 
@@ -30865,6 +33425,56 @@ fileprivate struct FfiConverterSequenceTypeCborValue: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCryptosuiteEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [CryptosuiteEntry]
+
+    public static func write(_ value: [CryptosuiteEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCryptosuiteEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CryptosuiteEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CryptosuiteEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCryptosuiteEntry.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeEnvelopeEntry: FfiConverterRustBuffer {
+    typealias SwiftType = [EnvelopeEntry]
+
+    public static func write(_ value: [EnvelopeEntry], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeEnvelopeEntry.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [EnvelopeEntry] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [EnvelopeEntry]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeEnvelopeEntry.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMDocItem: FfiConverterRustBuffer {
     typealias SwiftType = [MDocItem]
 
@@ -30882,6 +33492,56 @@ fileprivate struct FfiConverterSequenceTypeMDocItem: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeMDocItem.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeOid4vciVersion: FfiConverterRustBuffer {
+    typealias SwiftType = [Oid4vciVersion]
+
+    public static func write(_ value: [Oid4vciVersion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOid4vciVersion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Oid4vciVersion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Oid4vciVersion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOid4vciVersion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeOid4vpVersion: FfiConverterRustBuffer {
+    typealias SwiftType = [Oid4vpVersion]
+
+    public static func write(_ value: [Oid4vpVersion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOid4vpVersion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Oid4vpVersion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Oid4vpVersion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOid4vpVersion.read(from: &buf))
         }
         return seq
     }
@@ -31725,6 +34385,50 @@ public func FfiConverterTypeFieldId180137_lower(_ value: FieldId180137) -> RustB
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
+public typealias JsonValue = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeJsonValue: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> JsonValue {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: JsonValue, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> JsonValue {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: JsonValue) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonValue_lift(_ value: RustBuffer) throws -> JsonValue {
+    return try FfiConverterTypeJsonValue.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeJsonValue_lower(_ value: JsonValue) -> RustBuffer {
+    return FfiConverterTypeJsonValue.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
 public typealias Jws = String
 
 #if swift(>=5.8)
@@ -32479,6 +35183,13 @@ public func initializeMdlPresentationFromBytes(mdoc: Mdoc, centralClientMode: Ce
     )
 })
 }
+public func deviceResponseVerificationAsJsonString(response: MdlDeviceResponseVerification)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseSerializeError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_device_response_verification_as_json_string(
+        FfiConverterTypeMDLDeviceResponseVerification_lower(response),$0
+    )
+})
+}
 public func establishSession(handover: ReaderHandover, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?)throws  -> MdlReaderSessionData  {
     return try  FfiConverterTypeMDLReaderSessionData_lift(try rustCallWithError(FfiConverterTypeMDLReaderSessionError_lift) {
     uniffi_mobile_sdk_rs_fn_func_establish_session(
@@ -32511,6 +35222,30 @@ public func verifiedResponseAsJsonString(response: MdlReaderResponseData)throws 
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseSerializeError_lift) {
     uniffi_mobile_sdk_rs_fn_func_verified_response_as_json_string(
         FfiConverterTypeMDLReaderResponseData_lower(response),$0
+    )
+})
+}
+/**
+ * Verifies an mDL device response by using the session transcript and ephemeral
+ * reader key, and an optional trust anchor registry.
+ *
+ * Arguments:
+ * device_response: cbor encoded `isomdl::definitions::DeviceResponse`
+ * session_transcript: cbor encoded `isomdl::definitions::session::SessionTranscript`
+ * ephemeral_reader_key: 32-byte private key
+ * trust_anchor_registry: optional list of PEM encoded certificates
+ *
+ * Returns:
+ * An object with the verified response, document types, issuer authentication result,
+ * device authentication result, and an optional error string.
+ */
+public func verifyDeviceResponse(deviceResponse: Data, sessionTranscript: Data, ephemeralReaderKey: Data, trustAnchorRegistry: [String]?)throws  -> MdlDeviceResponseVerification  {
+    return try  FfiConverterTypeMDLDeviceResponseVerification_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_verify_device_response(
+        FfiConverterData.lower(deviceResponse),
+        FfiConverterData.lower(sessionTranscript),
+        FfiConverterData.lower(ephemeralReaderKey),
+        FfiConverterOptionSequenceString.lower(trustAnchorRegistry),$0
     )
 })
 }
@@ -32783,6 +35518,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 43986) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_func_device_response_verification_as_json_string() != 22202) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 7717) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -33053,6 +35791,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 29208) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_validity_status() != 13785) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_id() != 57284) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -33162,6 +35903,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_walletserviceclient_nonce() != 50382) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_jwk_copy() != 54187) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_jwk_get_kid() != 19621) {
@@ -33371,7 +36115,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_accept_offer() != 50025) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_compatibility_mode() != 13467) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 55352) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 44572) {
@@ -33389,7 +36133,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_version() != 32242) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_credential_configuration_ids() != 14236) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_credential_issuer() != 49957) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_grant_type() != 24628) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_issuer_display_name() != 982) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_tx_code_definition() != 35359) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_version() != 13680) {
@@ -33518,7 +36274,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start() != 11945) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start_with_compatibility_mode() != 60396) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start_version() != 62020) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_start_with_supported_versions() != 51978) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vppermissionresponse_selected_credentials() != 5574) {
@@ -33612,6 +36371,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_requested_fields() != 4609) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_requestmatch180137_validity_status() != 57220) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_client_id() != 38125) {
@@ -33854,7 +36616,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vciclient_new() != 56300) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vcifacadeclient_new() != 59735) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vcifacadeclient_new() != 25979) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_iosiso18013mobiledocumentrequest_new() != 12468) {

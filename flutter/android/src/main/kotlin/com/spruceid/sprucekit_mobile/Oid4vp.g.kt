@@ -79,6 +79,29 @@ class Oid4vpFlutterError (
 ) : Throwable()
 
 /**
+ * An OID4VP protocol version the holder is willing to negotiate.
+ *
+ * - [v1] OID4VP 1.0 (final).
+ * - [draft18] OID4VP Draft 18.
+ * - [draft13] OID4VP Draft 13 (served by translating onto the Draft 18 engine).
+ *
+ * Draft 13 and Draft 18 may not both be supported: a bare `request_uri` is
+ * indistinguishable between them until its single-use fetch, so the holder
+ * rejects that combination instead of risking a wrong-version fetch.
+ */
+enum class Oid4vpVersion(val raw: Int) {
+  V1(0),
+  DRAFT18(1),
+  DRAFT13(2);
+
+  companion object {
+    fun ofRaw(raw: Int): Oid4vpVersion? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/**
  * Options for creating the permission response
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -514,56 +537,61 @@ private open class Oid4vpPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
       129.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          ResponseOptions.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          Oid4vpVersion.ofRaw(it.toInt())
         }
       }
       130.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          RequestedFieldData.fromList(it)
+          ResponseOptions.fromList(it)
         }
       }
       131.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PresentableCredentialKey.fromList(it)
+          RequestedFieldData.fromList(it)
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PresentableCredentialData.fromList(it)
+          PresentableCredentialKey.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PermissionRequestInfo.fromList(it)
+          PresentableCredentialData.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          Oid4vpSuccess.fromList(it)
+          PermissionRequestInfo.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          Oid4vpError.fromList(it)
+          Oid4vpSuccess.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HandleAuthRequestSuccess.fromList(it)
+          Oid4vpError.fromList(it)
         }
       }
       137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          HandleAuthRequestError.fromList(it)
+          HandleAuthRequestSuccess.fromList(it)
         }
       }
       138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CredentialQueryGroupData.fromList(it)
+          HandleAuthRequestError.fromList(it)
         }
       }
       139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          CredentialQueryGroupData.fromList(it)
+        }
+      }
+      140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           CredentialRequirementData.fromList(it)
         }
@@ -573,48 +601,52 @@ private open class Oid4vpPigeonCodec : StandardMessageCodec() {
   }
   override fun writeValue(stream: ByteArrayOutputStream, value: Any?)   {
     when (value) {
-      is ResponseOptions -> {
+      is Oid4vpVersion -> {
         stream.write(129)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is RequestedFieldData -> {
+      is ResponseOptions -> {
         stream.write(130)
         writeValue(stream, value.toList())
       }
-      is PresentableCredentialKey -> {
+      is RequestedFieldData -> {
         stream.write(131)
         writeValue(stream, value.toList())
       }
-      is PresentableCredentialData -> {
+      is PresentableCredentialKey -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is PermissionRequestInfo -> {
+      is PresentableCredentialData -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is Oid4vpSuccess -> {
+      is PermissionRequestInfo -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is Oid4vpError -> {
+      is Oid4vpSuccess -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is HandleAuthRequestSuccess -> {
+      is Oid4vpError -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is HandleAuthRequestError -> {
+      is HandleAuthRequestSuccess -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is CredentialQueryGroupData -> {
+      is HandleAuthRequestError -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is CredentialRequirementData -> {
+      is CredentialQueryGroupData -> {
         stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is CredentialRequirementData -> {
+        stream.write(140)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -644,9 +676,15 @@ interface Oid4vp {
    * Handle an authorization request URL
    *
    * @param url The authorization request URL (e.g., "openid4vp://...")
+   * @param supportedVersions The OID4VP versions to negotiate against. An empty
+   *   list detects the version from the request (any version). A non-empty list
+   *   restricts detection to those versions, so an unsupported version is never
+   *   selected — and never consumes a single-use `request_uri` on a wrong-version
+   *   fetch. Supplying both [Oid4vpVersion.draft13] and [Oid4vpVersion.draft18]
+   *   is rejected.
    * @return HandleAuthRequestResult with matching credentials on success
    */
-  fun handleAuthorizationRequest(url: String, callback: (Result<HandleAuthRequestResult>) -> Unit)
+  fun handleAuthorizationRequest(url: String, supportedVersions: List<Oid4vpVersion>, callback: (Result<HandleAuthRequestResult>) -> Unit)
   /**
    * Get requested fields for a credential
    *
@@ -725,7 +763,8 @@ interface Oid4vp {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val urlArg = args[0] as String
-            api.handleAuthorizationRequest(urlArg) { result: Result<HandleAuthRequestResult> ->
+            val supportedVersionsArg = args[1] as List<Oid4vpVersion>
+            api.handleAuthorizationRequest(urlArg, supportedVersionsArg) { result: Result<HandleAuthRequestResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(Oid4vpPigeonUtils.wrapError(error))

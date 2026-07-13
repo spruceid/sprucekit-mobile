@@ -21,6 +21,10 @@ public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
         let oid4vpAdapter = Oid4vpAdapter(credentialPackAdapter: credentialPackAdapter)
         Oid4vpSetup.setUp(binaryMessenger: messenger, api: oid4vpAdapter)
 
+        // Initialize VCALM adapter (needs access to credential pack adapter)
+        let vcalmAdapter = VcalmAdapter(credentialPackAdapter: credentialPackAdapter)
+        VcalmSetup.setUp(binaryMessenger: messenger, api: vcalmAdapter)
+
         // Initialize SpruceUtils adapter (needs access to credential pack adapter)
         let spruceUtilsAdapter = SpruceUtilsAdapter(credentialPackAdapter: credentialPackAdapter)
         SpruceUtilsSetup.setUp(binaryMessenger: messenger, api: spruceUtilsAdapter)
@@ -30,6 +34,12 @@ public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
         let mdlCallback = MdlPresentationCallback(binaryMessenger: messenger)
         mdlPresentationAdapter.setCallback(mdlCallback)
         MdlPresentationSetup.setUp(binaryMessenger: messenger, api: mdlPresentationAdapter)
+
+        // Initialize mDL Reader adapter (NFC + QR engagement → BLE session)
+        let mdlReaderAdapter = MdlReaderAdapter()
+        let mdlReaderCallback = MdlReaderCallback(binaryMessenger: messenger)
+        mdlReaderAdapter.setCallback(mdlReaderCallback)
+        MdlReaderSetup.setUp(binaryMessenger: messenger, api: mdlReaderAdapter)
 
         // Initialize OID4VP mDoc adapter (ISO 18013-7)
         let oid4vpMdocAdapter = Oid4vpMdocAdapter(credentialPackAdapter: credentialPackAdapter)

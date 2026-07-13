@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'demos/credential_pack_demo.dart';
 import 'demos/dc_api_demo.dart';
+import 'demos/mdl_reader_demo.dart';
 import 'demos/mdl_share_demo.dart';
 import 'demos/oid4vci_demo.dart';
 import 'demos/oid4vp_demo.dart';
+import 'demos/vcalm_demo.dart';
 import 'demos/oid4vp_mdoc_demo.dart';
 import 'demos/credential_pdf_demo.dart';
 import 'demos/scanner_demo.dart';
@@ -21,7 +23,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'SpruceKit Mobile Examples',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.green,
+          error: Colors.red.shade700,
+        ),
         useMaterial3: true,
       ),
       home: const HomeScreen(),
@@ -37,8 +42,10 @@ class HomeScreen extends StatelessWidget {
     final demos = [
       ('OID4VCI Issuance', Icons.badge, const Oid4vciDemo()),
       ('OID4VP', Icons.verified_user, const Oid4vpDemo()),
+      ('VCALM', Icons.sync_alt, const VcalmDemo()),
       ('OID4VP mDoc', Icons.credit_card, const Oid4vpMdocDemo()),
       ('Share mDL', Icons.share, const MdlShareDemo()),
+      ('Read mDL', Icons.contactless, const MdlReaderDemo()),
       ('DC API', Icons.web, const DcApiDemo()),
       ('Credential Pack', Icons.folder, const CredentialPackDemo()),
       ('Credential PDF', Icons.picture_as_pdf, const CredentialPdfDemo()),

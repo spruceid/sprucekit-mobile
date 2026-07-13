@@ -15,8 +15,8 @@ jobs:
       - name: Validate main branch
         if: github.ref_name != github.event.repository.default_branch
         run: |
-          echo "Branch is not main"
-          exit 0
+          echo "CD must run from '${{ github.event.repository.default_branch }}', not '${{ github.ref_name }}'"
+          exit 1
       - name: Validate tag
         run: |
           echo "${{ github.event.inputs.version }}" | grep -P '^[0-9]+\.[0-9]+\.[0-9]+'
@@ -82,29 +82,10 @@ jobs:
   ios:
     runs-on: macos-latest
     needs: validation
-    permissions:
-      contents: write
+    outputs:
+      checksum: ${{ steps.checksum.outputs.value }}
     steps:
-      - uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ vars.MONOREPO_GH_APP_ID }}
-          private-key: ${{ secrets.MONOREPO_GH_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: |
-            sprucekit-mobile
-      - name: Get GitHub App User ID
-        id: get-user-id
-        run: echo "user-id=$(gh api "/users/${{ steps.app-token.outputs.app-slug }}[bot]" --jq .id)" >> "$GITHUB_OUTPUT"
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-      - run: |
-          git config --global user.name '${{ steps.app-token.outputs.app-slug }}[bot]'
-          git config --global user.email '${{ steps.get-user-id.outputs.user-id }}+${{ steps.app-token.outputs.app-slug }}[bot]@users.noreply.github.com'
-
       - uses: actions/checkout@v4
-        with:
-          token: ${{ steps.app-token.outputs.token }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: "aarch64-apple-ios-sim,aarch64-apple-ios,x86_64-apple-ios"
@@ -120,51 +101,20 @@ jobs:
         working-directory: rust
 
       - name: Compress XCFramework
-        run: |
-          zip -9 -r RustFramework.xcframework.zip rust/MobileSdkRs/RustFramework.xcframework
-          echo "XCF_CHECKSUM=`swift package compute-checksum RustFramework.xcframework.zip`" >> $GITHUB_ENV
+        run: zip -9 -r RustFramework.xcframework.zip rust/MobileSdkRs/RustFramework.xcframework
 
-      - name: Update Swift Package definition
-        run: |
-          sed -i '' 's/binaryTarget.*/binaryTarget(name: "RustFramework", url: "https:\/\/github.com\/spruceid\/sprucekit-mobile\/releases\/download\/${{ github.event.inputs.version }}\/RustFramework.xcframework.zip", checksum: "${{ env.XCF_CHECKSUM }}"),/' Package.swift
+      - name: Compute checksum
+        id: checksum
+        run: echo "value=$(swift package compute-checksum RustFramework.xcframework.zip)" >> "$GITHUB_OUTPUT"
 
-      - name: Update CocoaPods podspecs
-        run: |
-          sed -i '' "s/spec.version.*=.*/spec.version      = '${{ github.event.inputs.version }}'/" SpruceIDMobileSdkRsRustFramework.podspec
-          sed -i '' "s/spec.version.*=.*/spec.version      = '${{ github.event.inputs.version }}'/" SpruceIDMobileSdkRs.podspec
-          sed -i '' "s/spec.version.*=.*/spec.version          = '${{ github.event.inputs.version }}'/" SpruceIDMobileSdk.podspec
-          sed -i '' "s/spec.dependency 'SpruceIDMobileSdkRs'.*/spec.dependency 'SpruceIDMobileSdkRs', '~> ${{ github.event.inputs.version }}'/" SpruceIDMobileSdk.podspec
-          sed -i '' "s/s.version.*/s.version          = '${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
-          sed -i '' "s/s.dependency 'SpruceIDMobileSdk'.*/s.dependency 'SpruceIDMobileSdk', '~> ${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
-
-      # If this fails due to a new commit on the main branch, it's a feature not a bug!
-      # This way, there will be no confusion around what was included in the release.
-      - name: Push changes and tag
-        id: commit
-        run: |
-          git add Package.swift SpruceIDMobileSdk.podspec SpruceIDMobileSdkRs.podspec SpruceIDMobileSdkRsRustFramework.podspec flutter/ios/sprucekit_mobile.podspec
-          git commit -m "Release ${{ github.event.inputs.version }}"
-          git push
-          git tag ${{ github.event.inputs.version }} -m "${{ github.event.inputs.version }}"
-          git push --tags
-
-      - name: Create release and attach XCFramework binary artifact
-        uses: ncipollo/release-action@v1
+      - uses: actions/upload-artifact@v4
         with:
-          artifacts: "RustFramework.xcframework.zip"
-          tag: ${{ github.event.inputs.version }}
-          name: ${{ github.event.inputs.version }}
+          name: rust-xcframework
+          path: RustFramework.xcframework.zip
 
-      - name: Revert Package.swift for local development
-        if: steps.commit.outcome == 'success'
-        run: |
-          git checkout HEAD~1 -- Package.swift
-          git commit -m "Revert Package.swift for local development"
-          git push
-
-  flutter:
+  release:
     runs-on: macos-latest
-    needs: [ios, android]
+    needs: [android, ios]
     permissions:
       contents: write
     steps:
@@ -190,21 +140,71 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           ref: main
 
-      - name: Pull latest changes
-        run: git pull --rebase
+      # If this fails due to a new commit on the main branch, it's a feature not a bug!
+      # This way, there will be no confusion around what was included in the release.
+      - name: Ensure main has not moved since dispatch
+        run: |
+          if [ "$(git rev-parse HEAD)" != "${{ github.sha }}" ]; then
+            echo "main advanced since dispatch (HEAD=$(git rev-parse HEAD), dispatch=${{ github.sha }})"
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rust-xcframework
+
+      - name: Update Swift Package definition
+        run: |
+          sed -i '' 's/binaryTarget.*/binaryTarget(name: "RustFramework", url: "https:\/\/github.com\/spruceid\/sprucekit-mobile\/releases\/download\/${{ github.event.inputs.version }}\/RustFramework.xcframework.zip", checksum: "${{ needs.ios.outputs.checksum }}"),/' Package.swift
+
+      - name: Update CocoaPods podspecs
+        run: |
+          sed -i '' "s/spec.version.*=.*/spec.version      = '${{ github.event.inputs.version }}'/" SpruceIDMobileSdkRsRustFramework.podspec
+          sed -i '' "s/spec.version.*=.*/spec.version      = '${{ github.event.inputs.version }}'/" SpruceIDMobileSdkRs.podspec
+          sed -i '' "s/spec.version.*=.*/spec.version          = '${{ github.event.inputs.version }}'/" SpruceIDMobileSdk.podspec
+          sed -i '' "s/spec.dependency 'SpruceIDMobileSdkRs'.*/spec.dependency 'SpruceIDMobileSdkRs', '~> ${{ github.event.inputs.version }}'/" SpruceIDMobileSdk.podspec
 
       - name: Update Flutter plugin versions
         run: |
           sed -i '' "s/com.spruceid.mobile.sdk:mobilesdk:[0-9.]*/com.spruceid.mobile.sdk:mobilesdk:${{ github.event.inputs.version }}/" flutter/android/build.gradle
           sed -i '' "s/com.spruceid.mobile.sdk.rs:mobilesdkrs:[0-9.]*/com.spruceid.mobile.sdk.rs:mobilesdkrs:${{ github.event.inputs.version }}/" flutter/android/build.gradle
           sed -i '' "s/^version:.*/version: ${{ github.event.inputs.version }}/" flutter/pubspec.yaml
+          sed -i '' "s/s.version.*/s.version          = '${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
+          sed -i '' "s/s.dependency 'SpruceIDMobileSdk'.*/s.dependency 'SpruceIDMobileSdk', '~> ${{ github.event.inputs.version }}'/" flutter/ios/sprucekit_mobile.podspec
 
-      - name: Push Flutter version updates
+      - name: Push changes and tag
+        id: commit
         run: |
-          git add flutter/
-          if git diff --cached --quiet; then
-            echo "No Flutter version changes to commit (already up to date)"
-          else
-            git commit -m "Update Flutter plugin to ${{ github.event.inputs.version }}"
-            git push
-          fi
+          git add Package.swift SpruceIDMobileSdk.podspec SpruceIDMobileSdkRs.podspec SpruceIDMobileSdkRsRustFramework.podspec flutter/
+          git commit -m "Release ${{ github.event.inputs.version }}"
+          git push
+          git tag ${{ github.event.inputs.version }} -m "${{ github.event.inputs.version }}"
+          git push --tags
+
+      - name: Create release and attach XCFramework binary artifact
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "RustFramework.xcframework.zip"
+          tag: ${{ github.event.inputs.version }}
+          name: ${{ github.event.inputs.version }}
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        if: steps.commit.outcome == 'success'
+        with:
+          ssh-private-key: ${{ secrets.COCOAPODS_SPECS_DEPLOY_KEY }}
+
+      - name: Publish podspecs to private Specs repo
+        if: steps.commit.outcome == 'success'
+        run: |
+          pod repo add spruce-specs git@github.com:spruceid/cocoapods-specs.git
+          pod repo push spruce-specs SpruceIDMobileSdkRsRustFramework.podspec --allow-warnings --skip-import-validation
+          pod repo push spruce-specs SpruceIDMobileSdkRs.podspec --allow-warnings --skip-import-validation
+          pod repo push spruce-specs SpruceIDMobileSdk.podspec --allow-warnings --skip-import-validation
+
+      - name: Revert Package.swift for local development
+        if: ${{ !cancelled() && steps.commit.outcome == 'success' }}
+        run: |
+          sed -i '' 's/binaryTarget.*/binaryTarget(name: "RustFramework", path: "rust\/MobileSdkRs\/RustFramework.xcframework"),/' Package.swift
+          git add Package.swift
+          git commit -m "Revert Package.swift for local development"
+          git push

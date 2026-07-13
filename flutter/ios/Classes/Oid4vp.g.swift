@@ -128,6 +128,21 @@ func deepHashOid4vp(value: Any?, hasher: inout Hasher) {
 
     
 
+/// An OID4VP protocol version the holder is willing to negotiate.
+///
+/// - [v1] OID4VP 1.0 (final).
+/// - [draft18] OID4VP Draft 18.
+/// - [draft13] OID4VP Draft 13 (served by translating onto the Draft 18 engine).
+///
+/// Draft 13 and Draft 18 may not both be supported: a bare `request_uri` is
+/// indistinguishable between them until its single-use fetch, so the holder
+/// rejects that combination instead of risking a wrong-version fetch.
+enum Oid4vpVersion: Int {
+  case v1 = 0
+  case draft18 = 1
+  case draft13 = 2
+}
+
 /// Options for creating the permission response
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -531,26 +546,32 @@ private class Oid4vpPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
     case 129:
-      return ResponseOptions.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return Oid4vpVersion(rawValue: enumResultAsInt)
+      }
+      return nil
     case 130:
-      return RequestedFieldData.fromList(self.readValue() as! [Any?])
+      return ResponseOptions.fromList(self.readValue() as! [Any?])
     case 131:
-      return PresentableCredentialKey.fromList(self.readValue() as! [Any?])
+      return RequestedFieldData.fromList(self.readValue() as! [Any?])
     case 132:
-      return PresentableCredentialData.fromList(self.readValue() as! [Any?])
+      return PresentableCredentialKey.fromList(self.readValue() as! [Any?])
     case 133:
-      return PermissionRequestInfo.fromList(self.readValue() as! [Any?])
+      return PresentableCredentialData.fromList(self.readValue() as! [Any?])
     case 134:
-      return Oid4vpSuccess.fromList(self.readValue() as! [Any?])
+      return PermissionRequestInfo.fromList(self.readValue() as! [Any?])
     case 135:
-      return Oid4vpError.fromList(self.readValue() as! [Any?])
+      return Oid4vpSuccess.fromList(self.readValue() as! [Any?])
     case 136:
-      return HandleAuthRequestSuccess.fromList(self.readValue() as! [Any?])
+      return Oid4vpError.fromList(self.readValue() as! [Any?])
     case 137:
-      return HandleAuthRequestError.fromList(self.readValue() as! [Any?])
+      return HandleAuthRequestSuccess.fromList(self.readValue() as! [Any?])
     case 138:
-      return CredentialQueryGroupData.fromList(self.readValue() as! [Any?])
+      return HandleAuthRequestError.fromList(self.readValue() as! [Any?])
     case 139:
+      return CredentialQueryGroupData.fromList(self.readValue() as! [Any?])
+    case 140:
       return CredentialRequirementData.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -560,38 +581,41 @@ private class Oid4vpPigeonCodecReader: FlutterStandardReader {
 
 private class Oid4vpPigeonCodecWriter: FlutterStandardWriter {
   override func writeValue(_ value: Any) {
-    if let value = value as? ResponseOptions {
+    if let value = value as? Oid4vpVersion {
       super.writeByte(129)
-      super.writeValue(value.toList())
-    } else if let value = value as? RequestedFieldData {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? ResponseOptions {
       super.writeByte(130)
       super.writeValue(value.toList())
-    } else if let value = value as? PresentableCredentialKey {
+    } else if let value = value as? RequestedFieldData {
       super.writeByte(131)
       super.writeValue(value.toList())
-    } else if let value = value as? PresentableCredentialData {
+    } else if let value = value as? PresentableCredentialKey {
       super.writeByte(132)
       super.writeValue(value.toList())
-    } else if let value = value as? PermissionRequestInfo {
+    } else if let value = value as? PresentableCredentialData {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? Oid4vpSuccess {
+    } else if let value = value as? PermissionRequestInfo {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? Oid4vpError {
+    } else if let value = value as? Oid4vpSuccess {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? HandleAuthRequestSuccess {
+    } else if let value = value as? Oid4vpError {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? HandleAuthRequestError {
+    } else if let value = value as? HandleAuthRequestSuccess {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? CredentialQueryGroupData {
+    } else if let value = value as? HandleAuthRequestError {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? CredentialRequirementData {
+    } else if let value = value as? CredentialQueryGroupData {
       super.writeByte(139)
+      super.writeValue(value.toList())
+    } else if let value = value as? CredentialRequirementData {
+      super.writeByte(140)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -630,8 +654,14 @@ protocol Oid4vp {
   /// Handle an authorization request URL
   ///
   /// @param url The authorization request URL (e.g., "openid4vp://...")
+  /// @param supportedVersions The OID4VP versions to negotiate against. An empty
+  ///   list detects the version from the request (any version). A non-empty list
+  ///   restricts detection to those versions, so an unsupported version is never
+  ///   selected — and never consumes a single-use `request_uri` on a wrong-version
+  ///   fetch. Supplying both [Oid4vpVersion.draft13] and [Oid4vpVersion.draft18]
+  ///   is rejected.
   /// @return HandleAuthRequestResult with matching credentials on success
-  func handleAuthorizationRequest(url: String, completion: @escaping (Result<HandleAuthRequestResult, Error>) -> Void)
+  func handleAuthorizationRequest(url: String, supportedVersions: [Oid4vpVersion], completion: @escaping (Result<HandleAuthRequestResult, Error>) -> Void)
   /// Get requested fields for a credential
   ///
   /// @param key Stable key identifying the credential. Take the
@@ -698,13 +728,20 @@ class Oid4vpSetup {
     /// Handle an authorization request URL
     ///
     /// @param url The authorization request URL (e.g., "openid4vp://...")
+    /// @param supportedVersions The OID4VP versions to negotiate against. An empty
+    ///   list detects the version from the request (any version). A non-empty list
+    ///   restricts detection to those versions, so an unsupported version is never
+    ///   selected — and never consumes a single-use `request_uri` on a wrong-version
+    ///   fetch. Supplying both [Oid4vpVersion.draft13] and [Oid4vpVersion.draft18]
+    ///   is rejected.
     /// @return HandleAuthRequestResult with matching credentials on success
     let handleAuthorizationRequestChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.handleAuthorizationRequest\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       handleAuthorizationRequestChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let urlArg = args[0] as! String
-        api.handleAuthorizationRequest(url: urlArg) { result in
+        let supportedVersionsArg = args[1] as! [Oid4vpVersion]
+        api.handleAuthorizationRequest(url: urlArg, supportedVersions: supportedVersionsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

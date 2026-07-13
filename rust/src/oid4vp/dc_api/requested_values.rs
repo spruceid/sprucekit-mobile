@@ -145,5 +145,6 @@ pub fn find_match(query: &DcqlCredentialQuery, credential: &Mdoc) -> Result<Requ
         field_map,
         requested_fields,
         missing_fields,
+        validity_status: credential.validity_status(),
     })
 }

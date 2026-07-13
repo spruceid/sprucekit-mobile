@@ -2416,7 +2416,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.3",
+ "socket2 0.5.10",
  "system-configuration 0.7.0",
  "tokio",
  "tower-service",
@@ -2743,7 +2743,7 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/isomdl?rev=a4f92cc#a4f92ccd4a8f4ef5e0e11fe4fa6c3320cce707bf"
+source = "git+https://github.com/spruceid/isomdl?rev=3ad4471#3ad4471337cc203515c0a8572af7a57612633475"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2763,7 +2763,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=a4f92cc)",
+ "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=3ad4471)",
  "ndef-rs",
  "p256",
  "p384",
@@ -2789,7 +2789,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=7608053#76080536badc867d2d674acfca9e5bae6809a54c"
+source = "git+https://github.com/spruceid/isomdl?rev=3ad4471#3ad4471337cc203515c0a8572af7a57612633475"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2799,7 +2799,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=a4f92cc#a4f92ccd4a8f4ef5e0e11fe4fa6c3320cce707bf"
+source = "git+https://github.com/spruceid/isomdl?rev=7608053#76080536badc867d2d674acfca9e5bae6809a54c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3851,7 +3851,7 @@ version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "51e219e79014df21a225b1860a479e2dcd7cbd9130f4defd4bd0e191ea31d67d"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.21.7",
  "chrono",
  "getrandom 0.2.17",
  "http 1.4.0",
@@ -4466,7 +4466,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls 0.23.37",
- "socket2 0.6.3",
+ "socket2 0.5.10",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -4503,7 +4503,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.6.3",
+ "socket2 0.5.10",
  "tracing",
  "windows-sys 0.60.2",
 ]
@@ -5460,6 +5460,12 @@ dependencies = [
  "cpufeatures 0.2.17",
  "digest 0.10.7",
 ]
+
+[[package]]
+name = "sha1_smol"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbfa15b3dddfee50a0fff136974b3e1bde555604ba463834a7eb7deb6417705d"
 
 [[package]]
 name = "sha2"
@@ -7396,6 +7402,7 @@ dependencies = [
  "getrandom 0.4.2",
  "js-sys",
  "serde_core",
+ "sha1_smol",
  "wasm-bindgen",
 ]
 

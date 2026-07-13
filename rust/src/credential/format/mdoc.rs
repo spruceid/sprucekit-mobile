@@ -50,6 +50,18 @@ pub struct Element {
     pub value: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+/// The validity of an mdoc relative to the current time, derived from the MSO
+/// `validityInfo` (`validFrom`/`validUntil`).
+pub enum MdocValidityStatus {
+    /// The current time is within `[validFrom, validUntil]`.
+    Valid,
+    /// `validUntil` is in the past.
+    Expired,
+    /// `validFrom` is in the future.
+    NotYetValid,
+}
+
 #[derive(uniffi::Object, Debug, Clone)]
 pub struct Mdoc {
     inner: Document,
@@ -190,6 +202,19 @@ impl Mdoc {
             .valid_until
             .format(&Iso8601::DEFAULT)
             .map_err(|e| MdocDateError::Formatting(format!("{e:?}")))
+    }
+
+    /// The validity of this mdoc relative to the current time, derived from `validityInfo`.
+    pub fn validity_status(&self) -> MdocValidityStatus {
+        let now = time::OffsetDateTime::now_utc();
+        let validity_info = &self.inner.mso.validity_info;
+        if now < validity_info.valid_from {
+            MdocValidityStatus::NotYetValid
+        } else if now > validity_info.valid_until {
+            MdocValidityStatus::Expired
+        } else {
+            MdocValidityStatus::Valid
+        }
     }
 
     pub async fn activity_log(

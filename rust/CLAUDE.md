@@ -9,6 +9,10 @@ UniFFI library (`mobile-sdk-rs`) that generates Swift and Kotlin bindings for th
 ## Commands
 
 ```bash
+# Keep your toolchain up to date so local clippy/build matches CI's version
+# (CI may run a newer toolchain that flags lints your local version misses)
+rustup update
+
 # Build
 cargo build
 

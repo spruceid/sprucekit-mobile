@@ -15,8 +15,8 @@ import com.spruceid.mobile.sdk.rs.coseKeyEc2P256PublicKey
 import com.spruceid.mobile.sdk.rs.jwkFromPublicP256
 import java.security.KeyPairGenerator
 import java.security.KeyStore
+import java.security.SecureRandom
 import java.security.Signature
-import java.security.cert.Certificate
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
 import javax.crypto.Cipher
@@ -24,9 +24,20 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import com.spruceid.mobile.sdk.rs.KeyStore as SpruceKitKeyStore
 
 /** Implementation of the secure key management with Strongbox and TEE as backup. */
 class KeyManager : SpruceKitKeyStore {
+
+    private companion object {
+        /** GCM standard 96-bit (12-byte) initialization vector. */
+        const val GCM_IV_LENGTH = 12
+
+        /** GCM 128-bit authentication tag. */
+        const val GCM_TAG_LENGTH_BITS = 128
+
+        val secureRandom = SecureRandom()
+    }
 
     /**
      * Returns the Android Keystore.
@@ -362,7 +373,7 @@ class KeyManager : SpruceKitKeyStore {
     fun decryptPayload(id: String, iv: ByteArray, payload: ByteArray): ByteArray {
         val secretKey = getSecretKey(id)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val spec = GCMParameterSpec(128, iv)
+        val spec = GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
         cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
         return cipher.doFinal(payload)
     }
@@ -381,8 +392,9 @@ class KeyManager : SpruceKitKeyStore {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val secretKey = SecretKeySpec(key, "AES")
 
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey)
-        val iv = cipher.iv
+        val iv = ByteArray(GCM_IV_LENGTH).also { secureRandom.nextBytes(it) }
+        val parameterSpec = GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec)
         val encrypted = cipher.doFinal(data)
 
         return Pair(iv, encrypted)
@@ -402,7 +414,7 @@ class KeyManager : SpruceKitKeyStore {
     fun decryptWithDirectKey(key: ByteArray, iv: ByteArray, encryptedData: ByteArray): ByteArray {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val secretKey = SecretKeySpec(key, "AES")
-        val spec = GCMParameterSpec(128, iv)
+        val spec = GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
 
         cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
         return cipher.doFinal(encryptedData)
