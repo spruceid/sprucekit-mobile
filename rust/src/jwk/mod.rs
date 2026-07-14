@@ -37,6 +37,11 @@ impl Jwk {
     pub fn set_kid(&self, kid: Option<String>) {
         self.0.blocking_write().key_id = kid
     }
+
+    /// Returns a copy of this JWK.
+    pub fn copy(&self) -> Self {
+        Self(RwLock::new(self.0.blocking_read().clone()))
+    }
 }
 
 impl fmt::Display for Jwk {

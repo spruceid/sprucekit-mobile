@@ -324,32 +324,16 @@ class GattServer(
                         }
                     } // End synchronized block
 
-                    if (value[0].toInt() == 0x01) {
-                        if (value.size > mtu - 3) {
-                            callback.onError(
-                                Error(
-                                    "Invalid size ${value.size} of data written Client2Server " +
-                                            "characteristic, expected maximum size ${mtu - 3}"
-                                )
-                            )
-                            logger.e(
-                                "Invalid size ${value.size} of data written Client2Server " +
-                                        "characteristic, expected maximum size ${mtu - 3}"
-                            )
+                    // The final chunk's message was already assembled and delivered above; a
+                    // within-MTU intermediate chunk simply proceeds. Only a malformed chunk is an
+                    // error. See [classifyClient2ServerChunk] for the framing rules (unit-tested).
+                    when (val chunk = classifyClient2ServerChunk(value[0].toInt(), value.size, mtu)) {
+                        Client2ServerChunk.Final, Client2ServerChunk.Intermediate -> {}
+                        is Client2ServerChunk.Invalid -> {
+                            callback.onError(Error(chunk.message))
+                            logger.e(chunk.message)
                             return
                         }
-                    } else {
-                        callback.onError(
-                            Error(
-                                "Invalid first byte ${value[0].toInt()} in Client2Server " +
-                                        "data chunk, expected 0 or 1"
-                            )
-                        )
-                        logger.e(
-                            "Invalid first byte ${value[0].toInt()} in Client2Server " +
-                                    "data chunk, expected 0 or 1"
-                        )
-                        return
                     }
                     if (responseNeeded) {
                         try {
@@ -1140,3 +1124,49 @@ class GattServer(
         }
     }
 }
+
+/**
+ * Classification of a chunk written to the Client2Server characteristic by its leading status
+ * byte. Extracted as a pure function so the framing rules can be unit-tested without an Android
+ * BLE stack.
+ */
+internal sealed class Client2ServerChunk {
+    /** `0x00` — final chunk; the assembled message is complete. */
+    object Final : Client2ServerChunk()
+
+    /** `0x01` — intermediate chunk that fits within the negotiated MTU. */
+    object Intermediate : Client2ServerChunk()
+
+    /** Malformed: an unknown leading byte, or an intermediate chunk exceeding the MTU. */
+    data class Invalid(val message: String) : Client2ServerChunk()
+}
+
+/**
+ * Classify a Client2Server chunk by its leading byte (`0x00` final, `0x01` intermediate).
+ *
+ * `0x00` is valid regardless of `chunkSize`; rejecting it as a self-contradictory "expected 0 or 1"
+ * error was the GattServer final-chunk bug, which tore the session down after the message had
+ * already been delivered.
+ */
+internal fun classifyClient2ServerChunk(
+    firstByte: Int,
+    chunkSize: Int,
+    mtu: Int,
+): Client2ServerChunk =
+    when (firstByte) {
+        0x00 -> Client2ServerChunk.Final
+        0x01 ->
+            if (chunkSize > mtu - 3) {
+                Client2ServerChunk.Invalid(
+                    "Invalid size $chunkSize of data written Client2Server " +
+                        "characteristic, expected maximum size ${mtu - 3}"
+                )
+            } else {
+                Client2ServerChunk.Intermediate
+            }
+
+        else ->
+            Client2ServerChunk.Invalid(
+                "Invalid first byte $firstByte in Client2Server data chunk, expected 0 or 1"
+            )
+    }

@@ -164,6 +164,7 @@ impl IOSISO18013MobileDocumentRequest {
                                     field_map,
                                     requested_fields,
                                     missing_fields,
+                                    validity_status: mdoc.validity_status(),
                                 }));
                             }
                         }

@@ -66,7 +66,22 @@ class TransportBlePeripheralServerReader(
                 logger.d("onStartSuccess")
             }
 
-            override fun onStartFailure(errorCode: Int) {}
+            override fun onStartFailure(errorCode: Int) {
+                val reason = "Advertise failed (code=$errorCode)"
+                logger.e(reason)
+                stateMachine.transitionTo(
+                    BleConnectionStateMachine.State.ERROR,
+                    reason,
+                )
+            }
+
+            override fun onError(error: Throwable) {
+                logger.e("Peripheral error: ${error.message}")
+                stateMachine.transitionTo(
+                    BleConnectionStateMachine.State.ERROR,
+                    error.message,
+                )
+            }
 
             override fun onLog(message: String) {
                 logger.d(message)
@@ -83,6 +98,7 @@ class TransportBlePeripheralServerReader(
         val gattServerCallback: GattServerCallback = object : GattServerCallback() {
             override fun onPeerConnected() {
                 logger.d("onPeerConnected")
+                blePeripheral.stopAdvertise()
                 gattServer.sendMessage(encodedEDeviceKeyBytes)
             }
 
@@ -95,7 +111,14 @@ class TransportBlePeripheralServerReader(
 
             override fun onMessageSendProgress(progress: Int, max: Int) {}
             override fun onMessageReceived(data: ByteArray) {
-                logger.d(data.toString())
+                // Diagnostic: byte[] .toString() only yields an object hash.
+                // Log size + a short hex prefix so a capture can distinguish
+                // "no/short response over BLE" from "full response that failed
+                // to decrypt/parse downstream".
+                logger.d(
+                    "onMessageReceived: ${data.size} bytes, prefix=" +
+                        data.take(16).joinToString("") { "%02x".format(it) }
+                )
 
                 try {
                     gattServer.sendTransportSpecificTermination()

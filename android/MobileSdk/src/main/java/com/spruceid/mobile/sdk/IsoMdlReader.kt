@@ -111,8 +111,21 @@ class IsoMdlReader(
 
     fun handleMdlReaderResponseData(response: ByteArray): MdlReaderResponseData {
         try {
-            return com.spruceid.mobile.sdk.rs.handleResponse(session, response)
+            val data = com.spruceid.mobile.sdk.rs.handleResponse(session, response)
+            // Diagnostic: surface what handleResponse produced so a capture can
+            // tell "empty/failed parse" from "parsed but unverified". `errors`
+            // is the JSON-encoded per-category error map from isomdl.
+            Log.d(
+                "IsoMdlReader",
+                "handleResponse: docTypes=${data.docTypes}, " +
+                    "issuerAuth=${data.issuerAuthentication}, " +
+                    "deviceAuth=${data.deviceAuthentication}, " +
+                    "namespaces=${data.verifiedResponse.keys}, " +
+                    "errors=${data.errors}"
+            )
+            return data
         } catch (e: MdlReaderResponseException) {
+            Log.e("IsoMdlReader", "handleResponse failed", e)
             throw e
         }
     }

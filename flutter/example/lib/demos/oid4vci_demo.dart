@@ -30,6 +30,19 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
   ParsedOfferMetadata? _parsedMetadata;
   String? _sessionId;
   TxCodeMetadata? _txCodeMetadata;
+  List<Oid4vciVersion> _supportedVersions = const [];
+
+  void _toggleVersion(Oid4vciVersion version, bool selected) {
+    setState(() {
+      final next = [..._supportedVersions];
+      if (selected) {
+        next.add(version);
+      } else {
+        next.remove(version);
+      }
+      _supportedVersions = next;
+    });
+  }
 
   @override
   void initState() {
@@ -84,7 +97,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
     });
 
     try {
-      final metadata = await _api.parseOffer(offer);
+      final metadata = await _api.parseOffer(offer, _supportedVersions);
       setState(() => _parsedMetadata = metadata);
 
       switch (metadata.grantType) {
@@ -111,6 +124,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       _keyIdController.text,
       DidMethod.jwk,
       null,
+      _supportedVersions,
     );
     setState(() {
       _loading = false;
@@ -130,6 +144,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       _keyIdController.text,
       DidMethod.jwk,
       null,
+      _supportedVersions,
     );
     setState(() {
       _loading = false;
@@ -146,6 +161,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       _keyIdController.text,
       DidMethod.jwk,
       _authCodeRedirectUrl,
+      _supportedVersions,
     );
     final sessionId = session.sessionId;
 
@@ -302,6 +318,32 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
                 labelText: 'Key ID',
                 border: OutlineInputBorder(),
               ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'OID4VCI versions (none = auto, v1 with legacy fallback):',
+            ),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 8,
+              children: [
+                FilterChip(
+                  label: const Text('v1'),
+                  selected: _supportedVersions.contains(Oid4vciVersion.v1),
+                  onSelected: _loading
+                      ? null
+                      : (selected) =>
+                            _toggleVersion(Oid4vciVersion.v1, selected),
+                ),
+                FilterChip(
+                  label: const Text('legacy'),
+                  selected: _supportedVersions.contains(Oid4vciVersion.legacy),
+                  onSelected: _loading
+                      ? null
+                      : (selected) =>
+                            _toggleVersion(Oid4vciVersion.legacy, selected),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Row(

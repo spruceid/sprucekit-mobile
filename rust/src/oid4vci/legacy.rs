@@ -187,6 +187,16 @@ impl LegacyResolvedOffer {
     pub(crate) fn credential_issuer(&self) -> &str {
         &self.issuer
     }
+
+    pub(crate) fn credential_configuration_ids(&self) -> Vec<String> {
+        self.credential_ids
+            .iter()
+            .map(|id| match id {
+                CredentialOrConfigurationId::Configuration(id)
+                | CredentialOrConfigurationId::Credential(id) => id.clone(),
+            })
+            .collect()
+    }
 }
 
 impl LegacyCredentialToken {

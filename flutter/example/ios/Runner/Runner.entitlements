@@ -14,5 +14,14 @@
 	<array>
 		<string>$(AppIdentifierPrefix)keychain.com.spruceid.sprucekit.flutterexampleapp</string>
 	</array>
+	<!--
+	  NFC reader mode for ISO 18013-5 NFC engagement. The "NFC Tag Reading"
+	  capability must also be enabled for this App ID in the Apple Developer
+	  portal for the entitlement to take effect.
+	-->
+	<key>com.apple.developer.nfc.readersession.formats</key>
+	<array>
+		<string>TAG</string>
+	</array>
 </dict>
 </plist>

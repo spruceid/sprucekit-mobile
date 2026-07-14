@@ -113,6 +113,22 @@ impl std::fmt::Debug for Holder {
     }
 }
 
+/// Default the JSON-LD context map to the SDK's bundled contexts (alumni,
+/// first-responder, citizenship, render-method, …) when the caller supplies
+/// none or an empty map — mirroring `VcalmHolder::new_session`. Without this, an
+/// LDP-VC whose `@context` references a bundled-only context (e.g. a
+/// VCALM-issued FirstResponderCredential using `w3id.org/first-responder/v1`
+/// and the render-method contexts) cannot be canonicalized when building the VP,
+/// so presentation fails. An explicit non-empty map still overrides.
+fn with_default_contexts(
+    context_map: Option<HashMap<String, String>>,
+) -> Option<HashMap<String, String>> {
+    Some(match context_map {
+        Some(map) if !map.is_empty() => map,
+        _ => crate::context::default_ld_json_context(),
+    })
+}
+
 #[uniffi::export(async_runtime = "tokio")]
 impl Holder {
     /// Uses VDC collection to retrieve the credentials for a given presentation definition.
@@ -160,7 +176,7 @@ impl Holder {
             trusted_dids,
             provided_credentials: None,
             signer: Arc::new(signer),
-            context_map,
+            context_map: with_default_contexts(context_map),
             keystore,
             providers,
         }))
@@ -215,7 +231,7 @@ impl Holder {
             trusted_dids,
             provided_credentials: Some(provided_credentials),
             signer: Arc::new(signer),
-            context_map,
+            context_map: with_default_contexts(context_map),
             keystore,
             providers,
         }))

@@ -72,7 +72,7 @@ struct HandleOID4VCIView: View {
         let httpClient = Oid4vciAsyncHttpClient()
 
         // Setup signer.
-        let jwk = KeyManager.getOrInsertJwk(id: DEFAULT_SIGNING_KEY_ID)
+        let jwk = KeyManager.getOrInsertJwk(id: DEFAULT_SIGNING_KEY_ID).copy()
         let didUrl = generateDidJwkUrl(jwk: jwk)
         jwk.setKid(kid: didUrl.description)
         let signer = KeyManagerJwkSigner(id: DEFAULT_SIGNING_KEY_ID, jwk: jwk)

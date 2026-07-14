@@ -54,6 +54,19 @@ enum DidMethod {
   key,
 }
 
+/// An OID4VCI protocol version the compatibility facade is willing to use.
+///
+/// - [v1] OID4VCI 1.0 (final).
+/// - [legacy] The legacy draft-13 request shape.
+///
+/// Passed as a set of supported versions. An empty list means auto: probe
+/// both versions and prefer v1, transparently falling back to legacy if the
+/// issuer rejects the v1 request. `[v1, legacy]` is equivalent to auto.
+enum Oid4vciVersion {
+  v1,
+  legacy,
+}
+
 /// Grant type discriminator for an OID4VCI credential offer.
 ///
 /// Mirrors the Rust `GrantType` enum on `ResolvedCredentialOffer`.
@@ -456,32 +469,35 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is DidMethod) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is GrantType) {
+    }    else if (value is Oid4vciVersion) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is TxCodeInputMode) {
+    }    else if (value is GrantType) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is Oid4vciExchangeOptions) {
+    }    else if (value is TxCodeInputMode) {
       buffer.putUint8(132);
-      writeValue(buffer, value.encode());
-    }    else if (value is IssuedCredential) {
+      writeValue(buffer, value.index);
+    }    else if (value is Oid4vciExchangeOptions) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    }    else if (value is TxCodeMetadata) {
+    }    else if (value is IssuedCredential) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is OfferSession) {
+    }    else if (value is TxCodeMetadata) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is ParsedOfferMetadata) {
+    }    else if (value is OfferSession) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vciSuccess) {
+    }    else if (value is ParsedOfferMetadata) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is Oid4vciError) {
+    }    else if (value is Oid4vciSuccess) {
       buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is Oid4vciError) {
+      buffer.putUint8(139);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -496,23 +512,26 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : DidMethod.values[value];
       case 130:
         final value = readValue(buffer) as int?;
-        return value == null ? null : GrantType.values[value];
+        return value == null ? null : Oid4vciVersion.values[value];
       case 131:
         final value = readValue(buffer) as int?;
-        return value == null ? null : TxCodeInputMode.values[value];
+        return value == null ? null : GrantType.values[value];
       case 132:
-        return Oid4vciExchangeOptions.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : TxCodeInputMode.values[value];
       case 133:
-        return IssuedCredential.decode(readValue(buffer)!);
+        return Oid4vciExchangeOptions.decode(readValue(buffer)!);
       case 134:
-        return TxCodeMetadata.decode(readValue(buffer)!);
+        return IssuedCredential.decode(readValue(buffer)!);
       case 135:
-        return OfferSession.decode(readValue(buffer)!);
+        return TxCodeMetadata.decode(readValue(buffer)!);
       case 136:
-        return ParsedOfferMetadata.decode(readValue(buffer)!);
+        return OfferSession.decode(readValue(buffer)!);
       case 137:
-        return Oid4vciSuccess.decode(readValue(buffer)!);
+        return ParsedOfferMetadata.decode(readValue(buffer)!);
       case 138:
+        return Oid4vciSuccess.decode(readValue(buffer)!);
+      case 139:
         return Oid4vciError.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -542,17 +561,19 @@ class Oid4vci {
   /// exchange or credential request. Safe to call before any user authorization.
   ///
   /// @param credentialOffer The full credential offer URL.
+  /// @param supportedVersions The OID4VCI versions to resolve against. An empty
+  ///   list means auto (probe both, prefer v1 with legacy fallback).
   /// @return Pre-issuance metadata describing the issuer and the grant type
   ///   the user will need to complete.
   /// @throws when the URL is unparseable or the issuer metadata fetch fails.
-  Future<ParsedOfferMetadata> parseOffer(String credentialOffer) async {
+  Future<ParsedOfferMetadata> parseOffer(String credentialOffer, List<Oid4vciVersion> supportedVersions) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.parseOffer$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, supportedVersions]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -578,15 +599,17 @@ class Oid4vci {
   /// @param keyId The key identifier for signing (will create if doesn't exist)
   /// @param didMethod The DID method for proof of possession
   /// @param contextMap Optional JSON-LD context map for credential parsing
+  /// @param supportedVersions The OID4VCI versions to resolve against. An empty
+  ///   list means auto (probe both, prefer v1 with legacy fallback).
   /// @return Oid4vciResult with credentials on success or error message on failure
-  Future<Oid4vciResult> runIssuance(String credentialOffer, String clientId, String redirectUrl, String keyId, DidMethod didMethod, Map<String, String>? contextMap) async {
+  Future<Oid4vciResult> runIssuance(String credentialOffer, String clientId, String redirectUrl, String keyId, DidMethod didMethod, Map<String, String>? contextMap, List<Oid4vciVersion> supportedVersions) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.runIssuance$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, redirectUrl, keyId, didMethod, contextMap]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, redirectUrl, keyId, didMethod, contextMap, supportedVersions]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -619,14 +642,14 @@ class Oid4vci {
   /// created with a null redirect, it returns null.
   ///
   /// @throws when the offer cannot be resolved or the token request fails.
-  Future<OfferSession> acceptOffer(String credentialOffer, String clientId, String keyId, DidMethod didMethod, String? redirectUrl) async {
+  Future<OfferSession> acceptOffer(String credentialOffer, String clientId, String keyId, DidMethod didMethod, String? redirectUrl, List<Oid4vciVersion> supportedVersions) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vci.acceptOffer$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, keyId, didMethod, redirectUrl]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialOffer, clientId, keyId, didMethod, redirectUrl, supportedVersions]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object pigeonVar_replyValue = _extractReplyValueOrThrow(

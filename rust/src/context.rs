@@ -34,12 +34,24 @@ pub fn vc_playground_context(mut context: HashMap<String, String>) -> HashMap<St
         include_str!("../tests/context/purl_imsglobal_org_spec_ob_v3p0_context_3_0_2.json").into(),
     );
     context.insert(
+        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json".into(),
+        include_str!("../tests/context/purl_imsglobal_org_spec_ob_v3p0_context_3_0_3.json").into(),
+    );
+    context.insert(
         "https://w3id.org/citizenship/v4rc1".into(),
         include_str!("../tests/context/w3id_org_citizenship_v4rc1.json").into(),
     );
     context.insert(
         "https://w3id.org/vc/render-method/v2rc1".into(),
         include_str!("../tests/context/w3id_org_vc_render_method_v2rc1.json").into(),
+    );
+    context.insert(
+        "https://w3id.org/vc/render-method/v2rc2".into(),
+        include_str!("../tests/context/w3id_org_vc_render_method_v2rc2.json").into(),
+    );
+    context.insert(
+        "https://w3id.org/identification/v1rc1".into(),
+        include_str!("../tests/context/w3id_org_identification_v1rc1.json").into(),
     );
     context.insert(
         "https://examples.vcplayground.org/contexts/alumni/v2.json".into(),

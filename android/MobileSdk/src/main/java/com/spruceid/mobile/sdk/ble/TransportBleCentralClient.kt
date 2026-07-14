@@ -14,6 +14,7 @@ import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.byteArrayToHex
 import com.spruceid.mobile.sdk.rs.RequestException
 import java.util.*
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * BLE Central Client - ISO 18013-5 Section 8.3.3.1.1.4 Table 11
@@ -63,6 +64,9 @@ class TransportBleCentralClient(
     private var logger = BleLogger.getInstance("TransportBleCentralClient")
     private val isReader = application == "Reader"
 
+    // Forwards session events to the host delegate (see BleSessionEmitter).
+    private val emitter = BleSessionEmitter(callback)
+
     private lateinit var gattClient: GattClient
     private lateinit var identValue: ByteArray
 
@@ -106,7 +110,7 @@ class TransportBleCentralClient(
         val gattClientCallback: GattClientCallback = object : GattClientCallback() {
             override fun onPeerConnected() {
                 logger.d("Peer Connected")
-                callback?.update(mapOf(Pair("connected", "")))
+                emitter.connected()
 
                 // Reader as Central: Send the mDL request to Holder after connection
                 if (isReader && requestData != null) {
@@ -119,7 +123,7 @@ class TransportBleCentralClient(
                 logger.d("Peer Disconnected")
                 // Transition to disconnected state
                 stateMachine.transitionTo(BleConnectionStateMachine.State.DISCONNECTED)
-                callback?.update(mapOf(Pair("disconnected", "")))
+                emitter.disconnected()
                 gattClient.disconnect()
             }
 
@@ -128,21 +132,15 @@ class TransportBleCentralClient(
                     "progress: $progress max: $max"
                 )
 
-                if (progress == max) {
+                if (BleSessionUpdates.isComplete(progress, max)) {
                     // Only send success callback for Holder role, Reader waits for mDL response
                     if (!isReader) {
-                        callback?.update(mapOf(Pair("success", "")))
+                        emitter.success()
                     } else {
                         logger.d("mDL request sent successfully")
                     }
                 } else {
-                    callback?.update(
-                        mapOf(
-                            Pair(
-                                "uploadProgress", mapOf(Pair("curr", progress), Pair("max", max))
-                            )
-                        )
-                    )
+                    emitter.uploadProgress(progress, max)
                 }
             }
 
@@ -156,7 +154,7 @@ class TransportBleCentralClient(
                     if (isReader) {
                         // Reader mode: Forward the mDL response to the application
                         logger.d("Received mDL response: ${data.size} bytes")
-                        callback?.update(mapOf(Pair("mdl", data)))
+                        emitter.mdl(data)
                     } else {
                         // Holder mode: Process the request data
                         val cont = updateRequestData?.invoke(data) ?: true
@@ -173,7 +171,7 @@ class TransportBleCentralClient(
                     logger.e("${e.message}")
                     // Transition to error state on exception
                     stateMachine.transitionTo(BleConnectionStateMachine.State.ERROR, e.message)
-                    callback?.update(mapOf(Pair("error", e)))
+                    emitter.error(e)
                 } catch (e: RequestException) {
                     logger.e("${e.message}")
                     // this is a workaround for now investigate eReaderDevice key missing on last message
@@ -232,11 +230,74 @@ class TransportBleCentralClient(
     }
 
 
+    /**
+     * Tracks scan-failed retry state so the SDK can auto-recover from
+     * `SCAN_FAILED_SCANNING_TOO_FREQUENTLY` since Android 30+ enforces ≤5 scans
+     * per 30s per app.
+     */
+    private var scanThrottleRetryAttempt = 0
+    private val maxScanThrottleRetries = 1
+    private var scanThrottleRetryRunnable: Runnable? = null
+
     private val leScanCallback: ScanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             super.onScanResult(callbackType, result)
+            scanThrottleRetryAttempt = 0
             stopScan()
             gattClient.connect(result.device, identValue)
+        }
+
+        override fun onScanFailed(errorCode: Int) {
+            super.onScanFailed(errorCode)
+            logger.e("BLE scan failed (code=$errorCode)")
+
+            // Unregister the failed/lingering scan and clear pending runnables so a
+            // failed registration can't accumulate. stopScanInternal() already handles
+            // the SecurityException and resets the scanning flag.
+            synchronized(scanLock) {
+                stopScanInternal()
+            }
+
+            if (errorCode == SCAN_FAILED_SCANNING_TOO_FREQUENTLY &&
+                scanThrottleRetryAttempt < maxScanThrottleRetries) {
+                scanThrottleRetryAttempt++
+                logger.w(
+                    "Scan throttled (SCANNING_TOO_FREQUENTLY); backing off " +
+                        "${SCAN_THROTTLE_BACKOFF_MS}ms then retrying " +
+                        "(attempt $scanThrottleRetryAttempt/$maxScanThrottleRetries).",
+                )
+                // Surface a transient signal so the host UI can show a
+                // "please wait" hint instead of leaving the user staring
+                // at a blank scanning indicator.
+                emitter.scanThrottled()
+                val retry = Runnable {
+                    try {
+                        scanThrottleRetryRunnable = null
+                        scan()
+                    } catch (e: Exception) {
+                        logger.e("Scan retry after throttle failed: ${e.message}")
+                        emitter.error("Scan retry failed: ${e.message}")
+                    }
+                }
+                scanThrottleRetryRunnable = retry
+                handler.postDelayed(retry, SCAN_THROTTLE_BACKOFF_MS)
+                return
+            }
+
+            // Non-recoverable or retries exhausted — surface to caller.
+            val message = when (errorCode) {
+                SCAN_FAILED_ALREADY_STARTED -> "Scan already started."
+                SCAN_FAILED_APPLICATION_REGISTRATION_FAILED ->
+                    "Scan application registration failed."
+                SCAN_FAILED_INTERNAL_ERROR -> "Scan internal error."
+                SCAN_FAILED_FEATURE_UNSUPPORTED -> "BLE scan feature unsupported."
+                SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES ->
+                    "BLE scan out of hardware resources."
+                SCAN_FAILED_SCANNING_TOO_FREQUENTLY ->
+                    "Scan throttled by system (5/30s limit) and retry exhausted."
+                else -> "Scan failed (code=$errorCode)."
+            }
+            emitter.error(message)
         }
     }
 
@@ -263,19 +324,42 @@ class TransportBleCentralClient(
                     // Clear any existing timeout before setting new one
                     scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
 
+                    val armedGeneration = scanGenerationCounter.incrementAndGet()
+
                     scanTimeoutRunnable = Runnable {
                         synchronized(scanLock) {
-                            if (scanning) {
+                            val action = scanTimeoutAction(
+                                wasScanning = scanning,
+                                armedGeneration = armedGeneration,
+                                currentGeneration = scanGenerationCounter.get(),
+                            )
+                            // STOP_SCAN_ONLY and STOP_SCAN_AND_TEARDOWN both release THIS instance's
+                            // own scan, even when stale — never skip the stopScan, or an orphaned
+                            // instance's registration is never released and accumulates
+                            // (→ SCAN_FAILED_APPLICATION_REGISTRATION_FAILED, needs a BLE restart).
+                            // Only the teardown is fenced behind staleness.
+                            if (action != ScanTimeoutAction.NONE) {
                                 scanning = false
                                 try {
                                     bluetoothLeScanner.stopScan(leScanCallback)
                                 } catch (e: Exception) {
                                     logger.e("${e.message}")
                                 }
-                                scanTimeoutRunnable = null
-                                logger.i("connection timeout")
-                                callback?.update(mapOf(Pair("timeout", "")))
-                                disconnect()
+                            }
+                            scanTimeoutRunnable = null
+
+                            when (action) {
+                                ScanTimeoutAction.STOP_SCAN_AND_TEARDOWN -> {
+                                    logger.i("connection timeout")
+                                    emitter.timeout()
+                                    disconnect()
+                                }
+                                ScanTimeoutAction.STOP_SCAN_ONLY -> logger.d(
+                                    "Stale scan timeout runnable (armed=$armedGeneration, " +
+                                        "current=${scanGenerationCounter.get()}); " +
+                                        "unregistered own scan, skipping teardown.",
+                                )
+                                ScanTimeoutAction.NONE -> {}
                             }
                         }
                     }
@@ -314,6 +398,9 @@ class TransportBleCentralClient(
             scanTimeoutRunnable?.let { handler.removeCallbacks(it) }
             scanTimeoutRunnable = null
 
+            scanThrottleRetryRunnable?.let { handler.removeCallbacks(it) }
+            scanThrottleRetryRunnable = null
+
             if (scanning) {
                 bluetoothLeScanner.stopScan(leScanCallback)
                 scanning = false
@@ -338,4 +425,36 @@ class TransportBleCentralClient(
         // Force reset to idle state
         stateMachine.reset()
     }
+
+    private companion object {
+        // 30s rolling window per Android's ScanThrottle;
+        const val SCAN_THROTTLE_BACKOFF_MS = 31_000L
+
+        /**
+         * Process-wide atomic counter used to fence scan-timeout
+         * runnables against stale instances.
+         */
+        val scanGenerationCounter = AtomicLong(0)
+    }
+}
+
+/** What a fired scan-timeout runnable should do (see [scanTimeoutAction]). */
+internal enum class ScanTimeoutAction { NONE, STOP_SCAN_ONLY, STOP_SCAN_AND_TEARDOWN }
+
+/**
+ * Decide what a fired scan-timeout runnable does. Invariant (regression fixed from #316): a stale
+ * timeout — one whose [armedGeneration] no longer matches the process-wide [currentGeneration]
+ * because a newer scan started — must STILL unregister its own scan (STOP_SCAN_ONLY); only the
+ * session teardown is skipped. Skipping the stopScan too (the previous behaviour) orphaned the scan
+ * registration and eventually exhausted Android's per-app scanner limit, surfacing as
+ * SCAN_FAILED_APPLICATION_REGISTRATION_FAILED (unrecoverable without a BLE/device restart).
+ */
+internal fun scanTimeoutAction(
+    wasScanning: Boolean,
+    armedGeneration: Long,
+    currentGeneration: Long,
+): ScanTimeoutAction = when {
+    !wasScanning -> ScanTimeoutAction.NONE
+    armedGeneration != currentGeneration -> ScanTimeoutAction.STOP_SCAN_ONLY
+    else -> ScanTimeoutAction.STOP_SCAN_AND_TEARDOWN
 }

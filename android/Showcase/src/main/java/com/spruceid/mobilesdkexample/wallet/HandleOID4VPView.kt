@@ -325,7 +325,9 @@ fun HandleOID4VPView(
                             }
                         }
 
-                        Oid4vpVersion.DRAFT18 -> {
+                        Oid4vpVersion.DRAFT18, Oid4vpVersion.DRAFT13 -> {
+                            // Draft 13 requests are served by translating them onto
+                            // the draft-18 engine, so they share the same flow here.
                             val signer = Draft18Signer(DEFAULT_SIGNING_KEY_ID)
                             draft18Holder =
                                 Draft18Holder.newWithCredentials(
@@ -386,7 +388,7 @@ fun HandleOID4VPView(
             )
 
         OID4VPState.SelectCredential ->
-            if (requestVersion == Oid4vpVersion.DRAFT18) {
+            if (requestVersion == Oid4vpVersion.DRAFT18 || requestVersion == Oid4vpVersion.DRAFT13) {
                 Draft18CredentialSelector(
                     requirements = draft18Requirements,
                     credentialClaims = credentialClaims,
@@ -431,7 +433,7 @@ fun HandleOID4VPView(
             }
 
         OID4VPState.SelectiveDisclosure -> {
-            if (requestVersion == Oid4vpVersion.DRAFT18) {
+            if (requestVersion == Oid4vpVersion.DRAFT18 || requestVersion == Oid4vpVersion.DRAFT13) {
                 val currentCredential = draft18SelectedCredentials.value[currentDisclosureIndex]
                 val totalCredentials = draft18SelectedCredentials.value.size
 

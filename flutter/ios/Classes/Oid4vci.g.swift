@@ -134,6 +134,19 @@ enum DidMethod: Int {
   case key = 1
 }
 
+/// An OID4VCI protocol version the compatibility facade is willing to use.
+///
+/// - [v1] OID4VCI 1.0 (final).
+/// - [legacy] The legacy draft-13 request shape.
+///
+/// Passed as a set of supported versions. An empty list means auto: probe
+/// both versions and prefer v1, transparently falling back to legacy if the
+/// issuer rejects the v1 request. `[v1, legacy]` is equivalent to auto.
+enum Oid4vciVersion: Int {
+  case v1 = 0
+  case legacy = 1
+}
+
 /// Grant type discriminator for an OID4VCI credential offer.
 ///
 /// Mirrors the Rust `GrantType` enum on `ResolvedCredentialOffer`.
@@ -428,28 +441,34 @@ private class Oid4vciPigeonCodecReader: FlutterStandardReader {
     case 130:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return GrantType(rawValue: enumResultAsInt)
+        return Oid4vciVersion(rawValue: enumResultAsInt)
       }
       return nil
     case 131:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return TxCodeInputMode(rawValue: enumResultAsInt)
+        return GrantType(rawValue: enumResultAsInt)
       }
       return nil
     case 132:
-      return Oid4vciExchangeOptions.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return TxCodeInputMode(rawValue: enumResultAsInt)
+      }
+      return nil
     case 133:
-      return IssuedCredential.fromList(self.readValue() as! [Any?])
+      return Oid4vciExchangeOptions.fromList(self.readValue() as! [Any?])
     case 134:
-      return TxCodeMetadata.fromList(self.readValue() as! [Any?])
+      return IssuedCredential.fromList(self.readValue() as! [Any?])
     case 135:
-      return OfferSession.fromList(self.readValue() as! [Any?])
+      return TxCodeMetadata.fromList(self.readValue() as! [Any?])
     case 136:
-      return ParsedOfferMetadata.fromList(self.readValue() as! [Any?])
+      return OfferSession.fromList(self.readValue() as! [Any?])
     case 137:
-      return Oid4vciSuccess.fromList(self.readValue() as! [Any?])
+      return ParsedOfferMetadata.fromList(self.readValue() as! [Any?])
     case 138:
+      return Oid4vciSuccess.fromList(self.readValue() as! [Any?])
+    case 139:
       return Oid4vciError.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -462,32 +481,35 @@ private class Oid4vciPigeonCodecWriter: FlutterStandardWriter {
     if let value = value as? DidMethod {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? GrantType {
+    } else if let value = value as? Oid4vciVersion {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? TxCodeInputMode {
+    } else if let value = value as? GrantType {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? Oid4vciExchangeOptions {
+    } else if let value = value as? TxCodeInputMode {
       super.writeByte(132)
-      super.writeValue(value.toList())
-    } else if let value = value as? IssuedCredential {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? Oid4vciExchangeOptions {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? TxCodeMetadata {
+    } else if let value = value as? IssuedCredential {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? OfferSession {
+    } else if let value = value as? TxCodeMetadata {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? ParsedOfferMetadata {
+    } else if let value = value as? OfferSession {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? Oid4vciSuccess {
+    } else if let value = value as? ParsedOfferMetadata {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? Oid4vciError {
+    } else if let value = value as? Oid4vciSuccess {
       super.writeByte(138)
+      super.writeValue(value.toList())
+    } else if let value = value as? Oid4vciError {
+      super.writeByte(139)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -522,10 +544,12 @@ protocol Oid4vci {
   /// exchange or credential request. Safe to call before any user authorization.
   ///
   /// @param credentialOffer The full credential offer URL.
+  /// @param supportedVersions The OID4VCI versions to resolve against. An empty
+  ///   list means auto (probe both, prefer v1 with legacy fallback).
   /// @return Pre-issuance metadata describing the issuer and the grant type
   ///   the user will need to complete.
   /// @throws when the URL is unparseable or the issuer metadata fetch fails.
-  func parseOffer(credentialOffer: String, completion: @escaping (Result<ParsedOfferMetadata, Error>) -> Void)
+  func parseOffer(credentialOffer: String, supportedVersions: [Oid4vciVersion], completion: @escaping (Result<ParsedOfferMetadata, Error>) -> Void)
   /// Run the complete OID4VCI issuance flow
   ///
   /// This method handles:
@@ -540,8 +564,10 @@ protocol Oid4vci {
   /// @param keyId The key identifier for signing (will create if doesn't exist)
   /// @param didMethod The DID method for proof of possession
   /// @param contextMap Optional JSON-LD context map for credential parsing
+  /// @param supportedVersions The OID4VCI versions to resolve against. An empty
+  ///   list means auto (probe both, prefer v1 with legacy fallback).
   /// @return Oid4vciResult with credentials on success or error message on failure
-  func runIssuance(credentialOffer: String, clientId: String, redirectUrl: String, keyId: String, didMethod: DidMethod, contextMap: [String: String]?, completion: @escaping (Result<Oid4vciResult, Error>) -> Void)
+  func runIssuance(credentialOffer: String, clientId: String, redirectUrl: String, keyId: String, didMethod: DidMethod, contextMap: [String: String]?, supportedVersions: [Oid4vciVersion], completion: @escaping (Result<Oid4vciResult, Error>) -> Void)
   /// Resolve the offer URL and complete the token-endpoint exchange.
   ///
   /// Performs a full `resolveOfferUrl` (which re-fetches issuer metadata)
@@ -563,7 +589,7 @@ protocol Oid4vci {
   /// created with a null redirect, it returns null.
   ///
   /// @throws when the offer cannot be resolved or the token request fails.
-  func acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, redirectUrl: String?, completion: @escaping (Result<OfferSession, Error>) -> Void)
+  func acceptOffer(credentialOffer: String, clientId: String, keyId: String, didMethod: DidMethod, redirectUrl: String?, supportedVersions: [Oid4vciVersion], completion: @escaping (Result<OfferSession, Error>) -> Void)
   /// Submit a transaction code (PIN) and complete the issuance.
   ///
   /// Returns `Oid4vciSuccess` on success or `Oid4vciError` on any failure
@@ -615,6 +641,8 @@ class Oid4vciSetup {
     /// exchange or credential request. Safe to call before any user authorization.
     ///
     /// @param credentialOffer The full credential offer URL.
+    /// @param supportedVersions The OID4VCI versions to resolve against. An empty
+    ///   list means auto (probe both, prefer v1 with legacy fallback).
     /// @return Pre-issuance metadata describing the issuer and the grant type
     ///   the user will need to complete.
     /// @throws when the URL is unparseable or the issuer metadata fetch fails.
@@ -623,7 +651,8 @@ class Oid4vciSetup {
       parseOfferChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let credentialOfferArg = args[0] as! String
-        api.parseOffer(credentialOffer: credentialOfferArg) { result in
+        let supportedVersionsArg = args[1] as! [Oid4vciVersion]
+        api.parseOffer(credentialOffer: credentialOfferArg, supportedVersions: supportedVersionsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -649,6 +678,8 @@ class Oid4vciSetup {
     /// @param keyId The key identifier for signing (will create if doesn't exist)
     /// @param didMethod The DID method for proof of possession
     /// @param contextMap Optional JSON-LD context map for credential parsing
+    /// @param supportedVersions The OID4VCI versions to resolve against. An empty
+    ///   list means auto (probe both, prefer v1 with legacy fallback).
     /// @return Oid4vciResult with credentials on success or error message on failure
     let runIssuanceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vci.runIssuance\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -660,7 +691,8 @@ class Oid4vciSetup {
         let keyIdArg = args[3] as! String
         let didMethodArg = args[4] as! DidMethod
         let contextMapArg: [String: String]? = nilOrValue(args[5])
-        api.runIssuance(credentialOffer: credentialOfferArg, clientId: clientIdArg, redirectUrl: redirectUrlArg, keyId: keyIdArg, didMethod: didMethodArg, contextMap: contextMapArg) { result in
+        let supportedVersionsArg = args[6] as! [Oid4vciVersion]
+        api.runIssuance(credentialOffer: credentialOfferArg, clientId: clientIdArg, redirectUrl: redirectUrlArg, keyId: keyIdArg, didMethod: didMethodArg, contextMap: contextMapArg, supportedVersions: supportedVersionsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -702,7 +734,8 @@ class Oid4vciSetup {
         let keyIdArg = args[2] as! String
         let didMethodArg = args[3] as! DidMethod
         let redirectUrlArg: String? = nilOrValue(args[4])
-        api.acceptOffer(credentialOffer: credentialOfferArg, clientId: clientIdArg, keyId: keyIdArg, didMethod: didMethodArg, redirectUrl: redirectUrlArg) { result in
+        let supportedVersionsArg = args[5] as! [Oid4vciVersion]
+        api.acceptOffer(credentialOffer: credentialOfferArg, clientId: clientIdArg, keyId: keyIdArg, didMethod: didMethodArg, redirectUrl: redirectUrlArg, supportedVersions: supportedVersionsArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))

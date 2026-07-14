@@ -75,6 +75,10 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
                     _currState.value = PresentmentState.ERROR
                     _error.value = Error(state["error"].toString())
                 }
+
+                state.containsKey("success") -> {
+                    _currState.value = PresentmentState.SUCCESS
+                }
             }
         }
 
@@ -165,7 +169,6 @@ class CredentialsViewModel(application: Application) : AndroidViewModel(applicat
 
         try {
             presentation?.submitNamespaces(allowedNamespaces)
-            _currState.value = PresentmentState.SUCCESS
         } catch (e: Error) {
             Log.e("CredentialsViewModel.submitNamespaces", e.toString())
             _currState.value = PresentmentState.ERROR
