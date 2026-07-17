@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
 fun AddToWalletView(
     navController: NavHostController,
     rawCredential: String,
+    keyAlias: String? = null,
     onSuccess: (() -> Unit)? = null
 ) {
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
@@ -70,9 +71,10 @@ fun AddToWalletView(
             this.async(Dispatchers.Default) {
                 try {
                     val credentialPack = CredentialPack()
+                    val alias = keyAlias ?: DEFAULT_SIGNING_KEY_ID
 
                     // Try add credential in any supported format
-                    credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
+                    credentialPack.tryAddAnyFormat(rawCredential, alias)
 
                     credentialPacksViewModel.saveCredentialPack(credentialPack)
                     val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)

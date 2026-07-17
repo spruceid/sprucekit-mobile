@@ -227,10 +227,12 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
       // VcalmService.persistOffered (rawCredential -> wallet store).
       final packId = await _credentialPack.createPack();
       for (final credential in step.credentials) {
+        // Bind the stored credential to the same key VCALM signed the proof
+        // with, so its presentation key matches its `cnf`.
         final add = await _credentialPack.addAnyFormat(
           packId,
           credential.rawCredential,
-          '',
+          _vcalmKeyId,
         );
         if (add is AddCredentialError) {
           setState(() {
@@ -317,7 +319,7 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
           final addResult = await _credentialPack.addAnyFormat(
             _packId!,
             credential.payload,
-            '',
+            _keyId,
           );
           if (addResult is AddCredentialError) {
             setState(() {

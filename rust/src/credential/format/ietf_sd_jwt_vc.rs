@@ -243,6 +243,8 @@ impl IetfSdJwtVc {
 /// Adapter to use a [`PresentationSigner`] as a [`JwsSigner`] for KB-JWT signing.
 struct PresentationJwsSigner<'a> {
     signer: &'a dyn crate::oid4vp::presentation::PresentationSigner,
+    /// Per-credential signing key id.
+    key_id: String,
 }
 
 impl JwsSigner for PresentationJwsSigner<'_> {
@@ -261,7 +263,7 @@ impl JwsSigner for PresentationJwsSigner<'_> {
     async fn sign_bytes(&self, signing_bytes: &[u8]) -> Result<Vec<u8>, SignatureError> {
         let signature = self
             .signer
-            .sign(signing_bytes.to_vec())
+            .sign(self.key_id.clone(), signing_bytes.to_vec())
             .await
             .map_err(|e| SignatureError::other(format!("{e:?}")))?;
 
@@ -341,6 +343,7 @@ impl CredentialPresentation for IetfSdJwtVc {
 
         let jws_signer = PresentationJwsSigner {
             signer: options.signer.as_ref().as_ref(),
+            key_id: options.key_id.clone(),
         };
 
         let kb_jwt = jws_signer
