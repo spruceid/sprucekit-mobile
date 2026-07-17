@@ -5079,6 +5079,312 @@ public func FfiConverterTypeDraft18RequestedField_lower(_ value: Draft18Requeste
 
 
 /**
+ * A foreign-implemented provider that can mint credentials on device during a
+ * presentation to satisfy a DCQL credential query.
+ *
+ * The provider owns its own keys, schema and derivation; the SDK passes it no
+ * key material and does not interpret what it mints.
+ */
+public protocol DynamicCredentialProvider: AnyObject, Sendable {
+    
+    /**
+     * Credentials this provider could mint to satisfy `query`.
+     *
+     * Surfaced in the [`crate::oid4vp::PermissionRequest`] so the UI can let
+     * the user opt in (or decline). An empty vector means this provider cannot
+     * satisfy the query.
+     *
+     * `query` is the DCQL credential query as JSON; use
+     * [`DcqlCredentialQueryJson::parse`] to inspect it.
+     */
+    func offers(query: DcqlCredentialQueryJson)  -> [DynamicCredentialOffer]
+    
+    /**
+     * Issue the raw `vp_token` entry for a previously-offered credential, bound
+     * to this presentation.
+     *
+     * Called only for offers the user selected. `offer_id` is the value from
+     * the [`DynamicCredentialOffer`] returned by [`Self::offers`].
+     */
+    func issue(offerId: String, binding: PresentationBinding) async throws  -> IssuedCredential
+    
+}
+/**
+ * A foreign-implemented provider that can mint credentials on device during a
+ * presentation to satisfy a DCQL credential query.
+ *
+ * The provider owns its own keys, schema and derivation; the SDK passes it no
+ * key material and does not interpret what it mints.
+ */
+open class DynamicCredentialProviderImpl: DynamicCredentialProvider, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_dynamiccredentialprovider(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_dynamiccredentialprovider(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Credentials this provider could mint to satisfy `query`.
+     *
+     * Surfaced in the [`crate::oid4vp::PermissionRequest`] so the UI can let
+     * the user opt in (or decline). An empty vector means this provider cannot
+     * satisfy the query.
+     *
+     * `query` is the DCQL credential query as JSON; use
+     * [`DcqlCredentialQueryJson::parse`] to inspect it.
+     */
+open func offers(query: DcqlCredentialQueryJson) -> [DynamicCredentialOffer]  {
+    return try!  FfiConverterSequenceTypeDynamicCredentialOffer.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_dynamiccredentialprovider_offers(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeDcqlCredentialQueryJson_lower(query),$0
+    )
+})
+}
+    
+    /**
+     * Issue the raw `vp_token` entry for a previously-offered credential, bound
+     * to this presentation.
+     *
+     * Called only for offers the user selected. `offer_id` is the value from
+     * the [`DynamicCredentialOffer`] returned by [`Self::offers`].
+     */
+open func issue(offerId: String, binding: PresentationBinding)async throws  -> IssuedCredential  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_dynamiccredentialprovider_issue(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(offerId),FfiConverterTypePresentationBinding_lower(binding)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeIssuedCredential_lift,
+            errorHandler: FfiConverterTypeDynamicCredentialError_lift
+        )
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceDynamicCredentialProvider {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceDynamicCredentialProvider = UniffiVTableCallbackInterfaceDynamicCredentialProvider(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeDynamicCredentialProvider.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface DynamicCredentialProvider: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeDynamicCredentialProvider.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface DynamicCredentialProvider: handle missing in uniffiClone")
+            }
+        },
+        offers: { (
+            uniffiHandle: UInt64,
+            query: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [DynamicCredentialOffer] in
+                guard let uniffiObj = try? FfiConverterTypeDynamicCredentialProvider.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.offers(
+                     query: try FfiConverterTypeDcqlCredentialQueryJson_lift(query)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeDynamicCredentialOffer.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        issue: { (
+            uniffiHandle: UInt64,
+            offerId: RustBuffer,
+            binding: RustBuffer,
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
+            uniffiCallbackData: UInt64,
+            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
+        ) in
+            let makeCall = {
+                () async throws -> IssuedCredential in
+                guard let uniffiObj = try? FfiConverterTypeDynamicCredentialProvider.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try await uniffiObj.issue(
+                     offerId: try FfiConverterString.lift(offerId),
+                     binding: try FfiConverterTypePresentationBinding_lift(binding)
+                )
+            }
+
+            let uniffiHandleSuccess = { (returnValue: IssuedCredential) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultRustBuffer(
+                        returnValue: FfiConverterTypeIssuedCredential_lower(returnValue),
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultRustBuffer(
+                        returnValue: RustBuffer.empty(),
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            uniffiTraitInterfaceCallAsyncWithError(
+                makeCall: makeCall,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
+                lowerError: FfiConverterTypeDynamicCredentialError_lower,
+                droppedCallback: uniffiOutDroppedCallback
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitDynamicCredentialProvider() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_dynamiccredentialprovider(UniffiCallbackInterfaceDynamicCredentialProvider.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDynamicCredentialProvider: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<DynamicCredentialProvider>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = DynamicCredentialProvider
+
+    public static func lift(_ handle: UInt64) throws -> DynamicCredentialProvider {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return DynamicCredentialProviderImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: DynamicCredentialProvider) -> UInt64 {
+         if let rustImpl = value as? DynamicCredentialProviderImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DynamicCredentialProvider {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: DynamicCredentialProvider, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialProvider_lift(_ handle: UInt64) throws -> DynamicCredentialProvider {
+    return try FfiConverterTypeDynamicCredentialProvider.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialProvider_lower(_ value: DynamicCredentialProvider) -> UInt64 {
+    return FfiConverterTypeDynamicCredentialProvider.lower(value)
+}
+
+
+
+
+
+
+/**
  * A Holder is an entity that possesses one or more Verifiable Credentials.
  * The Holder is typically the subject of the credentials, but not always.
  * The Holder has the ability to generate Verifiable Presentations from
@@ -5186,6 +5492,52 @@ public static func newWithCredentials(providedCredentials: [ParsedCredential], t
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeHolder_lift,
+            errorHandler: FfiConverterTypeOID4VPError_lift
+        )
+}
+    
+    /**
+     * Like [`Holder::new_with_credentials`], but additionally registers a set
+     * of [`DynamicCredentialProvider`]s that can mint credentials on device
+     * during a presentation.
+     *
+     * This is purely additive: passing an empty `providers` vec is equivalent
+     * to [`Holder::new_with_credentials`].
+     */
+public static func newWithCredentialsAndProviders(providedCredentials: [ParsedCredential], trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?, providers: [DynamicCredentialProvider])async throws  -> Holder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_credentials_and_providers(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore),FfiConverterSequenceTypeDynamicCredentialProvider.lower(providers)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeHolder_lift,
+            errorHandler: FfiConverterTypeOID4VPError_lift
+        )
+}
+    
+    /**
+     * Like [`Holder::new`], but additionally registers a set of
+     * [`DynamicCredentialProvider`]s that can mint credentials on device during
+     * a presentation.
+     *
+     * This is purely additive: passing an empty `providers` vec is equivalent
+     * to [`Holder::new`].
+     */
+public static func newWithProviders(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?, providers: [DynamicCredentialProvider])async throws  -> Holder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_providers(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore),FfiConverterSequenceTypeDynamicCredentialProvider.lower(providers)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -12512,6 +12864,23 @@ public protocol PermissionRequestProtocol: AnyObject, Sendable {
     func createPermissionResponse(selectedCredentials: [PresentableCredential], selectedFields: [[String]], responseOptions: ResponseOptions) async throws  -> PermissionResponse
     
     /**
+     * Construct a permission response that includes both stored credentials and
+     * dynamic (mintable) credential offers.
+     *
+     * The stored `vp_token` is built exactly as in
+     * [`Self::create_permission_response`]. Then, for each selected offer, the
+     * owning [`DynamicCredentialProvider`] (looked up by `offer_id`) is asked to
+     * [`mint`] the credential, bound to this presentation's nonce/client_id, and
+     * the resulting item is inserted under the offer's `credential_query_id`.
+     *
+     * `selected_offers` must be a subset of [`Self::dynamic_offers`]. Either
+     * `selected_credentials` or `selected_offers` (or both) may be non-empty.
+     *
+     * [`mint`]: DynamicCredentialProvider::mint
+     */
+    func createPermissionResponseWithOffers(selectedCredentials: [PresentableCredential], selectedFields: [[String]], selectedOffers: [DynamicCredentialOffer], responseOptions: ResponseOptions) async throws  -> PermissionResponse
+    
+    /**
      * Return the list of credential query IDs from the DCQL query.
      *
      * This is useful for understanding how many distinct credential types
@@ -12555,6 +12924,17 @@ public protocol PermissionRequestProtocol: AnyObject, Sendable {
      * the domain name of the verifier as an alternative to the client_id.
      */
     func domain()  -> String?
+    
+    /**
+     * Return the dynamic (mintable) credential offers surfaced for this
+     * request by the holder's [`DynamicCredentialProvider`]s.
+     *
+     * These are separate from [`Self::credentials`], which lists only stored
+     * credentials. The UI can present these offers for explicit user opt-in;
+     * selected offers are passed to
+     * [`Self::create_permission_response_with_offers`].
+     */
+    func dynamicOffers()  -> [DynamicCredentialOffer]
     
     /**
      * Returns boolean whether the DCQL query
@@ -12675,6 +13055,38 @@ open func createPermissionResponse(selectedCredentials: [PresentableCredential],
 }
     
     /**
+     * Construct a permission response that includes both stored credentials and
+     * dynamic (mintable) credential offers.
+     *
+     * The stored `vp_token` is built exactly as in
+     * [`Self::create_permission_response`]. Then, for each selected offer, the
+     * owning [`DynamicCredentialProvider`] (looked up by `offer_id`) is asked to
+     * [`mint`] the credential, bound to this presentation's nonce/client_id, and
+     * the resulting item is inserted under the offer's `credential_query_id`.
+     *
+     * `selected_offers` must be a subset of [`Self::dynamic_offers`]. Either
+     * `selected_credentials` or `selected_offers` (or both) may be non-empty.
+     *
+     * [`mint`]: DynamicCredentialProvider::mint
+     */
+open func createPermissionResponseWithOffers(selectedCredentials: [PresentableCredential], selectedFields: [[String]], selectedOffers: [DynamicCredentialOffer], responseOptions: ResponseOptions)async throws  -> PermissionResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_permissionrequest_create_permission_response_with_offers(
+                    self.uniffiCloneHandle(),
+                    FfiConverterSequenceTypePresentableCredential.lower(selectedCredentials),FfiConverterSequenceSequenceString.lower(selectedFields),FfiConverterSequenceTypeDynamicCredentialOffer.lower(selectedOffers),FfiConverterTypeResponseOptions_lower(responseOptions)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypePermissionResponse_lift,
+            errorHandler: FfiConverterTypeOID4VPError_lift
+        )
+}
+    
+    /**
      * Return the list of credential query IDs from the DCQL query.
      *
      * This is useful for understanding how many distinct credential types
@@ -12744,6 +13156,23 @@ open func credentialsGroupedByQuery() -> [CredentialQueryGroup]  {
 open func domain() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_permissionrequest_domain(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Return the dynamic (mintable) credential offers surfaced for this
+     * request by the holder's [`DynamicCredentialProvider`]s.
+     *
+     * These are separate from [`Self::credentials`], which lists only stored
+     * credentials. The UI can present these offers for explicit user opt-in;
+     * selected offers are passed to
+     * [`Self::create_permission_response_with_offers`].
+     */
+open func dynamicOffers() -> [DynamicCredentialOffer]  {
+    return try!  FfiConverterSequenceTypeDynamicCredentialOffer.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_permissionrequest_dynamic_offers(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -18561,6 +18990,91 @@ public func FfiConverterTypeDraft18ResponseOptions_lower(_ value: Draft18Respons
 
 
 /**
+ * An offer to mint a credential that could satisfy a DCQL credential query.
+ *
+ * Surfaced in the [`crate::oid4vp::PermissionRequest`] alongside stored
+ * matches so the UI can let the user opt in (or decline). Echoed back to
+ * [`DynamicCredentialProvider::mint`] only for offers the user selected.
+ */
+public struct DynamicCredentialOffer: Equatable, Hashable {
+    /**
+     * Provider-scoped identifier, echoed back to [`DynamicCredentialProvider::mint`].
+     */
+    public var offerId: String
+    /**
+     * The DCQL credential-query id this offer satisfies (the `vp_token` key
+     * the minted item is placed under).
+     */
+    public var credentialQueryId: String
+    /**
+     * Human-readable label for the consent UI.
+     */
+    public var title: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Provider-scoped identifier, echoed back to [`DynamicCredentialProvider::mint`].
+         */offerId: String, 
+        /**
+         * The DCQL credential-query id this offer satisfies (the `vp_token` key
+         * the minted item is placed under).
+         */credentialQueryId: String, 
+        /**
+         * Human-readable label for the consent UI.
+         */title: String) {
+        self.offerId = offerId
+        self.credentialQueryId = credentialQueryId
+        self.title = title
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DynamicCredentialOffer: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDynamicCredentialOffer: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DynamicCredentialOffer {
+        return
+            try DynamicCredentialOffer(
+                offerId: FfiConverterString.read(from: &buf), 
+                credentialQueryId: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DynamicCredentialOffer, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.offerId, into: &buf)
+        FfiConverterString.write(value.credentialQueryId, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialOffer_lift(_ buf: RustBuffer) throws -> DynamicCredentialOffer {
+    return try FfiConverterTypeDynamicCredentialOffer.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialOffer_lower(_ value: DynamicCredentialOffer) -> RustBuffer {
+    return FfiConverterTypeDynamicCredentialOffer.lower(value)
+}
+
+
+/**
  * Simple representation of an mdoc data element.
  */
 public struct Element: Equatable, Hashable {
@@ -18867,6 +19381,67 @@ public func FfiConverterTypeImmediateCredentialResponse_lift(_ buf: RustBuffer) 
 #endif
 public func FfiConverterTypeImmediateCredentialResponse_lower(_ value: ImmediateCredentialResponse) -> RustBuffer {
     return FfiConverterTypeImmediateCredentialResponse.lower(value)
+}
+
+
+/**
+ * A credential minted by a [`DynamicCredentialProvider`] for a presentation.
+ */
+public struct IssuedCredential: Equatable, Hashable {
+    /**
+     * The `vp_token` entry, verbatim (e.g. a compact JWS). Placed under the
+     * offer's `credential_query_id`. The SDK does not interpret it.
+     */
+    public var vpTokenItem: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The `vp_token` entry, verbatim (e.g. a compact JWS). Placed under the
+         * offer's `credential_query_id`. The SDK does not interpret it.
+         */vpTokenItem: String) {
+        self.vpTokenItem = vpTokenItem
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension IssuedCredential: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIssuedCredential: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IssuedCredential {
+        return
+            try IssuedCredential(
+                vpTokenItem: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: IssuedCredential, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.vpTokenItem, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIssuedCredential_lift(_ buf: RustBuffer) throws -> IssuedCredential {
+    return try FfiConverterTypeIssuedCredential.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIssuedCredential_lower(_ value: IssuedCredential) -> RustBuffer {
+    return FfiConverterTypeIssuedCredential.lower(value)
 }
 
 
@@ -19504,6 +20079,78 @@ public func FfiConverterTypePeripheralServerDetails_lift(_ buf: RustBuffer) thro
 #endif
 public func FfiConverterTypePeripheralServerDetails_lower(_ value: PeripheralServerDetails) -> RustBuffer {
     return FfiConverterTypePeripheralServerDetails.lower(value)
+}
+
+
+/**
+ * The presentation-specific values a provider binds a minted credential to.
+ *
+ * Sourced from the live authorization request — the same `nonce` and
+ * `client_id` the SDK uses elsewhere when building the response.
+ */
+public struct PresentationBinding: Equatable, Hashable {
+    /**
+     * The OID4VP request `nonce`.
+     */
+    public var nonce: String
+    /**
+     * The verifier `client_id` (presentation audience).
+     */
+    public var clientId: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The OID4VP request `nonce`.
+         */nonce: String, 
+        /**
+         * The verifier `client_id` (presentation audience).
+         */clientId: String) {
+        self.nonce = nonce
+        self.clientId = clientId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PresentationBinding: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePresentationBinding: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PresentationBinding {
+        return
+            try PresentationBinding(
+                nonce: FfiConverterString.read(from: &buf), 
+                clientId: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PresentationBinding, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nonce, into: &buf)
+        FfiConverterString.write(value.clientId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePresentationBinding_lift(_ buf: RustBuffer) throws -> PresentationBinding {
+    return try FfiConverterTypePresentationBinding.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePresentationBinding_lower(_ value: PresentationBinding) -> RustBuffer {
+    return FfiConverterTypePresentationBinding.lower(value)
 }
 
 
@@ -24534,6 +25181,96 @@ public func FfiConverterTypeDraft18RequestSignerError_lift(_ buf: RustBuffer) th
 #endif
 public func FfiConverterTypeDraft18RequestSignerError_lower(_ value: Draft18RequestSignerError) -> RustBuffer {
     return FfiConverterTypeDraft18RequestSignerError.lower(value)
+}
+
+
+/**
+ * Errors a [`DynamicCredentialProvider`] may return from
+ * [`DynamicCredentialProvider::mint`].
+ */
+public enum DynamicCredentialError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    /**
+     * The user (or provider) declined to mint the offered credential.
+     */
+    case Cancelled
+    /**
+     * Issuing failed for any other reason (signing, derivation, schema, etc.).
+     */
+    case IssuanceFailed(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension DynamicCredentialError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDynamicCredentialError: FfiConverterRustBuffer {
+    typealias SwiftType = DynamicCredentialError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DynamicCredentialError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Cancelled
+        case 2: return .IssuanceFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DynamicCredentialError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .Cancelled:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .IssuanceFailed(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialError_lift(_ buf: RustBuffer) throws -> DynamicCredentialError {
+    return try FfiConverterTypeDynamicCredentialError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialError_lower(_ value: DynamicCredentialError) -> RustBuffer {
+    return FfiConverterTypeDynamicCredentialError.lower(value)
 }
 
 // Note that we don't yet support `indirect` for enums.
@@ -33712,6 +34449,31 @@ fileprivate struct FfiConverterSequenceTypeDraft18RequestedField: FfiConverterRu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeDynamicCredentialProvider: FfiConverterRustBuffer {
+    typealias SwiftType = [DynamicCredentialProvider]
+
+    public static func write(_ value: [DynamicCredentialProvider], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDynamicCredentialProvider.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DynamicCredentialProvider] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DynamicCredentialProvider]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDynamicCredentialProvider.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeIOSISO18013MobileDocumentRequestDocumentRequest: FfiConverterRustBuffer {
     typealias SwiftType = [Iosiso18013MobileDocumentRequestDocumentRequest]
 
@@ -34054,6 +34816,31 @@ fileprivate struct FfiConverterSequenceTypeCredentialRequirement: FfiConverterRu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCredentialRequirement.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDynamicCredentialOffer: FfiConverterRustBuffer {
+    typealias SwiftType = [DynamicCredentialOffer]
+
+    public static func write(_ value: [DynamicCredentialOffer], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDynamicCredentialOffer.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DynamicCredentialOffer] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DynamicCredentialOffer]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDynamicCredentialOffer.read(from: &buf))
         }
         return seq
     }
@@ -35307,6 +36094,50 @@ public func FfiConverterTypeCryptosuiteString_lift(_ value: RustBuffer) throws -
 #endif
 public func FfiConverterTypeCryptosuiteString_lower(_ value: CryptosuiteString) -> RustBuffer {
     return FfiConverterTypeCryptosuiteString.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias DcqlCredentialQueryJson = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDcqlCredentialQueryJson: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DcqlCredentialQueryJson {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: DcqlCredentialQueryJson, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> DcqlCredentialQueryJson {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: DcqlCredentialQueryJson) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDcqlCredentialQueryJson_lift(_ value: RustBuffer) throws -> DcqlCredentialQueryJson {
+    return try FfiConverterTypeDcqlCredentialQueryJson.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDcqlCredentialQueryJson_lower(_ value: DcqlCredentialQueryJson) -> RustBuffer {
+    return FfiConverterTypeDcqlCredentialQueryJson.lower(value)
 }
 
 
@@ -37427,6 +38258,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_draft18delegatedverifier_request_delegated_verification() != 47216) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_dynamiccredentialprovider_offers() != 44064) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_dynamiccredentialprovider_issue() != 18116) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_new_draft18_holder() != 23738) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -37544,6 +38381,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 28791) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response_with_offers() != 2182) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credential_query_ids() != 51888) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -37557,6 +38397,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_domain() != 63686) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_dynamic_offers() != 48992) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_is_multi_credential_matching() != 23365) {
@@ -37847,6 +38690,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 922) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials_and_providers() != 25319) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_providers() != 4701) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137_new() != 49393) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -37926,6 +38775,7 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitAsyncHttpClient()
     uniffiCallbackInitCrypto()
     uniffiCallbackInitDraft18RequestSignerInterface()
+    uniffiCallbackInitDynamicCredentialProvider()
     uniffiCallbackInitJwsSigner()
     uniffiCallbackInitKeyStore()
     uniffiCallbackInitLogWriter()
