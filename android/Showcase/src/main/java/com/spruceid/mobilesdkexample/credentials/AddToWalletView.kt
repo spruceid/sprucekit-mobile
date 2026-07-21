@@ -10,9 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -158,23 +156,32 @@ fun AddToWalletView(
         Column {
             StepProgressView(current = pagerState.currentPage, total = stepItems.size)
 
-            HorizontalPager(
-                state = pagerState,
-                userScrollEnabled = false,
-                modifier = Modifier.fillMaxSize()
-            ) { page ->
-                when (val step = stepItems[page]) {
-                    is CredentialStepItem.Failed -> {
-                        ErrorView(
-                            errorTitle = "Unable to Parse Credential",
-                            errorDetails = step.message,
-                            closeButtonLabel = "Skip",
-                            onClose = { declineCurrent() }
-                        )
-                    }
+            // `weight(1f)` claims the space remaining after StepProgressView;
+            // a bare `fillMaxSize()` here would claim the whole Column's
+            // height on top of that, overflowing the screen and clipping the
+            // credential card's content.
+            Box(Modifier.weight(1f)) {
+                HorizontalPager(
+                    state = pagerState,
+                    userScrollEnabled = false,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    when (val step = stepItems[page]) {
+                        is CredentialStepItem.Failed -> {
+                            ErrorView(
+                                errorTitle = "Unable to Parse Credential",
+                                errorDetails = step.message,
+                                closeButtonLabel = "Skip",
+                                onClose = { declineCurrent() }
+                            )
+                        }
 
-                    is CredentialStepItem.Parsed -> {
-                        Column(Modifier.verticalScroll(rememberScrollState())) {
+                        is CredentialStepItem.Parsed -> {
+                            // No verticalScroll wrapper here: CredentialReviewInfo's
+                            // own body section uses Modifier.weight(1f, fill = false)
+                            // internally, which requires a bounded-height parent.
+                            // Scrollable columns give unbounded height, which
+                            // collapses that weighted body to zero height.
                             step.item.CredentialReviewInfo(footerActions = {
                                 Button(
                                     onClick = {

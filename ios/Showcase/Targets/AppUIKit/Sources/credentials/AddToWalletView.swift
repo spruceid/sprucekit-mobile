@@ -55,7 +55,12 @@ struct AddToWalletView: View {
             )
             back()
         } else {
-            currentIndex += 1
+            // `TabView(.page)` only slides on a selection change when that
+            // change happens inside `withAnimation` — a plain assignment
+            // jumps to the next page instantly.
+            withAnimation {
+                currentIndex += 1
+            }
         }
     }
 
