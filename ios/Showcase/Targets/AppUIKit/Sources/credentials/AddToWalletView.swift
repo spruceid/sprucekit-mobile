@@ -45,22 +45,16 @@ struct AddToWalletView: View {
         AnyView(item.credentialReviewInfo())
     }
 
-    // Advances past the current step, or finishes the whole flow if this was
-    // the last one. Accept and decline are independent per-credential
-    // actions: declining one credential has no effect on the others.
-    func advance() {
-        if currentIndex + 1 >= stepItems.count {
+    // Finishes the whole flow once every credential has a decision,
+    // regardless of the order they were decided in. Until then, the user
+    // can freely swipe between offers and deciding one doesn't move them
+    // off the current page.
+    func finishIfAllDecided() {
+        if decidedIndices.count >= stepItems.count {
             ToastManager.shared.showSuccess(
                 message: "\(acceptedCount) of \(stepItems.count) credentials accepted"
             )
             back()
-        } else {
-            // `TabView(.page)` only slides on a selection change when that
-            // change happens inside `withAnimation` — a plain assignment
-            // jumps to the next page instantly.
-            withAnimation {
-                currentIndex += 1
-            }
         }
     }
 
@@ -98,13 +92,13 @@ struct AddToWalletView: View {
             print(error)
         }
         storing = false
-        advance()
+        finishIfAllDecided()
     }
 
     func declineCurrent() {
         guard !decidedIndices.contains(currentIndex) else { return }
         decidedIndices.insert(currentIndex)
-        advance()
+        finishIfAllDecided()
     }
 
     var body: some View {

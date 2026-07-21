@@ -95,19 +95,15 @@ fun AddToWalletView(
         }
     }
 
-    // Advances past the current step, or finishes the whole flow if this was
-    // the last one. Accept and decline are independent per-credential
-    // actions: declining one credential has no effect on the others.
-    fun advance() {
-        val currentIndex = pagerState.currentPage
-        if (currentIndex + 1 >= stepItems.size) {
+    // Finishes the whole flow once every credential has a decision,
+    // regardless of the order they were decided in. Until then, the user
+    // can freely swipe between offers and deciding one doesn't move them
+    // off the current page.
+    fun finishIfAllDecided() {
+        if (decidedIndices.size >= stepItems.size) {
             Toast.showSuccess("$acceptedCount of ${stepItems.size} credentials accepted")
             onSuccess?.invoke()
             navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
-        } else {
-            scope.launch {
-                pagerState.animateScrollToPage(currentIndex + 1)
-            }
         }
     }
 
@@ -140,7 +136,7 @@ fun AddToWalletView(
                 // rather than blocking the rest of the flow.
             }
             storing = false
-            advance()
+            finishIfAllDecided()
         }
     }
 
@@ -148,7 +144,7 @@ fun AddToWalletView(
         val currentIndex = pagerState.currentPage
         if (decidedIndices.contains(currentIndex)) return
         decidedIndices = decidedIndices + currentIndex
-        advance()
+        finishIfAllDecided()
     }
 
     if (storing) {
