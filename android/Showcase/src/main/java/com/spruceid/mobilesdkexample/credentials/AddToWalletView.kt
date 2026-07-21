@@ -178,7 +178,9 @@ fun AddToWalletView(
             Box(Modifier.weight(1f)) {
                 HorizontalPager(
                     state = pagerState,
-                    userScrollEnabled = false,
+                    // Swiping back to an already-decided step is safe: the
+                    // button bar below only renders for undecided, parsed
+                    // steps, guarded by `decidedIndices`.
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     when (val step = stepItems[page]) {
