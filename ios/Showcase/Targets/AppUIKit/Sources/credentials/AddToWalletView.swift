@@ -113,6 +113,7 @@ struct AddToWalletView: View {
                 VStack(spacing: 0) {
                     StepProgressView(current: currentIndex, total: stepItems.count)
                         .padding(.top, 12)
+                        .padding(.bottom, 12)
                         .padding(.horizontal, 20)
 
                     TabView(selection: $currentIndex) {
