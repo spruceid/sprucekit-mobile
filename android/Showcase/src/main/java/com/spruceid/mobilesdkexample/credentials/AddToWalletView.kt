@@ -4,10 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -153,13 +156,25 @@ fun AddToWalletView(
             loadingText = "Storing credential..."
         )
     } else if (stepItems.isNotEmpty()) {
-        Column {
-            StepProgressView(current = pagerState.currentPage, total = stepItems.size)
+        val currentStep = stepItems[pagerState.currentPage]
 
-            // `weight(1f)` claims the space remaining after StepProgressView;
-            // a bare `fillMaxSize()` here would claim the whole Column's
-            // height on top of that, overflowing the screen and clipping the
-            // credential card's content.
+        // The app draws edge-to-edge (see MainActivity's enableEdgeToEdge()),
+        // so this screen has to claim the system bar insets itself, or the
+        // stepper/card content render underneath the status bar and the
+        // bottom button bar underneath the navigation bar.
+        Column(
+            Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            StepProgressView(current = pagerState.currentPage, total = stepItems.size)
+            Spacer(Modifier.height(12.dp))
+
+            // `weight(1f)` claims the space remaining after StepProgressView
+            // and the bottom button bar; a bare `fillMaxSize()` here would
+            // claim the whole Column's height on top of that, overflowing
+            // the screen and clipping the credential card's content.
             Box(Modifier.weight(1f)) {
                 HorizontalPager(
                     state = pagerState,
@@ -182,48 +197,64 @@ fun AddToWalletView(
                             // internally, which requires a bounded-height parent.
                             // Scrollable columns give unbounded height, which
                             // collapses that weighted body to zero height.
-                            step.item.CredentialReviewInfo(footerActions = {
-                                Button(
-                                    onClick = {
-                                        acceptCurrent()
-                                    },
-                                    shape = RoundedCornerShape(5.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = ColorEmerald700,
-                                        contentColor = Color.White,
-                                    ),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = "Add to Wallet",
-                                        fontFamily = Inter,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color.White,
-                                    )
-                                }
-
-                                Button(
-                                    onClick = {
-                                        declineCurrent()
-                                    },
-                                    shape = RoundedCornerShape(5.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color.Transparent,
-                                        contentColor = ColorRose600,
-                                    ),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = "Decline",
-                                        fontFamily = Inter,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = ColorRose600,
-                                    )
-                                }
-                            })
+                            // fillMaxSize() + the Column's default top
+                            // arrangement keeps the card's content anchored
+                            // to the top of the page instead of centered.
+                            Column(Modifier.fillMaxSize()) {
+                                step.item.CredentialReviewInfo(footerActions = {})
+                            }
                         }
+                    }
+                }
+            }
+
+            // A fixed bottom bar, independent of the pager's content, so the
+            // buttons don't move around with cards of different lengths —
+            // matches the iOS layout. Only shown for a not-yet-decided,
+            // successfully parsed step; a failed step only offers ErrorView's
+            // own "Skip" action.
+            if (currentStep is CredentialStepItem.Parsed &&
+                !decidedIndices.contains(pagerState.currentPage)
+            ) {
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                    Button(
+                        onClick = {
+                            acceptCurrent()
+                        },
+                        shape = RoundedCornerShape(5.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ColorEmerald700,
+                            contentColor = Color.White,
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Add to Wallet",
+                            fontFamily = Inter,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            declineCurrent()
+                        },
+                        shape = RoundedCornerShape(5.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = ColorRose600,
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Decline",
+                            fontFamily = Inter,
+                            fontWeight = FontWeight.SemiBold,
+                            color = ColorRose600,
+                        )
                     }
                 }
             }
