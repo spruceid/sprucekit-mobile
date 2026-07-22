@@ -143,7 +143,7 @@ fun SetupNavGraph(
             if (!rawCredential.isNullOrEmpty()) {
                 AddToWalletView(
                     navController,
-                    rawCredential
+                    listOf(rawCredential)
                 )
             } else {
                 navController.navigate(Screen.HomeScreen.route) {
