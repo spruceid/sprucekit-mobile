@@ -1,10 +1,5 @@
 PODS:
   - Flutter (1.0.0)
-  - flutter_web_auth_2 (5.0.0):
-    - Flutter
-  - path_provider_foundation (0.0.1):
-    - Flutter
-    - FlutterMacOS
   - permission_handler_apple (9.3.0):
     - Flutter
   - share_plus (0.0.1):
@@ -19,21 +14,15 @@ PODS:
     - Flutter
     - SpruceIDMobileSdk (~> 0.17.1)
   - SwiftAlgorithms (1.0.0)
-  - url_launcher_ios (0.0.1):
-    - Flutter
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
-  - flutter_web_auth_2 (from `.symlinks/plugins/flutter_web_auth_2/ios`)
-  - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
-  - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - SpruceIDMobileSdk (from `../../../`)
   - SpruceIDMobileSdkRs (from `../../../`)
   - SpruceIDMobileSdkRsRustFramework (from `../../../`)
   - sprucekit_mobile (from `.symlinks/plugins/sprucekit_mobile/ios`)
   - SwiftAlgorithms (~> 1.0.0)
-  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 SPEC REPOS:
   trunk:
@@ -42,14 +31,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
-  flutter_web_auth_2:
-    :path: ".symlinks/plugins/flutter_web_auth_2/ios"
-  path_provider_foundation:
-    :path: ".symlinks/plugins/path_provider_foundation/darwin"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
-  share_plus:
-    :path: ".symlinks/plugins/share_plus/ios"
   SpruceIDMobileSdk:
     :path: "../../../"
   SpruceIDMobileSdkRs:
@@ -58,8 +41,6 @@ EXTERNAL SOURCES:
     :path: "../../../"
   sprucekit_mobile:
     :path: ".symlinks/plugins/sprucekit_mobile/ios"
-  url_launcher_ios:
-    :path: ".symlinks/plugins/url_launcher_ios/ios"
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
@@ -72,7 +53,6 @@ SPEC CHECKSUMS:
   SpruceIDMobileSdkRsRustFramework: 12257f71684970b086d58396481bf4bc978438a2
   sprucekit_mobile: ed10d36c2113c1c9faa2dbb4ab99bcdbf0597c98
   SwiftAlgorithms: 38dda4731d19027fdeee1125f973111bf3386b53
-  url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
 
 PODFILE CHECKSUM: b69b363296c914f73d8c30eef22e70abce1812bc
 

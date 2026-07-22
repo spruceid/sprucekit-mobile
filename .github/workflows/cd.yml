@@ -95,11 +95,9 @@ jobs:
           cache-on-failure: "true"
           workspaces: "rust -> target"
 
-      - name: Install static version of cargo-swift
-        run: cargo install cargo-swift@^0.11
-
+      # uniffi library-mode bindgen + xcodebuild — see rust/build-ios.sh
       - name: Generate Swift package
-        run: cargo swift package -p ios -n MobileSdkRs --release
+        run: ./build-ios.sh
         working-directory: rust
 
       - name: Compress XCFramework

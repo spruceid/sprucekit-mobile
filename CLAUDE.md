@@ -21,8 +21,8 @@ Each layer has its own CLAUDE.md with build commands and architecture details:
 
 Changes to the Rust layer require regenerating bindings before platform work:
 
-- **iOS**: `cd rust && cargo swift package -p ios -n MobileSdkRs`
-  - CI enforces the generated `rust/MobileSdkRs/Sources/MobileSdkRs/mobile_sdk_rs.swift` is committed via `git diff --exit-code`
+- **iOS**: `cd rust && ./build-ios.sh`
+  - CI enforces the generated `rust/MobileSdkRs/Sources/MobileSdkRs/` Swift files are committed via `git diff --exit-code`
 - **Android**: Bindings regenerated automatically by the Gradle cargo-ndk plugin during build
 - **Flutter**: Wraps native SDKs (not Rust directly). Rebuild the relevant native SDK, then `pod install` (iOS) or Gradle rebuild (Android).
 

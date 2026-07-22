@@ -1,5 +1,8 @@
 #![allow(deprecated)]
 
+use super::dynamic_credential::{
+    DynamicCredentialOffer, DynamicCredentialProvider, PresentationBinding,
+};
 use super::error::OID4VPError;
 use super::presentation::{PresentationError, PresentationOptions, PresentationSigner};
 use crate::credential::{Credential, ParsedCredential, PresentableCredential};
@@ -217,6 +220,14 @@ pub struct PermissionRequest {
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
     pub(crate) context_map: Option<HashMap<String, String>>,
     pub(crate) keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
+    /// Dynamic credential offers surfaced by the holder's
+    /// [`DynamicCredentialProvider`]s for this request. Exposed via
+    /// [`PermissionRequest::dynamic_offers`], kept separate from
+    /// [`PermissionRequest::credentials`] (which stays stored-only).
+    pub(crate) dynamic_offers: Vec<DynamicCredentialOffer>,
+    /// Map from a [`DynamicCredentialOffer::offer_id`] to the provider that
+    /// produced it, used to mint the offer when building the response.
+    pub(crate) offer_providers: HashMap<String, Arc<dyn DynamicCredentialProvider>>,
 }
 
 impl std::fmt::Debug for PermissionRequest {
@@ -247,6 +258,36 @@ impl PermissionRequest {
             signer,
             context_map,
             keystore,
+            dynamic_offers: vec![],
+            offer_providers: HashMap::new(),
+        })
+    }
+
+    /// Like [`PermissionRequest::new`], but additionally carries the dynamic
+    /// credential offers surfaced for this request and the map from each
+    /// offer's id to the provider that can mint it.
+    ///
+    /// Crate-internal; the public surface is unchanged.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new_with_offers(
+        dcql_query: DcqlQuery,
+        credentials: Vec<Arc<PresentableCredential>>,
+        request: AuthorizationRequestObject,
+        signer: Arc<Box<dyn PresentationSigner>>,
+        context_map: Option<HashMap<String, String>>,
+        keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
+        dynamic_offers: Vec<DynamicCredentialOffer>,
+        offer_providers: HashMap<String, Arc<dyn DynamicCredentialProvider>>,
+    ) -> Arc<Self> {
+        Arc::new(Self {
+            dcql_query,
+            credentials,
+            request,
+            signer,
+            context_map,
+            keystore,
+            dynamic_offers,
+            offer_providers,
         })
     }
 }
@@ -270,6 +311,17 @@ impl PermissionRequest {
             inner: credential.inner.clone(),
         }
         .requested_fields_dcql(&self.dcql_query, &credential.credential_query_id)
+    }
+
+    /// Return the dynamic (mintable) credential offers surfaced for this
+    /// request by the holder's [`DynamicCredentialProvider`]s.
+    ///
+    /// These are separate from [`Self::credentials`], which lists only stored
+    /// credentials. The UI can present these offers for explicit user opt-in;
+    /// selected offers are passed to
+    /// [`Self::create_permission_response_with_offers`].
+    pub fn dynamic_offers(&self) -> Vec<DynamicCredentialOffer> {
+        self.dynamic_offers.clone()
     }
 
     /// Return the client ID for the authorization request.
@@ -316,35 +368,99 @@ impl PermissionRequest {
             .into());
         }
 
-        let selected_credentials: Vec<Arc<PresentableCredential>> = selected_credentials
-            .iter()
-            .zip(selected_fields)
-            .map(|(sc, sf)| {
-                Arc::new(PresentableCredential {
-                    inner: sc.inner.clone(),
-                    selected_fields: Some(sf),
-                    credential_query_id: sc.credential_query_id.clone(),
-                })
-            })
-            .collect();
+        let (selected_credentials, vp_token_map) = self
+            .build_stored_vp_token(selected_credentials, selected_fields, &response_options)
+            .await?;
 
-        // Set options for constructing a verifiable presentation.
-        let options = PresentationOptions {
-            request: &self.request,
-            signer: self.signer.clone(),
-            context_map: self.context_map.clone(),
-            response_options: &response_options,
-            keystore: self.keystore.clone(),
+        let vp_token = VpToken(vp_token_map);
+
+        Ok(Arc::new(PermissionResponse {
+            selected_credentials,
+            dcql_query: self.dcql_query.clone(),
+            authorization_request: self.request.clone(),
+            vp_token,
+            options: response_options,
+        }))
+    }
+
+    /// Construct a permission response that includes both stored credentials and
+    /// dynamic (mintable) credential offers.
+    ///
+    /// The stored `vp_token` is built exactly as in
+    /// [`Self::create_permission_response`]. Then, for each selected offer, the
+    /// owning [`DynamicCredentialProvider`] (looked up by `offer_id`) is asked to
+    /// [`mint`] the credential, bound to this presentation's nonce/client_id, and
+    /// the resulting item is inserted under the offer's `credential_query_id`.
+    ///
+    /// `selected_offers` must be a subset of [`Self::dynamic_offers`]. Either
+    /// `selected_credentials` or `selected_offers` (or both) may be non-empty.
+    ///
+    /// [`mint`]: DynamicCredentialProvider::mint
+    pub async fn create_permission_response_with_offers(
+        &self,
+        selected_credentials: Vec<Arc<PresentableCredential>>,
+        selected_fields: Vec<Vec<String>>,
+        selected_offers: Vec<DynamicCredentialOffer>,
+        response_options: ResponseOptions,
+    ) -> Result<Arc<PermissionResponse>, OID4VPError> {
+        log::debug!("Creating Permission Response (with dynamic offers)");
+
+        // At least one of stored credentials or dynamic offers must be selected.
+        if selected_credentials.is_empty() && selected_offers.is_empty() {
+            return Err(PermissionRequestError::InvalidSelectedCredential(
+                "No selected credentials or offers".to_string(),
+                "DCQL query credentials".to_string(),
+            )
+            .into());
+        }
+
+        // Ensure that there are selected fields for all stored credentials.
+        if selected_fields.len() != selected_credentials.len() {
+            return Err(PermissionRequestError::InvalidSelectedCredential(
+                "Selected credentials length must match selected fields length".to_string(),
+                "DCQL query credentials".to_string(),
+            )
+            .into());
+        }
+
+        // Build the stored-credential vp_token exactly like the existing path.
+        let (selected_credentials, mut vp_token_map) = self
+            .build_stored_vp_token(selected_credentials, selected_fields, &response_options)
+            .await?;
+
+        // Mint each selected dynamic offer, bound to this presentation. The
+        // nonce/client_id are sourced identically to the stored response build.
+        let options = self.presentation_options(&response_options);
+        let binding = PresentationBinding {
+            nonce: options.nonce().to_owned(),
+            client_id: options.audience().cloned().ok_or_else(|| {
+                OID4VPError::from(PermissionRequestError::CredentialPresentation(
+                    "request is missing a client_id for the presentation binding".to_string(),
+                ))
+            })?,
         };
 
-        let mut vp_token_map: HashMap<String, Vec<VpTokenItem>> = HashMap::new();
+        for offer in &selected_offers {
+            let provider = self.offer_providers.get(&offer.offer_id).ok_or_else(|| {
+                OID4VPError::from(PermissionRequestError::CredentialPresentation(format!(
+                    "no dynamic credential provider for offer id {}",
+                    offer.offer_id
+                )))
+            })?;
 
-        for cred in &selected_credentials {
-            let token_item = cred.as_vp_token(&options).await?;
+            let minted = provider
+                .issue(offer.offer_id.clone(), binding.clone())
+                .await
+                .map_err(|e| {
+                    OID4VPError::from(PermissionRequestError::CredentialPresentation(format!(
+                        "dynamic credential mint failed: {e}"
+                    )))
+                })?;
+
             vp_token_map
-                .entry(cred.credential_query_id.clone())
+                .entry(offer.credential_query_id.clone())
                 .or_default()
-                .push(token_item);
+                .push(VpTokenItem::String(minted.vp_token_item));
         }
 
         let vp_token = VpToken(vp_token_map);
@@ -518,6 +634,68 @@ impl PermissionRequest {
     /// Return the DCQL query associated with the authorization request.
     pub fn dcql_query(&self) -> &DcqlQuery {
         &self.dcql_query
+    }
+
+    /// Build the `PresentationOptions` used when constructing a verifiable
+    /// presentation for this request.
+    fn presentation_options<'a>(
+        &'a self,
+        response_options: &'a ResponseOptions,
+    ) -> PresentationOptions<'a> {
+        PresentationOptions {
+            request: &self.request,
+            signer: self.signer.clone(),
+            context_map: self.context_map.clone(),
+            response_options,
+            keystore: self.keystore.clone(),
+        }
+    }
+
+    /// Apply the selected fields to the selected stored credentials and build
+    /// the `vp_token` map for them.
+    ///
+    /// This is the shared stored-credential logic behind both
+    /// [`Self::create_permission_response`] and
+    /// [`Self::create_permission_response_with_offers`]. Callers are responsible
+    /// for validating the selection (non-empty, matching lengths) beforehand.
+    async fn build_stored_vp_token(
+        &self,
+        selected_credentials: Vec<Arc<PresentableCredential>>,
+        selected_fields: Vec<Vec<String>>,
+        response_options: &ResponseOptions,
+    ) -> Result<
+        (
+            Vec<Arc<PresentableCredential>>,
+            HashMap<String, Vec<VpTokenItem>>,
+        ),
+        OID4VPError,
+    > {
+        let selected_credentials: Vec<Arc<PresentableCredential>> = selected_credentials
+            .iter()
+            .zip(selected_fields)
+            .map(|(sc, sf)| {
+                Arc::new(PresentableCredential {
+                    inner: sc.inner.clone(),
+                    selected_fields: Some(sf),
+                    credential_query_id: sc.credential_query_id.clone(),
+                })
+            })
+            .collect();
+
+        // Set options for constructing a verifiable presentation.
+        let options = self.presentation_options(response_options);
+
+        let mut vp_token_map: HashMap<String, Vec<VpTokenItem>> = HashMap::new();
+
+        for cred in &selected_credentials {
+            let token_item = cred.as_vp_token(&options).await?;
+            vp_token_map
+                .entry(cred.credential_query_id.clone())
+                .or_default()
+                .push(token_item);
+        }
+
+        Ok((selected_credentials, vp_token_map))
     }
 
     /// Format credential query IDs into a human-readable display name.

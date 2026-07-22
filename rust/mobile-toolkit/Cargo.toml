@@ -1,0 +1,15 @@
+[package]
+name = "mobile-toolkit"
+version = "0.15.2"
+edition = "2021"
+authors = ["Spruce Systems, Inc."]
+license = "Apache-2.0 OR MIT"
+description = "Shared native interface crate for the Mobile SDK (KeyStore, SigningKey, StorageManagerInterface, and their support types), extracted so UniFFI types unify across separately-generated crates."
+repository = "https://github.com/spruceid/sprucekit-mobile/"
+
+[dependencies]
+anyhow = "1"
+async-trait = "0.1"
+serde = { version = "1.0.204", features = ["derive"] }
+thiserror = "1.0.65"
+uniffi = { version = "0.31", features = ["tokio"] }
