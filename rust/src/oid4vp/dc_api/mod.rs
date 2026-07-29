@@ -12,7 +12,7 @@ use build_response::Responder;
 use openid4vp::{
     core::{
         authorization_request::{
-            parameters::ExpectedOrigins,
+            parameters::{ExpectedOrigins, ResponseMode},
             verification::{verifier::P256Verifier, x509_hash, x509_san, RequestVerifier},
             AuthorizationRequest, AuthorizationRequestObject,
         },
@@ -100,6 +100,22 @@ impl RequestVerifier for WalletActivity {
         // Use the x509_hash validation with P256 verifier
         // Note: trusted_roots is None for now, meaning we don't verify the certificate chain
         x509_hash::validate::<P256Verifier>(self.metadata(), decoded_request, request_jwt, None)
+    }
+
+    async fn preregistered(
+        &self,
+        decoded_request: &AuthorizationRequestObject,
+        _request_jwt: Option<String>,
+    ) -> Result<()> {
+        // Unsigned DC API request: no request signature and no client_id to verify.
+        // Trust in the Verifier comes from the platform-supplied browser origin, which
+        // is bound into the response transcript via the DC API handover (see `respond`).
+        // Restrict to DC API response modes so a pre-registered client cannot bypass
+        // signature verification over a non-DC-API transport.
+        match decoded_request.response_mode() {
+            ResponseMode::DcApi | ResponseMode::DcApiJwt => Ok(()),
+            mode => bail!("unsigned requests are only accepted over the DC API, not {mode:?}"),
+        }
     }
 }
 
