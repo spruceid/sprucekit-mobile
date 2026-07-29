@@ -115,3 +115,20 @@ impl From<uniffi::UnexpectedUniFFICallbackError> for VcalmError {
         VcalmError::UnexpectedUniFFICallbackError(value.reason)
     }
 }
+
+impl From<crate::discover_protocols::DiscoveryError> for VcalmError {
+    fn from(e: crate::discover_protocols::DiscoveryError) -> Self {
+        use crate::discover_protocols::DiscoveryError;
+        match e {
+            DiscoveryError::ServerError { status, body } => {
+                VcalmError::ServerError { status, body }
+            }
+            DiscoveryError::Deserialization(v) => VcalmError::Deserialization(v),
+            DiscoveryError::ResponseTooLarge { limit_bytes } => {
+                VcalmError::ResponseTooLarge { limit_bytes }
+            }
+            DiscoveryError::InsecureUrl(v) => VcalmError::InsecureUrl(v),
+            other => VcalmError::Network(other.to_string()),
+        }
+    }
+}

@@ -23602,6 +23602,148 @@ public func FfiConverterTypeDisclosureSelection_lower(_ value: DisclosureSelecti
 }
 
 
+
+public enum DiscoveryError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    /**
+     * A transport-level failure (stringified `reqwest::Error`).
+     */
+    case Network(String
+    )
+    case InvalidUrl(String
+    )
+    /**
+     * A 5xx (or otherwise non-2xx/4xx) server response.
+     */
+    case ServerError(status: UInt16, body: String
+    )
+    /**
+     * A response body failed to deserialize (stringified `serde_json::Error`).
+     */
+    case Deserialization(String
+    )
+    /**
+     * A response body exceeded the configured size cap (B.4).
+     */
+    case ResponseTooLarge(limitBytes: UInt64
+    )
+    /**
+     * A non-HTTPS (or non-HTTP-scheme) URL was rejected (§3.7.1 / B.2). Plain
+     * `http` is only accepted for loopback hosts (local development).
+     */
+    case InsecureUrl(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension DiscoveryError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDiscoveryError: FfiConverterRustBuffer {
+    typealias SwiftType = DiscoveryError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DiscoveryError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Network(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .InvalidUrl(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .ServerError(
+            status: try FfiConverterUInt16.read(from: &buf), 
+            body: try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .Deserialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .ResponseTooLarge(
+            limitBytes: try FfiConverterUInt64.read(from: &buf)
+            )
+        case 6: return .InsecureUrl(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DiscoveryError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Network(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidUrl(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ServerError(status,body):
+            writeInt(&buf, Int32(3))
+            FfiConverterUInt16.write(status, into: &buf)
+            FfiConverterString.write(body, into: &buf)
+            
+        
+        case let .Deserialization(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ResponseTooLarge(limitBytes):
+            writeInt(&buf, Int32(5))
+            FfiConverterUInt64.write(limitBytes, into: &buf)
+            
+        
+        case let .InsecureUrl(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDiscoveryError_lift(_ buf: RustBuffer) throws -> DiscoveryError {
+    return try FfiConverterTypeDiscoveryError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDiscoveryError_lower(_ value: DiscoveryError) -> RustBuffer {
+    return FfiConverterTypeDiscoveryError.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 
@@ -36210,6 +36352,25 @@ public func generateDidJwkUrl(jwk: Jwk) -> DidUrl  {
     )
 })
 }
+/**
+ * Resolve all protocol exchange URLs from an `interaction:` discovery endpoint.
+ * The discovery URL must pass [`validate_endpoint_url`] (HTTPS, or loopback http
+ * for local dev — §3.7.1/B.2; also rejects `file:`/other schemes a QR code could smuggle in).
+ */
+public func discoverProtocols(discoveryUrl: String)async throws  -> [String: String]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_discover_protocols(FfiConverterString.lower(discoveryUrl)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterDictionaryStringString.lift,
+            errorHandler: FfiConverterTypeDiscoveryError_lift
+        )
+}
 public func jwkFromPublicP256(x: Data, y: Data) -> Jwk  {
     return try!  FfiConverterTypeJwk_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_func_jwk_from_public_p256(
@@ -36645,6 +36806,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_did_jwk_url() != 10045) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_discover_protocols() != 58385) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_jwk_from_public_p256() != 27776) {
