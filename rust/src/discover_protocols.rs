@@ -43,7 +43,7 @@ pub enum DiscoveryError {
 pub(crate) const MAX_RESPONSE_BYTES: usize = 10 * 1024 * 1024;
 
 #[uniffi::export(async_runtime = "tokio")]
-// Standalone FFI entry point: no caller-supplied client, so build a fresh one
+/// Standalone FFI entry point: no caller-supplied client, so build a fresh one
 pub async fn discover_protocols(
     interaction_url: &str,
 ) -> Result<HashMap<String, String>, DiscoveryError> {
@@ -307,7 +307,6 @@ mod tests {
         let err = discover_protocols("file:///etc/passwd")
             .await
             .expect_err("file: scheme must be rejected");
-        println!("{}", err);
         assert!(matches!(err, DiscoveryError::InsecureUrl(_)));
     }
 
