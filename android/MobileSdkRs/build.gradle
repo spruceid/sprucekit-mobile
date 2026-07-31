@@ -97,7 +97,8 @@ def rustUpdated(taskName) {
         return true
     }
     if (taskName == "bindGen"
-            && fileTree(dir: "src/main/java", include: "**/mobile_sdk_rs.kt").isEmpty()) {
+            && (fileTree(dir: "src/main/java", include: "**/mobile_sdk_rs.kt").isEmpty()
+                    || fileTree(dir: "src/main/java", include: "**/mobile_toolkit.kt").isEmpty())) {
         return true
     }
 
