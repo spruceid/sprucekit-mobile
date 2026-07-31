@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 
 use futures::StreamExt;
-use reqwest::header::{ACCEPT, AUTHORIZATION};
+use reqwest::header::AUTHORIZATION;
 use ssi::claims::vc::{
     syntax::{IdOr, NonEmptyObject},
     v1::JsonPresentation as JsonPresentationV1,
@@ -17,6 +16,9 @@ use uuid::Uuid;
 use crate::credential::json_vc::{JsonVc, SD_BASE_PROOF_CRYPTOSUITES};
 use crate::credential::{verify_raw_credential, Credential, InvalidCredential, ParsedCredential};
 use crate::crypto::KeyStore;
+use crate::discover_protocols::{
+    build_http_client, discover_protocols_with_client, read_body_capped, validate_endpoint_url,
+};
 use crate::oid4vp::presentation::{PresentationError, PresentationSigner};
 use crate::vdc_collection::VdcCollection;
 
@@ -25,11 +27,6 @@ use super::exchange::{classify, AcceptedMethodEntry, StepResult, VcapiMessage, V
 use super::issuance::{self, OfferedEntry};
 use super::matching::{self, QueryKind};
 use super::presentation::{unsupported_cryptosuite_negotiation, vpr_lists_sd_suite, VpSigner};
-
-/// Cap on a discovery/exchange response body (B.4: large payloads can trigger
-/// DoS incidents — a malicious or broken server must not be able to exhaust the
-/// wallet's memory). Generous for any plausible VPR/VP payload.
-const MAX_RESPONSE_BYTES: usize = 10 * 1024 * 1024;
 
 /// Interior, mutable session state retained across calls on a shared `Arc<VcalmHolder>`.
 /// Guarded by a `tokio::sync::Mutex` on the [`VcalmHolder`].
@@ -85,12 +82,6 @@ pub struct VcalmHolder {
     pub(crate) provided_credentials: tokio::sync::Mutex<Option<Vec<Arc<ParsedCredential>>>>,
 }
 
-/// The discovery document returned for an `interaction:` initiation (§3.7.4).
-#[derive(serde::Deserialize)]
-struct DiscoveryResponse {
-    protocols: HashMap<String, String>,
-}
-
 #[uniffi::export(async_runtime = "tokio")]
 impl VcalmHolder {
     /// Construct a holder session. Adds the default, empty [`ExchangeState`].
@@ -110,11 +101,7 @@ impl VcalmHolder {
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, VcalmError> {
-        let client = reqwest::Client::builder()
-            .use_rustls_tls()
-            .timeout(Duration::from_secs(30))
-            .build()
-            .map_err(|e| VcalmError::Network(e.to_string()))?;
+        let client = build_http_client()?;
 
         // Default to the SDK's bundled JSON-LD contexts (W3C + the full set:
         // alumni, first-responder, citizenship, render-method,
@@ -184,18 +171,12 @@ impl VcalmHolder {
             // this API"). Route those through discovery — POSTing `{}` straight at a
             // discovery endpoint never starts the exchange. URLs without `iuv` keep
             // the existing direct-exchange-URL behavior.
-            match url.query_pairs().find(|(k, _)| k == "iuv") {
-                Some((_, v)) if v == "1" => self.discover_vcapi(url.as_str()).await?,
-                Some((_, v)) => {
-                    return Err(VcalmError::Network(format!(
-                        "unsupported interaction URL version: iuv={v} (expected 1)"
-                    )))
-                }
-                None => {
-                    // §3.7.1/B.2: HTTPS-only (loopback http allowed for local dev).
-                    validate_endpoint_url(&url)?;
-                    url
-                }
+            if url.query_pairs().any(|(k, _)| k == "iuv") {
+                self.discover_vcapi(url.as_str()).await?
+            } else {
+                // §3.7.1/B.2: HTTPS-only (loopback http allowed for local dev).
+                validate_endpoint_url(&url)?;
+                url
             }
         };
 
@@ -1086,38 +1067,13 @@ impl VcalmHolder {
     }
 
     /// Resolve the `vcapi` exchange URL from an `interaction:` discovery endpoint.
-    /// The bearer token is intentionally NOT attached here. Both the discovery
-    /// URL and the discovered `vcapi` URL must pass [`validate_endpoint_url`]
+    /// Both the discovery URL and the discovered `vcapi` URL must pass [`validate_endpoint_url`]
     /// (HTTPS, or loopback http for local dev — §3.7.1/B.2; also rejects
     /// `file:`/other schemes a QR code could smuggle in).
     async fn discover_vcapi(&self, discovery_url: &str) -> Result<Url, VcalmError> {
-        let discovery_url = Url::parse(discovery_url)
-            .map_err(|e| VcalmError::Network(format!("invalid interaction URL: {e}")))?;
-        validate_endpoint_url(&discovery_url)?;
+        let all_protocols = discover_protocols_with_client(discovery_url, &self.client).await?;
 
-        let resp = self
-            .client
-            .get(discovery_url)
-            .header(ACCEPT, "application/json")
-            .send()
-            .await
-            .map_err(|e| VcalmError::Network(e.to_string()))?;
-
-        let status = resp.status();
-        let body = read_body_capped(resp).await?;
-
-        if !status.is_success() {
-            return Err(VcalmError::ServerError {
-                status: status.as_u16(),
-                body,
-            });
-        }
-
-        let discovery: DiscoveryResponse =
-            serde_json::from_str(&body).map_err(|e| VcalmError::Deserialization(e.to_string()))?;
-
-        let vcapi = discovery
-            .protocols
+        let vcapi = all_protocols
             .get("vcapi")
             .ok_or(VcalmError::NoVcapiProtocol)?;
 
@@ -1337,63 +1293,6 @@ pub struct VcalmRequestedField {
 struct ExampleField {
     path: String,
     value: String,
-}
-
-/// Read a response body with a hard size cap (B.4). Checks `Content-Length`
-/// first, then enforces the cap while streaming, so a server that lies about
-/// (or omits) the length still cannot exhaust memory.
-async fn read_body_capped(mut resp: reqwest::Response) -> Result<String, VcalmError> {
-    if let Some(len) = resp.content_length() {
-        if len > MAX_RESPONSE_BYTES as u64 {
-            return Err(VcalmError::ResponseTooLarge {
-                limit_bytes: MAX_RESPONSE_BYTES as u64,
-            });
-        }
-    }
-    let mut buf: Vec<u8> = Vec::new();
-    while let Some(chunk) = resp
-        .chunk()
-        .await
-        .map_err(|e| VcalmError::Network(e.to_string()))?
-    {
-        if buf.len() + chunk.len() > MAX_RESPONSE_BYTES {
-            return Err(VcalmError::ResponseTooLarge {
-                limit_bytes: MAX_RESPONSE_BYTES as u64,
-            });
-        }
-        buf.extend_from_slice(&chunk);
-    }
-    String::from_utf8(buf)
-        .map_err(|e| VcalmError::Deserialization(format!("response body is not UTF-8: {e}")))
-}
-
-/// §3.7.1/B.2: interaction, discovery, and exchange URLs must be HTTPS — the
-/// HTTPS origin is the trust signal the whole interaction model hangs on, and a
-/// bearer token must never travel over plaintext. Plain `http` is allowed ONLY
-/// for loopback hosts (local development/test servers); every other scheme
-/// (`file:`, custom schemes a QR code could smuggle in) is rejected.
-fn validate_endpoint_url(url: &Url) -> Result<(), VcalmError> {
-    match url.scheme() {
-        "https" => Ok(()),
-        "http" => {
-            let loopback = match url.host() {
-                Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
-                Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
-                Some(url::Host::Domain(d)) => d.eq_ignore_ascii_case("localhost"),
-                None => false,
-            };
-            if loopback {
-                Ok(())
-            } else {
-                Err(VcalmError::InsecureUrl(format!(
-                    "plain http is only allowed for loopback hosts, got {url}"
-                )))
-            }
-        }
-        other => Err(VcalmError::InsecureUrl(format!(
-            "unsupported URL scheme `{other}`"
-        ))),
-    }
 }
 
 /// §3.4.3.2: "Holder implementations MUST ensure that the `domain` specified by

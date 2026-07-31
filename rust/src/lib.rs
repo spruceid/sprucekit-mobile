@@ -8,6 +8,7 @@ pub mod context;
 pub mod credential;
 pub mod crypto;
 pub mod did;
+pub mod discover_protocols;
 pub mod haci;
 pub mod jwk;
 pub mod jws;
