@@ -32,7 +32,7 @@ apply plugin: "org.jetbrains.kotlin.plugin.compose"
 android {
     namespace = "com.spruceid.sprucekit_mobile"
 
-    compileSdk = 35
+    compileSdk = 36
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
