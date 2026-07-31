@@ -23612,6 +23612,9 @@ public enum DiscoveryError: Swift.Error, Equatable, Hashable, Foundation.Localiz
      */
     case Network(String
     )
+    /**
+     * Interaction URL provided is invalid
+     */
     case InvalidUrl(String
     )
     /**
@@ -36352,16 +36355,11 @@ public func generateDidJwkUrl(jwk: Jwk) -> DidUrl  {
     )
 })
 }
-/**
- * Resolve all protocol exchange URLs from an `interaction:` discovery endpoint.
- * The discovery URL must pass [`validate_endpoint_url`] (HTTPS, or loopback http
- * for local dev — §3.7.1/B.2; also rejects `file:`/other schemes a QR code could smuggle in).
- */
-public func discoverProtocols(discoveryUrl: String)async throws  -> [String: String]  {
+public func discoverProtocols(interactionUrl: String)async throws  -> [String: String]  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_func_discover_protocols(FfiConverterString.lower(discoveryUrl)
+                uniffi_mobile_sdk_rs_fn_func_discover_protocols(FfiConverterString.lower(interactionUrl)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
@@ -36808,7 +36806,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_generate_did_jwk_url() != 10045) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_discover_protocols() != 58385) {
+    if (uniffi_mobile_sdk_rs_checksum_func_discover_protocols() != 45158) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_jwk_from_public_p256() != 27776) {

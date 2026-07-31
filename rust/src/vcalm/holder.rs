@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 
 use futures::StreamExt;
 use reqwest::header::AUTHORIZATION;
@@ -17,7 +16,9 @@ use uuid::Uuid;
 use crate::credential::json_vc::{JsonVc, SD_BASE_PROOF_CRYPTOSUITES};
 use crate::credential::{verify_raw_credential, Credential, InvalidCredential, ParsedCredential};
 use crate::crypto::KeyStore;
-use crate::discover_protocols::{discover_protocols, read_body_capped, validate_endpoint_url};
+use crate::discover_protocols::{
+    build_http_client, discover_protocols_with_client, read_body_capped, validate_endpoint_url,
+};
 use crate::oid4vp::presentation::{PresentationError, PresentationSigner};
 use crate::vdc_collection::VdcCollection;
 
@@ -100,11 +101,7 @@ impl VcalmHolder {
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, VcalmError> {
-        let client = reqwest::Client::builder()
-            .use_rustls_tls()
-            .timeout(Duration::from_secs(30))
-            .build()
-            .map_err(|e| VcalmError::Network(e.to_string()))?;
+        let client = build_http_client()?;
 
         // Default to the SDK's bundled JSON-LD contexts (W3C + the full set:
         // alumni, first-responder, citizenship, render-method,
@@ -174,18 +171,12 @@ impl VcalmHolder {
             // this API"). Route those through discovery — POSTing `{}` straight at a
             // discovery endpoint never starts the exchange. URLs without `iuv` keep
             // the existing direct-exchange-URL behavior.
-            match url.query_pairs().find(|(k, _)| k == "iuv") {
-                Some((_, v)) if v == "1" => self.discover_vcapi(url.as_str()).await?,
-                Some((_, v)) => {
-                    return Err(VcalmError::Network(format!(
-                        "unsupported interaction URL version: iuv={v} (expected 1)"
-                    )))
-                }
-                None => {
-                    // §3.7.1/B.2: HTTPS-only (loopback http allowed for local dev).
-                    validate_endpoint_url(&url)?;
-                    url
-                }
+            if url.query_pairs().any(|(k, _)| k == "iuv") {
+                self.discover_vcapi(url.as_str()).await?
+            } else {
+                // §3.7.1/B.2: HTTPS-only (loopback http allowed for local dev).
+                validate_endpoint_url(&url)?;
+                url
             }
         };
 
@@ -1080,7 +1071,7 @@ impl VcalmHolder {
     /// (HTTPS, or loopback http for local dev — §3.7.1/B.2; also rejects
     /// `file:`/other schemes a QR code could smuggle in).
     async fn discover_vcapi(&self, discovery_url: &str) -> Result<Url, VcalmError> {
-        let all_protocols = discover_protocols(discovery_url).await?;
+        let all_protocols = discover_protocols_with_client(discovery_url, &self.client).await?;
 
         let vcapi = all_protocols
             .get("vcapi")

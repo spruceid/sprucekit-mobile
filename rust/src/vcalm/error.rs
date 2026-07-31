@@ -128,7 +128,8 @@ impl From<crate::discover_protocols::DiscoveryError> for VcalmError {
                 VcalmError::ResponseTooLarge { limit_bytes }
             }
             DiscoveryError::InsecureUrl(v) => VcalmError::InsecureUrl(v),
-            other => VcalmError::Network(other.to_string()),
+            DiscoveryError::Network(v) => VcalmError::Network(v),
+            DiscoveryError::InvalidUrl(v) => VcalmError::Network(v),
         }
     }
 }
