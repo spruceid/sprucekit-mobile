@@ -101,16 +101,16 @@ jobs:
         working-directory: rust
 
       - name: Compress XCFramework
-        run: zip -9 -r RustFramework.xcframework.zip rust/MobileSdkRs/RustFramework.xcframework
+        run: zip -9 -r MobileSdkRsFFI.xcframework.zip rust/MobileSdkRs/MobileSdkRsFFI.xcframework
 
       - name: Compute checksum
         id: checksum
-        run: echo "value=$(swift package compute-checksum RustFramework.xcframework.zip)" >> "$GITHUB_OUTPUT"
+        run: echo "value=$(swift package compute-checksum MobileSdkRsFFI.xcframework.zip)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
           name: rust-xcframework
-          path: RustFramework.xcframework.zip
+          path: MobileSdkRsFFI.xcframework.zip
 
   release:
     runs-on: macos-latest
@@ -155,7 +155,7 @@ jobs:
 
       - name: Update Swift Package definition
         run: |
-          sed -i '' 's/binaryTarget.*/binaryTarget(name: "RustFramework", url: "https:\/\/github.com\/spruceid\/sprucekit-mobile\/releases\/download\/${{ github.event.inputs.version }}\/RustFramework.xcframework.zip", checksum: "${{ needs.ios.outputs.checksum }}"),/' Package.swift
+          sed -i '' 's/binaryTarget.*/binaryTarget(name: "MobileSdkRsFFI", url: "https:\/\/github.com\/spruceid\/sprucekit-mobile\/releases\/download\/${{ github.event.inputs.version }}\/MobileSdkRsFFI.xcframework.zip", checksum: "${{ needs.ios.outputs.checksum }}"),/' Package.swift
 
       - name: Update CocoaPods podspecs
         run: |
@@ -184,7 +184,7 @@ jobs:
       - name: Create release and attach XCFramework binary artifact
         uses: ncipollo/release-action@v1
         with:
-          artifacts: "RustFramework.xcframework.zip"
+          artifacts: "MobileSdkRsFFI.xcframework.zip"
           tag: ${{ github.event.inputs.version }}
           name: ${{ github.event.inputs.version }}
 
@@ -204,7 +204,7 @@ jobs:
       - name: Revert Package.swift for local development
         if: ${{ !cancelled() && steps.commit.outcome == 'success' }}
         run: |
-          sed -i '' 's/binaryTarget.*/binaryTarget(name: "RustFramework", path: "rust\/MobileSdkRs\/RustFramework.xcframework"),/' Package.swift
+          sed -i '' 's/binaryTarget.*/binaryTarget(name: "MobileSdkRsFFI", path: "rust\/MobileSdkRs\/MobileSdkRsFFI.xcframework"),/' Package.swift
           git add Package.swift
           git commit -m "Revert Package.swift for local development"
           git push

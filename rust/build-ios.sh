@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Build the iOS Swift package: cross-compile the Rust workspace, generate the
-# UniFFI Swift bindings, and assemble MobileSdkRs/RustFramework.xcframework.
+# UniFFI Swift bindings, and assemble MobileSdkRs/MobileSdkRsFFI.xcframework.
 #
 # The workspace contains two UniFFI crates (mobile-sdk-rs and mobile-toolkit),
-# each with its own C module (RustFramework and mobile_toolkitFFI — the names
+# each with its own C module (MobileSdkRsFFI and mobile_toolkitFFI — the names
 # must stay distinct or uniffi's swift test harness fails on a duplicate module
 # declaration). Bindings are generated in uniffi library mode: one Swift file,
 # one header, and one modulemap per crate. Both modulemaps are installed as a
@@ -75,8 +75,8 @@ else
   xcframework_args+=(-library "target/universal-ios/$profile/$lib" -headers target/ios-headers)
 fi
 
-rm -rf MobileSdkRs/RustFramework.xcframework
+rm -rf MobileSdkRs/MobileSdkRsFFI.xcframework
 xcodebuild -create-xcframework "${xcframework_args[@]}" \
-  -output MobileSdkRs/RustFramework.xcframework
+  -output MobileSdkRs/MobileSdkRsFFI.xcframework
 
-echo "Built MobileSdkRs/RustFramework.xcframework ($profile$("$simulator_only" && echo ", simulator-only"))"
+echo "Built MobileSdkRs/MobileSdkRsFFI.xcframework ($profile$("$simulator_only" && echo ", simulator-only"))"

@@ -94,7 +94,7 @@ CLASSPATH="/path/to/jna-5.14.0.jar:/path/to/kotlinx-coroutines-core-jvm-1.6.4.ja
 #### Rust layer
 
 The workspace contains two UniFFI crates (`mobile-sdk-rs` and `mobile-toolkit`), each with its
-own C module (`RustFramework` / `mobile_toolkitFFI`). `rust/build-ios.sh` generates the per-crate
+own C module (`MobileSdkRsFFI` / `mobile_toolkitFFI`). `rust/build-ios.sh` generates the per-crate
 Swift bindings in uniffi library mode and assembles the xcframework with both modules declared
 in one top-level `Headers/module.modulemap`.
 
@@ -106,7 +106,7 @@ In `./rust/`
 ```
 
 The script cross-compiles the workspace, regenerates the Swift bindings into
-`MobileSdkRs/Sources/MobileSdkRs/`, and assembles `MobileSdkRs/RustFramework.xcframework`.
+`MobileSdkRs/Sources/MobileSdkRs/`, and assembles `MobileSdkRs/MobileSdkRsFFI.xcframework`.
 Commit any changes to the generated `*.swift` files — CI fails if the committed bindings are stale.
 
 #### SDK

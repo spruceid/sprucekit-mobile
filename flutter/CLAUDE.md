@@ -88,6 +88,6 @@ dart run pigeon --input pigeons/dc_api.dart
      cd ..
      fvm flutter build ios --debug --no-codesign
      ```
-  3. No changes to commit — the Podfile is already configured for local development, and `RustFramework.xcframework` is in `.gitignore`.
+  3. No changes to commit — the Podfile is already configured for local development, and `MobileSdkRsFFI.xcframework` is in `.gitignore`.
 
   > **Tip:** If you see Swift errors like "Cannot find type 'UniffiVTableCallback...'", "Cannot find type 'RustBuffer'", or "Cannot find 'uniffi_mobile_sdk_rs_checksum_...'", it almost always means the xcframework is stale or missing a module. Run `cargo clean && ./build-ios.sh --debug` to fix it.

@@ -17,11 +17,11 @@ let package = Package(
     ],
     dependencies: [ ],
     targets: [
-        .binaryTarget(name: "RustFramework", path: "./RustFramework.xcframework"),
+        .binaryTarget(name: "MobileSdkRsFFI", path: "./MobileSdkRsFFI.xcframework"),
         .target(
             name: "MobileSdkRs",
             dependencies: [
-                .target(name: "RustFramework")
+                .target(name: "MobileSdkRsFFI")
             ]
         ),
     ]
