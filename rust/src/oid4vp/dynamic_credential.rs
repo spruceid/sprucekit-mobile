@@ -112,7 +112,11 @@ pub trait DynamicCredentialProvider: Send + Sync {
     ///
     /// `query` is the DCQL credential query as JSON; use
     /// [`DcqlCredentialQueryJson::parse`] to inspect it.
-    fn offers(&self, query: DcqlCredentialQueryJson) -> Vec<DynamicCredentialOffer>;
+    ///
+    /// Awaited while the permission request is being built, so slow work here
+    /// delays the whole presentation flow; defer anything heavy to
+    /// [`Self::issue`].
+    async fn offers(&self, query: DcqlCredentialQueryJson) -> Vec<DynamicCredentialOffer>;
 
     /// Issue the raw `vp_token` entry for a previously-offered credential, bound
     /// to this presentation.

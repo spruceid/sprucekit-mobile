@@ -424,7 +424,7 @@ impl Holder {
                     crate::oid4vp::dynamic_credential::DcqlCredentialQueryJson::from_query(
                         cred_query,
                     );
-                for offer in provider.offers(query_json) {
+                for offer in provider.offers(query_json).await {
                     offer_providers.insert(offer.offer_id.clone(), provider.clone());
                     dynamic_offers.push(offer);
                 }
@@ -1012,7 +1012,7 @@ pub(crate) mod tests {
 
     #[async_trait::async_trait]
     impl DynamicCredentialProvider for MockProvider {
-        fn offers(&self, query: DcqlCredentialQueryJson) -> Vec<DynamicCredentialOffer> {
+        async fn offers(&self, query: DcqlCredentialQueryJson) -> Vec<DynamicCredentialOffer> {
             let query = query.parse().expect("valid DCQL credential query JSON");
             // Only offer for `jwt_vc_json` queries.
             let format = openid4vp::core::credential_format::ClaimFormatDesignation::JwtVcJson;

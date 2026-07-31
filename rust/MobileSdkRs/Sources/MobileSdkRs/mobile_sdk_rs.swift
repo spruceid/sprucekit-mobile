@@ -573,11 +573,7 @@ fileprivate struct FfiConverterString: FfiConverter {
             return String()
         }
         let bytes = UnsafeBufferPointer<UInt8>(start: value.data!, count: Int(value.len))
-        // Use Swift's native UTF-8 decoder; `String(bytes:encoding:.utf8)` goes
-        // through Foundation's NSString and silently strips a leading U+FEFF BOM.
-        // Invalid UTF-8 substitutes U+FFFD instead of trapping (unreachable
-        // given Rust's `String` invariant).
-        return String(decoding: bytes, as: UTF8.self)
+        return String(bytes: bytes, encoding: String.Encoding.utf8)!
     }
 
     public static func lower(_ value: String) -> RustBuffer {
@@ -593,8 +589,7 @@ fileprivate struct FfiConverterString: FfiConverter {
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
         let len: Int32 = try readInt(&buf)
-        // See `lift` above for why we avoid Foundation's NSString-backed decoder here.
-        return String(decoding: try readBytes(&buf, count: Int(len)), as: UTF8.self)
+        return String(bytes: try readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
     }
 
     public static func write(_ value: String, into buf: inout [UInt8]) {
@@ -2098,11 +2093,7 @@ fileprivate struct UniffiCallbackInterfaceCrypto {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    //
-    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
-    // This is safe because the pointee is initialized once during static init
-    // and never mutated by either side of the FFI.  Its fields are C function pointers.
-    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceCrypto> = {
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceCrypto> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceCrypto>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -4561,11 +4552,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18RequestSignerInterface {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    //
-    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
-    // This is safe because the pointee is initialized once during static init
-    // and never mutated by either side of the FFI.  Its fields are C function pointers.
-    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18RequestSignerInterface> = {
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18RequestSignerInterface> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDraft18RequestSignerInterface>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -4888,8 +4875,12 @@ public protocol DynamicCredentialProvider: AnyObject, Sendable {
      *
      * `query` is the DCQL credential query as JSON; use
      * [`DcqlCredentialQueryJson::parse`] to inspect it.
+     *
+     * Awaited while the permission request is being built, so slow work here
+     * delays the whole presentation flow; defer anything heavy to
+     * [`Self::issue`].
      */
-    func offers(query: DcqlCredentialQueryJson)  -> [DynamicCredentialOffer]
+    func offers(query: DcqlCredentialQueryJson) async  -> [DynamicCredentialOffer]
     
     /**
      * Issue the raw `vp_token` entry for a previously-offered credential, bound
@@ -4970,14 +4961,27 @@ open class DynamicCredentialProviderImpl: DynamicCredentialProvider, @unchecked 
      *
      * `query` is the DCQL credential query as JSON; use
      * [`DcqlCredentialQueryJson::parse`] to inspect it.
+     *
+     * Awaited while the permission request is being built, so slow work here
+     * delays the whole presentation flow; defer anything heavy to
+     * [`Self::issue`].
      */
-open func offers(query: DcqlCredentialQueryJson) -> [DynamicCredentialOffer]  {
-    return try!  FfiConverterSequenceTypeDynamicCredentialOffer.lift(try! rustCall() {
-    uniffi_mobile_sdk_rs_fn_method_dynamiccredentialprovider_offers(
-            self.uniffiCloneHandle(),
-        FfiConverterTypeDcqlCredentialQueryJson_lower(query),$0
-    )
-})
+open func offers(query: DcqlCredentialQueryJson)async  -> [DynamicCredentialOffer]  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_dynamiccredentialprovider_offers(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeDcqlCredentialQueryJson_lower(query)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeDynamicCredentialOffer.lift,
+            errorHandler: nil
+            
+        )
 }
     
     /**
@@ -5035,25 +5039,43 @@ fileprivate struct UniffiCallbackInterfaceDynamicCredentialProvider {
         offers: { (
             uniffiHandle: UInt64,
             query: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
+            uniffiCallbackData: UInt64,
+            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
         ) in
             let makeCall = {
-                () throws -> [DynamicCredentialOffer] in
+                () async throws -> [DynamicCredentialOffer] in
                 guard let uniffiObj = try? FfiConverterTypeDynamicCredentialProvider.handleMap.get(handle: uniffiHandle) else {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
-                return uniffiObj.offers(
+                return await uniffiObj.offers(
                      query: try FfiConverterTypeDcqlCredentialQueryJson_lift(query)
                 )
             }
 
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeDynamicCredentialOffer.lower($0) }
-            uniffiTraitInterfaceCall(
-                callStatus: uniffiCallStatus,
+            let uniffiHandleSuccess = { (returnValue: [DynamicCredentialOffer]) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultRustBuffer(
+                        returnValue: FfiConverterSequenceTypeDynamicCredentialOffer.lower(returnValue),
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultRustBuffer(
+                        returnValue: RustBuffer.empty(),
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            uniffiTraitInterfaceCallAsync(
                 makeCall: makeCall,
-                writeReturn: writeReturn
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
+                droppedCallback: uniffiOutDroppedCallback
             )
         },
         issue: { (
@@ -5105,11 +5127,7 @@ fileprivate struct UniffiCallbackInterfaceDynamicCredentialProvider {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    //
-    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
-    // This is safe because the pointee is initialized once during static init
-    // and never mutated by either side of the FFI.  Its fields are C function pointers.
-    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider> = {
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -7860,11 +7878,7 @@ fileprivate struct UniffiCallbackInterfaceJwsSigner {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    //
-    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
-    // This is safe because the pointee is initialized once during static init
-    // and never mutated by either side of the FFI.  Its fields are C function pointers.
-    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceJwsSigner> = {
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceJwsSigner> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceJwsSigner>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -8357,11 +8371,7 @@ fileprivate struct UniffiCallbackInterfaceLogWriter {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    //
-    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
-    // This is safe because the pointee is initialized once during static init
-    // and never mutated by either side of the FFI.  Its fields are C function pointers.
-    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLogWriter> = {
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceLogWriter> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceLogWriter>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -14752,11 +14762,7 @@ fileprivate struct UniffiCallbackInterfaceSyncHttpClient {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    //
-    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
-    // This is safe because the pointee is initialized once during static init
-    // and never mutated by either side of the FFI.  Its fields are C function pointers.
-    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceSyncHttpClient> = {
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceSyncHttpClient> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceSyncHttpClient>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -31216,11 +31222,7 @@ fileprivate struct UniffiCallbackInterfaceDraft18PresentationSigner {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    //
-    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
-    // This is safe because the pointee is initialized once during static init
-    // and never mutated by either side of the FFI.  Its fields are C function pointers.
-    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18PresentationSigner> = {
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDraft18PresentationSigner> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDraft18PresentationSigner>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -31508,11 +31510,7 @@ fileprivate struct UniffiCallbackInterfaceOid4vpPresentationSigner {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    //
-    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
-    // This is safe because the pointee is initialized once during static init
-    // and never mutated by either side of the FFI.  Its fields are C function pointers.
-    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceOid4vpPresentationSigner> = {
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceOid4vpPresentationSigner> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceOid4vpPresentationSigner>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -31845,11 +31843,7 @@ fileprivate struct UniffiCallbackInterfacePresentationSigner {
 
     // Rust stores this pointer for future callback invocations, so it must live
     // for the process lifetime (not just for the init function call).
-    //
-    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
-    // This is safe because the pointee is initialized once during static init
-    // and never mutated by either side of the FFI.  Its fields are C function pointers.
-    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfacePresentationSigner> = {
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfacePresentationSigner> = {
         let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfacePresentationSigner>.allocate(capacity: 1)
         ptr.initialize(to: vtable)
         return UnsafePointer(ptr)
@@ -36625,7 +36619,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_draft18delegatedverifier_request_delegated_verification() != 47216) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_dynamiccredentialprovider_offers() != 44064) {
+    if (uniffi_mobile_sdk_rs_checksum_method_dynamiccredentialprovider_offers() != 34298) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_dynamiccredentialprovider_issue() != 18116) {

@@ -2,9 +2,18 @@
 resolver = "2"
 members = ["mobile-toolkit"]
 
+[workspace.package]
+version = "0.15.11"
+
+[workspace.dependencies]
+# Pinned: 0.31.2 breaks checksum validation on Android arm64 devices
+# (https://github.com/mozilla/uniffi-rs/issues/2939). Unpin once a fixed
+# release ships.
+uniffi = "=0.31.1"
+
 [package]
 name = "mobile-sdk-rs"
-version = "0.15.11"
+version.workspace = true
 edition = "2021"
 authors = ["Spruce Systems, Inc."]
 license = "Apache-2.0 OR MIT"
@@ -70,7 +79,7 @@ time-macros = "0.2.18"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.40"
 tracing-subscriber = "0.3"
-uniffi = { version = "0.31", features = ["cli", "tokio"] }
+uniffi = { workspace = true, features = ["cli", "tokio"] }
 url = { version = "2.5", features = ["serde"] }
 urlencoding = "2.1.3"
 uuid = { version = "1.6.1", features = ["v4", "v5"] }
@@ -87,8 +96,8 @@ rxing = { version = "0.8", default-features = false, features = ["encoding_rs"] 
 [dev-dependencies]
 rstest = "0.22.0"
 test-log = { version = "0.2.17", features = ["trace"] }
-uniffi = { version = "0.31", features = ["bindgen-tests"] }
+uniffi = { workspace = true, features = ["bindgen-tests"] }
 wiremock = "0.6.3"
 
 [build-dependencies]
-uniffi = { version = "0.31", features = ["build"] }
+uniffi = { workspace = true, features = ["build"] }
