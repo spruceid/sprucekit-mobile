@@ -36355,6 +36355,9 @@ public func generateDidJwkUrl(jwk: Jwk) -> DidUrl  {
     )
 })
 }
+/**
+ * Standalone FFI entry point: no caller-supplied client, so build a fresh one
+ */
 public func discoverProtocols(interactionUrl: String)async throws  -> [String: String]  {
     return
         try  await uniffiRustCallAsync(
@@ -36806,7 +36809,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_generate_did_jwk_url() != 10045) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_discover_protocols() != 45158) {
+    if (uniffi_mobile_sdk_rs_checksum_func_discover_protocols() != 46344) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_jwk_from_public_p256() != 27776) {
