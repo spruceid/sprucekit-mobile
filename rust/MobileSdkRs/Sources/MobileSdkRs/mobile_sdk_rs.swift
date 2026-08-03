@@ -36940,7 +36940,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_create_permission_response() != 9863) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_create_permission_response_with_offers() != 3415) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_create_permission_response_with_offers() != 41495) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_credentials() != 57886) {
@@ -36949,7 +36949,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_domain() != 36441) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_dynamic_offers() != 51100) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_dynamic_offers() != 7083) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_is_multi_credential_matching() != 60605) {
@@ -37312,10 +37312,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials() != 50170) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials_and_providers() != 51910) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials_and_providers() != 47197) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_providers() != 62264) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_providers() != 53369) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 44642) {

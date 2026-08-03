@@ -280,6 +280,11 @@ impl Oid4vpHolder {
         .await
     }
 
+    /// Create a holder with registered [`DynamicCredentialProvider`]s, which
+    /// issue credentials on device during a presentation.
+    ///
+    /// Providers participate in v1 sessions only: Draft 18 / Draft 13
+    /// sessions report no dynamic offers.
     #[uniffi::constructor]
     pub async fn new_with_providers(
         vdc_collection: Arc<VdcCollection>,
@@ -318,6 +323,12 @@ impl Oid4vpHolder {
         .await
     }
 
+    /// Create a holder with stored credentials plus registered
+    /// [`DynamicCredentialProvider`]s, which issue credentials on device
+    /// during a presentation.
+    ///
+    /// Providers participate in v1 sessions only: Draft 18 / Draft 13
+    /// sessions report no dynamic offers.
     #[uniffi::constructor]
     pub async fn new_with_credentials_and_providers(
         provided_credentials: Vec<Arc<ParsedCredential>>,
@@ -545,6 +556,12 @@ impl Oid4vpSession {
         }
     }
 
+    /// Dynamic credential offers surfaced for this session by the holder's
+    /// [`DynamicCredentialProvider`]s. Stored credentials are listed
+    /// separately by [`Oid4vpSession::credentials`].
+    ///
+    /// Always empty for Draft 18 / Draft 13 sessions: the dynamic-credential
+    /// hook is OID4VP-v1 only.
     pub fn dynamic_offers(&self) -> Vec<DynamicCredentialOffer> {
         match &self.inner {
             Oid4vpSessionInner::V1 { request, .. } => request.dynamic_offers(),
@@ -645,6 +662,13 @@ impl Oid4vpSession {
         }
     }
 
+    /// Create the permission response, additionally issuing the dynamic
+    /// credential offers selected from [`Oid4vpSession::dynamic_offers`].
+    ///
+    /// Either `selected_credentials` or `selected_offers` (or both) may be
+    /// non-empty. Selecting offers on a Draft 18 / Draft 13 session returns
+    /// [`Oid4vpFacadeError::VersionMismatch`]: the dynamic-credential hook is
+    /// OID4VP-v1 only.
     pub async fn create_permission_response_with_offers(
         &self,
         selected_credentials: Vec<Arc<Oid4vpPresentableCredential>>,
