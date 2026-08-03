@@ -1,10 +1,36 @@
 import Flutter
+import SpruceIDMobileSdkRs
 import UIKit
 
 /// SprucekitMobilePlugin
 ///
 /// Flutter plugin providing access to SpruceKit Mobile SDK functionality.
 public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
+
+    /// Dynamic credential providers registered by the host application.
+    /// Providers issue per-presentation credentials natively; offers surface
+    /// through `Oid4vp.getDynamicOffers` and selected offers are issued
+    /// during `Oid4vp.submitResponseWithOffers`.
+    ///
+    /// Register before any OID4VP flow starts; a snapshot is taken per
+    /// `Oid4vp.createHolder` and lives for that holder. Global to the
+    /// process; lock-guarded so a late registration cannot race an in-flight
+    /// `createHolder` snapshot.
+    public static var dynamicCredentialProviders: [DynamicCredentialProvider] {
+        get {
+            providersLock.lock()
+            defer { providersLock.unlock() }
+            return _dynamicCredentialProviders
+        }
+        set {
+            providersLock.lock()
+            defer { providersLock.unlock() }
+            _dynamicCredentialProviders = newValue
+        }
+    }
+
+    private static let providersLock = NSLock()
+    private static var _dynamicCredentialProviders: [DynamicCredentialProvider] = []
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let messenger = registrar.messenger()
