@@ -47,6 +47,91 @@ class GenerateMockMdlError implements GenerateMockMdlResult {
   GenerateMockMdlError({required this.message});
 }
 
+/// Data elements for a mock mDL.
+///
+/// Mirrors the Rust `TestMdlData` record 1:1 (all fields required — the Rust
+/// record has no optionals). Field values follow ISO/IEC 18013-5
+/// `org.iso.18013.5.1` element semantics; dates are `YYYY-MM-DD` strings and
+/// `portrait` is a base64-encoded JPEG.
+///
+/// Use `MockMdlDataDefaults.johnDoe(...)` (exported by the plugin) to obtain
+/// a fully-populated instance and override only the fields that matter —
+/// typically `documentNumber`, which external systems key on.
+class MockMdlData {
+  String familyName;
+  String givenName;
+  String birthDate;
+  String issueDate;
+  String expiryDate;
+  String issuingCountry;
+  String issuingAuthority;
+  String documentNumber;
+  String portrait;
+
+  /// Must be left EMPTY: the Rust layer's `TestMdlData.driving_privileges` is
+  /// `Vec<String>`, but isomdl expects ISO driving-privilege JSON *objects* —
+  /// any non-empty string entry fails `from_json` and the call returns
+  /// `GenerateMockMdlError`. Kept for wire parity with the Rust record.
+  List<String> drivingPrivileges;
+  String unDistinguishingSign;
+  String administrativeNumber;
+
+  /// `sex`/`height`/`weight`/`ageInYears`/`ageBirthYear` are u16 on the Rust
+  /// side: values outside 0..65535 wrap (both platforms truncate identically)
+  /// and embed as plausible-looking garbage rather than erroring.
+  int sex;
+  int height;
+  int weight;
+  String eyeColour;
+  String hairColour;
+  String birthPlace;
+  String residentAddress;
+  String portraitCaptureDate;
+  int ageInYears;
+  int ageBirthYear;
+  bool ageOver18;
+  bool ageOver21;
+  bool ageOver60;
+  String nationality;
+  String residentCity;
+  String residentState;
+  String residentPostalCode;
+  String residentCountry;
+
+  MockMdlData({
+    required this.familyName,
+    required this.givenName,
+    required this.birthDate,
+    required this.issueDate,
+    required this.expiryDate,
+    required this.issuingCountry,
+    required this.issuingAuthority,
+    required this.documentNumber,
+    required this.portrait,
+    required this.drivingPrivileges,
+    required this.unDistinguishingSign,
+    required this.administrativeNumber,
+    required this.sex,
+    required this.height,
+    required this.weight,
+    required this.eyeColour,
+    required this.hairColour,
+    required this.birthPlace,
+    required this.residentAddress,
+    required this.portraitCaptureDate,
+    required this.ageInYears,
+    required this.ageBirthYear,
+    required this.ageOver18,
+    required this.ageOver21,
+    required this.ageOver60,
+    required this.nationality,
+    required this.residentCity,
+    required this.residentState,
+    required this.residentPostalCode,
+    required this.residentCountry,
+  });
+}
+
 /// The type of a PDF supplement.
 ///
 /// New supplement types can be added here without changing the function
@@ -146,6 +231,23 @@ abstract class SpruceUtils {
   /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
   @async
   GenerateMockMdlResult generateMockMdl(String? keyAlias);
+
+  /// Generate a mock mDL with caller-supplied data elements
+  ///
+  /// Same as [generateMockMdl] but every mDL data element is taken from
+  /// [data] instead of the hardcoded defaults — in particular the document
+  /// number, which [generateMockMdl] randomizes on every call. Use this when
+  /// an external system needs a stable, chosen document number across
+  /// regenerations.
+  ///
+  /// @param keyAlias Optional key alias to use (defaults to "testMdl")
+  /// @param data The mDL data elements to embed in the credential
+  /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
+  @async
+  GenerateMockMdlResult generateMockMdlWithData(
+    String? keyAlias,
+    MockMdlData data,
+  );
 
   /// Generate a PDF from a raw mDL credential.
   ///

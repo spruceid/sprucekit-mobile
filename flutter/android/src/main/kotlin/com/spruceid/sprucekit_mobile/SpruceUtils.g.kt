@@ -340,6 +340,180 @@ data class GenerateMockMdlError (
 }
 
 /**
+ * Data elements for a mock mDL.
+ *
+ * Mirrors the Rust `TestMdlData` record 1:1 (all fields required — the Rust
+ * record has no optionals). Field values follow ISO/IEC 18013-5
+ * `org.iso.18013.5.1` element semantics; dates are `YYYY-MM-DD` strings and
+ * `portrait` is a base64-encoded JPEG.
+ *
+ * Use `MockMdlDataDefaults.johnDoe(...)` (exported by the plugin) to obtain
+ * a fully-populated instance and override only the fields that matter —
+ * typically `documentNumber`, which external systems key on.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MockMdlData (
+  val familyName: String,
+  val givenName: String,
+  val birthDate: String,
+  val issueDate: String,
+  val expiryDate: String,
+  val issuingCountry: String,
+  val issuingAuthority: String,
+  val documentNumber: String,
+  val portrait: String,
+  /**
+   * Must be left EMPTY: the Rust layer's `TestMdlData.driving_privileges` is
+   * `Vec<String>`, but isomdl expects ISO driving-privilege JSON *objects* —
+   * any non-empty string entry fails `from_json` and the call returns
+   * `GenerateMockMdlError`. Kept for wire parity with the Rust record.
+   */
+  val drivingPrivileges: List<String>,
+  val unDistinguishingSign: String,
+  val administrativeNumber: String,
+  /**
+   * `sex`/`height`/`weight`/`ageInYears`/`ageBirthYear` are u16 on the Rust
+   * side: values outside 0..65535 wrap (both platforms truncate identically)
+   * and embed as plausible-looking garbage rather than erroring.
+   */
+  val sex: Long,
+  val height: Long,
+  val weight: Long,
+  val eyeColour: String,
+  val hairColour: String,
+  val birthPlace: String,
+  val residentAddress: String,
+  val portraitCaptureDate: String,
+  val ageInYears: Long,
+  val ageBirthYear: Long,
+  val ageOver18: Boolean,
+  val ageOver21: Boolean,
+  val ageOver60: Boolean,
+  val nationality: String,
+  val residentCity: String,
+  val residentState: String,
+  val residentPostalCode: String,
+  val residentCountry: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MockMdlData {
+      val familyName = pigeonVar_list[0] as String
+      val givenName = pigeonVar_list[1] as String
+      val birthDate = pigeonVar_list[2] as String
+      val issueDate = pigeonVar_list[3] as String
+      val expiryDate = pigeonVar_list[4] as String
+      val issuingCountry = pigeonVar_list[5] as String
+      val issuingAuthority = pigeonVar_list[6] as String
+      val documentNumber = pigeonVar_list[7] as String
+      val portrait = pigeonVar_list[8] as String
+      val drivingPrivileges = pigeonVar_list[9] as List<String>
+      val unDistinguishingSign = pigeonVar_list[10] as String
+      val administrativeNumber = pigeonVar_list[11] as String
+      val sex = pigeonVar_list[12] as Long
+      val height = pigeonVar_list[13] as Long
+      val weight = pigeonVar_list[14] as Long
+      val eyeColour = pigeonVar_list[15] as String
+      val hairColour = pigeonVar_list[16] as String
+      val birthPlace = pigeonVar_list[17] as String
+      val residentAddress = pigeonVar_list[18] as String
+      val portraitCaptureDate = pigeonVar_list[19] as String
+      val ageInYears = pigeonVar_list[20] as Long
+      val ageBirthYear = pigeonVar_list[21] as Long
+      val ageOver18 = pigeonVar_list[22] as Boolean
+      val ageOver21 = pigeonVar_list[23] as Boolean
+      val ageOver60 = pigeonVar_list[24] as Boolean
+      val nationality = pigeonVar_list[25] as String
+      val residentCity = pigeonVar_list[26] as String
+      val residentState = pigeonVar_list[27] as String
+      val residentPostalCode = pigeonVar_list[28] as String
+      val residentCountry = pigeonVar_list[29] as String
+      return MockMdlData(familyName, givenName, birthDate, issueDate, expiryDate, issuingCountry, issuingAuthority, documentNumber, portrait, drivingPrivileges, unDistinguishingSign, administrativeNumber, sex, height, weight, eyeColour, hairColour, birthPlace, residentAddress, portraitCaptureDate, ageInYears, ageBirthYear, ageOver18, ageOver21, ageOver60, nationality, residentCity, residentState, residentPostalCode, residentCountry)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      familyName,
+      givenName,
+      birthDate,
+      issueDate,
+      expiryDate,
+      issuingCountry,
+      issuingAuthority,
+      documentNumber,
+      portrait,
+      drivingPrivileges,
+      unDistinguishingSign,
+      administrativeNumber,
+      sex,
+      height,
+      weight,
+      eyeColour,
+      hairColour,
+      birthPlace,
+      residentAddress,
+      portraitCaptureDate,
+      ageInYears,
+      ageBirthYear,
+      ageOver18,
+      ageOver21,
+      ageOver60,
+      nationality,
+      residentCity,
+      residentState,
+      residentPostalCode,
+      residentCountry,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MockMdlData
+    return SpruceUtilsPigeonUtils.deepEquals(this.familyName, other.familyName) && SpruceUtilsPigeonUtils.deepEquals(this.givenName, other.givenName) && SpruceUtilsPigeonUtils.deepEquals(this.birthDate, other.birthDate) && SpruceUtilsPigeonUtils.deepEquals(this.issueDate, other.issueDate) && SpruceUtilsPigeonUtils.deepEquals(this.expiryDate, other.expiryDate) && SpruceUtilsPigeonUtils.deepEquals(this.issuingCountry, other.issuingCountry) && SpruceUtilsPigeonUtils.deepEquals(this.issuingAuthority, other.issuingAuthority) && SpruceUtilsPigeonUtils.deepEquals(this.documentNumber, other.documentNumber) && SpruceUtilsPigeonUtils.deepEquals(this.portrait, other.portrait) && SpruceUtilsPigeonUtils.deepEquals(this.drivingPrivileges, other.drivingPrivileges) && SpruceUtilsPigeonUtils.deepEquals(this.unDistinguishingSign, other.unDistinguishingSign) && SpruceUtilsPigeonUtils.deepEquals(this.administrativeNumber, other.administrativeNumber) && SpruceUtilsPigeonUtils.deepEquals(this.sex, other.sex) && SpruceUtilsPigeonUtils.deepEquals(this.height, other.height) && SpruceUtilsPigeonUtils.deepEquals(this.weight, other.weight) && SpruceUtilsPigeonUtils.deepEquals(this.eyeColour, other.eyeColour) && SpruceUtilsPigeonUtils.deepEquals(this.hairColour, other.hairColour) && SpruceUtilsPigeonUtils.deepEquals(this.birthPlace, other.birthPlace) && SpruceUtilsPigeonUtils.deepEquals(this.residentAddress, other.residentAddress) && SpruceUtilsPigeonUtils.deepEquals(this.portraitCaptureDate, other.portraitCaptureDate) && SpruceUtilsPigeonUtils.deepEquals(this.ageInYears, other.ageInYears) && SpruceUtilsPigeonUtils.deepEquals(this.ageBirthYear, other.ageBirthYear) && SpruceUtilsPigeonUtils.deepEquals(this.ageOver18, other.ageOver18) && SpruceUtilsPigeonUtils.deepEquals(this.ageOver21, other.ageOver21) && SpruceUtilsPigeonUtils.deepEquals(this.ageOver60, other.ageOver60) && SpruceUtilsPigeonUtils.deepEquals(this.nationality, other.nationality) && SpruceUtilsPigeonUtils.deepEquals(this.residentCity, other.residentCity) && SpruceUtilsPigeonUtils.deepEquals(this.residentState, other.residentState) && SpruceUtilsPigeonUtils.deepEquals(this.residentPostalCode, other.residentPostalCode) && SpruceUtilsPigeonUtils.deepEquals(this.residentCountry, other.residentCountry)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.familyName)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.givenName)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.birthDate)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.issueDate)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.expiryDate)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.issuingCountry)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.issuingAuthority)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.documentNumber)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.portrait)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.drivingPrivileges)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.unDistinguishingSign)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.administrativeNumber)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.sex)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.height)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.weight)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.eyeColour)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.hairColour)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.birthPlace)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.residentAddress)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.portraitCaptureDate)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.ageInYears)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.ageBirthYear)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.ageOver18)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.ageOver21)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.ageOver60)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.nationality)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.residentCity)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.residentState)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.residentPostalCode)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.residentCountry)
+    return result
+  }
+}
+
+/**
  * A supplement to include in the generated PDF.
  *
  * This is an extensible carrier: the `type` field determines which optional
@@ -541,15 +715,20 @@ private open class SpruceUtilsPigeonCodec : StandardMessageCodec() {
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          PdfSupplement.fromList(it)
+          MockMdlData.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          DisclosureSelection.fromList(it)
+          PdfSupplement.fromList(it)
         }
       }
       136.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DisclosureSelection.fromList(it)
+        }
+      }
+      137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           VpTokenParams.fromList(it)
         }
@@ -579,16 +758,20 @@ private open class SpruceUtilsPigeonCodec : StandardMessageCodec() {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is PdfSupplement -> {
+      is MockMdlData -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is DisclosureSelection -> {
+      is PdfSupplement -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is VpTokenParams -> {
+      is DisclosureSelection -> {
         stream.write(136)
+        writeValue(stream, value.toList())
+      }
+      is VpTokenParams -> {
+        stream.write(137)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -614,6 +797,20 @@ interface SpruceUtils {
    * @return Result with packId, credentialId, rawCredential, and keyAlias, or error
    */
   fun generateMockMdl(keyAlias: String?, callback: (Result<GenerateMockMdlResult>) -> Unit)
+  /**
+   * Generate a mock mDL with caller-supplied data elements
+   *
+   * Same as [generateMockMdl] but every mDL data element is taken from
+   * [data] instead of the hardcoded defaults — in particular the document
+   * number, which [generateMockMdl] randomizes on every call. Use this when
+   * an external system needs a stable, chosen document number across
+   * regenerations.
+   *
+   * @param keyAlias Optional key alias to use (defaults to "testMdl")
+   * @param data The mDL data elements to embed in the credential
+   * @return Result with packId, credentialId, rawCredential, and keyAlias, or error
+   */
+  fun generateMockMdlWithData(keyAlias: String?, data: MockMdlData, callback: (Result<GenerateMockMdlResult>) -> Unit)
   /**
    * Generate a PDF from a raw mDL credential.
    *
@@ -756,6 +953,27 @@ interface SpruceUtils {
             val args = message as List<Any?>
             val keyAliasArg = args[0] as String?
             api.generateMockMdl(keyAliasArg) { result: Result<GenerateMockMdlResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(SpruceUtilsPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(SpruceUtilsPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateMockMdlWithData$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val keyAliasArg = args[0] as String?
+            val dataArg = args[1] as MockMdlData
+            api.generateMockMdlWithData(keyAliasArg, dataArg) { result: Result<GenerateMockMdlResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(SpruceUtilsPigeonUtils.wrapError(error))

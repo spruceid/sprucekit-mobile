@@ -6,7 +6,9 @@ import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.generateCredentialPdf
 import com.spruceid.mobile.sdk.rs.generateCredentialVpToken
 import com.spruceid.mobile.sdk.rs.generateTestMdl
+import com.spruceid.mobile.sdk.rs.generateTestMdlWithData
 import com.spruceid.mobile.sdk.rs.Mdoc
+import com.spruceid.mobile.sdk.rs.TestMdlData
 import com.spruceid.mobile.sdk.rs.OpticalBarcodeCred
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PdfSupplement as RustPdfSupplement
@@ -211,46 +213,9 @@ internal class SpruceUtilsAdapter(
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val keyManager = KeyManager()
-
-                // Generate or retrieve the signing key
-                if (!keyManager.keyExists(alias)) {
-                    keyManager.generateSigningKey(alias)
-                }
-
                 // Generate the test mDL
-                val mdl = generateTestMdl(keyManager, alias)
-
-                // Create a new CredentialPack and add the mDL
-                val packId = credentialPackAdapter.createPack()
-                val pack = credentialPackAdapter.getNativePack(packId)
-                if (pack == null) {
-                    callback(Result.success(GenerateMockMdlError(message = "Failed to create credential pack")))
-                    return@launch
-                }
-
-                // Get the raw credential bytes for storage
-                val parsedCredential = ParsedCredential.newMsoMdoc(mdl)
-                val genericCredential = parsedCredential.intoGenericForm()
-                val rawCredentialBase64 = Base64.encodeToString(
-                    genericCredential.payload,
-                    Base64.NO_WRAP
-                )
-
-                // Add the mDL to the pack
-                val credentials = pack.addMdoc(mdl)
-                val credential = credentials.firstOrNull()
-                if (credential == null) {
-                    callback(Result.success(GenerateMockMdlError(message = "Failed to add mDL to pack")))
-                    return@launch
-                }
-
-                callback(Result.success(GenerateMockMdlSuccess(
-                    packId = packId,
-                    credentialId = credential.id(),
-                    rawCredential = rawCredentialBase64,
-                    keyAlias = alias
-                )))
+                val mdl = generateTestMdl(signingKeyManager(alias), alias)
+                callback(Result.success(storeMockMdl(mdl, alias)))
             } catch (e: Exception) {
                 callback(Result.success(GenerateMockMdlError(
                     message = "Failed to generate mock mDL: ${e.localizedMessage}"
@@ -259,4 +224,98 @@ internal class SpruceUtilsAdapter(
         }
     }
 
+    override fun generateMockMdlWithData(
+        keyAlias: String?,
+        data: MockMdlData,
+        callback: (Result<GenerateMockMdlResult>) -> Unit
+    ) {
+        val alias = keyAlias ?: "testMdl"
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Generate the test mDL with the caller-supplied data elements
+                val mdl = generateTestMdlWithData(signingKeyManager(alias), alias, data.toRust())
+                callback(Result.success(storeMockMdl(mdl, alias)))
+            } catch (e: Exception) {
+                callback(Result.success(GenerateMockMdlError(
+                    message = "Failed to generate mock mDL: ${e.localizedMessage}"
+                )))
+            }
+        }
+    }
+
+    /** Returns a [KeyManager] with a signing key generated for [alias] if one doesn't exist yet. */
+    private fun signingKeyManager(alias: String): KeyManager {
+        val keyManager = KeyManager()
+
+        // Generate or retrieve the signing key
+        if (!keyManager.keyExists(alias)) {
+            keyManager.generateSigningKey(alias)
+        }
+        return keyManager
+    }
+
+    /** Stores a generated mock mDL in a fresh CredentialPack. Shared by both generateMockMdl paths. */
+    private fun storeMockMdl(mdl: Mdoc, alias: String): GenerateMockMdlResult {
+        // Create a new CredentialPack and add the mDL
+        val packId = credentialPackAdapter.createPack()
+        val pack = credentialPackAdapter.getNativePack(packId)
+            ?: return GenerateMockMdlError(message = "Failed to create credential pack")
+
+        // Get the raw credential bytes for storage
+        val parsedCredential = ParsedCredential.newMsoMdoc(mdl)
+        val genericCredential = parsedCredential.intoGenericForm()
+        val rawCredentialBase64 = Base64.encodeToString(
+            genericCredential.payload,
+            Base64.NO_WRAP
+        )
+
+        // Add the mDL to the pack
+        val credentials = pack.addMdoc(mdl)
+        val credential = credentials.firstOrNull()
+            ?: return GenerateMockMdlError(message = "Failed to add mDL to pack")
+
+        return GenerateMockMdlSuccess(
+            packId = packId,
+            credentialId = credential.id(),
+            rawCredential = rawCredentialBase64,
+            keyAlias = alias
+        )
+    }
+
 }
+
+/** Maps the Pigeon [MockMdlData] to the Rust uniffi [TestMdlData] field-for-field. */
+private fun MockMdlData.toRust(): TestMdlData =
+    TestMdlData(
+        familyName = familyName,
+        givenName = givenName,
+        birthDate = birthDate,
+        issueDate = issueDate,
+        expiryDate = expiryDate,
+        issuingCountry = issuingCountry,
+        issuingAuthority = issuingAuthority,
+        documentNumber = documentNumber,
+        portrait = portrait,
+        drivingPrivileges = drivingPrivileges,
+        unDistinguishingSign = unDistinguishingSign,
+        administrativeNumber = administrativeNumber,
+        sex = sex.toUShort(),
+        height = height.toUShort(),
+        weight = weight.toUShort(),
+        eyeColour = eyeColour,
+        hairColour = hairColour,
+        birthPlace = birthPlace,
+        residentAddress = residentAddress,
+        portraitCaptureDate = portraitCaptureDate,
+        ageInYears = ageInYears.toUShort(),
+        ageBirthYear = ageBirthYear.toUShort(),
+        ageOver18 = ageOver18,
+        ageOver21 = ageOver21,
+        ageOver60 = ageOver60,
+        nationality = nationality,
+        residentCity = residentCity,
+        residentState = residentState,
+        residentPostalCode = residentPostalCode,
+        residentCountry = residentCountry,
+    )

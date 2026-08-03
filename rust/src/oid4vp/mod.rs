@@ -1,5 +1,6 @@
 pub mod dc_api;
 pub mod draft18;
+pub mod dynamic_credential;
 pub mod error;
 pub mod facade;
 pub mod holder;
@@ -11,6 +12,7 @@ pub mod verifier;
 use serde_json::Value;
 use url::Url;
 
+pub use dynamic_credential::*;
 pub use facade::*;
 pub use holder::*;
 pub use permission_request::*;
