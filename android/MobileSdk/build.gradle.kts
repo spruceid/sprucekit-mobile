@@ -45,12 +45,12 @@ publishing {
         // Local-development publication (publishDebugPublicationToMavenLocal).
         // Keep commented out in the committed state; uncomment when publishing
         // a local build, and re-comment before releasing a new version.
-        // create<MavenPublication>("debug") {
-        //     groupId = "com.spruceid.mobile.sdk"
-        //     artifactId = "mobilesdk"
-        //     version = System.getenv("VERSION")
-        //     afterEvaluate { from(components["release"]) }
-        // }
+        create<MavenPublication>("debug") {
+            groupId = "com.spruceid.mobile.sdk"
+            artifactId = "mobilesdk"
+            version = System.getenv("VERSION")
+            afterEvaluate { from(components["release"]) }
+        }
 
         // Creates a Maven publication called "release".
         create<MavenPublication>("release") {

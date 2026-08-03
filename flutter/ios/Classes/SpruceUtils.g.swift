@@ -293,6 +293,200 @@ struct GenerateMockMdlError: GenerateMockMdlResult {
   }
 }
 
+/// Data elements for a mock mDL.
+///
+/// Mirrors the Rust `TestMdlData` record 1:1 (all fields required — the Rust
+/// record has no optionals). Field values follow ISO/IEC 18013-5
+/// `org.iso.18013.5.1` element semantics; dates are `YYYY-MM-DD` strings and
+/// `portrait` is a base64-encoded JPEG.
+///
+/// Use `MockMdlDataDefaults.johnDoe(...)` (exported by the plugin) to obtain
+/// a fully-populated instance and override only the fields that matter —
+/// typically `documentNumber`, which external systems key on.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct MockMdlData: Hashable {
+  var familyName: String
+  var givenName: String
+  var birthDate: String
+  var issueDate: String
+  var expiryDate: String
+  var issuingCountry: String
+  var issuingAuthority: String
+  var documentNumber: String
+  var portrait: String
+  /// Must be left EMPTY: the Rust layer's `TestMdlData.driving_privileges` is
+  /// `Vec<String>`, but isomdl expects ISO driving-privilege JSON *objects* —
+  /// any non-empty string entry fails `from_json` and the call returns
+  /// `GenerateMockMdlError`. Kept for wire parity with the Rust record.
+  var drivingPrivileges: [String]
+  var unDistinguishingSign: String
+  var administrativeNumber: String
+  /// `sex`/`height`/`weight`/`ageInYears`/`ageBirthYear` are u16 on the Rust
+  /// side: values outside 0..65535 wrap (both platforms truncate identically)
+  /// and embed as plausible-looking garbage rather than erroring.
+  var sex: Int64
+  var height: Int64
+  var weight: Int64
+  var eyeColour: String
+  var hairColour: String
+  var birthPlace: String
+  var residentAddress: String
+  var portraitCaptureDate: String
+  var ageInYears: Int64
+  var ageBirthYear: Int64
+  var ageOver18: Bool
+  var ageOver21: Bool
+  var ageOver60: Bool
+  var nationality: String
+  var residentCity: String
+  var residentState: String
+  var residentPostalCode: String
+  var residentCountry: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MockMdlData? {
+    let familyName = pigeonVar_list[0] as! String
+    let givenName = pigeonVar_list[1] as! String
+    let birthDate = pigeonVar_list[2] as! String
+    let issueDate = pigeonVar_list[3] as! String
+    let expiryDate = pigeonVar_list[4] as! String
+    let issuingCountry = pigeonVar_list[5] as! String
+    let issuingAuthority = pigeonVar_list[6] as! String
+    let documentNumber = pigeonVar_list[7] as! String
+    let portrait = pigeonVar_list[8] as! String
+    let drivingPrivileges = pigeonVar_list[9] as! [String]
+    let unDistinguishingSign = pigeonVar_list[10] as! String
+    let administrativeNumber = pigeonVar_list[11] as! String
+    let sex = pigeonVar_list[12] as! Int64
+    let height = pigeonVar_list[13] as! Int64
+    let weight = pigeonVar_list[14] as! Int64
+    let eyeColour = pigeonVar_list[15] as! String
+    let hairColour = pigeonVar_list[16] as! String
+    let birthPlace = pigeonVar_list[17] as! String
+    let residentAddress = pigeonVar_list[18] as! String
+    let portraitCaptureDate = pigeonVar_list[19] as! String
+    let ageInYears = pigeonVar_list[20] as! Int64
+    let ageBirthYear = pigeonVar_list[21] as! Int64
+    let ageOver18 = pigeonVar_list[22] as! Bool
+    let ageOver21 = pigeonVar_list[23] as! Bool
+    let ageOver60 = pigeonVar_list[24] as! Bool
+    let nationality = pigeonVar_list[25] as! String
+    let residentCity = pigeonVar_list[26] as! String
+    let residentState = pigeonVar_list[27] as! String
+    let residentPostalCode = pigeonVar_list[28] as! String
+    let residentCountry = pigeonVar_list[29] as! String
+
+    return MockMdlData(
+      familyName: familyName,
+      givenName: givenName,
+      birthDate: birthDate,
+      issueDate: issueDate,
+      expiryDate: expiryDate,
+      issuingCountry: issuingCountry,
+      issuingAuthority: issuingAuthority,
+      documentNumber: documentNumber,
+      portrait: portrait,
+      drivingPrivileges: drivingPrivileges,
+      unDistinguishingSign: unDistinguishingSign,
+      administrativeNumber: administrativeNumber,
+      sex: sex,
+      height: height,
+      weight: weight,
+      eyeColour: eyeColour,
+      hairColour: hairColour,
+      birthPlace: birthPlace,
+      residentAddress: residentAddress,
+      portraitCaptureDate: portraitCaptureDate,
+      ageInYears: ageInYears,
+      ageBirthYear: ageBirthYear,
+      ageOver18: ageOver18,
+      ageOver21: ageOver21,
+      ageOver60: ageOver60,
+      nationality: nationality,
+      residentCity: residentCity,
+      residentState: residentState,
+      residentPostalCode: residentPostalCode,
+      residentCountry: residentCountry
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      familyName,
+      givenName,
+      birthDate,
+      issueDate,
+      expiryDate,
+      issuingCountry,
+      issuingAuthority,
+      documentNumber,
+      portrait,
+      drivingPrivileges,
+      unDistinguishingSign,
+      administrativeNumber,
+      sex,
+      height,
+      weight,
+      eyeColour,
+      hairColour,
+      birthPlace,
+      residentAddress,
+      portraitCaptureDate,
+      ageInYears,
+      ageBirthYear,
+      ageOver18,
+      ageOver21,
+      ageOver60,
+      nationality,
+      residentCity,
+      residentState,
+      residentPostalCode,
+      residentCountry,
+    ]
+  }
+  static func == (lhs: MockMdlData, rhs: MockMdlData) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsSpruceUtils(lhs.familyName, rhs.familyName) && deepEqualsSpruceUtils(lhs.givenName, rhs.givenName) && deepEqualsSpruceUtils(lhs.birthDate, rhs.birthDate) && deepEqualsSpruceUtils(lhs.issueDate, rhs.issueDate) && deepEqualsSpruceUtils(lhs.expiryDate, rhs.expiryDate) && deepEqualsSpruceUtils(lhs.issuingCountry, rhs.issuingCountry) && deepEqualsSpruceUtils(lhs.issuingAuthority, rhs.issuingAuthority) && deepEqualsSpruceUtils(lhs.documentNumber, rhs.documentNumber) && deepEqualsSpruceUtils(lhs.portrait, rhs.portrait) && deepEqualsSpruceUtils(lhs.drivingPrivileges, rhs.drivingPrivileges) && deepEqualsSpruceUtils(lhs.unDistinguishingSign, rhs.unDistinguishingSign) && deepEqualsSpruceUtils(lhs.administrativeNumber, rhs.administrativeNumber) && deepEqualsSpruceUtils(lhs.sex, rhs.sex) && deepEqualsSpruceUtils(lhs.height, rhs.height) && deepEqualsSpruceUtils(lhs.weight, rhs.weight) && deepEqualsSpruceUtils(lhs.eyeColour, rhs.eyeColour) && deepEqualsSpruceUtils(lhs.hairColour, rhs.hairColour) && deepEqualsSpruceUtils(lhs.birthPlace, rhs.birthPlace) && deepEqualsSpruceUtils(lhs.residentAddress, rhs.residentAddress) && deepEqualsSpruceUtils(lhs.portraitCaptureDate, rhs.portraitCaptureDate) && deepEqualsSpruceUtils(lhs.ageInYears, rhs.ageInYears) && deepEqualsSpruceUtils(lhs.ageBirthYear, rhs.ageBirthYear) && deepEqualsSpruceUtils(lhs.ageOver18, rhs.ageOver18) && deepEqualsSpruceUtils(lhs.ageOver21, rhs.ageOver21) && deepEqualsSpruceUtils(lhs.ageOver60, rhs.ageOver60) && deepEqualsSpruceUtils(lhs.nationality, rhs.nationality) && deepEqualsSpruceUtils(lhs.residentCity, rhs.residentCity) && deepEqualsSpruceUtils(lhs.residentState, rhs.residentState) && deepEqualsSpruceUtils(lhs.residentPostalCode, rhs.residentPostalCode) && deepEqualsSpruceUtils(lhs.residentCountry, rhs.residentCountry)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("MockMdlData")
+    deepHashSpruceUtils(value: familyName, hasher: &hasher)
+    deepHashSpruceUtils(value: givenName, hasher: &hasher)
+    deepHashSpruceUtils(value: birthDate, hasher: &hasher)
+    deepHashSpruceUtils(value: issueDate, hasher: &hasher)
+    deepHashSpruceUtils(value: expiryDate, hasher: &hasher)
+    deepHashSpruceUtils(value: issuingCountry, hasher: &hasher)
+    deepHashSpruceUtils(value: issuingAuthority, hasher: &hasher)
+    deepHashSpruceUtils(value: documentNumber, hasher: &hasher)
+    deepHashSpruceUtils(value: portrait, hasher: &hasher)
+    deepHashSpruceUtils(value: drivingPrivileges, hasher: &hasher)
+    deepHashSpruceUtils(value: unDistinguishingSign, hasher: &hasher)
+    deepHashSpruceUtils(value: administrativeNumber, hasher: &hasher)
+    deepHashSpruceUtils(value: sex, hasher: &hasher)
+    deepHashSpruceUtils(value: height, hasher: &hasher)
+    deepHashSpruceUtils(value: weight, hasher: &hasher)
+    deepHashSpruceUtils(value: eyeColour, hasher: &hasher)
+    deepHashSpruceUtils(value: hairColour, hasher: &hasher)
+    deepHashSpruceUtils(value: birthPlace, hasher: &hasher)
+    deepHashSpruceUtils(value: residentAddress, hasher: &hasher)
+    deepHashSpruceUtils(value: portraitCaptureDate, hasher: &hasher)
+    deepHashSpruceUtils(value: ageInYears, hasher: &hasher)
+    deepHashSpruceUtils(value: ageBirthYear, hasher: &hasher)
+    deepHashSpruceUtils(value: ageOver18, hasher: &hasher)
+    deepHashSpruceUtils(value: ageOver21, hasher: &hasher)
+    deepHashSpruceUtils(value: ageOver60, hasher: &hasher)
+    deepHashSpruceUtils(value: nationality, hasher: &hasher)
+    deepHashSpruceUtils(value: residentCity, hasher: &hasher)
+    deepHashSpruceUtils(value: residentState, hasher: &hasher)
+    deepHashSpruceUtils(value: residentPostalCode, hasher: &hasher)
+    deepHashSpruceUtils(value: residentCountry, hasher: &hasher)
+  }
+}
+
 /// A supplement to include in the generated PDF.
 ///
 /// This is an extensible carrier: the `type` field determines which optional
@@ -479,10 +673,12 @@ private class SpruceUtilsPigeonCodecReader: FlutterStandardReader {
     case 133:
       return GenerateMockMdlError.fromList(self.readValue() as! [Any?])
     case 134:
-      return PdfSupplement.fromList(self.readValue() as! [Any?])
+      return MockMdlData.fromList(self.readValue() as! [Any?])
     case 135:
-      return DisclosureSelection.fromList(self.readValue() as! [Any?])
+      return PdfSupplement.fromList(self.readValue() as! [Any?])
     case 136:
+      return DisclosureSelection.fromList(self.readValue() as! [Any?])
+    case 137:
       return VpTokenParams.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -507,14 +703,17 @@ private class SpruceUtilsPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? GenerateMockMdlError {
       super.writeByte(133)
       super.writeValue(value.toList())
-    } else if let value = value as? PdfSupplement {
+    } else if let value = value as? MockMdlData {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? DisclosureSelection {
+    } else if let value = value as? PdfSupplement {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? VpTokenParams {
+    } else if let value = value as? DisclosureSelection {
       super.writeByte(136)
+      super.writeValue(value.toList())
+    } else if let value = value as? VpTokenParams {
+      super.writeByte(137)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -550,6 +749,18 @@ protocol SpruceUtils {
   /// @param keyAlias Optional key alias to use (defaults to "testMdl")
   /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
   func generateMockMdl(keyAlias: String?, completion: @escaping (Result<GenerateMockMdlResult, Error>) -> Void)
+  /// Generate a mock mDL with caller-supplied data elements
+  ///
+  /// Same as [generateMockMdl] but every mDL data element is taken from
+  /// [data] instead of the hardcoded defaults — in particular the document
+  /// number, which [generateMockMdl] randomizes on every call. Use this when
+  /// an external system needs a stable, chosen document number across
+  /// regenerations.
+  ///
+  /// @param keyAlias Optional key alias to use (defaults to "testMdl")
+  /// @param data The mDL data elements to embed in the credential
+  /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
+  func generateMockMdlWithData(keyAlias: String?, data: MockMdlData, completion: @escaping (Result<GenerateMockMdlResult, Error>) -> Void)
   /// Generate a PDF from a raw mDL credential.
   ///
   /// Accepts the raw mSO mDoc as a base64url-encoded IssuerSigned string
@@ -691,6 +902,35 @@ class SpruceUtilsSetup {
       }
     } else {
       generateMockMdlChannel.setMessageHandler(nil)
+    }
+    /// Generate a mock mDL with caller-supplied data elements
+    ///
+    /// Same as [generateMockMdl] but every mDL data element is taken from
+    /// [data] instead of the hardcoded defaults — in particular the document
+    /// number, which [generateMockMdl] randomizes on every call. Use this when
+    /// an external system needs a stable, chosen document number across
+    /// regenerations.
+    ///
+    /// @param keyAlias Optional key alias to use (defaults to "testMdl")
+    /// @param data The mDL data elements to embed in the credential
+    /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
+    let generateMockMdlWithDataChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateMockMdlWithData\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      generateMockMdlWithDataChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let keyAliasArg: String? = nilOrValue(args[0])
+        let dataArg = args[1] as! MockMdlData
+        api.generateMockMdlWithData(keyAlias: keyAliasArg, data: dataArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      generateMockMdlWithDataChannel.setMessageHandler(nil)
     }
     /// Generate a PDF from a raw mDL credential.
     ///
