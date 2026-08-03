@@ -168,6 +168,28 @@ class CredentialRequirementData {
   });
 }
 
+/// A dynamic credential offer surfaced by a registered native
+/// `DynamicCredentialProvider`.
+///
+/// Offers are issued only if the user selects them: pass the `offerId` to
+/// `submitResponseWithOffers`. Only OID4VP-v1 sessions surface offers.
+class DynamicOfferData {
+  /// Provider-scoped identifier, echoed back via `submitResponseWithOffers`.
+  String offerId;
+
+  /// The DCQL credential-query id this offer satisfies.
+  String credentialQueryId;
+
+  /// Human-readable label for the consent UI.
+  String title;
+
+  DynamicOfferData({
+    required this.offerId,
+    required this.credentialQueryId,
+    required this.title,
+  });
+}
+
 /// OID4VP credential presentation API
 ///
 /// Handles the OpenID for Verifiable Presentation flow
@@ -225,6 +247,19 @@ abstract class Oid4vp {
     ResponseOptions options,
   );
 
+  /// Submit the response, additionally issuing the dynamic credential offers
+  /// selected by `offerId` from `getDynamicOffers`.
+  ///
+  /// `selectedCredentials` may be empty if at least one offer is selected.
+  /// Unknown offer ids fail the whole submission.
+  @async
+  Oid4vpResult submitResponseWithOffers(
+    List<PresentableCredentialKey> selectedCredentials,
+    List<List<String>> selectedFieldPaths,
+    List<String> selectedOfferIds,
+    ResponseOptions options,
+  );
+
   /// Get credential requirements from the permission request
   ///
   /// @return List of credential requirements
@@ -239,6 +274,12 @@ abstract class Oid4vp {
   ///
   /// @return List of credential query ID strings
   List<String> getCredentialQueryIds();
+
+  /// Get the dynamic credential offers for the current session.
+  ///
+  /// Empty when no providers are registered, none match the request, or the
+  /// negotiated version is not v1. Call after `handleAuthorizationRequest`.
+  List<DynamicOfferData> getDynamicOffers();
 
   /// Cancel and cleanup the current session
   void cancel();

@@ -11155,6 +11155,51 @@ public static func newWithCredentials(providedCredentials: [ParsedCredential], t
         )
 }
     
+    /**
+     * Create a holder with stored credentials plus registered
+     * [`DynamicCredentialProvider`]s, which issue credentials on device
+     * during a presentation.
+     *
+     * Providers participate in v1 sessions only: Draft 18 / Draft 13
+     * sessions report no dynamic offers.
+     */
+public static func newWithCredentialsAndProviders(providedCredentials: [ParsedCredential], trustedDids: [String], signer: Oid4vpPresentationSigner, contextMap: [String: String]?, keystore: KeyStore?, providers: [DynamicCredentialProvider])async throws  -> Oid4vpHolder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_oid4vpholder_new_with_credentials_and_providers(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceOid4vpPresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore),FfiConverterSequenceTypeDynamicCredentialProvider.lower(providers)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeOid4vpHolder_lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
+}
+    
+    /**
+     * Create a holder with registered [`DynamicCredentialProvider`]s, which
+     * issue credentials on device during a presentation.
+     *
+     * Providers participate in v1 sessions only: Draft 18 / Draft 13
+     * sessions report no dynamic offers.
+     */
+public static func newWithProviders(vdcCollection: VdcCollection, trustedDids: [String], signer: Oid4vpPresentationSigner, contextMap: [String: String]?, keystore: KeyStore?, providers: [DynamicCredentialProvider])async throws  -> Oid4vpHolder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_oid4vpholder_new_with_providers(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceOid4vpPresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore),FfiConverterSequenceTypeDynamicCredentialProvider.lower(providers)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeOid4vpHolder_lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
+}
+    
 
     
 open func newDraft18Holder()async throws  -> Draft18Holder  {
@@ -11593,9 +11638,30 @@ public protocol Oid4vpSessionProtocol: AnyObject, Sendable {
     
     func createPermissionResponse(selectedCredentials: [Oid4vpPresentableCredential], selectedFields: [[String]], responseOptions: Oid4vpResponseOptions) async throws  -> Oid4vpPermissionResponse
     
+    /**
+     * Create the permission response, additionally issuing the dynamic
+     * credential offers selected from [`Oid4vpSession::dynamic_offers`].
+     *
+     * Either `selected_credentials` or `selected_offers` (or both) may be
+     * non-empty. Selecting offers on a Draft 18 / Draft 13 session returns
+     * [`Oid4vpFacadeError::VersionMismatch`]: the dynamic-credential hook is
+     * OID4VP-v1 only.
+     */
+    func createPermissionResponseWithOffers(selectedCredentials: [Oid4vpPresentableCredential], selectedFields: [[String]], selectedOffers: [DynamicCredentialOffer], responseOptions: Oid4vpResponseOptions) async throws  -> Oid4vpPermissionResponse
+    
     func credentials()  -> [Oid4vpPresentableCredential]
     
     func domain()  -> String?
+    
+    /**
+     * Dynamic credential offers surfaced for this session by the holder's
+     * [`DynamicCredentialProvider`]s. Stored credentials are listed
+     * separately by [`Oid4vpSession::credentials`].
+     *
+     * Always empty for Draft 18 / Draft 13 sessions: the dynamic-credential
+     * hook is OID4VP-v1 only.
+     */
+    func dynamicOffers()  -> [DynamicCredentialOffer]
     
     func isMultiCredentialMatching()  -> Bool
     
@@ -11690,6 +11756,32 @@ open func createPermissionResponse(selectedCredentials: [Oid4vpPresentableCreden
         )
 }
     
+    /**
+     * Create the permission response, additionally issuing the dynamic
+     * credential offers selected from [`Oid4vpSession::dynamic_offers`].
+     *
+     * Either `selected_credentials` or `selected_offers` (or both) may be
+     * non-empty. Selecting offers on a Draft 18 / Draft 13 session returns
+     * [`Oid4vpFacadeError::VersionMismatch`]: the dynamic-credential hook is
+     * OID4VP-v1 only.
+     */
+open func createPermissionResponseWithOffers(selectedCredentials: [Oid4vpPresentableCredential], selectedFields: [[String]], selectedOffers: [DynamicCredentialOffer], responseOptions: Oid4vpResponseOptions)async throws  -> Oid4vpPermissionResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vpsession_create_permission_response_with_offers(
+                    self.uniffiCloneHandle(),
+                    FfiConverterSequenceTypeOid4vpPresentableCredential.lower(selectedCredentials),FfiConverterSequenceSequenceString.lower(selectedFields),FfiConverterSequenceTypeDynamicCredentialOffer.lower(selectedOffers),FfiConverterTypeOid4vpResponseOptions_lower(responseOptions)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeOid4vpPermissionResponse_lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
+}
+    
 open func credentials() -> [Oid4vpPresentableCredential]  {
     return try!  FfiConverterSequenceTypeOid4vpPresentableCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_oid4vpsession_credentials(
@@ -11701,6 +11793,22 @@ open func credentials() -> [Oid4vpPresentableCredential]  {
 open func domain() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_oid4vpsession_domain(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Dynamic credential offers surfaced for this session by the holder's
+     * [`DynamicCredentialProvider`]s. Stored credentials are listed
+     * separately by [`Oid4vpSession::credentials`].
+     *
+     * Always empty for Draft 18 / Draft 13 sessions: the dynamic-credential
+     * hook is OID4VP-v1 only.
+     */
+open func dynamicOffers() -> [DynamicCredentialOffer]  {
+    return try!  FfiConverterSequenceTypeDynamicCredentialOffer.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vpsession_dynamic_offers(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -36832,10 +36940,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_create_permission_response() != 9863) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_create_permission_response_with_offers() != 41495) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_credentials() != 57886) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_domain() != 36441) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_dynamic_offers() != 7083) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_is_multi_credential_matching() != 60605) {
@@ -37196,6 +37310,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials() != 50170) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials_and_providers() != 47197) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_providers() != 53369) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 44642) {

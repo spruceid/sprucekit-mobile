@@ -120,6 +120,11 @@ class Oid4vciAdapter: Oid4vci {
                     supportedVersions: supportedVersions
                 )
                 completion(.success(result))
+            } catch let error as SpruceIDMobileSdkRs.Oid4vciError {
+                completion(.success(
+                    presentationRequiredResult(error)
+                        ?? Oid4vciError(message: error.localizedDescription)
+                ))
             } catch {
                 completion(.success(Oid4vciError(message: error.localizedDescription)))
             }
@@ -191,6 +196,12 @@ class Oid4vciAdapter: Oid4vci {
                 let credentials = try await exchangeCredentialWithToken(ctx: ctx, token: token)
                 await registry.remove(id: sessionId)
                 completion(.success(Oid4vciSuccess(credentials: credentials)))
+            } catch let error as SpruceIDMobileSdkRs.Oid4vciError {
+                await registry.remove(id: sessionId)
+                completion(.success(
+                    presentationRequiredResult(error)
+                        ?? Oid4vciError(message: error.localizedDescription)
+                ))
             } catch {
                 await registry.remove(id: sessionId)
                 completion(.success(Oid4vciError(message: error.localizedDescription)))
@@ -245,6 +256,12 @@ class Oid4vciAdapter: Oid4vci {
                 let credentials = try await exchangeCredentialWithToken(ctx: ctx, token: token)
                 await registry.remove(id: sessionId)
                 completion(.success(Oid4vciSuccess(credentials: credentials)))
+            } catch let error as SpruceIDMobileSdkRs.Oid4vciError {
+                await registry.remove(id: sessionId)
+                completion(.success(
+                    presentationRequiredResult(error)
+                        ?? Oid4vciError(message: error.localizedDescription)
+                ))
             } catch {
                 await registry.remove(id: sessionId)
                 completion(.success(Oid4vciError(message: error.localizedDescription)))
@@ -263,6 +280,20 @@ class Oid4vciAdapter: Oid4vci {
     }
 
     // MARK: - Helpers
+
+    /// Returns the pigeon result for `PresentationRequired`, nil for other
+    /// variants. The SDK error is a uniffi flat error: the payload is the
+    /// verbatim OID4VP authorization_request JSON. The SDK enum must stay
+    /// qualified as `SpruceIDMobileSdkRs.Oid4vciError` — it collides with the
+    /// pigeon class `Oid4vciError`.
+    private func presentationRequiredResult(
+        _ error: SpruceIDMobileSdkRs.Oid4vciError
+    ) -> Oid4vciResult? {
+        guard case let .PresentationRequired(message) = error else { return nil }
+        return message.isEmpty
+            ? Oid4vciError(message: "presentation required (missing authorization_request)")
+            : Oid4vciPresentationRequired(authorizationRequestJson: message)
+    }
 
     private func normalizeOfferUrl(_ credentialOffer: String) -> String {
         credentialOffer.starts(with: "openid-credential-offer://")
