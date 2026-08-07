@@ -318,7 +318,8 @@ extension MockMdlData {
             residentCity: residentCity,
             residentState: residentState,
             residentPostalCode: residentPostalCode,
-            residentCountry: residentCountry
+            residentCountry: residentCountry,
+            issuingJurisdiction: issuingJurisdiction
         )
     }
 }

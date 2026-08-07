@@ -295,8 +295,8 @@ struct GenerateMockMdlError: GenerateMockMdlResult {
 
 /// Data elements for a mock mDL.
 ///
-/// Mirrors the Rust `TestMdlData` record 1:1 (all fields required — the Rust
-/// record has no optionals). Field values follow ISO/IEC 18013-5
+/// Mirrors the Rust `TestMdlData` record 1:1 (all fields required except the
+/// optional `issuingJurisdiction`). Field values follow ISO/IEC 18013-5
 /// `org.iso.18013.5.1` element semantics; dates are `YYYY-MM-DD` strings and
 /// `portrait` is a base64-encoded JPEG.
 ///
@@ -343,6 +343,9 @@ struct MockMdlData: Hashable {
   var residentState: String
   var residentPostalCode: String
   var residentCountry: String
+  /// ISO 3166-2 issuing jurisdiction (e.g. "US-NY"); the
+  /// `issuing_jurisdiction` element is omitted from the mDoc when null.
+  var issuingJurisdiction: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -377,6 +380,7 @@ struct MockMdlData: Hashable {
     let residentState = pigeonVar_list[27] as! String
     let residentPostalCode = pigeonVar_list[28] as! String
     let residentCountry = pigeonVar_list[29] as! String
+    let issuingJurisdiction: String? = nilOrValue(pigeonVar_list[30])
 
     return MockMdlData(
       familyName: familyName,
@@ -408,7 +412,8 @@ struct MockMdlData: Hashable {
       residentCity: residentCity,
       residentState: residentState,
       residentPostalCode: residentPostalCode,
-      residentCountry: residentCountry
+      residentCountry: residentCountry,
+      issuingJurisdiction: issuingJurisdiction
     )
   }
   func toList() -> [Any?] {
@@ -443,13 +448,14 @@ struct MockMdlData: Hashable {
       residentState,
       residentPostalCode,
       residentCountry,
+      issuingJurisdiction,
     ]
   }
   static func == (lhs: MockMdlData, rhs: MockMdlData) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsSpruceUtils(lhs.familyName, rhs.familyName) && deepEqualsSpruceUtils(lhs.givenName, rhs.givenName) && deepEqualsSpruceUtils(lhs.birthDate, rhs.birthDate) && deepEqualsSpruceUtils(lhs.issueDate, rhs.issueDate) && deepEqualsSpruceUtils(lhs.expiryDate, rhs.expiryDate) && deepEqualsSpruceUtils(lhs.issuingCountry, rhs.issuingCountry) && deepEqualsSpruceUtils(lhs.issuingAuthority, rhs.issuingAuthority) && deepEqualsSpruceUtils(lhs.documentNumber, rhs.documentNumber) && deepEqualsSpruceUtils(lhs.portrait, rhs.portrait) && deepEqualsSpruceUtils(lhs.drivingPrivileges, rhs.drivingPrivileges) && deepEqualsSpruceUtils(lhs.unDistinguishingSign, rhs.unDistinguishingSign) && deepEqualsSpruceUtils(lhs.administrativeNumber, rhs.administrativeNumber) && deepEqualsSpruceUtils(lhs.sex, rhs.sex) && deepEqualsSpruceUtils(lhs.height, rhs.height) && deepEqualsSpruceUtils(lhs.weight, rhs.weight) && deepEqualsSpruceUtils(lhs.eyeColour, rhs.eyeColour) && deepEqualsSpruceUtils(lhs.hairColour, rhs.hairColour) && deepEqualsSpruceUtils(lhs.birthPlace, rhs.birthPlace) && deepEqualsSpruceUtils(lhs.residentAddress, rhs.residentAddress) && deepEqualsSpruceUtils(lhs.portraitCaptureDate, rhs.portraitCaptureDate) && deepEqualsSpruceUtils(lhs.ageInYears, rhs.ageInYears) && deepEqualsSpruceUtils(lhs.ageBirthYear, rhs.ageBirthYear) && deepEqualsSpruceUtils(lhs.ageOver18, rhs.ageOver18) && deepEqualsSpruceUtils(lhs.ageOver21, rhs.ageOver21) && deepEqualsSpruceUtils(lhs.ageOver60, rhs.ageOver60) && deepEqualsSpruceUtils(lhs.nationality, rhs.nationality) && deepEqualsSpruceUtils(lhs.residentCity, rhs.residentCity) && deepEqualsSpruceUtils(lhs.residentState, rhs.residentState) && deepEqualsSpruceUtils(lhs.residentPostalCode, rhs.residentPostalCode) && deepEqualsSpruceUtils(lhs.residentCountry, rhs.residentCountry)
+    return deepEqualsSpruceUtils(lhs.familyName, rhs.familyName) && deepEqualsSpruceUtils(lhs.givenName, rhs.givenName) && deepEqualsSpruceUtils(lhs.birthDate, rhs.birthDate) && deepEqualsSpruceUtils(lhs.issueDate, rhs.issueDate) && deepEqualsSpruceUtils(lhs.expiryDate, rhs.expiryDate) && deepEqualsSpruceUtils(lhs.issuingCountry, rhs.issuingCountry) && deepEqualsSpruceUtils(lhs.issuingAuthority, rhs.issuingAuthority) && deepEqualsSpruceUtils(lhs.documentNumber, rhs.documentNumber) && deepEqualsSpruceUtils(lhs.portrait, rhs.portrait) && deepEqualsSpruceUtils(lhs.drivingPrivileges, rhs.drivingPrivileges) && deepEqualsSpruceUtils(lhs.unDistinguishingSign, rhs.unDistinguishingSign) && deepEqualsSpruceUtils(lhs.administrativeNumber, rhs.administrativeNumber) && deepEqualsSpruceUtils(lhs.sex, rhs.sex) && deepEqualsSpruceUtils(lhs.height, rhs.height) && deepEqualsSpruceUtils(lhs.weight, rhs.weight) && deepEqualsSpruceUtils(lhs.eyeColour, rhs.eyeColour) && deepEqualsSpruceUtils(lhs.hairColour, rhs.hairColour) && deepEqualsSpruceUtils(lhs.birthPlace, rhs.birthPlace) && deepEqualsSpruceUtils(lhs.residentAddress, rhs.residentAddress) && deepEqualsSpruceUtils(lhs.portraitCaptureDate, rhs.portraitCaptureDate) && deepEqualsSpruceUtils(lhs.ageInYears, rhs.ageInYears) && deepEqualsSpruceUtils(lhs.ageBirthYear, rhs.ageBirthYear) && deepEqualsSpruceUtils(lhs.ageOver18, rhs.ageOver18) && deepEqualsSpruceUtils(lhs.ageOver21, rhs.ageOver21) && deepEqualsSpruceUtils(lhs.ageOver60, rhs.ageOver60) && deepEqualsSpruceUtils(lhs.nationality, rhs.nationality) && deepEqualsSpruceUtils(lhs.residentCity, rhs.residentCity) && deepEqualsSpruceUtils(lhs.residentState, rhs.residentState) && deepEqualsSpruceUtils(lhs.residentPostalCode, rhs.residentPostalCode) && deepEqualsSpruceUtils(lhs.residentCountry, rhs.residentCountry) && deepEqualsSpruceUtils(lhs.issuingJurisdiction, rhs.issuingJurisdiction)
   }
 
   func hash(into hasher: inout Hasher) {
@@ -484,6 +490,7 @@ struct MockMdlData: Hashable {
     deepHashSpruceUtils(value: residentState, hasher: &hasher)
     deepHashSpruceUtils(value: residentPostalCode, hasher: &hasher)
     deepHashSpruceUtils(value: residentCountry, hasher: &hasher)
+    deepHashSpruceUtils(value: issuingJurisdiction, hasher: &hasher)
   }
 }
 

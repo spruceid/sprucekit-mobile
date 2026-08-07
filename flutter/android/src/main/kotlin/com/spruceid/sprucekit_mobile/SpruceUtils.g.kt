@@ -342,8 +342,8 @@ data class GenerateMockMdlError (
 /**
  * Data elements for a mock mDL.
  *
- * Mirrors the Rust `TestMdlData` record 1:1 (all fields required — the Rust
- * record has no optionals). Field values follow ISO/IEC 18013-5
+ * Mirrors the Rust `TestMdlData` record 1:1 (all fields required except the
+ * optional `issuingJurisdiction`). Field values follow ISO/IEC 18013-5
  * `org.iso.18013.5.1` element semantics; dates are `YYYY-MM-DD` strings and
  * `portrait` is a base64-encoded JPEG.
  *
@@ -394,7 +394,12 @@ data class MockMdlData (
   val residentCity: String,
   val residentState: String,
   val residentPostalCode: String,
-  val residentCountry: String
+  val residentCountry: String,
+  /**
+   * ISO 3166-2 issuing jurisdiction (e.g. "US-NY"); the
+   * `issuing_jurisdiction` element is omitted from the mDoc when null.
+   */
+  val issuingJurisdiction: String? = null
 )
  {
   companion object {
@@ -429,7 +434,8 @@ data class MockMdlData (
       val residentState = pigeonVar_list[27] as String
       val residentPostalCode = pigeonVar_list[28] as String
       val residentCountry = pigeonVar_list[29] as String
-      return MockMdlData(familyName, givenName, birthDate, issueDate, expiryDate, issuingCountry, issuingAuthority, documentNumber, portrait, drivingPrivileges, unDistinguishingSign, administrativeNumber, sex, height, weight, eyeColour, hairColour, birthPlace, residentAddress, portraitCaptureDate, ageInYears, ageBirthYear, ageOver18, ageOver21, ageOver60, nationality, residentCity, residentState, residentPostalCode, residentCountry)
+      val issuingJurisdiction = pigeonVar_list[30] as String?
+      return MockMdlData(familyName, givenName, birthDate, issueDate, expiryDate, issuingCountry, issuingAuthority, documentNumber, portrait, drivingPrivileges, unDistinguishingSign, administrativeNumber, sex, height, weight, eyeColour, hairColour, birthPlace, residentAddress, portraitCaptureDate, ageInYears, ageBirthYear, ageOver18, ageOver21, ageOver60, nationality, residentCity, residentState, residentPostalCode, residentCountry, issuingJurisdiction)
     }
   }
   fun toList(): List<Any?> {
@@ -464,6 +470,7 @@ data class MockMdlData (
       residentState,
       residentPostalCode,
       residentCountry,
+      issuingJurisdiction,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -474,7 +481,7 @@ data class MockMdlData (
       return true
     }
     val other = other as MockMdlData
-    return SpruceUtilsPigeonUtils.deepEquals(this.familyName, other.familyName) && SpruceUtilsPigeonUtils.deepEquals(this.givenName, other.givenName) && SpruceUtilsPigeonUtils.deepEquals(this.birthDate, other.birthDate) && SpruceUtilsPigeonUtils.deepEquals(this.issueDate, other.issueDate) && SpruceUtilsPigeonUtils.deepEquals(this.expiryDate, other.expiryDate) && SpruceUtilsPigeonUtils.deepEquals(this.issuingCountry, other.issuingCountry) && SpruceUtilsPigeonUtils.deepEquals(this.issuingAuthority, other.issuingAuthority) && SpruceUtilsPigeonUtils.deepEquals(this.documentNumber, other.documentNumber) && SpruceUtilsPigeonUtils.deepEquals(this.portrait, other.portrait) && SpruceUtilsPigeonUtils.deepEquals(this.drivingPrivileges, other.drivingPrivileges) && SpruceUtilsPigeonUtils.deepEquals(this.unDistinguishingSign, other.unDistinguishingSign) && SpruceUtilsPigeonUtils.deepEquals(this.administrativeNumber, other.administrativeNumber) && SpruceUtilsPigeonUtils.deepEquals(this.sex, other.sex) && SpruceUtilsPigeonUtils.deepEquals(this.height, other.height) && SpruceUtilsPigeonUtils.deepEquals(this.weight, other.weight) && SpruceUtilsPigeonUtils.deepEquals(this.eyeColour, other.eyeColour) && SpruceUtilsPigeonUtils.deepEquals(this.hairColour, other.hairColour) && SpruceUtilsPigeonUtils.deepEquals(this.birthPlace, other.birthPlace) && SpruceUtilsPigeonUtils.deepEquals(this.residentAddress, other.residentAddress) && SpruceUtilsPigeonUtils.deepEquals(this.portraitCaptureDate, other.portraitCaptureDate) && SpruceUtilsPigeonUtils.deepEquals(this.ageInYears, other.ageInYears) && SpruceUtilsPigeonUtils.deepEquals(this.ageBirthYear, other.ageBirthYear) && SpruceUtilsPigeonUtils.deepEquals(this.ageOver18, other.ageOver18) && SpruceUtilsPigeonUtils.deepEquals(this.ageOver21, other.ageOver21) && SpruceUtilsPigeonUtils.deepEquals(this.ageOver60, other.ageOver60) && SpruceUtilsPigeonUtils.deepEquals(this.nationality, other.nationality) && SpruceUtilsPigeonUtils.deepEquals(this.residentCity, other.residentCity) && SpruceUtilsPigeonUtils.deepEquals(this.residentState, other.residentState) && SpruceUtilsPigeonUtils.deepEquals(this.residentPostalCode, other.residentPostalCode) && SpruceUtilsPigeonUtils.deepEquals(this.residentCountry, other.residentCountry)
+    return SpruceUtilsPigeonUtils.deepEquals(this.familyName, other.familyName) && SpruceUtilsPigeonUtils.deepEquals(this.givenName, other.givenName) && SpruceUtilsPigeonUtils.deepEquals(this.birthDate, other.birthDate) && SpruceUtilsPigeonUtils.deepEquals(this.issueDate, other.issueDate) && SpruceUtilsPigeonUtils.deepEquals(this.expiryDate, other.expiryDate) && SpruceUtilsPigeonUtils.deepEquals(this.issuingCountry, other.issuingCountry) && SpruceUtilsPigeonUtils.deepEquals(this.issuingAuthority, other.issuingAuthority) && SpruceUtilsPigeonUtils.deepEquals(this.documentNumber, other.documentNumber) && SpruceUtilsPigeonUtils.deepEquals(this.portrait, other.portrait) && SpruceUtilsPigeonUtils.deepEquals(this.drivingPrivileges, other.drivingPrivileges) && SpruceUtilsPigeonUtils.deepEquals(this.unDistinguishingSign, other.unDistinguishingSign) && SpruceUtilsPigeonUtils.deepEquals(this.administrativeNumber, other.administrativeNumber) && SpruceUtilsPigeonUtils.deepEquals(this.sex, other.sex) && SpruceUtilsPigeonUtils.deepEquals(this.height, other.height) && SpruceUtilsPigeonUtils.deepEquals(this.weight, other.weight) && SpruceUtilsPigeonUtils.deepEquals(this.eyeColour, other.eyeColour) && SpruceUtilsPigeonUtils.deepEquals(this.hairColour, other.hairColour) && SpruceUtilsPigeonUtils.deepEquals(this.birthPlace, other.birthPlace) && SpruceUtilsPigeonUtils.deepEquals(this.residentAddress, other.residentAddress) && SpruceUtilsPigeonUtils.deepEquals(this.portraitCaptureDate, other.portraitCaptureDate) && SpruceUtilsPigeonUtils.deepEquals(this.ageInYears, other.ageInYears) && SpruceUtilsPigeonUtils.deepEquals(this.ageBirthYear, other.ageBirthYear) && SpruceUtilsPigeonUtils.deepEquals(this.ageOver18, other.ageOver18) && SpruceUtilsPigeonUtils.deepEquals(this.ageOver21, other.ageOver21) && SpruceUtilsPigeonUtils.deepEquals(this.ageOver60, other.ageOver60) && SpruceUtilsPigeonUtils.deepEquals(this.nationality, other.nationality) && SpruceUtilsPigeonUtils.deepEquals(this.residentCity, other.residentCity) && SpruceUtilsPigeonUtils.deepEquals(this.residentState, other.residentState) && SpruceUtilsPigeonUtils.deepEquals(this.residentPostalCode, other.residentPostalCode) && SpruceUtilsPigeonUtils.deepEquals(this.residentCountry, other.residentCountry) && SpruceUtilsPigeonUtils.deepEquals(this.issuingJurisdiction, other.issuingJurisdiction)
   }
 
   override fun hashCode(): Int {
@@ -509,6 +516,7 @@ data class MockMdlData (
     result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.residentState)
     result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.residentPostalCode)
     result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.residentCountry)
+    result = 31 * result + SpruceUtilsPigeonUtils.deepHash(this.issuingJurisdiction)
     return result
   }
 }
