@@ -26,13 +26,11 @@ struct HandleInteractionView: View {
         let protocols: [String: String]
     }
 
-    //    TODO: initialize as empty dict
     @State var protocols: [String: String] = [:]
 
     func loadProtocols() async {
         do {
             var discoveryUrl = url
-
             let options: String.CompareOptions = [.anchored, .caseInsensitive]
 
             // Remove "interaction:" prefix if present
@@ -42,32 +40,11 @@ struct HandleInteractionView: View {
             ) {
                 discoveryUrl = String(discoveryUrl[range.upperBound...])
             }
-
-            if let components = URLComponents(string: discoveryUrl),
-                let queryItems = components.queryItems
-            {
-                if let iuv = queryItems.first(where: { $0.name == "iuv" })?
-                    .value
-                {
-                    guard iuv == "1" else {
-                        throw DiscoveryError.invalidInteractionURL(
-                            reason:
-                                "Couldn't discover protocols from QR Code payload. Interaction url must contain an 'iuv' query parameter encoding the interaction URL version number, which must be 1."
-                        )
-                    }
-                } else {
-                    throw DiscoveryError.invalidInteractionURL(
-                        reason:
-                            "Couldn't discover protocols from QR Code payload. Interaction url must contain an 'iuv' query parameter."
-                    )
-                }
-            }
-
-            protocols = try await discoverProtocols(discoveryUrl: discoveryUrl)
+            protocols = try await discoverProtocols(interactionUrl: discoveryUrl)
             sheetOpen = true
         } catch {
             err =
-                "Couldn't discover protocols from QR Code payload. Error: \(error.localizedDescription)"
+                "Couldn't discover protocols from QR Code payload. Error: \(error)"
         }
     }
     func onBack() {

@@ -65,25 +65,9 @@ struct AddToWalletView: View {
         decidedIndices.insert(currentIndex)
         storing = true
         do {
-            let credentialPack = CredentialPack()
-            _ = try await credentialPack.tryAddAnyFormat(
+            _ = try await acceptRawCredentialIntoWallet(
                 rawCredential: rawCredentials[currentIndex],
-                mdocKeyAlias: DEFAULT_SIGNING_KEY_ID
-            )
-            try await credentialPackObservable.add(
-                credentialPack: credentialPack
-            )
-            let credentialInfo = getCredentialIdTitleAndIssuer(
-                credentialPack: credentialPack
-            )
-            _ = WalletActivityLogDataStore.shared.insert(
-                credentialPackId: credentialPack.id.uuidString,
-                credentialId: credentialInfo.0,
-                credentialTitle: credentialInfo.1,
-                issuer: credentialInfo.2,
-                action: "Claimed",
-                dateTime: Date(),
-                additionalInformation: ""
+                credentialPackObservable: credentialPackObservable
             )
             acceptedCount += 1
         } catch {

@@ -131,14 +131,6 @@ class VCALMSigner(keyId: String?) : PresentationSigner {
     }
 }
 
-/**
- * A single VCALM query requirement: the credential candidates the holder has
- * that satisfy a given query index, ready to be shown to the user for
- * selection. `queryIndex` ties back to `VcalmRequestedField.queryIndex` /
- * `VcalmMatchedCredentials.queryIndex`. `fields` carries the (non-structural)
- * fields the verifier is requesting for this query, so the picker can tell
- * the user whether they're all required or which ones will be shared.
- */
 data class VcalmRequirement(
     val queryIndex: UInt,
     val label: String,
@@ -146,11 +138,9 @@ data class VcalmRequirement(
     val fields: List<VcalmRequestedField>,
 )
 
-/**
- * Iterate the UNION of requested queries (`fieldsByQuery`) and matched ones, so a requested query
- * with no matching wallet credential still becomes a requirement (with empty candidates) and
- * surfaces as "no matching credential" — instead of being silently dropped.
- */
+// Iterate the UNION of requested queries (`fieldsByQuery`) and matched ones, so a requested query
+// with no matching wallet credential still becomes a requirement (with empty candidates) and
+// surfaces as "no matching credential" — instead of being silently dropped.
 fun buildVcalmRequirements(
     requestedFields: List<VcalmRequestedField>,
     matched: List<VcalmMatchedCredentials>,
@@ -174,10 +164,8 @@ fun buildVcalmRequirements(
     }
 }
 
-/**
- * Returns formatted issue date for a credential card, pulled from `validFrom` (VC 2.0),
- * `issuanceDate` VC 1.1 (), or `null` if neither claim is available.
- */
+// Returns formatted issue date for a credential card, pulled from `validFrom` (VC 2.0),
+// `issuanceDate` VC 1.1 (), or `null` if neither claim is available.
 fun vcalmCredentialIssuedDate(
     parsedCredential: ParsedCredential,
     credentialClaims: Map<String, JSONObject>,
@@ -253,8 +241,10 @@ fun HandleVCALMView(
     var offeredCredentials by remember { mutableStateOf<List<VcalmOfferedCredential>>(emptyList()) }
     var redirectUrl by remember { mutableStateOf<String?>(null) }
     var successMessage by remember { mutableStateOf<String?>(null) }
+    // Set only when the exchange reaches `.complete` after a presentation submission
     var presentedCredentials by remember { mutableStateOf<List<ParsedCredential>?>(null) }
-    // These are handed off to AddToWalletView once VCALM exchange is completed
+    // Set only once an offer is accepted AND the exchange is fully done
+    // (`.complete`). Hand off to AddToWalletView
     var pendingWalletCredentials by remember { mutableStateOf<List<String>?>(null) }
     var domainMismatch by remember { mutableStateOf<VcalmException.DomainChannelMismatch?>(null) }
     var pendingSelection by remember { mutableStateOf<List<ParsedCredential>>(emptyList()) }
@@ -405,11 +395,17 @@ fun HandleVCALMView(
                     // The exchange is chained, not complete yet. Store credential locally
                     // with the same shared helper AddToWalletView uses, then continue
                     rawCredentials.forEach { raw ->
-                        acceptRawCredentialIntoWallet(
-                            raw,
-                            credentialPacksViewModel,
-                            walletActivityLogsViewModel
-                        )
+                        try {
+                            acceptRawCredentialIntoWallet(
+                                raw,
+                                credentialPacksViewModel,
+                                walletActivityLogsViewModel
+                            )
+                        } catch (e: Exception) {
+                            // Treat a save failure like a decline for this
+                            // credential rather than blocking the rest of the
+                            // flow.
+                        }
                     }
                     handleStep(result)
                 }
@@ -560,12 +556,17 @@ fun VcalmRequirementPicker(
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+            .padding(16.dp),
     ) {
         Text(text = "Review Details", fontSize = 20.sp)
         Spacer(modifier = Modifier.height(16.dp))
 
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+        ) {
         requirements.forEach { requirement ->
             key(requirement.queryIndex) {
             Text(text = requirement.label, fontSize = 16.sp)
@@ -662,7 +663,7 @@ fun VcalmRequirementPicker(
             Spacer(modifier = Modifier.height(16.dp))
             }
         }
-Spacer(modifier = Modifier.weight(1f))
+        }
         Button(
             onClick = onSubmit,
             enabled = allResolved,

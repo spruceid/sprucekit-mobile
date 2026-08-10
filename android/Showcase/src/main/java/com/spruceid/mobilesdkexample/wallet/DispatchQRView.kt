@@ -75,8 +75,6 @@ fun DispatchQRView(
         }
     }
 
-    // Whether scanned [content] is an Interaction URL. Matches the `interaction:`-scheme form and the spec's QR form (§3.7.1): a bare
-    // http(s) URL carrying an `iuv` query param (the interaction-URL version, which "MUST be 1" when using this version of this API).
     fun isInteraction(url: String): Boolean {
         val stripped = if (url.startsWith("interaction:", ignoreCase = true)) {
             url.substring("interaction:".length)
@@ -117,7 +115,9 @@ fun DispatchQRView(
                 if (qrType != null && supportedTypes.contains(qrType)) {
                     when (qrType) {
                         SupportedQRTypes.INTERACTION -> {
-                            navController.navigate("interaction/$encodedUrl") {
+                            val route = Screen.HandleInteraction.route.replace("{url}", encodedUrl).replace("{credential_pack_id}",
+                                credentialPackId ?: "null")
+                            navController.navigate(route) {
                                 launchSingleTop = true
                                 restoreState = true
                             }
