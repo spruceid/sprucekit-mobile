@@ -1,5 +1,6 @@
 package com.spruceid.mobilesdkexample.wallet
 
+import android.R
 import android.content.Intent
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
@@ -17,6 +18,8 @@ import com.spruceid.mobilesdkexample.ScanningComponent
 import com.spruceid.mobilesdkexample.ScanningType
 import com.spruceid.mobilesdkexample.navigation.Screen
 import kotlinx.coroutines.launch
+import java.net.URI
+import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -34,6 +37,7 @@ const val HTTPS_SCHEME = "https://"
 const val FIDO_SCHEME = "fido:/"
 
 enum class SupportedQRTypes {
+    INTERACTION,
     OID4VP,
     OID4VCI,
     HTTP,
@@ -42,6 +46,7 @@ enum class SupportedQRTypes {
 }
 
 val ALL_SUPPORTED_QR_TYPES = listOf(
+    SupportedQRTypes.INTERACTION,
     SupportedQRTypes.OID4VP,
     SupportedQRTypes.OID4VCI,
     SupportedQRTypes.HTTP,
@@ -70,6 +75,28 @@ fun DispatchQRView(
         }
     }
 
+    // Whether scanned [content] is an Interaction URL. Matches the `interaction:`-scheme form and the spec's QR form (§3.7.1): a bare
+    // http(s) URL carrying an `iuv` query param (the interaction-URL version, which "MUST be 1" when using this version of this API).
+    fun isInteraction(url: String): Boolean {
+        val stripped = if (url.startsWith("interaction:", ignoreCase = true)) {
+            url.substring("interaction:".length)
+        } else {
+            url
+        }
+
+        val query: String = URI(stripped).query ?: ""
+        val params = query.split("&")
+            .mapNotNull {
+                val idx = it.indexOf("=")
+                if (idx < 0) null
+                else it.substring(0, idx) to URLDecoder.decode(it.substring(idx + 1), "UTF-8")
+            }
+            .toMap()
+
+        val version = params["iuv"] ?: return false
+        return version == "1"
+    }
+
     fun onRead(payload: String) {
         scope.launch {
             try {
@@ -77,6 +104,7 @@ fun DispatchQRView(
 
                 // Check payload type
                 val qrType = when {
+                    isInteraction(payload) -> SupportedQRTypes.INTERACTION
                     payload.startsWith(OID4VP_SCHEME) -> SupportedQRTypes.OID4VP
                     payload.startsWith(MDOC_OID4VP_SCHEME) -> SupportedQRTypes.OID4VP
                     payload.startsWith(OID4VCI_SCHEME) -> SupportedQRTypes.OID4VCI
@@ -88,6 +116,12 @@ fun DispatchQRView(
                 // Check if payload type is supported
                 if (qrType != null && supportedTypes.contains(qrType)) {
                     when (qrType) {
+                        SupportedQRTypes.INTERACTION -> {
+                            navController.navigate("interaction/$encodedUrl") {
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
                         SupportedQRTypes.OID4VP -> {
                             val baseRoute = when {
                                 payload.startsWith(OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->

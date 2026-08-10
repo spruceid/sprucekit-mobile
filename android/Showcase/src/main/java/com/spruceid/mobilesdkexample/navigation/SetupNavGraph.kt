@@ -26,6 +26,7 @@ import com.spruceid.mobilesdkexample.wallet.DispatchQRView
 import com.spruceid.mobilesdkexample.wallet.HandleMdocOID4VPView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VCIView
 import com.spruceid.mobilesdkexample.wallet.HandleOID4VPView
+import com.spruceid.mobilesdkexample.wallet.HandleInteractionView
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsActivityLogScreen
 import com.spruceid.mobilesdkexample.walletsettings.WalletSettingsHomeView
 
