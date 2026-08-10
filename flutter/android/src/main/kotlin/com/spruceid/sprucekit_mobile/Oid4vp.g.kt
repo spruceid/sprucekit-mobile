@@ -533,6 +533,51 @@ data class CredentialRequirementData (
 
   override fun hashCode(): Int = toList().hashCode()
 }
+
+/**
+ * A dynamic credential offer surfaced by a registered native
+ * `DynamicCredentialProvider`.
+ *
+ * Offers are issued only if the user selects them: pass the `offerId` to
+ * `submitResponseWithOffers`. Only OID4VP-v1 sessions surface offers.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class DynamicOfferData (
+  /** Provider-scoped identifier, echoed back via `submitResponseWithOffers`. */
+  val offerId: String,
+  /** The DCQL credential-query id this offer satisfies. */
+  val credentialQueryId: String,
+  /** Human-readable label for the consent UI. */
+  val title: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): DynamicOfferData {
+      val offerId = pigeonVar_list[0] as String
+      val credentialQueryId = pigeonVar_list[1] as String
+      val title = pigeonVar_list[2] as String
+      return DynamicOfferData(offerId, credentialQueryId, title)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      offerId,
+      credentialQueryId,
+      title,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is DynamicOfferData) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return Oid4vpPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
 private open class Oid4vpPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -596,6 +641,11 @@ private open class Oid4vpPigeonCodec : StandardMessageCodec() {
           CredentialRequirementData.fromList(it)
         }
       }
+      141.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          DynamicOfferData.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -647,6 +697,10 @@ private open class Oid4vpPigeonCodec : StandardMessageCodec() {
       }
       is CredentialRequirementData -> {
         stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is DynamicOfferData -> {
+        stream.write(141)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -705,6 +759,14 @@ interface Oid4vp {
    */
   fun submitResponse(selectedCredentials: List<PresentableCredentialKey>, selectedFieldPaths: List<List<String>>, options: ResponseOptions, callback: (Result<Oid4vpResult>) -> Unit)
   /**
+   * Submit the response, additionally issuing the dynamic credential offers
+   * selected by `offerId` from `getDynamicOffers`.
+   *
+   * `selectedCredentials` may be empty if at least one offer is selected.
+   * Unknown offer ids fail the whole submission.
+   */
+  fun submitResponseWithOffers(selectedCredentials: List<PresentableCredentialKey>, selectedFieldPaths: List<List<String>>, selectedOfferIds: List<String>, options: ResponseOptions, callback: (Result<Oid4vpResult>) -> Unit)
+  /**
    * Get credential requirements from the permission request
    *
    * @return List of credential requirements
@@ -722,6 +784,13 @@ interface Oid4vp {
    * @return List of credential query ID strings
    */
   fun getCredentialQueryIds(): List<String>
+  /**
+   * Get the dynamic credential offers for the current session.
+   *
+   * Empty when no providers are registered, none match the request, or the
+   * negotiated version is not v1. Call after `handleAuthorizationRequest`.
+   */
+  fun getDynamicOffers(): List<DynamicOfferData>
   /** Cancel and cleanup the current session */
   fun cancel()
 
@@ -818,6 +887,29 @@ interface Oid4vp {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.submitResponseWithOffers$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val selectedCredentialsArg = args[0] as List<PresentableCredentialKey>
+            val selectedFieldPathsArg = args[1] as List<List<String>>
+            val selectedOfferIdsArg = args[2] as List<String>
+            val optionsArg = args[3] as ResponseOptions
+            api.submitResponseWithOffers(selectedCredentialsArg, selectedFieldPathsArg, selectedOfferIdsArg, optionsArg) { result: Result<Oid4vpResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(Oid4vpPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(Oid4vpPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getCredentialRequirements$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
@@ -853,6 +945,21 @@ interface Oid4vp {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.getCredentialQueryIds())
+            } catch (exception: Throwable) {
+              Oid4vpPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getDynamicOffers$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getDynamicOffers())
             } catch (exception: Throwable) {
               Oid4vpPigeonUtils.wrapError(exception)
             }

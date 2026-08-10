@@ -17,5 +17,8 @@ export 'pigeon/mdl_reader.g.dart' hide wrapResponse;
 export 'pigeon/spruce_utils.g.dart';
 export 'pigeon/dc_api.g.dart';
 
+// Dart-side helpers
+export 'src/mock_mdl_data_defaults.dart';
+
 // Platform View widgets
 export 'src/scanner.dart';

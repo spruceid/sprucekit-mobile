@@ -429,6 +429,44 @@ struct Oid4vciError: Oid4vciResult {
   }
 }
 
+/// Issuance interrupted: the issuer requires an OID4VP presentation before it
+/// will release the credential (issuer error `presentation_required`).
+///
+/// Recovery: run the OID4VP flow with [authorizationRequestJson] as the
+/// request string, then re-run the issuance from the same offer URL. A second
+/// `Oid4vciPresentationRequired` on the retry is a failure.
+///
+/// Only reachable when `supportedVersions` is empty (auto) or contains
+/// [Oid4vciVersion.legacy]: the v1 HTTP client discards error-response
+/// bodies, so a pure-v1 exchange cannot detect it.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct Oid4vciPresentationRequired: Oid4vciResult {
+  /// The OID4VP authorization request JSON, verbatim from the issuer's
+  /// `presentation_required` error body.
+  var authorizationRequestJson: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> Oid4vciPresentationRequired? {
+    let authorizationRequestJson = pigeonVar_list[0] as! String
+
+    return Oid4vciPresentationRequired(
+      authorizationRequestJson: authorizationRequestJson
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      authorizationRequestJson
+    ]
+  }
+  static func == (lhs: Oid4vciPresentationRequired, rhs: Oid4vciPresentationRequired) -> Bool {
+    return deepEqualsOid4vci(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashOid4vci(value: toList(), hasher: &hasher)
+  }
+}
+
 private class Oid4vciPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -470,6 +508,8 @@ private class Oid4vciPigeonCodecReader: FlutterStandardReader {
       return Oid4vciSuccess.fromList(self.readValue() as! [Any?])
     case 139:
       return Oid4vciError.fromList(self.readValue() as! [Any?])
+    case 140:
+      return Oid4vciPresentationRequired.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -510,6 +550,9 @@ private class Oid4vciPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? Oid4vciError {
       super.writeByte(139)
+      super.writeValue(value.toList())
+    } else if let value = value as? Oid4vciPresentationRequired {
+      super.writeByte(140)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

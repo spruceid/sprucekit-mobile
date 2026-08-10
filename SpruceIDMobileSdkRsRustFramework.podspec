@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = 'SpruceIDMobileSdkRsRustFramework'
-  spec.version      = '0.19.5'
+  spec.version      = '0.20.0'
   spec.summary      = 'Rust-generated Framework for Swift Mobile SDK.'
   spec.description  = <<-DESC
                    Rust layer framework for the Swift Mobile SDK.
@@ -16,6 +16,6 @@ Pod::Spec.new do |spec|
   spec.ios.deployment_target = '14.0'
 
   spec.static_framework = true
-  spec.source = { :http => "https://github.com/spruceid/sprucekit-mobile/releases/download/#{spec.version}/RustFramework.xcframework.zip" }
-  spec.vendored_frameworks = 'rust/MobileSdkRs/RustFramework.xcframework'
+  spec.source = { :http => "https://github.com/spruceid/sprucekit-mobile/releases/download/#{spec.version}/MobileSdkRsFFI.xcframework.zip" }
+  spec.vendored_frameworks = 'rust/MobileSdkRs/MobileSdkRsFFI.xcframework'
 end
