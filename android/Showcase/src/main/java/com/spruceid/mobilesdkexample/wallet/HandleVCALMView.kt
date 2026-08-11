@@ -10,13 +10,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -28,7 +25,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +45,7 @@ import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.DidMethod
@@ -89,8 +86,6 @@ import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
-import androidx.core.net.toUri
 
 private const val TAG = "HandleVCALMView"
 
@@ -160,7 +155,8 @@ fun buildVcalmRequirements(
     val fieldsByQuery = requestedFields
         .filter { it.path != "type" && it.path != "@context" }
         .groupBy { it.queryIndex }
-    val candidatesByQuery = matched.associate { it.queryIndex to it.credentials.map { c -> c.credential } }
+    val candidatesByQuery =
+        matched.associate { it.queryIndex to it.credentials.map { c -> c.credential } }
     val typesByQuery = requestedFields
         .filter { it.path == "type" }
         .associate { it.queryIndex to it.value }
@@ -278,7 +274,7 @@ fun HandleVCALMView(
     var domainMismatch by remember { mutableStateOf<VcalmException.DomainChannelMismatch?>(null) }
     var pendingSelection by remember { mutableStateOf<List<ParsedCredential>>(emptyList()) }
 
-    fun unwrap(originalUrl: String) : String{
+    fun unwrap(originalUrl: String): String {
         var url = originalUrl
         val scheme = "interaction:"
         val marker = "/interactions/"
@@ -305,7 +301,7 @@ fun HandleVCALMView(
         }
 
         val i = url.indexOf(marker)
-        if (i<0) return url
+        if (i < 0) return url
         var encoded = url.substring(i + marker.length)
         val q = encoded.indexOf("?")
         if (q >= 0) encoded = encoded.substring(0, q)
@@ -323,7 +319,10 @@ fun HandleVCALMView(
     lateinit var handleStep: suspend (StepResult) -> Unit
 
     // Submit presentation after automatically/manually selecting credentials to fit requirements
-    suspend fun trySubmitPresentation(selected: List<ParsedCredential>, allowDomainMismatch: Boolean) {
+    suspend fun trySubmitPresentation(
+        selected: List<ParsedCredential>,
+        allowDomainMismatch: Boolean
+    ) {
         val previousState = state
         state = VCALMState.Loading
         try {
@@ -389,13 +388,16 @@ fun HandleVCALMView(
                 pendingWalletCredentials = offered.map { it.rawCredential }
                 state = VCALMState.AddToWallet
             }
+
             is StepResult.Redirect -> {
                 redirectUrl = result.url
             }
+
             is StepResult.Complete -> {
                 Toast.showSuccess("Shared successfully")
                 navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
             }
+
             is StepResult.Problem -> {
                 val details = result.details
                 errorTitle = "Verifier reported a problem"
@@ -522,6 +524,7 @@ fun HandleVCALMView(
                             null -> coroutineScope.launch { declineOffer() }
                             is StepResult.Complete ->
                                 navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+
                             is StepResult.Problem -> {}
                             // Chained — the exchange isn't done yet, continue to whatever's next.
                             else -> coroutineScope.launch { handleStep(result) }
@@ -536,7 +539,9 @@ fun HandleVCALMView(
                     requirements = reqs,
                     picks = picks,
                     credentialClaims = credentialClaims,
-                    onPick = { queryIndex, credential -> picks = picks + (queryIndex to credential) },
+                    onPick = { queryIndex, credential ->
+                        picks = picks + (queryIndex to credential)
+                    },
                     onContinue = { state = VCALMState.SelectFields },
                     onCancel = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } },
                 )
@@ -562,7 +567,8 @@ fun HandleVCALMView(
             onCancel = {
                 domainMismatch = null
                 errorTitle = "Presentation flow canceled"
-                errorDescription = "The selected credentials were not presented due to user cancellation."
+                errorDescription =
+                    "The selected credentials were not presented due to user cancellation."
                 state = VCALMState.Err
             },
             onContinueAnyway = {
@@ -977,7 +983,7 @@ fun VcalmDomainMismatchBottomSheet(
         onDismissRequest = onCancel,
         title = "Verifier domain mismatch",
         subtitle = "This verifier's request domain ($domain) doesn't match the " +
-            "exchange's channel ($channel). Only continue if you recognize and trust both sites.",
+                "exchange's channel ($channel). Only continue if you recognize and trust both sites.",
         onCancel = onCancel,
     ) {
         Button(

@@ -1,7 +1,5 @@
 package com.spruceid.mobilesdkexample.wallet
 
-import android.R
-import android.content.Intent
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -115,13 +113,17 @@ fun DispatchQRView(
                 if (qrType != null && supportedTypes.contains(qrType)) {
                     when (qrType) {
                         SupportedQRTypes.INTERACTION -> {
-                            val route = Screen.HandleInteraction.route.replace("{url}", encodedUrl).replace("{credential_pack_id}",
-                                credentialPackId ?: "null")
+                            val route =
+                                Screen.HandleInteraction.route.replace("{url}", encodedUrl).replace(
+                                    "{credential_pack_id}",
+                                    credentialPackId ?: "null"
+                                )
                             navController.navigate(route) {
                                 launchSingleTop = true
                                 restoreState = true
                             }
                         }
+
                         SupportedQRTypes.OID4VP -> {
                             val baseRoute = when {
                                 payload.startsWith(OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->

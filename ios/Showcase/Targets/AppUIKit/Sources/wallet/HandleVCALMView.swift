@@ -29,7 +29,8 @@ final class VCALMSigner: PresentationSigner {
         let jwk = KeyManager.getJwk(id: self.keyId)
         if jwk == nil {
             throw VcalmSignerError.illegalArgumentException(
-                reason: "Invalid kid")
+                reason: "Invalid kid"
+            )
         } else {
             self._jwk = jwk!.description
         }
@@ -37,10 +38,13 @@ final class VCALMSigner: PresentationSigner {
 
     func sign(payload: Data) async throws -> Data {
         let signature = KeyManager.signPayload(
-            id: keyId, payload: [UInt8](payload))
+            id: keyId,
+            payload: [UInt8](payload)
+        )
         if signature == nil {
             throw VcalmSignerError.illegalArgumentException(
-                reason: "Failed to sign payload")
+                reason: "Failed to sign payload"
+            )
         } else {
             return Data(signature!)
         }
@@ -103,13 +107,16 @@ func buildVcalmRequirements(
     // The QBE example's structural keys carry no user data and don't map to
     // a credential claim, so they're excluded from the requirement's fields.
     var fieldsByQuery: [UInt32: [VcalmRequestedField]] = [:]
-    for field in requestedFields where field.path != "type" && field.path != "@context" {
+    for field in requestedFields
+    where field.path != "type" && field.path != "@context" {
         fieldsByQuery[field.queryIndex, default: []].append(field)
     }
 
     var candidatesByQuery: [UInt32: [ParsedCredential]] = [:]
     for match in matched {
-        candidatesByQuery[match.queryIndex] = match.credentials.map { $0.credential }
+        candidatesByQuery[match.queryIndex] = match.credentials.map {
+            $0.credential
+        }
     }
 
     var typesByQuery: [UInt32: String] = [:]
@@ -117,12 +124,17 @@ func buildVcalmRequirements(
         typesByQuery[field.queryIndex] = field.value
     }
 
-    let queryIndices = Set(fieldsByQuery.keys).union(candidatesByQuery.keys).sorted()
+    let queryIndices = Set(fieldsByQuery.keys).union(candidatesByQuery.keys)
+        .sorted()
 
     return queryIndices.map { queryIndex in
         let fields = fieldsByQuery[queryIndex] ?? []
-        let purposeLabel = fields.compactMap { $0.purpose }.first { !$0.isEmpty }
-        let typeLabel = typesByQuery[queryIndex].flatMap { vcalmRequirementLabel(fromType: $0) }
+        let purposeLabel = fields.compactMap { $0.purpose }.first {
+            !$0.isEmpty
+        }
+        let typeLabel = typesByQuery[queryIndex].flatMap {
+            vcalmRequirementLabel(fromType: $0)
+        }
         return VcalmRequirement(
             queryIndex: queryIndex,
             label: typeLabel ?? purposeLabel ?? "Credential",
@@ -132,17 +144,22 @@ func buildVcalmRequirements(
     }
 }
 
-// Turn a `type` field's raw value into a short display label, 
-// skipping the generic "VerifiableCredential" entry 
+// Turn a `type` field's raw value into a short display label,
+// skipping the generic "VerifiableCredential" entry
 func vcalmRequirementLabel(fromType rawValue: String) -> String? {
     let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
     var entries = [trimmed]
     if trimmed.hasPrefix("["), trimmed.hasSuffix("]"),
-       let data = trimmed.data(using: .utf8),
-       let array = try? JSONDecoder().decode([String].self, from: data) {
+        let data = trimmed.data(using: .utf8),
+        let array = try? JSONDecoder().decode([String].self, from: data)
+    {
         entries = array
     }
-    guard let match = entries.first(where: { !$0.isEmpty && $0 != "VerifiableCredential" }) else {
+    guard
+        let match = entries.first(where: {
+            !$0.isEmpty && $0 != "VerifiableCredential"
+        })
+    else {
         return nil
     }
     return match.camelCaseToWords()
@@ -152,10 +169,13 @@ func vcalmCredentialTitle(
     _ parsedCredential: ParsedCredential,
     credentialClaims: [String: [String: GenericJSON]] = [:]
 ) -> String {
-    if let name = credentialClaims[parsedCredential.id()]?["name"]?.toString(), !name.isEmpty {
+    if let name = credentialClaims[parsedCredential.id()]?["name"]?.toString(),
+        !name.isEmpty
+    {
         return name
     }
-    if let types = credentialClaims[parsedCredential.id()]?["type"]?.arrayValue {
+    if let types = credentialClaims[parsedCredential.id()]?["type"]?.arrayValue
+    {
         var title = ""
         types.forEach {
             if title.isEmpty && $0.toString() != "VerifiableCredential" {
@@ -174,13 +194,15 @@ func vcalmCredentialTitle(
     return "Credential"
 }
 
-// Returns formatted issue date for a credential card, pulled from `validFrom` (VC 2.0), 
+// Returns formatted issue date for a credential card, pulled from `validFrom` (VC 2.0),
 // `issuanceDate` VC 1.1 (), or `null` if neither claim is available.
 func vcalmCredentialIssuedDate(
     _ parsedCredential: ParsedCredential,
     credentialClaims: [String: [String: GenericJSON]]
 ) -> String? {
-    guard let claims = credentialClaims[parsedCredential.id()] else { return nil }
+    guard let claims = credentialClaims[parsedCredential.id()] else {
+        return nil
+    }
     var raw = claims["validFrom"]?.toString() ?? ""
     if raw.isEmpty {
         raw = claims["issuanceDate"]?.toString() ?? ""
@@ -212,7 +234,8 @@ func unwrap(_ originalUrl: String) -> String {
             remainder.removeFirst()
         }
         if let decoded = remainder.removingPercentEncoding,
-           decoded.hasPrefix("http://") || decoded.hasPrefix("https://") {
+            decoded.hasPrefix("http://") || decoded.hasPrefix("https://")
+        {
             url = decoded
         }
     }
@@ -225,7 +248,8 @@ func unwrap(_ originalUrl: String) -> String {
         encoded = String(encoded[..<questionMark])
     }
     if let decoded = encoded.removingPercentEncoding,
-       decoded.hasPrefix("http://") || decoded.hasPrefix("https://") {
+        decoded.hasPrefix("http://") || decoded.hasPrefix("https://")
+    {
         return decoded
     }
     return url
@@ -271,22 +295,31 @@ struct HandleVCALMView: View {
         domainMismatch = nil
         err = VcalmDisplayError(
             title: "Presentation flow canceled",
-            details: "The selected credentials were not presented due to user cancellation."
+            details:
+                "The selected credentials were not presented due to user cancellation."
         )
     }
 
     // Submit presentation after automatically/manually selecting credentials to fit requirements
-    func trySubmitPresentation(selected: [ParsedCredential], allowDomainMismatch: Bool) async {
+    func trySubmitPresentation(
+        selected: [ParsedCredential],
+        allowDomainMismatch: Bool
+    ) async {
         guard let holder else { return }
         do {
             let result = try await holder.submitPresentation(
-                selectedCredentials: selected, allowDomainMismatch: allowDomainMismatch)
+                selectedCredentials: selected,
+                allowDomainMismatch: allowDomainMismatch
+            )
             requirements = nil
             domainMismatch = nil
             await handleStep(result)
         } catch VcalmError.DomainChannelMismatch(let domain, let channel) {
             pendingSelection = selected
-            domainMismatch = VcalmDomainMismatch(domain: domain, channel: channel)
+            domainMismatch = VcalmDomainMismatch(
+                domain: domain,
+                channel: channel
+            )
         } catch {
             err = VcalmDisplayError(
                 title: "Error Submitting Presentation",
@@ -304,15 +337,22 @@ struct HandleVCALMView: View {
             if requestedFields.isEmpty {
                 // No fields requested — this is a DID-authentication-only request
                 // Can submit immediately
-                await trySubmitPresentation(selected: [], allowDomainMismatch: false)
+                await trySubmitPresentation(
+                    selected: [],
+                    allowDomainMismatch: false
+                )
                 return
             }
 
-            let built = buildVcalmRequirements(requestedFields: requestedFields, matched: matched)
+            let built = buildVcalmRequirements(
+                requestedFields: requestedFields,
+                matched: matched
+            )
             if built.isEmpty || built.allSatisfy({ $0.candidates.isEmpty }) {
                 err = VcalmDisplayError(
                     title: "No matching credential(s)",
-                    details: "You don't have a credential in your wallet that satisfies this verifier's request."
+                    details:
+                        "You don't have a credential in your wallet that satisfies this verifier's request."
                 )
                 return
             }
@@ -325,11 +365,14 @@ struct HandleVCALMView: View {
             picks = autoPicks
             requirements = built
             // If no requirement has more than one candidate, skip straight to selective disclosure
-            readyForFieldSelection = built.allSatisfy { $0.candidates.count <= 1 }
+            readyForFieldSelection = built.allSatisfy {
+                $0.candidates.count <= 1
+            }
         } catch {
             err = VcalmDisplayError(
                 title: "Error Handling Verifier Request",
-                details: "Couldn't process the verifier's request. Error: \(error)"
+                details:
+                    "Couldn't process the verifier's request. Error: \(error)"
             )
         }
     }
@@ -349,7 +392,8 @@ struct HandleVCALMView: View {
             } catch {
                 err = VcalmDisplayError(
                     title: "Error Loading Offer",
-                    details: "Couldn't load the offered credential(s). Error: \(error)"
+                    details:
+                        "Couldn't load the offered credential(s). Error: \(error)"
                 )
             }
         case .redirect(let redirectUrl):
@@ -368,7 +412,10 @@ struct HandleVCALMView: View {
     func submitPicks() async {
         let selected = (requirements ?? []).compactMap { picks[$0.queryIndex] }
         loading = true
-        await trySubmitPresentation(selected: selected, allowDomainMismatch: false)
+        await trySubmitPresentation(
+            selected: selected,
+            allowDomainMismatch: false
+        )
         loading = false
     }
 
@@ -386,7 +433,8 @@ struct HandleVCALMView: View {
             offerAcceptError = true
             err = VcalmDisplayError(
                 title: "Error Accepting Offer",
-                details: "Couldn't accept the offered credential(s). Error: \(error)"
+                details:
+                    "Couldn't accept the offered credential(s). Error: \(error)"
             )
         }
     }
@@ -422,13 +470,14 @@ struct HandleVCALMView: View {
             )
             self.holder = holder
 
-            let credentials = credentialPackObservable.credentialPacks.flatMap { pack in
+            let credentials = credentialPackObservable.credentialPacks.flatMap {
+                pack in
                 pack.list()
             }
             credentialPackObservable.credentialPacks.forEach { pack in
                 credentialClaims = credentialClaims.merging(
                     pack.findCredentialClaims(claimNames: [
-                        "name", "type", "validFrom", "issuanceDate"
+                        "name", "type", "validFrom", "issuanceDate",
                     ])
                 ) { (_, new) in new }
             }
@@ -528,9 +577,12 @@ struct HandleVCALMView: View {
         }
         .onChange(of: redirectUrl) { newValue in
             // Opening the redirect happens once per URL.
-            guard let target = newValue, let targetUrl = URL(string: target) else { return }
+            guard let target = newValue, let targetUrl = URL(string: target)
+            else { return }
             UIApplication.shared.open(targetUrl)
-            ToastManager.shared.showSuccess(message: "Continue in your browser to finish this exchange.")
+            ToastManager.shared.showSuccess(
+                message: "Continue in your browser to finish this exchange."
+            )
             back()
         }
         .sheet(isPresented: domainMismatchPresented) {
@@ -544,7 +596,10 @@ struct HandleVCALMView: View {
                         self.domainMismatch = nil
                         Task {
                             loading = true
-                            await trySubmitPresentation(selected: selection, allowDomainMismatch: true)
+                            await trySubmitPresentation(
+                                selected: selection,
+                                allowDomainMismatch: true
+                            )
                             loading = false
                         }
                     }
@@ -573,7 +628,8 @@ struct VcalmCredentialSelector: View {
     }
 
     var currentSelectionValid: Bool {
-        currentRequirement.candidates.isEmpty || picks[currentRequirement.queryIndex] != nil
+        currentRequirement.candidates.isEmpty
+            || picks[currentRequirement.queryIndex] != nil
     }
 
     func candidateBinding(_ candidate: ParsedCredential) -> Binding<Bool> {
@@ -596,9 +652,11 @@ struct VcalmCredentialSelector: View {
         VStack {
             if requirements.count > 1 {
                 HStack {
-                    Text("Requirement \(currentIndex + 1) of \(requirements.count)")
-                        .font(.customFont(font: .inter, style: .medium, size: .p))
-                        .foregroundStyle(Color("ColorStone500"))
+                    Text(
+                        "Requirement \(currentIndex + 1) of \(requirements.count)"
+                    )
+                    .font(.customFont(font: .inter, style: .medium, size: .p))
+                    .foregroundStyle(Color("ColorStone500"))
                     Spacer()
                 }
                 .padding(.bottom, 8)
@@ -619,10 +677,19 @@ struct VcalmCredentialSelector: View {
             ScrollView {
                 if currentRequirement.candidates.isEmpty {
                     Text("No matching credential(s)")
-                        .font(.customFont(font: .inter, style: .regular, size: .h4))
+                        .font(
+                            .customFont(
+                                font: .inter,
+                                style: .regular,
+                                size: .h4
+                            )
+                        )
                         .foregroundStyle(Color("ColorRose600"))
                 } else {
-                    ForEach(Array(currentRequirement.candidates.enumerated()), id: \.offset) { _, candidate in
+                    ForEach(
+                        Array(currentRequirement.candidates.enumerated()),
+                        id: \.offset
+                    ) { _, candidate in
                         VcalmCredentialSelectorItem(
                             candidate: candidate,
                             requestedFields: currentRequirement.fields,
@@ -639,7 +706,9 @@ struct VcalmCredentialSelector: View {
                 } label: {
                     Text("Cancel")
                         .frame(maxWidth: .infinity)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(Color("ColorStone950"))
                 .padding(.vertical, 13)
@@ -655,7 +724,9 @@ struct VcalmCredentialSelector: View {
                 } label: {
                     Text(hasMoreRequirements ? "Next" : "Continue")
                         .frame(maxWidth: .infinity)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(.white)
                 .padding(.vertical, 13)
@@ -688,7 +759,10 @@ struct VcalmCredentialSelectorItem: View {
         self.requestedFields = requestedFields.map {
             $0.path.camelCaseToWords().capitalized.replaceUnderscores()
         }
-        self.title = vcalmCredentialTitle(candidate, credentialClaims: credentialClaims)
+        self.title = vcalmCredentialTitle(
+            candidate,
+            credentialClaims: credentialClaims
+        )
         self._isChecked = isChecked
     }
 
@@ -697,7 +771,13 @@ struct VcalmCredentialSelectorItem: View {
             HStack {
                 Toggle(isOn: $isChecked) {
                     Text(title)
-                        .font(.customFont(font: .inter, style: .semiBold, size: .h3))
+                        .font(
+                            .customFont(
+                                font: .inter,
+                                style: .semiBold,
+                                size: .h3
+                            )
+                        )
                         .foregroundStyle(Color("ColorStone950"))
                 }
                 .toggleStyle(iOSCheckboxToggleStyle())
@@ -719,7 +799,13 @@ struct VcalmCredentialSelectorItem: View {
             VStack(alignment: .leading) {
                 ForEach(requestedFields, id: \.self) { field in
                     Text("• \(field)")
-                        .font(.customFont(font: .inter, style: .regular, size: .h4))
+                        .font(
+                            .customFont(
+                                font: .inter,
+                                style: .regular,
+                                size: .h4
+                            )
+                        )
                         .foregroundStyle(Color("ColorStone950"))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -756,9 +842,11 @@ struct VcalmFieldsSelector: View {
         VStack {
             if requirements.count > 1 {
                 HStack {
-                    Text("Credential \(currentIndex + 1) of \(requirements.count)")
-                        .font(.customFont(font: .inter, style: .medium, size: .p))
-                        .foregroundStyle(Color("ColorStone500"))
+                    Text(
+                        "Credential \(currentIndex + 1) of \(requirements.count)"
+                    )
+                    .font(.customFont(font: .inter, style: .medium, size: .p))
+                    .foregroundStyle(Color("ColorStone500"))
                     Spacer()
                 }
                 .padding(.bottom, 8)
@@ -789,7 +877,9 @@ struct VcalmFieldsSelector: View {
                 } label: {
                     Text("Cancel")
                         .frame(maxWidth: .infinity)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(Color("ColorStone950"))
                 .padding(.vertical, 13)
@@ -807,7 +897,9 @@ struct VcalmFieldsSelector: View {
                 } label: {
                     Text(hasMoreRequirements ? "Next" : "Approve")
                         .frame(maxWidth: .infinity)
-                        .font(.customFont(font: .inter, style: .medium, size: .h4))
+                        .font(
+                            .customFont(font: .inter, style: .medium, size: .h4)
+                        )
                 }
                 .foregroundColor(.white)
                 .padding(.vertical, 13)
@@ -838,7 +930,9 @@ struct VcalmFieldsSelectorFields: View {
         self.requirement = requirement
         self.currentCredential = currentCredential
         self.credentialClaims = credentialClaims
-        self._selectedFields = State(initialValue: Set(requirement.fields.map { $0.path }))
+        self._selectedFields = State(
+            initialValue: Set(requirement.fields.map { $0.path })
+        )
     }
 
     func fieldBinding(_ field: VcalmRequestedField) -> Binding<Bool> {
@@ -856,7 +950,8 @@ struct VcalmFieldsSelectorFields: View {
     var body: some View {
         if requirement.fields.isEmpty {
             // No specific fields requested, show all claims from the credential
-            let allClaims = currentCredential.flatMap { credentialClaims[$0.id()] } ?? [:]
+            let allClaims =
+                currentCredential.flatMap { credentialClaims[$0.id()] } ?? [:]
             ForEach(Array(allClaims.keys.sorted()), id: \.self) { claimName in
                 SelectiveDisclosureItem(
                     fieldName: claimName,
@@ -865,7 +960,9 @@ struct VcalmFieldsSelectorFields: View {
                 )
             }
         } else {
-            ForEach(Array(requirement.fields.enumerated()), id: \.offset) { _, field in
+            ForEach(Array(requirement.fields.enumerated()), id: \.offset) {
+                _,
+                field in
                 SelectiveDisclosureItem(
                     fieldName: field.path,
                     required: field.required,
@@ -885,7 +982,8 @@ struct VcalmDomainMismatchSheet: View {
     var body: some View {
         AppBottomSheet(
             title: "Verifier domain mismatch",
-            subtitle: "This verifier's request domain (\(domain)) doesn't match the "
+            subtitle:
+                "This verifier's request domain (\(domain)) doesn't match the "
                 + "exchange's channel (\(channel)). Only continue if you recognize and trust both sites.",
             onCancel: onCancel
         ) {

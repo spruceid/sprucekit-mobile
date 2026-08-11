@@ -36,7 +36,8 @@ fun HandleInteractionView(
 
         } catch (e: Exception) {
             errorTitle = "Error discovering protocols"
-            errorDescription = "Couldn't discover protocols from QR Code payload ${url}. Error: ${e.message}"
+            errorDescription =
+                "Couldn't discover protocols from QR Code payload ${url}. Error: ${e.message}"
         }
     }
 
@@ -50,7 +51,12 @@ fun HandleInteractionView(
 
 
     if (sheetOpen) {
-        ProtocolSelectorBottomSheet( { onBack() }, protocols=protocols, navController=navController, credentialPackId=credentialPackId)
+        ProtocolSelectorBottomSheet(
+            { onBack() },
+            protocols = protocols,
+            navController = navController,
+            credentialPackId = credentialPackId
+        )
     } else if (errorTitle != null && errorDescription != null) {
         ErrorView(
             errorTitle = errorTitle!!,

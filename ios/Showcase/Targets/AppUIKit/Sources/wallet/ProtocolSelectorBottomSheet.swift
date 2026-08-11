@@ -1,5 +1,5 @@
-import SwiftUI
 import SpruceIDMobileSdkRs
+import SwiftUI
 
 struct ProtocolSelectorBottomSheet: View {
     // The scheme for the OID4VP QR code.
@@ -81,25 +81,25 @@ struct ProtocolSelectorBottomSheet: View {
                         Button(action: {
                             handleProtocolSelection(name, protocols[name] ?? "")
                         }) {
-                            
+
                             HStack(spacing: 12) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(name)
-                                    .foregroundStyle(
-                                        isSupported
-                                            ? Color("ColorStone700")
-                                            : Color("ColorStone200")
-                                    )
-
-                                    if let desc = PROTOCOL_DESCRIPTIONS[
-                                        name
-                                    ] {
-                                        Text(desc)
                                         .foregroundStyle(
                                             isSupported
                                                 ? Color("ColorStone700")
                                                 : Color("ColorStone200")
                                         )
+
+                                    if let desc = PROTOCOL_DESCRIPTIONS[
+                                        name
+                                    ] {
+                                        Text(desc)
+                                            .foregroundStyle(
+                                                isSupported
+                                                    ? Color("ColorStone700")
+                                                    : Color("ColorStone200")
+                                            )
                                     }
                                 }
                                 Spacer(minLength: 0)

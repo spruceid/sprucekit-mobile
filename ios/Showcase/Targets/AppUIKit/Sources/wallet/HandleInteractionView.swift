@@ -41,7 +41,9 @@ struct HandleInteractionView: View {
             ) {
                 discoveryUrl = String(discoveryUrl[range.upperBound...])
             }
-            protocols = try await discoverProtocols(interactionUrl: discoveryUrl)
+            protocols = try await discoverProtocols(
+                interactionUrl: discoveryUrl
+            )
             sheetOpen = true
         } catch {
             err =
@@ -66,11 +68,14 @@ struct HandleInteractionView: View {
             }
         }.task {
             await loadProtocols()
-        }.sheet(isPresented: $sheetOpen, onDismiss: {
-            if !protocolSelected {
-                onBack()
+        }.sheet(
+            isPresented: $sheetOpen,
+            onDismiss: {
+                if !protocolSelected {
+                    onBack()
+                }
             }
-        }) {
+        ) {
             ProtocolSelectorBottomSheet(
                 protocols: $protocols,
                 sheetOpen: $sheetOpen,

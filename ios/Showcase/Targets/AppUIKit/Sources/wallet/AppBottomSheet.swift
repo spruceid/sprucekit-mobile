@@ -35,7 +35,11 @@ struct AppBottomSheet<Content: View>: View {
             }
 
             content()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                .frame(
+                    maxWidth: .infinity,
+                    maxHeight: .infinity,
+                    alignment: .bottom
+                )
 
             Button {
                 onCancel()

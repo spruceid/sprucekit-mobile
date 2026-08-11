@@ -54,7 +54,10 @@ private val PROTOCOL_DESCRIPTIONS = mapOf(
 
 @Composable
 fun ProtocolSelectorBottomSheet(
-    onClose: () -> Unit, protocols: Map<String, String>, navController: NavController, credentialPackId: String?
+    onClose: () -> Unit,
+    protocols: Map<String, String>,
+    navController: NavController,
+    credentialPackId: String?
 ) {
     var showSheet by remember {
         mutableStateOf(true)
