@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.rs.discoverProtocols
 import com.spruceid.mobilesdkexample.ErrorView
+import com.spruceid.mobilesdkexample.LoadingView
 import com.spruceid.mobilesdkexample.navigation.Screen
 
 
@@ -50,16 +51,15 @@ fun HandleInteractionView(
 
     if (sheetOpen) {
         ProtocolSelectorBottomSheet( { onBack() }, protocols=protocols, navController=navController, credentialPackId=credentialPackId)
-    }
-    if (errorTitle != null && errorDescription != null) {
+    } else if (errorTitle != null && errorDescription != null) {
         ErrorView(
             errorTitle = errorTitle!!,
             errorDetails = errorDescription!!,
             onClose = { onBack() }
         )
+    } else {
+        LoadingView(loadingText = "Discovering protocols...")
     }
-
-
 }
 
 

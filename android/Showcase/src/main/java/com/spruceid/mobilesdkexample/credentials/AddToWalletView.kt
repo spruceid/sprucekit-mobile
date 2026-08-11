@@ -61,7 +61,13 @@ sealed class CredentialStepItem {
 fun AddToWalletView(
     navController: NavHostController,
     rawCredentials: List<String>,
-    onSuccess: (() -> Unit)? = null
+    onSuccess: (() -> Unit)? = null,
+    // When false, the caller is responsible for navigation once `onSuccess`
+    // fires — used by flows (like VCALM) that might need to continue in
+    // place rather than always going home.
+    navigateHomeOnSuccess: Boolean = true,
+    // Used to override behaviour for "Accept" button - used by protocols such as VCALM
+    onAcceptCredential: (suspend (rawCredential: String) -> Unit)? = null,
 ) {
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
     val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
@@ -99,7 +105,9 @@ fun AddToWalletView(
         if (decidedIndices.size >= stepItems.size) {
             Toast.showSuccess("$acceptedCount of ${stepItems.size} credentials accepted")
             onSuccess?.invoke()
-            navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+            if (navigateHomeOnSuccess) {
+                navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+            }
         }
     }
 
@@ -111,11 +119,15 @@ fun AddToWalletView(
         scope.launch {
             storing = true
             try {
-                acceptRawCredentialIntoWallet(
-                    rawCredential,
-                    credentialPacksViewModel,
-                    walletActivityLogsViewModel,
-                )
+                if (onAcceptCredential != null) {
+                    onAcceptCredential(rawCredential)
+                } else {
+                    acceptRawCredentialIntoWallet(
+                        rawCredential,
+                        credentialPacksViewModel,
+                        walletActivityLogsViewModel,
+                    )
+                }
                 acceptedCount += 1
             } catch (e: Exception) {
                 // Treat a save failure like a decline for this credential

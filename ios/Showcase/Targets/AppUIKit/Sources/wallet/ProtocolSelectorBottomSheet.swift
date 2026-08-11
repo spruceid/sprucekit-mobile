@@ -11,6 +11,7 @@ struct ProtocolSelectorBottomSheet: View {
 
     @Binding var protocols: [String: String]
     @Binding var sheetOpen: Bool
+    @Binding var protocolSelected: Bool
     @Binding var path: NavigationPath
     var credentialPackId: String?
     let order: [String] = [
@@ -40,6 +41,7 @@ struct ProtocolSelectorBottomSheet: View {
     }
 
     func handleProtocolSelection(_ protocolName: String, _ uri: String) {
+        protocolSelected = true
         sheetOpen = false
         switch protocolName {
         case "OID4VCI":
@@ -66,14 +68,12 @@ struct ProtocolSelectorBottomSheet: View {
     }
 
     var body: some View {
-
-        VStack {
+        AppBottomSheet(
+            title: "Choose how to continue",
+            subtitle: "This process supports multiple protocols, pick one.",
+            onCancel: { sheetOpen = false }
+        ) {
             ScrollView {
-                Text("Choose how to continue")
-                .foregroundStyle(Color("ColorStone950"))
-                Text(
-                    "This issuer supports more than one way to continue. Pick one."
-                )
                 VStack(spacing: 12) {
                     ForEach(keys, id: \.self) {
                         name in
@@ -132,22 +132,6 @@ struct ProtocolSelectorBottomSheet: View {
                 }
                 .padding(.horizontal, 10)
             }
-
-            Button {
-                sheetOpen = false
-            } label: {
-                Text("Cancel")
-                    .frame(width: UIScreen.screenWidth)
-                    .padding(.horizontal, -20)
-            }
-            .foregroundColor(Color("ColorStone950"))
-            .padding(.vertical, 13)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color("ColorStone300"), lineWidth: 1)
-            )
-            .padding(.top, 10)
-
         }
     }
 }

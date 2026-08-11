@@ -28,9 +28,23 @@ struct AddToWalletView: View {
     // user accept/decline it again.
     @State var decidedIndices: Set<Int> = []
 
-    init(path: Binding<NavigationPath>, rawCredentials: [String]) {
+    var onSuccess: (() -> Void)?
+    var navigateHomeOnSuccess: Bool = true
+    // Used to override behaviour for "Accept" button - used by protocols such as VCALM
+    var onAcceptCredential: ((String) async throws -> Void)?
+
+    init(
+        path: Binding<NavigationPath>,
+        rawCredentials: [String],
+        onSuccess: (() -> Void)? = nil,
+        navigateHomeOnSuccess: Bool = true,
+        onAcceptCredential: ((String) async throws -> Void)? = nil
+    ) {
         self._path = path
         self.rawCredentials = rawCredentials
+        self.onSuccess = onSuccess
+        self.navigateHomeOnSuccess = navigateHomeOnSuccess
+        self.onAcceptCredential = onAcceptCredential
     }
 
     func back() {
@@ -54,7 +68,10 @@ struct AddToWalletView: View {
             ToastManager.shared.showSuccess(
                 message: "\(acceptedCount) of \(stepItems.count) credentials accepted"
             )
-            back()
+            onSuccess?()
+            if navigateHomeOnSuccess {
+                back()
+            }
         }
     }
 
@@ -65,10 +82,14 @@ struct AddToWalletView: View {
         decidedIndices.insert(currentIndex)
         storing = true
         do {
-            _ = try await acceptRawCredentialIntoWallet(
-                rawCredential: rawCredentials[currentIndex],
-                credentialPackObservable: credentialPackObservable
-            )
+            if let onAcceptCredential {
+                try await onAcceptCredential(rawCredentials[currentIndex])
+            } else {
+                _ = try await acceptRawCredentialIntoWallet(
+                    rawCredential: rawCredentials[currentIndex],
+                    credentialPackObservable: credentialPackObservable
+                )
+            }
             acceptedCount += 1
         } catch {
             // Treat a save failure like a decline for this credential rather

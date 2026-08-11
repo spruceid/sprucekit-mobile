@@ -9,18 +9,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,12 +26,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.navigation.Screen
@@ -44,7 +37,6 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone50
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone700
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
-import com.spruceid.mobilesdkexample.ui.theme.Inter
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
@@ -60,12 +52,10 @@ private val PROTOCOL_DESCRIPTIONS = mapOf(
     "vcapi" to "VCALM exchange (VC-API)",
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProtocolSelectorBottomSheet(
     onClose: () -> Unit, protocols: Map<String, String>, navController: NavController, credentialPackId: String?
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showSheet by remember {
         mutableStateOf(true)
     }
@@ -131,134 +121,79 @@ fun ProtocolSelectorBottomSheet(
     Box(
         Modifier.fillMaxSize()
     ) {
-
         if (showSheet) {
-            ModalBottomSheet(
+            AppBottomSheet(
                 onDismissRequest = {
                     showSheet = false
                     onClose()
                 },
-                sheetState = sheetState,
-                dragHandle = null,
-                containerColor = Color.Transparent,
+                title = "Choose how to continue",
+                subtitle = "This process supports multiple protocols, pick one.",
+                onCancel = {
+                    showSheet = false
+                    onClose()
+                },
             ) {
-                Box(
-                    Modifier
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
                         .fillMaxWidth()
-                        .height((LocalConfiguration.current.screenHeightDp * .8f).dp)
-                        .background(Color.White),
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                            .padding(top = 48.dp)
-                    ) {
-                        Text(
-                            text = "Choose how to continue",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ColorStone950,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Text(
-                            text = "This process supports multiple protocols, pick one.",
-                            fontSize = 16.sp,
-                            color = Color.Black,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Column(
-                            horizontalAlignment = Alignment.Start,
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            keys.forEach { protocol ->
-                                val isSupported = SUPPORTED_PROTOCOLS.contains(protocol)
-                                Button(
-                                    onClick = {
-                                        handleProtocolSelection(
-                                            protocol, protocols[protocol] ?: ""
-                                        )
-                                    },
-                                    enabled = isSupported,
-                                    shape = RoundedCornerShape(6.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color.Transparent,
-                                        contentColor = ColorStone950,
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(ColorStone50)
-                                            .border(
-                                                width = 1.dp,
-                                                color = ColorStone300,
-                                                shape = RoundedCornerShape(8.dp)
-                                            )
-                                            .padding(20.dp)
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.weight(1f),
-                                            horizontalAlignment = Alignment.Start,
-                                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Text(
-                                                text = protocol,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = if (isSupported) ColorStone700 else ColorStone200
-                                            )
-                                            Text(
-                                                text = PROTOCOL_DESCRIPTIONS[protocol] ?: "",
-                                                color = if (isSupported) ColorStone700 else ColorStone200
-                                            )
-                                        }
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.chevron),
-                                            contentDescription = "Select this protocol",
-                                            tint = if (isSupported) ColorStone700 else ColorStone200,
-                                            modifier = Modifier.height(24.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
+                    keys.forEach { protocol ->
+                        val isSupported = SUPPORTED_PROTOCOLS.contains(protocol)
                         Button(
                             onClick = {
-                                showSheet = false
-                                onClose()
+                                handleProtocolSelection(
+                                    protocol, protocols[protocol] ?: ""
+                                )
                             },
+                            enabled = isSupported,
                             shape = RoundedCornerShape(6.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.Transparent,
                                 contentColor = ColorStone950,
                             ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 12.dp)
-                                .navigationBarsPadding()
-                                .border(
-                                    width = 1.dp,
-                                    color = ColorStone300,
-                                    shape = RoundedCornerShape(6.dp)
-                                )
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = "Cancel",
-                                fontFamily = Inter,
-                                fontWeight = FontWeight.SemiBold,
-                                color = ColorStone950,
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(ColorStone50)
+                                    .border(
+                                        width = 1.dp,
+                                        color = ColorStone300,
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .padding(20.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.Start,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = protocol,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isSupported) ColorStone700 else ColorStone200
+                                    )
+                                    Text(
+                                        text = PROTOCOL_DESCRIPTIONS[protocol] ?: "",
+                                        color = if (isSupported) ColorStone700 else ColorStone200
+                                    )
+                                }
+                                Icon(
+                                    painter = painterResource(id = R.drawable.chevron),
+                                    contentDescription = "Select this protocol",
+                                    tint = if (isSupported) ColorStone700 else ColorStone200,
+                                    modifier = Modifier.height(24.dp)
+                                )
+                            }
                         }
                     }
                 }

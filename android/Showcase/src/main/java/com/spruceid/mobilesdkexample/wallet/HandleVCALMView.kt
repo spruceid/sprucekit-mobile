@@ -3,6 +3,10 @@ package com.spruceid.mobilesdkexample.wallet
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,27 +16,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,33 +38,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.ParagraphStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.DidMethodUtils
-import com.spruceid.mobile.sdk.rs.OfferedValidity
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.StepResult
 import com.spruceid.mobile.sdk.rs.VcalmException
 import com.spruceid.mobile.sdk.rs.VcalmHolder
 import com.spruceid.mobile.sdk.rs.VcalmMatchedCredentials
-import com.spruceid.mobile.sdk.rs.VcalmOfferedCredential
 import com.spruceid.mobile.sdk.rs.VcalmRequestedField
 import com.spruceid.mobile.sdk.rs.VdcCollection
 import com.spruceid.mobile.sdk.rs.Vpr
 import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
+import com.spruceid.mobilesdkexample.R
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.navigation.Screen
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase300
+import com.spruceid.mobilesdkexample.ui.theme.ColorBase50
 import com.spruceid.mobilesdkexample.ui.theme.ColorBlue600
+import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald900
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorRose900
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
-import com.spruceid.mobilesdkexample.ui.theme.ColorStone500
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone600
+import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
+import com.spruceid.mobilesdkexample.ui.theme.Inter
+import com.spruceid.mobilesdkexample.utils.Toast
 import com.spruceid.mobilesdkexample.utils.acceptRawCredentialIntoWallet
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialTypeDisplayName
@@ -76,6 +87,7 @@ import com.spruceid.mobilesdkexample.utils.splitCamelCase
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import androidx.core.net.toUri
@@ -149,19 +161,41 @@ fun buildVcalmRequirements(
         .filter { it.path != "type" && it.path != "@context" }
         .groupBy { it.queryIndex }
     val candidatesByQuery = matched.associate { it.queryIndex to it.credentials.map { c -> c.credential } }
+    val typesByQuery = requestedFields
+        .filter { it.path == "type" }
+        .associate { it.queryIndex to it.value }
 
     val queryIndices = (fieldsByQuery.keys + candidatesByQuery.keys).toSortedSet()
 
     return queryIndices.map { queryIndex ->
         val fields = fieldsByQuery[queryIndex].orEmpty()
         val purposeLabel = fields.map { it.purpose }.firstOrNull { !it.isNullOrEmpty() }
+        val typeLabel = typesByQuery[queryIndex]?.let { vcalmRequirementLabelFromType(it) }
         VcalmRequirement(
             queryIndex = queryIndex,
-            label = purposeLabel ?: "Credential",
+            label = typeLabel ?: purposeLabel ?: "Credential",
             candidates = candidatesByQuery[queryIndex].orEmpty(),
             fields = fields,
         )
     }
+}
+
+// Turn a `type` field's raw value into a short display label, 
+// skipping the generic "VerifiableCredential" entry 
+fun vcalmRequirementLabelFromType(rawValue: String): String? {
+    val trimmed = rawValue.trim()
+    val entries = if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+        try {
+            val array = JSONArray(trimmed)
+            (0 until array.length()).map { array.getString(it) }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    } else {
+        listOf(trimmed)
+    }
+    return entries.firstOrNull { it.isNotBlank() && it != "VerifiableCredential" }
+        ?.splitCamelCase()
 }
 
 // Returns formatted issue date for a credential card, pulled from `validFrom` (VC 2.0),
@@ -216,8 +250,7 @@ enum class VCALMState {
     Err,
     AddToWallet,
     SelectCredential,
-    Offer,
-    Success,
+    SelectFields,
 }
 
 @Composable
@@ -238,14 +271,10 @@ fun HandleVCALMView(
 
     var requirements by remember { mutableStateOf<List<VcalmRequirement>?>(null) }
     var picks by remember { mutableStateOf<Map<UInt, ParsedCredential>>(emptyMap()) }
-    var offeredCredentials by remember { mutableStateOf<List<VcalmOfferedCredential>>(emptyList()) }
     var redirectUrl by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
-    // Set only when the exchange reaches `.complete` after a presentation submission
-    var presentedCredentials by remember { mutableStateOf<List<ParsedCredential>?>(null) }
-    // Set only once an offer is accepted AND the exchange is fully done
-    // (`.complete`). Hand off to AddToWalletView
     var pendingWalletCredentials by remember { mutableStateOf<List<String>?>(null) }
+    var offerAcceptResult by remember { mutableStateOf<StepResult?>(null) }
+    var offerAcceptError by remember { mutableStateOf(false) }
     var domainMismatch by remember { mutableStateOf<VcalmException.DomainChannelMismatch?>(null) }
     var pendingSelection by remember { mutableStateOf<List<ParsedCredential>>(emptyList()) }
 
@@ -301,9 +330,6 @@ fun HandleVCALMView(
             val result = holder!!.submitPresentation(selected, allowDomainMismatch)
             requirements = null
             domainMismatch = null
-            if (result is StepResult.Complete) {
-                presentedCredentials = selected
-            }
             handleStep(result)
         } catch (e: VcalmException.DomainChannelMismatch) {
             pendingSelection = selected
@@ -343,22 +369,32 @@ fun HandleVCALMView(
         picks = built.filter { it.candidates.size == 1 }
             .associate { it.queryIndex to it.candidates.first() }
         requirements = built
-        state = VCALMState.SelectCredential
+        // If no requirement has more than one candidate, skip straight to selective disclosure
+        state = if (built.all { it.candidates.size <= 1 }) {
+            VCALMState.SelectFields
+        } else {
+            VCALMState.SelectCredential
+        }
     }
 
     handleStep = { result ->
         when (result) {
             is StepResult.Request -> onRequest(result.vpr)
             is StepResult.Offer -> {
-                offeredCredentials = holder!!.offeredCredentials()
-                state = VCALMState.Offer
+                val offered = holder!!.offeredCredentials()
+                // The offer itself isn't accepted at the protocol level until 
+                // the user taps "Add to Wallet" in AddToWalletView
+                offerAcceptResult = null
+                offerAcceptError = false
+                pendingWalletCredentials = offered.map { it.rawCredential }
+                state = VCALMState.AddToWallet
             }
             is StepResult.Redirect -> {
                 redirectUrl = result.url
             }
             is StepResult.Complete -> {
-                successMessage = "Successfully shared."
-                state = VCALMState.Success
+                Toast.showSuccess("Shared successfully")
+                navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
             }
             is StepResult.Problem -> {
                 val details = result.details
@@ -375,42 +411,17 @@ fun HandleVCALMView(
     }
 
     suspend fun acceptOffer() {
-        state = VCALMState.Loading
+        if (offerAcceptResult != null || offerAcceptError) return
         try {
-            val rawCredentials = offeredCredentials.map { it.rawCredential }
             val result = holder!!.acceptOffer()
-            offeredCredentials = emptyList()
-
-            when (result) {
-                is StepResult.Complete -> {
-                    // Hand off to AddToWalletView
-                    pendingWalletCredentials = rawCredentials
-                    state = VCALMState.AddToWallet
-                }
-                is StepResult.Problem -> {
-                    // Surface the error, don't store credentials yet
-                    handleStep(result)
-                }
-                else -> {
-                    // The exchange is chained, not complete yet. Store credential locally
-                    // with the same shared helper AddToWalletView uses, then continue
-                    rawCredentials.forEach { raw ->
-                        try {
-                            acceptRawCredentialIntoWallet(
-                                raw,
-                                credentialPacksViewModel,
-                                walletActivityLogsViewModel
-                            )
-                        } catch (e: Exception) {
-                            // Treat a save failure like a decline for this
-                            // credential rather than blocking the rest of the
-                            // flow.
-                        }
-                    }
-                    handleStep(result)
-                }
+            offerAcceptResult = result
+            if (result is StepResult.Problem) {
+                // Surface the error, don't let AddToWalletView store anything
+                offerAcceptError = true
+                handleStep(result)
             }
         } catch (e: Exception) {
+            offerAcceptError = true
             errorTitle = "Error Accepting Offer"
             errorDescription = "Couldn't accept the offered credential(s). Error: ${e.message}"
             state = VCALMState.Err
@@ -421,12 +432,12 @@ fun HandleVCALMView(
         state = VCALMState.Loading
         try {
             val result = holder!!.rejectOffer()
-            offeredCredentials = emptyList()
             handleStep(result)
         } catch (e: Exception) {
-            errorTitle = "Error Declining Offer"
-            errorDescription = "Couldn't decline the offered credential(s). Error: ${e.message}"
-            state = VCALMState.Err
+            // Servers may throw 4xx on further POSTs once offer is delivered as terminal step
+            // Treat this as exchange ended, and navigate to home screen
+            Toast.showSuccess("Offer declined")
+            navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
         }
     }
 
@@ -470,8 +481,8 @@ fun HandleVCALMView(
             } catch (e: Exception) {
                 Log.d(TAG, "Failed to open VCALM redirect URL: ${e.message}")
             }
-            successMessage = "Continue in your browser to finish this exchange."
-            state = VCALMState.Success
+            Toast.showSuccess("Continue in your browser to finish this exchange.")
+            navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
         }
     }
 
@@ -491,46 +502,69 @@ fun HandleVCALMView(
                 AddToWalletView(
                     navController = navController,
                     rawCredentials = rawCredentials,
-                    onSuccess = { pendingWalletCredentials = null },
+                    navigateHomeOnSuccess = false,
+                    onAcceptCredential = { raw ->
+                        // Accept the offer at the protocol level idempotently before
+                        // storing this one locally.
+                        acceptOffer()
+                        if (offerAcceptError) {
+                            throw IllegalStateException("Offer acceptance failed")
+                        }
+                        acceptRawCredentialIntoWallet(
+                            raw,
+                            credentialPacksViewModel,
+                            walletActivityLogsViewModel,
+                        )
+                    },
+                    onSuccess = {
+                        pendingWalletCredentials = null
+                        when (val result = offerAcceptResult) {
+                            null -> coroutineScope.launch { declineOffer() }
+                            is StepResult.Complete ->
+                                navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+                            is StepResult.Problem -> {}
+                            // Chained — the exchange isn't done yet, continue to whatever's next.
+                            else -> coroutineScope.launch { handleStep(result) }
+                        }
+                    },
                 )
             }
 
         VCALMState.SelectCredential ->
             requirements?.let { reqs ->
-                VcalmRequirementPicker(
+                VcalmCredentialSelector(
                     requirements = reqs,
                     picks = picks,
                     credentialClaims = credentialClaims,
                     onPick = { queryIndex, credential -> picks = picks + (queryIndex to credential) },
-                    onSubmit = { coroutineScope.launch { submitPicks() } },
+                    onContinue = { state = VCALMState.SelectFields },
+                    onCancel = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } },
                 )
             }
 
-        VCALMState.Offer ->
-            if (offeredCredentials.isNotEmpty()) {
-                VcalmOfferView(
-                    offered = offeredCredentials,
-                    onAccept = { coroutineScope.launch { acceptOffer() } },
-                    onDecline = { coroutineScope.launch { declineOffer() } },
-                )
-            }
-
-        VCALMState.Success ->
-            successMessage?.let { message ->
-                VcalmSuccessView(
-                    message = message,
-                    presentedCredentials = presentedCredentials,
+        VCALMState.SelectFields ->
+            requirements?.let { reqs ->
+                VcalmFieldsSelector(
+                    requirements = reqs,
+                    picks = picks,
                     credentialClaims = credentialClaims,
-                    onDone = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } },
+                    onSubmit = { coroutineScope.launch { submitPicks() } },
+                    onCancel = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } },
                 )
             }
+
     }
 
     domainMismatch?.let { mismatch ->
         VcalmDomainMismatchBottomSheet(
             domain = mismatch.domain,
             channel = mismatch.channel,
-            onCancel = { domainMismatch = null },
+            onCancel = {
+                domainMismatch = null
+                errorTitle = "Presentation flow canceled"
+                errorDescription = "The selected credentials were not presented due to user cancellation."
+                state = VCALMState.Err
+            },
             onContinueAnyway = {
                 domainMismatch = null
                 coroutineScope.launch {
@@ -542,208 +576,396 @@ fun HandleVCALMView(
 }
 
 @Composable
-fun VcalmRequirementPicker(
+fun VcalmCredentialSelector(
     requirements: List<VcalmRequirement>,
     picks: Map<UInt, ParsedCredential>,
     credentialClaims: Map<String, JSONObject>,
     onPick: (UInt, ParsedCredential) -> Unit,
-    onSubmit: () -> Unit,
+    onContinue: () -> Unit,
+    onCancel: () -> Unit,
 ) {
-    val allResolved = requirements.all { it.candidates.isEmpty() || picks.containsKey(it.queryIndex) }
+    var currentIndex by remember { mutableIntStateOf(0) }
+    val currentRequirement = requirements[currentIndex]
+    val hasMoreRequirements = currentIndex + 1 < requirements.size
+    val currentSelectionValid =
+        currentRequirement.candidates.isEmpty() || picks.containsKey(currentRequirement.queryIndex)
 
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .padding(16.dp),
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 48.dp)
     ) {
-        Text(text = "Review Details", fontSize = 20.sp)
-        Spacer(modifier = Modifier.height(16.dp))
+        if (requirements.size > 1) {
+            Text(
+                text = "Requirement ${currentIndex + 1} of ${requirements.size}",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                color = ColorStone600,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Select a credential for",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Normal,
+                fontSize = 16.sp,
+                color = ColorStone600,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = currentRequirement.label,
+                fontFamily = Inter,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = ColorBlue600,
+                textAlign = TextAlign.Center
+            )
+        }
 
         Column(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .weight(weight = 1f, fill = false)
+                .padding(top = 12.dp)
         ) {
-        requirements.forEach { requirement ->
-            key(requirement.queryIndex) {
-            Text(text = requirement.label, fontSize = 16.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val allRequired = requirement.fields.isEmpty() || requirement.fields.all { it.required }
-            if (requirement.fields.isNotEmpty()) {
-                Text(
-                    text = if (allRequired) {
-                        "These fields are required by the verifier"
-                    } else {
-                        "Select which fields to share:"
-                    },
-                    fontSize = 14.sp,
-                    color = ColorStone500,
-                )
-                // Optional fields are pre-selected but can be unchecked,
-                // mandatory fields are always selected but disabled
-                var selectedFields by remember(requirement.queryIndex) {
-                    mutableStateOf(requirement.fields.map { it.path }.toSet())
-                }
-                requirement.fields.forEach { field ->
-                    val fieldLabel = field.path
-                        .splitCamelCase()
-                        .removeUnderscores()
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = field.required || selectedFields.contains(field.path),
-                            enabled = !field.required,
-                            onCheckedChange = { checked ->
-                                selectedFields = if (checked) {
-                                    selectedFields + field.path
-                                } else {
-                                    selectedFields - field.path
-                                }
-                            },
-                            colors = CheckboxDefaults.colors(
-                                checkedColor = ColorBlue600,
-                                uncheckedColor = ColorStone300,
-                                disabledCheckedColor = ColorStone500,
-                            ),
-                        )
-                        Text(
-                            text = "$fieldLabel${if (!field.required) " (optional)" else ""}",
-                            fontSize = 12.sp,
-                            color = ColorStone500,
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-
-            }
-
-            if (requirement.candidates.isEmpty()) {
+            if (currentRequirement.candidates.isEmpty()) {
                 Text(
                     text = "No matching credential(s)",
+                    fontFamily = Inter,
                     color = ColorRose600,
                 )
-            } else if (requirement.candidates.size == 1) {
-                // Pre-select credential if only one matches
-                Text(
-                    text = "Using: ${vcalmCredentialTitle(requirement.candidates.first(), credentialClaims)}",
-                    fontSize = 14.sp,
-                )
             } else {
-                requirement.candidates.forEach { candidate ->
-                    val selected = picks[requirement.queryIndex]?.id() == candidate.id()
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .selectable(
-                                selected = selected,
-                                onClick = { onPick(requirement.queryIndex, candidate) },
-                            )
-                            .padding(vertical = 4.dp),
-                    ) {
-                        RadioButton(
-                            selected = selected,
-                            onClick = { onPick(requirement.queryIndex, candidate) },
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = vcalmCredentialTitle(candidate, credentialClaims))
-                    }
-                }
-            }
-                if (requirement.fields.isEmpty()) {
-                    Text(
-                        text ="All fields are required by the verifier",
-                        fontSize = 14.sp,
-                        color = ColorStone500,
+                currentRequirement.candidates.forEach { candidate ->
+                    VcalmCredentialSelectorItem(
+                        candidate = candidate,
+                        requestedFields = currentRequirement.fields,
+                        credentialClaims = credentialClaims,
+                        isChecked = picks[currentRequirement.queryIndex]?.id() == candidate.id(),
+                        onCheckedChange = { onPick(currentRequirement.queryIndex, candidate) }
                     )
                 }
-            Spacer(modifier = Modifier.height(16.dp))
             }
         }
-        }
-        Button(
-            onClick = onSubmit,
-            enabled = allResolved,
-            shape = RoundedCornerShape(6.dp),
-            modifier = Modifier.fillMaxWidth(),
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+                .navigationBarsPadding(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Continue")
+            Button(
+                onClick = { onCancel() },
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = ColorStone950,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = ColorStone300,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .weight(1f)
+            ) {
+                Text(
+                    text = "Cancel",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorStone950,
+                )
+            }
+
+            Button(
+                onClick = {
+                    if (currentSelectionValid) {
+                        if (hasMoreRequirements) {
+                            currentIndex += 1
+                        } else {
+                            onContinue()
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(6.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (currentSelectionValid) ColorStone600 else Color.Gray
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = if (currentSelectionValid) ColorStone600 else Color.Gray,
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    .weight(1f)
+            ) {
+                Text(
+                    text = if (hasMoreRequirements) "Next" else "Continue",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorBase50,
+                )
+            }
         }
     }
 }
 
 @Composable
-fun VcalmOfferView(
-    offered: List<VcalmOfferedCredential>,
-    onAccept: () -> Unit,
-    onDecline: () -> Unit,
+fun VcalmCredentialSelectorItem(
+    candidate: ParsedCredential,
+    requestedFields: List<VcalmRequestedField>,
+    credentialClaims: Map<String, JSONObject>,
+    isChecked: Boolean,
+    onCheckedChange: () -> Unit
 ) {
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .statusBarsPadding()
-        .navigationBarsPadding()
-        .padding(16.dp)) {
-        Text(text = "Credential offer", fontSize = 20.sp)
-        Spacer(modifier = Modifier.height(16.dp))
+    var expanded by remember { mutableStateOf(false) }
 
-        offered.forEach { credential ->
-            Card(modifier = Modifier
+    val bullet = "•"
+    val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
+    val displayFields = requestedFields.map { it.path.splitCamelCase().removeUnderscores() }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+            .border(
+                width = 1.dp,
+                color = ColorBase300,
+                shape = RoundedCornerShape(8.dp)
+            )
+    ) {
+        Row(
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 4.dp)) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        text = credential.types.lastOrNull()
-                            ?.let { credentialTypeDisplayName(it) }
-                            ?: "Credential",
-                        fontSize = 16.sp,
+                .padding(end = 8.dp)
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = isChecked,
+                onCheckedChange = { onCheckedChange() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = ColorBlue600,
+                    uncheckedColor = ColorStone300
+                )
+            )
+            Text(
+                text = vcalmCredentialTitle(candidate, credentialClaims),
+                fontFamily = Inter,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 18.sp,
+                color = ColorStone950,
+                modifier = Modifier.weight(1f)
+            )
+            if (displayFields.isNotEmpty()) {
+                if (expanded) {
+                    Image(
+                        painter = painterResource(id = R.drawable.collapse),
+                        contentDescription = stringResource(id = R.string.collapse),
+                        modifier = Modifier.clickable { expanded = false }
                     )
-                    credential.issuer?.let { issuer ->
-                        Text(text = "Issuer: $issuer")
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.expand),
+                        contentDescription = stringResource(id = R.string.expand),
+                        modifier = Modifier.clickable { expanded = true }
+                    )
+                }
+            }
+        }
+
+        if (expanded) {
+            Text(
+                buildAnnotatedString {
+                    displayFields.forEach {
+                        withStyle(style = paragraphStyle) {
+                            append(bullet)
+                            append("\t\t")
+                            append(it)
+                        }
                     }
-                    // Time bounded credentials will still be stored, so surface
-                    // the warning associated with it before user makes a decision.
-                    // When the credential's validity is blocking (ex: unverifiable), the
-                    // error is surfaced through ErrorView
-                    if (credential.validity == OfferedValidity.TIME_BOUNDED) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                },
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun VcalmFieldsSelector(
+    requirements: List<VcalmRequirement>,
+    picks: Map<UInt, ParsedCredential>,
+    credentialClaims: Map<String, JSONObject>,
+    onSubmit: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    var currentIndex by remember { mutableIntStateOf(0) }
+    val currentRequirement = requirements[currentIndex]
+    val hasMoreRequirements = currentIndex + 1 < requirements.size
+    val currentCredential = picks[currentRequirement.queryIndex]
+    val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 48.dp)
+    ) {
+        if (requirements.size > 1) {
+            Text(
+                text = "Credential ${currentIndex + 1} of ${requirements.size}",
+                fontFamily = Inter,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                color = ColorStone600,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            )
+        }
+
+        Text(
+            buildAnnotatedString {
+                withStyle(style = SpanStyle(color = Color.Blue)) { append("Verifier") }
+                append(" is requesting access to the following information")
+            },
+            fontFamily = Inter,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = ColorStone950,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            textAlign = TextAlign.Center
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .weight(weight = 1f, fill = false)
+        ) {
+            if (currentRequirement.fields.isEmpty()) {
+                // No specific fields requested, show all claims from the credential
+                val allClaims = currentCredential?.let { credentialClaims[it.id()] } ?: JSONObject()
+                allClaims.keys().asSequence().toList().sorted().forEach { claimName ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            enabled = false,
+                            checked = true,
+                            onCheckedChange = { }
+                        )
                         Text(
-                            text = "This credential may be premature or expired.",
-                            color = ColorStone500
+                            buildAnnotatedString {
+                                withStyle(style = paragraphStyle) {
+                                    append("\t\t")
+                                    append(claimName.splitCamelCase().removeUnderscores())
+                                }
+                            },
+                        )
+                    }
+                }
+            } else {
+                var selectedFields by remember(currentRequirement.queryIndex) {
+                    mutableStateOf(currentRequirement.fields.map { it.path }.toSet())
+                }
+                currentRequirement.fields.forEach { field ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            enabled = !field.required,
+                            checked = selectedFields.contains(field.path) || field.required,
+                            onCheckedChange = { v ->
+                                selectedFields = if (!v) {
+                                    selectedFields.minus(field.path)
+                                } else {
+                                    selectedFields.plus(field.path)
+                                }
+                            }
+                        )
+                        Text(
+                            buildAnnotatedString {
+                                withStyle(style = paragraphStyle) {
+                                    append("\t\t")
+                                    append(field.path.splitCamelCase().removeUnderscores())
+                                }
+                            },
                         )
                     }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(vertical = 12.dp)
                 .navigationBarsPadding(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Button(
-                onClick = onAccept,
+                onClick = { onCancel() },
                 shape = RoundedCornerShape(6.dp),
-                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = ColorStone950,
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        width = 1.dp,
+                        color = ColorStone300,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .weight(1f)
             ) {
-                Text("Accept")
+                Text(
+                    text = "Cancel",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorStone950,
+                )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onDecline,
+
+            Button(
+                onClick = {
+                    if (hasMoreRequirements) {
+                        currentIndex += 1
+                    } else {
+                        onSubmit()
+                    }
+                },
                 shape = RoundedCornerShape(6.dp),
-                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorEmerald900),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        color = ColorEmerald900,
+                        shape = RoundedCornerShape(6.dp),
+                    )
+                    .weight(1f)
             ) {
-                Text("Decline")
+                Text(
+                    text = if (hasMoreRequirements) "Next" else "Approve",
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ColorBase50,
+                )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VcalmDomainMismatchBottomSheet(
     domain: String,
@@ -751,111 +973,27 @@ fun VcalmDomainMismatchBottomSheet(
     onCancel: () -> Unit,
     onContinueAnyway: () -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
+    AppBottomSheet(
         onDismissRequest = onCancel,
-        sheetState = sheetState,
-        containerColor = Color.White,
+        title = "Verifier domain mismatch",
+        subtitle = "This verifier's request domain ($domain) doesn't match the " +
+            "exchange's channel ($channel). Only continue if you recognize and trust both sites.",
+        onCancel = onCancel,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 24.dp),
-        ) {
-            Text(
-                text = "Verifier domain mismatch",
-                fontSize = 20.sp,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "This verifier's request domain ($domain) doesn't match the " +
-                    "exchange's channel ($channel). Only continue if you recognize and trust both sites.",
-                fontSize = 14.sp,
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = onContinueAnyway,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ColorRose900,
-                ),
-                shape = RoundedCornerShape(6.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Continue Anyway")
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            OutlinedButton(
-                onClick = onCancel,
-                shape = RoundedCornerShape(6.dp),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Cancel")
-            }
-        }
-    }
-}
-
-@Composable
-fun VcalmSuccessView(
-    message: String,
-    presentedCredentials: List<ParsedCredential>? = null,
-    credentialClaims: Map<String, JSONObject> = emptyMap(),
-    onDone: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .statusBarsPadding()
-            .navigationBarsPadding(),
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top,
-        ) {
-            Text(text = message, fontSize = 16.sp)
-
-            if (!presentedCredentials.isNullOrEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                presentedCredentials.forEach { credential ->
-                    Card(modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = vcalmCredentialTitle(credential, credentialClaims),
-                                fontSize = 16.sp,
-                            )
-                            Text(
-                                text = "ID: ${credential.id()}",
-                                fontSize = 12.sp,
-                                color = ColorStone500,
-                            )
-                            vcalmCredentialIssuedDate(credential, credentialClaims)?.let { issuedDate ->
-                                Text(
-                                    text = "Valid from: $issuedDate",
-                                    fontSize = 12.sp,
-                                    color = ColorStone500,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         Button(
-            onClick = onDone,
+            onClick = onContinueAnyway,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = ColorRose900,
+            ),
             shape = RoundedCornerShape(6.dp),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    color = ColorRose900,
+                    shape = RoundedCornerShape(6.dp),
+                ),
         ) {
-            Text("Done")
+            Text("Continue Anyway")
         }
     }
 }

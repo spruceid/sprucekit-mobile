@@ -294,7 +294,7 @@ fun CredentialDetailsView(
                             DispatchQRView(
                                 navController,
                                 credentialPackId,
-                                listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
+                                listOf(SupportedQRTypes.INTERACTION, SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
                                 backgroundColor = ColorBase50,
                                 hideCancelButton = true
                             )

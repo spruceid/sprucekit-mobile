@@ -17,6 +17,7 @@ struct HandleInteractionView: View {
 
     @State var sheetOpen: Bool = false
     @State var err: String?
+    @State var protocolSelected: Bool = false
     enum ExchangeError: Error {
         case badStatus(Int)
         case noProtocolsOrFallback
@@ -48,7 +49,9 @@ struct HandleInteractionView: View {
         }
     }
     func onBack() {
-        path.removeLast()
+        while !path.isEmpty {
+            path.removeLast()
+        }
     }
     var body: some View {
         ZStack {
@@ -59,23 +62,22 @@ struct HandleInteractionView: View {
                     onClose: onBack
                 )
             } else {
-                Text("Fetching Protocols")
+                LoadingView(loadingText: "Discovering protocols...")
             }
         }.task {
             await loadProtocols()
-        }.sheet(isPresented: $sheetOpen) {
-
-        } content: {
+        }.sheet(isPresented: $sheetOpen, onDismiss: {
+            if !protocolSelected {
+                onBack()
+            }
+        }) {
             ProtocolSelectorBottomSheet(
                 protocols: $protocols,
                 sheetOpen: $sheetOpen,
+                protocolSelected: $protocolSelected,
                 path: $path,
                 credentialPackId: credentialPackId
             )
-            .padding(.horizontal, 20)
-            .padding(.top, 36)
-            .presentationDetents([.fraction(0.85)])
-            .presentationDragIndicator(.visible)
             .presentationBackgroundInteraction(.automatic)
         }
         .navigationBarBackButtonHidden(true)
