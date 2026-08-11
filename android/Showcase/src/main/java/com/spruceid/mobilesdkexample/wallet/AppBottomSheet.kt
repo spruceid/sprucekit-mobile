@@ -47,7 +47,8 @@ fun AppBottomSheet(
         dragHandle = null,
         containerColor = Color.Transparent,
     ) {
-        val boxModifier = Modifier
+        val boxModifier =
+            Modifier
                 .fillMaxWidth()
                 .height((LocalConfiguration.current.screenHeightDp * 0.8f).dp)
                 .background(Color.White)
@@ -103,9 +104,7 @@ fun AppBottomSheet(
                         .fillMaxWidth()
                         .padding(top = 12.dp)
                         .border(
-                            width = 1.dp,
-                            color = ColorStone300,
-                            shape = RoundedCornerShape(6.dp)
+                            width = 1.dp, color = ColorStone300, shape = RoundedCornerShape(6.dp)
                         )
                 ) {
                     Text(

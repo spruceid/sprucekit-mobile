@@ -15,9 +15,7 @@ import com.spruceid.mobilesdkexample.navigation.Screen
 
 @Composable
 fun HandleInteractionView(
-    navController: NavController,
-    url: String,
-    credentialPackId: String?
+    navController: NavController, url: String, credentialPackId: String?
 ) {
     var protocols by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var sheetOpen by remember { mutableStateOf(false) }
@@ -55,14 +53,16 @@ fun HandleInteractionView(
             { onBack() },
             protocols = protocols,
             navController = navController,
-            credentialPackId = credentialPackId
+            credentialPackId = credentialPackId,
+            onError = { title, description ->
+                sheetOpen = false
+                errorTitle = title
+                errorDescription = description
+            },
         )
     } else if (errorTitle != null && errorDescription != null) {
         ErrorView(
-            errorTitle = errorTitle!!,
-            errorDetails = errorDescription!!,
-            onClose = { onBack() }
-        )
+            errorTitle = errorTitle!!, errorDetails = errorDescription!!, onClose = { onBack() })
     } else {
         LoadingView(loadingText = "Discovering protocols...")
     }

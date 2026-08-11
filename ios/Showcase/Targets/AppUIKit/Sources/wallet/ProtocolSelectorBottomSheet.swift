@@ -14,6 +14,7 @@ struct ProtocolSelectorBottomSheet: View {
     @Binding var protocolSelected: Bool
     @Binding var path: NavigationPath
     var credentialPackId: String?
+    var onError: ((_ title: String, _ details: String) -> Void)? = nil
     let order: [String] = [
         "OID4VCI",
         "OID4VP",
@@ -61,9 +62,19 @@ struct ProtocolSelectorBottomSheet: View {
                         credentialPackId: credentialPackId
                     )
                 )
+            } else {
+                onError?(
+                    "Unsupported OID4VP link",
+                    "This QR code's OID4VP link (\(uri)) doesn't use a scheme this app currently supports."
+                )
             }
-        case "vcapi", _:
+        case "vcapi":
             path.append(HandleVCALM(url: uri))
+        default:
+            onError?(
+                    "Unsupported Protocol",
+                    "This protocol is not currently supported on this app."
+                )
         }
     }
 

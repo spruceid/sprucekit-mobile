@@ -47,11 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.navigation.NavHostController
-import com.spruceid.mobile.sdk.KeyManager
-import com.spruceid.mobile.sdk.rs.DidMethod
-import com.spruceid.mobile.sdk.rs.DidMethodUtils
 import com.spruceid.mobile.sdk.rs.ParsedCredential
-import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.StepResult
 import com.spruceid.mobile.sdk.rs.VcalmException
 import com.spruceid.mobile.sdk.rs.VcalmHolder
@@ -89,55 +85,6 @@ import org.json.JSONObject
 
 private const val TAG = "HandleVCALMView"
 
-class VCALMSigner(keyId: String?) : PresentationSigner {
-    private val keyId = keyId ?: DEFAULT_SIGNING_KEY_ID
-    private val keyManager = KeyManager()
-    private var jwk: String
-    private val didJwk = DidMethodUtils(DidMethod.JWK)
-
-    init {
-        if (!keyManager.keyExists(this.keyId)) {
-            keyManager.generateSigningKey(id = this.keyId)
-        }
-        this.jwk = keyManager.getJwk(this.keyId)?.toString()
-            ?: throw IllegalArgumentException("Invalid kid")
-    }
-
-    override suspend fun sign(payload: ByteArray): ByteArray {
-        val signature = keyManager.signPayload(keyId, payload)
-            ?: throw IllegalStateException("Failed to sign payload")
-
-        return signature
-    }
-
-    override fun algorithm(): String {
-        // Parse the jwk as a JSON object and return the "alg" field
-        val json = JSONObject(jwk)
-        return try {
-            json.getString("alg")
-        } catch (_: Exception) {
-            "ES256"
-        }
-    }
-
-    override suspend fun verificationMethod(): String {
-        return didJwk.vmFromJwk(jwk)
-    }
-
-    override fun did(): String {
-        return didJwk.didFromJwk(jwk)
-    }
-
-    override fun jwk(): String {
-        return jwk
-    }
-
-    override fun cryptosuite(): String {
-        // TODO: Add an uniffi enum type for crypto suites.
-        return "ecdsa-rdfc-2019"
-    }
-}
-
 data class VcalmRequirement(
     val queryIndex: UInt,
     val label: String,
@@ -152,14 +99,12 @@ fun buildVcalmRequirements(
     requestedFields: List<VcalmRequestedField>,
     matched: List<VcalmMatchedCredentials>,
 ): List<VcalmRequirement> {
-    val fieldsByQuery = requestedFields
-        .filter { it.path != "type" && it.path != "@context" }
+    val fieldsByQuery = requestedFields.filter { it.path != "type" && it.path != "@context" }
         .groupBy { it.queryIndex }
     val candidatesByQuery =
         matched.associate { it.queryIndex to it.credentials.map { c -> c.credential } }
-    val typesByQuery = requestedFields
-        .filter { it.path == "type" }
-        .associate { it.queryIndex to it.value }
+    val typesByQuery =
+        requestedFields.filter { it.path == "type" }.associate { it.queryIndex to it.value }
 
     val queryIndices = (fieldsByQuery.keys + candidatesByQuery.keys).toSortedSet()
 
@@ -190,21 +135,7 @@ fun vcalmRequirementLabelFromType(rawValue: String): String? {
     } else {
         listOf(trimmed)
     }
-    return entries.firstOrNull { it.isNotBlank() && it != "VerifiableCredential" }
-        ?.splitCamelCase()
-}
-
-// Returns formatted issue date for a credential card, pulled from `validFrom` (VC 2.0),
-// `issuanceDate` VC 1.1 (), or `null` if neither claim is available.
-fun vcalmCredentialIssuedDate(
-    parsedCredential: ParsedCredential,
-    credentialClaims: Map<String, JSONObject>,
-): String? {
-    val claims = credentialClaims[parsedCredential.id()] ?: return null
-    val raw = claims.optString("validFrom").takeIf { it.isNotBlank() }
-        ?: claims.optString("issuanceDate").takeIf { it.isNotBlank() }
-        ?: return null
-    return raw.substringBefore("T")
+    return entries.firstOrNull { it.isNotBlank() && it != "VerifiableCredential" }?.splitCamelCase()
 }
 
 fun vcalmCredentialTitle(
@@ -212,8 +143,8 @@ fun vcalmCredentialTitle(
     credentialClaims: Map<String, JSONObject> = emptyMap(),
 ): String {
     try {
-        credentialClaims[parsedCredential.id()]?.getString("name")
-            ?.takeIf { it.isNotBlank() }?.let { return it }
+        credentialClaims[parsedCredential.id()]?.getString("name")?.takeIf { it.isNotBlank() }
+            ?.let { return it }
     } catch (_: Exception) {
     }
 
@@ -242,11 +173,7 @@ fun vcalmCredentialTitle(
 }
 
 enum class VCALMState {
-    Loading,
-    Err,
-    AddToWallet,
-    SelectCredential,
-    SelectFields,
+    Loading, Err, AddToWallet, SelectCredential, SelectFields,
 }
 
 @Composable
@@ -295,7 +222,7 @@ fun HandleVCALMView(
                 if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
                     url = decoded
                 }
-            } catch (_: Error) {
+            } catch (_: Exception) {
                 // Not a percent-encoded URL - leave as-is
             }
         }
@@ -310,7 +237,7 @@ fun HandleVCALMView(
             if (decoded.startsWith("http://") || decoded.startsWith("https://")) {
                 return decoded
             }
-        } catch (_: Error) {
+        } catch (_: Exception) {
             // Not an encoded URL - use existing input
         }
         return url
@@ -320,8 +247,7 @@ fun HandleVCALMView(
 
     // Submit presentation after automatically/manually selecting credentials to fit requirements
     suspend fun trySubmitPresentation(
-        selected: List<ParsedCredential>,
-        allowDomainMismatch: Boolean
+        selected: List<ParsedCredential>, allowDomainMismatch: Boolean
     ) {
         val previousState = state
         state = VCALMState.Loading
@@ -343,36 +269,43 @@ fun HandleVCALMView(
     }
 
     suspend fun onRequest(vpr: Vpr) {
-        val matched = holder!!.matchedCredentials()
-        val requestedFields = holder!!.requestedFields()
+        try {
+            val matched = holder!!.matchedCredentials()
+            val requestedFields = holder!!.requestedFields()
 
-        Log.d(TAG, "VCALM verifier request domain=${vpr.domain} query=${vpr.query}")
+            Log.d(TAG, "VCALM verifier request domain=${vpr.domain} query=${vpr.query}")
 
-        if (requestedFields.isEmpty()) {
-            // No fields requested — this is a DID-authentication-only request
-            // Can submit immediately
-            trySubmitPresentation(emptyList(), false)
-            return
-        }
+            if (requestedFields.isEmpty()) {
+                // No fields requested — this is a DID-authentication-only request
+                // Can submit immediately
+                trySubmitPresentation(emptyList(), false)
+                return
+            }
 
-        val built = buildVcalmRequirements(requestedFields, matched)
-        if (built.isEmpty() || built.all { it.candidates.isEmpty() }) {
-            errorTitle = "No matching credential(s)"
-            errorDescription =
-                "You don't have a credential in your wallet that satisfies this verifier's request."
+            val built = buildVcalmRequirements(requestedFields, matched)
+            if (built.isEmpty() || built.all { it.candidates.isEmpty() }) {
+                errorTitle = "No matching credential(s)"
+                errorDescription =
+                    "You don't have a credential in your wallet that satisfies this verifier's request."
+                state = VCALMState.Err
+                return
+            }
+
+            // When there is only one candidate choice for a requirement, auto select it
+            picks = built.filter { it.candidates.size == 1 }
+                .associate { it.queryIndex to it.candidates.first() }
+            requirements = built
+            // If no requirement has more than one candidate, skip straight to selective disclosure
+            state = if (built.all { it.candidates.size <= 1 }) {
+                VCALMState.SelectFields
+            } else {
+                VCALMState.SelectCredential
+            }
+        } catch (e: Exception) {
+            errorTitle = "Error Handling Verifier Request"
+            errorDescription = "Couldn't process the verifier's request. Error: ${e.message}"
             state = VCALMState.Err
-            return
-        }
 
-        // When there is only one candidate choice for a requirement, auto select it
-        picks = built.filter { it.candidates.size == 1 }
-            .associate { it.queryIndex to it.candidates.first() }
-        requirements = built
-        // If no requirement has more than one candidate, skip straight to selective disclosure
-        state = if (built.all { it.candidates.size <= 1 }) {
-            VCALMState.SelectFields
-        } else {
-            VCALMState.SelectCredential
         }
     }
 
@@ -446,16 +379,14 @@ fun HandleVCALMView(
     suspend fun startExchange() {
         try {
             val vdcCollection = VdcCollection(engine = credentialPacksViewModel.storageManager)
-            val signer = VCALMSigner("vcalm_holder_key")
+            val signer = Signer(DEFAULT_SIGNING_KEY_ID)
             holder = VcalmHolder.newSession(
                 vdcCollection, emptyList(), signer, null, null
             )
             val usableCredentialPacks = credentialPacksViewModel.credentialPacks.value
             val credentials = usableCredentialPacks.flatMap { pack -> pack.list() }
             usableCredentialPacks.forEach { pack ->
-                credentialClaims = credentialClaims + pack.findCredentialClaims(
-                    listOf("name", "type", "validFrom", "issuanceDate")
-                )
+                credentialClaims = credentialClaims + pack.findCredentialClaims(emptyList())
             }
             holder!!.provideCredentials(credentials)
 
@@ -463,8 +394,8 @@ fun HandleVCALMView(
 
             handleStep(result)
         } catch (e: Exception) {
-            errorTitle = "Error Adding Credential"
-            errorDescription = "Couldn't complete exchange ${url}. Error: ${e.message}"
+            errorTitle = "Error Starting Exchange"
+            errorDescription = "Couldn't start the exchange ${url}. Error: ${e.message}"
             state = VCALMState.Err
         }
     }
@@ -491,72 +422,75 @@ fun HandleVCALMView(
     when (state) {
         VCALMState.Loading -> LoadingView(loadingText = "Loading...")
 
-        VCALMState.Err ->
-            if (errorTitle != null && errorDescription != null) {
-                ErrorView(
-                    errorTitle = errorTitle!!,
-                    errorDetails = errorDescription!!,
-                    onClose = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } })
-            }
+        VCALMState.Err -> if (errorTitle != null && errorDescription != null) {
+            ErrorView(
+                errorTitle = errorTitle!!,
+                errorDetails = errorDescription!!,
+                onClose = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } })
+        }
 
-        VCALMState.AddToWallet ->
-            pendingWalletCredentials?.let { rawCredentials ->
-                AddToWalletView(
-                    navController = navController,
-                    rawCredentials = rawCredentials,
-                    navigateHomeOnSuccess = false,
-                    onAcceptCredential = { raw ->
-                        // Accept the offer at the protocol level idempotently before
-                        // storing this one locally.
-                        acceptOffer()
-                        if (offerAcceptError) {
-                            throw IllegalStateException("Offer acceptance failed")
-                        }
-                        acceptRawCredentialIntoWallet(
-                            raw,
-                            credentialPacksViewModel,
-                            walletActivityLogsViewModel,
-                        )
-                    },
-                    onSuccess = {
-                        pendingWalletCredentials = null
+        VCALMState.AddToWallet -> pendingWalletCredentials?.let { rawCredentials ->
+            AddToWalletView(
+                navController = navController,
+                rawCredentials = rawCredentials,
+                navigateHomeOnSuccess = false,
+                onAcceptCredential = { raw ->
+                    // Accept the offer at the protocol level idempotently before
+                    // storing this one locally.
+                    acceptOffer()
+                    if (offerAcceptError) {
+                        throw IllegalStateException("Offer acceptance failed")
+                    }
+                    acceptRawCredentialIntoWallet(
+                        raw,
+                        credentialPacksViewModel,
+                        walletActivityLogsViewModel,
+                    )
+                },
+                onSuccess = {
+                    pendingWalletCredentials = null
+                    if (offerAcceptError) {
+                        // Already surfaced via handleStep()
+                    } else {
                         when (val result = offerAcceptResult) {
                             null -> coroutineScope.launch { declineOffer() }
-                            is StepResult.Complete ->
-                                navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+                            is StepResult.Complete -> navController.navigate(Screen.HomeScreen.route) {
+                                popUpTo(
+                                    0
+                                )
+                            }
 
                             is StepResult.Problem -> {}
                             // Chained — the exchange isn't done yet, continue to whatever's next.
                             else -> coroutineScope.launch { handleStep(result) }
                         }
-                    },
-                )
-            }
+                    }
+                },
+            )
+        }
 
-        VCALMState.SelectCredential ->
-            requirements?.let { reqs ->
-                VcalmCredentialSelector(
-                    requirements = reqs,
-                    picks = picks,
-                    credentialClaims = credentialClaims,
-                    onPick = { queryIndex, credential ->
-                        picks = picks + (queryIndex to credential)
-                    },
-                    onContinue = { state = VCALMState.SelectFields },
-                    onCancel = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } },
-                )
-            }
+        VCALMState.SelectCredential -> requirements?.let { reqs ->
+            VcalmCredentialSelector(
+                requirements = reqs,
+                picks = picks,
+                credentialClaims = credentialClaims,
+                onPick = { queryIndex, credential ->
+                    picks = picks + (queryIndex to credential)
+                },
+                onContinue = { state = VCALMState.SelectFields },
+                onCancel = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } },
+            )
+        }
 
-        VCALMState.SelectFields ->
-            requirements?.let { reqs ->
-                VcalmFieldsSelector(
-                    requirements = reqs,
-                    picks = picks,
-                    credentialClaims = credentialClaims,
-                    onSubmit = { coroutineScope.launch { submitPicks() } },
-                    onCancel = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } },
-                )
-            }
+        VCALMState.SelectFields -> requirements?.let { reqs ->
+            VcalmFieldsSelector(
+                requirements = reqs,
+                picks = picks,
+                credentialClaims = credentialClaims,
+                onSubmit = { coroutineScope.launch { submitPicks() } },
+                onCancel = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } },
+            )
+        }
 
     }
 
@@ -616,8 +550,7 @@ fun VcalmCredentialSelector(
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
                 text = "Select a credential for",
@@ -657,8 +590,7 @@ fun VcalmCredentialSelector(
                         requestedFields = currentRequirement.fields,
                         credentialClaims = credentialClaims,
                         isChecked = picks[currentRequirement.queryIndex]?.id() == candidate.id(),
-                        onCheckedChange = { onPick(currentRequirement.queryIndex, candidate) }
-                    )
+                        onCheckedChange = { onPick(currentRequirement.queryIndex, candidate) })
                 }
             }
         }
@@ -680,9 +612,7 @@ fun VcalmCredentialSelector(
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(
-                        width = 1.dp,
-                        color = ColorStone300,
-                        shape = RoundedCornerShape(6.dp)
+                        width = 1.dp, color = ColorStone300, shape = RoundedCornerShape(6.dp)
                     )
                     .weight(1f)
             ) {
@@ -703,12 +633,9 @@ fun VcalmCredentialSelector(
                             onContinue()
                         }
                     }
-                },
-                shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(
+                }, shape = RoundedCornerShape(6.dp), colors = ButtonDefaults.buttonColors(
                     containerColor = if (currentSelectionValid) ColorStone600 else Color.Gray
-                ),
-                modifier = Modifier
+                ), modifier = Modifier
                     .fillMaxWidth()
                     .background(
                         color = if (currentSelectionValid) ColorStone600 else Color.Gray,
@@ -746,9 +673,7 @@ fun VcalmCredentialSelectorItem(
             .fillMaxWidth()
             .padding(vertical = 8.dp)
             .border(
-                width = 1.dp,
-                color = ColorBase300,
-                shape = RoundedCornerShape(8.dp)
+                width = 1.dp, color = ColorBase300, shape = RoundedCornerShape(8.dp)
             )
     ) {
         Row(
@@ -762,8 +687,7 @@ fun VcalmCredentialSelectorItem(
                 checked = isChecked,
                 onCheckedChange = { onCheckedChange() },
                 colors = CheckboxDefaults.colors(
-                    checkedColor = ColorBlue600,
-                    uncheckedColor = ColorStone300
+                    checkedColor = ColorBlue600, uncheckedColor = ColorStone300
                 )
             )
             Text(
@@ -779,14 +703,12 @@ fun VcalmCredentialSelectorItem(
                     Image(
                         painter = painterResource(id = R.drawable.collapse),
                         contentDescription = stringResource(id = R.string.collapse),
-                        modifier = Modifier.clickable { expanded = false }
-                    )
+                        modifier = Modifier.clickable { expanded = false })
                 } else {
                     Image(
                         painter = painterResource(id = R.drawable.expand),
                         contentDescription = stringResource(id = R.string.expand),
-                        modifier = Modifier.clickable { expanded = true }
-                    )
+                        modifier = Modifier.clickable { expanded = true })
                 }
             }
         }
@@ -801,8 +723,7 @@ fun VcalmCredentialSelectorItem(
                             append(it)
                         }
                     }
-                },
-                modifier = Modifier.padding(16.dp)
+                }, modifier = Modifier.padding(16.dp)
             )
         }
     }
@@ -865,13 +786,14 @@ fun VcalmFieldsSelector(
             if (currentRequirement.fields.isEmpty()) {
                 // No specific fields requested, show all claims from the credential
                 val allClaims = currentCredential?.let { credentialClaims[it.id()] } ?: JSONObject()
-                allClaims.keys().asSequence().toList().sorted().forEach { claimName ->
+                // @context is not meaningful to show the user
+                allClaims.keys().asSequence().toList()
+                    .filter { it != "@context" }
+                    .sorted()
+                    .forEach { claimName ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
-                            enabled = false,
-                            checked = true,
-                            onCheckedChange = { }
-                        )
+                            enabled = false, checked = true, onCheckedChange = { })
                         Text(
                             buildAnnotatedString {
                                 withStyle(style = paragraphStyle) {
@@ -897,8 +819,7 @@ fun VcalmFieldsSelector(
                                 } else {
                                     selectedFields.plus(field.path)
                                 }
-                            }
-                        )
+                            })
                         Text(
                             buildAnnotatedString {
                                 withStyle(style = paragraphStyle) {
@@ -929,9 +850,7 @@ fun VcalmFieldsSelector(
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(
-                        width = 1.dp,
-                        color = ColorStone300,
-                        shape = RoundedCornerShape(6.dp)
+                        width = 1.dp, color = ColorStone300, shape = RoundedCornerShape(6.dp)
                     )
                     .weight(1f)
             ) {
@@ -982,8 +901,7 @@ fun VcalmDomainMismatchBottomSheet(
     AppBottomSheet(
         onDismissRequest = onCancel,
         title = "Verifier domain mismatch",
-        subtitle = "This verifier's request domain ($domain) doesn't match the " +
-                "exchange's channel ($channel). Only continue if you recognize and trust both sites.",
+        subtitle = "This verifier's request domain ($domain) doesn't match the " + "exchange's channel ($channel). Only continue if you recognize and trust both sites.",
         onCancel = onCancel,
     ) {
         Button(

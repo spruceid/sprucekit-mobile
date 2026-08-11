@@ -157,18 +157,24 @@ fun SetupNavGraph(
             route = Screen.ScanQRScreen.route,
         ) { DispatchQRView(navController) }
         composable(
-            route = Screen.HandleInteraction.route,
-            arguments = listOf(
-                navArgument("url") {
-                    type = NavType.StringType
-                },
-                navArgument("credential_pack_id") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
+            route = Screen.HandleInteraction.route, arguments = listOf(
+            navArgument("url") {
+                type = NavType.StringType
+            })) { backStackEntry ->
+            val url = backStackEntry.arguments?.getString("url")!!
+            HandleInteractionView(
+                navController, url, null
             )
-        ) { backStackEntry ->
+        }
+        composable(
+            route = Screen.HandleInteractionWithCredentialPack.route,
+            arguments = listOf(navArgument("url") {
+                type = NavType.StringType
+            }, navArgument("credential_pack_id") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })) { backStackEntry ->
             val url = backStackEntry.arguments?.getString("url")!!
             val credentialPackId = backStackEntry.arguments?.getString("credential_pack_id")
             HandleInteractionView(

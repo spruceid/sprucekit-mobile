@@ -57,7 +57,8 @@ fun ProtocolSelectorBottomSheet(
     onClose: () -> Unit,
     protocols: Map<String, String>,
     navController: NavController,
-    credentialPackId: String?
+    credentialPackId: String?,
+    onError: (title: String, description: String) -> Unit,
 ) {
     var showSheet by remember {
         mutableStateOf(true)
@@ -91,25 +92,25 @@ fun ProtocolSelectorBottomSheet(
 
             "OID4VP" -> {
                 val baseRoute = when {
-                    uri.startsWith(OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->
-                        Screen.HandleOID4VPWithCredentialPack.route.replace(
-                            "{credential_pack_id}",
-                            credentialPackId
+                    uri.startsWith(OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() -> Screen.HandleOID4VPWithCredentialPack.route.replace(
+                        "{credential_pack_id}", credentialPackId
+                    )
+
+                    uri.startsWith(OID4VP_SCHEME) -> Screen.HandleOID4VP.route
+
+                    uri.startsWith(MDOC_OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() -> Screen.HandleMdocOID4VPWithCredentialPack.route.replace(
+                        "{credential_pack_id}", credentialPackId
+                    )
+
+                    uri.startsWith(MDOC_OID4VP_SCHEME) -> Screen.HandleMdocOID4VP.route
+
+                    else -> {
+                        onError(
+                            "Unsupported OID4VP link",
+                            "This QR code's OID4VP link ($uri) doesn't use a scheme this " + "app currently supports."
                         )
-
-                    uri.startsWith(OID4VP_SCHEME) ->
-                        Screen.HandleOID4VP.route
-
-                    uri.startsWith(MDOC_OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->
-                        Screen.HandleMdocOID4VPWithCredentialPack.route.replace(
-                            "{credential_pack_id}",
-                            credentialPackId
-                        )
-
-                    uri.startsWith(MDOC_OID4VP_SCHEME) ->
-                        Screen.HandleMdocOID4VP.route
-
-                    else -> throw IllegalArgumentException("Invalid OID4VP scheme")
+                        return
+                    }
                 }
 
                 val route = baseRoute.replace("{url}", encodedUrl)
@@ -118,6 +119,10 @@ fun ProtocolSelectorBottomSheet(
 
             }
 
+            else -> onError(
+                "Unsupported Protocol",
+                "This protocol is not currently supported on this app."
+            )
         }
     }
 

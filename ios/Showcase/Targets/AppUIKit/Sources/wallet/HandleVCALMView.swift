@@ -6,72 +6,9 @@ struct HandleVCALM: Hashable {
     var url: String
 }
 
-enum VcalmSignerError: Error {
-    case illegalArgumentException(reason: String)
-}
-
 // Used to surface when underlying offer acceptance (holder.acceptOffer) fails
 enum VcalmOfferAcceptanceError: Error {
     case failed
-}
-
-final class VCALMSigner: PresentationSigner {
-    private let keyId: String
-    private let _jwk: String
-    private let didJwk = DidMethodUtils(method: DidMethod.jwk)
-
-    init(keyId: String?) throws {
-        self.keyId =
-            if keyId == nil { DEFAULT_SIGNING_KEY_ID } else { keyId! }
-        if !KeyManager.keyExists(id: self.keyId) {
-            _ = KeyManager.generateSigningKey(id: self.keyId)
-        }
-        let jwk = KeyManager.getJwk(id: self.keyId)
-        if jwk == nil {
-            throw VcalmSignerError.illegalArgumentException(
-                reason: "Invalid kid"
-            )
-        } else {
-            self._jwk = jwk!.description
-        }
-    }
-
-    func sign(payload: Data) async throws -> Data {
-        let signature = KeyManager.signPayload(
-            id: keyId,
-            payload: [UInt8](payload)
-        )
-        if signature == nil {
-            throw VcalmSignerError.illegalArgumentException(
-                reason: "Failed to sign payload"
-            )
-        } else {
-            return Data(signature!)
-        }
-    }
-
-    func algorithm() -> String {
-        // Parse the jwk as a JSON object and return the "alg" field
-        let json = getGenericJSON(jsonString: _jwk)
-        return json?.dictValue?["alg"]?.toString() ?? "ES256"
-    }
-
-    func verificationMethod() async -> String {
-        return try! await didJwk.vmFromJwk(jwk: _jwk)
-    }
-
-    func did() -> String {
-        return try! didJwk.didFromJwk(jwk: _jwk)
-    }
-
-    func jwk() -> String {
-        return _jwk
-    }
-
-    func cryptosuite() -> String {
-        // TODO: Add an uniffi enum type for crypto suites.
-        return "ecdsa-rdfc-2019"
-    }
 }
 
 class VcalmDisplayError {
@@ -194,26 +131,6 @@ func vcalmCredentialTitle(
     return "Credential"
 }
 
-// Returns formatted issue date for a credential card, pulled from `validFrom` (VC 2.0),
-// `issuanceDate` VC 1.1 (), or `null` if neither claim is available.
-func vcalmCredentialIssuedDate(
-    _ parsedCredential: ParsedCredential,
-    credentialClaims: [String: [String: GenericJSON]]
-) -> String? {
-    guard let claims = credentialClaims[parsedCredential.id()] else {
-        return nil
-    }
-    var raw = claims["validFrom"]?.toString() ?? ""
-    if raw.isEmpty {
-        raw = claims["issuanceDate"]?.toString() ?? ""
-    }
-    guard !raw.isEmpty else { return nil }
-    if let tIndex = raw.firstIndex(of: "T") {
-        return String(raw[..<tIndex])
-    }
-    return raw
-}
-
 /// Normalizes the exchange endpoint into the bare `https` vcapi exchange URL
 /// the holder POSTs to.
 /// 1. CHAPI deep link — the web switchboard wraps the endpoint in the app's
@@ -275,6 +192,12 @@ struct HandleVCALMView: View {
     @State private var offerAcceptError: Bool = false
     @State private var domainMismatch: VcalmDomainMismatch?
     @State private var pendingSelection: [ParsedCredential] = []
+    // Set right before `onContinueAnyway` nils out `domainMismatch` itself,
+    // so the `.sheet(isPresented:)` binding's write-back (which SwiftUI
+    // calls for ANY dismissal, not just a user-initiated one) doesn't also
+    // invoke `cancelDomainMismatch()` and stomp a successful continuation
+    // with a stale "Presentation flow canceled" error.
+    @State private var suppressDomainMismatchCancel = false
 
     func back() {
         while !path.isEmpty {
@@ -286,7 +209,13 @@ struct HandleVCALMView: View {
         Binding(
             get: { domainMismatch != nil },
             set: { isPresented in
-                if !isPresented { cancelDomainMismatch() }
+                if !isPresented {
+                    if suppressDomainMismatchCancel {
+                        suppressDomainMismatchCancel = false
+                    } else {
+                        cancelDomainMismatch()
+                    }
+                }
             }
         )
     }
@@ -459,7 +388,7 @@ struct HandleVCALMView: View {
             let vdcCollection = VdcCollection(
                 engine: credentialPackObservable.storageManager
             )
-            let signer = try VCALMSigner(keyId: "vcalm_holder_key")
+            let signer = try Signer(keyId: DEFAULT_SIGNING_KEY_ID)
 
             let holder = try await VcalmHolder.newSession(
                 vdcCollection: vdcCollection,
@@ -476,9 +405,7 @@ struct HandleVCALMView: View {
             }
             credentialPackObservable.credentialPacks.forEach { pack in
                 credentialClaims = credentialClaims.merging(
-                    pack.findCredentialClaims(claimNames: [
-                        "name", "type", "validFrom", "issuanceDate",
-                    ])
+                    pack.findCredentialClaims(claimNames: [])
                 ) { (_, new) in new }
             }
             await holder.provideCredentials(credentials: credentials)
@@ -490,8 +417,8 @@ struct HandleVCALMView: View {
             await handleStep(result)
         } catch {
             err = VcalmDisplayError(
-                title: "Error Adding Credential",
-                details: "Couldn't complete exchange \(url). Error: \(error)"
+                title: "Error Starting Exchange",
+                details: "Couldn't start the exchange \(url). Error: \(error)"
             )
         }
         loading = false
@@ -513,6 +440,10 @@ struct HandleVCALMView: View {
                     rawCredentials: pendingWalletCredentials,
                     onSuccess: {
                         self.pendingWalletCredentials = nil
+                        if offerAcceptError {
+                            // Already surfaced inside acceptOffer()
+                            return
+                        }
                         guard let result = offerAcceptResult else {
                             Task { await declineOffer() }
                             return
@@ -593,6 +524,7 @@ struct HandleVCALMView: View {
                     onCancel: { cancelDomainMismatch() },
                     onContinueAnyway: {
                         let selection = pendingSelection
+                        suppressDomainMismatchCancel = true
                         self.domainMismatch = nil
                         Task {
                             loading = true
@@ -952,7 +884,9 @@ struct VcalmFieldsSelectorFields: View {
             // No specific fields requested, show all claims from the credential
             let allClaims =
                 currentCredential.flatMap { credentialClaims[$0.id()] } ?? [:]
-            ForEach(Array(allClaims.keys.sorted()), id: \.self) { claimName in
+            // @context is not meaningful to show the user as a disclosed field.
+            let allClaimNames = allClaims.keys.filter { $0 != "@context" }.sorted()
+            ForEach(Array(allClaimNames), id: \.self) { claimName in
                 SelectiveDisclosureItem(
                     fieldName: claimName,
                     required: true,

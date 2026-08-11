@@ -35,10 +35,7 @@ const val HTTPS_SCHEME = "https://"
 const val FIDO_SCHEME = "fido:/"
 
 enum class SupportedQRTypes {
-    INTERACTION,
-    OID4VP,
-    OID4VCI,
-    HTTP,
+    INTERACTION, OID4VP, OID4VCI, HTTP,
 
     FIDO,
 }
@@ -79,18 +76,19 @@ fun DispatchQRView(
         } else {
             url
         }
+        try {
+            val query: String = URI(stripped).query ?: ""
+            val params = query.split("&").mapNotNull {
+                    val idx = it.indexOf("=")
+                    if (idx < 0) null
+                    else it.substring(0, idx) to URLDecoder.decode(it.substring(idx + 1), "UTF-8")
+                }.toMap()
 
-        val query: String = URI(stripped).query ?: ""
-        val params = query.split("&")
-            .mapNotNull {
-                val idx = it.indexOf("=")
-                if (idx < 0) null
-                else it.substring(0, idx) to URLDecoder.decode(it.substring(idx + 1), "UTF-8")
-            }
-            .toMap()
-
-        val version = params["iuv"] ?: return false
-        return version == "1"
+            val version = params["iuv"] ?: return false
+            return version == "1"
+        } catch (_: Exception) {
+            return false
+        }
     }
 
     fun onRead(payload: String) {
@@ -113,11 +111,16 @@ fun DispatchQRView(
                 if (qrType != null && supportedTypes.contains(qrType)) {
                     when (qrType) {
                         SupportedQRTypes.INTERACTION -> {
-                            val route =
-                                Screen.HandleInteraction.route.replace("{url}", encodedUrl).replace(
-                                    "{credential_pack_id}",
-                                    credentialPackId ?: "null"
+                            val baseRoute = if (!credentialPackId.isNullOrEmpty()) {
+                                Screen.HandleInteractionWithCredentialPack.route.replace(
+                                    "{credential_pack_id}", credentialPackId
                                 )
+                            } else {
+                                Screen.HandleInteraction.route
+                            }
+
+                            val route = baseRoute.replace("{url}", encodedUrl)
+
                             navController.navigate(route) {
                                 launchSingleTop = true
                                 restoreState = true
@@ -126,23 +129,17 @@ fun DispatchQRView(
 
                         SupportedQRTypes.OID4VP -> {
                             val baseRoute = when {
-                                payload.startsWith(OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->
-                                    Screen.HandleOID4VPWithCredentialPack.route.replace(
-                                        "{credential_pack_id}",
-                                        credentialPackId
-                                    )
+                                payload.startsWith(OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() -> Screen.HandleOID4VPWithCredentialPack.route.replace(
+                                    "{credential_pack_id}", credentialPackId
+                                )
 
-                                payload.startsWith(OID4VP_SCHEME) ->
-                                    Screen.HandleOID4VP.route
+                                payload.startsWith(OID4VP_SCHEME) -> Screen.HandleOID4VP.route
 
-                                payload.startsWith(MDOC_OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() ->
-                                    Screen.HandleMdocOID4VPWithCredentialPack.route.replace(
-                                        "{credential_pack_id}",
-                                        credentialPackId
-                                    )
+                                payload.startsWith(MDOC_OID4VP_SCHEME) && !credentialPackId.isNullOrEmpty() -> Screen.HandleMdocOID4VPWithCredentialPack.route.replace(
+                                    "{credential_pack_id}", credentialPackId
+                                )
 
-                                payload.startsWith(MDOC_OID4VP_SCHEME) ->
-                                    Screen.HandleMdocOID4VP.route
+                                payload.startsWith(MDOC_OID4VP_SCHEME) -> Screen.HandleMdocOID4VP.route
 
                                 else -> throw IllegalArgumentException("Invalid OID4VP scheme")
                             }
@@ -183,9 +180,7 @@ fun DispatchQRView(
 
     if (err != null) {
         ErrorView(
-            errorTitle = "Error Reading QR Code",
-            errorDetails = err!!,
-            onClose = ::back
+            errorTitle = "Error Reading QR Code", errorDetails = err!!, onClose = ::back
         )
     } else {
         ScanningComponent(

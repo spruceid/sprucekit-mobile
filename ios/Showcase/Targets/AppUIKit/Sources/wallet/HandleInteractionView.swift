@@ -17,6 +17,8 @@ struct HandleInteractionView: View {
 
     @State var sheetOpen: Bool = false
     @State var err: String?
+    @State var protocolErrorTitle: String?
+    @State var protocolErrorDetails: String?
     @State var protocolSelected: Bool = false
     enum ExchangeError: Error {
         case badStatus(Int)
@@ -57,7 +59,13 @@ struct HandleInteractionView: View {
     }
     var body: some View {
         ZStack {
-            if err != nil {
+            if let protocolErrorTitle, let protocolErrorDetails {
+                ErrorView(
+                    errorTitle: protocolErrorTitle,
+                    errorDetails: protocolErrorDetails,
+                    onClose: onBack
+                )
+            } else if err != nil {
                 ErrorView(
                     errorTitle: "Error discovering protocols",
                     errorDetails: err!,
@@ -81,7 +89,12 @@ struct HandleInteractionView: View {
                 sheetOpen: $sheetOpen,
                 protocolSelected: $protocolSelected,
                 path: $path,
-                credentialPackId: credentialPackId
+                credentialPackId: credentialPackId,
+                onError: { title, details in
+                    sheetOpen = false
+                    protocolErrorTitle = title
+                    protocolErrorDetails = details
+                }
             )
             .presentationBackgroundInteraction(.automatic)
         }
