@@ -8,9 +8,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,21 +44,17 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import com.spruceid.mobile.sdk.CredentialPack
-import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.CredentialStatusList
 import com.spruceid.mobile.sdk.CredentialsViewModel
 import com.spruceid.mobile.sdk.getPermissions
-import com.spruceid.mobile.sdk.rs.DeviceEngagementData
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.generateCredentialPdf
 import com.spruceid.mobilesdkexample.LoadingView
@@ -85,7 +81,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
-import kotlin.uuid.Uuid
 
 class CredentialDetailsViewTabs(
     val image: @Composable () -> Painter,
@@ -294,7 +289,7 @@ fun CredentialDetailsView(
                             DispatchQRView(
                                 navController,
                                 credentialPackId,
-                                listOf(SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
+                                listOf(SupportedQRTypes.INTERACTION, SupportedQRTypes.OID4VP, SupportedQRTypes.HTTP),
                                 backgroundColor = ColorBase50,
                                 hideCancelButton = true
                             )
