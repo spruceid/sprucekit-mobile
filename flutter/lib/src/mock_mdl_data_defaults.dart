@@ -62,6 +62,7 @@ abstract final class MockMdlDataDefaults {
     String residentState = 'CA',
     String residentPostalCode = '90001',
     String residentCountry = 'US',
+    String? issuingJurisdiction,
   }) {
     return MockMdlData(
       familyName: familyName,
@@ -94,6 +95,7 @@ abstract final class MockMdlDataDefaults {
       residentState: residentState,
       residentPostalCode: residentPostalCode,
       residentCountry: residentCountry,
+      issuingJurisdiction: issuingJurisdiction,
     );
   }
 }

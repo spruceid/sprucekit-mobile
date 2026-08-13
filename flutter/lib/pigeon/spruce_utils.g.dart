@@ -214,8 +214,8 @@ class GenerateMockMdlError extends GenerateMockMdlResult {
 
 /// Data elements for a mock mDL.
 ///
-/// Mirrors the Rust `TestMdlData` record 1:1 (all fields required — the Rust
-/// record has no optionals). Field values follow ISO/IEC 18013-5
+/// Mirrors the Rust `TestMdlData` record 1:1 (all fields required except the
+/// optional `issuingJurisdiction`). Field values follow ISO/IEC 18013-5
 /// `org.iso.18013.5.1` element semantics; dates are `YYYY-MM-DD` strings and
 /// `portrait` is a base64-encoded JPEG.
 ///
@@ -254,6 +254,7 @@ class MockMdlData {
     required this.residentState,
     required this.residentPostalCode,
     required this.residentCountry,
+    this.issuingJurisdiction,
   });
 
   String familyName;
@@ -323,6 +324,10 @@ class MockMdlData {
 
   String residentCountry;
 
+  /// ISO 3166-2 issuing jurisdiction (e.g. "US-NY"); the
+  /// `issuing_jurisdiction` element is omitted from the mDoc when null.
+  String? issuingJurisdiction;
+
   List<Object?> _toList() {
     return <Object?>[
       familyName,
@@ -355,6 +360,7 @@ class MockMdlData {
       residentState,
       residentPostalCode,
       residentCountry,
+      issuingJurisdiction,
     ];
   }
 
@@ -395,6 +401,7 @@ class MockMdlData {
       residentState: result[27]! as String,
       residentPostalCode: result[28]! as String,
       residentCountry: result[29]! as String,
+      issuingJurisdiction: result[30] as String?,
     );
   }
 
@@ -436,7 +443,8 @@ class MockMdlData {
         _deepEquals(residentCity, other.residentCity) &&
         _deepEquals(residentState, other.residentState) &&
         _deepEquals(residentPostalCode, other.residentPostalCode) &&
-        _deepEquals(residentCountry, other.residentCountry);
+        _deepEquals(residentCountry, other.residentCountry) &&
+        _deepEquals(issuingJurisdiction, other.issuingJurisdiction);
   }
 
   @override

@@ -19586,10 +19586,19 @@ public struct TestMdlData: Equatable, Hashable {
     public var residentState: String
     public var residentPostalCode: String
     public var residentCountry: String
+    /**
+     * ISO 3166-2 issuing jurisdiction code (e.g. "US-NY"). When unset, the
+     * `issuing_jurisdiction` element is omitted from the generated mDoc.
+     */
+    public var issuingJurisdiction: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(familyName: String, givenName: String, birthDate: String, issueDate: String, expiryDate: String, issuingCountry: String, issuingAuthority: String, documentNumber: String, portrait: String, drivingPrivileges: [String], unDistinguishingSign: String, administrativeNumber: String, sex: UInt16, height: UInt16, weight: UInt16, eyeColour: String, hairColour: String, birthPlace: String, residentAddress: String, portraitCaptureDate: String, ageInYears: UInt16, ageBirthYear: UInt16, ageOver18: Bool, ageOver21: Bool, ageOver60: Bool, nationality: String, residentCity: String, residentState: String, residentPostalCode: String, residentCountry: String) {
+    public init(familyName: String, givenName: String, birthDate: String, issueDate: String, expiryDate: String, issuingCountry: String, issuingAuthority: String, documentNumber: String, portrait: String, drivingPrivileges: [String], unDistinguishingSign: String, administrativeNumber: String, sex: UInt16, height: UInt16, weight: UInt16, eyeColour: String, hairColour: String, birthPlace: String, residentAddress: String, portraitCaptureDate: String, ageInYears: UInt16, ageBirthYear: UInt16, ageOver18: Bool, ageOver21: Bool, ageOver60: Bool, nationality: String, residentCity: String, residentState: String, residentPostalCode: String, residentCountry: String, 
+        /**
+         * ISO 3166-2 issuing jurisdiction code (e.g. "US-NY"). When unset, the
+         * `issuing_jurisdiction` element is omitted from the generated mDoc.
+         */issuingJurisdiction: String?) {
         self.familyName = familyName
         self.givenName = givenName
         self.birthDate = birthDate
@@ -19620,6 +19629,7 @@ public struct TestMdlData: Equatable, Hashable {
         self.residentState = residentState
         self.residentPostalCode = residentPostalCode
         self.residentCountry = residentCountry
+        self.issuingJurisdiction = issuingJurisdiction
     }
 
     
@@ -19667,7 +19677,8 @@ public struct FfiConverterTypeTestMdlData: FfiConverterRustBuffer {
                 residentCity: FfiConverterString.read(from: &buf), 
                 residentState: FfiConverterString.read(from: &buf), 
                 residentPostalCode: FfiConverterString.read(from: &buf), 
-                residentCountry: FfiConverterString.read(from: &buf)
+                residentCountry: FfiConverterString.read(from: &buf), 
+                issuingJurisdiction: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -19702,6 +19713,7 @@ public struct FfiConverterTypeTestMdlData: FfiConverterRustBuffer {
         FfiConverterString.write(value.residentState, into: &buf)
         FfiConverterString.write(value.residentPostalCode, into: &buf)
         FfiConverterString.write(value.residentCountry, into: &buf)
+        FfiConverterOptionString.write(value.issuingJurisdiction, into: &buf)
     }
 }
 

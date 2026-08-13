@@ -62,6 +62,7 @@ void main() {
         residentState: 'rs',
         residentPostalCode: 'rpc',
         residentCountry: 'rco',
+        issuingJurisdiction: 'US-NY',
       );
 
       final decoded = MockMdlData.decode(data.encode());
@@ -111,6 +112,19 @@ void main() {
       // caller-chosen (the whole point of this API) and the latter is pinned.
       expect(data.documentNumber, 'DL61211920');
       expect(data.administrativeNumber, 'ADM12345678');
+
+      // Null keeps the issuing_jurisdiction element out of the mDoc, matching
+      // the legacy Rust path, which never embeds one.
+      expect(data.issuingJurisdiction, isNull);
+    });
+
+    test('issuingJurisdiction override propagates', () {
+      final data = MockMdlDataDefaults.johnDoe(
+        documentNumber: 'DL61211920',
+        issuingJurisdiction: 'US-NY',
+      );
+
+      expect(data.issuingJurisdiction, 'US-NY');
     });
 
     test('default portrait is byte-for-byte the Rust portrait asset', () {

@@ -318,4 +318,5 @@ private fun MockMdlData.toRust(): TestMdlData =
         residentState = residentState,
         residentPostalCode = residentPostalCode,
         residentCountry = residentCountry,
+        issuingJurisdiction = issuingJurisdiction,
     )
