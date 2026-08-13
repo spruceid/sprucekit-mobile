@@ -160,6 +160,21 @@ public struct ContentView: View {
                             onSuccess: handleOID4VCIParams.onSuccess
                         )
                     }
+                    .navigationDestination(for: HandleInteraction.self) {
+                        handleInteractionParams in
+                        HandleInteractionView(
+                            path: $path,
+                            url: handleInteractionParams.url,
+                            credentialPackId: handleInteractionParams.credentialPackId,
+                        )
+                    }
+                    .navigationDestination(for: HandleVCALM.self) {
+                        handleVCALMParams in
+                        HandleVCALMView(
+                            path: $path,
+                            url: handleVCALMParams.url,
+                        )
+                    }
                     .navigationDestination(for: DispatchQR.self) { _ in
                         DispatchQRView(path: $path)
                     }

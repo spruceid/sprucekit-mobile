@@ -30,11 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.spruceid.mobile.sdk.CredentialPack
-import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.ErrorView
 import com.spruceid.mobilesdkexample.LoadingView
-import com.spruceid.mobilesdkexample.db.WalletActivityLogs
 import com.spruceid.mobilesdkexample.navigation.Screen
 import com.spruceid.mobilesdkexample.ui.theme.ColorBase150
 import com.spruceid.mobilesdkexample.ui.theme.ColorEmerald700
@@ -42,10 +39,9 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorRose600
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.Toast
+import com.spruceid.mobilesdkexample.utils.acceptRawCredentialIntoWallet
 import com.spruceid.mobilesdkexample.utils.activityHiltViewModel
 import com.spruceid.mobilesdkexample.utils.credentialDisplaySelector
-import com.spruceid.mobilesdkexample.utils.getCredentialIdTitleAndIssuer
-import com.spruceid.mobilesdkexample.utils.getCurrentSqlDate
 import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
 import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
@@ -65,7 +61,13 @@ sealed class CredentialStepItem {
 fun AddToWalletView(
     navController: NavHostController,
     rawCredentials: List<String>,
-    onSuccess: (() -> Unit)? = null
+    onSuccess: (() -> Unit)? = null,
+    // When false, the caller is responsible for navigation once `onSuccess`
+    // fires — used by flows (like VCALM) that might need to continue in
+    // place rather than always going home.
+    navigateHomeOnSuccess: Boolean = true,
+    // Used to override behaviour for "Accept" button - used by protocols such as VCALM
+    onAcceptCredential: (suspend (rawCredential: String) -> Unit)? = null,
 ) {
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()
     val walletActivityLogsViewModel: WalletActivityLogsViewModel = activityHiltViewModel()
@@ -103,7 +105,9 @@ fun AddToWalletView(
         if (decidedIndices.size >= stepItems.size) {
             Toast.showSuccess("$acceptedCount of ${stepItems.size} credentials accepted")
             onSuccess?.invoke()
-            navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+            if (navigateHomeOnSuccess) {
+                navController.navigate(Screen.HomeScreen.route) { popUpTo(0) }
+            }
         }
     }
 
@@ -115,21 +119,15 @@ fun AddToWalletView(
         scope.launch {
             storing = true
             try {
-                val credentialPack = CredentialPack()
-                credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
-                credentialPacksViewModel.saveCredentialPack(credentialPack)
-                val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
-                walletActivityLogsViewModel.saveWalletActivityLog(
-                    walletActivityLogs = WalletActivityLogs(
-                        credentialPackId = credentialPack.id().toString(),
-                        credentialId = credentialInfo.first,
-                        credentialTitle = credentialInfo.second,
-                        issuer = credentialInfo.third,
-                        action = "Claimed",
-                        dateTime = getCurrentSqlDate(),
-                        additionalInformation = ""
+                if (onAcceptCredential != null) {
+                    onAcceptCredential(rawCredential)
+                } else {
+                    acceptRawCredentialIntoWallet(
+                        rawCredential,
+                        credentialPacksViewModel,
+                        walletActivityLogsViewModel,
                     )
-                )
+                }
                 acceptedCount += 1
             } catch (e: Exception) {
                 // Treat a save failure like a decline for this credential

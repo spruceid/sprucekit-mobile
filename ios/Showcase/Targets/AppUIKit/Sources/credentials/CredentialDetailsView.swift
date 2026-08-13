@@ -95,6 +95,7 @@ struct CredentialDetailsView: View {
                                 path: $path,
                                 credentialPackId: credentialPackId,
                                 supportedTypes: [
+                                    SupportedQRTypes.interaction,
                                     SupportedQRTypes.oid4vp,
                                     SupportedQRTypes.http,
                                 ],
