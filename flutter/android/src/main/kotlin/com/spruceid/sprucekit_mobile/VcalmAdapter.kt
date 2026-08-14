@@ -11,12 +11,12 @@ import com.spruceid.mobile.sdk.rs.OfferedValidity
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.StepResult
-import com.spruceid.mobile.toolkit.StorageManagerInterface
 import com.spruceid.mobile.sdk.rs.VcalmException
 import com.spruceid.mobile.sdk.rs.VcalmHolder
 import com.spruceid.mobile.sdk.rs.VcalmOfferedCredential
 import com.spruceid.mobile.sdk.rs.VdcCollection
 import com.spruceid.mobile.sdk.rs.Vpr
+import com.spruceid.mobile.toolkit.StorageManagerInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -239,11 +239,11 @@ internal class VcalmAdapter(
                 Log.d(TAG, "requestedFields: ${fields.size} field(s)")
                 callback(Result.success(fields.map { field ->
                     VcalmRequestedFieldData(
-                        queryIndex = field.queryIndex.toLong(),
-                        path = field.path,
-                        value = field.value,
-                        required = field.required,
-                        purpose = field.purpose
+                        queryIndex = field.queryIndex().toLong(),
+                        path = field.path(),
+                        value = field.value(),
+                        required = field.required(),
+                        purpose = field.purpose()
                     )
                 }))
             } catch (e: Exception) {
@@ -355,10 +355,10 @@ internal class VcalmAdapter(
      */
     private suspend fun toPigeonStep(step: StepResult): VcalmStepResult = when (step) {
         is StepResult.Request -> VcalmRequest(
-            challenge = step.vpr.challenge,
-            domain = step.vpr.domain,
-            purpose = step.vpr.query.firstNotNullOfOrNull { q ->
-                q.credentialQuery.firstNotNullOfOrNull { cq -> cq.reason }
+            challenge = step.vpr.challenge(),
+            domain = step.vpr.domain(),
+            purpose = step.vpr.query().firstNotNullOfOrNull { q ->
+                q.credentialQuery().firstNotNullOfOrNull { cq -> cq.reason() }
             },
             vprListsSdSuite = vprListsSd(step.vpr)
         )
@@ -379,13 +379,13 @@ internal class VcalmAdapter(
         is StepResult.Complete -> VcalmComplete(completed = true)
         is StepResult.Problem -> {
             // Server-supplied; logged at debug, not info level.
-            Log.d(TAG, "toPigeonStep: Problem type=${step.details.problemType} " +
-                "status=${step.details.status} title=${step.details.title}")
+            Log.d(TAG, "toPigeonStep: Problem type=${step.details.problemType()} " +
+                "status=${step.details.status()} title=${step.details.title()}")
             VcalmProblem(
-                problemType = step.details.problemType,
-                status = step.details.status?.toLong(),
-                title = step.details.title,
-                detail = step.details.detail
+                problemType = step.details.problemType(),
+                status = step.details.status()?.toLong(),
+                title = step.details.title(),
+                detail = step.details.detail()
             )
         }
     }
@@ -407,20 +407,20 @@ internal class VcalmAdapter(
         // Mirrors Rust vpr_lists_sd_suite: SD may be listed at the VPR top level,
         // at the query level (§3.4.3.1 — the spec's Examples 6/7 placement), OR
         // per-credentialQuery (some deployments use the latter).
-        if (entriesListSd(vpr.acceptedCryptosuites)) return true
-        return vpr.query.any { q ->
-            entriesListSd(q.acceptedCryptosuites) ||
-                q.credentialQuery.any { cq -> entriesListSd(cq.acceptedCryptosuites) }
+        if (entriesListSd(vpr.acceptedCryptosuites())) return true
+        return vpr.query().any { q ->
+            entriesListSd(q.acceptedCryptosuites()) ||
+                q.credentialQuery().any { cq -> entriesListSd(cq.acceptedCryptosuites()) }
         }
     }
 
     private fun projectOffered(c: VcalmOfferedCredential): VcalmOfferedCredentialData =
         VcalmOfferedCredentialData(
-            issuer = c.issuer,
-            types = c.types,
-            credentialSubject = c.credentialSubject,
-            validity = validityLabel(c.validity),
-            rawCredential = c.rawCredential
+            issuer = c.issuer(),
+            types = c.types(),
+            credentialSubject = c.credentialSubject(),
+            validity = validityLabel(c.validity()),
+            rawCredential = c.rawCredential()
         )
 
     private fun validityLabel(v: OfferedValidity): String = when (v) {

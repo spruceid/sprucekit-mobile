@@ -253,11 +253,11 @@ class VcalmAdapter: Vcalm {
                 log("requestedFields: \(fields.count) field(s)")
                 completion(.success(fields.map { field in
                     VcalmRequestedFieldData(
-                        queryIndex: Int64(field.queryIndex),
-                        path: field.path,
-                        value: field.value,
-                        required: field.required,
-                        purpose: field.purpose
+                        queryIndex: Int64(field.queryIndex()),
+                        path: field.path(),
+                        value: field.value(),
+                        required: field.required(),
+                        purpose: field.purpose()
                     )
                 }))
             } catch {
@@ -401,9 +401,9 @@ class VcalmAdapter: Vcalm {
         case let .request(vpr):
             log("step Request: vprListsSdSuite=\(vprListsSd(vpr))")
             return VcalmRequest(
-                challenge: vpr.challenge,
-                domain: vpr.domain,
-                purpose: vpr.query.flatMap { $0.credentialQuery }.compactMap { $0.reason }.first,
+                challenge: vpr.challenge(),
+                domain: vpr.domain(),
+                purpose: vpr.query().flatMap { $0.credentialQuery() }.compactMap { $0.reason() }.first,
                 vprListsSdSuite: vprListsSd(vpr)
             )
         case let .offer(_, nextVpr, _):
@@ -425,12 +425,12 @@ class VcalmAdapter: Vcalm {
             return VcalmComplete(completed: true)
         case let .problem(details):
             // Server-supplied; logged for diagnosis, not at info level.
-            log("step Problem: type=\(details.problemType) status=\(String(describing: details.status)) title=\(String(describing: details.title))")
+            log("step Problem: type=\(details.problemType()) status=\(String(describing: details.status())) title=\(String(describing: details.title()))")
             return VcalmProblem(
-                problemType: details.problemType,
-                status: details.status.map { Int64($0) },
-                title: details.title,
-                detail: details.detail
+                problemType: details.problemType(),
+                status: details.status().map { Int64($0) },
+                title: details.title(),
+                detail: details.detail()
             )
         }
     }
@@ -452,20 +452,20 @@ class VcalmAdapter: Vcalm {
         // Mirrors Rust vpr_lists_sd_suite: SD may be listed at the VPR top level,
         // at the query level (§3.4.3.1 — the spec's Examples 6/7 placement), OR
         // per-credentialQuery (some deployments use the latter).
-        if entriesListSd(vpr.acceptedCryptosuites) { return true }
-        return vpr.query.contains { q in
-            entriesListSd(q.acceptedCryptosuites)
-                || q.credentialQuery.contains { cq in entriesListSd(cq.acceptedCryptosuites) }
+        if entriesListSd(vpr.acceptedCryptosuites()) { return true }
+        return vpr.query().contains { q in
+            entriesListSd(q.acceptedCryptosuites())
+                || q.credentialQuery().contains { cq in entriesListSd(cq.acceptedCryptosuites()) }
         }
     }
 
     private static func projectOffered(_ c: VcalmOfferedCredential) -> VcalmOfferedCredentialData {
         VcalmOfferedCredentialData(
-            issuer: c.issuer,
-            types: c.types,
-            credentialSubject: c.credentialSubject,
-            validity: validityLabel(c.validity),
-            rawCredential: c.rawCredential
+            issuer: c.issuer(),
+            types: c.types(),
+            credentialSubject: c.credentialSubject(),
+            validity: validityLabel(c.validity()),
+            rawCredential: c.rawCredential()
         )
     }
 

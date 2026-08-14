@@ -24,6 +24,7 @@ pub mod storage_manager;
 mod tests;
 pub mod trusted_roots;
 pub mod vcalm;
+mod vcalm_adapters;
 pub mod vdc_collection;
 pub mod verifier;
 pub mod w3c_vc_barcodes;

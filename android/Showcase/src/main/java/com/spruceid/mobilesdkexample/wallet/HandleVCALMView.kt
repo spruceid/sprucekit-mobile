@@ -99,18 +99,18 @@ fun buildVcalmRequirements(
     requestedFields: List<VcalmRequestedField>,
     matched: List<VcalmMatchedCredentials>,
 ): List<VcalmRequirement> {
-    val fieldsByQuery = requestedFields.filter { it.path != "type" && it.path != "@context" }
-        .groupBy { it.queryIndex }
+    val fieldsByQuery = requestedFields.filter { it.path() != "type" && it.path() != "@context" }
+        .groupBy { it.queryIndex() }
     val candidatesByQuery =
         matched.associate { it.queryIndex to it.credentials.map { c -> c.credential } }
     val typesByQuery =
-        requestedFields.filter { it.path == "type" }.associate { it.queryIndex to it.value }
+        requestedFields.filter { it.path() == "type" }.associate { it.queryIndex() to it.value() }
 
     val queryIndices = (fieldsByQuery.keys + candidatesByQuery.keys).toSortedSet()
 
     return queryIndices.map { queryIndex ->
         val fields = fieldsByQuery[queryIndex].orEmpty()
-        val purposeLabel = fields.map { it.purpose }.firstOrNull { !it.isNullOrEmpty() }
+        val purposeLabel = fields.map { it.purpose() }.firstOrNull { !it.isNullOrEmpty() }
         val typeLabel = typesByQuery[queryIndex]?.let { vcalmRequirementLabelFromType(it) }
         VcalmRequirement(
             queryIndex = queryIndex,
@@ -273,7 +273,7 @@ fun HandleVCALMView(
             val matched = holder!!.matchedCredentials()
             val requestedFields = holder!!.requestedFields()
 
-            Log.d(TAG, "VCALM verifier request domain=${vpr.domain} query=${vpr.query}")
+            Log.d(TAG, "VCALM verifier request domain=${vpr.domain()} query=${vpr.query()}")
 
             if (requestedFields.isEmpty()) {
                 // No fields requested — this is a DID-authentication-only request
@@ -318,7 +318,7 @@ fun HandleVCALMView(
                 // the user taps "Add to Wallet" in AddToWalletView
                 offerAcceptResult = null
                 offerAcceptError = false
-                pendingWalletCredentials = offered.map { it.rawCredential }
+                pendingWalletCredentials = offered.map { it.rawCredential() }
                 state = VCALMState.AddToWallet
             }
 
@@ -334,7 +334,7 @@ fun HandleVCALMView(
             is StepResult.Problem -> {
                 val details = result.details
                 errorTitle = "Verifier reported a problem"
-                errorDescription = details.title ?: details.detail ?: details.problemType
+                errorDescription = details.title() ?: details.detail() ?: details.problemType()
                 state = VCALMState.Err
             }
         }
@@ -666,7 +666,7 @@ fun VcalmCredentialSelectorItem(
 
     val bullet = "•"
     val paragraphStyle = ParagraphStyle(textIndent = TextIndent(restLine = 12.sp))
-    val displayFields = requestedFields.map { it.path.splitCamelCase().removeUnderscores() }
+    val displayFields = requestedFields.map { it.path().splitCamelCase().removeUnderscores() }
 
     Column(
         modifier = Modifier
@@ -806,25 +806,25 @@ fun VcalmFieldsSelector(
                 }
             } else {
                 var selectedFields by remember(currentRequirement.queryIndex) {
-                    mutableStateOf(currentRequirement.fields.map { it.path }.toSet())
+                    mutableStateOf(currentRequirement.fields.map { it.path() }.toSet())
                 }
                 currentRequirement.fields.forEach { field ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
-                            enabled = !field.required,
-                            checked = selectedFields.contains(field.path) || field.required,
+                            enabled = !field.required(),
+                            checked = selectedFields.contains(field.path()) || field.required(),
                             onCheckedChange = { v ->
                                 selectedFields = if (!v) {
-                                    selectedFields.minus(field.path)
+                                    selectedFields.minus(field.path())
                                 } else {
-                                    selectedFields.plus(field.path)
+                                    selectedFields.plus(field.path())
                                 }
                             })
                         Text(
                             buildAnnotatedString {
                                 withStyle(style = paragraphStyle) {
                                     append("\t\t")
-                                    append(field.path.splitCamelCase().removeUnderscores())
+                                    append(field.path().splitCamelCase().removeUnderscores())
                                 }
                             },
                         )
