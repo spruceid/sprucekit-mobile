@@ -39,8 +39,7 @@ oid4vci_legacy = { package = "oid4vci", git = "https://github.com/spruceid/oid4v
 openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "6127287" }
 openidvp_draft18 = { package = "openid4vp", git = "https://github.com/spruceid/openid4vp", rev = "2446e7"}
 ssi = { version = "0.14", features = ["secp256r1", "secp384r1"] }
-# vcalm-rs = { git = "https://github.com/spruceid/vcalm-rs", rev = "9de15fa" }
-vcalm-rs = { path = "../../vcalm-rs" }
+vcalm-rs = { git = "https://github.com/spruceid/vcalm-rs", rev = "9de15fa" }
 
 anyhow = "1"
 async-trait = "0.1"
@@ -103,8 +102,3 @@ wiremock = "0.6.3"
 
 [build-dependencies]
 uniffi = { workspace = true, features = ["build"] }
-
-[patch.crates-io] 
-ssi = { git = "https://github.com/spruceid/ssi", branch = "fix/multiproof-select-0.14" } 
-ssi-jwk = { git = "https://github.com/spruceid/ssi", branch = "fix/multiproof-select-0.14" } 
-ssi-jws = { git = "https://github.com/spruceid/ssi", branch = "fix/multiproof-select-0.14" } 
