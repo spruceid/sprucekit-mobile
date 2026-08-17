@@ -15858,25 +15858,12 @@ public func FfiConverterTypeVCDM2SdJwt_lower(_ value: Vcdm2SdJwt) -> UInt64 {
 
 
 
-/**
- * A stateful VCALM holder session driving one `vcapi` exchange.
- */
 public protocol VcalmHolderProtocol: AnyObject, Sendable {
     
-    /**
-     * Accept the credentials in the current Offer: verify all, store all, then
-     * advance.
-     */
     func acceptOffer() async throws  -> StepResult
     
-    /**
-     * Per current-VPR QueryByExample query, the stored credentials that match.
-     */
     func matchedCredentials() async throws  -> [VcalmMatchedCredentials]
     
-    /**
-     * Preview the credentials in the current Offer, read-only.
-     */
     func offeredCredentials() async throws  -> [VcalmOfferedCredential]
     
     /**
@@ -15884,15 +15871,8 @@ public protocol VcalmHolderProtocol: AnyObject, Sendable {
      */
     func provideCredentials(credentials: [ParsedCredential]) async 
     
-    /**
-     * Reject the current Offer: advance without storing.
-     */
     func rejectOffer() async throws  -> StepResult
     
-    /**
-     * Per current-VPR QueryByExample query, the fields that query's `example`
-     * names. Informational only.
-     */
     func requestedFields() async throws  -> [VcalmRequestedField]
     
     /**
@@ -15906,9 +15886,6 @@ public protocol VcalmHolderProtocol: AnyObject, Sendable {
     func submitPresentation(selectedCredentials: [ParsedCredential], allowDomainMismatch: Bool) async throws  -> StepResult
     
 }
-/**
- * A stateful VCALM holder session driving one `vcapi` exchange.
- */
 open class VcalmHolder: VcalmHolderProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
 
@@ -15960,14 +15937,6 @@ open class VcalmHolder: VcalmHolderProtocol, @unchecked Sendable {
     }
 
     
-    /**
-     * Construct a holder session.
-     *
-     * NOTE: named `new_session`, NOT `new`. uniffi maps an async constructor
-     * literally named `new` onto the Kotlin *primary* constructor — which can't
-     * be `suspend` — so it generates neither a usable constructor nor a
-     * companion factory, making the object unconstructable from Kotlin.
-     */
 public static func newSession(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> VcalmHolder  {
     return
         try  await uniffiRustCallAsync(
@@ -15985,10 +15954,6 @@ public static func newSession(vdcCollection: VdcCollection, trustedDids: [String
     
 
     
-    /**
-     * Accept the credentials in the current Offer: verify all, store all, then
-     * advance.
-     */
 open func acceptOffer()async throws  -> StepResult  {
     return
         try  await uniffiRustCallAsync(
@@ -16006,9 +15971,6 @@ open func acceptOffer()async throws  -> StepResult  {
         )
 }
     
-    /**
-     * Per current-VPR QueryByExample query, the stored credentials that match.
-     */
 open func matchedCredentials()async throws  -> [VcalmMatchedCredentials]  {
     return
         try  await uniffiRustCallAsync(
@@ -16026,9 +15988,6 @@ open func matchedCredentials()async throws  -> [VcalmMatchedCredentials]  {
         )
 }
     
-    /**
-     * Preview the credentials in the current Offer, read-only.
-     */
 open func offeredCredentials()async throws  -> [VcalmOfferedCredential]  {
     return
         try  await uniffiRustCallAsync(
@@ -16067,9 +16026,6 @@ open func provideCredentials(credentials: [ParsedCredential])async   {
         )
 }
     
-    /**
-     * Reject the current Offer: advance without storing.
-     */
 open func rejectOffer()async throws  -> StepResult  {
     return
         try  await uniffiRustCallAsync(
@@ -16087,10 +16043,6 @@ open func rejectOffer()async throws  -> StepResult  {
         )
 }
     
-    /**
-     * Per current-VPR QueryByExample query, the fields that query's `example`
-     * names. Informational only.
-     */
 open func requestedFields()async throws  -> [VcalmRequestedField]  {
     return
         try  await uniffiRustCallAsync(
@@ -20413,28 +20365,13 @@ public func FfiConverterTypeTxCodeDefinition_lower(_ value: TxCodeDefinition) ->
 }
 
 
-/**
- * One matched credential plus its disclosure mode for THIS request.
- */
 public struct VcalmMatchedCredential {
-    /**
-     * The stored credential that satisfied the query.
-     */
     public var credential: ParsedCredential
-    /**
-     * `true` when presenting under the CURRENT VPR would selectively disclose.
-     */
     public var selectiveDisclosure: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(
-        /**
-         * The stored credential that satisfied the query.
-         */credential: ParsedCredential, 
-        /**
-         * `true` when presenting under the CURRENT VPR would selectively disclose.
-         */selectiveDisclosure: Bool) {
+    public init(credential: ParsedCredential, selectiveDisclosure: Bool) {
         self.credential = credential
         self.selectiveDisclosure = selectiveDisclosure
     }
@@ -20484,29 +20421,14 @@ public func FfiConverterTypeVcalmMatchedCredential_lower(_ value: VcalmMatchedCr
 
 /**
  * The credentials matching one QueryByExample query in the current VPR.
- *
- * Re-declared here rather than re-exported: vcalm-rs's version is generic over
- * the host credential type, and UniFFI cannot export a generic.
  */
 public struct VcalmMatchedCredentials {
-    /**
-     * Index of the originating query in the VPR's `query[]` array.
-     */
     public var queryIndex: UInt32
-    /**
-     * The stored credentials that satisfied that query (may be empty).
-     */
     public var credentials: [VcalmMatchedCredential]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(
-        /**
-         * Index of the originating query in the VPR's `query[]` array.
-         */queryIndex: UInt32, 
-        /**
-         * The stored credentials that satisfied that query (may be empty).
-         */credentials: [VcalmMatchedCredential]) {
+    public init(queryIndex: UInt32, credentials: [VcalmMatchedCredential]) {
         self.queryIndex = queryIndex
         self.credentials = credentials
     }
@@ -23316,10 +23238,6 @@ public func FfiConverterTypeDisclosureSelection_lower(_ value: DisclosureSelecti
 
 /**
  * Errors from protocol discovery.
- *
- * Mirrors `vcalm_rs::discover_protocols::DiscoveryError` variant-for-variant;
- * the `From` below is exhaustive, so a new upstream variant is a compile error
- * here rather than a silent gap.
  */
 public enum DiscoveryError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -30404,11 +30322,6 @@ public func FfiConverterTypeVPError_lower(_ value: VpError) -> RustBuffer {
 
 /**
  * Errors from a VCALM exchange.
- *
- * Re-declared rather than wrapped: UniFFI errors must be enums, so there is no
- * opaque-object option here. The variants mirror `vcalm_rs::VcalmError` exactly
- * and the `From` below is exhaustive, so adding a variant upstream is a compile
- * error here rather than a silent gap.
  */
 public enum VcalmError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -37170,22 +37083,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_jsonldpresentationbuilder_issue_presentation() != 26995) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_accept_offer() != 44181) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_accept_offer() != 60894) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_matched_credentials() != 52963) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_matched_credentials() != 58650) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_offered_credentials() != 35451) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_offered_credentials() != 10866) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_provide_credentials() != 21180) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_reject_offer() != 29166) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_reject_offer() != 13553) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_requested_fields() != 7886) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_requested_fields() != 19329) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_start_exchange() != 15267) {
@@ -37518,7 +37431,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_jsonldpresentationbuilder_new() != 20630) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_vcalmholder_new_session() != 50089) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_vcalmholder_new_session() != 65042) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_vdccollection_new() != 3535) {

@@ -61,7 +61,7 @@ impl VcalmCredentialStore for VdcCollection {
             .into_generic_form()
             .map_err(|e| PortError::Decode(e.to_string()))?;
 
-            let stored = Credential {
+        let stored = Credential {
             id: credential.id,
             key_alias: None,
             ..generic
@@ -185,7 +185,7 @@ mod tests {
     }
 
     /// End to end: a holder built from the real `VdcCollection`, the real
-    /// signer, and VCALM's default engine. 
+    /// signer, and VCALM's default engine.
     #[tokio::test]
     async fn holder_constructs_over_the_real_sdk_types() {
         let vdc = Arc::new(VdcCollection::new(Arc::new(LocalStore::new())));
