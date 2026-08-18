@@ -53,23 +53,6 @@ pub enum JsonVcEncodingError {
     #[error("failed to encode JSON as bytes")]
     JsonBytesEncoding,
 }
-
-/// Errors from the isolated `ecdsa-sd-2023` selective-disclosure derive seam
-/// ([`JsonVc::derive_sd_vp_credential`]).
-#[derive(Debug, thiserror::Error)]
-pub enum JsonVcDeriveError {
-    #[error("credential does not carry an ecdsa-sd-2023 base proof")]
-    NotSdBaseProof,
-    #[error("failed to decode base-proof credential JSON for selective disclosure")]
-    Decode,
-    #[error("invalid JSON-LD context map for selective disclosure: {0}")]
-    Context(String),
-    #[error("selective-disclosure derivation failed: {0}")]
-    Select(String),
-    #[error("failed to encode the derived selective-disclosure credential")]
-    Encode,
-}
-
 #[derive(uniffi::Object, Debug, Clone)]
 /// A verifiable credential secured as JSON.
 pub struct JsonVc {

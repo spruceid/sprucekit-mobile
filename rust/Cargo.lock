@@ -1363,8 +1363,7 @@ dependencies = [
 [[package]]
 name = "did-ethr"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d552edf905d60dfd15976cc909e738e60597cec4844bc72b7afbe1a11354282a"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "hex",
  "iref",
@@ -1379,8 +1378,7 @@ dependencies = [
 [[package]]
 name = "did-ion"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce3f7cbdf474f2a78054f0a56015098b928f1c07a7227dca3846597cdeda808a"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "base64 0.22.1",
  "iref",
@@ -1401,15 +1399,14 @@ dependencies = [
 [[package]]
 name = "did-jwk"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b44e30bf3c78dcdd4794f67a2d7c625cbbefbb3492449c3e15fa0731ae8afe21"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "iref",
  "multibase 0.8.0",
  "serde_jcs",
  "serde_json",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-dids-core",
  "ssi-jwk 0.4.0",
  "ssi-verification-methods",
@@ -1420,8 +1417,7 @@ dependencies = [
 [[package]]
 name = "did-method-key"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb70af852c114e35b025e09b83bace5b81ac3f0ff6490a42b63eaedc682f191d"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "bs58",
  "iref",
@@ -1431,9 +1427,9 @@ dependencies = [
  "serde_json",
  "simple_asn1",
  "ssi-dids-core",
- "ssi-json-ld",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
- "ssi-multicodec",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "static-iref",
  "thiserror 2.0.18",
 ]
@@ -1441,8 +1437,7 @@ dependencies = [
 [[package]]
 name = "did-pkh"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4373deb0e353af350bdd10f03d99cc60fa97bf5707b71ddbfc828e3f2a7611b"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "bech32",
@@ -1452,7 +1447,7 @@ dependencies = [
  "serde",
  "serde_json",
  "ssi-caips",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-dids-core",
  "ssi-jwk 0.4.0",
  "static-iref",
@@ -1462,8 +1457,7 @@ dependencies = [
 [[package]]
 name = "did-tz"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d39a706e7587b6247b1c26ea9944a4959b66cfe5b4508a213792fad0f103154"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "bs58",
@@ -1485,8 +1479,7 @@ dependencies = [
 [[package]]
 name = "did-web"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "192109ca9252333a4e596b682099cc0a92abb9703894c20a3a8c138834deef7a"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "http 0.2.12",
  "iref",
@@ -5649,21 +5642,20 @@ dependencies = [
 [[package]]
 name = "ssi"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8124738dd351f00b169ae3a1025d7c5ef65913805d7be6b60d960ebae2dc916"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "document-features",
  "ssi-caips",
  "ssi-claims",
  "ssi-core 0.3.0",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-dids",
- "ssi-eip712",
- "ssi-json-ld",
+ "ssi-eip712 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
  "ssi-jws",
- "ssi-multicodec",
- "ssi-rdf",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-rdf 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-security",
  "ssi-ssh",
  "ssi-status",
@@ -5676,8 +5668,7 @@ dependencies = [
 [[package]]
 name = "ssi-caips"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b72537ab24b91065a01de3667b9fb2842b9e9574f44f4fbac7a4892b98adb16"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "bs58",
  "linked-data",
@@ -5690,8 +5681,7 @@ dependencies = [
 [[package]]
 name = "ssi-claims"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6273a70b052445d4f4eaafad34ff4a78b37c3ee8e36c48002c5ab28500505fdf"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "educe 0.4.23",
  "iref",
@@ -5705,11 +5695,11 @@ dependencies = [
  "ssi-claims-core 0.2.0",
  "ssi-core 0.3.0",
  "ssi-cose",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-data-integrity",
  "ssi-dids-core",
- "ssi-eip712",
- "ssi-json-ld",
+ "ssi-eip712 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
  "ssi-jws",
  "ssi-jwt",
@@ -5730,25 +5720,24 @@ dependencies = [
  "chrono",
  "educe 0.4.23",
  "ssi-core 0.2.3",
- "ssi-crypto",
- "ssi-eip712",
- "ssi-json-ld",
+ "ssi-crypto 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ssi-eip712 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ssi-json-ld 0.3.3",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "ssi-claims-core"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6077d3e3cbfe8c034a704131cfcb51a7628f5ee940f7679b1f12202e280e468"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "chrono",
  "educe 0.4.23",
  "serde",
  "ssi-core 0.3.0",
- "ssi-crypto",
- "ssi-eip712",
- "ssi-json-ld",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-eip712 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-json-ld 0.3.2",
  "thiserror 2.0.18",
 ]
 
@@ -5757,6 +5746,11 @@ name = "ssi-contexts"
 version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d0eda75b662bc3d7a9e751292c96a71a3d9bdcfb887e0b895032a5fd23c203e"
+
+[[package]]
+name = "ssi-contexts"
+version = "0.1.10"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 
 [[package]]
 name = "ssi-core"
@@ -5773,8 +5767,7 @@ dependencies = [
 [[package]]
 name = "ssi-core"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ce624bf36e40a13cbb7f7d375b0a2613346fbdb9fa6adb974a1b98bc85de512"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "pin-project",
@@ -5785,14 +5778,13 @@ dependencies = [
 [[package]]
 name = "ssi-cose"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "017f8840cbb91bf667da53aa38e4fea4667272e00b5fc192f7b9f1ec2e18db11"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "ciborium",
  "coset",
  "serde",
  "ssi-claims-core 0.2.0",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "thiserror 2.0.18",
 ]
 
@@ -5801,6 +5793,29 @@ name = "ssi-crypto"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53aded7b6dc3dabb004ee658fc46358c09623ad7aa61b99388ff734ae222d5d2"
+dependencies = [
+ "async-trait",
+ "bs58",
+ "digest 0.9.0",
+ "getrandom 0.2.17",
+ "hex",
+ "iref",
+ "k256",
+ "keccak-hash",
+ "pin-project",
+ "rand 0.8.5",
+ "ripemd160",
+ "serde",
+ "sha2 0.10.9",
+ "static-iref",
+ "thiserror 1.0.69",
+ "zeroize",
+]
+
+[[package]]
+name = "ssi-crypto"
+version = "0.2.1"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "bs58",
@@ -5819,15 +5834,14 @@ dependencies = [
  "serde",
  "sha2 0.10.9",
  "static-iref",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "zeroize",
 ]
 
 [[package]]
 name = "ssi-data-integrity"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b61d0a9b42ae8d593c5cc73ef2b9b5251043ac6d3a144b1c3bdf4ad42e52072c"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "chrono",
  "iref",
@@ -5838,15 +5852,15 @@ dependencies = [
  "serde_json",
  "ssi-claims-core 0.2.0",
  "ssi-core 0.3.0",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-data-integrity-core",
  "ssi-data-integrity-suites",
  "ssi-di-sd-primitives",
- "ssi-eip712",
- "ssi-json-ld",
+ "ssi-eip712 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
  "ssi-jws",
- "ssi-rdf",
+ "ssi-rdf 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-security",
  "ssi-verification-methods",
  "thiserror 2.0.18",
@@ -5855,8 +5869,7 @@ dependencies = [
 [[package]]
 name = "ssi-data-integrity-core"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13c0bdc72065ac010ee1f9502e3e8cef582f63195c104d347cbcca184aab11d4"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "chrono",
  "contextual",
@@ -5876,11 +5889,11 @@ dependencies = [
  "serde_json",
  "ssi-claims-core 0.2.0",
  "ssi-core 0.3.0",
- "ssi-crypto",
- "ssi-json-ld",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
  "ssi-jws",
- "ssi-rdf",
+ "ssi-rdf 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-security",
  "ssi-verification-methods",
  "static-iref",
@@ -5891,8 +5904,7 @@ dependencies = [
 [[package]]
 name = "ssi-data-integrity-suites"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d4b450c193224eb8127926b33bbc385c6dca8bed810ff7fa36d3d02854002ff"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -5921,17 +5933,17 @@ dependencies = [
  "serde_json",
  "ssi-caips",
  "ssi-claims-core 0.2.0",
- "ssi-contexts",
+ "ssi-contexts 0.1.10 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-core 0.3.0",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-data-integrity-core",
  "ssi-di-sd-primitives",
- "ssi-eip712",
- "ssi-json-ld",
+ "ssi-eip712 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
  "ssi-jws",
- "ssi-multicodec",
- "ssi-rdf",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-rdf 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-security",
  "ssi-verification-methods",
  "static-iref",
@@ -5942,8 +5954,7 @@ dependencies = [
 [[package]]
 name = "ssi-di-sd-primitives"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "667bc1ce813620fed05e03ae13d4bf5c79277bbf5b13215003a6ea27649a13f3"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "base64 0.22.1",
  "digest 0.10.7",
@@ -5956,8 +5967,8 @@ dependencies = [
  "serde",
  "sha2 0.10.9",
  "ssi-core 0.3.0",
- "ssi-json-ld",
- "ssi-rdf",
+ "ssi-json-ld 0.3.2",
+ "ssi-rdf 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "thiserror 2.0.18",
  "uuid",
 ]
@@ -5965,8 +5976,7 @@ dependencies = [
 [[package]]
 name = "ssi-dids"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "18865cdadebc3db05366bba3360956c3da0711cbecf43d3d24f3a700f3924194"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "did-ethr",
  "did-ion",
@@ -5983,8 +5993,7 @@ dependencies = [
 [[package]]
 name = "ssi-dids-core"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40e24709b5bc3f5e3e2512a1ee15a4a4b33d0f023f5c1f07ebca3e1faeefae44"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "iref",
@@ -5996,8 +6005,8 @@ dependencies = [
  "serde_urlencoded",
  "ssi-claims-core 0.2.0",
  "ssi-core 0.3.0",
- "ssi-crypto",
- "ssi-json-ld",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
  "ssi-jws",
  "ssi-verification-methods-core",
@@ -6025,6 +6034,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssi-eip712"
+version = "0.1.1"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
+dependencies = [
+ "hex",
+ "indexmap 2.14.0",
+ "iref",
+ "json-syntax",
+ "keccak-hash",
+ "linked-data",
+ "rdf-types",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "ssi-json-ld"
+version = "0.3.2"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
+dependencies = [
+ "combination",
+ "iref",
+ "json-ld",
+ "json-syntax",
+ "lazy_static",
+ "linked-data",
+ "serde",
+ "ssi-contexts 0.1.10 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-rdf 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "static-iref",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "ssi-json-ld"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6037,8 +6082,8 @@ dependencies = [
  "lazy_static",
  "linked-data",
  "serde",
- "ssi-contexts",
- "ssi-rdf",
+ "ssi-contexts 0.1.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ssi-rdf 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "static-iref",
  "thiserror 2.0.18",
 ]
@@ -6068,8 +6113,8 @@ dependencies = [
  "serde_json",
  "simple_asn1",
  "ssi-claims-core 0.1.3",
- "ssi-crypto",
- "ssi-multicodec",
+ "ssi-crypto 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ssi-multicodec 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 1.0.69",
  "zeroize",
 ]
@@ -6077,8 +6122,7 @@ dependencies = [
 [[package]]
 name = "ssi-jwk"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8661b5d6865c305d60d7f6cba252ee1f505461d439813c4e0725d46c0d6d4848"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "base64 0.22.1",
  "blake2b_simd 0.5.11",
@@ -6102,8 +6146,8 @@ dependencies = [
  "serde_json",
  "simple_asn1",
  "ssi-claims-core 0.2.0",
- "ssi-crypto",
- "ssi-multicodec",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "thiserror 1.0.69",
  "zeroize",
 ]
@@ -6111,8 +6155,7 @@ dependencies = [
 [[package]]
 name = "ssi-jws"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da74f7d5b23f215784e5d0a0f4620ec9f7104293b22bca9b9d0549d852347dd1"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "base64 0.22.1",
  "blake2",
@@ -6132,7 +6175,7 @@ dependencies = [
  "sha3",
  "ssi-claims-core 0.2.0",
  "ssi-core 0.3.0",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-jwk 0.4.0",
  "thiserror 1.0.69",
 ]
@@ -6140,8 +6183,7 @@ dependencies = [
 [[package]]
 name = "ssi-jwt"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9954d5ec6e0dbdb7a8dfb0e7de1a8e861d08b1ba6a518f9f85d93f5be0b4c226"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "chrono",
@@ -6155,7 +6197,7 @@ dependencies = [
  "slab",
  "ssi-claims-core 0.2.0",
  "ssi-core 0.3.0",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-jwk 0.4.0",
  "ssi-jws",
  "thiserror 1.0.69",
@@ -6168,11 +6210,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4fec8cbdadfc90aec4839fd79f03aa887364f5f210c3aecbf9c6f7d76ab79055"
 dependencies = [
  "csv",
+ "thiserror 1.0.69",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "ssi-multicodec"
+version = "0.2.0"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
+dependencies = [
+ "csv",
  "ed25519-dalek",
  "k256",
  "p256",
  "p384",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "unsigned-varint",
 ]
 
@@ -6188,14 +6240,27 @@ dependencies = [
  "linked-data",
  "rdf-types",
  "serde",
- "ssi-crypto",
+ "ssi-crypto 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ssi-rdf"
+version = "0.1.1"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
+dependencies = [
+ "combination",
+ "indexmap 2.14.0",
+ "iref",
+ "linked-data",
+ "rdf-types",
+ "serde",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
 ]
 
 [[package]]
 name = "ssi-sd-jwt"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53a1142deb53f01e3ade8a152fbb4f7c839535f7dfcd968a845189330c152a12"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "base64 0.22.1",
  "indexmap 2.14.0",
@@ -6214,8 +6279,7 @@ dependencies = [
 [[package]]
 name = "ssi-security"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f870a28eabccd4ae0e807122859bb83e36b87dd096ba01215abce524bddfc247"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "iref",
  "linked-data",
@@ -6228,8 +6292,7 @@ dependencies = [
 [[package]]
 name = "ssi-ssh"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1462545f18d4a44e24bde1b40e7719cffa6e660dc3b3abf0b801551385152445"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "sshkeys",
  "ssi-jwk 0.4.0",
@@ -6239,8 +6302,7 @@ dependencies = [
 [[package]]
 name = "ssi-status"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e18684409b04cf1c0435260c07b8bbca5f3b682b892148075098f4710cff89e0"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "base64 0.22.1",
  "flate2",
@@ -6254,7 +6316,7 @@ dependencies = [
  "serde_json",
  "ssi-claims-core 0.2.0",
  "ssi-data-integrity",
- "ssi-json-ld",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
  "ssi-jws",
  "ssi-jwt",
@@ -6269,8 +6331,7 @@ dependencies = [
 [[package]]
 name = "ssi-ucan"
 version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08bd9115aa44a62d280b76bcf2341624783683eb55a15272e0e93fac684aa1e0"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -6295,8 +6356,7 @@ dependencies = [
 [[package]]
 name = "ssi-vc"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ee4789b48c25bfe73e37b2450554ec744acae70471dfb6c8df5db1ad2e67a288"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "base64 0.22.1",
  "bitvec 0.20.4",
@@ -6314,9 +6374,9 @@ dependencies = [
  "ssi-core 0.3.0",
  "ssi-data-integrity",
  "ssi-dids-core",
- "ssi-json-ld",
+ "ssi-json-ld 0.3.2",
  "ssi-jwt",
- "ssi-rdf",
+ "ssi-rdf 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-verification-methods",
  "static-iref",
  "thiserror 2.0.18",
@@ -6326,8 +6386,7 @@ dependencies = [
 [[package]]
 name = "ssi-vc-jose-cose"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3092fab47305216ecc77f0ecd0dd53e0a24fd09a6fe19629a33c2ce889dcfc9d"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "base64 0.22.1",
  "ciborium",
@@ -6335,7 +6394,7 @@ dependencies = [
  "serde_json",
  "ssi-claims-core 0.2.0",
  "ssi-cose",
- "ssi-json-ld",
+ "ssi-json-ld 0.3.2",
  "ssi-jws",
  "ssi-jwt",
  "ssi-sd-jwt",
@@ -6347,8 +6406,7 @@ dependencies = [
 [[package]]
 name = "ssi-verification-methods"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "674a3cbf872f0e5219627a0fcbbab7670ba8e53437a71ed0d582727453e36180"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "derivative",
@@ -6373,11 +6431,11 @@ dependencies = [
  "ssi-caips",
  "ssi-claims-core 0.2.0",
  "ssi-core 0.3.0",
- "ssi-crypto",
- "ssi-eip712",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-eip712 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-jwk 0.4.0",
  "ssi-jws",
- "ssi-multicodec",
+ "ssi-multicodec 0.2.0 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-security",
  "ssi-verification-methods-core",
  "static-iref",
@@ -6387,8 +6445,7 @@ dependencies = [
 [[package]]
 name = "ssi-verification-methods-core"
 version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d07e438a43570484fbab55e45ad9a2d2ca069bb6e7de71493505b4eb1d5473f"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "bs58",
  "educe 0.4.23",
@@ -6401,8 +6458,8 @@ dependencies = [
  "serde_json",
  "ssi-claims-core 0.2.0",
  "ssi-core 0.3.0",
- "ssi-crypto",
- "ssi-json-ld",
+ "ssi-crypto 0.2.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
  "ssi-jws",
  "static-iref",
@@ -6412,8 +6469,7 @@ dependencies = [
 [[package]]
 name = "ssi-zcap-ld"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b9708fdcef05f73948202ec604378a3216357a5bef354ab4bb894e72c4582b0"
+source = "git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14#596eea2b4bc6cf4b6220e93538a5533dcd114902"
 dependencies = [
  "async-trait",
  "iref",
@@ -6424,10 +6480,10 @@ dependencies = [
  "ssi-claims",
  "ssi-core 0.3.0",
  "ssi-dids-core",
- "ssi-eip712",
- "ssi-json-ld",
+ "ssi-eip712 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
+ "ssi-json-ld 0.3.2",
  "ssi-jwk 0.4.0",
- "ssi-rdf",
+ "ssi-rdf 0.1.1 (git+https://github.com/spruceid/ssi?branch=fix%2Fmultiproof-select-0.14)",
  "ssi-verification-methods",
  "static-iref",
  "thiserror 2.0.18",
@@ -7376,7 +7432,7 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 [[package]]
 name = "vcalm-rs"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/vcalm-rs?rev=9de15fa#9de15fa5b58346cae2605ff1eeb93119c4b7294c"
+source = "git+https://github.com/spruceid/vcalm-rs?rev=cd97bd7#cd97bd77d5ca184209b6e9df723aec47e0150275"
 dependencies = [
  "async-trait",
  "futures",

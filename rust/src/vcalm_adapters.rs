@@ -15,6 +15,15 @@ use crate::vdc_collection::VdcCollection;
 
 pub(crate) type SdkCredential = Arc<ParsedCredential>;
 
+/// Helper to project a parsed credential into JSON body, where a non-JSON-LD credential
+/// yields `Null`, which is deemed not matchable by `StoredCredential::is_json_ld_vc`
+pub(crate) fn json_ld_body(credential: &ParsedCredential) -> Value {
+    credential
+        .as_json_vc()
+        .map(|json_vc| json_vc.raw.clone())
+        .unwrap_or(Value::Null)
+}
+
 #[async_trait::async_trait]
 impl VcalmCredentialStore for VdcCollection {
     type Credential = SdkCredential;
@@ -37,15 +46,9 @@ impl VcalmCredentialStore for VdcCollection {
             .try_into_parsed()
             .map_err(|e| PortError::Decode(e.to_string()))?;
 
-        // A non-JSON-LD credential (mdoc, SD-JWT) gets a `Null` body
-        let body = parsed
-            .as_json_vc()
-            .map(|json_vc| json_vc.raw.clone())
-            .unwrap_or(Value::Null);
-
         Ok(Some(StoredCredential {
             id,
-            body,
+            body: json_ld_body(&parsed),
             host: parsed,
         }))
     }

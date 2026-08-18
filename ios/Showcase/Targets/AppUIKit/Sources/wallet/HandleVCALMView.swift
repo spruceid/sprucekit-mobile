@@ -45,8 +45,8 @@ func buildVcalmRequirements(
     // a credential claim, so they're excluded from the requirement's fields.
     var fieldsByQuery: [UInt32: [VcalmRequestedField]] = [:]
     for field in requestedFields
-    where field.path() != "type" && field.path() != "@context" {
-        fieldsByQuery[field.queryIndex(), default: []].append(field)
+    where field.path != "type" && field.path != "@context" {
+        fieldsByQuery[field.queryIndex, default: []].append(field)
     }
 
     var candidatesByQuery: [UInt32: [ParsedCredential]] = [:]
@@ -57,8 +57,8 @@ func buildVcalmRequirements(
     }
 
     var typesByQuery: [UInt32: String] = [:]
-    for field in requestedFields where field.path() == "type" {
-        typesByQuery[field.queryIndex()] = field.value()
+    for field in requestedFields where field.path == "type" {
+        typesByQuery[field.queryIndex] = field.value
     }
 
     let queryIndices = Set(fieldsByQuery.keys).union(candidatesByQuery.keys)
@@ -66,7 +66,7 @@ func buildVcalmRequirements(
 
     return queryIndices.map { queryIndex in
         let fields = fieldsByQuery[queryIndex] ?? []
-        let purposeLabel = fields.compactMap { $0.purpose() }.first {
+        let purposeLabel = fields.compactMap { $0.purpose }.first {
             !$0.isEmpty
         }
         let typeLabel = typesByQuery[queryIndex].flatMap {
@@ -317,7 +317,7 @@ struct HandleVCALMView: View {
                 // level until the user taps "Add to Wallet" in AddToWalletView
                 offerAcceptResult = nil
                 offerAcceptError = false
-                pendingWalletCredentials = offered.map { $0.rawCredential() }
+                pendingWalletCredentials = offered.map { $0.rawCredential }
             } catch {
                 err = VcalmDisplayError(
                     title: "Error Loading Offer",
@@ -333,7 +333,7 @@ struct HandleVCALMView: View {
         case .problem(let details):
             err = VcalmDisplayError(
                 title: "Verifier reported a problem",
-                details: details.title() ?? details.detail() ?? details.problemType()
+                details: details.title ?? details.detail ?? details.problemType
             )
         }
     }
@@ -395,7 +395,6 @@ struct HandleVCALMView: View {
                 trustedDids: trustedDids,
                 signer: signer,
                 contextMap: nil,
-                keystore: nil,
             )
             self.holder = holder
 
@@ -689,7 +688,7 @@ struct VcalmCredentialSelectorItem: View {
     ) {
         self.candidate = candidate
         self.requestedFields = requestedFields.map {
-            $0.path().camelCaseToWords().capitalized.replaceUnderscores()
+            $0.path.camelCaseToWords().capitalized.replaceUnderscores()
         }
         self.title = vcalmCredentialTitle(
             candidate,
@@ -863,18 +862,18 @@ struct VcalmFieldsSelectorFields: View {
         self.currentCredential = currentCredential
         self.credentialClaims = credentialClaims
         self._selectedFields = State(
-            initialValue: Set(requirement.fields.map { $0.path() })
+            initialValue: Set(requirement.fields.map { $0.path })
         )
     }
 
     func fieldBinding(_ field: VcalmRequestedField) -> Binding<Bool> {
         Binding {
-            selectedFields.contains(field.path()) || field.required()
+            selectedFields.contains(field.path) || field.required
         } set: { checked in
             if checked {
-                selectedFields.insert(field.path())
+                selectedFields.insert(field.path)
             } else {
-                selectedFields.remove(field.path())
+                selectedFields.remove(field.path)
             }
         }
     }
@@ -898,8 +897,8 @@ struct VcalmFieldsSelectorFields: View {
                 _,
                 field in
                 SelectiveDisclosureItem(
-                    fieldName: field.path(),
-                    required: field.required(),
+                    fieldName: field.path,
+                    required: field.required,
                     isChecked: fieldBinding(field)
                 )
             }

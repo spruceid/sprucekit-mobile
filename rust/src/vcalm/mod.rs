@@ -1,15 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use serde_json::Value;
-use uuid::Uuid;
-
 use vcalm_rs::ports::StoredCredential;
 
 use crate::credential::ParsedCredential;
-use crate::crypto::KeyStore;
 use crate::oid4vp::presentation::PresentationSigner;
-use crate::vcalm_adapters::{SdkCredential, VcalmSignerAdapter};
+use crate::vcalm_adapters::{json_ld_body, SdkCredential, VcalmSignerAdapter};
 use crate::vdc_collection::VdcCollection;
 
 pub mod wire;
@@ -20,19 +16,11 @@ pub use wire::{
     VcalmRequestedField, Vpr,
 };
 
-/// Project a parsed credential into the shape VCALM carries.
-///
-/// The `body` is the JSON-LD VC when there is one; anything else (mdoc, SD-JWT)
-/// gets `Null`, which VCALM reads as "not matchable" — the same outcome as
-/// `as_json_vc()` returning `None` in the pre-extraction code.
+/// Project a host-provided wallet credential into the shape VCALM carries.
 fn to_stored(credential: Arc<ParsedCredential>) -> StoredCredential<SdkCredential> {
-    let body = credential
-        .as_json_vc()
-        .map(|json_vc| json_vc.raw.clone())
-        .unwrap_or(Value::Null);
     StoredCredential {
         id: credential.id(),
-        body,
+        body: json_ld_body(&credential),
         host: credential,
     }
 }
@@ -48,11 +36,7 @@ impl VcalmHolder {
         trusted_dids: Vec<String>,
         signer: Box<dyn PresentationSigner>,
         context_map: Option<HashMap<String, String>>,
-        keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, VcalmError> {
-        // `keystore` is accepted and ignored (dropping the parameter would change the generated bindings)
-        let _ = &keystore;
-
         let context_map = Some(match context_map {
             Some(map) if !map.is_empty() => map,
             _ => crate::context::default_ld_json_context(),
@@ -110,13 +94,13 @@ impl VcalmHolder {
             .collect())
     }
 
-    pub async fn requested_fields(&self) -> Result<Vec<Arc<VcalmRequestedField>>, VcalmError> {
+    pub async fn requested_fields(&self) -> Result<Vec<VcalmRequestedField>, VcalmError> {
         Ok(self
             .0
             .requested_fields()
             .await?
             .into_iter()
-            .map(|f| Arc::new(VcalmRequestedField(f)))
+            .map(Into::into)
             .collect())
     }
 
@@ -145,15 +129,13 @@ impl VcalmHolder {
         Ok(self.0.clone().reject_offer().await?.into())
     }
 
-    pub async fn offered_credentials(
-        &self,
-    ) -> Result<Vec<Arc<VcalmOfferedCredential>>, VcalmError> {
+    pub async fn offered_credentials(&self) -> Result<Vec<VcalmOfferedCredential>, VcalmError> {
         Ok(self
             .0
             .offered_credentials()
             .await?
             .into_iter()
-            .map(|c| Arc::new(VcalmOfferedCredential(c)))
+            .map(Into::into)
             .collect())
     }
 }
@@ -169,8 +151,4 @@ pub struct VcalmMatchedCredentials {
 pub struct VcalmMatchedCredential {
     pub credential: Arc<ParsedCredential>,
     pub selective_disclosure: bool,
-}
-
-pub fn stable_local_id(entry: &Value) -> Uuid {
-    vcalm_rs::issuance::stable_local_id(entry)
 }
