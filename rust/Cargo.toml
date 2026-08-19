@@ -103,6 +103,8 @@ wiremock = "0.6.3"
 [build-dependencies]
 uniffi = { workspace = true, features = ["build"] }
 
+# Temporary: required for VCALM issuance (AmbiguousProofs on multi-proof VCs).
+# Drop once the fix ships in a crates.io release.
 [patch.crates-io] 
 ssi = { git = "https://github.com/spruceid/ssi", branch = "fix/multiproof-select-0.14" } 
 ssi-jwk = { git = "https://github.com/spruceid/ssi", branch = "fix/multiproof-select-0.14" } 
