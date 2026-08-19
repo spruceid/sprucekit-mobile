@@ -381,7 +381,7 @@ fun HandleVCALMView(
             val vdcCollection = VdcCollection(engine = credentialPacksViewModel.storageManager)
             val signer = Signer(DEFAULT_SIGNING_KEY_ID)
             holder = VcalmHolder.newSession(
-                vdcCollection, emptyList(), signer, null, null
+                vdcCollection, emptyList(), signer, null
             )
             val usableCredentialPacks = credentialPacksViewModel.credentialPacks.value
             val credentials = usableCredentialPacks.flatMap { pack -> pack.list() }
