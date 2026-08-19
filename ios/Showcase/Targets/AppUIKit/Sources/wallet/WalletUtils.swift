@@ -53,6 +53,12 @@ extension String {
     func replaceEscaping() -> String {
         return self.replacingOccurrences(of: "\\/", with: "/")
     }
+
+    /// Whether the value links to a remotely hosted image rather than holding an inline base64 one.
+    var isRemoteImageUrl: Bool {
+        let value = self.lowercased()
+        return value.hasPrefix("http://") || value.hasPrefix("https://")
+    }
 }
 
 extension Data {
