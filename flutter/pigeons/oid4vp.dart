@@ -114,7 +114,12 @@ sealed class Oid4vpResult {}
 class Oid4vpSuccess implements Oid4vpResult {
   String? message;
 
-  Oid4vpSuccess({this.message});
+  /// Redirect URI returned by the verifier in the direct_post response
+  /// (OID4VP §8.2), when it wants the user sent back to the browser after a
+  /// successful submission. Only ever set by `submitResponse`.
+  String? redirectUrl;
+
+  Oid4vpSuccess({this.message, this.redirectUrl});
 }
 
 /// Operation failed with error

@@ -338,9 +338,16 @@ class Oid4vpAdapter: Oid4vp {
                     responseOptions: responseOptions
                 )
 
-                _ = try await session.submitPermissionResponse(response: permissionResponse)
+                // The verifier's direct_post response may carry a redirect_uri
+                // (OID4VP §8.2) sending the user back to the browser.
+                let redirectUrl = try await session.submitPermissionResponse(
+                    response: permissionResponse)
 
-                completion(.success(Oid4vpSuccess(message: "Presentation submitted successfully")))
+                completion(
+                    .success(
+                        Oid4vpSuccess(
+                            message: "Presentation submitted successfully",
+                            redirectUrl: redirectUrl)))
             } catch {
                 completion(.success(Oid4vpError(message: error.localizedDescription)))
             }

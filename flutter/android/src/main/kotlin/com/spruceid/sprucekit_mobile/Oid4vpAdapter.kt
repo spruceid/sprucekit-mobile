@@ -324,9 +324,14 @@ internal class Oid4vpAdapter(
                     responseOptions
                 )
 
-                currentSession.submitPermissionResponse(permissionResponse)
+                // The verifier's direct_post response may carry a redirect_uri
+                // (OID4VP §8.2) sending the user back to the browser.
+                val redirectUrl = currentSession.submitPermissionResponse(permissionResponse)
 
-                callback(Result.success(Oid4vpSuccess(message = "Presentation submitted successfully")))
+                callback(Result.success(Oid4vpSuccess(
+                    message = "Presentation submitted successfully",
+                    redirectUrl = redirectUrl
+                )))
             } catch (e: Exception) {
                 callback(Result.success(Oid4vpError(
                     message = e.localizedMessage ?: "Failed to submit response"
