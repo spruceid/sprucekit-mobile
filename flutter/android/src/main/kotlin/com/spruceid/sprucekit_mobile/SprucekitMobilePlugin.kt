@@ -1,8 +1,10 @@
 package com.spruceid.sprucekit_mobile
 
+import com.spruceid.mobile.sdk.rs.DynamicCredentialProvider
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import java.util.concurrent.CopyOnWriteArrayList
 
 /**
  * SprucekitMobilePlugin
@@ -14,6 +16,22 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
  * the binding when the plugin attaches to a host Activity.
  */
 class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
+    companion object {
+        /**
+         * Dynamic credential providers registered by the host application.
+         * Providers issue per-presentation credentials natively; offers
+         * surface through `Oid4vp.getDynamicOffers` and selected offers are
+         * issued during `Oid4vp.submitResponseWithOffers`.
+         *
+         * Register before any OID4VP flow starts; a snapshot is taken per
+         * `Oid4vp.createHolder` and lives for that holder. Global to the
+         * process; safe for concurrent registration.
+         */
+        @JvmStatic
+        val dynamicCredentialProviders: MutableList<DynamicCredentialProvider> =
+            CopyOnWriteArrayList()
+    }
+
     private lateinit var oid4vciAdapter: Oid4vciAdapter
     private lateinit var credentialPackAdapter: CredentialPackAdapter
     private lateinit var oid4vpAdapter: Oid4vpAdapter

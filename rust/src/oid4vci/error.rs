@@ -76,6 +76,14 @@ mod tests {
             other => panic!("unexpected error variant: {other:?}"),
         }
     }
+
+    #[test]
+    fn presentation_required_display_is_the_verbatim_authorization_request() {
+        let error = Oid4vciError::PresentationRequired {
+            authorization_request: r#"{"response_type":"vp_token"}"#.into(),
+        };
+        assert_eq!(error.to_string(), r#"{"response_type":"vp_token"}"#);
+    }
 }
 
 // use ssi::{

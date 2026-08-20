@@ -7,8 +7,8 @@ import Foundation
 // Depending on the consumer's build setup, the low-level FFI code
 // might be in a separate module, or it might be compiled inline into
 // this module. This is a bit of light hackery to work with both.
-#if canImport(RustFramework)
-import RustFramework
+#if canImport(MobileSdkRsFFI)
+import MobileSdkRsFFI
 #endif
 
 fileprivate extension RustBuffer {
@@ -1435,227 +1435,6 @@ public func FfiConverterTypeApduHandoverDriver_lift(_ handle: UInt64) throws -> 
 #endif
 public func FfiConverterTypeApduHandoverDriver_lower(_ value: ApduHandoverDriver) -> UInt64 {
     return FfiConverterTypeApduHandoverDriver.lower(value)
-}
-
-
-
-
-
-
-public protocol AsyncHttpClient: AnyObject, Sendable {
-    
-    func httpClient(request: HttpRequest) async throws  -> HttpResponse
-    
-}
-open class AsyncHttpClientImpl: AsyncHttpClient, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_asynchttpclient(self.handle, $0) }
-    }
-    // No primary constructor declared for this class.
-
-    deinit {
-        if handle == 0 {
-            // Mock objects have handle=0 don't try to free them
-            return
-        }
-
-        try! rustCall { uniffi_mobile_sdk_rs_fn_free_asynchttpclient(handle, $0) }
-    }
-
-    
-
-    
-open func httpClient(request: HttpRequest)async throws  -> HttpResponse  {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_method_asynchttpclient_http_client(
-                    self.uniffiCloneHandle(),
-                    FfiConverterTypeHttpRequest_lower(request)
-                )
-            },
-            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
-            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
-            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterTypeHttpResponse_lift,
-            errorHandler: FfiConverterTypeHttpClientError_lift
-        )
-}
-    
-
-    
-}
-
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceAsyncHttpClient {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // Store the vtable directly.
-    static let vtable: UniffiVTableCallbackInterfaceAsyncHttpClient = UniffiVTableCallbackInterfaceAsyncHttpClient(
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            do {
-                try FfiConverterTypeAsyncHttpClient.handleMap.remove(handle: uniffiHandle)
-            } catch {
-                print("Uniffi callback interface AsyncHttpClient: handle missing in uniffiFree")
-            }
-        },
-        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
-            do {
-                return try FfiConverterTypeAsyncHttpClient.handleMap.clone(handle: uniffiHandle)
-            } catch {
-                fatalError("Uniffi callback interface AsyncHttpClient: handle missing in uniffiClone")
-            }
-        },
-        httpClient: { (
-            uniffiHandle: UInt64,
-            request: RustBuffer,
-            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
-            uniffiCallbackData: UInt64,
-            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
-        ) in
-            let makeCall = {
-                () async throws -> HttpResponse in
-                guard let uniffiObj = try? FfiConverterTypeAsyncHttpClient.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try await uniffiObj.httpClient(
-                     request: try FfiConverterTypeHttpRequest_lift(request)
-                )
-            }
-
-            let uniffiHandleSuccess = { (returnValue: HttpResponse) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultRustBuffer(
-                        returnValue: FfiConverterTypeHttpResponse_lower(returnValue),
-                        callStatus: RustCallStatus()
-                    )
-                )
-            }
-            let uniffiHandleError = { (statusCode, errorBuf) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultRustBuffer(
-                        returnValue: RustBuffer.empty(),
-                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
-                    )
-                )
-            }
-            uniffiTraitInterfaceCallAsyncWithError(
-                makeCall: makeCall,
-                handleSuccess: uniffiHandleSuccess,
-                handleError: uniffiHandleError,
-                lowerError: FfiConverterTypeHttpClientError_lower,
-                droppedCallback: uniffiOutDroppedCallback
-            )
-        }
-    )
-
-    // Rust stores this pointer for future callback invocations, so it must live
-    // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceAsyncHttpClient> = {
-        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceAsyncHttpClient>.allocate(capacity: 1)
-        ptr.initialize(to: vtable)
-        return UnsafePointer(ptr)
-    }()
-}
-
-private func uniffiCallbackInitAsyncHttpClient() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_asynchttpclient(UniffiCallbackInterfaceAsyncHttpClient.vtablePtr)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeAsyncHttpClient: FfiConverter {
-    fileprivate static let handleMap = UniffiHandleMap<AsyncHttpClient>()
-
-    typealias FfiType = UInt64
-    typealias SwiftType = AsyncHttpClient
-
-    public static func lift(_ handle: UInt64) throws -> AsyncHttpClient {
-        if ((handle & 1) == 0) {
-            // Rust-generated handle, construct a new class that uses the handle to implement the
-            // interface
-            return AsyncHttpClientImpl(unsafeFromHandle: handle)
-        } else {
-            // Swift-generated handle, get the object from the handle map
-            return try handleMap.remove(handle: handle)
-        }
-    }
-
-    public static func lower(_ value: AsyncHttpClient) -> UInt64 {
-         if let rustImpl = value as? AsyncHttpClientImpl {
-             // Rust-implemented object.  Clone the handle and return it
-            return rustImpl.uniffiCloneHandle()
-         } else {
-            // Swift object, generate a new vtable handle and return that.
-            return handleMap.insert(obj: value)
-         }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AsyncHttpClient {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: AsyncHttpClient, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeAsyncHttpClient_lift(_ handle: UInt64) throws -> AsyncHttpClient {
-    return try FfiConverterTypeAsyncHttpClient.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeAsyncHttpClient_lower(_ value: AsyncHttpClient) -> UInt64 {
-    return FfiConverterTypeAsyncHttpClient.lower(value)
 }
 
 
@@ -5079,6 +4858,347 @@ public func FfiConverterTypeDraft18RequestedField_lower(_ value: Draft18Requeste
 
 
 /**
+ * A foreign-implemented provider that can mint credentials on device during a
+ * presentation to satisfy a DCQL credential query.
+ *
+ * The provider owns its own keys, schema and derivation; the SDK passes it no
+ * key material and does not interpret what it mints.
+ */
+public protocol DynamicCredentialProvider: AnyObject, Sendable {
+    
+    /**
+     * Credentials this provider could mint to satisfy `query`.
+     *
+     * Surfaced in the [`crate::oid4vp::PermissionRequest`] so the UI can let
+     * the user opt in (or decline). An empty vector means this provider cannot
+     * satisfy the query.
+     *
+     * `query` is the DCQL credential query as JSON; use
+     * [`DcqlCredentialQueryJson::parse`] to inspect it.
+     *
+     * Awaited while the permission request is being built, so slow work here
+     * delays the whole presentation flow; defer anything heavy to
+     * [`Self::issue`].
+     */
+    func offers(query: DcqlCredentialQueryJson) async  -> [DynamicCredentialOffer]
+    
+    /**
+     * Issue the raw `vp_token` entry for a previously-offered credential, bound
+     * to this presentation.
+     *
+     * Called only for offers the user selected. `offer_id` is the value from
+     * the [`DynamicCredentialOffer`] returned by [`Self::offers`].
+     */
+    func issue(offerId: String, binding: PresentationBinding) async throws  -> IssuedCredential
+    
+}
+/**
+ * A foreign-implemented provider that can mint credentials on device during a
+ * presentation to satisfy a DCQL credential query.
+ *
+ * The provider owns its own keys, schema and derivation; the SDK passes it no
+ * key material and does not interpret what it mints.
+ */
+open class DynamicCredentialProviderImpl: DynamicCredentialProvider, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_dynamiccredentialprovider(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_dynamiccredentialprovider(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Credentials this provider could mint to satisfy `query`.
+     *
+     * Surfaced in the [`crate::oid4vp::PermissionRequest`] so the UI can let
+     * the user opt in (or decline). An empty vector means this provider cannot
+     * satisfy the query.
+     *
+     * `query` is the DCQL credential query as JSON; use
+     * [`DcqlCredentialQueryJson::parse`] to inspect it.
+     *
+     * Awaited while the permission request is being built, so slow work here
+     * delays the whole presentation flow; defer anything heavy to
+     * [`Self::issue`].
+     */
+open func offers(query: DcqlCredentialQueryJson)async  -> [DynamicCredentialOffer]  {
+    return
+        try!  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_dynamiccredentialprovider_offers(
+                    self.uniffiCloneHandle(),
+                    FfiConverterTypeDcqlCredentialQueryJson_lower(query)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterSequenceTypeDynamicCredentialOffer.lift,
+            errorHandler: nil
+            
+        )
+}
+    
+    /**
+     * Issue the raw `vp_token` entry for a previously-offered credential, bound
+     * to this presentation.
+     *
+     * Called only for offers the user selected. `offer_id` is the value from
+     * the [`DynamicCredentialOffer`] returned by [`Self::offers`].
+     */
+open func issue(offerId: String, binding: PresentationBinding)async throws  -> IssuedCredential  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_dynamiccredentialprovider_issue(
+                    self.uniffiCloneHandle(),
+                    FfiConverterString.lower(offerId),FfiConverterTypePresentationBinding_lower(binding)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterTypeIssuedCredential_lift,
+            errorHandler: FfiConverterTypeDynamicCredentialError_lift
+        )
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceDynamicCredentialProvider {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceDynamicCredentialProvider = UniffiVTableCallbackInterfaceDynamicCredentialProvider(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeDynamicCredentialProvider.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface DynamicCredentialProvider: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeDynamicCredentialProvider.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface DynamicCredentialProvider: handle missing in uniffiClone")
+            }
+        },
+        offers: { (
+            uniffiHandle: UInt64,
+            query: RustBuffer,
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
+            uniffiCallbackData: UInt64,
+            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
+        ) in
+            let makeCall = {
+                () async throws -> [DynamicCredentialOffer] in
+                guard let uniffiObj = try? FfiConverterTypeDynamicCredentialProvider.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return await uniffiObj.offers(
+                     query: try FfiConverterTypeDcqlCredentialQueryJson_lift(query)
+                )
+            }
+
+            let uniffiHandleSuccess = { (returnValue: [DynamicCredentialOffer]) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultRustBuffer(
+                        returnValue: FfiConverterSequenceTypeDynamicCredentialOffer.lower(returnValue),
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultRustBuffer(
+                        returnValue: RustBuffer.empty(),
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            uniffiTraitInterfaceCallAsync(
+                makeCall: makeCall,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
+                droppedCallback: uniffiOutDroppedCallback
+            )
+        },
+        issue: { (
+            uniffiHandle: UInt64,
+            offerId: RustBuffer,
+            binding: RustBuffer,
+            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
+            uniffiCallbackData: UInt64,
+            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
+        ) in
+            let makeCall = {
+                () async throws -> IssuedCredential in
+                guard let uniffiObj = try? FfiConverterTypeDynamicCredentialProvider.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try await uniffiObj.issue(
+                     offerId: try FfiConverterString.lift(offerId),
+                     binding: try FfiConverterTypePresentationBinding_lift(binding)
+                )
+            }
+
+            let uniffiHandleSuccess = { (returnValue: IssuedCredential) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultRustBuffer(
+                        returnValue: FfiConverterTypeIssuedCredential_lower(returnValue),
+                        callStatus: RustCallStatus()
+                    )
+                )
+            }
+            let uniffiHandleError = { (statusCode, errorBuf) in
+                uniffiFutureCallback(
+                    uniffiCallbackData,
+                    UniffiForeignFutureResultRustBuffer(
+                        returnValue: RustBuffer.empty(),
+                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
+                    )
+                )
+            }
+            uniffiTraitInterfaceCallAsyncWithError(
+                makeCall: makeCall,
+                handleSuccess: uniffiHandleSuccess,
+                handleError: uniffiHandleError,
+                lowerError: FfiConverterTypeDynamicCredentialError_lower,
+                droppedCallback: uniffiOutDroppedCallback
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDynamicCredentialProvider>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitDynamicCredentialProvider() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_dynamiccredentialprovider(UniffiCallbackInterfaceDynamicCredentialProvider.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDynamicCredentialProvider: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<DynamicCredentialProvider>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = DynamicCredentialProvider
+
+    public static func lift(_ handle: UInt64) throws -> DynamicCredentialProvider {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return DynamicCredentialProviderImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: DynamicCredentialProvider) -> UInt64 {
+         if let rustImpl = value as? DynamicCredentialProviderImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DynamicCredentialProvider {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: DynamicCredentialProvider, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialProvider_lift(_ handle: UInt64) throws -> DynamicCredentialProvider {
+    return try FfiConverterTypeDynamicCredentialProvider.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialProvider_lower(_ value: DynamicCredentialProvider) -> UInt64 {
+    return FfiConverterTypeDynamicCredentialProvider.lower(value)
+}
+
+
+
+
+
+
+/**
  * A Holder is an entity that possesses one or more Verifiable Credentials.
  * The Holder is typically the subject of the credentials, but not always.
  * The Holder has the ability to generate Verifiable Presentations from
@@ -5186,6 +5306,52 @@ public static func newWithCredentials(providedCredentials: [ParsedCredential], t
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_credentials(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeHolder_lift,
+            errorHandler: FfiConverterTypeOID4VPError_lift
+        )
+}
+    
+    /**
+     * Like [`Holder::new_with_credentials`], but additionally registers a set
+     * of [`DynamicCredentialProvider`]s that can mint credentials on device
+     * during a presentation.
+     *
+     * This is purely additive: passing an empty `providers` vec is equivalent
+     * to [`Holder::new_with_credentials`].
+     */
+public static func newWithCredentialsAndProviders(providedCredentials: [ParsedCredential], trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?, providers: [DynamicCredentialProvider])async throws  -> Holder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_credentials_and_providers(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore),FfiConverterSequenceTypeDynamicCredentialProvider.lower(providers)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeHolder_lift,
+            errorHandler: FfiConverterTypeOID4VPError_lift
+        )
+}
+    
+    /**
+     * Like [`Holder::new`], but additionally registers a set of
+     * [`DynamicCredentialProvider`]s that can mint credentials on device during
+     * a presentation.
+     *
+     * This is purely additive: passing an empty `providers` vec is equivalent
+     * to [`Holder::new`].
+     */
+public static func newWithProviders(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?, providers: [DynamicCredentialProvider])async throws  -> Holder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_holder_new_with_providers(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore),FfiConverterSequenceTypeDynamicCredentialProvider.lower(providers)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -8045,215 +8211,6 @@ public func FfiConverterTypeJwtVc_lift(_ handle: UInt64) throws -> JwtVc {
 #endif
 public func FfiConverterTypeJwtVc_lower(_ value: JwtVc) -> UInt64 {
     return FfiConverterTypeJwtVc.lower(value)
-}
-
-
-
-
-
-
-/**
- * An interface that can provide access to cryptographic keypairs from the native crypto API.
- */
-public protocol KeyStore: AnyObject, Sendable {
-    
-    /**
-     * Retrieve a cryptographic keypair by alias. The cryptographic key must be usable for
-     * creating digital signatures, and must not be usable for encryption.
-     */
-    func getSigningKey(alias: KeyAlias) throws  -> SigningKey
-    
-}
-/**
- * An interface that can provide access to cryptographic keypairs from the native crypto API.
- */
-open class KeyStoreImpl: KeyStore, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_keystore(self.handle, $0) }
-    }
-    // No primary constructor declared for this class.
-
-    deinit {
-        if handle == 0 {
-            // Mock objects have handle=0 don't try to free them
-            return
-        }
-
-        try! rustCall { uniffi_mobile_sdk_rs_fn_free_keystore(handle, $0) }
-    }
-
-    
-
-    
-    /**
-     * Retrieve a cryptographic keypair by alias. The cryptographic key must be usable for
-     * creating digital signatures, and must not be usable for encryption.
-     */
-open func getSigningKey(alias: KeyAlias)throws  -> SigningKey  {
-    return try  FfiConverterTypeSigningKey_lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_keystore_get_signing_key(
-            self.uniffiCloneHandle(),
-        FfiConverterTypeKeyAlias_lower(alias),$0
-    )
-})
-}
-    
-
-    
-}
-
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceKeyStore {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // Store the vtable directly.
-    static let vtable: UniffiVTableCallbackInterfaceKeyStore = UniffiVTableCallbackInterfaceKeyStore(
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            do {
-                try FfiConverterTypeKeyStore.handleMap.remove(handle: uniffiHandle)
-            } catch {
-                print("Uniffi callback interface KeyStore: handle missing in uniffiFree")
-            }
-        },
-        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
-            do {
-                return try FfiConverterTypeKeyStore.handleMap.clone(handle: uniffiHandle)
-            } catch {
-                fatalError("Uniffi callback interface KeyStore: handle missing in uniffiClone")
-            }
-        },
-        getSigningKey: { (
-            uniffiHandle: UInt64,
-            alias: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<UInt64>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> SigningKey in
-                guard let uniffiObj = try? FfiConverterTypeKeyStore.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try uniffiObj.getSigningKey(
-                     alias: try FfiConverterTypeKeyAlias_lift(alias)
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeSigningKey_lower($0) }
-            uniffiTraitInterfaceCallWithError(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn,
-                lowerError: FfiConverterTypeCryptoError_lower
-            )
-        }
-    )
-
-    // Rust stores this pointer for future callback invocations, so it must live
-    // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceKeyStore> = {
-        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceKeyStore>.allocate(capacity: 1)
-        ptr.initialize(to: vtable)
-        return UnsafePointer(ptr)
-    }()
-}
-
-private func uniffiCallbackInitKeyStore() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_keystore(UniffiCallbackInterfaceKeyStore.vtablePtr)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeKeyStore: FfiConverter {
-    fileprivate static let handleMap = UniffiHandleMap<KeyStore>()
-
-    typealias FfiType = UInt64
-    typealias SwiftType = KeyStore
-
-    public static func lift(_ handle: UInt64) throws -> KeyStore {
-        if ((handle & 1) == 0) {
-            // Rust-generated handle, construct a new class that uses the handle to implement the
-            // interface
-            return KeyStoreImpl(unsafeFromHandle: handle)
-        } else {
-            // Swift-generated handle, get the object from the handle map
-            return try handleMap.remove(handle: handle)
-        }
-    }
-
-    public static func lower(_ value: KeyStore) -> UInt64 {
-         if let rustImpl = value as? KeyStoreImpl {
-             // Rust-implemented object.  Clone the handle and return it
-            return rustImpl.uniffiCloneHandle()
-         } else {
-            // Swift object, generate a new vtable handle and return that.
-            return handleMap.insert(obj: value)
-         }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> KeyStore {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: KeyStore, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeKeyStore_lift(_ handle: UInt64) throws -> KeyStore {
-    return try FfiConverterTypeKeyStore.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeKeyStore_lower(_ value: KeyStore) -> UInt64 {
-    return FfiConverterTypeKeyStore.lower(value)
 }
 
 
@@ -11198,6 +11155,51 @@ public static func newWithCredentials(providedCredentials: [ParsedCredential], t
         )
 }
     
+    /**
+     * Create a holder with stored credentials plus registered
+     * [`DynamicCredentialProvider`]s, which issue credentials on device
+     * during a presentation.
+     *
+     * Providers participate in v1 sessions only: Draft 18 / Draft 13
+     * sessions report no dynamic offers.
+     */
+public static func newWithCredentialsAndProviders(providedCredentials: [ParsedCredential], trustedDids: [String], signer: Oid4vpPresentationSigner, contextMap: [String: String]?, keystore: KeyStore?, providers: [DynamicCredentialProvider])async throws  -> Oid4vpHolder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_oid4vpholder_new_with_credentials_and_providers(FfiConverterSequenceTypeParsedCredential.lower(providedCredentials),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceOid4vpPresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore),FfiConverterSequenceTypeDynamicCredentialProvider.lower(providers)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeOid4vpHolder_lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
+}
+    
+    /**
+     * Create a holder with registered [`DynamicCredentialProvider`]s, which
+     * issue credentials on device during a presentation.
+     *
+     * Providers participate in v1 sessions only: Draft 18 / Draft 13
+     * sessions report no dynamic offers.
+     */
+public static func newWithProviders(vdcCollection: VdcCollection, trustedDids: [String], signer: Oid4vpPresentationSigner, contextMap: [String: String]?, keystore: KeyStore?, providers: [DynamicCredentialProvider])async throws  -> Oid4vpHolder  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_constructor_oid4vpholder_new_with_providers(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfaceOid4vpPresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore),FfiConverterSequenceTypeDynamicCredentialProvider.lower(providers)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeOid4vpHolder_lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
+}
+    
 
     
 open func newDraft18Holder()async throws  -> Draft18Holder  {
@@ -11636,9 +11638,30 @@ public protocol Oid4vpSessionProtocol: AnyObject, Sendable {
     
     func createPermissionResponse(selectedCredentials: [Oid4vpPresentableCredential], selectedFields: [[String]], responseOptions: Oid4vpResponseOptions) async throws  -> Oid4vpPermissionResponse
     
+    /**
+     * Create the permission response, additionally issuing the dynamic
+     * credential offers selected from [`Oid4vpSession::dynamic_offers`].
+     *
+     * Either `selected_credentials` or `selected_offers` (or both) may be
+     * non-empty. Selecting offers on a Draft 18 / Draft 13 session returns
+     * [`Oid4vpFacadeError::VersionMismatch`]: the dynamic-credential hook is
+     * OID4VP-v1 only.
+     */
+    func createPermissionResponseWithOffers(selectedCredentials: [Oid4vpPresentableCredential], selectedFields: [[String]], selectedOffers: [DynamicCredentialOffer], responseOptions: Oid4vpResponseOptions) async throws  -> Oid4vpPermissionResponse
+    
     func credentials()  -> [Oid4vpPresentableCredential]
     
     func domain()  -> String?
+    
+    /**
+     * Dynamic credential offers surfaced for this session by the holder's
+     * [`DynamicCredentialProvider`]s. Stored credentials are listed
+     * separately by [`Oid4vpSession::credentials`].
+     *
+     * Always empty for Draft 18 / Draft 13 sessions: the dynamic-credential
+     * hook is OID4VP-v1 only.
+     */
+    func dynamicOffers()  -> [DynamicCredentialOffer]
     
     func isMultiCredentialMatching()  -> Bool
     
@@ -11733,6 +11756,32 @@ open func createPermissionResponse(selectedCredentials: [Oid4vpPresentableCreden
         )
 }
     
+    /**
+     * Create the permission response, additionally issuing the dynamic
+     * credential offers selected from [`Oid4vpSession::dynamic_offers`].
+     *
+     * Either `selected_credentials` or `selected_offers` (or both) may be
+     * non-empty. Selecting offers on a Draft 18 / Draft 13 session returns
+     * [`Oid4vpFacadeError::VersionMismatch`]: the dynamic-credential hook is
+     * OID4VP-v1 only.
+     */
+open func createPermissionResponseWithOffers(selectedCredentials: [Oid4vpPresentableCredential], selectedFields: [[String]], selectedOffers: [DynamicCredentialOffer], responseOptions: Oid4vpResponseOptions)async throws  -> Oid4vpPermissionResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vpsession_create_permission_response_with_offers(
+                    self.uniffiCloneHandle(),
+                    FfiConverterSequenceTypeOid4vpPresentableCredential.lower(selectedCredentials),FfiConverterSequenceSequenceString.lower(selectedFields),FfiConverterSequenceTypeDynamicCredentialOffer.lower(selectedOffers),FfiConverterTypeOid4vpResponseOptions_lower(responseOptions)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypeOid4vpPermissionResponse_lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
+}
+    
 open func credentials() -> [Oid4vpPresentableCredential]  {
     return try!  FfiConverterSequenceTypeOid4vpPresentableCredential.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_oid4vpsession_credentials(
@@ -11744,6 +11793,22 @@ open func credentials() -> [Oid4vpPresentableCredential]  {
 open func domain() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_oid4vpsession_domain(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Dynamic credential offers surfaced for this session by the holder's
+     * [`DynamicCredentialProvider`]s. Stored credentials are listed
+     * separately by [`Oid4vpSession::credentials`].
+     *
+     * Always empty for Draft 18 / Draft 13 sessions: the dynamic-credential
+     * hook is OID4VP-v1 only.
+     */
+open func dynamicOffers() -> [DynamicCredentialOffer]  {
+    return try!  FfiConverterSequenceTypeDynamicCredentialOffer.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_oid4vpsession_dynamic_offers(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -12512,6 +12577,23 @@ public protocol PermissionRequestProtocol: AnyObject, Sendable {
     func createPermissionResponse(selectedCredentials: [PresentableCredential], selectedFields: [[String]], responseOptions: ResponseOptions) async throws  -> PermissionResponse
     
     /**
+     * Construct a permission response that includes both stored credentials and
+     * dynamic (mintable) credential offers.
+     *
+     * The stored `vp_token` is built exactly as in
+     * [`Self::create_permission_response`]. Then, for each selected offer, the
+     * owning [`DynamicCredentialProvider`] (looked up by `offer_id`) is asked to
+     * [`mint`] the credential, bound to this presentation's nonce/client_id, and
+     * the resulting item is inserted under the offer's `credential_query_id`.
+     *
+     * `selected_offers` must be a subset of [`Self::dynamic_offers`]. Either
+     * `selected_credentials` or `selected_offers` (or both) may be non-empty.
+     *
+     * [`mint`]: DynamicCredentialProvider::mint
+     */
+    func createPermissionResponseWithOffers(selectedCredentials: [PresentableCredential], selectedFields: [[String]], selectedOffers: [DynamicCredentialOffer], responseOptions: ResponseOptions) async throws  -> PermissionResponse
+    
+    /**
      * Return the list of credential query IDs from the DCQL query.
      *
      * This is useful for understanding how many distinct credential types
@@ -12555,6 +12637,17 @@ public protocol PermissionRequestProtocol: AnyObject, Sendable {
      * the domain name of the verifier as an alternative to the client_id.
      */
     func domain()  -> String?
+    
+    /**
+     * Return the dynamic (mintable) credential offers surfaced for this
+     * request by the holder's [`DynamicCredentialProvider`]s.
+     *
+     * These are separate from [`Self::credentials`], which lists only stored
+     * credentials. The UI can present these offers for explicit user opt-in;
+     * selected offers are passed to
+     * [`Self::create_permission_response_with_offers`].
+     */
+    func dynamicOffers()  -> [DynamicCredentialOffer]
     
     /**
      * Returns boolean whether the DCQL query
@@ -12675,6 +12768,38 @@ open func createPermissionResponse(selectedCredentials: [PresentableCredential],
 }
     
     /**
+     * Construct a permission response that includes both stored credentials and
+     * dynamic (mintable) credential offers.
+     *
+     * The stored `vp_token` is built exactly as in
+     * [`Self::create_permission_response`]. Then, for each selected offer, the
+     * owning [`DynamicCredentialProvider`] (looked up by `offer_id`) is asked to
+     * [`mint`] the credential, bound to this presentation's nonce/client_id, and
+     * the resulting item is inserted under the offer's `credential_query_id`.
+     *
+     * `selected_offers` must be a subset of [`Self::dynamic_offers`]. Either
+     * `selected_credentials` or `selected_offers` (or both) may be non-empty.
+     *
+     * [`mint`]: DynamicCredentialProvider::mint
+     */
+open func createPermissionResponseWithOffers(selectedCredentials: [PresentableCredential], selectedFields: [[String]], selectedOffers: [DynamicCredentialOffer], responseOptions: ResponseOptions)async throws  -> PermissionResponse  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_permissionrequest_create_permission_response_with_offers(
+                    self.uniffiCloneHandle(),
+                    FfiConverterSequenceTypePresentableCredential.lower(selectedCredentials),FfiConverterSequenceSequenceString.lower(selectedFields),FfiConverterSequenceTypeDynamicCredentialOffer.lower(selectedOffers),FfiConverterTypeResponseOptions_lower(responseOptions)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_u64,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_u64,
+            liftFunc: FfiConverterTypePermissionResponse_lift,
+            errorHandler: FfiConverterTypeOID4VPError_lift
+        )
+}
+    
+    /**
      * Return the list of credential query IDs from the DCQL query.
      *
      * This is useful for understanding how many distinct credential types
@@ -12744,6 +12869,23 @@ open func credentialsGroupedByQuery() -> [CredentialQueryGroup]  {
 open func domain() -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_method_permissionrequest_domain(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Return the dynamic (mintable) credential offers surfaced for this
+     * request by the holder's [`DynamicCredentialProvider`]s.
+     *
+     * These are separate from [`Self::credentials`], which lists only stored
+     * credentials. The UI can present these offers for explicit user opt-in;
+     * selected offers are passed to
+     * [`Self::create_permission_response_with_offers`].
+     */
+open func dynamicOffers() -> [DynamicCredentialOffer]  {
+    return try!  FfiConverterSequenceTypeDynamicCredentialOffer.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_permissionrequest_dynamic_offers(
             self.uniffiCloneHandle(),$0
     )
 })
@@ -14205,252 +14347,6 @@ public func FfiConverterTypeSaAttestationObjectValueBuilder_lower(_ value: SaAtt
 
 
 /**
- * A cryptographic keypair that can be used for signing.
- */
-public protocol SigningKey: AnyObject, Sendable {
-    
-    /**
-     * Generates a public JWK for this key.
-     */
-    func jwk() throws  -> String
-    
-    /**
-     * Produces a signature of unknown encoding.
-     */
-    func sign(payload: Data) throws  -> Data
-    
-}
-/**
- * A cryptographic keypair that can be used for signing.
- */
-open class SigningKeyImpl: SigningKey, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_signingkey(self.handle, $0) }
-    }
-    // No primary constructor declared for this class.
-
-    deinit {
-        if handle == 0 {
-            // Mock objects have handle=0 don't try to free them
-            return
-        }
-
-        try! rustCall { uniffi_mobile_sdk_rs_fn_free_signingkey(handle, $0) }
-    }
-
-    
-
-    
-    /**
-     * Generates a public JWK for this key.
-     */
-open func jwk()throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_signingkey_jwk(
-            self.uniffiCloneHandle(),$0
-    )
-})
-}
-    
-    /**
-     * Produces a signature of unknown encoding.
-     */
-open func sign(payload: Data)throws  -> Data  {
-    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeCryptoError_lift) {
-    uniffi_mobile_sdk_rs_fn_method_signingkey_sign(
-            self.uniffiCloneHandle(),
-        FfiConverterData.lower(payload),$0
-    )
-})
-}
-    
-
-    
-}
-
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceSigningKey {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // Store the vtable directly.
-    static let vtable: UniffiVTableCallbackInterfaceSigningKey = UniffiVTableCallbackInterfaceSigningKey(
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            do {
-                try FfiConverterTypeSigningKey.handleMap.remove(handle: uniffiHandle)
-            } catch {
-                print("Uniffi callback interface SigningKey: handle missing in uniffiFree")
-            }
-        },
-        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
-            do {
-                return try FfiConverterTypeSigningKey.handleMap.clone(handle: uniffiHandle)
-            } catch {
-                fatalError("Uniffi callback interface SigningKey: handle missing in uniffiClone")
-            }
-        },
-        jwk: { (
-            uniffiHandle: UInt64,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> String in
-                guard let uniffiObj = try? FfiConverterTypeSigningKey.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try uniffiObj.jwk(
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
-            uniffiTraitInterfaceCallWithError(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn,
-                lowerError: FfiConverterTypeCryptoError_lower
-            )
-        },
-        sign: { (
-            uniffiHandle: UInt64,
-            payload: RustBuffer,
-            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
-            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
-        ) in
-            let makeCall = {
-                () throws -> Data in
-                guard let uniffiObj = try? FfiConverterTypeSigningKey.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try uniffiObj.sign(
-                     payload: try FfiConverterData.lift(payload)
-                )
-            }
-
-            
-            let writeReturn = { uniffiOutReturn.pointee = FfiConverterData.lower($0) }
-            uniffiTraitInterfaceCallWithError(
-                callStatus: uniffiCallStatus,
-                makeCall: makeCall,
-                writeReturn: writeReturn,
-                lowerError: FfiConverterTypeCryptoError_lower
-            )
-        }
-    )
-
-    // Rust stores this pointer for future callback invocations, so it must live
-    // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceSigningKey> = {
-        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceSigningKey>.allocate(capacity: 1)
-        ptr.initialize(to: vtable)
-        return UnsafePointer(ptr)
-    }()
-}
-
-private func uniffiCallbackInitSigningKey() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_signingkey(UniffiCallbackInterfaceSigningKey.vtablePtr)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeSigningKey: FfiConverter {
-    fileprivate static let handleMap = UniffiHandleMap<SigningKey>()
-
-    typealias FfiType = UInt64
-    typealias SwiftType = SigningKey
-
-    public static func lift(_ handle: UInt64) throws -> SigningKey {
-        if ((handle & 1) == 0) {
-            // Rust-generated handle, construct a new class that uses the handle to implement the
-            // interface
-            return SigningKeyImpl(unsafeFromHandle: handle)
-        } else {
-            // Swift-generated handle, get the object from the handle map
-            return try handleMap.remove(handle: handle)
-        }
-    }
-
-    public static func lower(_ value: SigningKey) -> UInt64 {
-         if let rustImpl = value as? SigningKeyImpl {
-             // Rust-implemented object.  Clone the handle and return it
-            return rustImpl.uniffiCloneHandle()
-         } else {
-            // Swift object, generate a new vtable handle and return that.
-            return handleMap.insert(obj: value)
-         }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SigningKey {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: SigningKey, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSigningKey_lift(_ handle: UInt64) throws -> SigningKey {
-    return try FfiConverterTypeSigningKey.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeSigningKey_lower(_ value: SigningKey) -> UInt64 {
-    return FfiConverterTypeSigningKey.lower(value)
-}
-
-
-
-
-
-
-/**
  * Status provides a value and purpose for a status,
  *
  * The value is the raw value of the status at the entry list index,
@@ -14850,491 +14746,6 @@ public func FfiConverterTypeStatus20240406_lower(_ value: Status20240406) -> UIn
 
 
 
-/**
- * Interface: StorageManagerInterface
- *
- * The StorageManagerInterface provides access to functions defined in Kotlin and Swift for
- * managing persistent storage on the device.
- *
- * When dealing with UniFFI exported functions and objects, this will need to be Boxed as:
- * Box<dyn StorageManagerInterface>
- *
- * We use the older callback_interface to keep the required version level of our Android API
- * low.
- */
-public protocol StorageManagerInterface: AnyObject, Sendable {
-    
-    /**
-     * Function: add
-     *
-     * Adds a key-value pair to storage.  Should the key already exist, the value will be
-     * replaced
-     *
-     * Arguments:
-     * key - The key to add
-     * value - The value to add under the key.
-     */
-    func add(key: Key, value: Value) async throws 
-    
-    /**
-     * Function: get
-     *
-     * Callback function pointer to native (kotlin/swift) code for
-     * getting a key.
-     */
-    func get(key: Key) async throws  -> Value?
-    
-    /**
-     * Function: list
-     *
-     * Callback function pointer for listing available keys.
-     */
-    func list() async throws  -> [Key]
-    
-    /**
-     * Function: remove
-     *
-     * Callback function pointer to native (kotlin/swift) code for
-     * removing a key.  This referenced function MUST be idempotent.  In
-     * particular, it must treat removing a non-existent key as a normal and
-     * expected circumstance, simply returning () and not an error.
-     */
-    func remove(key: Key) async throws 
-    
-}
-/**
- * Interface: StorageManagerInterface
- *
- * The StorageManagerInterface provides access to functions defined in Kotlin and Swift for
- * managing persistent storage on the device.
- *
- * When dealing with UniFFI exported functions and objects, this will need to be Boxed as:
- * Box<dyn StorageManagerInterface>
- *
- * We use the older callback_interface to keep the required version level of our Android API
- * low.
- */
-open class StorageManagerInterfaceImpl: StorageManagerInterface, @unchecked Sendable {
-    fileprivate let handle: UInt64
-
-    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public struct NoHandle {
-        public init() {}
-    }
-
-    // TODO: We'd like this to be `private` but for Swifty reasons,
-    // we can't implement `FfiConverter` without making this `required` and we can't
-    // make it `required` without making it `public`.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    required public init(unsafeFromHandle handle: UInt64) {
-        self.handle = handle
-    }
-
-    // This constructor can be used to instantiate a fake object.
-    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
-    //
-    // - Warning:
-    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public init(noHandle: NoHandle) {
-        self.handle = 0
-    }
-
-#if swift(>=5.8)
-    @_documentation(visibility: private)
-#endif
-    public func uniffiCloneHandle() -> UInt64 {
-        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_storagemanagerinterface(self.handle, $0) }
-    }
-    // No primary constructor declared for this class.
-
-    deinit {
-        if handle == 0 {
-            // Mock objects have handle=0 don't try to free them
-            return
-        }
-
-        try! rustCall { uniffi_mobile_sdk_rs_fn_free_storagemanagerinterface(handle, $0) }
-    }
-
-    
-
-    
-    /**
-     * Function: add
-     *
-     * Adds a key-value pair to storage.  Should the key already exist, the value will be
-     * replaced
-     *
-     * Arguments:
-     * key - The key to add
-     * value - The value to add under the key.
-     */
-open func add(key: Key, value: Value)async throws   {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_add(
-                    self.uniffiCloneHandle(),
-                    FfiConverterTypeKey_lower(key),FfiConverterTypeValue_lower(value)
-                )
-            },
-            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
-            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
-            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
-            liftFunc: { $0 },
-            errorHandler: FfiConverterTypeStorageManagerError_lift
-        )
-}
-    
-    /**
-     * Function: get
-     *
-     * Callback function pointer to native (kotlin/swift) code for
-     * getting a key.
-     */
-open func get(key: Key)async throws  -> Value?  {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_get(
-                    self.uniffiCloneHandle(),
-                    FfiConverterTypeKey_lower(key)
-                )
-            },
-            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
-            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
-            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterOptionTypeValue.lift,
-            errorHandler: FfiConverterTypeStorageManagerError_lift
-        )
-}
-    
-    /**
-     * Function: list
-     *
-     * Callback function pointer for listing available keys.
-     */
-open func list()async throws  -> [Key]  {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_list(
-                    self.uniffiCloneHandle()
-                    
-                )
-            },
-            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
-            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
-            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
-            liftFunc: FfiConverterSequenceTypeKey.lift,
-            errorHandler: FfiConverterTypeStorageManagerError_lift
-        )
-}
-    
-    /**
-     * Function: remove
-     *
-     * Callback function pointer to native (kotlin/swift) code for
-     * removing a key.  This referenced function MUST be idempotent.  In
-     * particular, it must treat removing a non-existent key as a normal and
-     * expected circumstance, simply returning () and not an error.
-     */
-open func remove(key: Key)async throws   {
-    return
-        try  await uniffiRustCallAsync(
-            rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_method_storagemanagerinterface_remove(
-                    self.uniffiCloneHandle(),
-                    FfiConverterTypeKey_lower(key)
-                )
-            },
-            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_void,
-            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_void,
-            freeFunc: ffi_mobile_sdk_rs_rust_future_free_void,
-            liftFunc: { $0 },
-            errorHandler: FfiConverterTypeStorageManagerError_lift
-        )
-}
-    
-
-    
-}
-
-
-
-// Put the implementation in a struct so we don't pollute the top-level namespace
-fileprivate struct UniffiCallbackInterfaceStorageManagerInterface {
-
-    // Create the VTable using a series of closures.
-    // Swift automatically converts these into C callback functions.
-    //
-    // Store the vtable directly.
-    static let vtable: UniffiVTableCallbackInterfaceStorageManagerInterface = UniffiVTableCallbackInterfaceStorageManagerInterface(
-        uniffiFree: { (uniffiHandle: UInt64) -> () in
-            do {
-                try FfiConverterTypeStorageManagerInterface.handleMap.remove(handle: uniffiHandle)
-            } catch {
-                print("Uniffi callback interface StorageManagerInterface: handle missing in uniffiFree")
-            }
-        },
-        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
-            do {
-                return try FfiConverterTypeStorageManagerInterface.handleMap.clone(handle: uniffiHandle)
-            } catch {
-                fatalError("Uniffi callback interface StorageManagerInterface: handle missing in uniffiClone")
-            }
-        },
-        add: { (
-            uniffiHandle: UInt64,
-            key: RustBuffer,
-            value: RustBuffer,
-            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteVoid,
-            uniffiCallbackData: UInt64,
-            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
-        ) in
-            let makeCall = {
-                () async throws -> () in
-                guard let uniffiObj = try? FfiConverterTypeStorageManagerInterface.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try await uniffiObj.add(
-                     key: try FfiConverterTypeKey_lift(key),
-                     value: try FfiConverterTypeValue_lift(value)
-                )
-            }
-
-            let uniffiHandleSuccess = { (returnValue: ()) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultVoid(
-                        callStatus: RustCallStatus()
-                    )
-                )
-            }
-            let uniffiHandleError = { (statusCode, errorBuf) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultVoid(
-                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
-                    )
-                )
-            }
-            uniffiTraitInterfaceCallAsyncWithError(
-                makeCall: makeCall,
-                handleSuccess: uniffiHandleSuccess,
-                handleError: uniffiHandleError,
-                lowerError: FfiConverterTypeStorageManagerError_lower,
-                droppedCallback: uniffiOutDroppedCallback
-            )
-        },
-        get: { (
-            uniffiHandle: UInt64,
-            key: RustBuffer,
-            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
-            uniffiCallbackData: UInt64,
-            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
-        ) in
-            let makeCall = {
-                () async throws -> Value? in
-                guard let uniffiObj = try? FfiConverterTypeStorageManagerInterface.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try await uniffiObj.get(
-                     key: try FfiConverterTypeKey_lift(key)
-                )
-            }
-
-            let uniffiHandleSuccess = { (returnValue: Value?) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultRustBuffer(
-                        returnValue: FfiConverterOptionTypeValue.lower(returnValue),
-                        callStatus: RustCallStatus()
-                    )
-                )
-            }
-            let uniffiHandleError = { (statusCode, errorBuf) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultRustBuffer(
-                        returnValue: RustBuffer.empty(),
-                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
-                    )
-                )
-            }
-            uniffiTraitInterfaceCallAsyncWithError(
-                makeCall: makeCall,
-                handleSuccess: uniffiHandleSuccess,
-                handleError: uniffiHandleError,
-                lowerError: FfiConverterTypeStorageManagerError_lower,
-                droppedCallback: uniffiOutDroppedCallback
-            )
-        },
-        list: { (
-            uniffiHandle: UInt64,
-            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteRustBuffer,
-            uniffiCallbackData: UInt64,
-            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
-        ) in
-            let makeCall = {
-                () async throws -> [Key] in
-                guard let uniffiObj = try? FfiConverterTypeStorageManagerInterface.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try await uniffiObj.list(
-                )
-            }
-
-            let uniffiHandleSuccess = { (returnValue: [Key]) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultRustBuffer(
-                        returnValue: FfiConverterSequenceTypeKey.lower(returnValue),
-                        callStatus: RustCallStatus()
-                    )
-                )
-            }
-            let uniffiHandleError = { (statusCode, errorBuf) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultRustBuffer(
-                        returnValue: RustBuffer.empty(),
-                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
-                    )
-                )
-            }
-            uniffiTraitInterfaceCallAsyncWithError(
-                makeCall: makeCall,
-                handleSuccess: uniffiHandleSuccess,
-                handleError: uniffiHandleError,
-                lowerError: FfiConverterTypeStorageManagerError_lower,
-                droppedCallback: uniffiOutDroppedCallback
-            )
-        },
-        remove: { (
-            uniffiHandle: UInt64,
-            key: RustBuffer,
-            uniffiFutureCallback: @escaping UniffiForeignFutureCompleteVoid,
-            uniffiCallbackData: UInt64,
-            uniffiOutDroppedCallback: UnsafeMutablePointer<UniffiForeignFutureDroppedCallbackStruct>
-        ) in
-            let makeCall = {
-                () async throws -> () in
-                guard let uniffiObj = try? FfiConverterTypeStorageManagerInterface.handleMap.get(handle: uniffiHandle) else {
-                    throw UniffiInternalError.unexpectedStaleHandle
-                }
-                return try await uniffiObj.remove(
-                     key: try FfiConverterTypeKey_lift(key)
-                )
-            }
-
-            let uniffiHandleSuccess = { (returnValue: ()) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultVoid(
-                        callStatus: RustCallStatus()
-                    )
-                )
-            }
-            let uniffiHandleError = { (statusCode, errorBuf) in
-                uniffiFutureCallback(
-                    uniffiCallbackData,
-                    UniffiForeignFutureResultVoid(
-                        callStatus: RustCallStatus(code: statusCode, errorBuf: errorBuf)
-                    )
-                )
-            }
-            uniffiTraitInterfaceCallAsyncWithError(
-                makeCall: makeCall,
-                handleSuccess: uniffiHandleSuccess,
-                handleError: uniffiHandleError,
-                lowerError: FfiConverterTypeStorageManagerError_lower,
-                droppedCallback: uniffiOutDroppedCallback
-            )
-        }
-    )
-
-    // Rust stores this pointer for future callback invocations, so it must live
-    // for the process lifetime (not just for the init function call).
-    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceStorageManagerInterface> = {
-        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceStorageManagerInterface>.allocate(capacity: 1)
-        ptr.initialize(to: vtable)
-        return UnsafePointer(ptr)
-    }()
-}
-
-private func uniffiCallbackInitStorageManagerInterface() {
-    uniffi_mobile_sdk_rs_fn_init_callback_vtable_storagemanagerinterface(UniffiCallbackInterfaceStorageManagerInterface.vtablePtr)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeStorageManagerInterface: FfiConverter {
-    fileprivate static let handleMap = UniffiHandleMap<StorageManagerInterface>()
-
-    typealias FfiType = UInt64
-    typealias SwiftType = StorageManagerInterface
-
-    public static func lift(_ handle: UInt64) throws -> StorageManagerInterface {
-        if ((handle & 1) == 0) {
-            // Rust-generated handle, construct a new class that uses the handle to implement the
-            // interface
-            return StorageManagerInterfaceImpl(unsafeFromHandle: handle)
-        } else {
-            // Swift-generated handle, get the object from the handle map
-            return try handleMap.remove(handle: handle)
-        }
-    }
-
-    public static func lower(_ value: StorageManagerInterface) -> UInt64 {
-         if let rustImpl = value as? StorageManagerInterfaceImpl {
-             // Rust-implemented object.  Clone the handle and return it
-            return rustImpl.uniffiCloneHandle()
-         } else {
-            // Swift object, generate a new vtable handle and return that.
-            return handleMap.insert(obj: value)
-         }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StorageManagerInterface {
-        let handle: UInt64 = try readInt(&buf)
-        return try lift(handle)
-    }
-
-    public static func write(_ value: StorageManagerInterface, into buf: inout [UInt8]) {
-        writeInt(&buf, lower(value))
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStorageManagerInterface_lift(_ handle: UInt64) throws -> StorageManagerInterface {
-    return try FfiConverterTypeStorageManagerInterface.lift(handle)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeStorageManagerInterface_lower(_ value: StorageManagerInterface) -> UInt64 {
-    return FfiConverterTypeStorageManagerInterface.lower(value)
-}
-
-
-
-
-
-
 public protocol SyncHttpClient: AnyObject, Sendable {
     
     func httpClient(request: HttpRequest) throws  -> HttpResponse
@@ -15394,7 +14805,7 @@ open class SyncHttpClientImpl: SyncHttpClient, @unchecked Sendable {
 
     
 open func httpClient(request: HttpRequest)throws  -> HttpResponse  {
-    return try  FfiConverterTypeHttpResponse_lift(try rustCallWithError(FfiConverterTypeHttpClientError_lift) {
+    return try  FfiConverterTypeHttpResponse_lift(try rustCallWithError(FfiConverterTypeSyncHttpClientError_lift) {
     uniffi_mobile_sdk_rs_fn_method_synchttpclient_http_client(
             self.uniffiCloneHandle(),
         FfiConverterTypeHttpRequest_lower(request),$0
@@ -15452,7 +14863,7 @@ fileprivate struct UniffiCallbackInterfaceSyncHttpClient {
                 callStatus: uniffiCallStatus,
                 makeCall: makeCall,
                 writeReturn: writeReturn,
-                lowerError: FfiConverterTypeHttpClientError_lower
+                lowerError: FfiConverterTypeSyncHttpClientError_lower
             )
         }
     )
@@ -15887,145 +15298,34 @@ public func FfiConverterTypeVCDM2SdJwt_lower(_ value: Vcdm2SdJwt) -> UInt64 {
 
 
 
-/**
- * A stateful VCALM holder session driving one `vcapi` exchange.
- */
 public protocol VcalmHolderProtocol: AnyObject, Sendable {
     
-    /**
-     * Accept the credentials offered in the current Offer: verify EVERY offered VC's
-     * own issuer proof, store them all, then advance the exchange.
-     *
-     * Policy (atomic): verification runs over all entries FIRST. If any VC
-     * fails cryptographic proof verification, `accept_offer` returns
-     * [`VcalmError::InvalidCredentialProof`] (naming the entry index)
-     * immediately, stores NOTHING, and does NOT advance. A
-     * cryptographically-valid but time-bounded VC (expired/premature
-     * claims) is still stored and surfaced distinctly (a `tracing::warn!`
-     * keyed by the stable id; also reflected in the [`offered_credentials`] preview).
-     * An `ecdsa-sd-2023` BASE-proof VC — the very thing an SD-capable wallet is
-     * issued — is validated by deriving a full-reveal credential and verifying
-     * THAT (base proofs are derivation material; they cannot be verified
-     * directly), then the ORIGINAL base-proof VC is stored so later
-     * presentations can SD-derive from it. A `bbs-2023` base proof (recognized,
-     * not yet derivable) is refused with a typed
-     * [`VcalmError::UnsupportedCredentialFormat`].
-     * Storage uses the deterministic [`issuance::stable_local_id`] so re-accepting the
-     * same credential OVERWRITES rather than duplicating (idempotent). When the
-     * Offer carried a follow-on request, accept returns
-     * [`StepResult::Request`] WITHOUT a second POST; when it carried a combined
-     * `redirectUrl`, accept returns [`StepResult::Redirect`]; otherwise it POSTs
-     * the empty advance message.
-     *
-     * The Offer state is cleared only after a SUCCESSFUL advance — on an
-     * advance failure the Offer survives so the caller can retry
-     * (verify+store is idempotent). A server problem reply on the advance is
-     * surfaced truthfully as [`StepResult::Problem`] (§3.8) — the credential is
-     * already stored either way.
-     *
-     * `accept_offer` verifies each VC's OWN proof only — it does NOT gate storage on
-     * `trusted_dids`, so an untrusted-issuer but cryptographically-valid VC still
-     * stores. An `EnvelopedVerifiableCredential` is recognized and routed to a
-     * typed error (forward-compat, never silent-dropped).
-     */
     func acceptOffer() async throws  -> StepResult
     
-    /**
-     * Return, per current-VPR QueryByExample query, the stored credentials that
-     * match that query. The result is keyed by a per-query index so the
-     * caller can select which credential(s) to present.
-     *
-     * Enumerates the [`VdcCollection`], keeps only full-disclosure W3C JSON-LD VCs
-     * (`LdpVc`/`JsonVc`), and runs [`matching::example_matches`] (type/@context/
-     * recursive credentialSubject subset + issuer filter) against each. A no-match
-     * query yields an empty match list — NEVER an error; a VPR
-     * with no QueryByExample queries yields an empty result.
-     */
     func matchedCredentials() async throws  -> [VcalmMatchedCredentials]
     
-    /**
-     * Preview the credentials offered in the current Offer for UI display.
-     *
-     * Read-only: no storage, no advance. Returns an empty vec when there is no current
-     * Offer (or it carries no credentials). Each previewed VC carries its issuer,
-     * type(s), a JSON rendering of its `credentialSubject`, and a `validity` hint
-     * derived by verifying the VC's proof/claims (so the UI can warn before the user
-     * accepts). Verification here never stores and never errors the
-     * whole preview: a VC whose machinery fails is surfaced as `unverifiable`.
-     */
     func offeredCredentials() async throws  -> [VcalmOfferedCredential]
     
     /**
-     * Seed the QBE matcher with credentials loaded from the host app's wallet
-     * packs (mirrors OID4VP's `createHolder(packIds)` pre-seed). The native
-     * adapter resolves the host app's pack ids to `ParsedCredential` handles and
-     * calls this so wallet credentials become matchable for PRESENTATION. Without
-     * it, matching falls back to the holder's own `vdc_collection`
-     * (issuance-received credentials only).
+     * Seed the QBE matcher with credentials from the host app's wallet packs.
      */
     func provideCredentials(credentials: [ParsedCredential]) async 
     
-    /**
-     * Reject the current Offer: advance the exchange WITHOUT storing anything.
-     *
-     * Requires a current Offer (same guard as [`accept_offer`]). The Offer is
-     * cleared BEFORE the advance POST (so a reply carrying a NEW Offer is not
-     * clobbered) and RESTORED on a failed advance so the caller can retry. If
-     * the rejected Offer carried a follow-on request, the resulting step
-     * surfaces it like any other reply — reject does NOT special-case it and
-     * does NOT fabricate an RFC 9457 Problem.
-     */
     func rejectOffer() async throws  -> StepResult
     
-    /**
-     * Report, per current-VPR QueryByExample query, the fields NAMED by that query's
-     * `example`. Informational only: `ecdsa-rdfc-2019` reveals the entire
-     * credential, so this surfaces what will be shared for user display — it does
-     * NOT limit fields. `""` example leaf values render as `"any value"`.
-     *
-     * An empty VPR (or a VPR with no QueryByExample queries) yields an empty result;
-     * never an error.
-     */
     func requestedFields() async throws  -> [VcalmRequestedField]
     
     /**
      * Begin a `vcapi` exchange.
-     *
-     * `interaction:<url>` inputs and bare `http(s)` URLs carrying `?iuv=1`
-     * (§3.7.1 — the interaction QR format) trigger a discovery GET that extracts
-     * the `vcapi` exchange URL; any other `http(s)` URL is treated as the exchange
-     * URL directly (no discovery). An optional bearer token
-     * is stored for the loop's exchange POSTs — it is NEVER sent on
-     * the discovery GET (initiation needs no auth, §3.6.5 L3262). Begins by POSTing an
-     * empty `{}` message and returns the first [`StepResult`].
      */
     func startExchange(input: String, authHeader: String?) async throws  -> StepResult
     
     /**
-     * Continue the exchange by building and signing a real W3C Verifiable
-     * Presentation from the holder-selected credentials, then POSTing it through the
-     * existing `post_message` loop.
-     *
-     * `selected_credentials` are the credentials the holder/user chose (e.g. from
-     * [`Self::matched_credentials`]). The VP is signed with `ecdsa-rdfc-2019`
-     * and binds the VPR `challenge`/`domain` (§3.4.3.2) with
-     * `ProofPurpose::Authentication`. A DIDAuthentication-only request (no
-     * selected credentials) yields a signed VP with an empty
-     * `verifiableCredential` array.
-     *
-     * §3.4.3.2 anti-replay: when the VPR `domain` does not match the exchange
-     * channel host, this REFUSES with [`VcalmError::DomainChannelMismatch`]
-     * BEFORE anything is signed. `allow_domain_mismatch` is the explicit
-     * host-app override for deployments that legitimately split the verifier
-     * origin from the workflow-service channel — the host owns that consent,
-     * and must pass `true` deliberately (never as a default).
+     * Build, sign and POST a verifiable presentation.
      */
     func submitPresentation(selectedCredentials: [ParsedCredential], allowDomainMismatch: Bool) async throws  -> StepResult
     
 }
-/**
- * A stateful VCALM holder session driving one `vcapi` exchange.
- */
 open class VcalmHolder: VcalmHolderProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
 
@@ -16077,22 +15377,11 @@ open class VcalmHolder: VcalmHolderProtocol, @unchecked Sendable {
     }
 
     
-    /**
-     * Construct a holder session. Adds the default, empty [`ExchangeState`].
-     *
-     * NOTE: named `new_session`, NOT `new`. uniffi maps an async constructor
-     * literally named `new` onto the Kotlin *primary* constructor — which can't
-     * be `suspend` — so it generates neither a usable constructor nor a
-     * companion factory (the binding emits "no constructor generated for this
-     * object as it is async"), making the object unconstructable from Kotlin.
-     * A non-`new` name becomes a companion `suspend fun newSession(...)` (and a
-     * Swift static `VcalmHolder.newSession(...)`), which both adapters call.
-     */
-public static func newSession(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?, keystore: KeyStore?)async throws  -> VcalmHolder  {
+public static func newSession(vdcCollection: VdcCollection, trustedDids: [String], signer: PresentationSigner, contextMap: [String: String]?)async throws  -> VcalmHolder  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
-                uniffi_mobile_sdk_rs_fn_constructor_vcalmholder_new_session(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap),FfiConverterOptionTypeKeyStore.lower(keystore)
+                uniffi_mobile_sdk_rs_fn_constructor_vcalmholder_new_session(FfiConverterTypeVdcCollection_lower(vdcCollection),FfiConverterSequenceString.lower(trustedDids),FfiConverterCallbackInterfacePresentationSigner_lower(signer),FfiConverterOptionDictionaryStringString.lower(contextMap)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_u64,
@@ -16105,42 +15394,6 @@ public static func newSession(vdcCollection: VdcCollection, trustedDids: [String
     
 
     
-    /**
-     * Accept the credentials offered in the current Offer: verify EVERY offered VC's
-     * own issuer proof, store them all, then advance the exchange.
-     *
-     * Policy (atomic): verification runs over all entries FIRST. If any VC
-     * fails cryptographic proof verification, `accept_offer` returns
-     * [`VcalmError::InvalidCredentialProof`] (naming the entry index)
-     * immediately, stores NOTHING, and does NOT advance. A
-     * cryptographically-valid but time-bounded VC (expired/premature
-     * claims) is still stored and surfaced distinctly (a `tracing::warn!`
-     * keyed by the stable id; also reflected in the [`offered_credentials`] preview).
-     * An `ecdsa-sd-2023` BASE-proof VC — the very thing an SD-capable wallet is
-     * issued — is validated by deriving a full-reveal credential and verifying
-     * THAT (base proofs are derivation material; they cannot be verified
-     * directly), then the ORIGINAL base-proof VC is stored so later
-     * presentations can SD-derive from it. A `bbs-2023` base proof (recognized,
-     * not yet derivable) is refused with a typed
-     * [`VcalmError::UnsupportedCredentialFormat`].
-     * Storage uses the deterministic [`issuance::stable_local_id`] so re-accepting the
-     * same credential OVERWRITES rather than duplicating (idempotent). When the
-     * Offer carried a follow-on request, accept returns
-     * [`StepResult::Request`] WITHOUT a second POST; when it carried a combined
-     * `redirectUrl`, accept returns [`StepResult::Redirect`]; otherwise it POSTs
-     * the empty advance message.
-     *
-     * The Offer state is cleared only after a SUCCESSFUL advance — on an
-     * advance failure the Offer survives so the caller can retry
-     * (verify+store is idempotent). A server problem reply on the advance is
-     * surfaced truthfully as [`StepResult::Problem`] (§3.8) — the credential is
-     * already stored either way.
-     *
-     * `accept_offer` verifies each VC's OWN proof only — it does NOT gate storage on
-     * `trusted_dids`, so an untrusted-issuer but cryptographically-valid VC still
-     * stores. An `EnvelopedVerifiableCredential` is recognized and routed to a
-     * typed error (forward-compat, never silent-dropped).
-     */
 open func acceptOffer()async throws  -> StepResult  {
     return
         try  await uniffiRustCallAsync(
@@ -16158,17 +15411,6 @@ open func acceptOffer()async throws  -> StepResult  {
         )
 }
     
-    /**
-     * Return, per current-VPR QueryByExample query, the stored credentials that
-     * match that query. The result is keyed by a per-query index so the
-     * caller can select which credential(s) to present.
-     *
-     * Enumerates the [`VdcCollection`], keeps only full-disclosure W3C JSON-LD VCs
-     * (`LdpVc`/`JsonVc`), and runs [`matching::example_matches`] (type/@context/
-     * recursive credentialSubject subset + issuer filter) against each. A no-match
-     * query yields an empty match list — NEVER an error; a VPR
-     * with no QueryByExample queries yields an empty result.
-     */
 open func matchedCredentials()async throws  -> [VcalmMatchedCredentials]  {
     return
         try  await uniffiRustCallAsync(
@@ -16186,16 +15428,6 @@ open func matchedCredentials()async throws  -> [VcalmMatchedCredentials]  {
         )
 }
     
-    /**
-     * Preview the credentials offered in the current Offer for UI display.
-     *
-     * Read-only: no storage, no advance. Returns an empty vec when there is no current
-     * Offer (or it carries no credentials). Each previewed VC carries its issuer,
-     * type(s), a JSON rendering of its `credentialSubject`, and a `validity` hint
-     * derived by verifying the VC's proof/claims (so the UI can warn before the user
-     * accepts). Verification here never stores and never errors the
-     * whole preview: a VC whose machinery fails is surfaced as `unverifiable`.
-     */
 open func offeredCredentials()async throws  -> [VcalmOfferedCredential]  {
     return
         try  await uniffiRustCallAsync(
@@ -16214,12 +15446,7 @@ open func offeredCredentials()async throws  -> [VcalmOfferedCredential]  {
 }
     
     /**
-     * Seed the QBE matcher with credentials loaded from the host app's wallet
-     * packs (mirrors OID4VP's `createHolder(packIds)` pre-seed). The native
-     * adapter resolves the host app's pack ids to `ParsedCredential` handles and
-     * calls this so wallet credentials become matchable for PRESENTATION. Without
-     * it, matching falls back to the holder's own `vdc_collection`
-     * (issuance-received credentials only).
+     * Seed the QBE matcher with credentials from the host app's wallet packs.
      */
 open func provideCredentials(credentials: [ParsedCredential])async   {
     return
@@ -16239,16 +15466,6 @@ open func provideCredentials(credentials: [ParsedCredential])async   {
         )
 }
     
-    /**
-     * Reject the current Offer: advance the exchange WITHOUT storing anything.
-     *
-     * Requires a current Offer (same guard as [`accept_offer`]). The Offer is
-     * cleared BEFORE the advance POST (so a reply carrying a NEW Offer is not
-     * clobbered) and RESTORED on a failed advance so the caller can retry. If
-     * the rejected Offer carried a follow-on request, the resulting step
-     * surfaces it like any other reply — reject does NOT special-case it and
-     * does NOT fabricate an RFC 9457 Problem.
-     */
 open func rejectOffer()async throws  -> StepResult  {
     return
         try  await uniffiRustCallAsync(
@@ -16266,15 +15483,6 @@ open func rejectOffer()async throws  -> StepResult  {
         )
 }
     
-    /**
-     * Report, per current-VPR QueryByExample query, the fields NAMED by that query's
-     * `example`. Informational only: `ecdsa-rdfc-2019` reveals the entire
-     * credential, so this surfaces what will be shared for user display — it does
-     * NOT limit fields. `""` example leaf values render as `"any value"`.
-     *
-     * An empty VPR (or a VPR with no QueryByExample queries) yields an empty result;
-     * never an error.
-     */
 open func requestedFields()async throws  -> [VcalmRequestedField]  {
     return
         try  await uniffiRustCallAsync(
@@ -16294,14 +15502,6 @@ open func requestedFields()async throws  -> [VcalmRequestedField]  {
     
     /**
      * Begin a `vcapi` exchange.
-     *
-     * `interaction:<url>` inputs and bare `http(s)` URLs carrying `?iuv=1`
-     * (§3.7.1 — the interaction QR format) trigger a discovery GET that extracts
-     * the `vcapi` exchange URL; any other `http(s)` URL is treated as the exchange
-     * URL directly (no discovery). An optional bearer token
-     * is stored for the loop's exchange POSTs — it is NEVER sent on
-     * the discovery GET (initiation needs no auth, §3.6.5 L3262). Begins by POSTing an
-     * empty `{}` message and returns the first [`StepResult`].
      */
 open func startExchange(input: String, authHeader: String?)async throws  -> StepResult  {
     return
@@ -16321,23 +15521,7 @@ open func startExchange(input: String, authHeader: String?)async throws  -> Step
 }
     
     /**
-     * Continue the exchange by building and signing a real W3C Verifiable
-     * Presentation from the holder-selected credentials, then POSTing it through the
-     * existing `post_message` loop.
-     *
-     * `selected_credentials` are the credentials the holder/user chose (e.g. from
-     * [`Self::matched_credentials`]). The VP is signed with `ecdsa-rdfc-2019`
-     * and binds the VPR `challenge`/`domain` (§3.4.3.2) with
-     * `ProofPurpose::Authentication`. A DIDAuthentication-only request (no
-     * selected credentials) yields a signed VP with an empty
-     * `verifiableCredential` array.
-     *
-     * §3.4.3.2 anti-replay: when the VPR `domain` does not match the exchange
-     * channel host, this REFUSES with [`VcalmError::DomainChannelMismatch`]
-     * BEFORE anything is signed. `allow_domain_mismatch` is the explicit
-     * host-app override for deployments that legitimately split the verifier
-     * origin from the workflow-service channel — the host owns that consent,
-     * and must pass `true` deliberately (never as a default).
+     * Build, sign and POST a verifiable presentation.
      */
 open func submitPresentation(selectedCredentials: [ParsedCredential], allowDomainMismatch: Bool)async throws  -> StepResult  {
     return
@@ -17722,66 +16906,31 @@ public func FfiConverterTypeCredentialInfo_lower(_ value: CredentialInfo) -> Rus
 
 
 /**
- * The QueryByExample `credentialQuery` payload (§3.4.2).
- *
- * `example` stays an opaque [`serde_json::Value`] — the matcher walks it as JSON
- * (`type`/`@context` subset and recursive `credentialSubject` subset, with `""`
- * meaning "field present, any value"). The issuer filter accepts both
- * `acceptedIssuers` (§3.4.2) and `trustedIssuer` (alt-key).
+ * A QueryByExample payload (§3.4.2).
  */
 public struct CredentialQuery: Equatable, Hashable {
     /**
-     * Human-readable reason the credential is requested.
+     * Human-readable justification shown in the consent UI.
      */
     public var reason: String?
     /**
-     * The example credential to subset-match against (carried as JSON).
+     * The example credential the response must match, as JSON text.
      */
-    public var example: JsonValue?
-    /**
-     * `acceptedIssuers` (§3.4.2) — string / `{id}` / `{issuer}` / `{recognizedIn}`.
-     */
+    public var example: String?
     public var acceptedIssuers: [AcceptedIssuerEntry]?
-    /**
-     * `trustedIssuer` — alt-key for the issuer filter, same shapes.
-     */
     public var trustedIssuer: [AcceptedIssuerEntry]?
-    /**
-     * `acceptedCryptosuites` — same string-or-object shape as the VPR's.
-     */
     public var acceptedCryptosuites: [CryptosuiteEntry]?
-    /**
-     * `acceptedEnvelopes` (§3.4.2) — THE placement the spec defines for
-     * envelope-format negotiation. Parsed for losslessness; the holder only
-     * emits bare Data Integrity presentations, so a list that omits them is
-     * vacuously honored (no enveloped output path exists).
-     */
     public var acceptedEnvelopes: [EnvelopeEntry]?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         /**
-         * Human-readable reason the credential is requested.
+         * Human-readable justification shown in the consent UI.
          */reason: String?, 
         /**
-         * The example credential to subset-match against (carried as JSON).
-         */example: JsonValue?, 
-        /**
-         * `acceptedIssuers` (§3.4.2) — string / `{id}` / `{issuer}` / `{recognizedIn}`.
-         */acceptedIssuers: [AcceptedIssuerEntry]?, 
-        /**
-         * `trustedIssuer` — alt-key for the issuer filter, same shapes.
-         */trustedIssuer: [AcceptedIssuerEntry]?, 
-        /**
-         * `acceptedCryptosuites` — same string-or-object shape as the VPR's.
-         */acceptedCryptosuites: [CryptosuiteEntry]?, 
-        /**
-         * `acceptedEnvelopes` (§3.4.2) — THE placement the spec defines for
-         * envelope-format negotiation. Parsed for losslessness; the holder only
-         * emits bare Data Integrity presentations, so a list that omits them is
-         * vacuously honored (no enveloped output path exists).
-         */acceptedEnvelopes: [EnvelopeEntry]?) {
+         * The example credential the response must match, as JSON text.
+         */example: String?, acceptedIssuers: [AcceptedIssuerEntry]?, trustedIssuer: [AcceptedIssuerEntry]?, acceptedCryptosuites: [CryptosuiteEntry]?, acceptedEnvelopes: [EnvelopeEntry]?) {
         self.reason = reason
         self.example = example
         self.acceptedIssuers = acceptedIssuers
@@ -17807,7 +16956,7 @@ public struct FfiConverterTypeCredentialQuery: FfiConverterRustBuffer {
         return
             try CredentialQuery(
                 reason: FfiConverterOptionString.read(from: &buf), 
-                example: FfiConverterOptionTypeJsonValue.read(from: &buf), 
+                example: FfiConverterOptionString.read(from: &buf), 
                 acceptedIssuers: FfiConverterOptionSequenceTypeAcceptedIssuerEntry.read(from: &buf), 
                 trustedIssuer: FfiConverterOptionSequenceTypeAcceptedIssuerEntry.read(from: &buf), 
                 acceptedCryptosuites: FfiConverterOptionSequenceTypeCryptosuiteEntry.read(from: &buf), 
@@ -17817,7 +16966,7 @@ public struct FfiConverterTypeCredentialQuery: FfiConverterRustBuffer {
 
     public static func write(_ value: CredentialQuery, into buf: inout [UInt8]) {
         FfiConverterOptionString.write(value.reason, into: &buf)
-        FfiConverterOptionTypeJsonValue.write(value.example, into: &buf)
+        FfiConverterOptionString.write(value.example, into: &buf)
         FfiConverterOptionSequenceTypeAcceptedIssuerEntry.write(value.acceptedIssuers, into: &buf)
         FfiConverterOptionSequenceTypeAcceptedIssuerEntry.write(value.trustedIssuer, into: &buf)
         FfiConverterOptionSequenceTypeCryptosuiteEntry.write(value.acceptedCryptosuites, into: &buf)
@@ -18561,6 +17710,91 @@ public func FfiConverterTypeDraft18ResponseOptions_lower(_ value: Draft18Respons
 
 
 /**
+ * An offer to mint a credential that could satisfy a DCQL credential query.
+ *
+ * Surfaced in the [`crate::oid4vp::PermissionRequest`] alongside stored
+ * matches so the UI can let the user opt in (or decline). Echoed back to
+ * [`DynamicCredentialProvider::mint`] only for offers the user selected.
+ */
+public struct DynamicCredentialOffer: Equatable, Hashable {
+    /**
+     * Provider-scoped identifier, echoed back to [`DynamicCredentialProvider::mint`].
+     */
+    public var offerId: String
+    /**
+     * The DCQL credential-query id this offer satisfies (the `vp_token` key
+     * the minted item is placed under).
+     */
+    public var credentialQueryId: String
+    /**
+     * Human-readable label for the consent UI.
+     */
+    public var title: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Provider-scoped identifier, echoed back to [`DynamicCredentialProvider::mint`].
+         */offerId: String, 
+        /**
+         * The DCQL credential-query id this offer satisfies (the `vp_token` key
+         * the minted item is placed under).
+         */credentialQueryId: String, 
+        /**
+         * Human-readable label for the consent UI.
+         */title: String) {
+        self.offerId = offerId
+        self.credentialQueryId = credentialQueryId
+        self.title = title
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DynamicCredentialOffer: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDynamicCredentialOffer: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DynamicCredentialOffer {
+        return
+            try DynamicCredentialOffer(
+                offerId: FfiConverterString.read(from: &buf), 
+                credentialQueryId: FfiConverterString.read(from: &buf), 
+                title: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DynamicCredentialOffer, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.offerId, into: &buf)
+        FfiConverterString.write(value.credentialQueryId, into: &buf)
+        FfiConverterString.write(value.title, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialOffer_lift(_ buf: RustBuffer) throws -> DynamicCredentialOffer {
+    return try FfiConverterTypeDynamicCredentialOffer.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialOffer_lower(_ value: DynamicCredentialOffer) -> RustBuffer {
+    return FfiConverterTypeDynamicCredentialOffer.lower(value)
+}
+
+
+/**
  * Simple representation of an mdoc data element.
  */
 public struct Element: Equatable, Hashable {
@@ -18690,136 +17924,6 @@ public func FfiConverterTypeFailure_lower(_ value: Failure) -> RustBuffer {
 }
 
 
-/**
- * Plain Rust object representation of an HttpRequest that can be exported
- * through `uniffi` and is used in `WithForeign` trait definitions for HTTP
- * clients.
- */
-public struct HttpRequest: Equatable, Hashable {
-    public var url: String
-    public var method: String
-    public var headers: [String: String]
-    public var body: Data
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(url: String, method: String, headers: [String: String], body: Data) {
-        self.url = url
-        self.method = method
-        self.headers = headers
-        self.body = body
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension HttpRequest: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeHttpRequest: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpRequest {
-        return
-            try HttpRequest(
-                url: FfiConverterString.read(from: &buf), 
-                method: FfiConverterString.read(from: &buf), 
-                headers: FfiConverterDictionaryStringString.read(from: &buf), 
-                body: FfiConverterData.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: HttpRequest, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.url, into: &buf)
-        FfiConverterString.write(value.method, into: &buf)
-        FfiConverterDictionaryStringString.write(value.headers, into: &buf)
-        FfiConverterData.write(value.body, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeHttpRequest_lift(_ buf: RustBuffer) throws -> HttpRequest {
-    return try FfiConverterTypeHttpRequest.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeHttpRequest_lower(_ value: HttpRequest) -> RustBuffer {
-    return FfiConverterTypeHttpRequest.lower(value)
-}
-
-
-/**
- * Plain Rust object representation of an HttpResponse that can be exported
- * through `uniffi` and is used in `WithForeign` trait definitions for HTTP
- * clients.
- */
-public struct HttpResponse: Equatable, Hashable {
-    public var statusCode: UInt16
-    public var headers: [String: String]
-    public var body: Data
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(statusCode: UInt16, headers: [String: String], body: Data) {
-        self.statusCode = statusCode
-        self.headers = headers
-        self.body = body
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension HttpResponse: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeHttpResponse: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpResponse {
-        return
-            try HttpResponse(
-                statusCode: FfiConverterUInt16.read(from: &buf), 
-                headers: FfiConverterDictionaryStringString.read(from: &buf), 
-                body: FfiConverterData.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: HttpResponse, into buf: inout [UInt8]) {
-        FfiConverterUInt16.write(value.statusCode, into: &buf)
-        FfiConverterDictionaryStringString.write(value.headers, into: &buf)
-        FfiConverterData.write(value.body, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeHttpResponse_lift(_ buf: RustBuffer) throws -> HttpResponse {
-    return try FfiConverterTypeHttpResponse.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeHttpResponse_lower(_ value: HttpResponse) -> RustBuffer {
-    return FfiConverterTypeHttpResponse.lower(value)
-}
-
-
 public struct ImmediateCredentialResponse: Equatable, Hashable {
     public var credentials: [RawCredential]
 
@@ -18867,6 +17971,67 @@ public func FfiConverterTypeImmediateCredentialResponse_lift(_ buf: RustBuffer) 
 #endif
 public func FfiConverterTypeImmediateCredentialResponse_lower(_ value: ImmediateCredentialResponse) -> RustBuffer {
     return FfiConverterTypeImmediateCredentialResponse.lower(value)
+}
+
+
+/**
+ * A credential minted by a [`DynamicCredentialProvider`] for a presentation.
+ */
+public struct IssuedCredential: Equatable, Hashable {
+    /**
+     * The `vp_token` entry, verbatim (e.g. a compact JWS). Placed under the
+     * offer's `credential_query_id`. The SDK does not interpret it.
+     */
+    public var vpTokenItem: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The `vp_token` entry, verbatim (e.g. a compact JWS). Placed under the
+         * offer's `credential_query_id`. The SDK does not interpret it.
+         */vpTokenItem: String) {
+        self.vpTokenItem = vpTokenItem
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension IssuedCredential: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIssuedCredential: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IssuedCredential {
+        return
+            try IssuedCredential(
+                vpTokenItem: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: IssuedCredential, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.vpTokenItem, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIssuedCredential_lift(_ buf: RustBuffer) throws -> IssuedCredential {
+    return try FfiConverterTypeIssuedCredential.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIssuedCredential_lower(_ value: IssuedCredential) -> RustBuffer {
+    return FfiConverterTypeIssuedCredential.lower(value)
 }
 
 
@@ -19508,14 +18673,83 @@ public func FfiConverterTypePeripheralServerDetails_lower(_ value: PeripheralSer
 
 
 /**
- * RFC 9457 problem-details, surfaced verbatim to the caller on a 4xx (§3.8).
+ * The presentation-specific values a provider binds a minted credential to.
  *
- * Note: the string fields are server-provided, caller-facing data — not to be
- * logged verbatim at info level.
+ * Sourced from the live authorization request — the same `nonce` and
+ * `client_id` the SDK uses elsewhere when building the response.
+ */
+public struct PresentationBinding: Equatable, Hashable {
+    /**
+     * The OID4VP request `nonce`.
+     */
+    public var nonce: String
+    /**
+     * The verifier `client_id` (presentation audience).
+     */
+    public var clientId: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The OID4VP request `nonce`.
+         */nonce: String, 
+        /**
+         * The verifier `client_id` (presentation audience).
+         */clientId: String) {
+        self.nonce = nonce
+        self.clientId = clientId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PresentationBinding: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePresentationBinding: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PresentationBinding {
+        return
+            try PresentationBinding(
+                nonce: FfiConverterString.read(from: &buf), 
+                clientId: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PresentationBinding, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nonce, into: &buf)
+        FfiConverterString.write(value.clientId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePresentationBinding_lift(_ buf: RustBuffer) throws -> PresentationBinding {
+    return try FfiConverterTypePresentationBinding.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePresentationBinding_lower(_ value: PresentationBinding) -> RustBuffer {
+    return FfiConverterTypePresentationBinding.lower(value)
+}
+
+
+/**
+ * An RFC 9457 problem-details document (§3.8).
  */
 public struct ProblemDetails: Equatable, Hashable {
     /**
-     * The problem type URI/identifier. §3.8: MUST be present.
+     * The problem `type` URI.
      */
     public var problemType: String
     public var status: UInt16?
@@ -19527,7 +18761,7 @@ public struct ProblemDetails: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
-         * The problem type URI/identifier. §3.8: MUST be present.
+         * The problem `type` URI.
          */problemType: String, status: UInt16?, title: String?, detail: String?, instance: String?) {
         self.problemType = problemType
         self.status = status
@@ -19587,45 +18821,30 @@ public func FfiConverterTypeProblemDetails_lower(_ value: ProblemDetails) -> Rus
 
 /**
  * A single presentation query inside a [`Vpr`].
- *
- * `credentialQuery` is a typed [`CredentialQuery`] (§3.4.2), and the §3.4.5
- * `group` / §3.4.3.1 `required` logical-operation fields plus §3.4.3
- * `acceptedMethods` are surfaced. Unknown query `type` values are carried
- * losslessly in `r#type` — an unrecognized type is unsatisfiable for matching,
- * never an error.
  */
 public struct Query: Equatable, Hashable {
     /**
-     * The query type(s). Accepts a bare string (`"QueryByExample"`) OR an array
-     * (`["QueryByExample"]`).
+     * The query type(s), e.g. `["QueryByExample"]`.
      */
     public var type: [String]
     /**
-     * The QueryByExample payload(s) (§3.4.2). Accepts a single object OR an
-     * array of objects. The matcher walks each contained `example` as JSON.
-     * Re-serializes a single entry as the spec's bare-object form.
+     * The QueryByExample payload(s) (§3.4.2).
      */
     public var credentialQuery: [CredentialQuery]
     /**
-     * §3.4.5 logical-operations group. Queries sharing the same `group` value are
-     * ANDed; absent or differing values are ORed. Kept `Option` so absence
-     * (its own singleton OR-alternative) is distinguishable from a named group.
+     * §3.4.5 logical-operations group. Queries sharing a value are ANDed.
      */
     public var group: String?
     /**
-     * §3.4.3.1 `required`. Absence is treated as `true` at the use-site; kept
-     * `Option` so absence is distinguishable from an explicit value.
+     * §3.4.3.1 `required`. Absent is treated as `true` at the use site.
      */
     public var required: Bool?
     /**
-     * §3.4.3 `acceptedMethods` — each entry is a bare name OR a `{method}` object.
+     * §3.4.3 `acceptedMethods`.
      */
     public var acceptedMethods: [AcceptedMethodEntry]?
     /**
-     * §3.4.3.1 `acceptedCryptosuites` at the QUERY level — the placement the spec's
-     * Examples 6/7 use (a sibling of `acceptedMethods` on a DIDAuthentication
-     * query). Same string-or-object entry shape as the VPR-top-level and
-     * per-`credentialQuery` placements; suite selection consults all three.
+     * §3.4.3.1 `acceptedCryptosuites` at the QUERY level.
      */
     public var acceptedCryptosuites: [CryptosuiteEntry]?
 
@@ -19633,31 +18852,22 @@ public struct Query: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
-         * The query type(s). Accepts a bare string (`"QueryByExample"`) OR an array
-         * (`["QueryByExample"]`).
+         * The query type(s), e.g. `["QueryByExample"]`.
          */type: [String], 
         /**
-         * The QueryByExample payload(s) (§3.4.2). Accepts a single object OR an
-         * array of objects. The matcher walks each contained `example` as JSON.
-         * Re-serializes a single entry as the spec's bare-object form.
+         * The QueryByExample payload(s) (§3.4.2).
          */credentialQuery: [CredentialQuery], 
         /**
-         * §3.4.5 logical-operations group. Queries sharing the same `group` value are
-         * ANDed; absent or differing values are ORed. Kept `Option` so absence
-         * (its own singleton OR-alternative) is distinguishable from a named group.
+         * §3.4.5 logical-operations group. Queries sharing a value are ANDed.
          */group: String?, 
         /**
-         * §3.4.3.1 `required`. Absence is treated as `true` at the use-site; kept
-         * `Option` so absence is distinguishable from an explicit value.
+         * §3.4.3.1 `required`. Absent is treated as `true` at the use site.
          */required: Bool?, 
         /**
-         * §3.4.3 `acceptedMethods` — each entry is a bare name OR a `{method}` object.
+         * §3.4.3 `acceptedMethods`.
          */acceptedMethods: [AcceptedMethodEntry]?, 
         /**
-         * §3.4.3.1 `acceptedCryptosuites` at the QUERY level — the placement the spec's
-         * Examples 6/7 use (a sibling of `acceptedMethods` on a DIDAuthentication
-         * query). Same string-or-object entry shape as the VPR-top-level and
-         * per-`credentialQuery` placements; suite selection consults all three.
+         * §3.4.3.1 `acceptedCryptosuites` at the QUERY level.
          */acceptedCryptosuites: [CryptosuiteEntry]?) {
         self.type = type
         self.credentialQuery = credentialQuery
@@ -20087,10 +19297,19 @@ public struct TestMdlData: Equatable, Hashable {
     public var residentState: String
     public var residentPostalCode: String
     public var residentCountry: String
+    /**
+     * ISO 3166-2 issuing jurisdiction code (e.g. "US-NY"). When unset, the
+     * `issuing_jurisdiction` element is omitted from the generated mDoc.
+     */
+    public var issuingJurisdiction: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(familyName: String, givenName: String, birthDate: String, issueDate: String, expiryDate: String, issuingCountry: String, issuingAuthority: String, documentNumber: String, portrait: String, drivingPrivileges: [String], unDistinguishingSign: String, administrativeNumber: String, sex: UInt16, height: UInt16, weight: UInt16, eyeColour: String, hairColour: String, birthPlace: String, residentAddress: String, portraitCaptureDate: String, ageInYears: UInt16, ageBirthYear: UInt16, ageOver18: Bool, ageOver21: Bool, ageOver60: Bool, nationality: String, residentCity: String, residentState: String, residentPostalCode: String, residentCountry: String) {
+    public init(familyName: String, givenName: String, birthDate: String, issueDate: String, expiryDate: String, issuingCountry: String, issuingAuthority: String, documentNumber: String, portrait: String, drivingPrivileges: [String], unDistinguishingSign: String, administrativeNumber: String, sex: UInt16, height: UInt16, weight: UInt16, eyeColour: String, hairColour: String, birthPlace: String, residentAddress: String, portraitCaptureDate: String, ageInYears: UInt16, ageBirthYear: UInt16, ageOver18: Bool, ageOver21: Bool, ageOver60: Bool, nationality: String, residentCity: String, residentState: String, residentPostalCode: String, residentCountry: String, 
+        /**
+         * ISO 3166-2 issuing jurisdiction code (e.g. "US-NY"). When unset, the
+         * `issuing_jurisdiction` element is omitted from the generated mDoc.
+         */issuingJurisdiction: String?) {
         self.familyName = familyName
         self.givenName = givenName
         self.birthDate = birthDate
@@ -20121,6 +19340,7 @@ public struct TestMdlData: Equatable, Hashable {
         self.residentState = residentState
         self.residentPostalCode = residentPostalCode
         self.residentCountry = residentCountry
+        self.issuingJurisdiction = issuingJurisdiction
     }
 
     
@@ -20168,7 +19388,8 @@ public struct FfiConverterTypeTestMdlData: FfiConverterRustBuffer {
                 residentCity: FfiConverterString.read(from: &buf), 
                 residentState: FfiConverterString.read(from: &buf), 
                 residentPostalCode: FfiConverterString.read(from: &buf), 
-                residentCountry: FfiConverterString.read(from: &buf)
+                residentCountry: FfiConverterString.read(from: &buf), 
+                issuingJurisdiction: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -20203,6 +19424,7 @@ public struct FfiConverterTypeTestMdlData: FfiConverterRustBuffer {
         FfiConverterString.write(value.residentState, into: &buf)
         FfiConverterString.write(value.residentPostalCode, into: &buf)
         FfiConverterString.write(value.residentCountry, into: &buf)
+        FfiConverterOptionString.write(value.issuingJurisdiction, into: &buf)
     }
 }
 
@@ -20288,36 +19510,13 @@ public func FfiConverterTypeTxCodeDefinition_lower(_ value: TxCodeDefinition) ->
 }
 
 
-/**
- * One matched credential plus its disclosure mode for THIS request, so consent
- * UIs can say honestly whether presenting shares only the requested fields or
- * the entire credential.
- */
 public struct VcalmMatchedCredential {
-    /**
-     * The stored credential that satisfied the query.
-     */
     public var credential: ParsedCredential
-    /**
-     * `true` when presenting under the CURRENT VPR would selectively disclose
-     * (the VPR lists an SD suite AND this credential carries a derivable SD
-     * base proof); `false` means full disclosure — the WHOLE credential is
-     * shared, not just the fields [`VcalmHolder::requested_fields`] names.
-     */
     public var selectiveDisclosure: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(
-        /**
-         * The stored credential that satisfied the query.
-         */credential: ParsedCredential, 
-        /**
-         * `true` when presenting under the CURRENT VPR would selectively disclose
-         * (the VPR lists an SD suite AND this credential carries a derivable SD
-         * base proof); `false` means full disclosure — the WHOLE credential is
-         * shared, not just the fields [`VcalmHolder::requested_fields`] names.
-         */selectiveDisclosure: Bool) {
+    public init(credential: ParsedCredential, selectiveDisclosure: Bool) {
         self.credential = credential
         self.selectiveDisclosure = selectiveDisclosure
     }
@@ -20367,28 +19566,14 @@ public func FfiConverterTypeVcalmMatchedCredential_lower(_ value: VcalmMatchedCr
 
 /**
  * The credentials matching one QueryByExample query in the current VPR.
- * `query_index` is the position of the query in `vpr.query`, so the caller can map
- * a selection back to the originating query.
  */
 public struct VcalmMatchedCredentials {
-    /**
-     * Index of the originating query in the VPR's `query[]` array.
-     */
     public var queryIndex: UInt32
-    /**
-     * The stored credentials that satisfied that query (may be empty).
-     */
     public var credentials: [VcalmMatchedCredential]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(
-        /**
-         * Index of the originating query in the VPR's `query[]` array.
-         */queryIndex: UInt32, 
-        /**
-         * The stored credentials that satisfied that query (may be empty).
-         */credentials: [VcalmMatchedCredential]) {
+    public init(queryIndex: UInt32, credentials: [VcalmMatchedCredential]) {
         self.queryIndex = queryIndex
         self.credentials = credentials
     }
@@ -20437,59 +19622,37 @@ public func FfiConverterTypeVcalmMatchedCredentials_lower(_ value: VcalmMatchedC
 
 
 /**
- * One credential offered in the current Offer, previewed for UI display.
- * Read-only projection — mirrors the [`VcalmMatchedCredentials`]/[`VcalmRequestedField`]
- * Record style. It surfaces enough for a consent screen (issuer, type(s),
- * `credentialSubject`) plus a [`validity`](Self::validity) hint, without any storage
- * side-effect.
+ * One credential in the current Offer, previewed for display.
  */
 public struct VcalmOfferedCredential: Equatable, Hashable {
-    /**
-     * The VC's `issuer` rendered as a string (the bare id, or the `id` of an issuer
-     * object). `None` when absent or unrecognized.
-     */
     public var issuer: String?
-    /**
-     * The VC's `type` values (excluding nothing — surfaced verbatim for display).
-     */
     public var types: [String]
     /**
-     * The VC's `credentialSubject` rendered as a compact JSON string for display.
-     * `None` when absent.
+     * The `credentialSubject` as JSON text.
      */
     public var credentialSubject: String?
     /**
-     * The read-only validity hint.
+     * Read-only validity hint, derived before the user accepts.
      */
     public var validity: OfferedValidity
     /**
-     * The full offered VC as a JSON string. The SDK's `accept_offer` only stores
-     * the credential in the holder's own `vdc_collection`; the host app needs the
-     * raw VC to persist it into its OWN wallet store.
+     * The full offered VC as JSON text, so the host can persist it in its own
+     * wallet store.
      */
     public var rawCredential: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(
+    public init(issuer: String?, types: [String], 
         /**
-         * The VC's `issuer` rendered as a string (the bare id, or the `id` of an issuer
-         * object). `None` when absent or unrecognized.
-         */issuer: String?, 
-        /**
-         * The VC's `type` values (excluding nothing — surfaced verbatim for display).
-         */types: [String], 
-        /**
-         * The VC's `credentialSubject` rendered as a compact JSON string for display.
-         * `None` when absent.
+         * The `credentialSubject` as JSON text.
          */credentialSubject: String?, 
         /**
-         * The read-only validity hint.
+         * Read-only validity hint, derived before the user accepts.
          */validity: OfferedValidity, 
         /**
-         * The full offered VC as a JSON string. The SDK's `accept_offer` only stores
-         * the credential in the holder's own `vdc_collection`; the host app needs the
-         * raw VC to persist it into its OWN wallet store.
+         * The full offered VC as JSON text, so the host can persist it in its own
+         * wallet store.
          */rawCredential: String) {
         self.issuer = issuer
         self.types = types
@@ -20548,50 +19711,30 @@ public func FfiConverterTypeVcalmOfferedCredential_lower(_ value: VcalmOfferedCr
 
 
 /**
- * One field NAMED by a QueryByExample `example`. Informational only — it
- * surfaces what a full-disclosure presentation will share, mirroring the
- * `Oid4vpRequestedField` shape; it does NOT limit disclosed fields.
+ * One field named by a QueryByExample `example`. Informational only.
  */
 public struct VcalmRequestedField: Equatable, Hashable {
-    /**
-     * Index of the originating query in the VPR's `query[]` array.
-     */
     public var queryIndex: UInt32
     /**
-     * Dotted path of the named field, e.g. `credentialSubject.givenName`.
+     * Dotted path, e.g. `credentialSubject.givenName`.
      */
     public var path: String
     /**
-     * The example value for the field; an `""` example leaf renders as `"any value"`.
+     * The example value; an `""` leaf renders as `"any value"`.
      */
     public var value: String
-    /**
-     * Whether the originating query is required (`required` defaults to `true`).
-     */
     public var required: Bool
-    /**
-     * The query's human-readable `reason`, if any.
-     */
     public var purpose: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(
+    public init(queryIndex: UInt32, 
         /**
-         * Index of the originating query in the VPR's `query[]` array.
-         */queryIndex: UInt32, 
-        /**
-         * Dotted path of the named field, e.g. `credentialSubject.givenName`.
+         * Dotted path, e.g. `credentialSubject.givenName`.
          */path: String, 
         /**
-         * The example value for the field; an `""` example leaf renders as `"any value"`.
-         */value: String, 
-        /**
-         * Whether the originating query is required (`required` defaults to `true`).
-         */required: Bool, 
-        /**
-         * The query's human-readable `reason`, if any.
-         */purpose: String?) {
+         * The example value; an `""` leaf renders as `"any value"`.
+         */value: String, required: Bool, purpose: String?) {
         self.queryIndex = queryIndex
         self.path = path
         self.value = value
@@ -20713,46 +19856,55 @@ public func FfiConverterTypeVpTokenParams_lower(_ value: VpTokenParams) -> RustB
 
 
 /**
- * A verifiable-presentation-request. Fully typed for losslessness; QBE/query
- * interpretation is a later phase, so query internals are kept defensively loose.
+ * A verifiable-presentation-request (§3.4).
  */
 public struct Vpr: Equatable, Hashable {
     /**
-     * The presentation query/queries. §3.4.1 permits a single query object OR
-     * an array; both are normalized to a `Vec`.
+     * The presentation query/queries.
      */
     public var query: [Query]
+    /**
+     * The replay-protection nonce the VP proof must bind (§3.4.3.2).
+     */
     public var challenge: String?
+    /**
+     * The verifier domain the VP proof must bind (§3.4.3.2).
+     */
     public var domain: String?
     /**
-     * Accepted cryptosuites — each entry is a bare name OR an object.
+     * Top-level `acceptedCryptosuites` (§3.4.3.1).
      */
     public var acceptedCryptosuites: [CryptosuiteEntry]?
     /**
-     * Accepted envelope formats — same string-or-object shape.
+     * Top-level `acceptedEnvelopes`.
      */
     public var acceptedEnvelopes: [EnvelopeEntry]?
     /**
-     * Interaction hints. Not consumed — carried opaquely for losslessness.
+     * Interaction hints, carried opaquely, as JSON text.
      */
-    public var interact: JsonValue?
+    public var interact: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         /**
-         * The presentation query/queries. §3.4.1 permits a single query object OR
-         * an array; both are normalized to a `Vec`.
-         */query: [Query], challenge: String?, domain: String?, 
+         * The presentation query/queries.
+         */query: [Query], 
         /**
-         * Accepted cryptosuites — each entry is a bare name OR an object.
+         * The replay-protection nonce the VP proof must bind (§3.4.3.2).
+         */challenge: String?, 
+        /**
+         * The verifier domain the VP proof must bind (§3.4.3.2).
+         */domain: String?, 
+        /**
+         * Top-level `acceptedCryptosuites` (§3.4.3.1).
          */acceptedCryptosuites: [CryptosuiteEntry]?, 
         /**
-         * Accepted envelope formats — same string-or-object shape.
+         * Top-level `acceptedEnvelopes`.
          */acceptedEnvelopes: [EnvelopeEntry]?, 
         /**
-         * Interaction hints. Not consumed — carried opaquely for losslessness.
-         */interact: JsonValue?) {
+         * Interaction hints, carried opaquely, as JSON text.
+         */interact: String?) {
         self.query = query
         self.challenge = challenge
         self.domain = domain
@@ -20782,7 +19934,7 @@ public struct FfiConverterTypeVpr: FfiConverterRustBuffer {
                 domain: FfiConverterOptionString.read(from: &buf), 
                 acceptedCryptosuites: FfiConverterOptionSequenceTypeCryptosuiteEntry.read(from: &buf), 
                 acceptedEnvelopes: FfiConverterOptionSequenceTypeEnvelopeEntry.read(from: &buf), 
-                interact: FfiConverterOptionTypeJsonValue.read(from: &buf)
+                interact: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -20792,7 +19944,7 @@ public struct FfiConverterTypeVpr: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.domain, into: &buf)
         FfiConverterOptionSequenceTypeCryptosuiteEntry.write(value.acceptedCryptosuites, into: &buf)
         FfiConverterOptionSequenceTypeEnvelopeEntry.write(value.acceptedEnvelopes, into: &buf)
-        FfiConverterOptionTypeJsonValue.write(value.interact, into: &buf)
+        FfiConverterOptionString.write(value.interact, into: &buf)
     }
 }
 
@@ -20904,23 +20056,17 @@ public func FfiConverterTypeAamvaEncodeError_lower(_ value: AamvaEncodeError) ->
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * An `acceptedIssuers`/`trustedIssuer` entry (§3.4.2). Uses the sanctioned
- * [`CryptosuiteEntry`] untagged pattern: a bare issuer URL string, or an object
- * carrying `id`, `issuer`, or `recognizedIn`. The `{recognizedIn}` form is
- * carried but NOT resolved — the matcher treats it as non-matching.
+ * An `acceptedIssuers` / `trustedIssuer` entry: a bare id or an object.
  */
 
 public enum AcceptedIssuerEntry: Equatable, Hashable {
     
-    /**
-     * A bare issuer identifier, e.g. `"did:web:red-issuer.example"`.
-     */
     case id(String
     )
-    /**
-     * An object form: `{"id": ...}`, `{"issuer": ...}`, or `{"recognizedIn": ...}`.
-     */
-    case object(id: String?, issuer: String?, recognizedIn: JsonValue?
+    case object(id: String?, issuer: String?, 
+        /**
+         * `recognizedIn`, as JSON text.
+         */recognizedIn: String?
     )
 
 
@@ -20946,7 +20092,7 @@ public struct FfiConverterTypeAcceptedIssuerEntry: FfiConverterRustBuffer {
         case 1: return .id(try FfiConverterString.read(from: &buf)
         )
         
-        case 2: return .object(id: try FfiConverterOptionString.read(from: &buf), issuer: try FfiConverterOptionString.read(from: &buf), recognizedIn: try FfiConverterOptionTypeJsonValue.read(from: &buf)
+        case 2: return .object(id: try FfiConverterOptionString.read(from: &buf), issuer: try FfiConverterOptionString.read(from: &buf), recognizedIn: try FfiConverterOptionString.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -20966,7 +20112,7 @@ public struct FfiConverterTypeAcceptedIssuerEntry: FfiConverterRustBuffer {
             writeInt(&buf, Int32(2))
             FfiConverterOptionString.write(id, into: &buf)
             FfiConverterOptionString.write(issuer, into: &buf)
-            FfiConverterOptionTypeJsonValue.write(recognizedIn, into: &buf)
+            FfiConverterOptionString.write(recognizedIn, into: &buf)
             
         }
     }
@@ -20991,20 +20137,13 @@ public func FfiConverterTypeAcceptedIssuerEntry_lower(_ value: AcceptedIssuerEnt
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * An `acceptedMethods` entry (§3.4.3). Same string-or-object shape: a bare DID
- * method name, e.g. `"key"`, or an object `{"method": "key"}`.
+ * An `acceptedMethods` entry: a bare name or an object.
  */
 
 public enum AcceptedMethodEntry: Equatable, Hashable {
     
-    /**
-     * A bare method name, e.g. `"key"`.
-     */
     case name(String
     )
-    /**
-     * An object form, e.g. `{"method": "key"}`.
-     */
     case object(method: String
     )
 
@@ -22637,98 +21776,16 @@ public func FfiConverterTypeCredentialTokenState_lower(_ value: CredentialTokenS
 }
 
 
-
-public enum CryptoError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
-
-    
-    
-    case General(String
-    )
-
-    
-
-    
-
-    
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
-    
-}
-
-#if compiler(>=6)
-extension CryptoError: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeCryptoError: FfiConverterRustBuffer {
-    typealias SwiftType = CryptoError
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CryptoError {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-
-        
-
-        
-        case 1: return .General(
-            try FfiConverterString.read(from: &buf)
-            )
-
-         default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: CryptoError, into buf: inout [UInt8]) {
-        switch value {
-
-        
-
-        
-        
-        case let .General(v1):
-            writeInt(&buf, Int32(1))
-            FfiConverterString.write(v1, into: &buf)
-            
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeCryptoError_lift(_ buf: RustBuffer) throws -> CryptoError {
-    return try FfiConverterTypeCryptoError.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeCryptoError_lower(_ value: CryptoError) -> RustBuffer {
-    return FfiConverterTypeCryptoError.lower(value)
-}
-
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * An `acceptedCryptosuites` entry: either a bare cryptosuite name or an object
- * carrying a `cryptosuite` field. `#[serde(untagged)]` is the ONLY sanctioned
- * untagged use in this module — it is NEVER applied to the envelope.
+ * An `acceptedCryptosuites` entry: a bare name or an object.
  */
 
 public enum CryptosuiteEntry: Equatable, Hashable {
     
-    /**
-     * A bare cryptosuite name, e.g. `"ecdsa-rdfc-2019"`.
-     */
     case name(String
     )
-    /**
-     * An object form, e.g. `{"cryptosuite": "ecdsa-sd-2023"}`.
-     */
     case object(cryptosuite: String
     )
 
@@ -23601,6 +22658,154 @@ public func FfiConverterTypeDisclosureSelection_lower(_ value: DisclosureSelecti
     return FfiConverterTypeDisclosureSelection.lower(value)
 }
 
+
+
+/**
+ * Errors from protocol discovery.
+ */
+public enum DiscoveryError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    /**
+     * A transport-level failure (stringified `reqwest::Error`).
+     */
+    case Network(String
+    )
+    /**
+     * Interaction URL provided is invalid
+     */
+    case InvalidUrl(String
+    )
+    /**
+     * A 5xx (or otherwise non-2xx/4xx) server response.
+     */
+    case ServerError(status: UInt16, body: String
+    )
+    /**
+     * A response body failed to deserialize (stringified `serde_json::Error`).
+     */
+    case Deserialization(String
+    )
+    /**
+     * A response body exceeded the configured size cap (B.4).
+     */
+    case ResponseTooLarge(limitBytes: UInt64
+    )
+    /**
+     * A non-HTTPS (or non-HTTP-scheme) URL was rejected (§3.7.1 / B.2). Plain
+     * `http` is only accepted for loopback hosts (local development).
+     */
+    case InsecureUrl(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension DiscoveryError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDiscoveryError: FfiConverterRustBuffer {
+    typealias SwiftType = DiscoveryError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DiscoveryError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Network(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 2: return .InvalidUrl(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 3: return .ServerError(
+            status: try FfiConverterUInt16.read(from: &buf), 
+            body: try FfiConverterString.read(from: &buf)
+            )
+        case 4: return .Deserialization(
+            try FfiConverterString.read(from: &buf)
+            )
+        case 5: return .ResponseTooLarge(
+            limitBytes: try FfiConverterUInt64.read(from: &buf)
+            )
+        case 6: return .InsecureUrl(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DiscoveryError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .Network(v1):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .InvalidUrl(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ServerError(status,body):
+            writeInt(&buf, Int32(3))
+            FfiConverterUInt16.write(status, into: &buf)
+            FfiConverterString.write(body, into: &buf)
+            
+        
+        case let .Deserialization(v1):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(v1, into: &buf)
+            
+        
+        case let .ResponseTooLarge(limitBytes):
+            writeInt(&buf, Int32(5))
+            FfiConverterUInt64.write(limitBytes, into: &buf)
+            
+        
+        case let .InsecureUrl(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDiscoveryError_lift(_ buf: RustBuffer) throws -> DiscoveryError {
+    return try FfiConverterTypeDiscoveryError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDiscoveryError_lower(_ value: DiscoveryError) -> RustBuffer {
+    return FfiConverterTypeDiscoveryError.lower(value)
+}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -24536,23 +23741,106 @@ public func FfiConverterTypeDraft18RequestSignerError_lower(_ value: Draft18Requ
     return FfiConverterTypeDraft18RequestSignerError.lower(value)
 }
 
+
+/**
+ * Errors a [`DynamicCredentialProvider`] may return from
+ * [`DynamicCredentialProvider::mint`].
+ */
+public enum DynamicCredentialError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    /**
+     * The user (or provider) declined to mint the offered credential.
+     */
+    case Cancelled
+    /**
+     * Issuing failed for any other reason (signing, derivation, schema, etc.).
+     */
+    case IssuanceFailed(String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension DynamicCredentialError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDynamicCredentialError: FfiConverterRustBuffer {
+    typealias SwiftType = DynamicCredentialError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DynamicCredentialError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Cancelled
+        case 2: return .IssuanceFailed(
+            try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DynamicCredentialError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case .Cancelled:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .IssuanceFailed(v1):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(v1, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialError_lift(_ buf: RustBuffer) throws -> DynamicCredentialError {
+    return try FfiConverterTypeDynamicCredentialError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDynamicCredentialError_lower(_ value: DynamicCredentialError) -> RustBuffer {
+    return FfiConverterTypeDynamicCredentialError.lower(value)
+}
+
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * An `acceptedEnvelopes` entry: a bare media-type string or an object carrying a
- * `mediaType` field. Same string-or-object backward-compat shape.
+ * An `acceptedEnvelopes` entry: a bare name or an object.
  */
 
 public enum EnvelopeEntry: Equatable, Hashable {
     
-    /**
-     * A bare media-type, e.g. `"application/vp+jwt"`.
-     */
     case name(String
     )
-    /**
-     * An object form, e.g. `{"mediaType": "application/vp+jwt"}`.
-     */
     case object(mediaType: String
     )
 
@@ -24802,142 +24090,6 @@ public func FfiConverterTypeGrantType_lower(_ value: GrantType) -> RustBuffer {
     return FfiConverterTypeGrantType.lower(value)
 }
 
-
-
-public enum HttpClientError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
-
-    
-    
-    case RequestBuilder
-    case ResponseBuilder
-    case UrlParse
-    case MethodParse
-    case HeaderParse
-    case HeaderKeyParse(key: String
-    )
-    case HeaderValueParse(value: String
-    )
-    case HeaderEntryParse(key: String, value: String
-    )
-    case Other(error: String
-    )
-
-    
-
-    
-
-    
-    public var errorDescription: String? {
-        String(reflecting: self)
-    }
-    
-}
-
-#if compiler(>=6)
-extension HttpClientError: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeHttpClientError: FfiConverterRustBuffer {
-    typealias SwiftType = HttpClientError
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HttpClientError {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-
-        
-
-        
-        case 1: return .RequestBuilder
-        case 2: return .ResponseBuilder
-        case 3: return .UrlParse
-        case 4: return .MethodParse
-        case 5: return .HeaderParse
-        case 6: return .HeaderKeyParse(
-            key: try FfiConverterString.read(from: &buf)
-            )
-        case 7: return .HeaderValueParse(
-            value: try FfiConverterString.read(from: &buf)
-            )
-        case 8: return .HeaderEntryParse(
-            key: try FfiConverterString.read(from: &buf), 
-            value: try FfiConverterString.read(from: &buf)
-            )
-        case 9: return .Other(
-            error: try FfiConverterString.read(from: &buf)
-            )
-
-         default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: HttpClientError, into buf: inout [UInt8]) {
-        switch value {
-
-        
-
-        
-        
-        case .RequestBuilder:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .ResponseBuilder:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .UrlParse:
-            writeInt(&buf, Int32(3))
-        
-        
-        case .MethodParse:
-            writeInt(&buf, Int32(4))
-        
-        
-        case .HeaderParse:
-            writeInt(&buf, Int32(5))
-        
-        
-        case let .HeaderKeyParse(key):
-            writeInt(&buf, Int32(6))
-            FfiConverterString.write(key, into: &buf)
-            
-        
-        case let .HeaderValueParse(value):
-            writeInt(&buf, Int32(7))
-            FfiConverterString.write(value, into: &buf)
-            
-        
-        case let .HeaderEntryParse(key,value):
-            writeInt(&buf, Int32(8))
-            FfiConverterString.write(key, into: &buf)
-            FfiConverterString.write(value, into: &buf)
-            
-        
-        case let .Other(error):
-            writeInt(&buf, Int32(9))
-            FfiConverterString.write(error, into: &buf)
-            
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeHttpClientError_lift(_ buf: RustBuffer) throws -> HttpClientError {
-    return try FfiConverterTypeHttpClientError.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeHttpClientError_lower(_ value: HttpClientError) -> RustBuffer {
-    return FfiConverterTypeHttpClientError.lower(value)
-}
 
 
 public enum IetfSdJwtVcError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
@@ -27536,40 +26688,16 @@ public func FfiConverterTypeOID4VPError_lower(_ value: Oid4vpError) -> RustBuffe
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * The validity hint surfaced for one previewed offered credential.
- * Derived by verifying the VC's proof/claims read-only, BEFORE the user accepts, so
- * the UI can warn about an expired/unverifiable credential up front.
+ * The validity hint for one previewed offered credential.
  */
 
 public enum OfferedValidity: Equatable, Hashable {
     
-    /**
-     * Proof verified and the validity period is current.
-     */
     case valid
-    /**
-     * Proof verified but the validity period failed (expired/premature/other claims).
-     * `accept_offer` would still STORE this, with a distinct warning.
-     */
     case timeBounded
-    /**
-     * The credential's own cryptographic proof failed — `accept_offer` would REJECT
-     * the whole Offer.
-     */
     case proofInvalid
-    /**
-     * An `EnvelopedVerifiableCredential` — recognized but not yet decodable.
-     */
     case enveloped
-    /**
-     * A proof type/cryptosuite this SDK recognizes but cannot process yet
-     * (e.g. a `bbs-2023` base proof). `accept_offer` would REJECT the Offer
-     * with a typed unsupported-format error.
-     */
     case unsupportedProof
-    /**
-     * The verification machinery could not run (bad payload / unsupported shape).
-     */
     case unverifiable
 
 
@@ -30034,39 +29162,36 @@ public func FfiConverterTypeStatusListError_lower(_ value: StatusListError) -> R
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
 /**
- * The stable, app-facing outcome of one exchange step.
- *
- * This is the `uniffi::Enum` the holder session returns to the native caller for
- * every server reply. `serde` is derived only for the round-trip unit tests; the
- * actual wire types are [`VcapiMessage`]/[`ProblemDetails`].
+ * The outcome of one step of the exchange.
  */
 
 public enum StepResult: Equatable, Hashable {
     
     /**
-     * The server requests a verifiable presentation; the caller should respond.
+     * The server requests a verifiable presentation.
      */
     case request(vpr: Vpr
     )
     /**
-     * The server offered verifiable presentation(s) (opaque, UNVERIFIED),
-     * optionally with a follow-on request to continue the exchange and/or a
-     * terminal redirect to surface AFTER the offer is resolved (§3.6 allows a
-     * message to combine properties — the redirect must not be dropped).
+     * The server offered credential(s), optionally with a follow-on request
+     * and/or a combined terminal redirect (§3.6).
      */
-    case offer(vcs: JsonValue, nextVpr: Vpr?, redirectUrl: Url?
+    case offer(
+        /**
+         * The offered `verifiablePresentation` envelope, as JSON text.
+         */vcs: String, nextVpr: Vpr?, redirectUrl: String?
     )
     /**
      * A terminal redirect target. Surfaced as data — NEVER auto-followed.
      */
-    case redirect(url: Url
+    case redirect(url: String
     )
     /**
-     * The exchange completed successfully with no further action.
+     * The exchange completed with no further action.
      */
     case complete
     /**
-     * The server returned an RFC 9457 problem (a surfaced 4xx, NOT an error).
+     * The server returned an RFC 9457 problem (a surfaced 4xx, not an error).
      */
     case problem(details: ProblemDetails
     )
@@ -30094,10 +29219,10 @@ public struct FfiConverterTypeStepResult: FfiConverterRustBuffer {
         case 1: return .request(vpr: try FfiConverterTypeVpr.read(from: &buf)
         )
         
-        case 2: return .offer(vcs: try FfiConverterTypeJsonValue.read(from: &buf), nextVpr: try FfiConverterOptionTypeVpr.read(from: &buf), redirectUrl: try FfiConverterOptionTypeUrl.read(from: &buf)
+        case 2: return .offer(vcs: try FfiConverterString.read(from: &buf), nextVpr: try FfiConverterOptionTypeVpr.read(from: &buf), redirectUrl: try FfiConverterOptionString.read(from: &buf)
         )
         
-        case 3: return .redirect(url: try FfiConverterTypeUrl.read(from: &buf)
+        case 3: return .redirect(url: try FfiConverterString.read(from: &buf)
         )
         
         case 4: return .complete
@@ -30120,14 +29245,14 @@ public struct FfiConverterTypeStepResult: FfiConverterRustBuffer {
         
         case let .offer(vcs,nextVpr,redirectUrl):
             writeInt(&buf, Int32(2))
-            FfiConverterTypeJsonValue.write(vcs, into: &buf)
+            FfiConverterString.write(vcs, into: &buf)
             FfiConverterOptionTypeVpr.write(nextVpr, into: &buf)
-            FfiConverterOptionTypeUrl.write(redirectUrl, into: &buf)
+            FfiConverterOptionString.write(redirectUrl, into: &buf)
             
         
         case let .redirect(url):
             writeInt(&buf, Int32(3))
-            FfiConverterTypeUrl.write(url, into: &buf)
+            FfiConverterString.write(url, into: &buf)
             
         
         case .complete:
@@ -30159,37 +29284,23 @@ public func FfiConverterTypeStepResult_lower(_ value: StepResult) -> RustBuffer 
 
 
 
-/**
- * Enum: StorageManagerError
- *
- * Represents errors that may occur during storage management operations
- */
-public enum StorageManagerError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+public enum SyncHttpClientError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
-    /**
-     * This error happens when the key value could not be used with the underlying
-     * storage system on the device
-     */
-    case InvalidLookupKey
-    /**
-     * This error occurrs when we can retrieve a value, but could not decrypt it
-     */
-    case CouldNotDecryptValue
-    /**
-     * The underlying device has no more storage available
-     */
-    case StorageFull
-    /**
-     * During storage manager initialization, it must create a new encryption key.  This
-     * error is raised when that key could not be created.
-     */
-    case CouldNotMakeKey
-    /**
-     * An internal problem occurred in the storage manager.
-     */
-    case InternalError
+    case RequestBuilder
+    case ResponseBuilder
+    case UrlParse
+    case MethodParse
+    case HeaderParse
+    case HeaderKeyParse(key: String
+    )
+    case HeaderValueParse(value: String
+    )
+    case HeaderEntryParse(key: String, value: String
+    )
+    case Other(error: String
+    )
 
     
 
@@ -30203,58 +29314,92 @@ public enum StorageManagerError: Swift.Error, Equatable, Hashable, Foundation.Lo
 }
 
 #if compiler(>=6)
-extension StorageManagerError: Sendable {}
+extension SyncHttpClientError: Sendable {}
 #endif
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public struct FfiConverterTypeStorageManagerError: FfiConverterRustBuffer {
-    typealias SwiftType = StorageManagerError
+public struct FfiConverterTypeSyncHttpClientError: FfiConverterRustBuffer {
+    typealias SwiftType = SyncHttpClientError
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> StorageManagerError {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SyncHttpClientError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
         
 
         
-        case 1: return .InvalidLookupKey
-        case 2: return .CouldNotDecryptValue
-        case 3: return .StorageFull
-        case 4: return .CouldNotMakeKey
-        case 5: return .InternalError
+        case 1: return .RequestBuilder
+        case 2: return .ResponseBuilder
+        case 3: return .UrlParse
+        case 4: return .MethodParse
+        case 5: return .HeaderParse
+        case 6: return .HeaderKeyParse(
+            key: try FfiConverterString.read(from: &buf)
+            )
+        case 7: return .HeaderValueParse(
+            value: try FfiConverterString.read(from: &buf)
+            )
+        case 8: return .HeaderEntryParse(
+            key: try FfiConverterString.read(from: &buf), 
+            value: try FfiConverterString.read(from: &buf)
+            )
+        case 9: return .Other(
+            error: try FfiConverterString.read(from: &buf)
+            )
 
          default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
-    public static func write(_ value: StorageManagerError, into buf: inout [UInt8]) {
+    public static func write(_ value: SyncHttpClientError, into buf: inout [UInt8]) {
         switch value {
 
         
 
         
         
-        case .InvalidLookupKey:
+        case .RequestBuilder:
             writeInt(&buf, Int32(1))
         
         
-        case .CouldNotDecryptValue:
+        case .ResponseBuilder:
             writeInt(&buf, Int32(2))
         
         
-        case .StorageFull:
+        case .UrlParse:
             writeInt(&buf, Int32(3))
         
         
-        case .CouldNotMakeKey:
+        case .MethodParse:
             writeInt(&buf, Int32(4))
         
         
-        case .InternalError:
+        case .HeaderParse:
             writeInt(&buf, Int32(5))
         
+        
+        case let .HeaderKeyParse(key):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(key, into: &buf)
+            
+        
+        case let .HeaderValueParse(value):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .HeaderEntryParse(key,value):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .Other(error):
+            writeInt(&buf, Int32(9))
+            FfiConverterString.write(error, into: &buf)
+            
         }
     }
 }
@@ -30263,15 +29408,15 @@ public struct FfiConverterTypeStorageManagerError: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeStorageManagerError_lift(_ buf: RustBuffer) throws -> StorageManagerError {
-    return try FfiConverterTypeStorageManagerError.lift(buf)
+public func FfiConverterTypeSyncHttpClientError_lift(_ buf: RustBuffer) throws -> SyncHttpClientError {
+    return try FfiConverterTypeSyncHttpClientError.lift(buf)
 }
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-public func FfiConverterTypeStorageManagerError_lower(_ value: StorageManagerError) -> RustBuffer {
-    return FfiConverterTypeStorageManagerError.lower(value)
+public func FfiConverterTypeSyncHttpClientError_lower(_ value: SyncHttpClientError) -> RustBuffer {
+    return FfiConverterTypeSyncHttpClientError.lower(value)
 }
 
 
@@ -30600,138 +29745,45 @@ public func FfiConverterTypeVPError_lower(_ value: VpError) -> RustBuffer {
 
 
 /**
- * Errors that can occur while driving a VCALM `vcapi` exchange.
+ * Errors from a VCALM exchange.
  */
 public enum VcalmError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
     
     
-    /**
-     * An unexpected foreign-callback error occurred across the FFI boundary.
-     */
-    case UnexpectedUniFfiCallbackError(String
-    )
-    /**
-     * A transport-level failure (stringified `reqwest::Error`).
-     */
     case Network(String
     )
-    /**
-     * A response body failed to deserialize (stringified `serde_json::Error`).
-     */
     case Deserialization(String
     )
-    /**
-     * The discovery response's `protocols` map lacked a `vcapi` key.
-     */
     case NoVcapiProtocol
-    /**
-     * A 4xx response whose body failed to parse as RFC 9457 problem-details.
-     */
     case MalformedProblemDetails(status: UInt16, body: String
     )
-    /**
-     * A 5xx (or otherwise non-2xx/4xx) server response.
-     */
     case ServerError(status: UInt16, body: String
     )
-    /**
-     * Errors bubbling up from the VDC collection.
-     */
-    case VdcCollection(VdcCollectionError
+    case Port(String
     )
-    /**
-     * Presentation/signing errors.
-     */
-    case Presentation(PresentationError
+    case Presentation(String
     )
-    /**
-     * A credential's cryptographic verification machinery failed to run.
-     */
-    case Verification(VerificationError
-    )
-    /**
-     * A credential ran the verification machinery but was judged invalid
-     * (claims or proof).
-     */
-    case InvalidCredentialDetail(InvalidCredential
-    )
-    /**
-     * A received credential failed to decode into a parsed credential.
-     */
-    case CredentialDecoding(CredentialDecodingError
-    )
-    /**
-     * A parsed credential failed to re-encode into its storable generic form.
-     */
-    case CredentialEncoding(CredentialEncodingError
-    )
-    /**
-     * The offered presentation carried no verifiable credentials.
-     */
     case NoOfferedCredentials
-    /**
-     * An offered credential failed cryptographic proof verification.
-     * `index` is the credential's position in the offer.
-     */
     case InvalidCredentialProof(index: UInt32
     )
-    /**
-     * A session method was called in the wrong state (no active exchange, no
-     * pending offer, no storage configured, …).
-     */
     case SessionState(String
     )
-    /**
-     * A non-HTTPS (or non-HTTP-scheme) URL was rejected (§3.7.1 / B.2). Plain
-     * `http` is only accepted for loopback hosts (local development).
-     */
     case InsecureUrl(String
     )
-    /**
-     * A response body exceeded the configured size cap (B.4).
-     */
     case ResponseTooLarge(limitBytes: UInt64
     )
-    /**
-     * §3.4.3.2: the VPR `domain` does not match the exchange channel host.
-     * Refused before signing; the caller may explicitly override.
-     */
     case DomainChannelMismatch(domain: String, channel: String
     )
-    /**
-     * §3.4.3.1: the VPR's `acceptedCryptosuites` lists no suite this holder
-     * can produce.
-     */
     case NoAcceptedCryptosuite(accepted: String
     )
-    /**
-     * §3.4.3.2: every DIDAuthentication query's `acceptedMethods` excludes the
-     * holder's `did:key`.
-     */
     case NoAcceptedDidMethod(accepted: String
     )
-    /**
-     * The selected credentials mix VCDM v1 and v2 data models, which cannot be
-     * embedded in a single presentation. Select same-version credentials.
-     */
     case MixedCredentialVersions
-    /**
-     * A selected credential carries no proof that is safe to present (B.1
-     * allowlist) — e.g. only an SD/bbs base proof.
-     */
     case NoPresentableProof(credentialTypes: String
     )
-    /**
-     * Selective-disclosure derivation failed for a credential the VPR asked to
-     * SD-derive. NOT silently downgraded to full disclosure.
-     */
     case SdDeriveFailed(String
     )
-    /**
-     * A credential format/proof type this holder cannot process yet
-     * (e.g. `EnvelopedVerifiableCredential`, a `bbs-2023` base proof).
-     */
     case UnsupportedCredentialFormat(String
     )
 
@@ -30763,73 +29815,58 @@ public struct FfiConverterTypeVcalmError: FfiConverterRustBuffer {
         
 
         
-        case 1: return .UnexpectedUniFfiCallbackError(
+        case 1: return .Network(
             try FfiConverterString.read(from: &buf)
             )
-        case 2: return .Network(
+        case 2: return .Deserialization(
             try FfiConverterString.read(from: &buf)
             )
-        case 3: return .Deserialization(
-            try FfiConverterString.read(from: &buf)
-            )
-        case 4: return .NoVcapiProtocol
-        case 5: return .MalformedProblemDetails(
+        case 3: return .NoVcapiProtocol
+        case 4: return .MalformedProblemDetails(
             status: try FfiConverterUInt16.read(from: &buf), 
             body: try FfiConverterString.read(from: &buf)
             )
-        case 6: return .ServerError(
+        case 5: return .ServerError(
             status: try FfiConverterUInt16.read(from: &buf), 
             body: try FfiConverterString.read(from: &buf)
             )
-        case 7: return .VdcCollection(
-            try FfiConverterTypeVdcCollectionError.read(from: &buf)
+        case 6: return .Port(
+            try FfiConverterString.read(from: &buf)
             )
-        case 8: return .Presentation(
-            try FfiConverterTypePresentationError.read(from: &buf)
+        case 7: return .Presentation(
+            try FfiConverterString.read(from: &buf)
             )
-        case 9: return .Verification(
-            try FfiConverterTypeVerificationError.read(from: &buf)
-            )
-        case 10: return .InvalidCredentialDetail(
-            try FfiConverterTypeInvalidCredential.read(from: &buf)
-            )
-        case 11: return .CredentialDecoding(
-            try FfiConverterTypeCredentialDecodingError.read(from: &buf)
-            )
-        case 12: return .CredentialEncoding(
-            try FfiConverterTypeCredentialEncodingError.read(from: &buf)
-            )
-        case 13: return .NoOfferedCredentials
-        case 14: return .InvalidCredentialProof(
+        case 8: return .NoOfferedCredentials
+        case 9: return .InvalidCredentialProof(
             index: try FfiConverterUInt32.read(from: &buf)
             )
-        case 15: return .SessionState(
+        case 10: return .SessionState(
             try FfiConverterString.read(from: &buf)
             )
-        case 16: return .InsecureUrl(
+        case 11: return .InsecureUrl(
             try FfiConverterString.read(from: &buf)
             )
-        case 17: return .ResponseTooLarge(
+        case 12: return .ResponseTooLarge(
             limitBytes: try FfiConverterUInt64.read(from: &buf)
             )
-        case 18: return .DomainChannelMismatch(
+        case 13: return .DomainChannelMismatch(
             domain: try FfiConverterString.read(from: &buf), 
             channel: try FfiConverterString.read(from: &buf)
             )
-        case 19: return .NoAcceptedCryptosuite(
+        case 14: return .NoAcceptedCryptosuite(
             accepted: try FfiConverterString.read(from: &buf)
             )
-        case 20: return .NoAcceptedDidMethod(
+        case 15: return .NoAcceptedDidMethod(
             accepted: try FfiConverterString.read(from: &buf)
             )
-        case 21: return .MixedCredentialVersions
-        case 22: return .NoPresentableProof(
+        case 16: return .MixedCredentialVersions
+        case 17: return .NoPresentableProof(
             credentialTypes: try FfiConverterString.read(from: &buf)
             )
-        case 23: return .SdDeriveFailed(
+        case 18: return .SdDeriveFailed(
             try FfiConverterString.read(from: &buf)
             )
-        case 24: return .UnsupportedCredentialFormat(
+        case 19: return .UnsupportedCredentialFormat(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -30844,123 +29881,98 @@ public struct FfiConverterTypeVcalmError: FfiConverterRustBuffer {
 
         
         
-        case let .UnexpectedUniFfiCallbackError(v1):
+        case let .Network(v1):
             writeInt(&buf, Int32(1))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Network(v1):
+        case let .Deserialization(v1):
             writeInt(&buf, Int32(2))
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .Deserialization(v1):
-            writeInt(&buf, Int32(3))
-            FfiConverterString.write(v1, into: &buf)
-            
-        
         case .NoVcapiProtocol:
-            writeInt(&buf, Int32(4))
+            writeInt(&buf, Int32(3))
         
         
         case let .MalformedProblemDetails(status,body):
-            writeInt(&buf, Int32(5))
+            writeInt(&buf, Int32(4))
             FfiConverterUInt16.write(status, into: &buf)
             FfiConverterString.write(body, into: &buf)
             
         
         case let .ServerError(status,body):
-            writeInt(&buf, Int32(6))
+            writeInt(&buf, Int32(5))
             FfiConverterUInt16.write(status, into: &buf)
             FfiConverterString.write(body, into: &buf)
             
         
-        case let .VdcCollection(v1):
-            writeInt(&buf, Int32(7))
-            FfiConverterTypeVdcCollectionError.write(v1, into: &buf)
+        case let .Port(v1):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(v1, into: &buf)
             
         
         case let .Presentation(v1):
-            writeInt(&buf, Int32(8))
-            FfiConverterTypePresentationError.write(v1, into: &buf)
-            
-        
-        case let .Verification(v1):
-            writeInt(&buf, Int32(9))
-            FfiConverterTypeVerificationError.write(v1, into: &buf)
-            
-        
-        case let .InvalidCredentialDetail(v1):
-            writeInt(&buf, Int32(10))
-            FfiConverterTypeInvalidCredential.write(v1, into: &buf)
-            
-        
-        case let .CredentialDecoding(v1):
-            writeInt(&buf, Int32(11))
-            FfiConverterTypeCredentialDecodingError.write(v1, into: &buf)
-            
-        
-        case let .CredentialEncoding(v1):
-            writeInt(&buf, Int32(12))
-            FfiConverterTypeCredentialEncodingError.write(v1, into: &buf)
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(v1, into: &buf)
             
         
         case .NoOfferedCredentials:
-            writeInt(&buf, Int32(13))
+            writeInt(&buf, Int32(8))
         
         
         case let .InvalidCredentialProof(index):
-            writeInt(&buf, Int32(14))
+            writeInt(&buf, Int32(9))
             FfiConverterUInt32.write(index, into: &buf)
             
         
         case let .SessionState(v1):
-            writeInt(&buf, Int32(15))
+            writeInt(&buf, Int32(10))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .InsecureUrl(v1):
-            writeInt(&buf, Int32(16))
+            writeInt(&buf, Int32(11))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .ResponseTooLarge(limitBytes):
-            writeInt(&buf, Int32(17))
+            writeInt(&buf, Int32(12))
             FfiConverterUInt64.write(limitBytes, into: &buf)
             
         
         case let .DomainChannelMismatch(domain,channel):
-            writeInt(&buf, Int32(18))
+            writeInt(&buf, Int32(13))
             FfiConverterString.write(domain, into: &buf)
             FfiConverterString.write(channel, into: &buf)
             
         
         case let .NoAcceptedCryptosuite(accepted):
-            writeInt(&buf, Int32(19))
+            writeInt(&buf, Int32(14))
             FfiConverterString.write(accepted, into: &buf)
             
         
         case let .NoAcceptedDidMethod(accepted):
-            writeInt(&buf, Int32(20))
+            writeInt(&buf, Int32(15))
             FfiConverterString.write(accepted, into: &buf)
             
         
         case .MixedCredentialVersions:
-            writeInt(&buf, Int32(21))
+            writeInt(&buf, Int32(16))
         
         
         case let .NoPresentableProof(credentialTypes):
-            writeInt(&buf, Int32(22))
+            writeInt(&buf, Int32(17))
             FfiConverterString.write(credentialTypes, into: &buf)
             
         
         case let .SdDeriveFailed(v1):
-            writeInt(&buf, Int32(23))
+            writeInt(&buf, Int32(18))
             FfiConverterString.write(v1, into: &buf)
             
         
         case let .UnsupportedCredentialFormat(v1):
-            writeInt(&buf, Int32(24))
+            writeInt(&buf, Int32(19))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -32914,30 +31926,6 @@ fileprivate struct FfiConverterOptionTypeJwtVc: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterOptionTypeKeyStore: FfiConverterRustBuffer {
-    typealias SwiftType = KeyStore?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterTypeKeyStore.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterTypeKeyStore.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterOptionTypeMdoc: FfiConverterRustBuffer {
     typealias SwiftType = Mdoc?
 
@@ -33026,6 +32014,30 @@ fileprivate struct FfiConverterOptionTypeVCDM2SdJwt: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeVCDM2SdJwt.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeKeyStore: FfiConverterRustBuffer {
+    typealias SwiftType = KeyStore?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeKeyStore.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeKeyStore.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -33466,54 +32478,6 @@ fileprivate struct FfiConverterOptionDictionaryStringString: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterOptionTypeJsonValue: FfiConverterRustBuffer {
-    typealias SwiftType = JsonValue?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterTypeJsonValue.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterTypeJsonValue.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterOptionTypeKeyAlias: FfiConverterRustBuffer {
-    typealias SwiftType = KeyAlias?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterTypeKeyAlias.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterTypeKeyAlias.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterOptionTypeUrl: FfiConverterRustBuffer {
     typealias SwiftType = Url?
 
@@ -33538,8 +32502,8 @@ fileprivate struct FfiConverterOptionTypeUrl: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterOptionTypeValue: FfiConverterRustBuffer {
-    typealias SwiftType = Value?
+fileprivate struct FfiConverterOptionTypeKeyAlias: FfiConverterRustBuffer {
+    typealias SwiftType = KeyAlias?
 
     public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
         guard let value = value else {
@@ -33547,13 +32511,13 @@ fileprivate struct FfiConverterOptionTypeValue: FfiConverterRustBuffer {
             return
         }
         writeInt(&buf, Int8(1))
-        FfiConverterTypeValue.write(value, into: &buf)
+        FfiConverterTypeKeyAlias.write(value, into: &buf)
     }
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
-        case 1: return try FfiConverterTypeValue.read(from: &buf)
+        case 1: return try FfiConverterTypeKeyAlias.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -33704,6 +32668,31 @@ fileprivate struct FfiConverterSequenceTypeDraft18RequestedField: FfiConverterRu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeDraft18RequestedField.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDynamicCredentialProvider: FfiConverterRustBuffer {
+    typealias SwiftType = [DynamicCredentialProvider]
+
+    public static func write(_ value: [DynamicCredentialProvider], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDynamicCredentialProvider.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DynamicCredentialProvider] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DynamicCredentialProvider]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDynamicCredentialProvider.read(from: &buf))
         }
         return seq
     }
@@ -34054,6 +33043,31 @@ fileprivate struct FfiConverterSequenceTypeCredentialRequirement: FfiConverterRu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCredentialRequirement.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDynamicCredentialOffer: FfiConverterRustBuffer {
+    typealias SwiftType = [DynamicCredentialOffer]
+
+    public static func write(_ value: [DynamicCredentialOffer], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDynamicCredentialOffer.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DynamicCredentialOffer] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DynamicCredentialOffer]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDynamicCredentialOffer.read(from: &buf))
         }
         return seq
     }
@@ -34687,31 +33701,6 @@ fileprivate struct FfiConverterSequenceTypeJws: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeKey: FfiConverterRustBuffer {
-    typealias SwiftType = [Key]
-
-    public static func write(_ value: [Key], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeKey.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Key] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [Key]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeKey.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterSequenceTypeUuid: FfiConverterRustBuffer {
     typealias SwiftType = [Uuid]
 
@@ -35315,6 +34304,50 @@ public func FfiConverterTypeCryptosuiteString_lower(_ value: CryptosuiteString) 
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
+public typealias DcqlCredentialQueryJson = String
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDcqlCredentialQueryJson: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DcqlCredentialQueryJson {
+        return try FfiConverterString.read(from: &buf)
+    }
+
+    public static func write(_ value: DcqlCredentialQueryJson, into buf: inout [UInt8]) {
+        return FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> DcqlCredentialQueryJson {
+        return try FfiConverterString.lift(value)
+    }
+
+    public static func lower(_ value: DcqlCredentialQueryJson) -> RustBuffer {
+        return FfiConverterString.lower(value)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDcqlCredentialQueryJson_lift(_ value: RustBuffer) throws -> DcqlCredentialQueryJson {
+    return try FfiConverterTypeDcqlCredentialQueryJson.lift(value)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDcqlCredentialQueryJson_lower(_ value: DcqlCredentialQueryJson) -> RustBuffer {
+    return FfiConverterTypeDcqlCredentialQueryJson.lower(value)
+}
+
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
 public typealias Draft18AuthRequest = String
 
 #if swift(>=5.8)
@@ -35403,50 +34436,6 @@ public func FfiConverterTypeFieldId180137_lower(_ value: FieldId180137) -> RustB
  * Typealias from the type name used in the UDL file to the builtin type.  This
  * is needed because the UDL type name is used in function/method signatures.
  */
-public typealias JsonValue = String
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeJsonValue: FfiConverter {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> JsonValue {
-        return try FfiConverterString.read(from: &buf)
-    }
-
-    public static func write(_ value: JsonValue, into buf: inout [UInt8]) {
-        return FfiConverterString.write(value, into: &buf)
-    }
-
-    public static func lift(_ value: RustBuffer) throws -> JsonValue {
-        return try FfiConverterString.lift(value)
-    }
-
-    public static func lower(_ value: JsonValue) -> RustBuffer {
-        return FfiConverterString.lower(value)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeJsonValue_lift(_ value: RustBuffer) throws -> JsonValue {
-    return try FfiConverterTypeJsonValue.lift(value)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeJsonValue_lower(_ value: JsonValue) -> RustBuffer {
-    return FfiConverterTypeJsonValue.lower(value)
-}
-
-
-
-/**
- * Typealias from the type name used in the UDL file to the builtin type.  This
- * is needed because the UDL type name is used in function/method signatures.
- */
 public typealias Jws = String
 
 #if swift(>=5.8)
@@ -35483,94 +34472,6 @@ public func FfiConverterTypeJws_lift(_ value: RustBuffer) throws -> Jws {
 #endif
 public func FfiConverterTypeJws_lower(_ value: Jws) -> RustBuffer {
     return FfiConverterTypeJws.lower(value)
-}
-
-
-
-/**
- * Typealias from the type name used in the UDL file to the builtin type.  This
- * is needed because the UDL type name is used in function/method signatures.
- */
-public typealias Key = String
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeKey: FfiConverter {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Key {
-        return try FfiConverterString.read(from: &buf)
-    }
-
-    public static func write(_ value: Key, into buf: inout [UInt8]) {
-        return FfiConverterString.write(value, into: &buf)
-    }
-
-    public static func lift(_ value: RustBuffer) throws -> Key {
-        return try FfiConverterString.lift(value)
-    }
-
-    public static func lower(_ value: Key) -> RustBuffer {
-        return FfiConverterString.lower(value)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeKey_lift(_ value: RustBuffer) throws -> Key {
-    return try FfiConverterTypeKey.lift(value)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeKey_lower(_ value: Key) -> RustBuffer {
-    return FfiConverterTypeKey.lower(value)
-}
-
-
-
-/**
- * Typealias from the type name used in the UDL file to the builtin type.  This
- * is needed because the UDL type name is used in function/method signatures.
- */
-public typealias KeyAlias = String
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeKeyAlias: FfiConverter {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> KeyAlias {
-        return try FfiConverterString.read(from: &buf)
-    }
-
-    public static func write(_ value: KeyAlias, into buf: inout [UInt8]) {
-        return FfiConverterString.write(value, into: &buf)
-    }
-
-    public static func lift(_ value: RustBuffer) throws -> KeyAlias {
-        return try FfiConverterString.lift(value)
-    }
-
-    public static func lower(_ value: KeyAlias) -> RustBuffer {
-        return FfiConverterString.lower(value)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeKeyAlias_lift(_ value: RustBuffer) throws -> KeyAlias {
-    return try FfiConverterTypeKeyAlias.lift(value)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeKeyAlias_lower(_ value: KeyAlias) -> RustBuffer {
-    return FfiConverterTypeKeyAlias.lower(value)
 }
 
 
@@ -35703,50 +34604,6 @@ public func FfiConverterTypeUuid_lift(_ value: RustBuffer) throws -> Uuid {
 #endif
 public func FfiConverterTypeUuid_lower(_ value: Uuid) -> RustBuffer {
     return FfiConverterTypeUuid.lower(value)
-}
-
-
-
-/**
- * Typealias from the type name used in the UDL file to the builtin type.  This
- * is needed because the UDL type name is used in function/method signatures.
- */
-public typealias Value = Data
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeValue: FfiConverter {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Value {
-        return try FfiConverterData.read(from: &buf)
-    }
-
-    public static func write(_ value: Value, into buf: inout [UInt8]) {
-        return FfiConverterData.write(value, into: &buf)
-    }
-
-    public static func lift(_ value: RustBuffer) throws -> Value {
-        return try FfiConverterData.lift(value)
-    }
-
-    public static func lower(_ value: Value) -> RustBuffer {
-        return FfiConverterData.lower(value)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeValue_lift(_ value: RustBuffer) throws -> Value {
-    return try FfiConverterTypeValue.lift(value)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeValue_lower(_ value: Value) -> RustBuffer {
-    return FfiConverterTypeValue.lower(value)
 }
 
 private let UNIFFI_RUST_FUTURE_POLL_READY: Int8 = 0
@@ -36210,6 +35067,27 @@ public func generateDidJwkUrl(jwk: Jwk) -> DidUrl  {
     )
 })
 }
+/**
+ * Resolve every protocol exchange URL advertised by an `interaction:` discovery
+ * endpoint.
+ *
+ * The URL must be HTTPS, or loopback `http` for local development (§3.7.1/B.2);
+ * other schemes are rejected. Response bodies are size-capped (B.4).
+ */
+public func discoverProtocols(interactionUrl: String)async throws  -> [String: String]  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_func_discover_protocols(FfiConverterString.lower(interactionUrl)
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterDictionaryStringString.lift,
+            errorHandler: FfiConverterTypeDiscoveryError_lift
+        )
+}
 public func jwkFromPublicP256(x: Data, y: Data) -> Jwk  {
     return try!  FfiConverterTypeJwk_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_func_jwk_from_public_p256(
@@ -36632,19 +35510,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verify_raw_credential() != 23828) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_cose_key_ec2_p256_public_key() != 53104) {
+    if (uniffi_mobile_sdk_rs_checksum_func_cose_key_ec2_p256_public_key() != 51880) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 51719) {
+    if (uniffi_mobile_sdk_rs_checksum_func_cose_sign1() != 45298) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_decode_der_signature() != 4386) {
+    if (uniffi_mobile_sdk_rs_checksum_func_decode_der_signature() != 1367) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_encode_to_cbor_bytes() != 58725) {
+    if (uniffi_mobile_sdk_rs_checksum_func_encode_to_cbor_bytes() != 49684) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_did_jwk_url() != 10045) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_discover_protocols() != 50212) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_jwk_from_public_p256() != 27776) {
@@ -36662,7 +35543,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verify_jwt_vp() != 24055) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 26070) {
+    if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation() != 7751) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_initialize_mdl_presentation_from_bytes() != 43986) {
@@ -36686,10 +35567,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 11409) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 16030) {
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 36962) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl_with_data() != 48314) {
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl_with_data() != 12531) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_create_jwt_proof() != 10438) {
@@ -36701,7 +35582,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_handle_dc_api_request() != 62830) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_build_annex_c_response() != 24658) {
+    if (uniffi_mobile_sdk_rs_checksum_func_build_annex_c_response() != 28837) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_credential_pdf() != 18296) {
@@ -36761,7 +35642,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_into_generic_form() != 44568) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_key_alias() != 32857) {
+    if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_key_alias() != 47177) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_parsedcredential_type() != 55745) {
@@ -36851,7 +35732,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_id() != 42649) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_cwt_key_alias() != 50205) {
+    if (uniffi_mobile_sdk_rs_checksum_method_cwt_key_alias() != 40264) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_cwt_status() != 3147) {
@@ -36869,7 +35750,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_ietfsdjwtvc_id() != 60284) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_ietfsdjwtvc_key_alias() != 25220) {
+    if (uniffi_mobile_sdk_rs_checksum_method_ietfsdjwtvc_key_alias() != 18573) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_ietfsdjwtvc_revealed_claims_as_json_string() != 38516) {
@@ -36887,7 +35768,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_jsonvc_id() != 29881) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_jsonvc_key_alias() != 34803) {
+    if (uniffi_mobile_sdk_rs_checksum_method_jsonvc_key_alias() != 18227) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_jsonvc_status() != 14535) {
@@ -36914,7 +35795,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_jwtvc_jws_payload_as_json_encoded_utf8_string() != 5952) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_jwtvc_key_alias() != 61229) {
+    if (uniffi_mobile_sdk_rs_checksum_method_jwtvc_key_alias() != 3748) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_jwtvc_type() != 22973) {
@@ -36926,7 +35807,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_jwtvc_vcdm_version() != 18114) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_activity_log() != 50184) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_activity_log() != 23680) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_details() != 3650) {
@@ -36941,7 +35822,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_invalidation_date() != 52225) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 45386) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoc_key_alias() != 29208) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdoc_validity_status() != 13785) {
@@ -36950,7 +35831,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_id() != 57284) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_key_alias() != 10828) {
+    if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_key_alias() != 21080) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_opticalbarcodecred_raw_jsonld() != 34204) {
@@ -36962,7 +35843,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_id() != 29264) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_key_alias() != 34276) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_key_alias() != 62723) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vcdm2sdjwt_revealed_claims_as_json_string() != 23928) {
@@ -37011,15 +35892,6 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_cryptocurveutils_ensure_raw_fixed_width_signature_encoding() != 32624) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_keystore_get_signing_key() != 6507) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_signingkey_jwk() != 19614) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_signingkey_sign() != 63856) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_didmethodutils_did_from_jwk() != 14089) {
@@ -37148,16 +36020,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_add_certification_text() != 56173) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_add_secure_area_attestation_object() != 49662) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_add_secure_area_attestation_object() != 4458) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_app_attestation_key_from_coordinates() != 31901) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_app_attestation_key_from_coordinates() != 14701) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_app_attestation_key_from_cose_key_bytes() != 36263) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_app_attestation_key_from_cose_key_bytes() != 42629) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_build() != 33263) {
+    if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_build() != 5544) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mobileidcapabilitydescriptorbuilder_get_app_data_transmission_interfaces() != 56924) {
@@ -37205,10 +36077,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_format() != 50116) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_key_from_coordinates() != 64152) {
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_key_from_coordinates() != 11470) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_key_from_cose_key_bytes() != 53685) {
+    if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_key_from_cose_key_bytes() != 56394) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_attestation_statement() != 33666) {
@@ -37232,13 +36104,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_readerapduhandoverdriver_recommended_delay_ms() != 63656) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_accept_offer() != 42894) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_accept_offer() != 49318) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_exchange_credential() != 36853) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_exchange_credential() != 33896) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_resolve_offer_url() != 51427) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vciclient_resolve_offer_url() != 66) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_credential_configuration_ids() != 53699) {
@@ -37256,31 +36128,31 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_resolvedcredentialoffer_tx_code_definition() != 62227) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_authorizationcoderequired_proceed() != 10740) {
+    if (uniffi_mobile_sdk_rs_checksum_method_authorizationcoderequired_proceed() != 55634) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_waitingforauthorizationcode_proceed() != 7936) {
+    if (uniffi_mobile_sdk_rs_checksum_method_waitingforauthorizationcode_proceed() != 50437) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_waitingforauthorizationcode_redirect_url() != 47402) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_txcoderequired_proceed() != 29775) {
+    if (uniffi_mobile_sdk_rs_checksum_method_txcoderequired_proceed() != 47679) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_credentialtoken_default_credential_id() != 30044) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_credentialtoken_get_nonce() != 40221) {
+    if (uniffi_mobile_sdk_rs_checksum_method_credentialtoken_get_nonce() != 3550) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeauthorizationcoderequired_proceed() != 9032) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeauthorizationcoderequired_proceed() != 64295) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_accept_offer() != 23985) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_accept_offer() != 50025) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 55352) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_resolve_offer_url() != 44572) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadeclient_supported_versions() != 19725) {
@@ -37289,10 +36161,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_default_credential_id() != 11991) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_exchange_credential() != 46600) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_exchange_credential() != 53427) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_get_nonce() != 5653) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_get_nonce() != 1324) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadecredentialtoken_version() != 32242) {
@@ -37316,19 +36188,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacaderesolvedoffer_version() != 13680) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadetxcoderequired_proceed() != 39983) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadetxcoderequired_proceed() != 25988) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadewaitingforauthorizationcode_proceed() != 20062) {
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadewaitingforauthorizationcode_proceed() != 58330) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vcifacadewaitingforauthorizationcode_redirect_url() != 55140) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_asynchttpclient_http_client() != 45518) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_synchttpclient_http_client() != 54455) {
+    if (uniffi_mobile_sdk_rs_checksum_method_synchttpclient_http_client() != 50006) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_get_match() != 18511) {
@@ -37337,7 +36206,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_get_origin() != 34713) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_respond() != 31789) {
+    if (uniffi_mobile_sdk_rs_checksum_method_inprogressrequestdcapi_respond() != 56658) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_iosiso18013mobiledocumentrequest_to_matches() != 23038) {
@@ -37427,6 +36296,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_draft18delegatedverifier_request_delegated_verification() != 47216) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_dynamiccredentialprovider_offers() != 34298) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_dynamiccredentialprovider_issue() != 18116) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpholder_new_draft18_holder() != 23738) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -37469,10 +36344,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_create_permission_response() != 9863) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_create_permission_response_with_offers() != 41495) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_credentials() != 57886) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_domain() != 36441) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_dynamic_offers() != 7083) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_is_multi_credential_matching() != 60605) {
@@ -37544,6 +36425,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response() != 28791) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_create_permission_response_with_offers() != 2182) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_credential_query_ids() != 51888) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -37557,6 +36441,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_domain() != 63686) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_dynamic_offers() != 48992) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_permissionrequest_is_multi_credential_matching() != 23365) {
@@ -37610,40 +36497,28 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_jsonldpresentationbuilder_issue_presentation() != 26995) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_add() != 42995) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_accept_offer() != 60894) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_get() != 57820) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_matched_credentials() != 58650) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_list() != 20853) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_offered_credentials() != 18750) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_storagemanagerinterface_remove() != 41250) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_provide_credentials() != 21180) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_accept_offer() != 62992) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_reject_offer() != 13553) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_matched_credentials() != 29110) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_requested_fields() != 44592) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_offered_credentials() != 28301) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_start_exchange() != 15267) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_provide_credentials() != 10583) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_reject_offer() != 20065) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_requested_fields() != 47235) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_start_exchange() != 41719) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 8285) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 47400) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_add() != 62104) {
@@ -37667,7 +36542,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_crypto_p256_verify() != 52510) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_from_string_with_id_and_format() != 48751) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_from_string_with_id_and_format() != 15295) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_cwt() != 53229) {
@@ -37679,7 +36554,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_from_json() != 53603) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_from_string_with_format() != 38521) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_from_string_with_format() != 57189) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_new_jwt_vc_json() != 41735) {
@@ -37703,7 +36578,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_parsedcredential_parse_from_credential() != 53612) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylog_load() != 19402) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_activitylog_load() != 40942) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_activitylogentry_from_json_bytes() != 26665) {
@@ -37721,43 +36596,43 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_cwt_new_from_bytes() != 54002) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_ietfsdjwtvc_from_compact_sd_jwt_with_id_and_key() != 29426) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_ietfsdjwtvc_from_compact_sd_jwt_with_id_and_key() != 29001) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_ietfsdjwtvc_new_from_compact_sd_jwt() != 20583) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_ietfsdjwtvc_new_from_compact_sd_jwt_with_key() != 14306) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_ietfsdjwtvc_new_from_compact_sd_jwt_with_key() != 36911) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_jsonvc_from_json_with_id_and_key() != 22441) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_jsonvc_from_json_with_id_and_key() != 25004) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_jsonvc_new_from_json() != 58466) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_jsonvc_new_from_json_with_key() != 44690) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_jsonvc_new_from_json_with_key() != 30441) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_jwtvc_new_from_compact_jws() != 46250) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_jwtvc_new_from_compact_jws_with_key() != 10392) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_jwtvc_new_from_compact_jws_with_key() != 46012) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_from_cbor_encoded_document() != 32650) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_from_cbor_encoded_document() != 51170) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_from_cbor_encoded_issuer_signed_dehydrated_with_id() != 2413) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_from_cbor_encoded_issuer_signed_dehydrated_with_id() != 6112) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_from_stringified_document() != 45687) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_from_stringified_document() != 7695) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_base64url_encoded_issuer_signed() != 9590) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_base64url_encoded_issuer_signed() != 8072) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_cbor_encoded_issuer_signed_dehydrated() != 4060) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_mdoc_new_from_cbor_encoded_issuer_signed_dehydrated() != 19082) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_opticalbarcodecred_new() != 48883) {
@@ -37766,13 +36641,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_opticalbarcodecred_new_with_id() != 37541) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_from_compact_sd_jwt_with_id_and_key() != 46842) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_from_compact_sd_jwt_with_id_and_key() != 63012) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_new_from_compact_sd_jwt() != 29563) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_new_from_compact_sd_jwt_with_key() != 9651) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_vcdm2sdjwt_new_from_compact_sd_jwt_with_key() != 63983) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_cryptocurveutils_secp256r1() != 21697) {
@@ -37835,22 +36710,34 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_draft18delegatedverifier_new_client() != 39564) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new() != 23779) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new() != 4313) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials() != 21422) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials() != 50170) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 14723) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_credentials_and_providers() != 47197) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 922) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vpholder_new_with_providers() != 53369) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137_new() != 49393) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new() != 44642) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137facade_new() != 6751) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials() != 22042) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_credentials_and_providers() != 41685) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_holder_new_with_providers() != 5143) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137_new() != 37233) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_constructor_oid4vp180137facade_new() != 12926) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_delegatedverifier_new_client() != 46518) {
@@ -37859,10 +36746,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_constructor_jsonldpresentationbuilder_new() != 20630) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_vcalmholder_new_session() != 22416) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_vcalmholder_new_session() != 37362) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_constructor_vdccollection_new() != 63831) {
+    if (uniffi_mobile_sdk_rs_checksum_constructor_vdccollection_new() != 3535) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_constructor_defaultverifier_new() != 47119) {
@@ -37923,18 +36810,16 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
 
-    uniffiCallbackInitAsyncHttpClient()
     uniffiCallbackInitCrypto()
     uniffiCallbackInitDraft18RequestSignerInterface()
+    uniffiCallbackInitDynamicCredentialProvider()
     uniffiCallbackInitJwsSigner()
-    uniffiCallbackInitKeyStore()
     uniffiCallbackInitLogWriter()
-    uniffiCallbackInitSigningKey()
-    uniffiCallbackInitStorageManagerInterface()
     uniffiCallbackInitSyncHttpClient()
     uniffiCallbackInitDraft18PresentationSigner()
     uniffiCallbackInitOid4vpPresentationSigner()
     uniffiCallbackInitPresentationSigner()
+    uniffiEnsureMobileToolkitInitialized()
     return InitializationResult.ok
 }()
 

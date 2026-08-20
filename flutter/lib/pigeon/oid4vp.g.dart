@@ -684,6 +684,64 @@ class CredentialRequirementData {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
+/// A dynamic credential offer surfaced by a registered native
+/// `DynamicCredentialProvider`.
+///
+/// Offers are issued only if the user selects them: pass the `offerId` to
+/// `submitResponseWithOffers`. Only OID4VP-v1 sessions surface offers.
+class DynamicOfferData {
+  DynamicOfferData({
+    required this.offerId,
+    required this.credentialQueryId,
+    required this.title,
+  });
+
+  /// Provider-scoped identifier, echoed back via `submitResponseWithOffers`.
+  String offerId;
+
+  /// The DCQL credential-query id this offer satisfies.
+  String credentialQueryId;
+
+  /// Human-readable label for the consent UI.
+  String title;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      offerId,
+      credentialQueryId,
+      title,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DynamicOfferData decode(Object result) {
+    result as List<Object?>;
+    return DynamicOfferData(
+      offerId: result[0]! as String,
+      credentialQueryId: result[1]! as String,
+      title: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DynamicOfferData || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(offerId, other.offerId) && _deepEquals(credentialQueryId, other.credentialQueryId) && _deepEquals(title, other.title);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -728,6 +786,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is CredentialRequirementData) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
+    }    else if (value is DynamicOfferData) {
+      buffer.putUint8(141);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -761,6 +822,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return CredentialQueryGroupData.decode(readValue(buffer)!);
       case 140:
         return CredentialRequirementData.decode(readValue(buffer)!);
+      case 141:
+        return DynamicOfferData.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -888,6 +951,30 @@ class Oid4vp {
     return pigeonVar_replyValue! as Oid4vpResult;
   }
 
+  /// Submit the response, additionally issuing the dynamic credential offers
+  /// selected by `offerId` from `getDynamicOffers`.
+  ///
+  /// `selectedCredentials` may be empty if at least one offer is selected.
+  /// Unknown offer ids fail the whole submission.
+  Future<Oid4vpResult> submitResponseWithOffers(List<PresentableCredentialKey> selectedCredentials, List<List<String>> selectedFieldPaths, List<String> selectedOfferIds, ResponseOptions options) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.submitResponseWithOffers$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[selectedCredentials, selectedFieldPaths, selectedOfferIds, options]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as Oid4vpResult;
+  }
+
   /// Get credential requirements from the permission request
   ///
   /// @return List of credential requirements
@@ -952,6 +1039,29 @@ class Oid4vp {
     )
     ;
     return (pigeonVar_replyValue! as List<Object?>).cast<String>();
+  }
+
+  /// Get the dynamic credential offers for the current session.
+  ///
+  /// Empty when no providers are registered, none match the request, or the
+  /// negotiated version is not v1. Call after `handleAuthorizationRequest`.
+  Future<List<DynamicOfferData>> getDynamicOffers() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getDynamicOffers$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<DynamicOfferData>();
   }
 
   /// Cancel and cleanup the current session

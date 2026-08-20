@@ -149,7 +149,7 @@ public struct ContentView: View {
                         addToWalletParams in
                         AddToWalletView(
                             path: $path,
-                            rawCredential: addToWalletParams.rawCredential
+                            rawCredentials: [addToWalletParams.rawCredential]
                         )
                     }
                     .navigationDestination(for: HandleOID4VCI.self) {
@@ -158,6 +158,21 @@ public struct ContentView: View {
                             path: $path,
                             url: handleOID4VCIParams.url,
                             onSuccess: handleOID4VCIParams.onSuccess
+                        )
+                    }
+                    .navigationDestination(for: HandleInteraction.self) {
+                        handleInteractionParams in
+                        HandleInteractionView(
+                            path: $path,
+                            url: handleInteractionParams.url,
+                            credentialPackId: handleInteractionParams.credentialPackId,
+                        )
+                    }
+                    .navigationDestination(for: HandleVCALM.self) {
+                        handleVCALMParams in
+                        HandleVCALMView(
+                            path: $path,
+                            url: handleVCALMParams.url,
                         )
                     }
                     .navigationDestination(for: DispatchQR.self) { _ in

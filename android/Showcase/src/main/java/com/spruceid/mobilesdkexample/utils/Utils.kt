@@ -20,9 +20,13 @@ import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.credentials.genericCredentialItem.GenericCredentialItem
+import com.spruceid.mobilesdkexample.db.WalletActivityLogs
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import org.json.JSONArray
 import org.json.JSONObject
 import java.sql.Date
@@ -206,6 +210,34 @@ fun addCredential(credentialPack: CredentialPack, rawCredential: String): Creden
 
     println("Couldn't parse credential $rawCredential")
 
+    return credentialPack
+}
+
+/**
+ * Shared so other flows (e.g. VCALM offers) that store a credential outside
+ * of `AddToWalletView`'s stay consistent with it
+ */
+suspend fun acceptRawCredentialIntoWallet(
+    rawCredential: String,
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
+): CredentialPack {
+    val credentialPack = CredentialPack()
+    credentialPack.tryAddAnyFormat(rawCredential, DEFAULT_SIGNING_KEY_ID)
+    credentialPacksViewModel.saveCredentialPack(credentialPack)
+
+    val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+    walletActivityLogsViewModel.saveWalletActivityLog(
+        walletActivityLogs = WalletActivityLogs(
+            credentialPackId = credentialPack.id().toString(),
+            credentialId = credentialInfo.first,
+            credentialTitle = credentialInfo.second,
+            issuer = credentialInfo.third,
+            action = "Claimed",
+            dateTime = getCurrentSqlDate(),
+            additionalInformation = ""
+        )
+    )
     return credentialPack
 }
 

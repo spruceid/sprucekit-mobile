@@ -146,8 +146,7 @@ class VcalmAdapter: Vcalm {
                     vdcCollection: vdc,
                     trustedDids: trustedDids,
                     signer: signer,
-                    contextMap: contextMap,
-                    keystore: KeyManager()
+                    contextMap: contextMap
                 )
 
                 if !credentialPackIds.isEmpty {

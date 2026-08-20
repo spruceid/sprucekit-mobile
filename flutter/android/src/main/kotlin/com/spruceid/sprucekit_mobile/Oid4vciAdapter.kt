@@ -65,6 +65,8 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                     supportedVersions = supportedVersions,
                 )
                 callback(Result.success(result))
+            } catch (e: Oid4vciException.PresentationRequired) {
+                callback(Result.success(presentationRequiredResult(e)))
             } catch (e: Exception) {
                 callback(Result.success(Oid4vciError(message = e.localizedMessage ?: "Unknown error")))
             }
@@ -151,6 +153,9 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                 val credentials = exchangeCredentialWithToken(ctx, credentialToken)
                 sessions.remove(sessionId)
                 callback(Result.success(Oid4vciSuccess(credentials)))
+            } catch (e: Oid4vciException.PresentationRequired) {
+                sessions.remove(sessionId)
+                callback(Result.success(presentationRequiredResult(e)))
             } catch (e: Exception) {
                 sessions.remove(sessionId)
                 callback(Result.success(Oid4vciError(e.message ?: "unknown")))
@@ -210,6 +215,9 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
                 val credentials = exchangeCredentialWithToken(ctx, credentialToken)
                 sessions.remove(sessionId)
                 callback(Result.success(Oid4vciSuccess(credentials)))
+            } catch (e: Oid4vciException.PresentationRequired) {
+                sessions.remove(sessionId)
+                callback(Result.success(presentationRequiredResult(e)))
             } catch (e: Exception) {
                 sessions.remove(sessionId)
                 callback(Result.success(Oid4vciError(e.message ?: "unknown")))
@@ -226,6 +234,19 @@ internal class Oid4vciAdapter(private val context: Context) : Oid4vci {
     }
 
     // — Helpers —
+
+    /// `Oid4vciException` is a uniffi flat error: for `PresentationRequired`
+    /// the message is the verbatim OID4VP authorization_request JSON.
+    private fun presentationRequiredResult(
+        e: Oid4vciException.PresentationRequired,
+    ): Oid4vciResult {
+        val json = e.message.orEmpty()
+        return if (json.isNotEmpty()) {
+            Oid4vciPresentationRequired(authorizationRequestJson = json)
+        } else {
+            Oid4vciError(message = "presentation required (missing authorization_request)")
+        }
+    }
 
     private fun normalizeOfferUrl(credentialOffer: String): String =
         if (credentialOffer.startsWith("openid-credential-offer://")) credentialOffer

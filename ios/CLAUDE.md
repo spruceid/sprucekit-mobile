@@ -16,8 +16,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 ## Commands
 
 ```bash
-# Generate Rust bindings (run from rust/)
-cargo swift package -p ios -n MobileSdkRs
+# Generate Rust bindings + xcframework (run from rust/)
+./build-ios.sh
 
 # Generate Xcode projects
 cd ios/MobileSdk && xcodegen generate

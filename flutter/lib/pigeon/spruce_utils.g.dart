@@ -212,6 +212,246 @@ class GenerateMockMdlError extends GenerateMockMdlResult {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
+/// Data elements for a mock mDL.
+///
+/// Mirrors the Rust `TestMdlData` record 1:1 (all fields required except the
+/// optional `issuingJurisdiction`). Field values follow ISO/IEC 18013-5
+/// `org.iso.18013.5.1` element semantics; dates are `YYYY-MM-DD` strings and
+/// `portrait` is a base64-encoded JPEG.
+///
+/// Use `MockMdlDataDefaults.johnDoe(...)` (exported by the plugin) to obtain
+/// a fully-populated instance and override only the fields that matter —
+/// typically `documentNumber`, which external systems key on.
+class MockMdlData {
+  MockMdlData({
+    required this.familyName,
+    required this.givenName,
+    required this.birthDate,
+    required this.issueDate,
+    required this.expiryDate,
+    required this.issuingCountry,
+    required this.issuingAuthority,
+    required this.documentNumber,
+    required this.portrait,
+    required this.drivingPrivileges,
+    required this.unDistinguishingSign,
+    required this.administrativeNumber,
+    required this.sex,
+    required this.height,
+    required this.weight,
+    required this.eyeColour,
+    required this.hairColour,
+    required this.birthPlace,
+    required this.residentAddress,
+    required this.portraitCaptureDate,
+    required this.ageInYears,
+    required this.ageBirthYear,
+    required this.ageOver18,
+    required this.ageOver21,
+    required this.ageOver60,
+    required this.nationality,
+    required this.residentCity,
+    required this.residentState,
+    required this.residentPostalCode,
+    required this.residentCountry,
+    this.issuingJurisdiction,
+  });
+
+  String familyName;
+
+  String givenName;
+
+  String birthDate;
+
+  String issueDate;
+
+  String expiryDate;
+
+  String issuingCountry;
+
+  String issuingAuthority;
+
+  String documentNumber;
+
+  String portrait;
+
+  /// Must be left EMPTY: the Rust layer's `TestMdlData.driving_privileges` is
+  /// `Vec<String>`, but isomdl expects ISO driving-privilege JSON *objects* —
+  /// any non-empty string entry fails `from_json` and the call returns
+  /// `GenerateMockMdlError`. Kept for wire parity with the Rust record.
+  List<String> drivingPrivileges;
+
+  String unDistinguishingSign;
+
+  String administrativeNumber;
+
+  /// `sex`/`height`/`weight`/`ageInYears`/`ageBirthYear` are u16 on the Rust
+  /// side: values outside 0..65535 wrap (both platforms truncate identically)
+  /// and embed as plausible-looking garbage rather than erroring.
+  int sex;
+
+  int height;
+
+  int weight;
+
+  String eyeColour;
+
+  String hairColour;
+
+  String birthPlace;
+
+  String residentAddress;
+
+  String portraitCaptureDate;
+
+  int ageInYears;
+
+  int ageBirthYear;
+
+  bool ageOver18;
+
+  bool ageOver21;
+
+  bool ageOver60;
+
+  String nationality;
+
+  String residentCity;
+
+  String residentState;
+
+  String residentPostalCode;
+
+  String residentCountry;
+
+  /// ISO 3166-2 issuing jurisdiction (e.g. "US-NY"); the
+  /// `issuing_jurisdiction` element is omitted from the mDoc when null.
+  String? issuingJurisdiction;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      familyName,
+      givenName,
+      birthDate,
+      issueDate,
+      expiryDate,
+      issuingCountry,
+      issuingAuthority,
+      documentNumber,
+      portrait,
+      drivingPrivileges,
+      unDistinguishingSign,
+      administrativeNumber,
+      sex,
+      height,
+      weight,
+      eyeColour,
+      hairColour,
+      birthPlace,
+      residentAddress,
+      portraitCaptureDate,
+      ageInYears,
+      ageBirthYear,
+      ageOver18,
+      ageOver21,
+      ageOver60,
+      nationality,
+      residentCity,
+      residentState,
+      residentPostalCode,
+      residentCountry,
+      issuingJurisdiction,
+    ];
+  }
+
+  Object encode() {
+    return _toList();
+  }
+
+  static MockMdlData decode(Object result) {
+    result as List<Object?>;
+    return MockMdlData(
+      familyName: result[0]! as String,
+      givenName: result[1]! as String,
+      birthDate: result[2]! as String,
+      issueDate: result[3]! as String,
+      expiryDate: result[4]! as String,
+      issuingCountry: result[5]! as String,
+      issuingAuthority: result[6]! as String,
+      documentNumber: result[7]! as String,
+      portrait: result[8]! as String,
+      drivingPrivileges: (result[9]! as List<Object?>).cast<String>(),
+      unDistinguishingSign: result[10]! as String,
+      administrativeNumber: result[11]! as String,
+      sex: result[12]! as int,
+      height: result[13]! as int,
+      weight: result[14]! as int,
+      eyeColour: result[15]! as String,
+      hairColour: result[16]! as String,
+      birthPlace: result[17]! as String,
+      residentAddress: result[18]! as String,
+      portraitCaptureDate: result[19]! as String,
+      ageInYears: result[20]! as int,
+      ageBirthYear: result[21]! as int,
+      ageOver18: result[22]! as bool,
+      ageOver21: result[23]! as bool,
+      ageOver60: result[24]! as bool,
+      nationality: result[25]! as String,
+      residentCity: result[26]! as String,
+      residentState: result[27]! as String,
+      residentPostalCode: result[28]! as String,
+      residentCountry: result[29]! as String,
+      issuingJurisdiction: result[30] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MockMdlData || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(familyName, other.familyName) &&
+        _deepEquals(givenName, other.givenName) &&
+        _deepEquals(birthDate, other.birthDate) &&
+        _deepEquals(issueDate, other.issueDate) &&
+        _deepEquals(expiryDate, other.expiryDate) &&
+        _deepEquals(issuingCountry, other.issuingCountry) &&
+        _deepEquals(issuingAuthority, other.issuingAuthority) &&
+        _deepEquals(documentNumber, other.documentNumber) &&
+        _deepEquals(portrait, other.portrait) &&
+        _deepEquals(drivingPrivileges, other.drivingPrivileges) &&
+        _deepEquals(unDistinguishingSign, other.unDistinguishingSign) &&
+        _deepEquals(administrativeNumber, other.administrativeNumber) &&
+        _deepEquals(sex, other.sex) &&
+        _deepEquals(height, other.height) &&
+        _deepEquals(weight, other.weight) &&
+        _deepEquals(eyeColour, other.eyeColour) &&
+        _deepEquals(hairColour, other.hairColour) &&
+        _deepEquals(birthPlace, other.birthPlace) &&
+        _deepEquals(residentAddress, other.residentAddress) &&
+        _deepEquals(portraitCaptureDate, other.portraitCaptureDate) &&
+        _deepEquals(ageInYears, other.ageInYears) &&
+        _deepEquals(ageBirthYear, other.ageBirthYear) &&
+        _deepEquals(ageOver18, other.ageOver18) &&
+        _deepEquals(ageOver21, other.ageOver21) &&
+        _deepEquals(ageOver60, other.ageOver60) &&
+        _deepEquals(nationality, other.nationality) &&
+        _deepEquals(residentCity, other.residentCity) &&
+        _deepEquals(residentState, other.residentState) &&
+        _deepEquals(residentPostalCode, other.residentPostalCode) &&
+        _deepEquals(residentCountry, other.residentCountry) &&
+        _deepEquals(issuingJurisdiction, other.issuingJurisdiction);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
 /// A supplement to include in the generated PDF.
 ///
 /// This is an extensible carrier: the `type` field determines which optional
@@ -407,14 +647,17 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is GenerateMockMdlError) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is PdfSupplement) {
+    } else if (value is MockMdlData) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is DisclosureSelection) {
+    } else if (value is PdfSupplement) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is VpTokenParams) {
+    } else if (value is DisclosureSelection) {
       buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    } else if (value is VpTokenParams) {
+      buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -438,10 +681,12 @@ class _PigeonCodec extends StandardMessageCodec {
       case 133:
         return GenerateMockMdlError.decode(readValue(buffer)!);
       case 134:
-        return PdfSupplement.decode(readValue(buffer)!);
+        return MockMdlData.decode(readValue(buffer)!);
       case 135:
-        return DisclosureSelection.decode(readValue(buffer)!);
+        return PdfSupplement.decode(readValue(buffer)!);
       case 136:
+        return DisclosureSelection.decode(readValue(buffer)!);
+      case 137:
         return VpTokenParams.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -485,6 +730,41 @@ class SpruceUtils {
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
       <Object?>[keyAlias],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as GenerateMockMdlResult;
+  }
+
+  /// Generate a mock mDL with caller-supplied data elements
+  ///
+  /// Same as [generateMockMdl] but every mDL data element is taken from
+  /// [data] instead of the hardcoded defaults — in particular the document
+  /// number, which [generateMockMdl] randomizes on every call. Use this when
+  /// an external system needs a stable, chosen document number across
+  /// regenerations.
+  ///
+  /// @param keyAlias Optional key alias to use (defaults to "testMdl")
+  /// @param data The mDL data elements to embed in the credential
+  /// @return Result with packId, credentialId, rawCredential, and keyAlias, or error
+  Future<GenerateMockMdlResult> generateMockMdlWithData(
+    String? keyAlias,
+    MockMdlData data,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.sprucekit_mobile.SpruceUtils.generateMockMdlWithData$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[keyAlias, data],
     );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 

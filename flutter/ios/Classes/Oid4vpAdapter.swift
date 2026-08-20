@@ -90,6 +90,11 @@ class Oid4vpAdapter: Oid4vp {
     /// keys when it satisfies multiple queries — those are distinct
     /// `Oid4vpPresentableCredential` instances on the Rust side.
     private var credentialsByKey: [PresentableCredentialKey: Oid4vpPresentableCredential] = [:]
+    /// Dynamic credential offers for the current session, keyed by `offerId`
+    /// (surfacing order kept in `dynamicOfferIds`). Dart echoes ids back;
+    /// these records are the authoritative ones passed to the Rust session.
+    private var dynamicOfferIds: [String] = []
+    private var dynamicOffersById: [String: SpruceIDMobileSdkRs.DynamicCredentialOffer] = [:]
 
     init(credentialPackAdapter: CredentialPackAdapter) {
         self.credentialPackAdapter = credentialPackAdapter
@@ -143,7 +148,12 @@ class Oid4vpAdapter: Oid4vp {
                     credentials.append(contentsOf: packCredentials)
                 }
 
-                if credentials.isEmpty {
+                // Snapshot registered providers for the lifetime of this
+                // holder. With providers, an empty credential pack is valid:
+                // the whole response may be issued on the fly.
+                let providers = SprucekitMobilePlugin.dynamicCredentialProviders
+
+                if credentials.isEmpty && providers.isEmpty {
                     completion(.success(Oid4vpError(message: "No credentials found in provided packs")))
                     return
                 }
@@ -152,12 +162,13 @@ class Oid4vpAdapter: Oid4vp {
                 let signer = try Oid4vpSigner(keyId: keyId)
 
                 // Create holder (version-agnostic facade)
-                let newHolder = try await Oid4vpHolder.newWithCredentials(
+                let newHolder = try await Oid4vpHolder.newWithCredentialsAndProviders(
                     providedCredentials: credentials,
                     trustedDids: trustedDids,
                     signer: signer,
                     contextMap: contextMap,
-                    keystore: KeyManager()
+                    keystore: KeyManager(),
+                    providers: providers
                 )
 
                 lock.lock()
@@ -187,7 +198,12 @@ class Oid4vpAdapter: Oid4vp {
                 lock.unlock()
 
                 // Handle URL format (remove "authorize" if present, similar to Showcase)
-                let processedUrl = url.replacingOccurrences(of: "authorize", with: "")
+                // A JSON authorization-request body must pass through
+                // verbatim, so only munge URL-shaped inputs.
+                let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+                let processedUrl = trimmed.hasPrefix("{")
+                    ? trimmed
+                    : url.replacingOccurrences(of: "authorize", with: "")
 
                 // Start a session, restricting negotiation to `supportedVersions`.
                 let session = try await holder.startWithSupportedVersions(
@@ -218,12 +234,21 @@ class Oid4vpAdapter: Oid4vp {
                     }
                 }
 
+                // Dynamic offers from registered providers; always empty
+                // for non-v1 sessions.
+                let offers = session.dynamicOffers()
+
                 lock.lock()
                 self.session = session
                 self.credentialsByKey = keyMap
+                self.dynamicOfferIds = offers.map { $0.offerId }
+                self.dynamicOffersById = Dictionary(
+                    offers.map { ($0.offerId, $0) },
+                    uniquingKeysWith: { first, _ in first }
+                )
                 lock.unlock()
 
-                if credentialData.isEmpty {
+                if credentialData.isEmpty && offers.isEmpty {
                     completion(.success(HandleAuthRequestError(
                         message: "No matching credentials found for this verification request"
                     )))
@@ -394,11 +419,90 @@ class Oid4vpAdapter: Oid4vp {
         return groupedByQuery(session).map { $0.qid }
     }
 
+    func getDynamicOffers() throws -> [DynamicOfferData] {
+        lock.lock()
+        let offerIds = self.dynamicOfferIds
+        let offersById = self.dynamicOffersById
+        lock.unlock()
+
+        return offerIds.compactMap { offersById[$0] }.map { offer in
+            DynamicOfferData(
+                offerId: offer.offerId,
+                credentialQueryId: offer.credentialQueryId,
+                title: offer.title
+            )
+        }
+    }
+
+    func submitResponseWithOffers(
+        selectedCredentials: [PresentableCredentialKey],
+        selectedFieldPaths: [[String]],
+        selectedOfferIds: [String],
+        options: ResponseOptions,
+        completion: @escaping (Result<Oid4vpResult, Error>) -> Void
+    ) {
+        Task {
+            do {
+                lock.lock()
+                guard let session = self.session else {
+                    lock.unlock()
+                    completion(.success(Oid4vpError(message: "Session not initialized")))
+                    return
+                }
+
+                let resolvedCredentials = selectedCredentials.compactMap { self.credentialsByKey[$0] }
+                let resolvedOffers = selectedOfferIds.compactMap { self.dynamicOffersById[$0] }
+                lock.unlock()
+
+                // Each offer may be selected at most once — a duplicate id
+                // would be issued twice and still pass the size check below.
+                if Set(selectedOfferIds).count != selectedOfferIds.count {
+                    completion(.success(Oid4vpError(message: "Duplicate dynamic offer id selected")))
+                    return
+                }
+
+                if resolvedOffers.count != selectedOfferIds.count {
+                    completion(.success(Oid4vpError(message: "Unknown dynamic offer id selected")))
+                    return
+                }
+
+                if resolvedCredentials.isEmpty && resolvedOffers.isEmpty {
+                    completion(.success(Oid4vpError(message: "No valid credentials or offers selected")))
+                    return
+                }
+
+                // `shouldStripQuotes` and `removeVpPathPrefix` are Draft
+                // 18-only knobs not surfaced by the pigeon API; keep off.
+                let responseOptions = SpruceIDMobileSdkRs.Oid4vpResponseOptions(
+                    forceArraySerialization: options.forceArraySerialization,
+                    shouldStripQuotes: false,
+                    removeVpPathPrefix: false
+                )
+
+                // Selected offers are issued while creating the response.
+                let permissionResponse = try await session.createPermissionResponseWithOffers(
+                    selectedCredentials: resolvedCredentials,
+                    selectedFields: selectedFieldPaths,
+                    selectedOffers: resolvedOffers,
+                    responseOptions: responseOptions
+                )
+
+                _ = try await session.submitPermissionResponse(response: permissionResponse)
+
+                completion(.success(Oid4vpSuccess(message: "Presentation submitted successfully")))
+            } catch {
+                completion(.success(Oid4vpError(message: error.localizedDescription)))
+            }
+        }
+    }
+
     func cancel() throws {
         lock.lock()
         holder = nil
         session = nil
         credentialsByKey = [:]
+        dynamicOfferIds = []
+        dynamicOffersById = [:]
         lock.unlock()
     }
 }
