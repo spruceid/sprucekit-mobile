@@ -103,6 +103,16 @@ internal class Oid4vpAdapter(
      */
     private var dynamicOffersById: Map<String, RsDynamicCredentialOffer> = emptyMap()
 
+    /** Atomically removes and returns the active session while clearing its cached state. */
+    private fun clearSession(): Oid4vpSession? = synchronized(this) {
+        val activeSession = session
+        holder = null
+        session = null
+        credentialsByKey = emptyMap()
+        dynamicOffersById = emptyMap()
+        activeSession
+    }
+
     /** Maps the pigeon-facing supported versions to the Rust facade enum. */
     private fun rustVersions(versions: List<Oid4vpVersion>): List<RsOid4vpVersion> =
         versions.map { version ->
@@ -471,12 +481,26 @@ internal class Oid4vpAdapter(
         }
     }
 
-    override fun cancel() {
-        synchronized(this) {
-            holder = null
-            session = null
-            credentialsByKey = emptyMap()
-            dynamicOffersById = emptyMap()
+    override fun denyPermission(callback: (Result<Oid4vpResult>) -> Unit) {
+        val currentSession = clearSession()
+            ?: return callback(Result.success(Oid4vpError(message = "No active OID4VP session")))
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val redirectUrl = currentSession.denyPermission()
+                callback(Result.success(Oid4vpSuccess(
+                    message = "Permission denied",
+                    redirectUrl = redirectUrl
+                )))
+            } catch (e: Exception) {
+                callback(Result.success(Oid4vpError(
+                    message = e.localizedMessage ?: "Failed to notify verifier of permission denial"
+                )))
+            }
         }
+    }
+
+    override fun cancel() {
+        clearSession()
     }
 }

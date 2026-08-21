@@ -34,6 +34,13 @@ use ssi::dids::VerificationMethodDIDResolver;
 use ssi::prelude::AnyJwkMethod;
 use url::Url;
 
+#[derive(serde::Serialize)]
+struct AccessDeniedResponse {
+    error: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<String>,
+}
+
 pub enum Draft18AuthRequest {
     /// Parse the incoming string as a URL.
     Url(Url),
@@ -204,6 +211,68 @@ impl Draft18Holder {
 
 // Internal methods for the Holder.
 impl Draft18Holder {
+    /// Notify the verifier that the end-user declined the authorization request.
+    ///
+    /// Draft 18 uses the same form-encoded authorization-error shape as its
+    /// direct-post success response. The `state`, when present, lets the
+    /// verifier associate the denial with its pending transaction.
+    pub(crate) async fn submit_permission_denial(
+        &self,
+        request: &AuthorizationRequestObject,
+    ) -> Result<Option<Url>, Draft18OID4VPError> {
+        match request.response_mode() {
+            ResponseMode::DirectPost | ResponseMode::DirectPostJwt => {}
+            mode => {
+                return Err(Draft18OID4VPError::UnsupportedResponseMode(
+                    mode.to_string(),
+                ))
+            }
+        }
+
+        let state = request
+            .state()
+            .transpose()
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?
+            .map(|state| state.0);
+
+        let response = self
+            .client
+            .as_ref()
+            .post(request.return_uri().clone())
+            .header("Prefer", "OID4VP-0.0.20")
+            .form(&AccessDeniedResponse {
+                error: "access_denied",
+                state,
+            })
+            .send()
+            .await
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
+
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
+
+        if !status.is_success() {
+            return Err(Draft18OID4VPError::ResponseSubmission(format!(
+                "verifier rejected authorization error (status: {status}): {body}"
+            )));
+        }
+
+        if body.trim().is_empty() {
+            return Ok(None);
+        }
+
+        serde_json::from_str::<serde_json::Value>(&body)
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?
+            .get("redirect_uri")
+            .and_then(|value| value.as_str())
+            .map(Url::parse)
+            .transpose()
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))
+    }
+
     /// Return the static metadata for the holder.
     ///
     /// This method is used to initialize the metadata for the holder.
