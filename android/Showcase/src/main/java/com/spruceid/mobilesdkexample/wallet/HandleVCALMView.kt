@@ -193,6 +193,8 @@ fun HandleVCALMView(
     var credentialClaims by remember { mutableStateOf(mapOf<String, JSONObject>()) }
 
     var requirements by remember { mutableStateOf<List<VcalmRequirement>?>(null) }
+    // Field paths the user consents to disclose, keyed by queryIndex
+    var fieldSelections by remember { mutableStateOf<Map<UInt, Set<String>>>(emptyMap()) }
     var picks by remember { mutableStateOf<Map<UInt, ParsedCredential>>(emptyMap()) }
     var redirectUrl by remember { mutableStateOf<String?>(null) }
     var pendingWalletCredentials by remember { mutableStateOf<List<String>?>(null) }
@@ -200,6 +202,7 @@ fun HandleVCALMView(
     var offerAcceptError by remember { mutableStateOf(false) }
     var domainMismatch by remember { mutableStateOf<VcalmException.DomainChannelMismatch?>(null) }
     var pendingSelection by remember { mutableStateOf<List<ParsedCredential>>(emptyList()) }
+    var pendingFieldPaths by remember { mutableStateOf<Map<UInt, List<String>>>(emptyMap()) }
 
     fun unwrap(originalUrl: String): String {
         var url = originalUrl
@@ -247,17 +250,20 @@ fun HandleVCALMView(
 
     // Submit presentation after automatically/manually selecting credentials to fit requirements
     suspend fun trySubmitPresentation(
-        selected: List<ParsedCredential>, allowDomainMismatch: Boolean
+        selected: List<ParsedCredential>,
+        selectedFields: Map<UInt, List<String>>,
+        allowDomainMismatch: Boolean
     ) {
         val previousState = state
         state = VCALMState.Loading
         try {
-            val result = holder!!.submitPresentation(selected, allowDomainMismatch)
+            val result = holder!!.submitPresentation(selected, selectedFields, allowDomainMismatch)
             requirements = null
             domainMismatch = null
             handleStep(result)
         } catch (e: VcalmException.DomainChannelMismatch) {
             pendingSelection = selected
+            pendingFieldPaths = selectedFields
             domainMismatch = e
             // Fall back to previous screen, allow user to allow domain channel mismatch and continue
             state = previousState
@@ -278,7 +284,7 @@ fun HandleVCALMView(
             if (requestedFields.isEmpty()) {
                 // No fields requested — this is a DID-authentication-only request
                 // Can submit immediately
-                trySubmitPresentation(emptyList(), false)
+                trySubmitPresentation(emptyList(), emptyMap(), false)
                 return
             }
 
@@ -295,6 +301,9 @@ fun HandleVCALMView(
             picks = built.filter { it.candidates.size == 1 }
                 .associate { it.queryIndex to it.candidates.first() }
             requirements = built
+            fieldSelections = built.associate { req ->
+                req.queryIndex to req.fields.map { it.path }.toSet()
+            }
             // If no requirement has more than one candidate, skip straight to selective disclosure
             state = if (built.all { it.candidates.size <= 1 }) {
                 VCALMState.SelectFields
@@ -341,8 +350,12 @@ fun HandleVCALMView(
     }
 
     suspend fun submitPicks() {
-        val selected = requirements.orEmpty().mapNotNull { picks[it.queryIndex] }
-        trySubmitPresentation(selected, false)
+        val reqs = requirements.orEmpty()
+        val selected = reqs.mapNotNull { picks[it.queryIndex] }
+        val selectedFields = reqs.associate {
+            it.queryIndex to fieldSelections[it.queryIndex].orEmpty().toList()
+        }
+        trySubmitPresentation(selected, selectedFields, false)
     }
 
     suspend fun acceptOffer() {
@@ -487,6 +500,10 @@ fun HandleVCALMView(
                 requirements = reqs,
                 picks = picks,
                 credentialClaims = credentialClaims,
+                fieldSelections = fieldSelections,
+                onFieldToggle = { queryIndex, selected ->
+                    fieldSelections = fieldSelections + (queryIndex to selected)
+                },
                 onSubmit = { coroutineScope.launch { submitPicks() } },
                 onCancel = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } },
             )
@@ -508,7 +525,7 @@ fun HandleVCALMView(
             onContinueAnyway = {
                 domainMismatch = null
                 coroutineScope.launch {
-                    trySubmitPresentation(pendingSelection, true)
+                    trySubmitPresentation(pendingSelection, pendingFieldPaths, true)
                 }
             },
         )
@@ -734,6 +751,8 @@ fun VcalmFieldsSelector(
     requirements: List<VcalmRequirement>,
     picks: Map<UInt, ParsedCredential>,
     credentialClaims: Map<String, JSONObject>,
+    fieldSelections: Map<UInt, Set<String>>,
+    onFieldToggle: (UInt, Set<String>) -> Unit,
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -805,20 +824,20 @@ fun VcalmFieldsSelector(
                     }
                 }
             } else {
-                var selectedFields by remember(currentRequirement.queryIndex) {
-                    mutableStateOf(currentRequirement.fields.map { it.path }.toSet())
-                }
+                // Field toggles propogate to HandleVCALMView
+                val selectedFields = fieldSelections[currentRequirement.queryIndex].orEmpty()
                 currentRequirement.fields.forEach { field ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(
                             enabled = !field.required,
                             checked = selectedFields.contains(field.path) || field.required,
                             onCheckedChange = { v ->
-                                selectedFields = if (!v) {
+                                val updated = if (!v) {
                                     selectedFields.minus(field.path)
                                 } else {
                                     selectedFields.plus(field.path)
                                 }
+                                onFieldToggle(currentRequirement.queryIndex, updated)
                             })
                         Text(
                             buildAnnotatedString {

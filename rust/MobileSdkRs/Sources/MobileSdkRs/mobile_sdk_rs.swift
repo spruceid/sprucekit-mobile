@@ -15323,7 +15323,7 @@ public protocol VcalmHolderProtocol: AnyObject, Sendable {
     /**
      * Build, sign and POST a verifiable presentation.
      */
-    func submitPresentation(selectedCredentials: [ParsedCredential], allowDomainMismatch: Bool) async throws  -> StepResult
+    func submitPresentation(selectedCredentials: [ParsedCredential], selectedFields: [UInt32: [String]], allowDomainMismatch: Bool) async throws  -> StepResult
     
 }
 open class VcalmHolder: VcalmHolderProtocol, @unchecked Sendable {
@@ -15523,13 +15523,13 @@ open func startExchange(input: String, authHeader: String?)async throws  -> Step
     /**
      * Build, sign and POST a verifiable presentation.
      */
-open func submitPresentation(selectedCredentials: [ParsedCredential], allowDomainMismatch: Bool)async throws  -> StepResult  {
+open func submitPresentation(selectedCredentials: [ParsedCredential], selectedFields: [UInt32: [String]], allowDomainMismatch: Bool)async throws  -> StepResult  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_vcalmholder_submit_presentation(
                     self.uniffiCloneHandle(),
-                    FfiConverterSequenceTypeParsedCredential.lower(selectedCredentials),FfiConverterBool.lower(allowDomainMismatch)
+                    FfiConverterSequenceTypeParsedCredential.lower(selectedCredentials),FfiConverterDictionaryUInt32SequenceString.lower(selectedFields),FfiConverterBool.lower(allowDomainMismatch)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
@@ -33726,6 +33726,32 @@ fileprivate struct FfiConverterSequenceTypeUuid: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterDictionaryUInt32SequenceString: FfiConverterRustBuffer {
+    public static func write(_ value: [UInt32: [String]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterUInt32.write(key, into: &buf)
+            FfiConverterSequenceString.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt32: [String]] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [UInt32: [String]]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterUInt32.read(from: &buf)
+            let value = try FfiConverterSequenceString.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterDictionaryStringBool: FfiConverterRustBuffer {
     public static func write(_ value: [String: Bool], into buf: inout [UInt8]) {
         let len = Int32(value.count)
@@ -36518,7 +36544,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_start_exchange() != 15267) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 47400) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 6342) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_add() != 62104) {

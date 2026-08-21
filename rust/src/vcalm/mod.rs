@@ -108,6 +108,7 @@ impl VcalmHolder {
     pub async fn submit_presentation(
         self: Arc<Self>,
         selected_credentials: Vec<Arc<ParsedCredential>>,
+        selected_fields: HashMap<u32, Vec<String>>,
         allow_domain_mismatch: bool,
     ) -> Result<StepResult, VcalmError> {
         Ok(self
@@ -115,6 +116,7 @@ impl VcalmHolder {
             .clone()
             .submit_presentation(
                 selected_credentials.into_iter().map(to_stored).collect(),
+                selected_fields,
                 allow_domain_mismatch,
             )
             .await?
