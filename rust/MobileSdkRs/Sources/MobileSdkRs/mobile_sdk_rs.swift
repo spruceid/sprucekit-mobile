@@ -11651,6 +11651,15 @@ public protocol Oid4vpSessionProtocol: AnyObject, Sendable {
     
     func credentials()  -> [Oid4vpPresentableCredential]
     
+    /**
+     * Notify the verifier that the end-user declined this OID4VP request.
+     *
+     * The notification is available for v1, Draft 18, and Draft 13 sessions
+     * when they use `direct_post` or `direct_post.jwt`. Draft 13 is translated
+     * to the Draft 18 implementation by this compatibility facade.
+     */
+    func denyPermission() async throws  -> Url?
+    
     func domain()  -> String?
     
     /**
@@ -11788,6 +11797,30 @@ open func credentials() -> [Oid4vpPresentableCredential]  {
             self.uniffiCloneHandle(),$0
     )
 })
+}
+    
+    /**
+     * Notify the verifier that the end-user declined this OID4VP request.
+     *
+     * The notification is available for v1, Draft 18, and Draft 13 sessions
+     * when they use `direct_post` or `direct_post.jwt`. Draft 13 is translated
+     * to the Draft 18 implementation by this compatibility facade.
+     */
+open func denyPermission()async throws  -> Url?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vpsession_deny_permission(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeUrl.lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
 }
     
 open func domain() -> String?  {
@@ -36348,6 +36381,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_credentials() != 57886) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_deny_permission() != 39040) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_domain() != 36441) {

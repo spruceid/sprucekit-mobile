@@ -471,6 +471,38 @@ internal class Oid4vpAdapter(
         }
     }
 
+    override fun denyPermission(callback: (Result<Oid4vpResult>) -> Unit) {
+        val currentSession = synchronized(this) {
+            val activeSession = session
+            if (activeSession == null) {
+                callback(Result.success(Oid4vpError(message = "No active OID4VP session")))
+                return
+            }
+
+            // Clear local state before the network operation. A cancellation is
+            // terminal even when the verifier endpoint cannot be reached.
+            holder = null
+            session = null
+            credentialsByKey = emptyMap()
+            dynamicOffersById = emptyMap()
+            activeSession
+        }
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val redirectUrl = currentSession.denyPermission()
+                callback(Result.success(Oid4vpSuccess(
+                    message = "Permission denied",
+                    redirectUrl = redirectUrl
+                )))
+            } catch (e: Exception) {
+                callback(Result.success(Oid4vpError(
+                    message = e.localizedMessage ?: "Failed to notify verifier of permission denial"
+                )))
+            }
+        }
+    }
+
     override fun cancel() {
         synchronized(this) {
             holder = null

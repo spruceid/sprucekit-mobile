@@ -496,6 +496,40 @@ class Oid4vpAdapter: Oid4vp {
         }
     }
 
+    func denyPermission(completion: @escaping (Result<Oid4vpResult, Error>) -> Void) {
+        let activeSession: Oid4vpSession
+        lock.lock()
+        guard let session else {
+            lock.unlock()
+            completion(.success(Oid4vpError(message: "No active OID4VP session")))
+            return
+        }
+
+        // Clear local state before the network operation. A cancellation is
+        // terminal even when the verifier endpoint cannot be reached.
+        activeSession = session
+        holder = nil
+        self.session = nil
+        credentialsByKey = [:]
+        dynamicOfferIds = []
+        dynamicOffersById = [:]
+        lock.unlock()
+
+        Task {
+            do {
+                let redirectUrl = try await activeSession.denyPermission()
+                completion(.success(Oid4vpSuccess(
+                    message: "Permission denied",
+                    redirectUrl: redirectUrl
+                )))
+            } catch {
+                completion(.success(Oid4vpError(
+                    message: error.localizedDescription
+                )))
+            }
+        }
+    }
+
     func cancel() throws {
         lock.lock()
         holder = nil
