@@ -9105,6 +9105,427 @@ public func FfiConverterTypeMdoc_lower(_ value: Mdoc) -> UInt64 {
 
 
 
+/**
+ * Caller-implemented certificate validation rules.
+ *
+ * Certificates arrive DER-encoded; parse them with `CertificateFactory` on Android or
+ * `SecCertificate` / swift-certificates on iOS. The three `validate_*` methods return a list of
+ * problems, empty meaning "no objection" -- see the module documentation on how much that trusts
+ * an implementation.
+ */
+public protocol MdocCertificateProfile: AnyObject, Sendable {
+    
+    /**
+     * Checks applied to the end-entity certificate -- document signer or reader, depending on
+     * which half of a [`MdocCertificateProfiles`] this is.
+     */
+    func validateEndEntity(certificateDer: Data)  -> [String]
+    
+    /**
+     * Which trust anchors may terminate the chain.
+     */
+    func trustPurpose()  -> CertificateTrustPurpose
+    
+    /**
+     * Checks applied to the trust anchor the chain terminates at. Return an empty list to state
+     * that this profile does not constrain its anchor.
+     */
+    func validateTrustAnchor(certificateDer: Data)  -> [String]
+    
+    /**
+     * Checks comparing the end-entity certificate against its trust anchor, such as the matching
+     * country codes ISO/IEC 18013-5 Annex B requires.
+     */
+    func validateAgainstTrustAnchor(endEntityDer: Data, trustAnchorDer: Data)  -> [String]
+    
+    /**
+     * Whether intermediate CA certificates are permitted.
+     */
+    func chain()  -> CertificateChainRule
+    
+    /**
+     * Where this PKI publishes revocation.
+     */
+    func revocation()  -> CertificateRevocationRule
+    
+}
+/**
+ * Caller-implemented certificate validation rules.
+ *
+ * Certificates arrive DER-encoded; parse them with `CertificateFactory` on Android or
+ * `SecCertificate` / swift-certificates on iOS. The three `validate_*` methods return a list of
+ * problems, empty meaning "no objection" -- see the module documentation on how much that trusts
+ * an implementation.
+ */
+open class MdocCertificateProfileImpl: MdocCertificateProfile, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_mobile_sdk_rs_fn_clone_mdoccertificateprofile(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_mobile_sdk_rs_fn_free_mdoccertificateprofile(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Checks applied to the end-entity certificate -- document signer or reader, depending on
+     * which half of a [`MdocCertificateProfiles`] this is.
+     */
+open func validateEndEntity(certificateDer: Data) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdoccertificateprofile_validate_end_entity(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(certificateDer),$0
+    )
+})
+}
+    
+    /**
+     * Which trust anchors may terminate the chain.
+     */
+open func trustPurpose() -> CertificateTrustPurpose  {
+    return try!  FfiConverterTypeCertificateTrustPurpose_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdoccertificateprofile_trust_purpose(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Checks applied to the trust anchor the chain terminates at. Return an empty list to state
+     * that this profile does not constrain its anchor.
+     */
+open func validateTrustAnchor(certificateDer: Data) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdoccertificateprofile_validate_trust_anchor(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(certificateDer),$0
+    )
+})
+}
+    
+    /**
+     * Checks comparing the end-entity certificate against its trust anchor, such as the matching
+     * country codes ISO/IEC 18013-5 Annex B requires.
+     */
+open func validateAgainstTrustAnchor(endEntityDer: Data, trustAnchorDer: Data) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdoccertificateprofile_validate_against_trust_anchor(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(endEntityDer),
+        FfiConverterData.lower(trustAnchorDer),$0
+    )
+})
+}
+    
+    /**
+     * Whether intermediate CA certificates are permitted.
+     */
+open func chain() -> CertificateChainRule  {
+    return try!  FfiConverterTypeCertificateChainRule_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdoccertificateprofile_chain(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+    /**
+     * Where this PKI publishes revocation.
+     */
+open func revocation() -> CertificateRevocationRule  {
+    return try!  FfiConverterTypeCertificateRevocationRule_lift(try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_method_mdoccertificateprofile_revocation(
+            self.uniffiCloneHandle(),$0
+    )
+})
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceMdocCertificateProfile {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceMdocCertificateProfile = UniffiVTableCallbackInterfaceMdocCertificateProfile(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeMdocCertificateProfile.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface MdocCertificateProfile: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeMdocCertificateProfile.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface MdocCertificateProfile: handle missing in uniffiClone")
+            }
+        },
+        validateEndEntity: { (
+            uniffiHandle: UInt64,
+            certificateDer: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [String] in
+                guard let uniffiObj = try? FfiConverterTypeMdocCertificateProfile.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.validateEndEntity(
+                     certificateDer: try FfiConverterData.lift(certificateDer)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceString.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        trustPurpose: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> CertificateTrustPurpose in
+                guard let uniffiObj = try? FfiConverterTypeMdocCertificateProfile.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.trustPurpose(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeCertificateTrustPurpose_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        validateTrustAnchor: { (
+            uniffiHandle: UInt64,
+            certificateDer: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [String] in
+                guard let uniffiObj = try? FfiConverterTypeMdocCertificateProfile.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.validateTrustAnchor(
+                     certificateDer: try FfiConverterData.lift(certificateDer)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceString.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        validateAgainstTrustAnchor: { (
+            uniffiHandle: UInt64,
+            endEntityDer: RustBuffer,
+            trustAnchorDer: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [String] in
+                guard let uniffiObj = try? FfiConverterTypeMdocCertificateProfile.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.validateAgainstTrustAnchor(
+                     endEntityDer: try FfiConverterData.lift(endEntityDer),
+                     trustAnchorDer: try FfiConverterData.lift(trustAnchorDer)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceString.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        chain: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> CertificateChainRule in
+                guard let uniffiObj = try? FfiConverterTypeMdocCertificateProfile.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.chain(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeCertificateChainRule_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        revocation: { (
+            uniffiHandle: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> CertificateRevocationRule in
+                guard let uniffiObj = try? FfiConverterTypeMdocCertificateProfile.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.revocation(
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeCertificateRevocationRule_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceMdocCertificateProfile> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceMdocCertificateProfile>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitMdocCertificateProfile() {
+    uniffi_mobile_sdk_rs_fn_init_callback_vtable_mdoccertificateprofile(UniffiCallbackInterfaceMdocCertificateProfile.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMdocCertificateProfile: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<MdocCertificateProfile>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = MdocCertificateProfile
+
+    public static func lift(_ handle: UInt64) throws -> MdocCertificateProfile {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return MdocCertificateProfileImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: MdocCertificateProfile) -> UInt64 {
+         if let rustImpl = value as? MdocCertificateProfileImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdocCertificateProfile {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: MdocCertificateProfile, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocCertificateProfile_lift(_ handle: UInt64) throws -> MdocCertificateProfile {
+    return try FfiConverterTypeMdocCertificateProfile.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocCertificateProfile_lower(_ value: MdocCertificateProfile) -> UInt64 {
+    return FfiConverterTypeMdocCertificateProfile.lower(value)
+}
+
+
+
+
+
+
 public protocol MobileIdCapabilityDescriptorBuilderProtocol: AnyObject, Sendable {
     
     func addAppDataTransmissionInterface(interface: Int64)  -> MobileIdCapabilityDescriptorBuilder
@@ -18297,6 +18718,109 @@ public func FfiConverterTypeIssuedCredential_lower(_ value: IssuedCredential) ->
 }
 
 
+/**
+ * The ISO/IEC 18013-5 Annex B document-signer checks, parameterised.
+ *
+ * The structural checks and the chain, revocation and trust-purpose rules are Annex B's and are
+ * not configurable here: an IACA trust anchor, no sub-CAs, and CRL-based revocation. Use
+ * [`IssuerCertificateProfile::Callback`] to depart from those.
+ */
+public struct IssuerProfileConfig: Equatable, Hashable {
+    /**
+     * Extended key usage OID the document signer certificate must carry, in dotted form --
+     * `"1.0.18013.5.1.2"` for an mDL, `"1.0.23220.4.1.2"` for ISO/IEC TS 23220-4.
+     *
+     * The certificate's extended key usage must contain this OID and nothing else, so a signer
+     * shared between two credential types needs one certificate per profile rather than one
+     * certificate carrying both OIDs.
+     */
+    public var documentSignerEku: String
+    /**
+     * How `stateOrProvinceName` is compared against the trust anchor.
+     */
+    public var stateOrProvince: CertificateRdnRule
+    /**
+     * Whether `cRLDistributionPoints` is mandatory.
+     */
+    public var crlDistributionPoints: CertificateExtensionRule
+    /**
+     * Whether `issuerAlternativeName` is mandatory.
+     */
+    public var issuerAlternativeName: CertificateExtensionRule
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Extended key usage OID the document signer certificate must carry, in dotted form --
+         * `"1.0.18013.5.1.2"` for an mDL, `"1.0.23220.4.1.2"` for ISO/IEC TS 23220-4.
+         *
+         * The certificate's extended key usage must contain this OID and nothing else, so a signer
+         * shared between two credential types needs one certificate per profile rather than one
+         * certificate carrying both OIDs.
+         */documentSignerEku: String, 
+        /**
+         * How `stateOrProvinceName` is compared against the trust anchor.
+         */stateOrProvince: CertificateRdnRule, 
+        /**
+         * Whether `cRLDistributionPoints` is mandatory.
+         */crlDistributionPoints: CertificateExtensionRule, 
+        /**
+         * Whether `issuerAlternativeName` is mandatory.
+         */issuerAlternativeName: CertificateExtensionRule) {
+        self.documentSignerEku = documentSignerEku
+        self.stateOrProvince = stateOrProvince
+        self.crlDistributionPoints = crlDistributionPoints
+        self.issuerAlternativeName = issuerAlternativeName
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension IssuerProfileConfig: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIssuerProfileConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IssuerProfileConfig {
+        return
+            try IssuerProfileConfig(
+                documentSignerEku: FfiConverterString.read(from: &buf), 
+                stateOrProvince: FfiConverterTypeCertificateRdnRule.read(from: &buf), 
+                crlDistributionPoints: FfiConverterTypeCertificateExtensionRule.read(from: &buf), 
+                issuerAlternativeName: FfiConverterTypeCertificateExtensionRule.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: IssuerProfileConfig, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.documentSignerEku, into: &buf)
+        FfiConverterTypeCertificateRdnRule.write(value.stateOrProvince, into: &buf)
+        FfiConverterTypeCertificateExtensionRule.write(value.crlDistributionPoints, into: &buf)
+        FfiConverterTypeCertificateExtensionRule.write(value.issuerAlternativeName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIssuerProfileConfig_lift(_ buf: RustBuffer) throws -> IssuerProfileConfig {
+    return try FfiConverterTypeIssuerProfileConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIssuerProfileConfig_lower(_ value: IssuerProfileConfig) -> RustBuffer {
+    return FfiConverterTypeIssuerProfileConfig.lower(value)
+}
+
+
 public struct ItemsRequest: Equatable, Hashable {
     public var docType: String
     public var namespaces: [String: [String: Bool]]
@@ -18662,6 +19186,78 @@ public func FfiConverterTypeMDLReaderSessionData_lift(_ buf: RustBuffer) throws 
 #endif
 public func FfiConverterTypeMDLReaderSessionData_lower(_ value: MdlReaderSessionData) -> RustBuffer {
     return FfiConverterTypeMDLReaderSessionData.lower(value)
+}
+
+
+/**
+ * The certificate rules for one doctype, both directions.
+ *
+ * The reader half applies when a holder authenticates an incoming request. A reader-side session
+ * never exercises it, and vice versa, so the irrelevant half can be any value.
+ */
+public struct MdocCertificateProfiles {
+    /**
+     * Rules for the document signer certificate that signed a presented credential.
+     */
+    public var issuer: IssuerCertificateProfile
+    /**
+     * Rules for the certificate a reader authenticates its request with.
+     */
+    public var reader: ReaderCertificateProfile
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Rules for the document signer certificate that signed a presented credential.
+         */issuer: IssuerCertificateProfile, 
+        /**
+         * Rules for the certificate a reader authenticates its request with.
+         */reader: ReaderCertificateProfile) {
+        self.issuer = issuer
+        self.reader = reader
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MdocCertificateProfiles: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMdocCertificateProfiles: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdocCertificateProfiles {
+        return
+            try MdocCertificateProfiles(
+                issuer: FfiConverterTypeIssuerCertificateProfile.read(from: &buf), 
+                reader: FfiConverterTypeReaderCertificateProfile.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MdocCertificateProfiles, into buf: inout [UInt8]) {
+        FfiConverterTypeIssuerCertificateProfile.write(value.issuer, into: &buf)
+        FfiConverterTypeReaderCertificateProfile.write(value.reader, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocCertificateProfiles_lift(_ buf: RustBuffer) throws -> MdocCertificateProfiles {
+    return try FfiConverterTypeMdocCertificateProfiles.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMdocCertificateProfiles_lower(_ value: MdocCertificateProfiles) -> RustBuffer {
+    return FfiConverterTypeMdocCertificateProfiles.lower(value)
 }
 
 
@@ -19340,6 +19936,87 @@ public func FfiConverterTypeReaderApduHandoverDriverInit_lower(_ value: ReaderAp
 }
 
 
+/**
+ * The ISO/IEC 18013-5 Annex B reader-certificate checks, parameterised.
+ */
+public struct ReaderProfileConfig: Equatable, Hashable {
+    /**
+     * Extended key usage OID the reader certificate must carry, in dotted form --
+     * `"1.0.18013.5.1.6"` for an mDL reader, `"1.0.23220.4.1.6"` for ISO/IEC TS 23220-4.
+     */
+    public var readerAuthEku: String
+    /**
+     * Whether `cRLDistributionPoints` is mandatory.
+     */
+    public var crlDistributionPoints: CertificateExtensionRule
+    /**
+     * Whether `issuerAlternativeName` is mandatory.
+     */
+    public var issuerAlternativeName: CertificateExtensionRule
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Extended key usage OID the reader certificate must carry, in dotted form --
+         * `"1.0.18013.5.1.6"` for an mDL reader, `"1.0.23220.4.1.6"` for ISO/IEC TS 23220-4.
+         */readerAuthEku: String, 
+        /**
+         * Whether `cRLDistributionPoints` is mandatory.
+         */crlDistributionPoints: CertificateExtensionRule, 
+        /**
+         * Whether `issuerAlternativeName` is mandatory.
+         */issuerAlternativeName: CertificateExtensionRule) {
+        self.readerAuthEku = readerAuthEku
+        self.crlDistributionPoints = crlDistributionPoints
+        self.issuerAlternativeName = issuerAlternativeName
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ReaderProfileConfig: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReaderProfileConfig: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReaderProfileConfig {
+        return
+            try ReaderProfileConfig(
+                readerAuthEku: FfiConverterString.read(from: &buf), 
+                crlDistributionPoints: FfiConverterTypeCertificateExtensionRule.read(from: &buf), 
+                issuerAlternativeName: FfiConverterTypeCertificateExtensionRule.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ReaderProfileConfig, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.readerAuthEku, into: &buf)
+        FfiConverterTypeCertificateExtensionRule.write(value.crlDistributionPoints, into: &buf)
+        FfiConverterTypeCertificateExtensionRule.write(value.issuerAlternativeName, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderProfileConfig_lift(_ buf: RustBuffer) throws -> ReaderProfileConfig {
+    return try FfiConverterTypeReaderProfileConfig.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderProfileConfig_lower(_ value: ReaderProfileConfig) -> RustBuffer {
+    return FfiConverterTypeReaderProfileConfig.lower(value)
+}
+
+
 public struct RequestedField180137: Equatable, Hashable {
     public var id: FieldId180137
     public var displayableName: String
@@ -19718,6 +20395,241 @@ public func FfiConverterTypeTestMdlData_lift(_ buf: RustBuffer) throws -> TestMd
 #endif
 public func FfiConverterTypeTestMdlData_lower(_ value: TestMdlData) -> RustBuffer {
     return FfiConverterTypeTestMdlData.lower(value)
+}
+
+
+/**
+ * Test Photo ID data struct to provide dummy data to pass to generating a test Photo ID.
+ *
+ * Elements the Annex C example marks mandatory or recommended are required here; elements it marks
+ * optional are `Option`al so a minimal credential can be issued. Annex C is informative, so treat
+ * this presence split as "what the worked example does", not as a conformance requirement.
+ */
+public struct TestPhotoIdData: Equatable, Hashable {
+    public var familyNameUnicode: String
+    public var givenNameUnicode: String
+    /**
+     * `full-date`, e.g. `"1990-01-01"`.
+     */
+    public var birthDate: String
+    /**
+     * Base64-encoded image, issued as a CBOR byte string.
+     */
+    public var portrait: String
+    /**
+     * `full-date`, e.g. `"2020-01-01"`.
+     */
+    public var issueDate: String
+    /**
+     * `full-date`, e.g. `"2030-01-01"`.
+     */
+    public var expiryDate: String
+    public var issuingAuthorityUnicode: String
+    /**
+     * ISO 3166-1 alpha-2 country code.
+     */
+    public var issuingCountry: String
+    public var ageOver18: Bool
+    public var ageInYears: UInt16
+    public var ageBirthYear: UInt16
+    public var ageOver21: Bool?
+    /**
+     * `tdate`, e.g. `"2020-01-01T12:00:00Z"`.
+     */
+    public var portraitCaptureDate: String?
+    public var birthplace: String?
+    public var nameAtBirth: String?
+    public var residentAddressUnicode: String?
+    public var residentCityUnicode: String?
+    public var residentPostalCode: String?
+    public var residentCountry: String?
+    public var residentCityLatin1: String?
+    public var sex: UInt16?
+    /**
+     * ISO 3166-1 alpha-2 country code. Unlike the EUDI PID, this is a single string.
+     */
+    public var nationality: String?
+    public var documentNumber: String?
+    public var issuingSubdivision: String?
+    public var familyNameLatin1: String?
+    public var givenNameLatin1: String?
+    public var personId: String?
+    public var birthCountry: String?
+    public var birthState: String?
+    public var birthCity: String?
+    public var administrativeNumber: String?
+    public var residentStreet: String?
+    public var residentHouseNumber: String?
+    public var travelDocumentNumber: String?
+    public var residentState: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(familyNameUnicode: String, givenNameUnicode: String, 
+        /**
+         * `full-date`, e.g. `"1990-01-01"`.
+         */birthDate: String, 
+        /**
+         * Base64-encoded image, issued as a CBOR byte string.
+         */portrait: String, 
+        /**
+         * `full-date`, e.g. `"2020-01-01"`.
+         */issueDate: String, 
+        /**
+         * `full-date`, e.g. `"2030-01-01"`.
+         */expiryDate: String, issuingAuthorityUnicode: String, 
+        /**
+         * ISO 3166-1 alpha-2 country code.
+         */issuingCountry: String, ageOver18: Bool, ageInYears: UInt16, ageBirthYear: UInt16, ageOver21: Bool?, 
+        /**
+         * `tdate`, e.g. `"2020-01-01T12:00:00Z"`.
+         */portraitCaptureDate: String?, birthplace: String?, nameAtBirth: String?, residentAddressUnicode: String?, residentCityUnicode: String?, residentPostalCode: String?, residentCountry: String?, residentCityLatin1: String?, sex: UInt16?, 
+        /**
+         * ISO 3166-1 alpha-2 country code. Unlike the EUDI PID, this is a single string.
+         */nationality: String?, documentNumber: String?, issuingSubdivision: String?, familyNameLatin1: String?, givenNameLatin1: String?, personId: String?, birthCountry: String?, birthState: String?, birthCity: String?, administrativeNumber: String?, residentStreet: String?, residentHouseNumber: String?, travelDocumentNumber: String?, residentState: String?) {
+        self.familyNameUnicode = familyNameUnicode
+        self.givenNameUnicode = givenNameUnicode
+        self.birthDate = birthDate
+        self.portrait = portrait
+        self.issueDate = issueDate
+        self.expiryDate = expiryDate
+        self.issuingAuthorityUnicode = issuingAuthorityUnicode
+        self.issuingCountry = issuingCountry
+        self.ageOver18 = ageOver18
+        self.ageInYears = ageInYears
+        self.ageBirthYear = ageBirthYear
+        self.ageOver21 = ageOver21
+        self.portraitCaptureDate = portraitCaptureDate
+        self.birthplace = birthplace
+        self.nameAtBirth = nameAtBirth
+        self.residentAddressUnicode = residentAddressUnicode
+        self.residentCityUnicode = residentCityUnicode
+        self.residentPostalCode = residentPostalCode
+        self.residentCountry = residentCountry
+        self.residentCityLatin1 = residentCityLatin1
+        self.sex = sex
+        self.nationality = nationality
+        self.documentNumber = documentNumber
+        self.issuingSubdivision = issuingSubdivision
+        self.familyNameLatin1 = familyNameLatin1
+        self.givenNameLatin1 = givenNameLatin1
+        self.personId = personId
+        self.birthCountry = birthCountry
+        self.birthState = birthState
+        self.birthCity = birthCity
+        self.administrativeNumber = administrativeNumber
+        self.residentStreet = residentStreet
+        self.residentHouseNumber = residentHouseNumber
+        self.travelDocumentNumber = travelDocumentNumber
+        self.residentState = residentState
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TestPhotoIdData: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTestPhotoIdData: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TestPhotoIdData {
+        return
+            try TestPhotoIdData(
+                familyNameUnicode: FfiConverterString.read(from: &buf), 
+                givenNameUnicode: FfiConverterString.read(from: &buf), 
+                birthDate: FfiConverterString.read(from: &buf), 
+                portrait: FfiConverterString.read(from: &buf), 
+                issueDate: FfiConverterString.read(from: &buf), 
+                expiryDate: FfiConverterString.read(from: &buf), 
+                issuingAuthorityUnicode: FfiConverterString.read(from: &buf), 
+                issuingCountry: FfiConverterString.read(from: &buf), 
+                ageOver18: FfiConverterBool.read(from: &buf), 
+                ageInYears: FfiConverterUInt16.read(from: &buf), 
+                ageBirthYear: FfiConverterUInt16.read(from: &buf), 
+                ageOver21: FfiConverterOptionBool.read(from: &buf), 
+                portraitCaptureDate: FfiConverterOptionString.read(from: &buf), 
+                birthplace: FfiConverterOptionString.read(from: &buf), 
+                nameAtBirth: FfiConverterOptionString.read(from: &buf), 
+                residentAddressUnicode: FfiConverterOptionString.read(from: &buf), 
+                residentCityUnicode: FfiConverterOptionString.read(from: &buf), 
+                residentPostalCode: FfiConverterOptionString.read(from: &buf), 
+                residentCountry: FfiConverterOptionString.read(from: &buf), 
+                residentCityLatin1: FfiConverterOptionString.read(from: &buf), 
+                sex: FfiConverterOptionUInt16.read(from: &buf), 
+                nationality: FfiConverterOptionString.read(from: &buf), 
+                documentNumber: FfiConverterOptionString.read(from: &buf), 
+                issuingSubdivision: FfiConverterOptionString.read(from: &buf), 
+                familyNameLatin1: FfiConverterOptionString.read(from: &buf), 
+                givenNameLatin1: FfiConverterOptionString.read(from: &buf), 
+                personId: FfiConverterOptionString.read(from: &buf), 
+                birthCountry: FfiConverterOptionString.read(from: &buf), 
+                birthState: FfiConverterOptionString.read(from: &buf), 
+                birthCity: FfiConverterOptionString.read(from: &buf), 
+                administrativeNumber: FfiConverterOptionString.read(from: &buf), 
+                residentStreet: FfiConverterOptionString.read(from: &buf), 
+                residentHouseNumber: FfiConverterOptionString.read(from: &buf), 
+                travelDocumentNumber: FfiConverterOptionString.read(from: &buf), 
+                residentState: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TestPhotoIdData, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.familyNameUnicode, into: &buf)
+        FfiConverterString.write(value.givenNameUnicode, into: &buf)
+        FfiConverterString.write(value.birthDate, into: &buf)
+        FfiConverterString.write(value.portrait, into: &buf)
+        FfiConverterString.write(value.issueDate, into: &buf)
+        FfiConverterString.write(value.expiryDate, into: &buf)
+        FfiConverterString.write(value.issuingAuthorityUnicode, into: &buf)
+        FfiConverterString.write(value.issuingCountry, into: &buf)
+        FfiConverterBool.write(value.ageOver18, into: &buf)
+        FfiConverterUInt16.write(value.ageInYears, into: &buf)
+        FfiConverterUInt16.write(value.ageBirthYear, into: &buf)
+        FfiConverterOptionBool.write(value.ageOver21, into: &buf)
+        FfiConverterOptionString.write(value.portraitCaptureDate, into: &buf)
+        FfiConverterOptionString.write(value.birthplace, into: &buf)
+        FfiConverterOptionString.write(value.nameAtBirth, into: &buf)
+        FfiConverterOptionString.write(value.residentAddressUnicode, into: &buf)
+        FfiConverterOptionString.write(value.residentCityUnicode, into: &buf)
+        FfiConverterOptionString.write(value.residentPostalCode, into: &buf)
+        FfiConverterOptionString.write(value.residentCountry, into: &buf)
+        FfiConverterOptionString.write(value.residentCityLatin1, into: &buf)
+        FfiConverterOptionUInt16.write(value.sex, into: &buf)
+        FfiConverterOptionString.write(value.nationality, into: &buf)
+        FfiConverterOptionString.write(value.documentNumber, into: &buf)
+        FfiConverterOptionString.write(value.issuingSubdivision, into: &buf)
+        FfiConverterOptionString.write(value.familyNameLatin1, into: &buf)
+        FfiConverterOptionString.write(value.givenNameLatin1, into: &buf)
+        FfiConverterOptionString.write(value.personId, into: &buf)
+        FfiConverterOptionString.write(value.birthCountry, into: &buf)
+        FfiConverterOptionString.write(value.birthState, into: &buf)
+        FfiConverterOptionString.write(value.birthCity, into: &buf)
+        FfiConverterOptionString.write(value.administrativeNumber, into: &buf)
+        FfiConverterOptionString.write(value.residentStreet, into: &buf)
+        FfiConverterOptionString.write(value.residentHouseNumber, into: &buf)
+        FfiConverterOptionString.write(value.travelDocumentNumber, into: &buf)
+        FfiConverterOptionString.write(value.residentState, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTestPhotoIdData_lift(_ buf: RustBuffer) throws -> TestPhotoIdData {
+    return try FfiConverterTypeTestPhotoIdData.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTestPhotoIdData_lower(_ value: TestPhotoIdData) -> RustBuffer {
+    return FfiConverterTypeTestPhotoIdData.lower(value)
 }
 
 
@@ -21096,6 +22008,103 @@ public func FfiConverterTypeBleMode_lower(_ value: BleMode) -> RustBuffer {
 }
 
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The certificate profiles isomdl ships.
+ */
+
+public enum BuiltinCertificateProfile: Equatable, Hashable {
+    
+    /**
+     * ISO/IEC 18013-5 mDL.
+     */
+    case mdl
+    /**
+     * AAMVA's mDL profile, which requires `stateOrProvinceName` to match.
+     */
+    case aamvaMdl
+    /**
+     * The EUDI Person Identification Data profile.
+     */
+    case eudiPid
+    /**
+     * ISO/IEC TS 23220-4 Annex B, used by the Photo ID profile. Note 23220-4 says a conformant
+     * profile *may* use these OIDs, not that it must, so a real deployment may define its own.
+     */
+    case iso23220
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BuiltinCertificateProfile: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBuiltinCertificateProfile: FfiConverterRustBuffer {
+    typealias SwiftType = BuiltinCertificateProfile
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BuiltinCertificateProfile {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .mdl
+        
+        case 2: return .aamvaMdl
+        
+        case 3: return .eudiPid
+        
+        case 4: return .iso23220
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BuiltinCertificateProfile, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .mdl:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .aamvaMdl:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .eudiPid:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .iso23220:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBuiltinCertificateProfile_lift(_ buf: RustBuffer) throws -> BuiltinCertificateProfile {
+    return try FfiConverterTypeBuiltinCertificateProfile.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBuiltinCertificateProfile_lower(_ value: BuiltinCertificateProfile) -> RustBuffer {
+    return FfiConverterTypeBuiltinCertificateProfile.lower(value)
+}
+
+
 
 public enum CborLdEncodingError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
@@ -21317,6 +22326,478 @@ public func FfiConverterTypeCborValue_lift(_ buf: RustBuffer) throws -> CborValu
 #endif
 public func FfiConverterTypeCborValue_lower(_ value: CborValue) -> RustBuffer {
     return FfiConverterTypeCborValue.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Whether intermediate CA certificates may sit between the end-entity certificate and the trust
+ * anchor. ISO/IEC 18013-5 Annex B forbids sub-CAs.
+ */
+
+public enum CertificateChainRule: Equatable, Hashable {
+    
+    /**
+     * Only the first certificate of the chain is used, and the trust anchor must be its direct
+     * issuer.
+     */
+    case endEntityOnly
+    /**
+     * The chain is walked from end-entity towards root until it reaches a trust anchor.
+     */
+    case walkToTrustAnchor
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CertificateChainRule: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCertificateChainRule: FfiConverterRustBuffer {
+    typealias SwiftType = CertificateChainRule
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CertificateChainRule {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .endEntityOnly
+        
+        case 2: return .walkToTrustAnchor
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CertificateChainRule, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .endEntityOnly:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .walkToTrustAnchor:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateChainRule_lift(_ buf: RustBuffer) throws -> CertificateChainRule {
+    return try FfiConverterTypeCertificateChainRule.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateChainRule_lower(_ value: CertificateChainRule) -> RustBuffer {
+    return FfiConverterTypeCertificateChainRule.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Whether a certificate extension is mandatory.
+ */
+
+public enum CertificateExtensionRule: Equatable, Hashable {
+    
+    /**
+     * The certificate must carry the extension, as ISO/IEC 18013-5 Annex B requires of
+     * `cRLDistributionPoints` and `issuerAlternativeName`.
+     */
+    case required
+    /**
+     * The certificate may omit the extension.
+     */
+    case optional
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CertificateExtensionRule: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCertificateExtensionRule: FfiConverterRustBuffer {
+    typealias SwiftType = CertificateExtensionRule
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CertificateExtensionRule {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .required
+        
+        case 2: return .optional
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CertificateExtensionRule, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .required:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .optional:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateExtensionRule_lift(_ buf: RustBuffer) throws -> CertificateExtensionRule {
+    return try FfiConverterTypeCertificateExtensionRule.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateExtensionRule_lower(_ value: CertificateExtensionRule) -> RustBuffer {
+    return FfiConverterTypeCertificateExtensionRule.lower(value)
+}
+
+
+
+public enum CertificateProfileError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+    
+    
+    case InvalidOid(value: String, cause: String
+    )
+
+    
+
+    
+
+    
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+    
+}
+
+#if compiler(>=6)
+extension CertificateProfileError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCertificateProfileError: FfiConverterRustBuffer {
+    typealias SwiftType = CertificateProfileError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CertificateProfileError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .InvalidOid(
+            value: try FfiConverterString.read(from: &buf), 
+            cause: try FfiConverterString.read(from: &buf)
+            )
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CertificateProfileError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        
+        case let .InvalidOid(value,cause):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(value, into: &buf)
+            FfiConverterString.write(cause, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateProfileError_lift(_ buf: RustBuffer) throws -> CertificateProfileError {
+    return try FfiConverterTypeCertificateProfileError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateProfileError_lower(_ value: CertificateProfileError) -> RustBuffer {
+    return FfiConverterTypeCertificateProfileError.lower(value)
+}
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * How a relative distinguished name is compared between end-entity certificate and trust anchor.
+ */
+
+public enum CertificateRdnRule: Equatable, Hashable {
+    
+    /**
+     * Compare only when at least one of the two carries the attribute, as ISO/IEC 18013-5
+     * requires. Absent from both is conformant.
+     */
+    case matchIfPresent
+    /**
+     * Compare unconditionally, which also fails when the attribute is absent. AAMVA requires this
+     * of `stateOrProvinceName`.
+     */
+    case required
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CertificateRdnRule: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCertificateRdnRule: FfiConverterRustBuffer {
+    typealias SwiftType = CertificateRdnRule
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CertificateRdnRule {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .matchIfPresent
+        
+        case 2: return .required
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CertificateRdnRule, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .matchIfPresent:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .required:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateRdnRule_lift(_ buf: RustBuffer) throws -> CertificateRdnRule {
+    return try FfiConverterTypeCertificateRdnRule.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateRdnRule_lower(_ value: CertificateRdnRule) -> RustBuffer {
+    return FfiConverterTypeCertificateRdnRule.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Where a PKI publishes revocation.
+ */
+
+public enum CertificateRevocationRule: Equatable, Hashable {
+    
+    /**
+     * Certificates carry `cRLDistributionPoints` and are checked against the CRL found there.
+     */
+    case crl
+    /**
+     * Revocation is published somewhere this library does not read. No CRL is fetched, and a
+     * warning records that revocation went unchecked so it never reads as "checked and clean".
+     */
+    case outOfBand
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CertificateRevocationRule: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCertificateRevocationRule: FfiConverterRustBuffer {
+    typealias SwiftType = CertificateRevocationRule
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CertificateRevocationRule {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .crl
+        
+        case 2: return .outOfBand
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CertificateRevocationRule, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .crl:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .outOfBand:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateRevocationRule_lift(_ buf: RustBuffer) throws -> CertificateRevocationRule {
+    return try FfiConverterTypeCertificateRevocationRule.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateRevocationRule_lower(_ value: CertificateRevocationRule) -> RustBuffer {
+    return FfiConverterTypeCertificateRevocationRule.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Which trust anchors may terminate a certificate chain.
+ */
+
+public enum CertificateTrustPurpose: Equatable, Hashable {
+    
+    /**
+     * Issuer Authority Certificate Authority (ISO/IEC 18013-5).
+     */
+    case iaca
+    /**
+     * Reader Certificate Authority (ISO/IEC 18013-5).
+     */
+    case readerCa
+    /**
+     * The CA that issues VICAL signer certificates.
+     */
+    case vicalAuthority
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CertificateTrustPurpose: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCertificateTrustPurpose: FfiConverterRustBuffer {
+    typealias SwiftType = CertificateTrustPurpose
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CertificateTrustPurpose {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .iaca
+        
+        case 2: return .readerCa
+        
+        case 3: return .vicalAuthority
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CertificateTrustPurpose, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .iaca:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .readerCa:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .vicalAuthority:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateTrustPurpose_lift(_ buf: RustBuffer) throws -> CertificateTrustPurpose {
+    return try FfiConverterTypeCertificateTrustPurpose.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCertificateTrustPurpose_lower(_ value: CertificateTrustPurpose) -> RustBuffer {
+    return FfiConverterTypeCertificateTrustPurpose.lower(value)
 }
 
 
@@ -25066,6 +26547,101 @@ public func FfiConverterTypeIssuanceServiceError_lift(_ buf: RustBuffer) throws 
 public func FfiConverterTypeIssuanceServiceError_lower(_ value: IssuanceServiceError) -> RustBuffer {
     return FfiConverterTypeIssuanceServiceError.lower(value)
 }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Rules for document signer certificates of one doctype.
+ */
+
+public enum IssuerCertificateProfile {
+    
+    /**
+     * A profile isomdl ships.
+     */
+    case builtin(profile: BuiltinCertificateProfile
+    )
+    /**
+     * The Annex B checks with caller-supplied parameters.
+     */
+    case config(config: IssuerProfileConfig
+    )
+    /**
+     * Validation delegated to caller code.
+     */
+    case callback(profile: MdocCertificateProfile
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension IssuerCertificateProfile: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeIssuerCertificateProfile: FfiConverterRustBuffer {
+    typealias SwiftType = IssuerCertificateProfile
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IssuerCertificateProfile {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .builtin(profile: try FfiConverterTypeBuiltinCertificateProfile.read(from: &buf)
+        )
+        
+        case 2: return .config(config: try FfiConverterTypeIssuerProfileConfig.read(from: &buf)
+        )
+        
+        case 3: return .callback(profile: try FfiConverterTypeMdocCertificateProfile.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: IssuerCertificateProfile, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .builtin(profile):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeBuiltinCertificateProfile.write(profile, into: &buf)
+            
+        
+        case let .config(config):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeIssuerProfileConfig.write(config, into: &buf)
+            
+        
+        case let .callback(profile):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeMdocCertificateProfile.write(profile, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIssuerCertificateProfile_lift(_ buf: RustBuffer) throws -> IssuerCertificateProfile {
+    return try FfiConverterTypeIssuerCertificateProfile.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeIssuerCertificateProfile_lower(_ value: IssuerCertificateProfile) -> RustBuffer {
+    return FfiConverterTypeIssuerCertificateProfile.lower(value)
+}
+
 
 
 public enum JsonVcEncodingError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
@@ -28958,6 +30534,101 @@ public func FfiConverterTypeReaderApduProgress_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeReaderApduProgress_lower(_ value: ReaderApduProgress) -> RustBuffer {
     return FfiConverterTypeReaderApduProgress.lower(value)
+}
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Rules for reader certificates of one doctype.
+ */
+
+public enum ReaderCertificateProfile {
+    
+    /**
+     * A profile isomdl ships.
+     */
+    case builtin(profile: BuiltinCertificateProfile
+    )
+    /**
+     * The Annex B checks with caller-supplied parameters.
+     */
+    case config(config: ReaderProfileConfig
+    )
+    /**
+     * Validation delegated to caller code.
+     */
+    case callback(profile: MdocCertificateProfile
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ReaderCertificateProfile: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeReaderCertificateProfile: FfiConverterRustBuffer {
+    typealias SwiftType = ReaderCertificateProfile
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ReaderCertificateProfile {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .builtin(profile: try FfiConverterTypeBuiltinCertificateProfile.read(from: &buf)
+        )
+        
+        case 2: return .config(config: try FfiConverterTypeReaderProfileConfig.read(from: &buf)
+        )
+        
+        case 3: return .callback(profile: try FfiConverterTypeMdocCertificateProfile.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ReaderCertificateProfile, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .builtin(profile):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeBuiltinCertificateProfile.write(profile, into: &buf)
+            
+        
+        case let .config(config):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeReaderProfileConfig.write(config, into: &buf)
+            
+        
+        case let .callback(profile):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeMdocCertificateProfile.write(profile, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderCertificateProfile_lift(_ buf: RustBuffer) throws -> ReaderCertificateProfile {
+    return try FfiConverterTypeReaderCertificateProfile.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeReaderCertificateProfile_lower(_ value: ReaderCertificateProfile) -> RustBuffer {
+    return FfiConverterTypeReaderCertificateProfile.lower(value)
 }
 
 
@@ -33010,6 +34681,30 @@ fileprivate struct FfiConverterOptionDictionaryStringString: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionDictionaryStringTypeMdocCertificateProfiles: FfiConverterRustBuffer {
+    typealias SwiftType = [String: MdocCertificateProfiles]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterDictionaryStringTypeMdocCertificateProfiles.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterDictionaryStringTypeMdocCertificateProfiles.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeJsonValue: FfiConverterRustBuffer {
     typealias SwiftType = JsonValue?
 
@@ -34351,6 +36046,32 @@ fileprivate struct FfiConverterDictionaryStringTypeIOSISO18013MobileDocumentRequ
         for _ in 0..<len {
             let key = try FfiConverterString.read(from: &buf)
             let value = try FfiConverterTypeIOSISO18013MobileDocumentRequestElementInfo.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryStringTypeMdocCertificateProfiles: FfiConverterRustBuffer {
+    public static func write(_ value: [String: MdocCertificateProfiles], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterTypeMdocCertificateProfiles.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: MdocCertificateProfiles] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: MdocCertificateProfiles]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterTypeMdocCertificateProfiles.read(from: &buf)
             dict[key] = value
         }
         return dict
@@ -35814,20 +37535,44 @@ public func deviceResponseVerificationAsJsonString(response: MdlDeviceResponseVe
     )
 })
 }
-public func establishSession(handover: ReaderHandover, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?)throws  -> MdlReaderSessionData  {
+/**
+ * Establish a reader session and build the request for the given document type.
+ *
+ * Arguments:
+ * handover: the engagement handover, from a scanned QR code or an NFC exchange.
+ * requested_items: the data elements to request, keyed by namespace then element identifier,
+ * with the value indicating intent to retain.
+ * trust_anchor_registry: PEM-encoded IACA certificates to validate the issuer against.
+ * doc_type: the document type to request. Required: there is no sensible default, and a request
+ * carrying the wrong doctype is answered with nothing rather than an error, so the
+ * caller must say what it is asking for.
+ */
+public func establishSession(handover: ReaderHandover, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?, docType: String)throws  -> MdlReaderSessionData  {
     return try  FfiConverterTypeMDLReaderSessionData_lift(try rustCallWithError(FfiConverterTypeMDLReaderSessionError_lift) {
     uniffi_mobile_sdk_rs_fn_func_establish_session(
         FfiConverterTypeReaderHandover_lower(handover),
         FfiConverterDictionaryStringDictionaryStringBool.lower(requestedItems),
-        FfiConverterOptionSequenceString.lower(trustAnchorRegistry),$0
+        FfiConverterOptionSequenceString.lower(trustAnchorRegistry),
+        FfiConverterString.lower(docType),$0
     )
 })
 }
-public func handleResponse(state: MdlSessionManager, response: Data)throws  -> MdlReaderResponseData  {
+/**
+ * Arguments:
+ * state: the session established by [`establish_session`]
+ * response: the cbor encoded `DeviceResponse` received from the holder
+ * certificate_profiles: certificate rules per doctype. `None` validates every doctype under the
+ * ISO/IEC 18013-5 mDL profile, which is what every credential this SDK
+ * generates is signed under, including the 23220-4 Photo ID. Supplying a
+ * map also means a doctype absent from it is refused rather than validated
+ * under a guess.
+ */
+public func handleResponse(state: MdlSessionManager, response: Data, certificateProfiles: [String: MdocCertificateProfiles]? = nil)throws  -> MdlReaderResponseData  {
     return try  FfiConverterTypeMDLReaderResponseData_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
     uniffi_mobile_sdk_rs_fn_func_handle_response(
         FfiConverterTypeMDLSessionManager_lower(state),
-        FfiConverterData.lower(response),$0
+        FfiConverterData.lower(response),
+        FfiConverterOptionDictionaryStringTypeMdocCertificateProfiles.lower(certificateProfiles),$0
     )
 })
 }
@@ -35858,18 +37603,20 @@ public func verifiedResponseAsJsonString(response: MdlReaderResponseData)throws 
  * session_transcript: cbor encoded `isomdl::definitions::session::SessionTranscript`
  * ephemeral_reader_key: 32-byte private key
  * trust_anchor_registry: optional list of PEM encoded certificates
+ * certificate_profiles: certificate rules per doctype, as for [`handle_response`]
  *
  * Returns:
  * An object with the verified response, document types, issuer authentication result,
  * device authentication result, and an optional error string.
  */
-public func verifyDeviceResponse(deviceResponse: Data, sessionTranscript: Data, ephemeralReaderKey: Data, trustAnchorRegistry: [String]?)throws  -> MdlDeviceResponseVerification  {
+public func verifyDeviceResponse(deviceResponse: Data, sessionTranscript: Data, ephemeralReaderKey: Data, trustAnchorRegistry: [String]?, certificateProfiles: [String: MdocCertificateProfiles]? = nil)throws  -> MdlDeviceResponseVerification  {
     return try  FfiConverterTypeMDLDeviceResponseVerification_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
     uniffi_mobile_sdk_rs_fn_func_verify_device_response(
         FfiConverterData.lower(deviceResponse),
         FfiConverterData.lower(sessionTranscript),
         FfiConverterData.lower(ephemeralReaderKey),
-        FfiConverterOptionSequenceString.lower(trustAnchorRegistry),$0
+        FfiConverterOptionSequenceString.lower(trustAnchorRegistry),
+        FfiConverterOptionDictionaryStringTypeMdocCertificateProfiles.lower(certificateProfiles),$0
     )
 })
 }
@@ -35893,6 +37640,29 @@ public func generateTestMdlWithData(keyManager: KeyStore, keyAlias: KeyAlias, da
         FfiConverterTypeKeyStore_lower(keyManager),
         FfiConverterTypeKeyAlias_lower(keyAlias),
         FfiConverterTypeTestMdlData_lower(data),$0
+    )
+})
+}
+/**
+ * Generate a new test Photo ID with hardcoded values, using the supplied key as the DeviceKey.
+ */
+public func generateTestPhotoId(keyManager: KeyStore, keyAlias: KeyAlias)throws  -> Mdoc  {
+    return try  FfiConverterTypeMdoc_lift(try rustCallWithError(FfiConverterTypeMdlUtilError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_generate_test_photo_id(
+        FfiConverterTypeKeyStore_lower(keyManager),
+        FfiConverterTypeKeyAlias_lower(keyAlias),$0
+    )
+})
+}
+/**
+ * Generate a new test Photo ID from the supplied data, using the supplied key as the DeviceKey.
+ */
+public func generateTestPhotoIdWithData(keyManager: KeyStore, keyAlias: KeyAlias, data: TestPhotoIdData)throws  -> Mdoc  {
+    return try  FfiConverterTypeMdoc_lift(try rustCallWithError(FfiConverterTypeMdlUtilError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_generate_test_photo_id_with_data(
+        FfiConverterTypeKeyStore_lower(keyManager),
+        FfiConverterTypeKeyAlias_lower(keyAlias),
+        FfiConverterTypeTestPhotoIdData_lower(data),$0
     )
 })
 }
@@ -36148,10 +37918,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_device_response_verification_as_json_string() != 22202) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 7717) {
+    if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 12751) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 9521) {
+    if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 14440) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_new_reader_apdu_handover_driver() != 54309) {
@@ -36160,13 +37930,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verified_response_as_json_string() != 44695) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 11409) {
+    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 34357) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 36962) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl_with_data() != 12531) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_photo_id() != 36539) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_photo_id_with_data() != 49170) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_create_jwt_proof() != 10438) {
@@ -36683,6 +38459,24 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_saattestationobjectvaluebuilder_sa_type() != 37855) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoccertificateprofile_validate_end_entity() != 44993) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoccertificateprofile_trust_purpose() != 28166) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoccertificateprofile_validate_trust_anchor() != 40647) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoccertificateprofile_validate_against_trust_anchor() != 22261) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoccertificateprofile_chain() != 18534) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_method_mdoccertificateprofile_revocation() != 36547) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_mdlsessionmanager_ble_central_client_details() != 2173) {
@@ -37411,6 +39205,7 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitDynamicCredentialProvider()
     uniffiCallbackInitJwsSigner()
     uniffiCallbackInitLogWriter()
+    uniffiCallbackInitMdocCertificateProfile()
     uniffiCallbackInitSyncHttpClient()
     uniffiCallbackInitDraft18PresentationSigner()
     uniffiCallbackInitOid4vpPresentationSigner()

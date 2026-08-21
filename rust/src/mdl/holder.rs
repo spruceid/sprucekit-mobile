@@ -32,13 +32,12 @@ use isomdl::{
         x509::trust_anchor::TrustAnchorRegistry,
         BleOptions, DeviceRetrievalMethod, SessionEstablishment,
     },
-    presentation::{
-        authentication::AuthenticationStatus,
-        device::{self, SessionManagerInit},
-    },
+    presentation::device::{self, SessionManagerInit},
 };
 use tracing::warn;
 use uuid::Uuid;
+
+use super::profile;
 
 #[derive(uniffi::Object, Debug, Clone)]
 pub struct NegotiatedCarrierInfo(IsoMdlNegotiatedCarrierInfo);
@@ -164,7 +163,9 @@ pub async fn initialize_mdl_presentation(
     let mdoc: Arc<Mdoc> = document.try_into().map_err(|e| SessionError::Generic {
         value: format!("Error retrieving MDoc from storage: {e:}"),
     })?;
-    let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
+    // Keyed by the credential's own doctype: `isomdl` matches an incoming `DocRequest` against
+    // this map, so hardcoding mDL here would make any other doctype unanswerable.
+    let documents = NonEmptyMap::new(mdoc.doctype(), mdoc.document().clone());
     let engagement_type = engagement.handover_info();
     let session = match engagement {
         DeviceEngagementData::QR => {
@@ -255,7 +256,8 @@ pub fn initialize_mdl_presentation_from_bytes(
         }),
     }));
 
-    let documents = NonEmptyMap::new("org.iso.18013.5.1.mDL".into(), mdoc.document().clone());
+    // See `initialize_mdl_presentation`: the map must be keyed by the credential's own doctype.
+    let documents = NonEmptyMap::new(mdoc.doctype(), mdoc.document().clone());
     let handover = engagement.handover_info();
 
     let session = match engagement {
@@ -376,9 +378,16 @@ impl MdlPresentationSession {
                 .clone();
             // blocking to avoid turning all functions async as revocation checks are currently unused due
             // to `()`
+            // Not caller-configurable, unlike the reader side: the profile governs reader
+            // authentication, and the registry passed below is empty, so no reader can
+            // authenticate whatever profile is chosen. A profile parameter here would be a knob
+            // with no observable effect until holder-side reader CA trust anchors are
+            // configurable, which is a separate change.
+            let profiles = profile::ProfileSelection::AnyDocTypeAsMdl;
             super::block_on(engaged.process_session_establishment(
                 session_establishment,
                 TrustAnchorRegistry::default(),
+                &profiles,
                 &(),
             ))
             .map_err(|e| RequestError::Generic {
@@ -386,7 +395,13 @@ impl MdlPresentationSession {
             })?
         };
 
-        if items_requests.items_request.is_empty() {
+        // `requested_items()`, not `authenticated_requested_items()`: the trust anchor registry
+        // passed above is empty, so no reader can ever authenticate and the authenticated variant
+        // would always be empty -- the holder would disclose nothing at all. Filtering on reader
+        // authentication only becomes meaningful once a reader CA trust list is configured.
+        let requested_items = items_requests.requested_items();
+
+        if requested_items.is_empty() {
             return Err(RequestError::Generic {
                 value: format!(
                     "Request does not have any items, potentially due to errors: {:?}",
@@ -395,19 +410,19 @@ impl MdlPresentationSession {
             });
         }
 
-        if !items_requests.errors.is_empty() {
-            for (category, errors) in items_requests.errors {
-                warn!("Errors for {}: {:?}", category, errors);
-            }
+        for (category, errors) in &items_requests.errors {
+            warn!("Errors for {}: {:?}", category, errors);
         }
         // Reader authentication doesn't raise errors to avoid breaking changes, but also because
         // we do not currently ask for a trust list of reader CAs (so verification will always fail)
-        match items_requests.reader_authentication {
-            AuthenticationStatus::Unchecked => warn!("Request authentication was unchecked"),
-            AuthenticationStatus::Invalid => {
-                warn!("Request authentication was invalid");
+        for doc_request in &items_requests.doc_requests {
+            if !doc_request.is_reader_authenticated() {
+                if doc_request.reader_auth_present {
+                    warn!("Request authentication was invalid");
+                } else {
+                    warn!("Request authentication was unchecked");
+                }
             }
-            AuthenticationStatus::Valid => {}
         }
 
         let mut in_process = self.in_process.lock().map_err(|_| RequestError::Generic {
@@ -416,12 +431,17 @@ impl MdlPresentationSession {
 
         *in_process = Some(InProcessRecord {
             session: session_manager,
-            items_request: items_requests.items_request.clone(),
-            reader_common_name: items_requests.common_name,
+            items_request: requested_items.clone(),
+            // Read from the certificate before its signature is verified, so this names who the
+            // request claims to be from. Taken per doc request now that `readerAuth` is per
+            // `DocRequest`; the first is the one this single-credential flow answers.
+            reader_common_name: items_requests
+                .doc_requests
+                .first()
+                .and_then(|doc_request| doc_request.common_name.clone()),
         });
 
-        Ok(items_requests
-            .items_request
+        Ok(requested_items
             .into_iter()
             .map(|req| ItemsRequest {
                 doc_type: req.doc_type,
@@ -701,7 +721,12 @@ mod tests {
         let (mut reader_session_manager, request, _ble_ident) =
             reader::SessionManager::establish_session(
                 reader::Handover::QR(qr_code_uri),
-                namespaces.clone(),
+                isomdl::definitions::helpers::NonEmptyVec::new(
+                    isomdl::definitions::device_request::ItemsRequest::new(
+                        "org.iso.18013.5.1.mDL".to_string(),
+                        namespaces.clone(),
+                    ),
+                ),
                 trust_anchor,
             )
             .unwrap();
@@ -723,9 +748,13 @@ mod tests {
         let key = key_manager.get_signing_key(key_alias).unwrap();
         let signature = key.sign(signing_payload).unwrap();
         let response = presentation_session.submit_response(signature).unwrap();
-        let res = reader_session_manager.handle_response(&response, &()).await;
+        let profiles = profile::ProfileSelection::AnyDocTypeAsMdl;
+        let res = reader_session_manager
+            .handle_response(&response, &profiles, &())
+            .await;
         vdc_collection.delete(mdl.id).await.unwrap();
-        assert_eq!(res.errors, BTreeMap::new());
+        assert!(res.errors.is_empty(), "unexpected errors: {:?}", res.errors);
+        assert_eq!(res.documents.len(), 1);
     }
 
     #[test_log::test(tokio::test(flavor = "multi_thread"))]
@@ -783,6 +812,7 @@ mod tests {
                 "../../tests/res/mdl/iaca-certificate.pem"
             )
             .to_string()]),
+            "org.iso.18013.5.1.mDL".to_string(),
         )
         .unwrap();
         let _request_data = presentation_session
@@ -805,7 +835,8 @@ mod tests {
         let key = key_manager.get_signing_key(key_alias).unwrap();
         let signature = key.sign(signing_payload).unwrap();
         let response = presentation_session.submit_response(signature).unwrap();
-        let res = crate::reader::handle_response(reader_session_data.state, response).unwrap();
+        let res =
+            crate::reader::handle_response(reader_session_data.state, response, None).unwrap();
         assert_eq!(res.errors, None);
 
         vdc_collection.delete(mdl.id).await.unwrap();

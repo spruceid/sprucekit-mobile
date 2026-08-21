@@ -288,6 +288,7 @@ class KioskScanViewDelegate: ObservableObject & MdocProximityReader.Delegate {
             delegate: self,
             requestedItems: requestedItems,
             trustAnchorRegistry: trustAnchorRegistry,
+            docType: mdlDocType,
             l2capUsage: .disableL2CAP
         )
     }

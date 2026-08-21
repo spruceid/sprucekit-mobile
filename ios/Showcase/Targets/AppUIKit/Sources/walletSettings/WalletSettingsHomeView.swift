@@ -152,6 +152,22 @@ struct WalletSettingsHomeBody: View {
     }
 
     @ViewBuilder
+    var generateMockPhotoIdButton: some View {
+        Button {
+            Task {
+                await generateMockPhotoId()
+            }
+        } label: {
+            SettingsHomeItem(
+                image: "GenerateMockMdl",
+                title: "Generate Photo ID",
+                description:
+                    "Generate a fresh test ISO 23220-4 Photo ID issued by the SpruceID Test CA"
+            )
+        }
+    }
+
+    @ViewBuilder
     var applyForSpruceMdlButton: some View {
         Button {
             isApplyingForMdl = true
@@ -254,6 +270,7 @@ struct WalletSettingsHomeBody: View {
             VStack {
                 activityLogButton
                 generateMockMdlButton
+                generateMockPhotoIdButton
                 applyForSpruceMdlButton
                 devModeButton
                 Spacer()

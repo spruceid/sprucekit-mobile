@@ -180,7 +180,8 @@ fun VerifyKioskView(navController: NavController) {
                     kioskElements,
                     trustedCertificatesViewModel.trustedCertificates.value.map { it.content },
                     bluetooth!!,
-                    context.applicationContext
+                    context.applicationContext,
+                    MDL_DOC_TYPE
                 )
             } catch (e: Exception) {
                 e.localizedMessage?.let { Toast.showError(it) }
@@ -227,7 +228,8 @@ fun VerifyKioskView(navController: NavController) {
                     kioskElements,
                     trustedCertificatesViewModel.trustedCertificates.value.map { it.content },
                     bluetooth,
-                    context.applicationContext
+                    context.applicationContext,
+                    MDL_DOC_TYPE
                 )
             } catch (e: Exception) {
                 e.localizedMessage?.let { Toast.showError(it) }

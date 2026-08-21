@@ -120,6 +120,7 @@ final class NfcHolderSelfTestRunner: ObservableObject {
                 delegate: readerDelegate,
                 requestedItems: ["org.iso.18013.5.1": ["given_name": false, "family_name": false]],
                 trustAnchorRegistry: TrustedCertificatesDataStore.shared.getAllCertificates().map { $0.content },
+                docType: mdlDocType,
                 l2capUsage: .disableL2CAP
             )
             append("Holder scanning + reader advertising over BLE…")

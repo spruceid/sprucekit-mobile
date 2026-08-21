@@ -27,6 +27,17 @@ public enum MdocInvalidationPolicy: Sendable {
 /// - different encodings of the same credential (JwtVC & JsonVC),
 /// - multiple instances of the same credential type (vehicle title credentials for more than 1 vehicle).
 public class CredentialPack {
+    /// Document types that are registered with the system identity document provider for
+    /// presentation over the Digital Credentials API.
+    ///
+    /// A doctype must also be listed in the host app's
+    /// `com.apple.developer.identity-document-services.document-provider.mobile-document-types`
+    /// entitlement, otherwise registration fails.
+    public static let idProviderDocumentTypes: Set<String> = [
+        "org.iso.18013.5.1.mDL",
+        "org.iso.23220.photoid.1"
+    ]
+
     public let id: UUID
     private var credentials: [ParsedCredential]
 
@@ -203,7 +214,7 @@ public class CredentialPack {
             mdoc: Mdoc,
             invalidationPolicy: MdocInvalidationPolicy
         ) async throws {
-            if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+            if Self.idProviderDocumentTypes.contains(mdoc.doctype()) {
                 let store = IdentityDocumentProviderRegistrationStore()
                 do {
                     let invalidationDate = try Self.resolveInvalidationDate(
@@ -211,7 +222,7 @@ public class CredentialPack {
                         policy: invalidationPolicy
                     )
                     let registration = MobileDocumentRegistration(
-                        mobileDocumentType: "org.iso.18013.5.1.mDL",
+                        mobileDocumentType: mdoc.doctype(),
                         supportedAuthorityKeyIdentifiers: [],  // TODO
                         documentIdentifier: mdoc.id(),
                         invalidationDate: invalidationDate
@@ -240,7 +251,7 @@ public class CredentialPack {
             var mdocs: [Mdoc] = []
             for credential in self.credentials {
                 guard let mdoc = credential.asMsoMdoc() else { continue }
-                if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+                if Self.idProviderDocumentTypes.contains(mdoc.doctype()) {
                     mdocs.append(mdoc)
                 }
             }
@@ -496,7 +507,7 @@ public class CredentialPack {
                 let storedRegistrations = try await store.registrations
                 for credential in self.credentials {
                     guard let mdoc = credential.asMsoMdoc() else { continue }
-                    if mdoc.doctype() == "org.iso.18013.5.1.mDL" {
+                    if Self.idProviderDocumentTypes.contains(mdoc.doctype()) {
                         let matchingRegistration = storedRegistrations.first { storedRegistration in
                             storedRegistration.documentIdentifier == mdoc.id()
                         }

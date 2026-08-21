@@ -108,10 +108,18 @@ class MdlReadResponse {
   /// Outcome of device authentication (replay protection).
   MdlAuthenticationStatus deviceAuthentication;
 
-  /// JSON-encoded `Map<String, List<String>>` of per-category errors, or null
-  /// when no errors. Categories include `issuer_authentication_errors`,
-  /// `device_authentication_errors`, `certificate_errors`, `parsing_errors`.
-  /// CRL `revocation_errors` are surfaced here as well (non-fatal).
+  /// JSON-encoded diagnostics, or null when nothing went wrong. Shaped as:
+  /// ```
+  /// {
+  ///   "response": ["..."],                       // response-level failures
+  ///   "documents": { "<claimed doctype>": ["..."] },  // per-document reasons
+  ///   "unrequested": ["<claimed doctype>"]       // arrived unasked, not validated
+  /// }
+  /// ```
+  /// The per-document entries carry the reason a document failed, which the
+  /// response-level list does not: a document failing on its own contributes
+  /// only a bare "documents failed" there. A doctype missing from
+  /// [MdlReader.startNfcReader]'s `certificateProfiles` shows up here.
   ///
   /// Consumers can `jsonDecode(errors)` if non-null to inspect specifics.
   String? errors;
@@ -138,6 +146,151 @@ class MdlReaderStateUpdate {
   String? error;
 
   MdlReaderStateUpdate({required this.state, this.response, this.error});
+}
+
+/// A certificate profile this SDK ships.
+///
+/// ISO/IEC 18013-5 Annex B's *structure* is credential-agnostic -- IACA root, no sub-CAs, subject
+/// key identifier, key usage, matching country codes. What differs between credential types is
+/// the OID values, and each of these bundles a known set.
+enum MdlBuiltinCertificateProfile {
+  /// ISO/IEC 18013-5 mDL. The profile used when none is configured.
+  mdl,
+
+  /// AAMVA's mDL profile, which additionally requires `stateOrProvinceName` to match.
+  aamvaMdl,
+
+  /// The EUDI Person Identification Data profile.
+  eudiPid,
+
+  /// ISO/IEC TS 23220-4 Annex B, used by the Photo ID profile. Note 23220-4 says a conformant
+  /// profile *may* use these OIDs, not that it must, so a real deployment may define its own.
+  iso23220,
+}
+
+/// How a relative distinguished name is compared between end-entity certificate and trust anchor.
+enum MdlCertificateRdnRule {
+  /// Compare only when at least one of the two carries the attribute, as ISO/IEC 18013-5
+  /// requires. Absent from both is conformant.
+  matchIfPresent,
+
+  /// Compare unconditionally, which also fails when the attribute is absent.
+  required,
+}
+
+/// Whether a certificate extension is mandatory.
+enum MdlCertificateExtensionRule {
+  /// The certificate must carry the extension, as ISO/IEC 18013-5 Annex B requires of
+  /// `cRLDistributionPoints` and `issuerAlternativeName`.
+  required,
+
+  /// The certificate may omit the extension.
+  optional,
+}
+
+/// The ISO/IEC 18013-5 Annex B document-signer checks, parameterised.
+///
+/// The structural checks and the chain, revocation and trust-purpose rules are Annex B's and are
+/// not configurable: an IACA trust anchor, no sub-CAs, and CRL-based revocation.
+class MdlIssuerProfileConfig {
+  /// Extended key usage OID the document signer certificate must carry, in dotted form --
+  /// `"1.0.18013.5.1.2"` for an mDL, `"1.0.23220.4.1.2"` for ISO/IEC TS 23220-4.
+  ///
+  /// The certificate's extended key usage must contain this OID and nothing else, so a signer
+  /// shared between two credential types needs one certificate per profile rather than one
+  /// certificate carrying both OIDs.
+  String documentSignerEku;
+
+  /// How `stateOrProvinceName` is compared against the trust anchor.
+  MdlCertificateRdnRule stateOrProvince;
+
+  /// Whether `cRLDistributionPoints` is mandatory.
+  MdlCertificateExtensionRule crlDistributionPoints;
+
+  /// Whether `issuerAlternativeName` is mandatory.
+  MdlCertificateExtensionRule issuerAlternativeName;
+
+  MdlIssuerProfileConfig({
+    required this.documentSignerEku,
+    required this.stateOrProvince,
+    required this.crlDistributionPoints,
+    required this.issuerAlternativeName,
+  });
+}
+
+/// The ISO/IEC 18013-5 Annex B reader-certificate checks, parameterised.
+class MdlReaderProfileConfig {
+  /// Extended key usage OID the reader certificate must carry, in dotted form --
+  /// `"1.0.18013.5.1.6"` for an mDL reader, `"1.0.23220.4.1.6"` for ISO/IEC TS 23220-4.
+  String readerAuthEku;
+
+  /// Whether `cRLDistributionPoints` is mandatory.
+  MdlCertificateExtensionRule crlDistributionPoints;
+
+  /// Whether `issuerAlternativeName` is mandatory.
+  MdlCertificateExtensionRule issuerAlternativeName;
+
+  MdlReaderProfileConfig({
+    required this.readerAuthEku,
+    required this.crlDistributionPoints,
+    required this.issuerAlternativeName,
+  });
+}
+
+/// Rules for document signer certificates of one doctype.
+///
+/// Native callers (Kotlin, Swift) can additionally implement validation
+/// themselves via the `MdocCertificateProfile` interface on the platform SDKs.
+/// That is not offered here: the underlying interface is synchronous and
+/// Pigeon's value-returning calls are not, so a Dart implementation would have
+/// to block a native thread on every certificate validated.
+sealed class MdlIssuerCertificateProfile {}
+
+/// Validate document signers of this doctype under a profile the SDK ships.
+class MdlIssuerBuiltinProfile implements MdlIssuerCertificateProfile {
+  MdlBuiltinCertificateProfile profile;
+
+  MdlIssuerBuiltinProfile({required this.profile});
+}
+
+/// Validate document signers of this doctype under the Annex B checks with
+/// caller-supplied parameters.
+class MdlIssuerConfiguredProfile implements MdlIssuerCertificateProfile {
+  MdlIssuerProfileConfig config;
+
+  MdlIssuerConfiguredProfile({required this.config});
+}
+
+/// Rules for reader certificates of one doctype.
+///
+/// A reader session never exercises this half -- it applies when a *holder*
+/// authenticates an incoming request -- so any value will do.
+sealed class MdlReaderCertificateProfile {}
+
+/// Validate reader certificates of this doctype under a profile the SDK ships.
+class MdlReaderBuiltinProfile implements MdlReaderCertificateProfile {
+  MdlBuiltinCertificateProfile profile;
+
+  MdlReaderBuiltinProfile({required this.profile});
+}
+
+/// Validate reader certificates of this doctype under the Annex B checks with
+/// caller-supplied parameters.
+class MdlReaderConfiguredProfile implements MdlReaderCertificateProfile {
+  MdlReaderProfileConfig config;
+
+  MdlReaderConfiguredProfile({required this.config});
+}
+
+/// The certificate rules for one doctype, both directions.
+class MdlCertificateProfiles {
+  /// Rules for the document signer certificate that signed a presented credential.
+  MdlIssuerCertificateProfile issuer;
+
+  /// Rules for the certificate a reader authenticates its request with.
+  MdlReaderCertificateProfile reader;
+
+  MdlCertificateProfiles({required this.issuer, required this.reader});
 }
 
 /// Callback interface for reader state updates.
@@ -199,14 +352,23 @@ abstract class MdlReader {
   ///     "org.iso.18013.5.1.aamva": { "EDL_credential": false },
   ///   }
   ///   ```
-  ///   The doctype (e.g. `"org.iso.18013.5.1.mDL"`) is derived from the
-  ///   namespaces by the SDK; it is not passed separately.
+  /// @param docType The document type to request, e.g. `"org.iso.18013.5.1.mDL"`
+  ///   or `"org.iso.23220.photoid.1"`. Required, and not inferred from [query]:
+  ///   a request naming the wrong doctype is answered with nothing rather than
+  ///   an error, so the caller must say what it is asking for.
   /// @param trustedRoots List of PEM-encoded IACA root certificates. Empty
   ///   list disables chain validation; [MdlAuthenticationStatus.invalid]
   ///   (or [unchecked]) will be returned in that case.
+  /// @param certificateProfiles Certificate validation rules, keyed by doctype.
+  ///   Null validates every doctype under the ISO/IEC 18013-5 mDL profile,
+  ///   which is what every caller got before this was configurable. When
+  ///   supplied it must contain an entry for [docType]: a doctype absent from
+  ///   the map is refused rather than validated under a guess.
   void startNfcReader(
     Map<String, Map<String, bool>> query,
+    String docType,
     List<String> trustedRoots,
+    Map<String, MdlCertificateProfiles>? certificateProfiles,
   );
 
   /// Start a QR-engagement reader session from a pre-scanned QR code URI.
@@ -219,11 +381,15 @@ abstract class MdlReader {
   /// @param qrUri The full QR code payload string scanned from the holder's
   ///   device.
   /// @param query See [startNfcReader].
+  /// @param docType See [startNfcReader].
   /// @param trustedRoots See [startNfcReader].
+  /// @param certificateProfiles See [startNfcReader].
   void startQrReader(
     String qrUri,
     Map<String, Map<String, bool>> query,
+    String docType,
     List<String> trustedRoots,
+    Map<String, MdlCertificateProfiles>? certificateProfiles,
   );
 
   /// Cancel any in-flight session and tear down NFC / BLE handles.

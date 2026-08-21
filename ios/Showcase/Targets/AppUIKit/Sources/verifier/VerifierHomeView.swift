@@ -130,9 +130,19 @@ struct VerifierHomeBody: View {
                     "Verifies an ISO formatted mobile driver's license by reading a QR code",
                 type: VerifierListItemTagType.SCAN_QR_CODE
             ).onTapGesture {
-                path.append(VerifyMDoc(checkAgeOver18: true))
+                path.append(VerifyMDoc(profile: .mdlAgeOver18))
             }
-            
+
+            VerifierListItem(
+                title: "Photo ID",
+                description:
+                    "Verifies an ISO 23220-4 Photo ID by reading a QR code",
+                type: VerifierListItemTagType.SCAN_QR_CODE
+            ).onTapGesture {
+                path.append(VerifyMDoc(profile: .photoId))
+            }
+
+
             VerifierListItem(
                 title: "Kiosk - Entry check",
                 description:

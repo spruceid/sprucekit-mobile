@@ -224,6 +224,9 @@ func getCredentialIdTitleAndIssuer(
 /// the same namespace (e.g., EUDI types like "eu.europa.ec.eudi.hiid.1").
 private let knownCredentialTypeDisplayNames: [String: String] = [
     "org.iso.18013.5.1.mDL": "Mobile Driver's License",
+    // ISO/IEC TS 23220-4 Annex C spells the doctype with a lowercase `id`, but the capitalised
+    // form is also in use, and doctype matching is case-sensitive.
+    "org.iso.23220.photoid.1": "Photo ID",
     "org.iso.23220.photoID.1": "Photo ID",
     "org.iso.7367.1.mVRC": "Mobile Vehicle Registration Certificate",
     "eu.europa.ec.eudi.pid.1": "EU Personal ID",

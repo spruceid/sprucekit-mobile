@@ -36,13 +36,17 @@ struct VerifierMdocResultView: View {
         let mdoc = convertToGenericJSON(map: result)
         self.mdoc = mdoc.dictValue ?? [:]
         self.title = credentialTypeDisplayName(for: docTypes.first ?? "")
-        // Try to find issuing_authority from any namespace
+        // Try to find the issuing authority from any namespace. The element identifier is
+        // namespace-specific: ISO 18013-5 uses `issuing_authority`, ISO 23220-2 uses
+        // `issuing_authority_unicode`.
         var foundIssuer = ""
-        for (_, namespaceValue) in self.mdoc {
-            if let authority = namespaceValue.dictValue?["issuing_authority"]?.toString(),
-               !authority.isEmpty {
-                foundIssuer = authority
-                break
+        outer: for (_, namespaceValue) in self.mdoc {
+            for identifier in ["issuing_authority", "issuing_authority_unicode"] {
+                if let authority = namespaceValue.dictValue?[identifier]?.toString(),
+                   !authority.isEmpty {
+                    foundIssuer = authority
+                    break outer
+                }
             }
         }
         self.issuer = foundIssuer
