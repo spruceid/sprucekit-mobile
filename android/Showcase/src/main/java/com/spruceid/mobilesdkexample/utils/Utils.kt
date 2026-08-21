@@ -2,7 +2,6 @@ package com.spruceid.mobilesdkexample.utils
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.foundation.Image
@@ -73,17 +72,20 @@ fun String.isImage(): Boolean {
             contains("data:image")
 }
 
+/** Whether the value links to a remotely hosted image rather than holding an inline base64 one. */
+fun String.isRemoteImageUrl(): Boolean {
+    return startsWith("http://", ignoreCase = true) ||
+            startsWith("https://", ignoreCase = true)
+}
+
 @Composable
 fun BitmapImage(
     byteArray: ByteArray,
     contentDescription: String,
     modifier: Modifier,
 ) {
-    fun convertImageByteArrayToBitmap(imageData: ByteArray): Bitmap {
-        return BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
-    }
-
-    val bitmap = convertImageByteArrayToBitmap(byteArray)
+    // Null when the bytes aren't a decodable image, so skip rendering rather than crash.
+    val bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size) ?: return
 
     Image(
         bitmap = bitmap.asImageBitmap(),
