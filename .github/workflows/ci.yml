@@ -165,6 +165,21 @@ jobs:
       - name: Check dependency licenses
         run: ./gradlew licensee -Prust-target=arm64
 
+  spelling:
+    name: US English (user-facing copy)
+    runs-on: ubuntu-latest
+    if: github.actor != 'sprucekit-mobile-monorepo[bot]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check user-facing copy for British spelling
+        uses: crate-ci/typos@v1.49.0
+        with:
+          files: |
+            android/Showcase/src
+            ios/Showcase
+            flutter/example/lib
+
   flutter:
     runs-on: ubuntu-latest
     if: github.actor != 'sprucekit-mobile-monorepo[bot]'
