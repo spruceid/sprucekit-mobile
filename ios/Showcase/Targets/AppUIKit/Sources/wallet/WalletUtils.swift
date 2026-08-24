@@ -56,7 +56,7 @@ extension String {
 
     /// Whether the value links to a remotely hosted image rather than holding an inline base64 one.
     var isRemoteImageUrl: Bool {
-        let value = self.lowercased()
+        let value = self.prefix(8).lowercased()
         return value.hasPrefix("http://") || value.hasPrefix("https://")
     }
 }
