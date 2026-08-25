@@ -30,7 +30,7 @@ struct AddToWalletView: View {
 
     var onSuccess: (() -> Void)?
     var navigateHomeOnSuccess: Bool = true
-    // Used to override behaviour for "Accept" button - used by protocols such as VCALM
+    // Used to override behavior for "Accept" button - used by protocols such as VCALM
     var onAcceptCredential: ((String) async throws -> Void)?
 
     init(

@@ -66,7 +66,7 @@ fun AddToWalletView(
     // fires — used by flows (like VCALM) that might need to continue in
     // place rather than always going home.
     navigateHomeOnSuccess: Boolean = true,
-    // Used to override behaviour for "Accept" button - used by protocols such as VCALM
+    // Used to override behavior for "Accept" button - used by protocols such as VCALM
     onAcceptCredential: (suspend (rawCredential: String) -> Unit)? = null,
 ) {
     val credentialPacksViewModel: CredentialPacksViewModel = activityHiltViewModel()

@@ -174,6 +174,14 @@ touch local.properties  # if missing
 ./gradlew :showcase:lint -Prust-target=arm64
 ```
 
+**US English** — copy shown to a person is US English, enforced by the `spelling` CI job over the Showcase apps and the Flutter example. Exemptions live in `_typos.toml`:
+
+```bash
+typos android/Showcase/src ios/Showcase flutter/example/lib
+```
+
+Install it with `brew install typos-cli` or `cargo install typos-cli`. When a flagged word is a name we do not own — an ISO mDL claim key, a third-party API — add it to `_typos.toml` rather than renaming it.
+
 ## Releases
 
 ### SDKs

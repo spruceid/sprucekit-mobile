@@ -28,7 +28,9 @@ Changes to the Rust layer require regenerating bindings before platform work:
 
 ## CI
 
-CI runs on push to main and PRs with four jobs (rust, ios, android, flutter). See `.github/workflows/ci.yml`.
+CI runs on push to main and PRs with five jobs (rust, ios, android, spelling, flutter). See `.github/workflows/ci.yml`.
+
+The `spelling` job runs `typos` over the Showcase apps and the Flutter example to keep user-facing copy in US English. Exemptions are in `_typos.toml`.
 
 `RUSTFLAGS="-Dwarnings"` is set globally -- all Rust warnings are errors in CI.
 
