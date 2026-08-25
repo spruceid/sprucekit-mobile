@@ -735,7 +735,7 @@ interface CredentialPack {
    * @param keyAlias The per-credential key alias, or null to store keyless
    * @return AddCredentialResult with updated credentials or error
    */
-  fun addAnyFormat(packId: String, rawCredential: String, keyAlias: String?, callback: (Result<AddCredentialResult>) -> Unit)
+  fun addAnyFormatWithKey(packId: String, rawCredential: String, keyAlias: String?, callback: (Result<AddCredentialResult>) -> Unit)
   /**
    * Get all credentials in a pack
    *
@@ -920,14 +920,14 @@ interface CredentialPack {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormat$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormatWithKey$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val packIdArg = args[0] as String
             val rawCredentialArg = args[1] as String
             val keyAliasArg = args[2] as String?
-            api.addAnyFormat(packIdArg, rawCredentialArg, keyAliasArg) { result: Result<AddCredentialResult> ->
+            api.addAnyFormatWithKey(packIdArg, rawCredentialArg, keyAliasArg) { result: Result<AddCredentialResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(CredentialPackPigeonUtils.wrapError(error))

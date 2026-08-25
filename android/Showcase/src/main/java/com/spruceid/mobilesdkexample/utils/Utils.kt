@@ -219,11 +219,7 @@ fun addCredential(credentialPack: CredentialPack, rawCredential: String): Creden
  * Shared so other flows (e.g. VCALM offers) that store a credential outside
  * of `AddToWalletView`'s stay consistent with it
  */
-/**
- * Stores [rawCredential], binding it to [keyAlias] -- the per-credential key
- * generated at issuance so it matches the credential's holder binding. Callers
- * with no per-credential key (null) fall back to the shared signing key.
- */
+/** Stores [rawCredential] bound to [keyAlias], or to the shared key when null. */
 suspend fun acceptRawCredentialIntoWallet(
     rawCredential: String,
     credentialPacksViewModel: CredentialPacksViewModel,
@@ -231,7 +227,7 @@ suspend fun acceptRawCredentialIntoWallet(
     keyAlias: String? = null,
 ): CredentialPack {
     val credentialPack = CredentialPack()
-    credentialPack.tryAddAnyFormat(rawCredential, keyAlias ?: DEFAULT_SIGNING_KEY_ID)
+    credentialPack.tryAddAnyFormatWithKey(rawCredential, keyAlias ?: DEFAULT_SIGNING_KEY_ID)
     credentialPacksViewModel.saveCredentialPack(credentialPack)
 
     val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)

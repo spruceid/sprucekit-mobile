@@ -19,9 +19,8 @@ struct HandleOID4VCIView: View {
     @State var loading: Bool = false
     @State var err: String?
     @State var credentials: [String] = []
-    /// The per-credential key generated for this issuance session. Every
-    /// credential in the offer is bound to it, since one key backs the
-    /// session's client id and therefore every OID4VCI proof.
+    /// Key for this issuance session, shared by the whole offer because one key
+    /// backs the client id that every proof is signed against.
     @State var credentialKeyAlias: String?
     @State var credentialPack: CredentialPack?
 
@@ -86,10 +85,7 @@ struct HandleOID4VCIView: View {
         // Setup HTTP client.
         let httpClient = Oid4vciAsyncHttpClient()
 
-        // Setup signer. The whole offer is proved with one key -- it backs the
-        // client id used for every credential request -- so the batch shares a
-        // single freshly-generated per-credential key rather than the shared
-        // default signing key.
+        // Setup signer.
         let keyAlias = "credential/" + UUID().uuidString
         _ = KeyManager.generateSigningKey(id: keyAlias)
         credentialKeyAlias = keyAlias

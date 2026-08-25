@@ -78,9 +78,8 @@ impl VcalmCredentialStore for VdcCollection {
 
 /// Bridges `PresentationSigner` onto VCALM's signer port.
 ///
-/// A VCALM session signs one VP with one holder key, and VCALM's own signer
-/// port is not keyed, so the session's `key_id` is pinned here and used for
-/// every call. Per-credential signing keys apply to OID4VP presentation only.
+/// VCALM's port is not keyed, so the session's `key_id` is pinned here and used
+/// for every call.
 #[derive(Debug)]
 pub(crate) struct VcalmSignerAdapter {
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,

@@ -61,8 +61,7 @@ sealed class CredentialStepItem {
 fun AddToWalletView(
     navController: NavHostController,
     rawCredentials: List<String>,
-    // Per-credential signing key alias to bind every credential in this flow
-    // to. Null falls back to the shared signing key.
+    // Key bound to every credential in this flow; null uses the shared key.
     keyAlias: String? = null,
     onSuccess: (() -> Unit)? = null,
     // When false, the caller is responsible for navigation once `onSuccess`

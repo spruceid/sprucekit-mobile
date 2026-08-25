@@ -169,16 +169,14 @@ let trustedDids: [String] = []
 /// offers) that store a credential outside of `AddToWalletView`'s own review
 /// UI stay consistent with it, rather than reimplementing this inline.
 @discardableResult
-/// Stores `rawCredential`, binding it to `keyAlias` — the per-credential key
-/// generated at issuance so it matches the credential's holder binding. Callers
-/// with no per-credential key (`nil`) fall back to the shared signing key.
+/// Stores `rawCredential` bound to `keyAlias`, or to the shared key when `nil`.
 func acceptRawCredentialIntoWallet(
     rawCredential: String,
     credentialPackObservable: CredentialPackObservable,
     keyAlias: String? = nil
 ) async throws -> CredentialPack {
     let credentialPack = CredentialPack()
-    _ = try await credentialPack.tryAddAnyFormat(
+    _ = try await credentialPack.tryAddAnyFormatWithKey(
         rawCredential: rawCredential, keyAlias: keyAlias ?? DEFAULT_SIGNING_KEY_ID)
     try await credentialPackObservable.add(credentialPack: credentialPack)
 

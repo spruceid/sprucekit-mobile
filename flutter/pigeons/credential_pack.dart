@@ -215,7 +215,7 @@ abstract class CredentialPack {
   /// @param keyAlias The per-credential key alias, or null to store keyless
   /// @return AddCredentialResult with updated credentials or error
   @async
-  AddCredentialResult addAnyFormat(
+  AddCredentialResult addAnyFormatWithKey(
     String packId,
     String rawCredential,
     String? keyAlias,

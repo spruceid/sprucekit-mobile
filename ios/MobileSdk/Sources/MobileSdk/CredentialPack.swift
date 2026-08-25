@@ -157,12 +157,10 @@ public class CredentialPack {
      * match a `cnf` fixed at issuance — the credential would store fine but could
      * never present successfully.
      *
-     * BREAKING CHANGE: this parameter was previously `mdocKeyAlias` and only bound
-     * the key to mdoc credentials (non-mdoc formats were stored keyless). It now
-     * binds the key to ALL formats. Callers migrating from the old parameter must
-     * ensure the alias matches each credential's holder binding (`cnf` for
-     * non-mdoc, the MSO device key for mdoc); otherwise the resulting presentation
-     * will fail verification.
+     * BREAKING CHANGE: this replaces `tryAddAnyFormat(rawCredential:mdocKeyAlias:)`,
+     * whose alias bound mdoc credentials only, so migrating callers must pass an
+     * alias matching each credential's holder binding or the presentation will
+     * fail verification.
      *
      * When `keyAlias` is nil the credential is stored without a per-credential key
      * (`key_alias == None`) and presents via the shared/fallback key — valid only
@@ -175,7 +173,7 @@ public class CredentialPack {
      * @throws CredentialPackError if the credential cannot be parsed in any supported
      *   format, or if `keyAlias` is non-nil but no key exists for it
      */
-    public func tryAddAnyFormat(rawCredential: String, keyAlias: String? = nil)
+    public func tryAddAnyFormatWithKey(rawCredential: String, keyAlias: String? = nil)
         async throws -> [ParsedCredential] {
         guard let keyAlias else {
             do {
@@ -213,6 +211,20 @@ public class CredentialPack {
                 )
             }
         }
+    }
+
+    /**
+     * Replaced by `tryAddAnyFormatWithKey(rawCredential:keyAlias:)`, which binds
+     * the alias to every format rather than to mdoc alone.
+     */
+    @available(
+        *, unavailable,
+        renamed: "tryAddAnyFormatWithKey(rawCredential:keyAlias:)",
+        message: "keyAlias now binds every format, not just mdoc; pass the key matching the credential's cnf."
+    )
+    public func tryAddAnyFormat(rawCredential: String, mdocKeyAlias: String)
+        async throws -> [ParsedCredential] {
+        fatalError("tryAddAnyFormat was replaced by tryAddAnyFormatWithKey")
     }
 
     /// Add a Cwt to the CredentialPack

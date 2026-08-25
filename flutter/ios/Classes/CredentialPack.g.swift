@@ -651,7 +651,7 @@ protocol CredentialPack {
   /// @param rawCredential The raw credential string
   /// @param keyAlias The per-credential key alias, or null to store keyless
   /// @return AddCredentialResult with updated credentials or error
-  func addAnyFormat(packId: String, rawCredential: String, keyAlias: String?, completion: @escaping (Result<AddCredentialResult, Error>) -> Void)
+  func addAnyFormatWithKey(packId: String, rawCredential: String, keyAlias: String?, completion: @escaping (Result<AddCredentialResult, Error>) -> Void)
   /// Get all credentials in a pack
   ///
   /// @param packId The pack identifier
@@ -853,14 +853,14 @@ class CredentialPackSetup {
     /// @param rawCredential The raw credential string
     /// @param keyAlias The per-credential key alias, or null to store keyless
     /// @return AddCredentialResult with updated credentials or error
-    let addAnyFormatChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormat\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let addAnyFormatWithKeyChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormatWithKey\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      addAnyFormatChannel.setMessageHandler { message, reply in
+      addAnyFormatWithKeyChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let packIdArg = args[0] as! String
         let rawCredentialArg = args[1] as! String
         let keyAliasArg: String? = nilOrValue(args[2])
-        api.addAnyFormat(packId: packIdArg, rawCredential: rawCredentialArg, keyAlias: keyAliasArg) { result in
+        api.addAnyFormatWithKey(packId: packIdArg, rawCredential: rawCredentialArg, keyAlias: keyAliasArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -870,7 +870,7 @@ class CredentialPackSetup {
         }
       }
     } else {
-      addAnyFormatChannel.setMessageHandler(nil)
+      addAnyFormatWithKeyChannel.setMessageHandler(nil)
     }
     /// Get all credentials in a pack
     ///

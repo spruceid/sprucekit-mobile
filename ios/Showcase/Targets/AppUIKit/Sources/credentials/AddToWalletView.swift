@@ -19,8 +19,7 @@ struct AddToWalletView: View {
         CredentialPackObservable
     @Binding var path: NavigationPath
     var rawCredentials: [String]
-    /// Per-credential signing key alias to bind every credential in this flow
-    /// to. `nil` falls back to the shared signing key.
+    /// Key bound to every credential in this flow; `nil` uses the shared key.
     var keyAlias: String?
     @State var storing = false
 

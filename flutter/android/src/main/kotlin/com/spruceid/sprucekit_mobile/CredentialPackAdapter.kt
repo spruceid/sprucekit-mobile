@@ -91,7 +91,7 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
         }
     }
 
-    override fun addAnyFormat(
+    override fun addAnyFormatWithKey(
         packId: String,
         rawCredential: String,
         keyAlias: String?,
@@ -105,7 +105,7 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
                     return@launch
                 }
 
-                val credentials = pack.tryAddAnyFormat(rawCredential, keyAlias)
+                val credentials = pack.tryAddAnyFormatWithKey(rawCredential, keyAlias)
                 callback(Result.success(AddCredentialSuccess(
                     credentials = credentials.map { it.toData() }
                 )))

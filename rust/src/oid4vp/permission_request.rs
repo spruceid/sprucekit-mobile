@@ -436,8 +436,7 @@ impl PermissionRequest {
             .await?;
 
         // Mint each selected dynamic offer, bound to this presentation. The
-        // nonce/client_id are sourced identically to the stored response build,
-        // and are independent of which signing key the options carry.
+        // nonce/client_id are sourced identically to the stored response build.
         let options = self.presentation_options(self.key_id.clone(), &response_options);
         let binding = PresentationBinding {
             nonce: options.nonce().to_owned(),
@@ -695,8 +694,7 @@ impl PermissionRequest {
         let mut vp_token_map: HashMap<String, Vec<VpTokenItem>> = HashMap::new();
 
         for cred in &selected_credentials {
-            // Set options for constructing this credential's verifiable
-            // presentation, pinned to its resolved signing key.
+            // Each credential's presentation is signed with its own key.
             let options =
                 self.presentation_options(cred.resolve_key_id(&self.key_id), response_options);
 

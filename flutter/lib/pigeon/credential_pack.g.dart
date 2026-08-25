@@ -706,8 +706,8 @@ class CredentialPack {
   /// @param rawCredential The raw credential string
   /// @param keyAlias The per-credential key alias, or null to store keyless
   /// @return AddCredentialResult with updated credentials or error
-  Future<AddCredentialResult> addAnyFormat(String packId, String rawCredential, String? keyAlias) async {
-    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormat$pigeonVar_messageChannelSuffix';
+  Future<AddCredentialResult> addAnyFormatWithKey(String packId, String rawCredential, String? keyAlias) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.CredentialPack.addAnyFormatWithKey$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,

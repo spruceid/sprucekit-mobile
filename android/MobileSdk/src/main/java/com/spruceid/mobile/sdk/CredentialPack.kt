@@ -157,6 +157,24 @@ class CredentialPack {
     }
 
     /**
+     * Replaced by [tryAddAnyFormatWithKey], which binds the alias to every
+     * format rather than to mdoc alone.
+     */
+    @Deprecated(
+        message = "Renamed to tryAddAnyFormatWithKey, whose keyAlias binds every format, not " +
+            "just mdoc. Pass the key matching the credential's cnf, or null to store keyless.",
+        replaceWith = ReplaceWith("tryAddAnyFormatWithKey(rawCredential, mdocKeyAlias)"),
+        level = DeprecationLevel.ERROR
+    )
+    @Throws(ParsingException::class)
+    @Suppress("UNUSED_PARAMETER")
+    fun tryAddAnyFormat(rawCredential: String, mdocKeyAlias: String): List<ParsedCredential> =
+        throw ParsingException(
+            message = "tryAddAnyFormat was replaced by tryAddAnyFormatWithKey.",
+            cause = null
+        )
+
+    /**
      * Try to add a credential in any supported format (standard credential or mdoc),
      * optionally binding it to a per-credential key alias.
      *
@@ -168,12 +186,10 @@ class CredentialPack {
      * match a `cnf` fixed at issuance — the credential would store fine but could
      * never present successfully.
      *
-     * BREAKING CHANGE: this parameter was previously `mdocKeyAlias` and only
-     * bound the key to mdoc credentials (non-mdoc formats were stored keyless).
-     * It now binds the key to ALL formats. Callers migrating from the old
-     * parameter must ensure the alias matches each credential's holder binding
-     * (`cnf` for non-mdoc, the MSO device key for mdoc); otherwise the resulting
-     * presentation will fail verification.
+     * BREAKING CHANGE: this replaces `tryAddAnyFormat(rawCredential, mdocKeyAlias)`,
+     * whose alias bound mdoc credentials only, so migrating callers must pass an
+     * alias matching each credential's holder binding or the presentation will
+     * fail verification.
      *
      * When [keyAlias] is null the credential is stored without a per-credential
      * key (`key_alias == None`) and presents via the shared/fallback key — this
@@ -188,7 +204,10 @@ class CredentialPack {
      *   format, or if [keyAlias] is non-null but no key exists for it
      */
     @Throws(ParsingException::class)
-    fun tryAddAnyFormat(rawCredential: String, keyAlias: String? = null): List<ParsedCredential> {
+    fun tryAddAnyFormatWithKey(
+        rawCredential: String,
+        keyAlias: String? = null
+    ): List<ParsedCredential> {
         if (keyAlias == null) {
             return try {
                 tryAddRawCredential(rawCredential)

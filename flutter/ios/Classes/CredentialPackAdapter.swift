@@ -91,7 +91,7 @@ class CredentialPackAdapter: CredentialPack {
         }
     }
 
-    func addAnyFormat(
+    func addAnyFormatWithKey(
         packId: String,
         rawCredential: String,
         keyAlias: String?,
@@ -107,7 +107,7 @@ class CredentialPackAdapter: CredentialPack {
                 }
                 lock.unlock()
 
-                let credentials = try await pack.tryAddAnyFormat(
+                let credentials = try await pack.tryAddAnyFormatWithKey(
                     rawCredential: rawCredential,
                     keyAlias: keyAlias
                 )

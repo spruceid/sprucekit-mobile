@@ -53,9 +53,8 @@ fun HandleOID4VCIView(
     var loading by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
     var credentials by remember { mutableStateOf<List<String>>(emptyList()) }
-    // The per-credential key generated for this issuance session. Every
-    // credential in the offer is bound to it, since one key backs the
-    // session's client id and therefore every OID4VCI proof.
+    // Key for this issuance session, shared by the whole offer because one key
+    // backs the client id that every proof is signed against.
     var credentialKeyAlias by remember { mutableStateOf<String?>(null) }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -81,10 +80,7 @@ fun HandleOID4VCIView(
         val httpClient = Oid4vciAsyncHttpClient()
         hoistedHttpClient = httpClient
 
-        // Setup signer. The whole offer is proved with one key -- it backs the
-        // client id used for every credential request -- so the batch shares a
-        // single freshly-generated per-credential key rather than the shared
-        // default signing key.
+        // Setup signer.
         val keyManager = KeyManager()
         val keyAlias = "credential/" + UUID.randomUUID().toString()
         keyManager.generateSigningKey(id = keyAlias)
