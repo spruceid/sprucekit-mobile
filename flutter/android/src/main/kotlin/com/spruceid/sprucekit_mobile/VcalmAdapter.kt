@@ -267,7 +267,6 @@ internal class VcalmAdapter(
                 // Suite is server-driven — no suite parameter.
                 val creds = selected.mapNotNull { keyMap[it] }
                 Log.d(TAG, "submitPresentation: resolved ${creds.size}/${selected.size} handle(s)")
-                val step = h.submitPresentation(creds, allowDomainMismatch)
                 Log.d(TAG, "submitPresentation: step=${step::class.simpleName}")
                 callback(Result.success(toPigeonStep(step)))
             } catch (e: VcalmException.DomainChannelMismatch) {

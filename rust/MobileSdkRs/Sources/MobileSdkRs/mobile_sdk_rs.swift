@@ -15322,6 +15322,39 @@ public protocol VcalmHolderProtocol: AnyObject, Sendable {
     
     /**
      * Build, sign and POST a verifiable presentation.
+     *
+     * `selected_credentials` are the credentials the user chose. `selected_fields`
+     * is keyed by VPR query index: the entry for `i` is the field paths the user
+     * consented to disclose for query `i`.
+     *
+     * Four things to get right:
+     *
+     * * **A missing key is not an empty list.** If a query index is absent, that
+     * query is not narrowed and everything it named is disclosed. An entry that
+     * is present but empty means "the user deselected every field". So an empty
+     * map is the correct input for a caller with no per-field consent UI, and is
+     * NOT a way to disclose nothing. Send an entry only for a query that
+     * actually offered the user a choice.
+     * * **Paths must match `requested_fields()` exactly.** Selection is string
+     * equality against the example-derived paths, with no prefix or wildcard
+     * semantics: `credentialSubject.address` does not select
+     * `credentialSubject.address.street`. Pass the strings back unmodified.
+     * * **Only `credentialSubject.*` paths can be narrowed.** Structural
+     * properties an example names — `type`, `@context`, `credentialStatus` — are
+     * always disclosed, because the verifier's example states what the response
+     * credential must contain. They are not consent surface and should not be
+     * shown as checkboxes.
+     * * **Narrowing applies only to a credential with an `ecdsa-sd-2023` base
+     * proof**, under a VPR that requests selective disclosure. Otherwise the
+     * whole credential is presented and `selected_fields` is ignored, so a UI
+     * must not offer field checkboxes there. `matched_credentials()` reports
+     * `selective_disclosure` per credential for exactly this decision.
+     *
+     * Dropping fields from a query that is not explicitly optional is refused
+     * rather than signed, since the verifier's example makes every field it names
+     * required. If an optional query has every subject field deselected, that
+     * credential is dropped from the presentation — a derived credential with no
+     * `credentialSubject` would not be valid.
      */
     func submitPresentation(selectedCredentials: [ParsedCredential], selectedFields: [UInt32: [String]], allowDomainMismatch: Bool) async throws  -> StepResult
     
@@ -15522,6 +15555,39 @@ open func startExchange(input: String, authHeader: String?)async throws  -> Step
     
     /**
      * Build, sign and POST a verifiable presentation.
+     *
+     * `selected_credentials` are the credentials the user chose. `selected_fields`
+     * is keyed by VPR query index: the entry for `i` is the field paths the user
+     * consented to disclose for query `i`.
+     *
+     * Four things to get right:
+     *
+     * * **A missing key is not an empty list.** If a query index is absent, that
+     * query is not narrowed and everything it named is disclosed. An entry that
+     * is present but empty means "the user deselected every field". So an empty
+     * map is the correct input for a caller with no per-field consent UI, and is
+     * NOT a way to disclose nothing. Send an entry only for a query that
+     * actually offered the user a choice.
+     * * **Paths must match `requested_fields()` exactly.** Selection is string
+     * equality against the example-derived paths, with no prefix or wildcard
+     * semantics: `credentialSubject.address` does not select
+     * `credentialSubject.address.street`. Pass the strings back unmodified.
+     * * **Only `credentialSubject.*` paths can be narrowed.** Structural
+     * properties an example names — `type`, `@context`, `credentialStatus` — are
+     * always disclosed, because the verifier's example states what the response
+     * credential must contain. They are not consent surface and should not be
+     * shown as checkboxes.
+     * * **Narrowing applies only to a credential with an `ecdsa-sd-2023` base
+     * proof**, under a VPR that requests selective disclosure. Otherwise the
+     * whole credential is presented and `selected_fields` is ignored, so a UI
+     * must not offer field checkboxes there. `matched_credentials()` reports
+     * `selective_disclosure` per credential for exactly this decision.
+     *
+     * Dropping fields from a query that is not explicitly optional is refused
+     * rather than signed, since the verifier's example makes every field it names
+     * required. If an optional query has every subject field deselected, that
+     * credential is dropped from the presentation — a derived credential with no
+     * `credentialSubject` would not be valid.
      */
 open func submitPresentation(selectedCredentials: [ParsedCredential], selectedFields: [UInt32: [String]], allowDomainMismatch: Bool)async throws  -> StepResult  {
     return
@@ -29784,6 +29850,8 @@ public enum VcalmError: Swift.Error, Equatable, Hashable, Foundation.LocalizedEr
     )
     case SdDeriveFailed(String
     )
+    case RequiredFieldsDeselected(queryIndex: UInt32, dropped: String
+    )
     case UnsupportedCredentialFormat(String
     )
 
@@ -29866,7 +29934,11 @@ public struct FfiConverterTypeVcalmError: FfiConverterRustBuffer {
         case 18: return .SdDeriveFailed(
             try FfiConverterString.read(from: &buf)
             )
-        case 19: return .UnsupportedCredentialFormat(
+        case 19: return .RequiredFieldsDeselected(
+            queryIndex: try FfiConverterUInt32.read(from: &buf), 
+            dropped: try FfiConverterString.read(from: &buf)
+            )
+        case 20: return .UnsupportedCredentialFormat(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -29971,8 +30043,14 @@ public struct FfiConverterTypeVcalmError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .UnsupportedCredentialFormat(v1):
+        case let .RequiredFieldsDeselected(queryIndex,dropped):
             writeInt(&buf, Int32(19))
+            FfiConverterUInt32.write(queryIndex, into: &buf)
+            FfiConverterString.write(dropped, into: &buf)
+            
+        
+        case let .UnsupportedCredentialFormat(v1):
+            writeInt(&buf, Int32(20))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -36544,7 +36622,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_start_exchange() != 15267) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 6342) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 21087) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_add() != 62104) {

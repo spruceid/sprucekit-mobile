@@ -354,7 +354,7 @@ struct HandleVCALMView: View {
         let reqs = requirements ?? []
         let selected = reqs.compactMap { picks[$0.queryIndex] }
         let selectedFields = Dictionary(
-            uniqueKeysWithValues: reqs.map {
+            uniqueKeysWithValues: reqs.filter { !$0.fields.isEmpty }.map {
                 ($0.queryIndex, Array(fieldSelections[$0.queryIndex] ?? []))
             }
         )

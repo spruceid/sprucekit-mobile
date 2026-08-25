@@ -352,9 +352,8 @@ fun HandleVCALMView(
     suspend fun submitPicks() {
         val reqs = requirements.orEmpty()
         val selected = reqs.mapNotNull { picks[it.queryIndex] }
-        val selectedFields = reqs.associate {
-            it.queryIndex to fieldSelections[it.queryIndex].orEmpty().toList()
-        }
+        val selectedFields = reqs.filter { it.fields.isNotEmpty() }
+            .associate { it.queryIndex to fieldSelections[it.queryIndex].orEmpty().toList() }
         trySubmitPresentation(selected, selectedFields, false)
     }
 
@@ -824,7 +823,7 @@ fun VcalmFieldsSelector(
                     }
                 }
             } else {
-                // Field toggles propogate to HandleVCALMView
+                // Field toggles propagate to HandleVCALMView
                 val selectedFields = fieldSelections[currentRequirement.queryIndex].orEmpty()
                 currentRequirement.fields.forEach { field ->
                     Row(verticalAlignment = Alignment.CenterVertically) {

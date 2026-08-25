@@ -289,6 +289,7 @@ class VcalmAdapter: Vcalm {
                 // Suite is server-driven — no suite parameter.
                 let step = try await holder.submitPresentation(
                     selectedCredentials: resolved,
+                    selectedFields: [:],
                     allowDomainMismatch: allowDomainMismatch
                 )
                 completion(.success(try await toPigeonStep(step)))
