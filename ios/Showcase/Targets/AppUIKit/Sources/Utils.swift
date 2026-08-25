@@ -17,9 +17,9 @@ struct HideViewModifier: ViewModifier {
 }
 
 extension View {
-    func hide(if isHiddden: Bool) -> some View {
+    func hide(if isHidden: Bool) -> some View {
         ModifiedContent(content: self,
-                        modifier: HideViewModifier(isHidden: isHiddden)
+                        modifier: HideViewModifier(isHidden: isHidden)
         )
     }
 }

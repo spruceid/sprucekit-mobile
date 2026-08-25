@@ -157,7 +157,7 @@ struct HandleOID4VCIView: View {
                             err = "Missing authorization code in callback"
                         }
                     } else {
-                        err = "Sign-in cancelled"
+                        err = "Sign-in canceled"
                     }
                 case .requiresTxCode(let txState):
                     self.pendingTxState = txState
@@ -264,7 +264,7 @@ struct HandleOID4VCIView: View {
             Button("Cancel", role: .cancel) {
                 pendingTxState = nil
                 pinInput = ""
-                err = "Transaction code cancelled"
+                err = "Transaction code canceled"
             }
         } message: {
             Text("Please enter the PIN provided with the QR code.")

@@ -184,7 +184,7 @@ fun HandleOID4VCIView(
                 promptForPin = false
                 pendingTxCodeState = null
                 pinInput = ""
-                err = "Transaction code cancelled"
+                err = "Transaction code canceled"
             },
             title = { Text("Enter Transaction Code") },
             text = {
@@ -235,7 +235,7 @@ fun HandleOID4VCIView(
                     promptForPin = false
                     pendingTxCodeState = null
                     pinInput = ""
-                    err = "Transaction code cancelled"
+                    err = "Transaction code canceled"
                 }) { Text("Cancel") }
             },
         )

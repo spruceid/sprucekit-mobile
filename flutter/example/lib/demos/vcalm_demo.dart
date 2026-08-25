@@ -390,7 +390,7 @@ class _VcalmDemoState extends State<VcalmDemo> {
         } else {
           setState(
             () => _presentationStatus =
-                'Presentation cancelled (domain mismatch).',
+                'Presentation canceled (domain mismatch).',
           );
         }
         return;
