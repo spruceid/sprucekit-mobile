@@ -92,6 +92,9 @@ data class VcalmRequirement(
     val fields: List<VcalmRequestedField>,
 )
 
+fun isSubjectPath(path: String): Boolean =
+    path == "credentialSubject" || path.startsWith("credentialSubject.")
+
 // Iterate the UNION of requested queries (`fieldsByQuery`) and matched ones, so a requested query
 // with no matching wallet credential still becomes a requirement (with empty candidates) and
 // surfaces as "no matching credential" — instead of being silently dropped.
@@ -99,7 +102,8 @@ fun buildVcalmRequirements(
     requestedFields: List<VcalmRequestedField>,
     matched: List<VcalmMatchedCredentials>,
 ): List<VcalmRequirement> {
-    val fieldsByQuery = requestedFields.filter { it.path != "type" && it.path != "@context" }
+    // Only `credentialSubject` claims are surfaced in the consent UI. Everything else is always disclosed by the   SDK
+    val fieldsByQuery = requestedFields.filter { isSubjectPath(it.path) }
         .groupBy { it.queryIndex }
     val candidatesByQuery =
         matched.associate { it.queryIndex to it.credentials.map { c -> c.credential } }

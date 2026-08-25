@@ -37,15 +37,17 @@ struct VcalmRequirement {
 /// of requirements. Iterates the union of both so a requested query with no
 /// matching credential still becomes a requirement with empty candidates,
 /// instead of being silently dropped.
+func isSubjectPath(_ path: String) -> Bool {
+    path == "credentialSubject" || path.hasPrefix("credentialSubject.")
+}
+
 func buildVcalmRequirements(
     requestedFields: [VcalmRequestedField],
     matched: [VcalmMatchedCredentials]
 ) -> [VcalmRequirement] {
-    // The QBE example's structural keys carry no user data and don't map to
-    // a credential claim, so they're excluded from the requirement's fields.
+    // Only `credentialSubject` claims are surfaced in the consent UI. Everything else is always disclosed by the   SDK
     var fieldsByQuery: [UInt32: [VcalmRequestedField]] = [:]
-    for field in requestedFields
-    where field.path != "type" && field.path != "@context" {
+    for field in requestedFields where isSubjectPath(field.path) {
         fieldsByQuery[field.queryIndex, default: []].append(field)
     }
 
