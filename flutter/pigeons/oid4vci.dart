@@ -154,6 +154,24 @@ class Oid4vciError implements Oid4vciResult {
   Oid4vciError({required this.message});
 }
 
+/// Issuance interrupted: the issuer requires an OID4VP presentation before it
+/// will release the credential (issuer error `presentation_required`).
+///
+/// Recovery: run the OID4VP flow with [authorizationRequestJson] as the
+/// request string, then re-run the issuance from the same offer URL. A second
+/// `Oid4vciPresentationRequired` on the retry is a failure.
+///
+/// Only reachable when `supportedVersions` is empty (auto) or contains
+/// [Oid4vciVersion.legacy]: the v1 HTTP client discards error-response
+/// bodies, so a pure-v1 exchange cannot detect it.
+class Oid4vciPresentationRequired implements Oid4vciResult {
+  /// The OID4VP authorization request JSON, verbatim from the issuer's
+  /// `presentation_required` error body.
+  String authorizationRequestJson;
+
+  Oid4vciPresentationRequired({required this.authorizationRequestJson});
+}
+
 /// OID4VCI credential issuance API
 ///
 /// Handles the OpenID for Verifiable Credential Issuance flow

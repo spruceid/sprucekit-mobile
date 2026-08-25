@@ -21,14 +21,16 @@ Each layer has its own CLAUDE.md with build commands and architecture details:
 
 Changes to the Rust layer require regenerating bindings before platform work:
 
-- **iOS**: `cd rust && cargo swift package -p ios -n MobileSdkRs`
-  - CI enforces the generated `rust/MobileSdkRs/Sources/MobileSdkRs/mobile_sdk_rs.swift` is committed via `git diff --exit-code`
+- **iOS**: `cd rust && ./build-ios.sh`
+  - CI enforces the generated `rust/MobileSdkRs/Sources/MobileSdkRs/` Swift files are committed via `git diff --exit-code`
 - **Android**: Bindings regenerated automatically by the Gradle cargo-ndk plugin during build
 - **Flutter**: Wraps native SDKs (not Rust directly). Rebuild the relevant native SDK, then `pod install` (iOS) or Gradle rebuild (Android).
 
 ## CI
 
-CI runs on push to main and PRs with four jobs (rust, ios, android, flutter). See `.github/workflows/ci.yml`.
+CI runs on push to main and PRs with five jobs (rust, ios, android, spelling, flutter). See `.github/workflows/ci.yml`.
+
+The `spelling` job runs `typos` over the Showcase apps and the Flutter example to keep user-facing copy in US English. Exemptions are in `_typos.toml`.
 
 `RUSTFLAGS="-Dwarnings"` is set globally -- all Rust warnings are errors in CI.
 

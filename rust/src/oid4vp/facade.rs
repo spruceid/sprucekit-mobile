@@ -17,6 +17,7 @@ use super::draft18::{
     presentation::{Draft18PresentationError, Draft18PresentationSigner},
     Draft18Holder,
 };
+use super::dynamic_credential::{DynamicCredentialOffer, DynamicCredentialProvider};
 use super::holder::{AuthRequest, Holder};
 use super::permission_request::{
     PermissionRequest, PermissionRequestError, PermissionResponse, RequestedField, ResponseOptions,
@@ -107,6 +108,7 @@ pub struct Oid4vpHolder {
     key_id: String,
     context_map: Option<HashMap<String, String>>,
     keystore: Option<Arc<dyn KeyStore>>,
+    providers: Vec<Arc<dyn DynamicCredentialProvider>>,
 }
 
 impl std::fmt::Debug for Oid4vpHolder {
@@ -115,6 +117,7 @@ impl std::fmt::Debug for Oid4vpHolder {
             .field("trusted_dids", &self.trusted_dids)
             .field("context_map", &self.context_map)
             .field("keystore", &self.keystore.as_ref().map(|_| "KeyStore"))
+            .field("providers", &self.providers.len())
             .finish()
     }
 }
@@ -276,6 +279,33 @@ impl Oid4vpHolder {
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, Oid4vpFacadeError> {
+        Self::new_with_providers(
+            vdc_collection,
+            trusted_dids,
+            signer,
+            key_id,
+            context_map,
+            keystore,
+            vec![],
+        )
+        .await
+    }
+
+    /// Create a holder with registered [`DynamicCredentialProvider`]s, which
+    /// issue credentials on device during a presentation.
+    ///
+    /// Providers participate in v1 sessions only: Draft 18 / Draft 13
+    /// sessions report no dynamic offers.
+    #[uniffi::constructor]
+    pub async fn new_with_providers(
+        vdc_collection: Arc<VdcCollection>,
+        trusted_dids: Vec<String>,
+        signer: Box<dyn Oid4vpPresentationSigner>,
+        key_id: String,
+        context_map: Option<HashMap<String, String>>,
+        keystore: Option<Arc<dyn KeyStore>>,
+        providers: Vec<Arc<dyn DynamicCredentialProvider>>,
+    ) -> Result<Arc<Self>, Oid4vpFacadeError> {
         Ok(Arc::new(Self {
             source: Oid4vpHolderSource::Collection(vdc_collection),
             trusted_dids,
@@ -283,6 +313,7 @@ impl Oid4vpHolder {
             key_id,
             context_map,
             keystore,
+            providers,
         }))
     }
 
@@ -295,6 +326,34 @@ impl Oid4vpHolder {
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn KeyStore>>,
     ) -> Result<Arc<Self>, Oid4vpFacadeError> {
+        Self::new_with_credentials_and_providers(
+            provided_credentials,
+            trusted_dids,
+            signer,
+            key_id,
+            context_map,
+            keystore,
+            vec![],
+        )
+        .await
+    }
+
+    /// Create a holder with stored credentials plus registered
+    /// [`DynamicCredentialProvider`]s, which issue credentials on device
+    /// during a presentation.
+    ///
+    /// Providers participate in v1 sessions only: Draft 18 / Draft 13
+    /// sessions report no dynamic offers.
+    #[uniffi::constructor]
+    pub async fn new_with_credentials_and_providers(
+        provided_credentials: Vec<Arc<ParsedCredential>>,
+        trusted_dids: Vec<String>,
+        signer: Box<dyn Oid4vpPresentationSigner>,
+        key_id: String,
+        context_map: Option<HashMap<String, String>>,
+        keystore: Option<Arc<dyn KeyStore>>,
+        providers: Vec<Arc<dyn DynamicCredentialProvider>>,
+    ) -> Result<Arc<Self>, Oid4vpFacadeError> {
         Ok(Arc::new(Self {
             source: Oid4vpHolderSource::Credentials(provided_credentials),
             trusted_dids,
@@ -302,6 +361,7 @@ impl Oid4vpHolder {
             key_id,
             context_map,
             keystore,
+            providers,
         }))
     }
 
@@ -396,26 +456,30 @@ impl Oid4vpHolder {
         });
 
         match &self.source {
-            Oid4vpHolderSource::Collection(vdc_collection) => Holder::new(
+            Oid4vpHolderSource::Collection(vdc_collection) => Holder::new_with_providers(
                 vdc_collection.clone(),
                 self.trusted_dids.clone(),
                 signer,
                 self.key_id.clone(),
                 self.context_map.clone(),
                 self.keystore.clone(),
+                self.providers.clone(),
             )
             .await
             .map_err(Into::into),
-            Oid4vpHolderSource::Credentials(credentials) => Holder::new_with_credentials(
-                credentials.clone(),
-                self.trusted_dids.clone(),
-                signer,
-                self.key_id.clone(),
-                self.context_map.clone(),
-                self.keystore.clone(),
-            )
-            .await
-            .map_err(Into::into),
+            Oid4vpHolderSource::Credentials(credentials) => {
+                Holder::new_with_credentials_and_providers(
+                    credentials.clone(),
+                    self.trusted_dids.clone(),
+                    signer,
+                    self.key_id.clone(),
+                    self.context_map.clone(),
+                    self.keystore.clone(),
+                    self.providers.clone(),
+                )
+                .await
+                .map_err(Into::into)
+            }
         }
     }
 
@@ -513,6 +577,19 @@ impl Oid4vpSession {
         }
     }
 
+    /// Dynamic credential offers surfaced for this session by the holder's
+    /// [`DynamicCredentialProvider`]s. Stored credentials are listed
+    /// separately by [`Oid4vpSession::credentials`].
+    ///
+    /// Always empty for Draft 18 / Draft 13 sessions: the dynamic-credential
+    /// hook is OID4VP-v1 only.
+    pub fn dynamic_offers(&self) -> Vec<DynamicCredentialOffer> {
+        match &self.inner {
+            Oid4vpSessionInner::V1 { request, .. } => request.dynamic_offers(),
+            Oid4vpSessionInner::Draft18 { .. } => vec![],
+        }
+    }
+
     pub fn is_multi_credential_selection(&self) -> bool {
         self.requirements().len() > 1
     }
@@ -602,6 +679,59 @@ impl Oid4vpSession {
                 Ok(Arc::new(Oid4vpPermissionResponse {
                     inner: Oid4vpPermissionResponseInner::Draft18(response),
                 }))
+            }
+        }
+    }
+
+    /// Create the permission response, additionally issuing the dynamic
+    /// credential offers selected from [`Oid4vpSession::dynamic_offers`].
+    ///
+    /// Either `selected_credentials` or `selected_offers` (or both) may be
+    /// non-empty. Selecting offers on a Draft 18 / Draft 13 session returns
+    /// [`Oid4vpFacadeError::VersionMismatch`]: the dynamic-credential hook is
+    /// OID4VP-v1 only.
+    pub async fn create_permission_response_with_offers(
+        &self,
+        selected_credentials: Vec<Arc<Oid4vpPresentableCredential>>,
+        selected_fields: Vec<Vec<String>>,
+        selected_offers: Vec<DynamicCredentialOffer>,
+        response_options: Oid4vpResponseOptions,
+    ) -> Result<Arc<Oid4vpPermissionResponse>, Oid4vpFacadeError> {
+        match &self.inner {
+            Oid4vpSessionInner::V1 { request, .. } => {
+                let credentials = selected_credentials
+                    .into_iter()
+                    .map(|credential| match &credential.inner {
+                        Oid4vpPresentableCredentialInner::V1(inner) => Ok(inner.clone()),
+                        _ => Err(Oid4vpFacadeError::VersionMismatch),
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                let response = request
+                    .create_permission_response_with_offers(
+                        credentials,
+                        selected_fields,
+                        selected_offers,
+                        ResponseOptions {
+                            force_array_serialization: response_options.force_array_serialization,
+                        },
+                    )
+                    .await?;
+
+                Ok(Arc::new(Oid4vpPermissionResponse {
+                    inner: Oid4vpPermissionResponseInner::V1(response),
+                }))
+            }
+            Oid4vpSessionInner::Draft18 { .. } => {
+                if !selected_offers.is_empty() {
+                    return Err(Oid4vpFacadeError::VersionMismatch);
+                }
+                self.create_permission_response(
+                    selected_credentials,
+                    selected_fields,
+                    response_options,
+                )
+                .await
             }
         }
     }
@@ -1906,5 +2036,285 @@ mod tests {
             result,
             Err(Oid4vpFacadeError::ConflictingVersions)
         ));
+    }
+
+    use crate::oid4vp::dynamic_credential::{
+        DcqlCredentialQueryJson, DynamicCredentialError, IssuedCredential, PresentationBinding,
+    };
+    use std::sync::Mutex;
+
+    const FAKE_OFFER_ID: &str = "fake-offer";
+    const FAKE_TITLE: &str = "Fake dynamic credential";
+    const FAKE_VP_TOKEN_ITEM: &str = "issued-vp-token-item";
+
+    /// A fake provider that offers a credential for every DCQL credential
+    /// query and records the [`PresentationBinding`] it was issued against.
+    #[derive(Debug, Default)]
+    struct FakeProvider {
+        issued_binding: Mutex<Option<PresentationBinding>>,
+    }
+
+    #[async_trait::async_trait]
+    impl DynamicCredentialProvider for FakeProvider {
+        async fn offers(&self, query: DcqlCredentialQueryJson) -> Vec<DynamicCredentialOffer> {
+            let query = query.parse().expect("valid DCQL credential query JSON");
+            vec![DynamicCredentialOffer {
+                offer_id: FAKE_OFFER_ID.to_string(),
+                credential_query_id: query.id().to_string(),
+                title: FAKE_TITLE.to_string(),
+            }]
+        }
+
+        async fn issue(
+            &self,
+            offer_id: String,
+            binding: PresentationBinding,
+        ) -> Result<IssuedCredential, DynamicCredentialError> {
+            if offer_id != FAKE_OFFER_ID {
+                return Err(DynamicCredentialError::IssuanceFailed(format!(
+                    "unknown offer id: {offer_id}"
+                )));
+            }
+            *self.issued_binding.lock().unwrap() = Some(binding);
+            Ok(IssuedCredential {
+                vp_token_item: FAKE_VP_TOKEN_ITEM.to_string(),
+            })
+        }
+    }
+
+    async fn holder_with_provider(provider: Arc<FakeProvider>) -> Arc<Oid4vpHolder> {
+        Oid4vpHolder::new_with_credentials_and_providers(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+            vec![provider],
+        )
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn facade_v1_session_surfaces_dynamic_offers() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(v1_request()).await.unwrap();
+        assert_eq!(session.version(), Oid4vpVersion::V1);
+
+        let offers = session.dynamic_offers();
+        assert_eq!(offers.len(), 1);
+        assert_eq!(offers[0].offer_id, FAKE_OFFER_ID);
+        assert_eq!(offers[0].credential_query_id, "alumni_vc_0");
+        assert_eq!(offers[0].title, FAKE_TITLE);
+    }
+
+    #[tokio::test]
+    async fn facade_draft18_session_has_no_dynamic_offers() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        // Same holder, same registered provider — but the dynamic-credential
+        // hook is v1-only, so a draft-18 session surfaces no offers.
+        let session = holder.start(draft18_request()).await.unwrap();
+        assert_eq!(session.version(), Oid4vpVersion::Draft18);
+        assert!(session.dynamic_offers().is_empty());
+    }
+
+    #[tokio::test]
+    async fn facade_offers_only_response_issues_into_vp_token() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider.clone()).await;
+
+        let session = holder.start(v1_request()).await.unwrap();
+        let offers = session.dynamic_offers();
+        assert_eq!(offers.len(), 1);
+
+        // Zero stored credentials selected; only the issued offer.
+        let response = session
+            .create_permission_response_with_offers(
+                vec![],
+                vec![],
+                offers,
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        let vp_token: Value = serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        let items = vp_token
+            .get("alumni_vc_0")
+            .and_then(|v| v.as_array())
+            .expect("vp_token contains an array for alumni_vc_0");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].as_str(), Some(FAKE_VP_TOKEN_ITEM));
+
+        // The provider was issued against this presentation's live binding.
+        let binding = provider
+            .issued_binding
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("provider was asked to issue");
+        assert_eq!(binding.nonce, "nonce-123");
+        assert_eq!(
+            binding.client_id,
+            "redirect_uri:https://wallet.example/callback"
+        );
+    }
+
+    #[tokio::test]
+    async fn facade_mixed_stored_and_offer_response() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(v1_request()).await.unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let requested_fields = session
+            .requested_fields(requirement.credentials.first().unwrap())
+            .unwrap();
+        let offers = session.dynamic_offers();
+
+        // A stored credential and an issued offer in one response.
+        let response = session
+            .create_permission_response_with_offers(
+                requirement.credentials.clone(),
+                vec![requested_fields
+                    .iter()
+                    .map(|field| field.path.clone())
+                    .collect()],
+                offers,
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.selected_credentials().len(), 1);
+        let vp_token: Value = serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        let items = vp_token
+            .get("alumni_vc_0")
+            .and_then(|v| v.as_array())
+            .expect("vp_token contains an array for alumni_vc_0");
+        assert_eq!(items.len(), 2, "stored + issued items share the query id");
+        assert!(items
+            .iter()
+            .any(|item| item.as_str() == Some(FAKE_VP_TOKEN_ITEM)));
+        assert!(items
+            .iter()
+            .any(|item| item.to_string().contains("AlumniCredential")));
+    }
+
+    #[tokio::test]
+    async fn facade_draft18_rejects_selected_offers() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(draft18_request()).await.unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let requested_fields = session
+            .requested_fields(requirement.credentials.first().unwrap())
+            .unwrap();
+        let selected_fields = vec![requested_fields
+            .iter()
+            .map(|field| field.path.clone())
+            .collect::<Vec<_>>()];
+
+        let result = session
+            .create_permission_response_with_offers(
+                requirement.credentials.clone(),
+                selected_fields.clone(),
+                vec![DynamicCredentialOffer {
+                    offer_id: FAKE_OFFER_ID.to_string(),
+                    credential_query_id: "alumni_descriptor".to_string(),
+                    title: FAKE_TITLE.to_string(),
+                }],
+                Oid4vpResponseOptions::default(),
+            )
+            .await;
+        assert!(matches!(result, Err(Oid4vpFacadeError::VersionMismatch)));
+
+        // With no offers selected the method delegates to the plain draft-18
+        // path.
+        let response = session
+            .create_permission_response_with_offers(
+                requirement.credentials.clone(),
+                selected_fields,
+                vec![],
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.version(), Oid4vpVersion::Draft18);
+    }
+
+    #[tokio::test]
+    async fn facade_empty_credential_pack_with_provider_issues_offers_only_response() {
+        let provider = Arc::new(FakeProvider::default());
+
+        // No stored credentials at all — allowed when a provider is
+        // registered; the whole response may be issued on the fly.
+        let holder = Oid4vpHolder::new_with_credentials_and_providers(
+            vec![],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+            vec![provider],
+        )
+        .await
+        .unwrap();
+
+        let session = holder.start(v1_request()).await.unwrap();
+        assert_eq!(session.version(), Oid4vpVersion::V1);
+        assert!(session.credentials().is_empty());
+
+        let offers = session.dynamic_offers();
+        assert_eq!(offers.len(), 1);
+
+        let response = session
+            .create_permission_response_with_offers(
+                vec![],
+                vec![],
+                offers,
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        let vp_token: Value = serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        let items = vp_token
+            .get("alumni_vc_0")
+            .and_then(|v| v.as_array())
+            .expect("vp_token contains an array for alumni_vc_0");
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].as_str(), Some(FAKE_VP_TOKEN_ITEM));
+    }
+
+    #[tokio::test]
+    async fn facade_unknown_offer_id_errors() {
+        let provider = Arc::new(FakeProvider::default());
+        let holder = holder_with_provider(provider).await;
+
+        let session = holder.start(v1_request()).await.unwrap();
+
+        // An offer that was never surfaced (no owning provider) is rejected by
+        // the underlying permission request.
+        let result = session
+            .create_permission_response_with_offers(
+                vec![],
+                vec![],
+                vec![DynamicCredentialOffer {
+                    offer_id: "no-such-offer".to_string(),
+                    credential_query_id: "alumni_vc_0".to_string(),
+                    title: "Unknown".to_string(),
+                }],
+                Oid4vpResponseOptions::default(),
+            )
+            .await;
+
+        assert!(matches!(result, Err(Oid4vpFacadeError::V1(_))));
     }
 }

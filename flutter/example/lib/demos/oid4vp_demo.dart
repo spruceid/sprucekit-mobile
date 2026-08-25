@@ -152,6 +152,10 @@ class _Oid4vpDemoState extends State<Oid4vpDemo> {
         switch (result) {
           case Oid4vciSuccess(:final credentials):
             _issuedCredentials = credentials;
+          case Oid4vciPresentationRequired():
+            _issuanceError =
+                'Issuer requires an OID4VP presentation before issuance '
+                '(presentation_required) — not handled by this demo';
           case Oid4vciError(:final message):
             _issuanceError = message;
         }

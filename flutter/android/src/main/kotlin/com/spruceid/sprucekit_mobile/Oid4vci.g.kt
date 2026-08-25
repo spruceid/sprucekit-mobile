@@ -448,6 +448,51 @@ data class Oid4vciError (
 
   override fun hashCode(): Int = toList().hashCode()
 }
+
+/**
+ * Issuance interrupted: the issuer requires an OID4VP presentation before it
+ * will release the credential (issuer error `presentation_required`).
+ *
+ * Recovery: run the OID4VP flow with [authorizationRequestJson] as the
+ * request string, then re-run the issuance from the same offer URL. A second
+ * `Oid4vciPresentationRequired` on the retry is a failure.
+ *
+ * Only reachable when `supportedVersions` is empty (auto) or contains
+ * [Oid4vciVersion.legacy]: the v1 HTTP client discards error-response
+ * bodies, so a pure-v1 exchange cannot detect it.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class Oid4vciPresentationRequired (
+  /**
+   * The OID4VP authorization request JSON, verbatim from the issuer's
+   * `presentation_required` error body.
+   */
+  val authorizationRequestJson: String
+) : Oid4vciResult()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): Oid4vciPresentationRequired {
+      val authorizationRequestJson = pigeonVar_list[0] as String
+      return Oid4vciPresentationRequired(authorizationRequestJson)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      authorizationRequestJson,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is Oid4vciPresentationRequired) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return Oid4vciPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
 private open class Oid4vciPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -506,6 +551,11 @@ private open class Oid4vciPigeonCodec : StandardMessageCodec() {
           Oid4vciError.fromList(it)
         }
       }
+      140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          Oid4vciPresentationRequired.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -553,6 +603,10 @@ private open class Oid4vciPigeonCodec : StandardMessageCodec() {
       }
       is Oid4vciError -> {
         stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is Oid4vciPresentationRequired -> {
+        stream.write(140)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)

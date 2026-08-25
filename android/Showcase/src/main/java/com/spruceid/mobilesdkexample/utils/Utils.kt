@@ -2,7 +2,6 @@ package com.spruceid.mobilesdkexample.utils
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.compose.foundation.Image
@@ -20,9 +19,13 @@ import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
+import com.spruceid.mobilesdkexample.DEFAULT_SIGNING_KEY_ID
 import com.spruceid.mobilesdkexample.credentials.ICredentialView
 import com.spruceid.mobilesdkexample.credentials.genericCredentialItem.GenericCredentialItem
+import com.spruceid.mobilesdkexample.db.WalletActivityLogs
+import com.spruceid.mobilesdkexample.viewmodels.CredentialPacksViewModel
 import com.spruceid.mobilesdkexample.viewmodels.StatusListViewModel
+import com.spruceid.mobilesdkexample.viewmodels.WalletActivityLogsViewModel
 import org.json.JSONArray
 import org.json.JSONObject
 import java.sql.Date
@@ -69,17 +72,20 @@ fun String.isImage(): Boolean {
             contains("data:image")
 }
 
+/** Whether the value links to a remotely hosted image rather than holding an inline base64 one. */
+fun String.isRemoteImageUrl(): Boolean {
+    return startsWith("http://", ignoreCase = true) ||
+            startsWith("https://", ignoreCase = true)
+}
+
 @Composable
 fun BitmapImage(
     byteArray: ByteArray,
     contentDescription: String,
     modifier: Modifier,
 ) {
-    fun convertImageByteArrayToBitmap(imageData: ByteArray): Bitmap {
-        return BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
-    }
-
-    val bitmap = convertImageByteArrayToBitmap(byteArray)
+    // Null when the bytes aren't a decodable image, so skip rendering rather than crash.
+    val bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size) ?: return
 
     Image(
         bitmap = bitmap.asImageBitmap(),
@@ -206,6 +212,40 @@ fun addCredential(credentialPack: CredentialPack, rawCredential: String): Creden
 
     println("Couldn't parse credential $rawCredential")
 
+    return credentialPack
+}
+
+/**
+ * Shared so other flows (e.g. VCALM offers) that store a credential outside
+ * of `AddToWalletView`'s stay consistent with it
+ */
+/**
+ * Stores [rawCredential], binding it to [keyAlias] -- the per-credential key
+ * generated at issuance so it matches the credential's holder binding. Callers
+ * with no per-credential key (null) fall back to the shared signing key.
+ */
+suspend fun acceptRawCredentialIntoWallet(
+    rawCredential: String,
+    credentialPacksViewModel: CredentialPacksViewModel,
+    walletActivityLogsViewModel: WalletActivityLogsViewModel,
+    keyAlias: String? = null,
+): CredentialPack {
+    val credentialPack = CredentialPack()
+    credentialPack.tryAddAnyFormat(rawCredential, keyAlias ?: DEFAULT_SIGNING_KEY_ID)
+    credentialPacksViewModel.saveCredentialPack(credentialPack)
+
+    val credentialInfo = getCredentialIdTitleAndIssuer(credentialPack)
+    walletActivityLogsViewModel.saveWalletActivityLog(
+        walletActivityLogs = WalletActivityLogs(
+            credentialPackId = credentialPack.id().toString(),
+            credentialId = credentialInfo.first,
+            credentialTitle = credentialInfo.second,
+            issuer = credentialInfo.third,
+            action = "Claimed",
+            dateTime = getCurrentSqlDate(),
+            additionalInformation = ""
+        )
+    )
     return credentialPack
 }
 

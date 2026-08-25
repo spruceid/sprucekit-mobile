@@ -8,6 +8,7 @@ pub mod context;
 pub mod credential;
 pub mod crypto;
 pub mod did;
+pub mod discover_protocols;
 pub mod haci;
 pub mod jwk;
 pub mod jws;
@@ -23,6 +24,7 @@ pub mod storage_manager;
 mod tests;
 pub mod trusted_roots;
 pub mod vcalm;
+mod vcalm_adapters;
 pub mod vdc_collection;
 pub mod verifier;
 pub mod w3c_vc_barcodes;
@@ -30,3 +32,10 @@ pub mod w3c_vc_barcodes;
 pub use common::*;
 pub use mdl::reader::*;
 pub use mdl::*;
+
+pub use mobile_toolkit::{
+    common::{Key, Value},
+    crypto::{CryptoError, KeyAlias, KeyStore, SigningKey},
+    http_client::{AsyncHttpClient, HttpClientError, HttpRequest, HttpResponse},
+    storage_manager::{StorageManagerError, StorageManagerInterface},
+};

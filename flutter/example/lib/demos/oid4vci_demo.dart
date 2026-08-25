@@ -131,6 +131,10 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       switch (result) {
         case Oid4vciSuccess(:final credentials):
           _issuedCredentials = credentials;
+        case Oid4vciPresentationRequired():
+          _error =
+              'Issuer requires an OID4VP presentation before issuance '
+              '(presentation_required) — not handled by this demo';
         case Oid4vciError(:final message):
           _error = message;
       }
@@ -190,7 +194,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       await _api.releaseSession(sessionId);
       setState(() {
         _loading = false;
-        _error = 'Sign-in cancelled or browser error';
+        _error = 'Sign-in canceled or browser error';
       });
       return;
     }
@@ -221,6 +225,10 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       switch (result) {
         case Oid4vciSuccess(:final credentials):
           _issuedCredentials = credentials;
+        case Oid4vciPresentationRequired():
+          _error =
+              'Issuer requires an OID4VP presentation before issuance '
+              '(presentation_required) — not handled by this demo';
         case Oid4vciError(:final message):
           _error = message;
       }
@@ -242,6 +250,10 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
         switch (result) {
           case Oid4vciSuccess(:final credentials):
             _issuedCredentials = credentials;
+          case Oid4vciPresentationRequired():
+            _error =
+                'Issuer requires an OID4VP presentation before issuance '
+                '(presentation_required) — not handled by this demo';
           case Oid4vciError(:final message):
             _error = message;
         }
@@ -269,7 +281,7 @@ class _Oid4vciDemoState extends State<Oid4vciDemo> {
       _loading = false;
       _sessionId = null;
       _txCodeMetadata = null;
-      _error = 'PIN entry cancelled';
+      _error = 'PIN entry canceled';
     });
   }
 

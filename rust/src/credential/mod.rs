@@ -157,14 +157,6 @@ impl PresentableCredential {
     }
 }
 
-impl ParsedCredential {
-    /// Resolve this credential's signing key id, falling back to the holder's
-    /// shared key when it has no per-credential alias.
-    pub(crate) fn resolve_key_id(&self, fallback: &str) -> String {
-        resolve_key_id(self.key_alias(), fallback)
-    }
-}
-
 #[uniffi::export]
 impl ParsedCredential {
     /// This method attempts to parse the credential depending on the credential format type provided.

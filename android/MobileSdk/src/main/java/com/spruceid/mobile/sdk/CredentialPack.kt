@@ -9,7 +9,7 @@ import com.spruceid.mobile.sdk.rs.JsonVc
 import com.spruceid.mobile.sdk.rs.JwtVc
 import com.spruceid.mobile.sdk.rs.Mdoc
 import com.spruceid.mobile.sdk.rs.ParsedCredential
-import com.spruceid.mobile.sdk.rs.StorageManagerInterface
+import com.spruceid.mobile.toolkit.StorageManagerInterface
 import com.spruceid.mobile.sdk.rs.Uuid
 import com.spruceid.mobile.sdk.rs.Vcdm2SdJwt
 import com.spruceid.mobile.sdk.rs.VdcCollection
@@ -205,7 +205,7 @@ class CredentialPack {
         if (!keyManager.keyExists(keyAlias)) {
             throw ParsingException(
                 message = "No signing key exists for alias '$keyAlias'. A per-credential key must " +
-                    "already exist from issuance so it matches the credential's cnf binding."
+                    "already exist from issuance so it matches the credential's cnf binding.",
                 cause = null
             )
         }

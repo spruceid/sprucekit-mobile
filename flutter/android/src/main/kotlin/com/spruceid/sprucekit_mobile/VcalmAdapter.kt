@@ -11,12 +11,12 @@ import com.spruceid.mobile.sdk.rs.OfferedValidity
 import com.spruceid.mobile.sdk.rs.ParsedCredential
 import com.spruceid.mobile.sdk.rs.PresentationSigner
 import com.spruceid.mobile.sdk.rs.StepResult
-import com.spruceid.mobile.sdk.rs.StorageManagerInterface
 import com.spruceid.mobile.sdk.rs.VcalmException
 import com.spruceid.mobile.sdk.rs.VcalmHolder
 import com.spruceid.mobile.sdk.rs.VcalmOfferedCredential
 import com.spruceid.mobile.sdk.rs.VdcCollection
 import com.spruceid.mobile.sdk.rs.Vpr
+import com.spruceid.mobile.toolkit.StorageManagerInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -144,14 +144,7 @@ internal class VcalmAdapter(
                 Log.d(TAG, "createHolder: signer fallback did=${signer.did(keyId)}")
 
                 val newHolder =
-                    VcalmHolder.newSession(
-                        vdc,
-                        trustedDids,
-                        signer,
-                        keyId,
-                        contextMap,
-                        KeyManager()
-                    )
+                    VcalmHolder.newSession(vdc, trustedDids, signer, keyId, contextMap)
 
                 if (credentialPackIds.isNotEmpty()) {
                     val credentials = mutableListOf<ParsedCredential>()

@@ -114,7 +114,12 @@ sealed class Oid4vpResult {}
 class Oid4vpSuccess implements Oid4vpResult {
   String? message;
 
-  Oid4vpSuccess({this.message});
+  /// Redirect URI returned by the verifier in the direct_post response
+  /// (OID4VP §8.2), when it wants the user sent back to the browser after a
+  /// successful submission. Only ever set by `submitResponse`.
+  String? redirectUrl;
+
+  Oid4vpSuccess({this.message, this.redirectUrl});
 }
 
 /// Operation failed with error
@@ -165,6 +170,28 @@ class CredentialRequirementData {
     required this.required,
     required this.credentialQueryIds,
     required this.credentials,
+  });
+}
+
+/// A dynamic credential offer surfaced by a registered native
+/// `DynamicCredentialProvider`.
+///
+/// Offers are issued only if the user selects them: pass the `offerId` to
+/// `submitResponseWithOffers`. Only OID4VP-v1 sessions surface offers.
+class DynamicOfferData {
+  /// Provider-scoped identifier, echoed back via `submitResponseWithOffers`.
+  String offerId;
+
+  /// The DCQL credential-query id this offer satisfies.
+  String credentialQueryId;
+
+  /// Human-readable label for the consent UI.
+  String title;
+
+  DynamicOfferData({
+    required this.offerId,
+    required this.credentialQueryId,
+    required this.title,
   });
 }
 
@@ -225,6 +252,19 @@ abstract class Oid4vp {
     ResponseOptions options,
   );
 
+  /// Submit the response, additionally issuing the dynamic credential offers
+  /// selected by `offerId` from `getDynamicOffers`.
+  ///
+  /// `selectedCredentials` may be empty if at least one offer is selected.
+  /// Unknown offer ids fail the whole submission.
+  @async
+  Oid4vpResult submitResponseWithOffers(
+    List<PresentableCredentialKey> selectedCredentials,
+    List<List<String>> selectedFieldPaths,
+    List<String> selectedOfferIds,
+    ResponseOptions options,
+  );
+
   /// Get credential requirements from the permission request
   ///
   /// @return List of credential requirements
@@ -239,6 +279,12 @@ abstract class Oid4vp {
   ///
   /// @return List of credential query ID strings
   List<String> getCredentialQueryIds();
+
+  /// Get the dynamic credential offers for the current session.
+  ///
+  /// Empty when no providers are registered, none match the request, or the
+  /// negotiated version is not v1. Call after `handleAuthorizationRequest`.
+  List<DynamicOfferData> getDynamicOffers();
 
   /// Cancel and cleanup the current session
   void cancel();

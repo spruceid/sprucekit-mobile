@@ -4,6 +4,7 @@ import android.content.Context
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.DidMethod
 import com.spruceid.mobile.sdk.rs.DidMethodUtils
+import com.spruceid.mobile.sdk.rs.DynamicCredentialOffer as RsDynamicCredentialOffer
 import com.spruceid.mobile.sdk.rs.Oid4vpHolder
 import com.spruceid.mobile.sdk.rs.Oid4vpPresentableCredential
 import com.spruceid.mobile.sdk.rs.Oid4vpPresentationSigner
@@ -89,6 +90,13 @@ internal class Oid4vpAdapter(
      */
     private var credentialsByKey: Map<PresentableCredentialKey, Oid4vpPresentableCredential> = emptyMap()
 
+    /**
+     * Dynamic credential offers for the current session, keyed by `offerId`.
+     * Dart echoes ids back; these records are the authoritative ones passed
+     * to the Rust session.
+     */
+    private var dynamicOffersById: Map<String, RsDynamicCredentialOffer> = emptyMap()
+
     /** Maps the pigeon-facing supported versions to the Rust facade enum. */
     private fun rustVersions(versions: List<Oid4vpVersion>): List<RsOid4vpVersion> =
         versions.map { version ->
@@ -130,7 +138,12 @@ internal class Oid4vpAdapter(
                     credentials.addAll(packCredentials)
                 }
 
-                if (credentials.isEmpty()) {
+                // Snapshot registered providers for the lifetime of this
+                // holder. With providers, an empty credential pack is valid:
+                // the whole response may be issued on the fly.
+                val providers = SprucekitMobilePlugin.dynamicCredentialProviders.toList()
+
+                if (credentials.isEmpty() && providers.isEmpty()) {
                     callback(Result.success(Oid4vpError(message = "No credentials found in provided packs")))
                     return@launch
                 }
@@ -138,13 +151,14 @@ internal class Oid4vpAdapter(
                 val signer = Oid4vpSigner(keyId)
 
                 // Create holder (version-agnostic facade)
-                val newHolder = Oid4vpHolder.newWithCredentials(
+                val newHolder = Oid4vpHolder.newWithCredentialsAndProviders(
                     credentials,
                     trustedDids,
                     signer,
                     keyId,
                     contextMap,
-                    KeyManager()
+                    KeyManager(),
+                    providers
                 )
 
                 synchronized(this@Oid4vpAdapter) {
@@ -174,7 +188,10 @@ internal class Oid4vpAdapter(
                 }
 
                 // Handle URL format (remove "authorize" if present, similar to Showcase)
-                val processedUrl = url.replace("authorize", "")
+                // A JSON authorization-request body must pass through
+                // verbatim, so only munge URL-shaped inputs.
+                val trimmed = url.trim()
+                val processedUrl = if (trimmed.startsWith("{")) trimmed else url.replace("authorize", "")
 
                 // Start a session, restricting negotiation to `supportedVersions`.
                 val session = currentHolder.startWithSupportedVersions(processedUrl, rustVersions(supportedVersions))
@@ -203,12 +220,19 @@ internal class Oid4vpAdapter(
                     }
                 }
 
+                // Dynamic offers from registered providers; always empty
+                // for non-v1 sessions.
+                val offers = session.dynamicOffers()
+
                 synchronized(this@Oid4vpAdapter) {
                     this@Oid4vpAdapter.session = session
                     this@Oid4vpAdapter.credentialsByKey = keyMap
+                    // First record wins on duplicate offerIds.
+                    this@Oid4vpAdapter.dynamicOffersById =
+                        offers.distinctBy { it.offerId }.associateBy { it.offerId }
                 }
 
-                if (credentialData.isEmpty()) {
+                if (credentialData.isEmpty() && offers.isEmpty()) {
                     callback(Result.success(HandleAuthRequestError(
                         message = "No matching credentials found for this verification request"
                     )))
@@ -294,9 +318,14 @@ internal class Oid4vpAdapter(
                     responseOptions
                 )
 
-                currentSession.submitPermissionResponse(permissionResponse)
+                // The verifier's direct_post response may carry a redirect_uri
+                // (OID4VP §8.2) sending the user back to the browser.
+                val redirectUrl = currentSession.submitPermissionResponse(permissionResponse)
 
-                callback(Result.success(Oid4vpSuccess(message = "Presentation submitted successfully")))
+                callback(Result.success(Oid4vpSuccess(
+                    message = "Presentation submitted successfully",
+                    redirectUrl = redirectUrl
+                )))
             } catch (e: Exception) {
                 callback(Result.success(Oid4vpError(
                     message = e.localizedMessage ?: "Failed to submit response"
@@ -354,11 +383,94 @@ internal class Oid4vpAdapter(
         return groupedByQuery(session).map { it.first }
     }
 
+    override fun getDynamicOffers(): List<DynamicOfferData> {
+        val offers = synchronized(this) { dynamicOffersById }
+        return offers.values.map { offer ->
+            DynamicOfferData(
+                offerId = offer.offerId,
+                credentialQueryId = offer.credentialQueryId,
+                title = offer.title
+            )
+        }
+    }
+
+    override fun submitResponseWithOffers(
+        selectedCredentials: List<PresentableCredentialKey>,
+        selectedFieldPaths: List<List<String>>,
+        selectedOfferIds: List<String>,
+        options: ResponseOptions,
+        callback: (Result<Oid4vpResult>) -> Unit
+    ) {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val currentSession = synchronized(this@Oid4vpAdapter) { session }
+                val keyMap = synchronized(this@Oid4vpAdapter) { credentialsByKey }
+                val offerMap = synchronized(this@Oid4vpAdapter) { dynamicOffersById }
+
+                if (currentSession == null) {
+                    callback(Result.success(Oid4vpError(message = "Session not initialized")))
+                    return@launch
+                }
+
+                val resolvedCredentials = selectedCredentials.mapNotNull { keyMap[it] }
+                val resolvedOffers = selectedOfferIds.mapNotNull { offerMap[it] }
+
+                // Each offer may be selected at most once — a duplicate id
+                // would be issued twice and still pass the size check below.
+                if (selectedOfferIds.toSet().size != selectedOfferIds.size) {
+                    callback(Result.success(Oid4vpError(
+                        message = "Duplicate dynamic offer id selected"
+                    )))
+                    return@launch
+                }
+
+                if (resolvedOffers.size != selectedOfferIds.size) {
+                    callback(Result.success(Oid4vpError(
+                        message = "Unknown dynamic offer id selected"
+                    )))
+                    return@launch
+                }
+
+                if (resolvedCredentials.isEmpty() && resolvedOffers.isEmpty()) {
+                    callback(Result.success(Oid4vpError(
+                        message = "No valid credentials or offers selected"
+                    )))
+                    return@launch
+                }
+
+                // `shouldStripQuotes` and `removeVpPathPrefix` are Draft
+                // 18-only knobs not surfaced by the pigeon API; keep off.
+                val responseOptions = RsResponseOptions(
+                    forceArraySerialization = options.forceArraySerialization,
+                    shouldStripQuotes = false,
+                    removeVpPathPrefix = false
+                )
+
+                // Selected offers are issued while creating the response.
+                val permissionResponse = currentSession.createPermissionResponseWithOffers(
+                    resolvedCredentials,
+                    selectedFieldPaths,
+                    resolvedOffers,
+                    responseOptions
+                )
+
+                currentSession.submitPermissionResponse(permissionResponse)
+
+                callback(Result.success(Oid4vpSuccess(message = "Presentation submitted successfully")))
+            } catch (e: Exception) {
+                callback(Result.success(Oid4vpError(
+                    message = e.localizedMessage ?: "Failed to submit response"
+                )))
+            }
+        }
+    }
+
     override fun cancel() {
         synchronized(this) {
             holder = null
             session = null
             credentialsByKey = emptyMap()
+            dynamicOffersById = emptyMap()
         }
     }
 }

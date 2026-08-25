@@ -216,43 +216,110 @@ class SpruceUtilsAdapter: NSObject, SpruceUtils {
 
         Task {
             do {
-                // Generate or retrieve the signing key
-                if !KeyManager.keyExists(id: alias) {
-                    _ = KeyManager.generateSigningKey(id: alias)
-                }
-
                 // Generate the test mDL
-                let mdl = try generateTestMdl(keyManager: KeyManager(), keyAlias: alias)
-
-                // Create a new CredentialPack and add the mDL
-                let packId = try credentialPackAdapter.createPack()
-                guard let pack = credentialPackAdapter.getNativePack(packId: packId) else {
-                    completion(.success(GenerateMockMdlError(message: "Failed to create credential pack")))
-                    return
-                }
-
-                // Get the raw credential bytes for storage
-                let parsedCredential = ParsedCredential.newMsoMdoc(mdoc: mdl)
-                let genericCredential = try parsedCredential.intoGenericForm()
-                let rawCredentialBase64 = genericCredential.payload.base64EncodedString()
-
-                // Add the mDL to the pack (also registers with ID Provider on iOS 26+)
-                let credentials = try await pack.addMDoc(mdoc: mdl)
-                guard let credential = credentials.first else {
-                    completion(.success(GenerateMockMdlError(message: "Failed to add mDL to pack")))
-                    return
-                }
-
-                completion(.success(GenerateMockMdlSuccess(
-                    packId: packId,
-                    credentialId: credential.id(),
-                    rawCredential: rawCredentialBase64,
-                    keyAlias: alias
-                )))
+                let mdl = try generateTestMdl(keyManager: signingKeyManager(alias: alias), keyAlias: alias)
+                completion(.success(try await storeMockMdl(mdl: mdl, alias: alias)))
             } catch {
                 completion(.success(GenerateMockMdlError(message: "Failed to generate mock mDL: \(error.localizedDescription)")))
             }
         }
     }
 
+    func generateMockMdlWithData(
+        keyAlias: String?,
+        data: MockMdlData,
+        completion: @escaping (Result<GenerateMockMdlResult, Error>) -> Void
+    ) {
+        let alias = keyAlias ?? "testMdl"
+
+        Task {
+            do {
+                // Generate the test mDL with the caller-supplied data elements
+                let mdl = try generateTestMdlWithData(
+                    keyManager: signingKeyManager(alias: alias),
+                    keyAlias: alias,
+                    data: data.toRust()
+                )
+                completion(.success(try await storeMockMdl(mdl: mdl, alias: alias)))
+            } catch {
+                completion(.success(GenerateMockMdlError(message: "Failed to generate mock mDL: \(error.localizedDescription)")))
+            }
+        }
+    }
+
+    /// Returns a `KeyManager`, generating a signing key for `alias` if one doesn't exist yet.
+    private func signingKeyManager(alias: String) -> KeyManager {
+        // Generate or retrieve the signing key
+        if !KeyManager.keyExists(id: alias) {
+            _ = KeyManager.generateSigningKey(id: alias)
+        }
+        return KeyManager()
+    }
+
+    /// Stores a generated mock mDL in a fresh CredentialPack. Shared by both generateMockMdl paths.
+    private func storeMockMdl(mdl: Mdoc, alias: String) async throws -> GenerateMockMdlResult {
+        // Create a new CredentialPack and add the mDL
+        let packId = try credentialPackAdapter.createPack()
+        guard let pack = credentialPackAdapter.getNativePack(packId: packId) else {
+            return GenerateMockMdlError(message: "Failed to create credential pack")
+        }
+
+        // Get the raw credential bytes for storage
+        let parsedCredential = ParsedCredential.newMsoMdoc(mdoc: mdl)
+        let genericCredential = try parsedCredential.intoGenericForm()
+        let rawCredentialBase64 = genericCredential.payload.base64EncodedString()
+
+        // Add the mDL to the pack (also registers with ID Provider on iOS 26+)
+        let credentials = try await pack.addMDoc(mdoc: mdl)
+        guard let credential = credentials.first else {
+            return GenerateMockMdlError(message: "Failed to add mDL to pack")
+        }
+
+        return GenerateMockMdlSuccess(
+            packId: packId,
+            credentialId: credential.id(),
+            rawCredential: rawCredentialBase64,
+            keyAlias: alias
+        )
+    }
+
+}
+
+extension MockMdlData {
+    /// Maps the Pigeon `MockMdlData` to the Rust uniffi `TestMdlData` field-for-field.
+    func toRust() -> TestMdlData {
+        TestMdlData(
+            familyName: familyName,
+            givenName: givenName,
+            birthDate: birthDate,
+            issueDate: issueDate,
+            expiryDate: expiryDate,
+            issuingCountry: issuingCountry,
+            issuingAuthority: issuingAuthority,
+            documentNumber: documentNumber,
+            portrait: portrait,
+            drivingPrivileges: drivingPrivileges,
+            unDistinguishingSign: unDistinguishingSign,
+            administrativeNumber: administrativeNumber,
+            sex: UInt16(truncatingIfNeeded: sex),
+            height: UInt16(truncatingIfNeeded: height),
+            weight: UInt16(truncatingIfNeeded: weight),
+            eyeColour: eyeColour,
+            hairColour: hairColour,
+            birthPlace: birthPlace,
+            residentAddress: residentAddress,
+            portraitCaptureDate: portraitCaptureDate,
+            ageInYears: UInt16(truncatingIfNeeded: ageInYears),
+            ageBirthYear: UInt16(truncatingIfNeeded: ageBirthYear),
+            ageOver18: ageOver18,
+            ageOver21: ageOver21,
+            ageOver60: ageOver60,
+            nationality: nationality,
+            residentCity: residentCity,
+            residentState: residentState,
+            residentPostalCode: residentPostalCode,
+            residentCountry: residentCountry,
+            issuingJurisdiction: issuingJurisdiction
+        )
+    }
 }

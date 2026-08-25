@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.navigation.NavHostController
 import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.Oid4vciAsyncHttpClient
+import com.spruceid.mobile.sdk.rs.CredentialOrConfigurationId
 import com.spruceid.mobile.sdk.rs.CredentialResponse
 import com.spruceid.mobile.sdk.rs.CredentialToken
 import com.spruceid.mobile.sdk.rs.CredentialTokenState
@@ -51,7 +52,10 @@ fun HandleOID4VCIView(
 ) {
     var loading by remember { mutableStateOf(false) }
     var err by remember { mutableStateOf<String?>(null) }
-    var credential by remember { mutableStateOf<String?>(null) }
+    var credentials by remember { mutableStateOf<List<String>>(emptyList()) }
+    // The per-credential key generated for this issuance session. Every
+    // credential in the offer is bound to it, since one key backs the
+    // session's client id and therefore every OID4VCI proof.
     var credentialKeyAlias by remember { mutableStateOf<String?>(null) }
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -68,6 +72,7 @@ fun HandleOID4VCIView(
     var hoistedClientId by remember { mutableStateOf<String?>(null) }
     var hoistedCredentialIssuer by remember { mutableStateOf<String?>(null) }
     var hoistedSigner by remember { mutableStateOf<JwsSigner?>(null) }
+    var hoistedConfigIds by remember { mutableStateOf<List<String>?>(null) }
 
     LaunchedEffect(Unit) {
         loading = true
@@ -76,7 +81,10 @@ fun HandleOID4VCIView(
         val httpClient = Oid4vciAsyncHttpClient()
         hoistedHttpClient = httpClient
 
-        // Setup signer.
+        // Setup signer. The whole offer is proved with one key -- it backs the
+        // client id used for every credential request -- so the batch shares a
+        // single freshly-generated per-credential key rather than the shared
+        // default signing key.
         val keyManager = KeyManager()
         val keyAlias = "credential/" + UUID.randomUUID().toString()
         keyManager.generateSigningKey(id = keyAlias)
@@ -115,15 +123,19 @@ fun HandleOID4VCIView(
             val credentialOffer = oid4vciClient.resolveOfferUrl(httpClient, offerUrl)
             val credentialIssuer = credentialOffer.credentialIssuer()
             hoistedCredentialIssuer = credentialIssuer
+            hoistedConfigIds = credentialOffer.credentialConfigurationIds()
             Log.i("OID4VCI", "Credential Offer resolver, with issuer: $credentialIssuer")
 
             when (val state = oid4vciClient.acceptOffer(httpClient, credentialOffer)) {
                 is CredentialTokenState.Ready -> {
                     Log.i("OID4VCI", "Credential ready to be exchanged")
                     val credentialToken = state.v1
-                    val result = exchangeCredential(httpClient, oid4vciClient, clientId, credentialIssuer, signer, credentialToken)
-                    if (result != null) {
-                        credential = result
+                    val result = exchangeCredentials(
+                        httpClient, oid4vciClient, clientId, credentialIssuer, signer,
+                        credentialToken, credentialOffer.credentialConfigurationIds()
+                    )
+                    if (result.isNotEmpty()) {
+                        credentials = result
                     } else {
                         err = "Deferred credentials not supported"
                     }
@@ -154,9 +166,12 @@ fun HandleOID4VCIView(
                         codeParam.isNullOrEmpty() -> err = "Missing authorization code in callback"
                         else -> {
                             val token = waiting.proceed(httpClient, codeParam)
-                            val result = exchangeCredential(httpClient, oid4vciClient, clientId, credentialIssuer, signer, token)
-                            if (result != null) {
-                                credential = result
+                            val result = exchangeCredentials(
+                                httpClient, oid4vciClient, clientId, credentialIssuer, signer,
+                                token, credentialOffer.credentialConfigurationIds()
+                            )
+                            if (result.isNotEmpty()) {
+                                credentials = result
                             } else {
                                 err = "Deferred credentials not supported"
                             }
@@ -177,7 +192,7 @@ fun HandleOID4VCIView(
                 promptForPin = false
                 pendingTxCodeState = null
                 pinInput = ""
-                err = "Transaction code cancelled"
+                err = "Transaction code canceled"
             },
             title = { Text("Enter Transaction Code") },
             text = {
@@ -204,11 +219,15 @@ fun HandleOID4VCIView(
                             val clientId = hoistedClientId ?: error("Client ID unavailable")
                             val credentialIssuer = hoistedCredentialIssuer ?: error("Credential issuer unavailable")
                             val signer = hoistedSigner ?: error("Signer unavailable")
+                            val configIds = hoistedConfigIds ?: error("Credential configuration ids unavailable")
 
                             val token = txCodeState.proceed(httpClient, pin)
-                            val result = exchangeCredential(httpClient, oid4vciClient, clientId, credentialIssuer, signer, token)
-                            if (result != null) {
-                                credential = result
+                            val result = exchangeCredentials(
+                                httpClient, oid4vciClient, clientId, credentialIssuer, signer,
+                                token, configIds
+                            )
+                            if (result.isNotEmpty()) {
+                                credentials = result
                             } else {
                                 err = "Deferred credentials not supported"
                             }
@@ -224,7 +243,7 @@ fun HandleOID4VCIView(
                     promptForPin = false
                     pendingTxCodeState = null
                     pinInput = ""
-                    err = "Transaction code cancelled"
+                    err = "Transaction code canceled"
                 }) { Text("Cancel") }
             },
         )
@@ -238,10 +257,10 @@ fun HandleOID4VCIView(
             errorDetails = err!!,
             onClose = { navController.navigate(Screen.HomeScreen.route) { popUpTo(0) } }
         )
-    } else if (credential != null) {
+    } else if (credentials.isNotEmpty()) {
         AddToWalletView(
             navController = navController,
-            rawCredential = credential!!,
+            rawCredentials = credentials,
             keyAlias = credentialKeyAlias,
             onSuccess = {
                 scope.launch {
@@ -253,39 +272,47 @@ fun HandleOID4VCIView(
     }
 }
 
-private suspend fun exchangeCredential(
+// Exchanges every credential in the offer against the token, one request per
+// credential_configuration_id (each requires its own fresh nonce/proof).
+// Deferred credentials are skipped rather than aborting the whole batch, so
+// other credentials in the same offer still get issued.
+private suspend fun exchangeCredentials(
     httpClient: Oid4vciAsyncHttpClient,
     oid4vciClient: Oid4vciClient,
     clientId: String,
     credentialIssuer: String,
     signer: JwsSigner,
     credentialToken: CredentialToken,
-): String? {
-    val credentialId = credentialToken.defaultCredentialId()
-    Log.i("OID4VCI", "Credential id: $credentialId")
+    configIds: List<String>,
+): List<String> {
+    val results = mutableListOf<String>()
 
-    Log.i("OID4VCI", "Generating PoP...")
-    val nonce = credentialToken.getNonce(httpClient)
-    Log.i("OID4VCI", "Nonce: $nonce")
-    Log.i("OID4VCI", "Signing...")
-    val jwt = createJwtProof(clientId, credentialIssuer, null, nonce, signer)
-    Log.i("OID4VCI", "PoP JWT = $jwt")
-    val proofs = Proofs.Jwt(listOf(jwt))
+    for (configId in configIds) {
+        val credentialId = CredentialOrConfigurationId.Configuration(configId)
+        Log.i("OID4VCI", "Credential id: $credentialId")
 
-    Log.i("OID4VCI", "Exchanging Credential...")
-    return when (val response = oid4vciClient.exchangeCredential(httpClient, credentialToken, credentialId, proofs)) {
-        is CredentialResponse.Deferred -> {
-            Log.i("OID4VCI", "Deferred credential received")
-            null
-        }
-        is CredentialResponse.Immediate -> {
-            Log.i("OID4VCI", "Credential exchanged!")
-            // TODO(batch issuance): only the first credential is taken. Per-credential
-            // key + proof for each credential in a batch is a future effort.
-            val rawCredential = checkNotNull(response.v1.credentials.first()) { "Missing Credential" }
-            rawCredential.payload.toString(Charsets.UTF_8)
+        Log.i("OID4VCI", "Generating PoP...")
+        val nonce = credentialToken.getNonce(httpClient)
+        Log.i("OID4VCI", "Nonce: $nonce")
+        Log.i("OID4VCI", "Signing...")
+        val jwt = createJwtProof(clientId, credentialIssuer, null, nonce, signer)
+        Log.i("OID4VCI", "PoP JWT = $jwt")
+        val proofs = Proofs.Jwt(listOf(jwt))
+
+        Log.i("OID4VCI", "Exchanging Credential...")
+        when (val response = oid4vciClient.exchangeCredential(httpClient, credentialToken, credentialId, proofs)) {
+            is CredentialResponse.Deferred -> {
+                Log.i("OID4VCI", "Deferred credential received, skipping")
+            }
+            is CredentialResponse.Immediate -> {
+                Log.i("OID4VCI", "Credential exchanged!")
+                val rawCredential = checkNotNull(response.v1.credentials.first()) { "Missing Credential" }
+                results.add(rawCredential.payload.toString(Charsets.UTF_8))
+            }
         }
     }
+
+    return results
 }
 
 fun getVCPlaygroundOID4VCIContext(ctx: Context): Map<String, String> {

@@ -447,31 +447,39 @@ protocol Oid4vpResult {
 /// Generated class from Pigeon that represents data sent in messages.
 struct Oid4vpSuccess: Oid4vpResult {
   var message: String? = nil
+  /// Redirect URI returned by the verifier in the direct_post response
+  /// (OID4VP §8.2), when it wants the user sent back to the browser after a
+  /// successful submission. Only ever set by `submitResponse`.
+  var redirectUrl: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> Oid4vpSuccess? {
     let message: String? = nilOrValue(pigeonVar_list[0])
+    let redirectUrl: String? = nilOrValue(pigeonVar_list[1])
 
     return Oid4vpSuccess(
-      message: message
+      message: message,
+      redirectUrl: redirectUrl
     )
   }
   func toList() -> [Any?] {
     return [
-      message
+      message,
+      redirectUrl,
     ]
   }
   static func == (lhs: Oid4vpSuccess, rhs: Oid4vpSuccess) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return deepEqualsOid4vp(lhs.message, rhs.message)
+    return deepEqualsOid4vp(lhs.message, rhs.message) && deepEqualsOid4vp(lhs.redirectUrl, rhs.redirectUrl)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("Oid4vpSuccess")
     deepHashOid4vp(value: message, hasher: &hasher)
+    deepHashOid4vp(value: redirectUrl, hasher: &hasher)
   }
 }
 
@@ -673,6 +681,56 @@ struct CredentialRequirementData: Hashable {
   }
 }
 
+/// A dynamic credential offer surfaced by a registered native
+/// `DynamicCredentialProvider`.
+///
+/// Offers are issued only if the user selects them: pass the `offerId` to
+/// `submitResponseWithOffers`. Only OID4VP-v1 sessions surface offers.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DynamicOfferData: Hashable {
+  /// Provider-scoped identifier, echoed back via `submitResponseWithOffers`.
+  var offerId: String
+  /// The DCQL credential-query id this offer satisfies.
+  var credentialQueryId: String
+  /// Human-readable label for the consent UI.
+  var title: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DynamicOfferData? {
+    let offerId = pigeonVar_list[0] as! String
+    let credentialQueryId = pigeonVar_list[1] as! String
+    let title = pigeonVar_list[2] as! String
+
+    return DynamicOfferData(
+      offerId: offerId,
+      credentialQueryId: credentialQueryId,
+      title: title
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      offerId,
+      credentialQueryId,
+      title,
+    ]
+  }
+  static func == (lhs: DynamicOfferData, rhs: DynamicOfferData) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsOid4vp(lhs.offerId, rhs.offerId) && deepEqualsOid4vp(lhs.credentialQueryId, rhs.credentialQueryId) && deepEqualsOid4vp(lhs.title, rhs.title)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("DynamicOfferData")
+    deepHashOid4vp(value: offerId, hasher: &hasher)
+    deepHashOid4vp(value: credentialQueryId, hasher: &hasher)
+    deepHashOid4vp(value: title, hasher: &hasher)
+  }
+}
+
 private class Oid4vpPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -704,6 +762,8 @@ private class Oid4vpPigeonCodecReader: FlutterStandardReader {
       return CredentialQueryGroupData.fromList(self.readValue() as! [Any?])
     case 140:
       return CredentialRequirementData.fromList(self.readValue() as! [Any?])
+    case 141:
+      return DynamicOfferData.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -747,6 +807,9 @@ private class Oid4vpPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? CredentialRequirementData {
       super.writeByte(140)
+      super.writeValue(value.toList())
+    } else if let value = value as? DynamicOfferData {
+      super.writeByte(141)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -808,6 +871,12 @@ protocol Oid4vp {
   ///   the same order as `selectedCredentials`
   /// @param options Response configuration options
   func submitResponse(selectedCredentials: [PresentableCredentialKey], selectedFieldPaths: [[String]], options: ResponseOptions, completion: @escaping (Result<Oid4vpResult, Error>) -> Void)
+  /// Submit the response, additionally issuing the dynamic credential offers
+  /// selected by `offerId` from `getDynamicOffers`.
+  ///
+  /// `selectedCredentials` may be empty if at least one offer is selected.
+  /// Unknown offer ids fail the whole submission.
+  func submitResponseWithOffers(selectedCredentials: [PresentableCredentialKey], selectedFieldPaths: [[String]], selectedOfferIds: [String], options: ResponseOptions, completion: @escaping (Result<Oid4vpResult, Error>) -> Void)
   /// Get credential requirements from the permission request
   ///
   /// @return List of credential requirements
@@ -820,6 +889,11 @@ protocol Oid4vp {
   ///
   /// @return List of credential query ID strings
   func getCredentialQueryIds() throws -> [String]
+  /// Get the dynamic credential offers for the current session.
+  ///
+  /// Empty when no providers are registered, none match the request, or the
+  /// negotiated version is not v1. Call after `handleAuthorizationRequest`.
+  func getDynamicOffers() throws -> [DynamicOfferData]
   /// Cancel and cleanup the current session
   func cancel() throws
 }
@@ -931,6 +1005,31 @@ class Oid4vpSetup {
     } else {
       submitResponseChannel.setMessageHandler(nil)
     }
+    /// Submit the response, additionally issuing the dynamic credential offers
+    /// selected by `offerId` from `getDynamicOffers`.
+    ///
+    /// `selectedCredentials` may be empty if at least one offer is selected.
+    /// Unknown offer ids fail the whole submission.
+    let submitResponseWithOffersChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.submitResponseWithOffers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      submitResponseWithOffersChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let selectedCredentialsArg = args[0] as! [PresentableCredentialKey]
+        let selectedFieldPathsArg = args[1] as! [[String]]
+        let selectedOfferIdsArg = args[2] as! [String]
+        let optionsArg = args[3] as! ResponseOptions
+        api.submitResponseWithOffers(selectedCredentials: selectedCredentialsArg, selectedFieldPaths: selectedFieldPathsArg, selectedOfferIds: selectedOfferIdsArg, options: optionsArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      submitResponseWithOffersChannel.setMessageHandler(nil)
+    }
     /// Get credential requirements from the permission request
     ///
     /// @return List of credential requirements
@@ -978,6 +1077,23 @@ class Oid4vpSetup {
       }
     } else {
       getCredentialQueryIdsChannel.setMessageHandler(nil)
+    }
+    /// Get the dynamic credential offers for the current session.
+    ///
+    /// Empty when no providers are registered, none match the request, or the
+    /// negotiated version is not v1. Call after `handleAuthorizationRequest`.
+    let getDynamicOffersChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.getDynamicOffers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      getDynamicOffersChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.getDynamicOffers()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      getDynamicOffersChannel.setMessageHandler(nil)
     }
     /// Cancel and cleanup the current session
     let cancelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.cancel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)

@@ -90,6 +90,10 @@ pub struct TestMdlData {
     resident_state: String,
     resident_postal_code: String,
     resident_country: String,
+    /// ISO 3166-2 issuing jurisdiction code (e.g. "US-NY"). When unset, the
+    /// `issuing_jurisdiction` element is omitted from the generated mDoc.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    issuing_jurisdiction: Option<String>,
 }
 
 #[uniffi::export]
@@ -341,4 +345,93 @@ where
     )?]))?;
 
     Ok(builder)
+}
+
+#[cfg(test)]
+mod tests {
+    use ciborium::Value as Cbor;
+
+    use super::*;
+    use crate::crypto::{KeyAlias, RustTestKeyManager};
+
+    fn test_mdl_data(issuing_jurisdiction: Option<String>) -> TestMdlData {
+        TestMdlData {
+            family_name: "Doe".to_string(),
+            given_name: "John".to_string(),
+            birth_date: "1990-01-01".to_string(),
+            issue_date: "2020-01-01".to_string(),
+            expiry_date: "2030-01-01".to_string(),
+            issuing_country: "US".to_string(),
+            issuing_authority: "SpruceID".to_string(),
+            document_number: "DL12345678".to_string(),
+            portrait: include_str!("../../tests/res/mdl/portrait.base64").to_string(),
+            driving_privileges: vec![],
+            un_distinguishing_sign: "USA".to_string(),
+            administrative_number: "ADM12345678".to_string(),
+            sex: 1,
+            height: 180,
+            weight: 75,
+            eye_colour: "blue".to_string(),
+            hair_colour: "black".to_string(),
+            birth_place: "New York".to_string(),
+            resident_address: "123 Main St, New York, NY, 10001".to_string(),
+            portrait_capture_date: "2020-01-01T12:00:00Z".to_string(),
+            age_in_years: 35,
+            age_birth_year: 1990,
+            age_over_18: true,
+            age_over_21: true,
+            age_over_60: false,
+            nationality: "US".to_string(),
+            resident_city: "New York".to_string(),
+            resident_state: "NY".to_string(),
+            resident_postal_code: "10001".to_string(),
+            resident_country: "US".to_string(),
+            issuing_jurisdiction,
+        }
+    }
+
+    async fn generate(data: TestMdlData) -> crate::credential::mdoc::Mdoc {
+        let key_manager = Arc::new(RustTestKeyManager::default());
+        let key_alias = KeyAlias(uuid::Uuid::new_v4().to_string());
+        key_manager
+            .generate_p256_signing_key(key_alias.clone())
+            .await
+            .expect("key generation failed");
+        generate_test_mdl_with_data(key_manager, key_alias, data)
+            .expect("test mDL generation failed")
+    }
+
+    fn mdl_namespace_element(
+        mdoc: &crate::credential::mdoc::Mdoc,
+        element_identifier: &str,
+    ) -> Option<Cbor> {
+        mdoc.document()
+            .namespaces
+            .get("org.iso.18013.5.1")
+            .expect("mDL namespace present")
+            .get(element_identifier)
+            .map(|element| element.as_ref().element_value.clone())
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn issuing_jurisdiction_element_present_when_set() {
+        let mdoc = generate(test_mdl_data(Some("US-NY".to_string()))).await;
+
+        assert_eq!(
+            mdl_namespace_element(&mdoc, "issuing_jurisdiction"),
+            Some(Cbor::Text("US-NY".to_string()))
+        );
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn issuing_jurisdiction_element_absent_when_unset() {
+        let mdoc = generate(test_mdl_data(None)).await;
+
+        assert!(mdl_namespace_element(&mdoc, "issuing_jurisdiction").is_none());
+        // The rest of the mdoc is unaffected.
+        assert_eq!(
+            mdl_namespace_element(&mdoc, "family_name"),
+            Some(Cbor::Text("Doe".to_string()))
+        );
+    }
 }

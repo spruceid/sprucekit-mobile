@@ -1,9 +1,9 @@
 package com.spruceid.mobile.sdk
 
-import com.spruceid.mobile.sdk.rs.AsyncHttpClient
-import com.spruceid.mobile.sdk.rs.HttpRequest
-import com.spruceid.mobile.sdk.rs.HttpResponse
 import com.spruceid.mobile.sdk.rs.SyncHttpClient
+import com.spruceid.mobile.toolkit.AsyncHttpClient
+import com.spruceid.mobile.toolkit.HttpRequest
+import com.spruceid.mobile.toolkit.HttpResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.request.request

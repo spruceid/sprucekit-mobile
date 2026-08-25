@@ -458,6 +458,59 @@ class Oid4vciError extends Oid4vciResult {
 ;
 }
 
+/// Issuance interrupted: the issuer requires an OID4VP presentation before it
+/// will release the credential (issuer error `presentation_required`).
+///
+/// Recovery: run the OID4VP flow with [authorizationRequestJson] as the
+/// request string, then re-run the issuance from the same offer URL. A second
+/// `Oid4vciPresentationRequired` on the retry is a failure.
+///
+/// Only reachable when `supportedVersions` is empty (auto) or contains
+/// [Oid4vciVersion.legacy]: the v1 HTTP client discards error-response
+/// bodies, so a pure-v1 exchange cannot detect it.
+class Oid4vciPresentationRequired extends Oid4vciResult {
+  Oid4vciPresentationRequired({
+    required this.authorizationRequestJson,
+  });
+
+  /// The OID4VP authorization request JSON, verbatim from the issuer's
+  /// `presentation_required` error body.
+  String authorizationRequestJson;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      authorizationRequestJson,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static Oid4vciPresentationRequired decode(Object result) {
+    result as List<Object?>;
+    return Oid4vciPresentationRequired(
+      authorizationRequestJson: result[0]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! Oid4vciPresentationRequired || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -499,6 +552,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is Oid4vciError) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
+    }    else if (value is Oid4vciPresentationRequired) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -533,6 +589,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return Oid4vciSuccess.decode(readValue(buffer)!);
       case 139:
         return Oid4vciError.decode(readValue(buffer)!);
+      case 140:
+        return Oid4vciPresentationRequired.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }

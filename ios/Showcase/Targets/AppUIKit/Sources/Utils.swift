@@ -17,9 +17,9 @@ struct HideViewModifier: ViewModifier {
 }
 
 extension View {
-    func hide(if isHiddden: Bool) -> some View {
+    func hide(if isHidden: Bool) -> some View {
         ModifiedContent(content: self,
-                        modifier: HideViewModifier(isHidden: isHiddden)
+                        modifier: HideViewModifier(isHidden: isHidden)
         )
     }
 }
@@ -162,6 +162,38 @@ extension Sequence {
 }
 
 let trustedDids: [String] = []
+
+/// Parses a raw credential string, saves it as a new `CredentialPack`, and
+/// records a "Claimed" wallet activity log entry for it — the same sequence
+/// `AddToWalletView`'s own accept step uses. Shared so other flows (e.g. VCALM
+/// offers) that store a credential outside of `AddToWalletView`'s own review
+/// UI stay consistent with it, rather than reimplementing this inline.
+@discardableResult
+/// Stores `rawCredential`, binding it to `keyAlias` — the per-credential key
+/// generated at issuance so it matches the credential's holder binding. Callers
+/// with no per-credential key (`nil`) fall back to the shared signing key.
+func acceptRawCredentialIntoWallet(
+    rawCredential: String,
+    credentialPackObservable: CredentialPackObservable,
+    keyAlias: String? = nil
+) async throws -> CredentialPack {
+    let credentialPack = CredentialPack()
+    _ = try await credentialPack.tryAddAnyFormat(
+        rawCredential: rawCredential, keyAlias: keyAlias ?? DEFAULT_SIGNING_KEY_ID)
+    try await credentialPackObservable.add(credentialPack: credentialPack)
+
+    let credentialInfo = getCredentialIdTitleAndIssuer(credentialPack: credentialPack)
+    _ = WalletActivityLogDataStore.shared.insert(
+        credentialPackId: credentialPack.id.uuidString,
+        credentialId: credentialInfo.0,
+        credentialTitle: credentialInfo.1,
+        issuer: credentialInfo.2,
+        action: "Claimed",
+        dateTime: Date(),
+        additionalInformation: ""
+    )
+    return credentialPack
+}
 
 func convertToGenericJSON(map: [String: [String: MDocItem]]) -> GenericJSON {
     var jsonObject: [String: GenericJSON] = [:]
