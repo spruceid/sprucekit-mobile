@@ -7432,7 +7432,7 @@ checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 [[package]]
 name = "vcalm-rs"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/vcalm-rs?rev=cd97bd7#cd97bd77d5ca184209b6e9df723aec47e0150275"
+source = "git+https://github.com/spruceid/vcalm-rs?rev=d6f791e#d6f791ebce5a35d26591d6d47933ad75c468164e"
 dependencies = [
  "async-trait",
  "futures",

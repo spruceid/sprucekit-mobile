@@ -15323,38 +15323,27 @@ public protocol VcalmHolderProtocol: AnyObject, Sendable {
     /**
      * Build, sign and POST a verifiable presentation.
      *
-     * `selected_credentials` are the credentials the user chose. `selected_fields`
-     * is keyed by VPR query index: the entry for `i` is the field paths the user
-     * consented to disclose for query `i`.
+     * `selected_credentials` are the credentials the user chose (e.g. from
+     * `matched_credentials()`). `selected_fields` is keyed by VPR query index:
+     * the entry for `i` is the field paths the user consented to disclose for
+     * query `i`.
      *
-     * Four things to get right:
-     *
-     * * **A missing key is not an empty list.** If a query index is absent, that
-     * query is not narrowed and everything it named is disclosed. An entry that
-     * is present but empty means "the user deselected every field". So an empty
-     * map is the correct input for a caller with no per-field consent UI, and is
-     * NOT a way to disclose nothing. Send an entry only for a query that
-     * actually offered the user a choice.
-     * * **Paths must match `requested_fields()` exactly.** Selection is string
-     * equality against the example-derived paths, with no prefix or wildcard
-     * semantics: `credentialSubject.address` does not select
-     * `credentialSubject.address.street`. Pass the strings back unmodified.
-     * * **Only `credentialSubject.*` paths can be narrowed.** Structural
-     * properties an example names — `type`, `@context`, `credentialStatus` — are
-     * always disclosed, because the verifier's example states what the response
-     * credential must contain. They are not consent surface and should not be
-     * shown as checkboxes.
-     * * **Narrowing applies only to a credential with an `ecdsa-sd-2023` base
-     * proof**, under a VPR that requests selective disclosure. Otherwise the
-     * whole credential is presented and `selected_fields` is ignored, so a UI
-     * must not offer field checkboxes there. `matched_credentials()` reports
-     * `selective_disclosure` per credential for exactly this decision.
-     *
-     * Dropping fields from a query that is not explicitly optional is refused
-     * rather than signed, since the verifier's example makes every field it names
-     * required. If an optional query has every subject field deselected, that
-     * credential is dropped from the presentation — a derived credential with no
-     * `credentialSubject` would not be valid.
+     * A MISSING key means "no narrowing" — everything that query named is
+     * disclosed; a present-but-empty list means the user deselected every field.
+     * An empty map is therefore the right input for a caller with no per-field
+     * consent UI. Paths must equal what `requested_fields()` returned (plain
+     * string equality, no prefix semantics, so `credentialSubject.address` does
+     * not select `credentialSubject.address.street`). Only `credentialSubject.*`
+     * paths narrow: structural properties like `credentialStatus` are always
+     * disclosed, since the example states what the response credential must
+     * contain, and so should not be rendered as checkboxes. Dropping subject
+     * paths from a query that is not explicitly optional is refused with
+     * `RequiredFieldsDeselected`; an optional query with every subject field
+     * deselected drops that credential from the presentation rather than deriving
+     * a credential with no `credentialSubject`. Narrowing takes effect only for a
+     * credential carrying an `ecdsa-sd-2023` base proof — on the full-disclosure
+     * path `selected_fields` is ignored, and `matched_credentials()` reports
+     * `selective_disclosure` per credential for exactly that decision.
      */
     func submitPresentation(selectedCredentials: [ParsedCredential], selectedFields: [UInt32: [String]], allowDomainMismatch: Bool) async throws  -> StepResult
     
@@ -15556,38 +15545,27 @@ open func startExchange(input: String, authHeader: String?)async throws  -> Step
     /**
      * Build, sign and POST a verifiable presentation.
      *
-     * `selected_credentials` are the credentials the user chose. `selected_fields`
-     * is keyed by VPR query index: the entry for `i` is the field paths the user
-     * consented to disclose for query `i`.
+     * `selected_credentials` are the credentials the user chose (e.g. from
+     * `matched_credentials()`). `selected_fields` is keyed by VPR query index:
+     * the entry for `i` is the field paths the user consented to disclose for
+     * query `i`.
      *
-     * Four things to get right:
-     *
-     * * **A missing key is not an empty list.** If a query index is absent, that
-     * query is not narrowed and everything it named is disclosed. An entry that
-     * is present but empty means "the user deselected every field". So an empty
-     * map is the correct input for a caller with no per-field consent UI, and is
-     * NOT a way to disclose nothing. Send an entry only for a query that
-     * actually offered the user a choice.
-     * * **Paths must match `requested_fields()` exactly.** Selection is string
-     * equality against the example-derived paths, with no prefix or wildcard
-     * semantics: `credentialSubject.address` does not select
-     * `credentialSubject.address.street`. Pass the strings back unmodified.
-     * * **Only `credentialSubject.*` paths can be narrowed.** Structural
-     * properties an example names — `type`, `@context`, `credentialStatus` — are
-     * always disclosed, because the verifier's example states what the response
-     * credential must contain. They are not consent surface and should not be
-     * shown as checkboxes.
-     * * **Narrowing applies only to a credential with an `ecdsa-sd-2023` base
-     * proof**, under a VPR that requests selective disclosure. Otherwise the
-     * whole credential is presented and `selected_fields` is ignored, so a UI
-     * must not offer field checkboxes there. `matched_credentials()` reports
-     * `selective_disclosure` per credential for exactly this decision.
-     *
-     * Dropping fields from a query that is not explicitly optional is refused
-     * rather than signed, since the verifier's example makes every field it names
-     * required. If an optional query has every subject field deselected, that
-     * credential is dropped from the presentation — a derived credential with no
-     * `credentialSubject` would not be valid.
+     * A MISSING key means "no narrowing" — everything that query named is
+     * disclosed; a present-but-empty list means the user deselected every field.
+     * An empty map is therefore the right input for a caller with no per-field
+     * consent UI. Paths must equal what `requested_fields()` returned (plain
+     * string equality, no prefix semantics, so `credentialSubject.address` does
+     * not select `credentialSubject.address.street`). Only `credentialSubject.*`
+     * paths narrow: structural properties like `credentialStatus` are always
+     * disclosed, since the example states what the response credential must
+     * contain, and so should not be rendered as checkboxes. Dropping subject
+     * paths from a query that is not explicitly optional is refused with
+     * `RequiredFieldsDeselected`; an optional query with every subject field
+     * deselected drops that credential from the presentation rather than deriving
+     * a credential with no `credentialSubject`. Narrowing takes effect only for a
+     * credential carrying an `ecdsa-sd-2023` base proof — on the full-disclosure
+     * path `selected_fields` is ignored, and `matched_credentials()` reports
+     * `selective_disclosure` per credential for exactly that decision.
      */
 open func submitPresentation(selectedCredentials: [ParsedCredential], selectedFields: [UInt32: [String]], allowDomainMismatch: Bool)async throws  -> StepResult  {
     return
@@ -36622,7 +36600,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_start_exchange() != 15267) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 21087) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 8604) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_add() != 62104) {
