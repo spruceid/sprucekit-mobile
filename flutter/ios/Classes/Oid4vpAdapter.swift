@@ -96,6 +96,19 @@ class Oid4vpAdapter: Oid4vp {
     private var dynamicOfferIds: [String] = []
     private var dynamicOffersById: [String: SpruceIDMobileSdkRs.DynamicCredentialOffer] = [:]
 
+    /// Atomically removes and returns the active session while clearing its cached state.
+    private func clearSession() -> Oid4vpSession? {
+        lock.lock()
+        defer { lock.unlock() }
+        let activeSession = session
+        holder = nil
+        session = nil
+        credentialsByKey = [:]
+        dynamicOfferIds = []
+        dynamicOffersById = [:]
+        return activeSession
+    }
+
     init(credentialPackAdapter: CredentialPackAdapter) {
         self.credentialPackAdapter = credentialPackAdapter
     }
@@ -496,13 +509,41 @@ class Oid4vpAdapter: Oid4vp {
         }
     }
 
+    func denyPermission(completion: @escaping (Result<Oid4vpResult, Error>) -> Void) {
+        guard let activeSession = clearSession() else {
+            completion(
+                .success(
+                    Oid4vpError(
+                        message: "No active OID4VP session"
+                    )
+                )
+            )
+            return
+        }
+        Task {
+            do {
+                let redirectUrl = try await activeSession.denyPermission()
+                completion(
+                    .success(
+                        Oid4vpSuccess(
+                            message: "Permission denied",
+                            redirectUrl: redirectUrl
+                        )
+                    )
+                )
+            } catch {
+                completion(
+                    .success(
+                        Oid4vpError(
+                            message: error.localizedDescription
+                        )
+                    )
+                )
+            }
+        }
+    }
+
     func cancel() throws {
-        lock.lock()
-        holder = nil
-        session = nil
-        credentialsByKey = [:]
-        dynamicOfferIds = []
-        dynamicOffersById = [:]
-        lock.unlock()
+        clearSession()
     }
 }

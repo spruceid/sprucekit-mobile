@@ -1064,7 +1064,28 @@ class Oid4vp {
     return (pigeonVar_replyValue! as List<Object?>).cast<DynamicOfferData>();
   }
 
-  /// Cancel and cleanup the current session
+  /// Notify the verifier that the user denied the current direct-post OID4VP
+  /// request, then clean up the session.
+  Future<Oid4vpResult> denyPermission() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.denyPermission$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as Oid4vpResult;
+  }
+
+  /// Cancel and cleanup the current session without notifying the verifier.
   Future<void> cancel() async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Oid4vp.cancel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(

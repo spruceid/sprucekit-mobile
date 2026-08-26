@@ -1007,7 +1007,12 @@ interface Oid4vp {
    * negotiated version is not v1. Call after `handleAuthorizationRequest`.
    */
   fun getDynamicOffers(): List<DynamicOfferData>
-  /** Cancel and cleanup the current session */
+  /**
+   * Notify the verifier that the user denied the current direct-post OID4VP
+   * request, then clean up the session.
+   */
+  fun denyPermission(callback: (Result<Oid4vpResult>) -> Unit)
+  /** Cancel and cleanup the current session without notifying the verifier. */
   fun cancel()
 
   companion object {
@@ -1180,6 +1185,24 @@ interface Oid4vp {
               Oid4vpPigeonUtils.wrapError(exception)
             }
             reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.denyPermission$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.denyPermission{ result: Result<Oid4vpResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(Oid4vpPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(Oid4vpPigeonUtils.wrapResult(data))
+              }
+            }
           }
         } else {
           channel.setMessageHandler(null)
