@@ -372,6 +372,8 @@ pub enum VcalmError {
     NoPresentableProof { credential_types: String },
     #[error("selective-disclosure derive failed: {0}")]
     SdDeriveFailed(String),
+    #[error("selection dropped required field(s) [{dropped}] from required query {query_index}")]
+    RequiredFieldsDeselected { query_index: u32, dropped: String },
     #[error("unsupported credential format: {0}")]
     UnsupportedCredentialFormat(String),
 }
@@ -404,6 +406,13 @@ impl From<vcalm_rs::error::VcalmError> for VcalmError {
                 Self::NoPresentableProof { credential_types }
             }
             E::SdDeriveFailed(v) => Self::SdDeriveFailed(v),
+            E::RequiredFieldsDeselected {
+                query_index,
+                dropped,
+            } => Self::RequiredFieldsDeselected {
+                query_index,
+                dropped,
+            },
             E::UnsupportedCredentialFormat(v) => Self::UnsupportedCredentialFormat(v),
         }
     }

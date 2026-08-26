@@ -37,15 +37,17 @@ struct VcalmRequirement {
 /// of requirements. Iterates the union of both so a requested query with no
 /// matching credential still becomes a requirement with empty candidates,
 /// instead of being silently dropped.
+func isSubjectPath(_ path: String) -> Bool {
+    path == "credentialSubject" || path.hasPrefix("credentialSubject.")
+}
+
 func buildVcalmRequirements(
     requestedFields: [VcalmRequestedField],
     matched: [VcalmMatchedCredentials]
 ) -> [VcalmRequirement] {
-    // The QBE example's structural keys carry no user data and don't map to
-    // a credential claim, so they're excluded from the requirement's fields.
+    // Only `credentialSubject` claims are surfaced in the consent UI. Everything else is always disclosed by the   SDK
     var fieldsByQuery: [UInt32: [VcalmRequestedField]] = [:]
-    for field in requestedFields
-    where field.path != "type" && field.path != "@context" {
+    for field in requestedFields where isSubjectPath(field.path) {
         fieldsByQuery[field.queryIndex, default: []].append(field)
     }
 
@@ -183,6 +185,8 @@ struct HandleVCALMView: View {
     @State private var holder: VcalmHolder?
 
     @State private var requirements: [VcalmRequirement]?
+    // Field paths the user consents to disclose, keyed by queryIndex
+    @State private var fieldSelections: [UInt32: Set<String>] = [:]
     @State private var readyForFieldSelection: Bool = false
     @State private var picks: [UInt32: ParsedCredential] = [:]
     @State private var redirectUrl: String?
@@ -192,6 +196,7 @@ struct HandleVCALMView: View {
     @State private var offerAcceptError: Bool = false
     @State private var domainMismatch: VcalmDomainMismatch?
     @State private var pendingSelection: [ParsedCredential] = []
+    @State private var pendingFieldPaths: [UInt32: [String]] = [:]
     // Set right before `onContinueAnyway` nils out `domainMismatch` itself,
     // so the `.sheet(isPresented:)` binding's write-back (which SwiftUI
     // calls for ANY dismissal, not just a user-initiated one) doesn't also
@@ -232,12 +237,14 @@ struct HandleVCALMView: View {
     // Submit presentation after automatically/manually selecting credentials to fit requirements
     func trySubmitPresentation(
         selected: [ParsedCredential],
+        selectedFields: [UInt32: [String]],
         allowDomainMismatch: Bool
     ) async {
         guard let holder else { return }
         do {
             let result = try await holder.submitPresentation(
                 selectedCredentials: selected,
+                selectedFields: selectedFields,
                 allowDomainMismatch: allowDomainMismatch
             )
             requirements = nil
@@ -245,6 +252,7 @@ struct HandleVCALMView: View {
             await handleStep(result)
         } catch VcalmError.DomainChannelMismatch(let domain, let channel) {
             pendingSelection = selected
+            pendingFieldPaths = selectedFields
             domainMismatch = VcalmDomainMismatch(
                 domain: domain,
                 channel: channel
@@ -268,6 +276,7 @@ struct HandleVCALMView: View {
                 // Can submit immediately
                 await trySubmitPresentation(
                     selected: [],
+                    selectedFields: [:],
                     allowDomainMismatch: false
                 )
                 return
@@ -293,6 +302,11 @@ struct HandleVCALMView: View {
             }
             picks = autoPicks
             requirements = built
+            fieldSelections = Dictionary(
+                uniqueKeysWithValues: built.map {
+                    ($0.queryIndex, Set($0.fields.map { $0.path }))
+                }
+            )
             // If no requirement has more than one candidate, skip straight to selective disclosure
             readyForFieldSelection = built.allSatisfy {
                 $0.candidates.count <= 1
@@ -339,10 +353,17 @@ struct HandleVCALMView: View {
     }
 
     func submitPicks() async {
-        let selected = (requirements ?? []).compactMap { picks[$0.queryIndex] }
+        let reqs = requirements ?? []
+        let selected = reqs.compactMap { picks[$0.queryIndex] }
+        let selectedFields = Dictionary(
+            uniqueKeysWithValues: reqs.filter { !$0.fields.isEmpty }.map {
+                ($0.queryIndex, Array(fieldSelections[$0.queryIndex] ?? []))
+            }
+        )
         loading = true
         await trySubmitPresentation(
             selected: selected,
+            selectedFields: selectedFields,
             allowDomainMismatch: false
         )
         loading = false
@@ -490,12 +511,9 @@ struct HandleVCALMView: View {
                     requirements: requirements,
                     picks: picks,
                     credentialClaims: credentialClaims,
-                    onSubmit: {
-                        Task {
-                            await submitPicks()
-                        }
-                    },
-                    onCancel: back
+                    onSubmit: { Task { await submitPicks() } },
+                    onCancel: back,
+                    fieldSelections: $fieldSelections
                 )
             } else {
                 LoadingView(loadingText: "Loading...")
@@ -523,12 +541,14 @@ struct HandleVCALMView: View {
                     onCancel: { cancelDomainMismatch() },
                     onContinueAnyway: {
                         let selection = pendingSelection
+                        let fields = pendingFieldPaths
                         suppressDomainMismatchCancel = true
                         self.domainMismatch = nil
                         Task {
                             loading = true
                             await trySubmitPresentation(
                                 selected: selection,
+                                selectedFields: fields,
                                 allowDomainMismatch: true
                             )
                             loading = false
@@ -760,6 +780,7 @@ struct VcalmFieldsSelector: View {
     let onCancel: () -> Void
 
     @State private var currentIndex: Int = 0
+    @Binding var fieldSelections: [UInt32: Set<String>]
 
     var currentRequirement: VcalmRequirement {
         requirements[currentIndex]
@@ -767,6 +788,15 @@ struct VcalmFieldsSelector: View {
 
     var hasMoreRequirements: Bool {
         currentIndex + 1 < requirements.count
+    }
+
+    // Field toggles write to HandleVCALMView
+    func selectionBinding(_ queryIndex: UInt32) -> Binding<Set<String>> {
+        Binding {
+            fieldSelections[queryIndex] ?? []
+        } set: { newValue in
+            fieldSelections[queryIndex] = newValue
+        }
     }
 
     var body: some View {
@@ -797,7 +827,10 @@ struct VcalmFieldsSelector: View {
                 VcalmFieldsSelectorFields(
                     requirement: currentRequirement,
                     currentCredential: picks[currentRequirement.queryIndex],
-                    credentialClaims: credentialClaims
+                    credentialClaims: credentialClaims,
+                    selectedFields: selectionBinding(
+                        currentRequirement.queryIndex
+                    )
                 )
                 .id(currentRequirement.queryIndex)
             }
@@ -849,22 +882,7 @@ struct VcalmFieldsSelectorFields: View {
     let currentCredential: ParsedCredential?
     let credentialClaims: [String: [String: GenericJSON]]
 
-    // Optional fields are pre-selected but can be unchecked, mandatory
-    // fields are always selected but disabled
-    @State private var selectedFields: Set<String>
-
-    init(
-        requirement: VcalmRequirement,
-        currentCredential: ParsedCredential?,
-        credentialClaims: [String: [String: GenericJSON]]
-    ) {
-        self.requirement = requirement
-        self.currentCredential = currentCredential
-        self.credentialClaims = credentialClaims
-        self._selectedFields = State(
-            initialValue: Set(requirement.fields.map { $0.path })
-        )
-    }
+    @Binding var selectedFields: Set<String>
 
     func fieldBinding(_ field: VcalmRequestedField) -> Binding<Bool> {
         Binding {
@@ -884,7 +902,8 @@ struct VcalmFieldsSelectorFields: View {
             let allClaims =
                 currentCredential.flatMap { credentialClaims[$0.id()] } ?? [:]
             // @context is not meaningful to show the user as a disclosed field.
-            let allClaimNames = allClaims.keys.filter { $0 != "@context" }.sorted()
+            let allClaimNames = allClaims.keys.filter { $0 != "@context" }
+                .sorted()
             ForEach(Array(allClaimNames), id: \.self) { claimName in
                 SelectiveDisclosureItem(
                     fieldName: claimName,

@@ -105,9 +105,32 @@ impl VcalmHolder {
     }
 
     /// Build, sign and POST a verifiable presentation.
+    ///
+    /// `selected_credentials` are the credentials the user chose (e.g. from
+    /// `matched_credentials()`). `selected_fields` is keyed by VPR query index:
+    /// the entry for `i` is the field paths the user consented to disclose for
+    /// query `i`.
+    ///
+    /// A MISSING key means "no narrowing" — everything that query named is
+    /// disclosed; a present-but-empty list means the user deselected every field.
+    /// An empty map is therefore the right input for a caller with no per-field
+    /// consent UI. Paths must equal what `requested_fields()` returned (plain
+    /// string equality, no prefix semantics, so `credentialSubject.address` does
+    /// not select `credentialSubject.address.street`). Only `credentialSubject.*`
+    /// paths narrow: structural properties like `credentialStatus` are always
+    /// disclosed, since the example states what the response credential must
+    /// contain, and so should not be rendered as checkboxes. Dropping subject
+    /// paths from a query that is not explicitly optional is refused with
+    /// `RequiredFieldsDeselected`; an optional query with every subject field
+    /// deselected drops that credential from the presentation rather than deriving
+    /// a credential with no `credentialSubject`. Narrowing takes effect only for a
+    /// credential carrying an `ecdsa-sd-2023` base proof — on the full-disclosure
+    /// path `selected_fields` is ignored, and `matched_credentials()` reports
+    /// `selective_disclosure` per credential for exactly that decision.
     pub async fn submit_presentation(
         self: Arc<Self>,
         selected_credentials: Vec<Arc<ParsedCredential>>,
+        selected_fields: HashMap<u32, Vec<String>>,
         allow_domain_mismatch: bool,
     ) -> Result<StepResult, VcalmError> {
         Ok(self
@@ -115,6 +138,7 @@ impl VcalmHolder {
             .clone()
             .submit_presentation(
                 selected_credentials.into_iter().map(to_stored).collect(),
+                selected_fields,
                 allow_domain_mismatch,
             )
             .await?
