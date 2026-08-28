@@ -218,6 +218,8 @@ pub struct PermissionRequest {
     pub(crate) credentials: Vec<Arc<PresentableCredential>>,
     pub(crate) request: AuthorizationRequestObject,
     pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+    /// Signing key id used for credentials with no `key_alias`.
+    pub(crate) key_id: String,
     pub(crate) context_map: Option<HashMap<String, String>>,
     pub(crate) keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
     /// Dynamic credential offers surfaced by the holder's
@@ -243,11 +245,13 @@ impl std::fmt::Debug for PermissionRequest {
 }
 
 impl PermissionRequest {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         dcql_query: DcqlQuery,
         credentials: Vec<Arc<PresentableCredential>>,
         request: AuthorizationRequestObject,
         signer: Arc<Box<dyn PresentationSigner>>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
     ) -> Arc<Self> {
@@ -256,6 +260,7 @@ impl PermissionRequest {
             credentials,
             request,
             signer,
+            key_id,
             context_map,
             keystore,
             dynamic_offers: vec![],
@@ -274,6 +279,7 @@ impl PermissionRequest {
         credentials: Vec<Arc<PresentableCredential>>,
         request: AuthorizationRequestObject,
         signer: Arc<Box<dyn PresentationSigner>>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
         keystore: Option<Arc<dyn crate::crypto::KeyStore>>,
         dynamic_offers: Vec<DynamicCredentialOffer>,
@@ -284,6 +290,7 @@ impl PermissionRequest {
             credentials,
             request,
             signer,
+            key_id,
             context_map,
             keystore,
             dynamic_offers,
@@ -430,7 +437,7 @@ impl PermissionRequest {
 
         // Mint each selected dynamic offer, bound to this presentation. The
         // nonce/client_id are sourced identically to the stored response build.
-        let options = self.presentation_options(&response_options);
+        let options = self.presentation_options(self.key_id.clone(), &response_options);
         let binding = PresentationBinding {
             nonce: options.nonce().to_owned(),
             client_id: options.audience().cloned().ok_or_else(|| {
@@ -637,14 +644,16 @@ impl PermissionRequest {
     }
 
     /// Build the `PresentationOptions` used when constructing a verifiable
-    /// presentation for this request.
+    /// presentation for this request, pinned to the signing key `key_id`.
     fn presentation_options<'a>(
         &'a self,
+        key_id: String,
         response_options: &'a ResponseOptions,
     ) -> PresentationOptions<'a> {
         PresentationOptions {
             request: &self.request,
             signer: self.signer.clone(),
+            key_id,
             context_map: self.context_map.clone(),
             response_options,
             keystore: self.keystore.clone(),
@@ -682,12 +691,13 @@ impl PermissionRequest {
             })
             .collect();
 
-        // Set options for constructing a verifiable presentation.
-        let options = self.presentation_options(response_options);
-
         let mut vp_token_map: HashMap<String, Vec<VpTokenItem>> = HashMap::new();
 
         for cred in &selected_credentials {
+            // Each credential's presentation is signed with its own key.
+            let options =
+                self.presentation_options(cred.resolve_key_id(&self.key_id), response_options);
+
             let token_item = cred.as_vp_token(&options).await?;
             vp_token_map
                 .entry(cred.credential_query_id.clone())

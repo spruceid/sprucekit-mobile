@@ -19,6 +19,8 @@ struct AddToWalletView: View {
         CredentialPackObservable
     @Binding var path: NavigationPath
     var rawCredentials: [String]
+    /// Key bound to every credential in this flow; `nil` uses the shared key.
+    var keyAlias: String?
     @State var storing = false
 
     @State var stepItems: [CredentialStepItem] = []
@@ -36,12 +38,14 @@ struct AddToWalletView: View {
     init(
         path: Binding<NavigationPath>,
         rawCredentials: [String],
+        keyAlias: String? = nil,
         onSuccess: (() -> Void)? = nil,
         navigateHomeOnSuccess: Bool = true,
         onAcceptCredential: ((String) async throws -> Void)? = nil
     ) {
         self._path = path
         self.rawCredentials = rawCredentials
+        self.keyAlias = keyAlias
         self.onSuccess = onSuccess
         self.navigateHomeOnSuccess = navigateHomeOnSuccess
         self.onAcceptCredential = onAcceptCredential
@@ -87,14 +91,16 @@ struct AddToWalletView: View {
             } else {
                 _ = try await acceptRawCredentialIntoWallet(
                     rawCredential: rawCredentials[currentIndex],
-                    credentialPackObservable: credentialPackObservable
+                    credentialPackObservable: credentialPackObservable,
+                    keyAlias: keyAlias
                 )
             }
             acceptedCount += 1
         } catch {
             // Treat a save failure like a decline for this credential rather
-            // than blocking the rest of the flow.
+            // than blocking the rest of the flow, but say so.
             print(error)
+            ToastManager.shared.showError(message: "Couldn't add credential: \(error)")
         }
         storing = false
         finishIfAllDecided()

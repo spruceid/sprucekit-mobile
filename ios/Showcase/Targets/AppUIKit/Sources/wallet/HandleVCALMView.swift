@@ -415,6 +415,7 @@ struct HandleVCALMView: View {
                 vdcCollection: vdcCollection,
                 trustedDids: trustedDids,
                 signer: signer,
+                keyId: DEFAULT_SIGNING_KEY_ID,
                 contextMap: nil,
             )
             self.holder = holder

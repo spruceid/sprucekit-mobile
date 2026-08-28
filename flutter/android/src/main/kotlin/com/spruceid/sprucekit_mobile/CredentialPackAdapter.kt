@@ -91,10 +91,10 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
         }
     }
 
-    override fun addAnyFormat(
+    override fun addAnyFormatWithKey(
         packId: String,
         rawCredential: String,
-        mdocKeyAlias: String,
+        keyAlias: String?,
         callback: (Result<AddCredentialResult>) -> Unit
     ) {
         CoroutineScope(Dispatchers.IO).launch {
@@ -105,7 +105,7 @@ internal class CredentialPackAdapter(private val context: Context) : CredentialP
                     return@launch
                 }
 
-                val credentials = pack.tryAddAnyFormat(rawCredential, mdocKeyAlias)
+                val credentials = pack.tryAddAnyFormatWithKey(rawCredential, keyAlias)
                 callback(Result.success(AddCredentialSuccess(
                     credentials = credentials.map { it.toData() }
                 )))

@@ -35,6 +35,7 @@ impl VcalmHolder {
         vdc_collection: Arc<VdcCollection>,
         trusted_dids: Vec<String>,
         signer: Box<dyn PresentationSigner>,
+        key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, VcalmError> {
         let context_map = Some(match context_map {
@@ -45,7 +46,10 @@ impl VcalmHolder {
         let inner = vcalm_rs::holder::VcalmHolder::new_session(
             vdc_collection,
             trusted_dids,
-            Arc::new(VcalmSignerAdapter(Arc::new(signer))),
+            Arc::new(VcalmSignerAdapter {
+                signer: Arc::new(signer),
+                key_id,
+            }),
             context_map,
         )
         .await?;

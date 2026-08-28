@@ -61,6 +61,8 @@ sealed class CredentialStepItem {
 fun AddToWalletView(
     navController: NavHostController,
     rawCredentials: List<String>,
+    // Key bound to every credential in this flow; null uses the shared key.
+    keyAlias: String? = null,
     onSuccess: (() -> Unit)? = null,
     // When false, the caller is responsible for navigation once `onSuccess`
     // fires — used by flows (like VCALM) that might need to continue in
@@ -126,12 +128,14 @@ fun AddToWalletView(
                         rawCredential,
                         credentialPacksViewModel,
                         walletActivityLogsViewModel,
+                        keyAlias,
                     )
                 }
                 acceptedCount += 1
             } catch (e: Exception) {
                 // Treat a save failure like a decline for this credential
-                // rather than blocking the rest of the flow.
+                // rather than blocking the rest of the flow, but say so.
+                Toast.showError("Couldn't add credential: ${e.message}")
             }
             storing = false
             finishIfAllDecided()

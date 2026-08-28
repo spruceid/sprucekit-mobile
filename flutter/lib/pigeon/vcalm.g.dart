@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-  List<Object?>? replyList,
-  String channelName, {
-  required bool isNullValid,
+    List<Object?>? replyList,
+    String channelName, {
+    required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -46,9 +46,8 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed.every(
-          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
-        );
+        a.indexed
+            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -97,6 +96,7 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
+
 /// The outcome of one VCALM (`vcapi`) exchange step.
 ///
 /// Mirrors the Rust `StepResult` enum
@@ -104,7 +104,8 @@ int _deepHash(Object? value) {
 /// cross-layer surface. Pigeon and UniFFI are separate codegens that meet
 /// inside the native adapter: the adapter projects the UniFFI `StepResult`
 /// returned by `VcalmHolder` onto this sealed hierarchy.
-sealed class VcalmStepResult {}
+sealed class VcalmStepResult {
+}
 
 /// The verifier asked for a presentation (a Verifiable-Presentation-Request).
 ///
@@ -130,12 +131,16 @@ class VcalmRequest extends VcalmStepResult {
   bool vprListsSdSuite;
 
   List<Object?> _toList() {
-    return <Object?>[challenge, domain, purpose, vprListsSdSuite];
+    return <Object?>[
+      challenge,
+      domain,
+      purpose,
+      vprListsSdSuite,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmRequest decode(Object result) {
     result as List<Object?>;
@@ -156,10 +161,7 @@ class VcalmRequest extends VcalmStepResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(challenge, other.challenge) &&
-        _deepEquals(domain, other.domain) &&
-        _deepEquals(purpose, other.purpose) &&
-        _deepEquals(vprListsSdSuite, other.vprListsSdSuite);
+    return _deepEquals(challenge, other.challenge) && _deepEquals(domain, other.domain) && _deepEquals(purpose, other.purpose) && _deepEquals(vprListsSdSuite, other.vprListsSdSuite);
   }
 
   @override
@@ -169,25 +171,29 @@ class VcalmRequest extends VcalmStepResult {
 
 /// The issuer offered one or more credentials.
 class VcalmOffer extends VcalmStepResult {
-  VcalmOffer({required this.credentials, required this.hasNextRequest});
+  VcalmOffer({
+    required this.credentials,
+    required this.hasNextRequest,
+  });
 
   List<VcalmOfferedCredentialData> credentials;
 
   bool hasNextRequest;
 
   List<Object?> _toList() {
-    return <Object?>[credentials, hasNextRequest];
+    return <Object?>[
+      credentials,
+      hasNextRequest,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmOffer decode(Object result) {
     result as List<Object?>;
     return VcalmOffer(
-      credentials: (result[0]! as List<Object?>)
-          .cast<VcalmOfferedCredentialData>(),
+      credentials: (result[0]! as List<Object?>).cast<VcalmOfferedCredentialData>(),
       hasNextRequest: result[1]! as bool,
     );
   }
@@ -201,8 +207,7 @@ class VcalmOffer extends VcalmStepResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(credentials, other.credentials) &&
-        _deepEquals(hasNextRequest, other.hasNextRequest);
+    return _deepEquals(credentials, other.credentials) && _deepEquals(hasNextRequest, other.hasNextRequest);
   }
 
   @override
@@ -212,21 +217,26 @@ class VcalmOffer extends VcalmStepResult {
 
 /// The exchange wants the holder to follow a redirect URL.
 class VcalmRedirect extends VcalmStepResult {
-  VcalmRedirect({required this.url});
+  VcalmRedirect({
+    required this.url,
+  });
 
   String url;
 
   List<Object?> _toList() {
-    return <Object?>[url];
+    return <Object?>[
+      url,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmRedirect decode(Object result) {
     result as List<Object?>;
-    return VcalmRedirect(url: result[0]! as String);
+    return VcalmRedirect(
+      url: result[0]! as String,
+    );
   }
 
   @override
@@ -253,21 +263,26 @@ class VcalmRedirect extends VcalmStepResult {
 /// member carries a single always-`true` marker. Match on the type, not the
 /// flag.
 class VcalmComplete extends VcalmStepResult {
-  VcalmComplete({required this.completed});
+  VcalmComplete({
+    required this.completed,
+  });
 
   bool completed;
 
   List<Object?> _toList() {
-    return <Object?>[completed];
+    return <Object?>[
+      completed,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmComplete decode(Object result) {
     result as List<Object?>;
-    return VcalmComplete(completed: result[0]! as bool);
+    return VcalmComplete(
+      completed: result[0]! as bool,
+    );
   }
 
   @override
@@ -305,12 +320,16 @@ class VcalmProblem extends VcalmStepResult {
   String? detail;
 
   List<Object?> _toList() {
-    return <Object?>[problemType, status, title, detail];
+    return <Object?>[
+      problemType,
+      status,
+      title,
+      detail,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmProblem decode(Object result) {
     result as List<Object?>;
@@ -331,10 +350,7 @@ class VcalmProblem extends VcalmStepResult {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(problemType, other.problemType) &&
-        _deepEquals(status, other.status) &&
-        _deepEquals(title, other.title) &&
-        _deepEquals(detail, other.detail);
+    return _deepEquals(problemType, other.problemType) && _deepEquals(status, other.status) && _deepEquals(title, other.title) && _deepEquals(detail, other.detail);
   }
 
   @override
@@ -343,25 +359,31 @@ class VcalmProblem extends VcalmStepResult {
 }
 
 /// Result of creating a holder session.
-sealed class VcalmResult {}
+sealed class VcalmResult {
+}
 
 /// Holder session created successfully.
 class VcalmSuccess extends VcalmResult {
-  VcalmSuccess({this.message});
+  VcalmSuccess({
+    this.message,
+  });
 
   String? message;
 
   List<Object?> _toList() {
-    return <Object?>[message];
+    return <Object?>[
+      message,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmSuccess decode(Object result) {
     result as List<Object?>;
-    return VcalmSuccess(message: result[0] as String?);
+    return VcalmSuccess(
+      message: result[0] as String?,
+    );
   }
 
   @override
@@ -383,21 +405,26 @@ class VcalmSuccess extends VcalmResult {
 
 /// Holder session creation failed.
 class VcalmError extends VcalmResult {
-  VcalmError({required this.message});
+  VcalmError({
+    required this.message,
+  });
 
   String message;
 
   List<Object?> _toList() {
-    return <Object?>[message];
+    return <Object?>[
+      message,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmError decode(Object result) {
     result as List<Object?>;
-    return VcalmError(message: result[0]! as String);
+    return VcalmError(
+      message: result[0]! as String,
+    );
   }
 
   @override
@@ -441,12 +468,17 @@ class VcalmRequestedFieldData {
   String? purpose;
 
   List<Object?> _toList() {
-    return <Object?>[queryIndex, path, value, required, purpose];
+    return <Object?>[
+      queryIndex,
+      path,
+      value,
+      required,
+      purpose,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmRequestedFieldData decode(Object result) {
     result as List<Object?>;
@@ -468,11 +500,7 @@ class VcalmRequestedFieldData {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(queryIndex, other.queryIndex) &&
-        _deepEquals(path, other.path) &&
-        _deepEquals(value, other.value) &&
-        _deepEquals(required, other.required) &&
-        _deepEquals(purpose, other.purpose);
+    return _deepEquals(queryIndex, other.queryIndex) && _deepEquals(path, other.path) && _deepEquals(value, other.value) && _deepEquals(required, other.required) && _deepEquals(purpose, other.purpose);
   }
 
   @override
@@ -508,12 +536,17 @@ class VcalmOfferedCredentialData {
   String rawCredential;
 
   List<Object?> _toList() {
-    return <Object?>[issuer, types, credentialSubject, validity, rawCredential];
+    return <Object?>[
+      issuer,
+      types,
+      credentialSubject,
+      validity,
+      rawCredential,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmOfferedCredentialData decode(Object result) {
     result as List<Object?>;
@@ -529,18 +562,13 @@ class VcalmOfferedCredentialData {
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(Object other) {
-    if (other is! VcalmOfferedCredentialData ||
-        other.runtimeType != runtimeType) {
+    if (other is! VcalmOfferedCredentialData || other.runtimeType != runtimeType) {
       return false;
     }
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(issuer, other.issuer) &&
-        _deepEquals(types, other.types) &&
-        _deepEquals(credentialSubject, other.credentialSubject) &&
-        _deepEquals(validity, other.validity) &&
-        _deepEquals(rawCredential, other.rawCredential);
+    return _deepEquals(issuer, other.issuer) && _deepEquals(types, other.types) && _deepEquals(credentialSubject, other.credentialSubject) && _deepEquals(validity, other.validity) && _deepEquals(rawCredential, other.rawCredential);
   }
 
   @override
@@ -555,19 +583,24 @@ class VcalmOfferedCredentialData {
 /// accepts these lightweight keys back from Dart. A credential is identified by
 /// the pair `(queryIndex, credentialId)`.
 class VcalmCredentialKey {
-  VcalmCredentialKey({required this.queryIndex, required this.credentialId});
+  VcalmCredentialKey({
+    required this.queryIndex,
+    required this.credentialId,
+  });
 
   int queryIndex;
 
   String credentialId;
 
   List<Object?> _toList() {
-    return <Object?>[queryIndex, credentialId];
+    return <Object?>[
+      queryIndex,
+      credentialId,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static VcalmCredentialKey decode(Object result) {
     result as List<Object?>;
@@ -586,14 +619,14 @@ class VcalmCredentialKey {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(queryIndex, other.queryIndex) &&
-        _deepEquals(credentialId, other.credentialId);
+    return _deepEquals(queryIndex, other.queryIndex) && _deepEquals(credentialId, other.credentialId);
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -602,34 +635,34 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    } else if (value is VcalmRequest) {
+    }    else if (value is VcalmRequest) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    } else if (value is VcalmOffer) {
+    }    else if (value is VcalmOffer) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    } else if (value is VcalmRedirect) {
+    }    else if (value is VcalmRedirect) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    } else if (value is VcalmComplete) {
+    }    else if (value is VcalmComplete) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    } else if (value is VcalmProblem) {
+    }    else if (value is VcalmProblem) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is VcalmSuccess) {
+    }    else if (value is VcalmSuccess) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    } else if (value is VcalmError) {
+    }    else if (value is VcalmError) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is VcalmRequestedFieldData) {
+    }    else if (value is VcalmRequestedFieldData) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is VcalmOfferedCredentialData) {
+    }    else if (value is VcalmOfferedCredentialData) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    } else if (value is VcalmCredentialKey) {
+    }    else if (value is VcalmCredentialKey) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
     } else {
@@ -677,10 +710,8 @@ class Vcalm {
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
   Vcalm({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-    : pigeonVar_binaryMessenger = binaryMessenger,
-      pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
-          ? '.$messageChannelSuffix'
-          : '';
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -696,29 +727,22 @@ class Vcalm {
   /// @param trustedDids Trusted DIDs for verification (forward-looking)
   /// @param keyId The keystore key identifier for signing (created if absent)
   /// @param contextMap Optional JSON-LD context map
-  Future<VcalmResult> createHolder(
-    List<String> credentialPackIds,
-    List<String> trustedDids,
-    String keyId,
-    Map<String, String>? contextMap,
-  ) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.Vcalm.createHolder$pigeonVar_messageChannelSuffix';
+  Future<VcalmResult> createHolder(List<String> credentialPackIds, List<String> trustedDids, String keyId, Map<String, String>? contextMap) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.createHolder$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[credentialPackIds, trustedDids, keyId, contextMap],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[credentialPackIds, trustedDids, keyId, contextMap]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as VcalmResult;
   }
 
@@ -729,23 +753,21 @@ class Vcalm {
   ///   the discovery GET)
   /// @return The first [VcalmStepResult]
   Future<VcalmStepResult> startExchange(String url, String? authHeader) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.Vcalm.startExchange$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.startExchange$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[url, authHeader],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[url, authHeader]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as VcalmStepResult;
   }
 
@@ -753,8 +775,7 @@ class Vcalm {
   ///
   /// @return Stable keys only (the opaque handles stay native)
   Future<List<VcalmCredentialKey>> matchedCredentials() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.Vcalm.matchedCredentials$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.matchedCredentials$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -764,17 +785,17 @@ class Vcalm {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return (pigeonVar_replyValue! as List<Object?>).cast<VcalmCredentialKey>();
   }
 
   /// Fields named by the current VPR (for user display).
   Future<List<VcalmRequestedFieldData>> requestedFields() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.Vcalm.requestedFields$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.requestedFields$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -784,12 +805,12 @@ class Vcalm {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
-    return (pigeonVar_replyValue! as List<Object?>)
-        .cast<VcalmRequestedFieldData>();
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<VcalmRequestedFieldData>();
   }
 
   /// Submit a Verifiable Presentation for the selected credentials.
@@ -801,34 +822,28 @@ class Vcalm {
   ///   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
   ///   user consent — never as a default. A domain mismatch otherwise returns a
   ///   [VcalmProblem] with `problemType == "domain-mismatch"`.
-  Future<VcalmStepResult> submitPresentation(
-    List<VcalmCredentialKey> selected,
-    bool allowDomainMismatch,
-  ) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.Vcalm.submitPresentation$pigeonVar_messageChannelSuffix';
+  Future<VcalmStepResult> submitPresentation(List<VcalmCredentialKey> selected, bool allowDomainMismatch) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.submitPresentation$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[selected, allowDomainMismatch],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[selected, allowDomainMismatch]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as VcalmStepResult;
   }
 
   /// Preview the credentials offered in the current Offer.
   Future<List<VcalmOfferedCredentialData>> offeredCredentials() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.Vcalm.offeredCredentials$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.offeredCredentials$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -838,18 +853,17 @@ class Vcalm {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
-    return (pigeonVar_replyValue! as List<Object?>)
-        .cast<VcalmOfferedCredentialData>();
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<VcalmOfferedCredentialData>();
   }
 
   /// Accept the current Offer (verify + store), then advance the exchange.
   Future<VcalmStepResult> acceptOffer() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.Vcalm.acceptOffer$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.acceptOffer$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -859,17 +873,17 @@ class Vcalm {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as VcalmStepResult;
   }
 
   /// Reject the current Offer, then advance the exchange.
   Future<VcalmStepResult> rejectOffer() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.Vcalm.rejectOffer$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.rejectOffer$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -879,17 +893,17 @@ class Vcalm {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as VcalmStepResult;
   }
 
   /// Cancel and clean up the current session.
   Future<void> cancel() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.Vcalm.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.Vcalm.cancel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -899,9 +913,10 @@ class Vcalm {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 }

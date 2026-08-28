@@ -77,36 +77,42 @@ impl VcalmCredentialStore for VdcCollection {
 }
 
 /// Bridges `PresentationSigner` onto VCALM's signer port.
+///
+/// VCALM's port is not keyed, so the session's `key_id` is pinned here and used
+/// for every call.
 #[derive(Debug)]
-pub(crate) struct VcalmSignerAdapter(pub(crate) Arc<Box<dyn PresentationSigner>>);
+pub(crate) struct VcalmSignerAdapter {
+    pub(crate) signer: Arc<Box<dyn PresentationSigner>>,
+    pub(crate) key_id: String,
+}
 
 #[async_trait::async_trait]
 impl VcalmSigner for VcalmSignerAdapter {
     async fn sign(&self, payload: Vec<u8>) -> Result<Vec<u8>, PortError> {
-        self.0
-            .sign(payload)
+        self.signer
+            .sign(self.key_id.clone(), payload)
             .await
             .map_err(|e| PortError::Signing(e.to_string()))
     }
 
     fn algorithm(&self) -> Algorithm {
-        self.0.algorithm()
+        self.signer.algorithm()
     }
 
     async fn verification_method(&self) -> String {
-        self.0.verification_method().await
+        self.signer.verification_method(self.key_id.clone()).await
     }
 
     fn did(&self) -> String {
-        self.0.did()
+        self.signer.did(self.key_id.clone())
     }
 
     fn cryptosuite(&self) -> CryptosuiteString {
-        self.0.cryptosuite()
+        self.signer.cryptosuite()
     }
 
     fn jwk(&self) -> String {
-        self.0.jwk()
+        self.signer.jwk(self.key_id.clone())
     }
 }
 
@@ -193,7 +199,10 @@ mod tests {
     async fn holder_constructs_over_the_real_sdk_types() {
         let vdc = Arc::new(VdcCollection::new(Arc::new(LocalStore::new())));
         let signer: Box<dyn PresentationSigner> = Box::new(crate::tests::load_signer());
-        let signer = Arc::new(VcalmSignerAdapter(Arc::new(signer)));
+        let signer = Arc::new(VcalmSignerAdapter {
+            signer: Arc::new(signer),
+            key_id: String::new(),
+        });
 
         let holder: Arc<VcalmHolder<SdkCredential>> = VcalmHolder::new_session(
             vdc,

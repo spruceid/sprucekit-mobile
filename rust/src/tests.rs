@@ -53,6 +53,7 @@ pub async fn test_vc_playground_oid4vp() {
         vec![credential.clone()],
         trusted_dids,
         Box::new(signer),
+        String::new(),
         Some(default_ld_json_context()),
         None,
     )
@@ -102,6 +103,7 @@ pub async fn test_vc_playground_oid4vp() {
 }
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use oid4vci::{
         profile::{StandardFormat, W3cVcFormat},

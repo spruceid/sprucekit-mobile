@@ -91,10 +91,10 @@ class CredentialPackAdapter: CredentialPack {
         }
     }
 
-    func addAnyFormat(
+    func addAnyFormatWithKey(
         packId: String,
         rawCredential: String,
-        mdocKeyAlias: String,
+        keyAlias: String?,
         completion: @escaping (Result<AddCredentialResult, any Error>) -> Void
     ) {
         Task {
@@ -107,9 +107,9 @@ class CredentialPackAdapter: CredentialPack {
                 }
                 lock.unlock()
 
-                let credentials = try await pack.tryAddAnyFormat(
+                let credentials = try await pack.tryAddAnyFormatWithKey(
                     rawCredential: rawCredential,
-                    mdocKeyAlias: mdocKeyAlias
+                    keyAlias: keyAlias
                 )
                 completion(.success(AddCredentialSuccess(
                     credentials: credentials.map { $0.toData() }

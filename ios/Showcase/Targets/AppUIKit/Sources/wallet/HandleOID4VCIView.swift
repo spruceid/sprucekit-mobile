@@ -19,6 +19,9 @@ struct HandleOID4VCIView: View {
     @State var loading: Bool = false
     @State var err: String?
     @State var credentials: [String] = []
+    /// Key for this issuance session, shared by the whole offer because one key
+    /// backs the client id that every proof is signed against.
+    @State var credentialKeyAlias: String?
     @State var credentialPack: CredentialPack?
 
     @State var showPinAlert: Bool = false
@@ -83,10 +86,13 @@ struct HandleOID4VCIView: View {
         let httpClient = Oid4vciAsyncHttpClient()
 
         // Setup signer.
-        let jwk = KeyManager.getOrInsertJwk(id: DEFAULT_SIGNING_KEY_ID).copy()
+        let keyAlias = "credential/" + UUID().uuidString
+        _ = KeyManager.generateSigningKey(id: keyAlias)
+        credentialKeyAlias = keyAlias
+        let jwk = KeyManager.getJwk(id: keyAlias)!.copy()
         let didUrl = generateDidJwkUrl(jwk: jwk)
         jwk.setKid(kid: didUrl.description)
-        let signer = KeyManagerJwkSigner(id: DEFAULT_SIGNING_KEY_ID, jwk: jwk)
+        let signer = KeyManagerJwkSigner(id: keyAlias, jwk: jwk)
 
         let clientId = didUrl.did().description
         let oid4vciClient = Oid4vciClient(clientId: clientId)
@@ -207,7 +213,7 @@ struct HandleOID4VCIView: View {
                     back()
                 }
             } else if !credentials.isEmpty {
-                AddToWalletView(path: _path, rawCredentials: credentials)
+                AddToWalletView(path: _path, rawCredentials: credentials, keyAlias: credentialKeyAlias)
             }
 
         }
@@ -301,7 +307,7 @@ class KeyManagerJwkSigner: JwsSigner, @unchecked Sendable {
 
     func signBytes(signingBytes: Data) async throws -> Data {
         return try decodeDerSignature(signatureDer: Data(KeyManager.signPayload(
-            id: DEFAULT_SIGNING_KEY_ID,
+            id: self.id,
             payload: [UInt8](signingBytes)
         )!))
     }
