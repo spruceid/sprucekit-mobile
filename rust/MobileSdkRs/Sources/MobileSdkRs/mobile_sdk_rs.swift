@@ -11652,6 +11652,15 @@ public protocol Oid4vpSessionProtocol: AnyObject, Sendable {
     
     func credentials()  -> [Oid4vpPresentableCredential]
     
+    /**
+     * Notify the verifier that the end-user declined this OID4VP request.
+     *
+     * The notification is available for v1, Draft 18, and Draft 13 sessions
+     * when they use `direct_post` or `direct_post.jwt`. Draft 13 is translated
+     * to the Draft 18 implementation by this compatibility facade.
+     */
+    func denyPermission() async throws  -> Url?
+    
     func domain()  -> String?
     
     /**
@@ -11789,6 +11798,30 @@ open func credentials() -> [Oid4vpPresentableCredential]  {
             self.uniffiCloneHandle(),$0
     )
 })
+}
+    
+    /**
+     * Notify the verifier that the end-user declined this OID4VP request.
+     *
+     * The notification is available for v1, Draft 18, and Draft 13 sessions
+     * when they use `direct_post` or `direct_post.jwt`. Draft 13 is translated
+     * to the Draft 18 implementation by this compatibility facade.
+     */
+open func denyPermission()async throws  -> Url?  {
+    return
+        try  await uniffiRustCallAsync(
+            rustFutureFunc: {
+                uniffi_mobile_sdk_rs_fn_method_oid4vpsession_deny_permission(
+                    self.uniffiCloneHandle()
+                    
+                )
+            },
+            pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
+            completeFunc: ffi_mobile_sdk_rs_rust_future_complete_rust_buffer,
+            freeFunc: ffi_mobile_sdk_rs_rust_future_free_rust_buffer,
+            liftFunc: FfiConverterOptionTypeUrl.lift,
+            errorHandler: FfiConverterTypeOid4vpFacadeError_lift
+        )
 }
     
 open func domain() -> String?  {
@@ -15323,8 +15356,30 @@ public protocol VcalmHolderProtocol: AnyObject, Sendable {
     
     /**
      * Build, sign and POST a verifiable presentation.
+     *
+     * `selected_credentials` are the credentials the user chose (e.g. from
+     * `matched_credentials()`). `selected_fields` is keyed by VPR query index:
+     * the entry for `i` is the field paths the user consented to disclose for
+     * query `i`.
+     *
+     * A MISSING key means "no narrowing" — everything that query named is
+     * disclosed; a present-but-empty list means the user deselected every field.
+     * An empty map is therefore the right input for a caller with no per-field
+     * consent UI. Paths must equal what `requested_fields()` returned (plain
+     * string equality, no prefix semantics, so `credentialSubject.address` does
+     * not select `credentialSubject.address.street`). Only `credentialSubject.*`
+     * paths narrow: structural properties like `credentialStatus` are always
+     * disclosed, since the example states what the response credential must
+     * contain, and so should not be rendered as checkboxes. Dropping subject
+     * paths from a query that is not explicitly optional is refused with
+     * `RequiredFieldsDeselected`; an optional query with every subject field
+     * deselected drops that credential from the presentation rather than deriving
+     * a credential with no `credentialSubject`. Narrowing takes effect only for a
+     * credential carrying an `ecdsa-sd-2023` base proof — on the full-disclosure
+     * path `selected_fields` is ignored, and `matched_credentials()` reports
+     * `selective_disclosure` per credential for exactly that decision.
      */
-    func submitPresentation(selectedCredentials: [ParsedCredential], allowDomainMismatch: Bool) async throws  -> StepResult
+    func submitPresentation(selectedCredentials: [ParsedCredential], selectedFields: [UInt32: [String]], allowDomainMismatch: Bool) async throws  -> StepResult
     
 }
 open class VcalmHolder: VcalmHolderProtocol, @unchecked Sendable {
@@ -15523,14 +15578,36 @@ open func startExchange(input: String, authHeader: String?)async throws  -> Step
     
     /**
      * Build, sign and POST a verifiable presentation.
+     *
+     * `selected_credentials` are the credentials the user chose (e.g. from
+     * `matched_credentials()`). `selected_fields` is keyed by VPR query index:
+     * the entry for `i` is the field paths the user consented to disclose for
+     * query `i`.
+     *
+     * A MISSING key means "no narrowing" — everything that query named is
+     * disclosed; a present-but-empty list means the user deselected every field.
+     * An empty map is therefore the right input for a caller with no per-field
+     * consent UI. Paths must equal what `requested_fields()` returned (plain
+     * string equality, no prefix semantics, so `credentialSubject.address` does
+     * not select `credentialSubject.address.street`). Only `credentialSubject.*`
+     * paths narrow: structural properties like `credentialStatus` are always
+     * disclosed, since the example states what the response credential must
+     * contain, and so should not be rendered as checkboxes. Dropping subject
+     * paths from a query that is not explicitly optional is refused with
+     * `RequiredFieldsDeselected`; an optional query with every subject field
+     * deselected drops that credential from the presentation rather than deriving
+     * a credential with no `credentialSubject`. Narrowing takes effect only for a
+     * credential carrying an `ecdsa-sd-2023` base proof — on the full-disclosure
+     * path `selected_fields` is ignored, and `matched_credentials()` reports
+     * `selective_disclosure` per credential for exactly that decision.
      */
-open func submitPresentation(selectedCredentials: [ParsedCredential], allowDomainMismatch: Bool)async throws  -> StepResult  {
+open func submitPresentation(selectedCredentials: [ParsedCredential], selectedFields: [UInt32: [String]], allowDomainMismatch: Bool)async throws  -> StepResult  {
     return
         try  await uniffiRustCallAsync(
             rustFutureFunc: {
                 uniffi_mobile_sdk_rs_fn_method_vcalmholder_submit_presentation(
                     self.uniffiCloneHandle(),
-                    FfiConverterSequenceTypeParsedCredential.lower(selectedCredentials),FfiConverterBool.lower(allowDomainMismatch)
+                    FfiConverterSequenceTypeParsedCredential.lower(selectedCredentials),FfiConverterDictionaryUInt32SequenceString.lower(selectedFields),FfiConverterBool.lower(allowDomainMismatch)
                 )
             },
             pollFunc: ffi_mobile_sdk_rs_rust_future_poll_rust_buffer,
@@ -29785,6 +29862,8 @@ public enum VcalmError: Swift.Error, Equatable, Hashable, Foundation.LocalizedEr
     )
     case SdDeriveFailed(String
     )
+    case RequiredFieldsDeselected(queryIndex: UInt32, dropped: String
+    )
     case UnsupportedCredentialFormat(String
     )
 
@@ -29867,7 +29946,11 @@ public struct FfiConverterTypeVcalmError: FfiConverterRustBuffer {
         case 18: return .SdDeriveFailed(
             try FfiConverterString.read(from: &buf)
             )
-        case 19: return .UnsupportedCredentialFormat(
+        case 19: return .RequiredFieldsDeselected(
+            queryIndex: try FfiConverterUInt32.read(from: &buf), 
+            dropped: try FfiConverterString.read(from: &buf)
+            )
+        case 20: return .UnsupportedCredentialFormat(
             try FfiConverterString.read(from: &buf)
             )
 
@@ -29972,8 +30055,14 @@ public struct FfiConverterTypeVcalmError: FfiConverterRustBuffer {
             FfiConverterString.write(v1, into: &buf)
             
         
-        case let .UnsupportedCredentialFormat(v1):
+        case let .RequiredFieldsDeselected(queryIndex,dropped):
             writeInt(&buf, Int32(19))
+            FfiConverterUInt32.write(queryIndex, into: &buf)
+            FfiConverterString.write(dropped, into: &buf)
+            
+        
+        case let .UnsupportedCredentialFormat(v1):
+            writeInt(&buf, Int32(20))
             FfiConverterString.write(v1, into: &buf)
             
         }
@@ -33770,6 +33859,32 @@ fileprivate struct FfiConverterSequenceTypeUuid: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterDictionaryUInt32SequenceString: FfiConverterRustBuffer {
+    public static func write(_ value: [UInt32: [String]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterUInt32.write(key, into: &buf)
+            FfiConverterSequenceString.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt32: [String]] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [UInt32: [String]]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterUInt32.read(from: &buf)
+            let value = try FfiConverterSequenceString.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterDictionaryStringBool: FfiConverterRustBuffer {
     public static func write(_ value: [String: Bool], into buf: inout [UInt8]) {
         let len = Int32(value.count)
@@ -36394,6 +36509,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_credentials() != 57886) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_deny_permission() != 39040) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_mobile_sdk_rs_checksum_method_oid4vpsession_domain() != 36441) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -36562,7 +36680,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_start_exchange() != 15267) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 47400) {
+    if (uniffi_mobile_sdk_rs_checksum_method_vcalmholder_submit_presentation() != 8604) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_vdccollection_add() != 62104) {

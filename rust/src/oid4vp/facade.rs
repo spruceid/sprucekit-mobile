@@ -757,6 +757,26 @@ impl Oid4vpSession {
             _ => Err(Oid4vpFacadeError::VersionMismatch),
         }
     }
+
+    /// Notify the verifier that the end-user declined this OID4VP request.
+    ///
+    /// The notification is available for v1, Draft 18, and Draft 13 sessions
+    /// when they use `direct_post` or `direct_post.jwt`. Draft 13 is translated
+    /// to the Draft 18 implementation by this compatibility facade.
+    pub async fn deny_permission(&self) -> Result<Option<Url>, Oid4vpFacadeError> {
+        match &self.inner {
+            Oid4vpSessionInner::V1 { holder, request } => holder
+                .submit_permission_denial(&request.request)
+                .await
+                .map_err(Into::into),
+            Oid4vpSessionInner::Draft18 {
+                holder, request, ..
+            } => holder
+                .submit_permission_denial(&request.request)
+                .await
+                .map_err(Into::into),
+        }
+    }
 }
 
 #[uniffi::export]
@@ -1926,6 +1946,162 @@ mod tests {
             decoded.contains("\"path\":\"$\""),
             "single-VP descriptor_map root path must be \"$\" (draft-13 §6.2), got: {decoded}"
         );
+    }
+
+    #[tokio::test]
+    async fn facade_v1_denial_posts_access_denied_with_state() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/response"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let response_uri = format!("{}/response", server.uri());
+        let request = json!({
+            "client_id": format!("redirect_uri:{response_uri}"),
+            "response_uri": response_uri,
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "transaction-state",
+            "nonce": "nonce-denial",
+            "client_metadata": {
+                "vp_formats_supported": {
+                    "ldp_vc": { "proof_type_values": ["ecdsa-rdfc-2019"] }
+                }
+            },
+            "dcql_query": {
+                "credentials": [{
+                    "id": "credential",
+                    "format": "ldp_vc"
+                }]
+            }
+        })
+        .to_string();
+
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_supported_versions(request, vec![Oid4vpVersion::V1])
+            .await
+            .unwrap();
+
+        assert_eq!(session.deny_permission().await.unwrap(), None);
+
+        let received = server.received_requests().await.unwrap();
+        assert_eq!(received.len(), 1);
+        let body = String::from_utf8(received[0].body.clone()).unwrap();
+        assert!(
+            body.contains("error=access_denied"),
+            "unexpected body: {body}"
+        );
+        assert!(
+            body.contains("state=transaction-state"),
+            "unexpected body: {body}"
+        );
+        assert!(!body.contains("vp_token"), "unexpected body: {body}");
+    }
+
+    #[tokio::test]
+    async fn facade_draft18_denial_posts_access_denied_with_state() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/response"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let response_uri = format!("{}/response", server.uri());
+        let mut request: serde_json::Value = serde_json::from_str(&draft18_request()).unwrap();
+        request["response_uri"] = json!(response_uri);
+
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_supported_versions(request.to_string(), vec![Oid4vpVersion::Draft18])
+            .await
+            .unwrap();
+
+        assert_eq!(session.deny_permission().await.unwrap(), None);
+
+        let received = server.received_requests().await.unwrap();
+        assert_eq!(received.len(), 1);
+        let body = String::from_utf8(received[0].body.clone()).unwrap();
+        assert!(
+            body.contains("error=access_denied"),
+            "unexpected body: {body}"
+        );
+        assert!(body.contains("state=state-456"), "unexpected body: {body}");
+        assert!(!body.contains("vp_token"), "unexpected body: {body}");
+    }
+
+    #[tokio::test]
+    async fn facade_draft13_denial_posts_access_denied_with_state() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/response"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({})))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let response_uri = format!("{}/response", server.uri());
+        let mut request: serde_json::Value = serde_json::from_str(&draft13_request()).unwrap();
+        request["redirect_uri"] = json!(response_uri);
+
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![alumni_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start_with_supported_versions(request.to_string(), vec![Oid4vpVersion::Draft13])
+            .await
+            .unwrap();
+
+        assert_eq!(session.deny_permission().await.unwrap(), None);
+
+        let received = server.received_requests().await.unwrap();
+        assert_eq!(received.len(), 1);
+        let body = String::from_utf8(received[0].body.clone()).unwrap();
+        assert!(
+            body.contains("error=access_denied"),
+            "unexpected body: {body}"
+        );
+        assert!(body.contains("state=state-d13"), "unexpected body: {body}");
+        assert!(!body.contains("vp_token"), "unexpected body: {body}");
     }
 
     /// Regression for the motivating bug: a draft-13 request delivered by a bare

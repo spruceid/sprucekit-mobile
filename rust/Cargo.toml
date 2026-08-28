@@ -39,7 +39,7 @@ oid4vci_legacy = { package = "oid4vci", git = "https://github.com/spruceid/oid4v
 openid4vp = { git = "https://github.com/spruceid/openid4vp", rev = "6127287" }
 openidvp_draft18 = { package = "openid4vp", git = "https://github.com/spruceid/openid4vp", rev = "2446e7"}
 ssi = { version = "0.14", features = ["secp256r1", "secp384r1"] }
-vcalm-rs = { git = "https://github.com/spruceid/vcalm-rs", rev = "cd97bd7" }
+vcalm-rs = { git = "https://github.com/spruceid/vcalm-rs", rev = "d6f791e" }
 
 anyhow = "1"
 async-trait = "0.1"

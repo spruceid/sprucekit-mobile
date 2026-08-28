@@ -894,7 +894,10 @@ protocol Oid4vp {
   /// Empty when no providers are registered, none match the request, or the
   /// negotiated version is not v1. Call after `handleAuthorizationRequest`.
   func getDynamicOffers() throws -> [DynamicOfferData]
-  /// Cancel and cleanup the current session
+  /// Notify the verifier that the user denied the current direct-post OID4VP
+  /// request, then clean up the session.
+  func denyPermission(completion: @escaping (Result<Oid4vpResult, Error>) -> Void)
+  /// Cancel and cleanup the current session without notifying the verifier.
   func cancel() throws
 }
 
@@ -1095,7 +1098,24 @@ class Oid4vpSetup {
     } else {
       getDynamicOffersChannel.setMessageHandler(nil)
     }
-    /// Cancel and cleanup the current session
+    /// Notify the verifier that the user denied the current direct-post OID4VP
+    /// request, then clean up the session.
+    let denyPermissionChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.denyPermission\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      denyPermissionChannel.setMessageHandler { _, reply in
+        api.denyPermission { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      denyPermissionChannel.setMessageHandler(nil)
+    }
+    /// Cancel and cleanup the current session without notifying the verifier.
     let cancelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.Oid4vp.cancel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       cancelChannel.setMessageHandler { _, reply in

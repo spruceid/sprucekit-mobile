@@ -286,6 +286,11 @@ abstract class Oid4vp {
   /// negotiated version is not v1. Call after `handleAuthorizationRequest`.
   List<DynamicOfferData> getDynamicOffers();
 
-  /// Cancel and cleanup the current session
+  /// Notify the verifier that the user denied the current direct-post OID4VP
+  /// request, then clean up the session.
+  @async
+  Oid4vpResult denyPermission();
+
+  /// Cancel and cleanup the current session without notifying the verifier.
   void cancel();
 }
