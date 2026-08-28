@@ -134,7 +134,8 @@ fun AddToWalletView(
                 acceptedCount += 1
             } catch (e: Exception) {
                 // Treat a save failure like a decline for this credential
-                // rather than blocking the rest of the flow.
+                // rather than blocking the rest of the flow, but say so.
+                Toast.showError("Couldn't add credential: ${e.message}")
             }
             storing = false
             finishIfAllDecided()

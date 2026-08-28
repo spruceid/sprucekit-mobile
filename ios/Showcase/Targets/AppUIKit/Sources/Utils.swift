@@ -163,18 +163,32 @@ extension Sequence {
 
 let trustedDids: [String] = []
 
+/// Creates the wallet's shared signing key if it isn't there yet. Safe to call
+/// anywhere: a credential presented with this key was never cnf-bound to a
+/// per-credential one, so a freshly minted key still verifies.
+func ensureDefaultSigningKey() {
+    if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
+        _ = KeyManager.generateSigningKey(id: DEFAULT_SIGNING_KEY_ID)
+    }
+}
+
 /// Parses a raw credential string, saves it as a new `CredentialPack`, and
 /// records a "Claimed" wallet activity log entry for it — the same sequence
 /// `AddToWalletView`'s own accept step uses. Shared so other flows (e.g. VCALM
 /// offers) that store a credential outside of `AddToWalletView`'s own review
 /// UI stay consistent with it, rather than reimplementing this inline.
+///
+/// Binds the credential to `keyAlias`, or to the shared key when `nil`.
 @discardableResult
-/// Stores `rawCredential` bound to `keyAlias`, or to the shared key when `nil`.
 func acceptRawCredentialIntoWallet(
     rawCredential: String,
     credentialPackObservable: CredentialPackObservable,
     keyAlias: String? = nil
 ) async throws -> CredentialPack {
+    // A per-credential alias is never bootstrapped; it has to come from issuance.
+    if keyAlias == nil {
+        ensureDefaultSigningKey()
+    }
     let credentialPack = CredentialPack()
     _ = try await credentialPack.tryAddAnyFormatWithKey(
         rawCredential: rawCredential, keyAlias: keyAlias ?? DEFAULT_SIGNING_KEY_ID)

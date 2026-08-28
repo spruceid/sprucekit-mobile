@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.ContextCompat
 import com.spruceid.mobile.sdk.CredentialPack
 import com.spruceid.mobile.sdk.CredentialsViewModel
+import com.spruceid.mobile.sdk.KeyManager
 import com.spruceid.mobile.sdk.rs.Cwt
 import com.spruceid.mobile.sdk.rs.IetfSdJwtVc
 import com.spruceid.mobile.sdk.rs.JsonVc
@@ -216,16 +217,33 @@ fun addCredential(credentialPack: CredentialPack, rawCredential: String): Creden
 }
 
 /**
+ * Creates the wallet's shared signing key if it isn't there yet. Safe to call
+ * anywhere: a credential presented with this key was never cnf-bound to a
+ * per-credential one, so a freshly minted key still verifies.
+ */
+fun ensureDefaultSigningKey() {
+    val keyManager = KeyManager()
+    if (!keyManager.keyExists(DEFAULT_SIGNING_KEY_ID)) {
+        keyManager.generateSigningKey(DEFAULT_SIGNING_KEY_ID)
+    }
+}
+
+/**
  * Shared so other flows (e.g. VCALM offers) that store a credential outside
  * of `AddToWalletView`'s stay consistent with it
+ *
+ * Binds the credential to [keyAlias], or to the shared key when null.
  */
-/** Stores [rawCredential] bound to [keyAlias], or to the shared key when null. */
 suspend fun acceptRawCredentialIntoWallet(
     rawCredential: String,
     credentialPacksViewModel: CredentialPacksViewModel,
     walletActivityLogsViewModel: WalletActivityLogsViewModel,
     keyAlias: String? = null,
 ): CredentialPack {
+    // A per-credential alias is never bootstrapped; it has to come from issuance.
+    if (keyAlias == null) {
+        ensureDefaultSigningKey()
+    }
     val credentialPack = CredentialPack()
     credentialPack.tryAddAnyFormatWithKey(rawCredential, keyAlias ?: DEFAULT_SIGNING_KEY_ID)
     credentialPacksViewModel.saveCredentialPack(credentialPack)

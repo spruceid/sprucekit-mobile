@@ -5,11 +5,7 @@ import SpruceIDMobileSdkRs
 @MainActor
 public func generateMockMdl() async {
     do {
-        if !KeyManager.keyExists(id: DEFAULT_SIGNING_KEY_ID) {
-            _ = KeyManager.generateSigningKey(
-                id: DEFAULT_SIGNING_KEY_ID
-            )
-        }
+        ensureDefaultSigningKey()
         let mdl = try generateTestMdl(
             keyManager: KeyManager(),
             keyAlias: DEFAULT_SIGNING_KEY_ID

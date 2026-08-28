@@ -98,8 +98,9 @@ struct AddToWalletView: View {
             acceptedCount += 1
         } catch {
             // Treat a save failure like a decline for this credential rather
-            // than blocking the rest of the flow.
+            // than blocking the rest of the flow, but say so.
             print(error)
+            ToastManager.shared.showError(message: "Couldn't add credential: \(error)")
         }
         storing = false
         finishIfAllDecided()
