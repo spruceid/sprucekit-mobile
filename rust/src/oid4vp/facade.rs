@@ -1987,6 +1987,7 @@ mod tests {
             vec![alumni_credential()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -2035,6 +2036,7 @@ mod tests {
             vec![alumni_credential()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
@@ -2080,6 +2082,7 @@ mod tests {
             vec![alumni_credential()],
             Vec::new(),
             Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
             Some(default_ld_json_context()),
             None,
         )
