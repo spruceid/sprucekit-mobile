@@ -9,7 +9,6 @@ import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.IsoMdlReader
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.nfc.NfcReaderEngagement
-import com.spruceid.mobile.sdk.rs.AuthenticationStatus
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseData
 import com.spruceid.mobile.sdk.rs.ReaderHandover
 import com.spruceid.mobile.sdk.rs.verifiedResponseAsJsonString
@@ -72,6 +71,7 @@ internal class MdlReaderAdapter(
     @SuppressLint("MissingPermission")
     override fun startNfcReader(
         query: Map<String, Map<String, Boolean>>,
+        docType: String,
         trustedRoots: List<String>,
     ) {
         // Tear down any previous session first.
@@ -144,7 +144,12 @@ internal class MdlReaderAdapter(
                     )
 
                 is NfcReaderEngagement.Event.Success ->
-                    onHandover(event.handover, query, trustedRoots)
+                    onHandover(
+                        event.handover,
+                        query,
+                        docType,
+                        trustedRoots,
+                    )
             }
         }
         nfcEngagement = engagement
@@ -159,12 +164,13 @@ internal class MdlReaderAdapter(
     override fun startQrReader(
         qrUri: String,
         query: Map<String, Map<String, Boolean>>,
+        docType: String,
         trustedRoots: List<String>,
     ) {
         cleanupInternal()
         try {
             val handover = ReaderHandover.newQr(qrUri)
-            onHandover(handover, query, trustedRoots)
+            onHandover(handover, query, docType, trustedRoots)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to build handover from QR URI", e)
             updateState(
@@ -180,6 +186,7 @@ internal class MdlReaderAdapter(
     private fun onHandover(
         handover: ReaderHandover,
         query: Map<String, Map<String, Boolean>>,
+        docType: String,
         trustedRoots: List<String>,
     ) {
         // NFC engagement already auto-deactivated after Success; we keep
@@ -226,6 +233,7 @@ internal class MdlReaderAdapter(
                 trustedRoots,
                 bluetoothManager,
                 context.applicationContext,
+                docType,
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to construct IsoMdlReader", e)
@@ -382,18 +390,9 @@ internal class MdlReaderAdapter(
         return MdlReadResponse(
             verifiedResponseJson = verifiedJson,
             docTypes = docTypes,
-            issuerAuthentication = issuerAuthentication.toPigeon(),
-            deviceAuthentication = deviceAuthentication.toPigeon(),
             errors = errors,
         )
     }
-
-    private fun AuthenticationStatus.toPigeon(): MdlAuthenticationStatus =
-        when (this) {
-            AuthenticationStatus.VALID -> MdlAuthenticationStatus.VALID
-            AuthenticationStatus.INVALID -> MdlAuthenticationStatus.INVALID
-            AuthenticationStatus.UNCHECKED -> MdlAuthenticationStatus.UNCHECKED
-        }
 
     companion object {
         private const val TAG = "MdlReaderAdapter"

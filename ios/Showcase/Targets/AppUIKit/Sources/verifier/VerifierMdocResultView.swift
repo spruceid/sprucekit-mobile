@@ -5,8 +5,6 @@ import SwiftUI
 struct VerifierMdocResultView: View {
     var result: [String: [String: MDocItem]]
     let docTypes: [String]
-    let issuerAuthenticationStatus: AuthenticationStatus
-    let deviceAuthenticationStatus: AuthenticationStatus
     let responseProcessingErrors: String?
     var onClose: () -> Void
     var logVerification: (String, String, String) -> Void
@@ -20,16 +18,12 @@ struct VerifierMdocResultView: View {
     init(
         result: [String: [String: MDocItem]],
         docTypes: [String],
-        issuerAuthenticationStatus: AuthenticationStatus,
-        deviceAuthenticationStatus: AuthenticationStatus,
         responseProcessingErrors: String?,
         onClose: @escaping () -> Void,
         logVerification: @escaping (String, String, String) -> Void
     ) {
         self.result = result
         self.docTypes = docTypes
-        self.issuerAuthenticationStatus = issuerAuthenticationStatus
-        self.deviceAuthenticationStatus = deviceAuthenticationStatus
         self.responseProcessingErrors = responseProcessingErrors
         self.onClose = onClose
         self.logVerification = logVerification
@@ -64,26 +58,14 @@ struct VerifierMdocResultView: View {
                 .foregroundStyle(Color("ColorStone600"))
             Divider()
             ScrollView(.vertical, showsIndicators: false) {
-                VStack {
-                    switch deviceAuthenticationStatus {
-                    case .valid:
-                        EmptyView()
-                    case .invalid:
-                        ToastError(message: "Device not authenticated")
-                    case .unchecked:
-                        ToastWarning(message: "Device not checked")
-                    }
-                    switch issuerAuthenticationStatus {
-                    case .valid:
-                        EmptyView()
-                    case .invalid:
-                        ToastError(message: "Issuer not authenticated")
-                    case .unchecked:
-                        ToastWarning(message: "Issuer not checked")
-                    }
-                }
-                .onTapGesture {
-                    showResponseProcessingErrors = true
+                // Whatever was verified is always shown; anything that went wrong is always
+                // reported alongside it. Elements come only from documents that passed every
+                // check, and a document that failed always contributes at least one error here.
+                if responseProcessingErrors != nil {
+                    ToastError(message: "Verification errors")
+                        .onTapGesture {
+                            showResponseProcessingErrors = true
+                        }
                 }
                 CredentialObjectDisplayer(dict: mdoc)
             }

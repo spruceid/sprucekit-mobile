@@ -25,7 +25,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.spruceid.mobile.sdk.convertToJson
-import com.spruceid.mobile.sdk.rs.AuthenticationStatus
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobilesdkexample.credentials.genericObjectDisplayer
 import com.spruceid.mobilesdkexample.ui.theme.ColorStone300
@@ -34,15 +33,12 @@ import com.spruceid.mobilesdkexample.ui.theme.ColorStone950
 import com.spruceid.mobilesdkexample.ui.theme.Inter
 import com.spruceid.mobilesdkexample.utils.ErrorToast
 import com.spruceid.mobilesdkexample.utils.SimpleAlertDialog
-import com.spruceid.mobilesdkexample.utils.WarningToast
 import com.spruceid.mobilesdkexample.utils.credentialTypeDisplayName
 
 @Composable
 fun VerifierMDocResultView(
     result: Map<String, Map<String, MDocItem>>,
     docTypes: List<String>,
-    issuerAuthenticationStatus: AuthenticationStatus,
-    deviceAuthenticationStatus: AuthenticationStatus,
     responseProcessingErrors: String? = null,
     onClose: () -> Unit,
     logVerification: (String, String, String) -> Unit,
@@ -106,18 +102,14 @@ fun VerifierMDocResultView(
                 .verticalScroll(rememberScrollState())
         ) {
             Column(Modifier.padding(vertical = 16.dp)) {
+                // Whatever was verified is always shown; anything that went wrong is always
+                // reported alongside it. Elements come only from documents that passed every
+                // check, and a document that failed always contributes at least one error here.
                 SimpleAlertDialog(
                     message = responseProcessingErrors,
                     trigger = {
-                        when (deviceAuthenticationStatus) {
-                            AuthenticationStatus.VALID -> null
-                            AuthenticationStatus.INVALID -> ErrorToast("Device not authenticated")
-                            AuthenticationStatus.UNCHECKED -> WarningToast("Device not checked")
-                        }
-                        when (issuerAuthenticationStatus) {
-                            AuthenticationStatus.VALID -> null
-                            AuthenticationStatus.INVALID -> ErrorToast("Issuer not authenticated")
-                            AuthenticationStatus.UNCHECKED -> WarningToast("Issuer not checked")
+                        if (responseProcessingErrors != null) {
+                            ErrorToast("Verification errors")
                         }
                     }
                 )

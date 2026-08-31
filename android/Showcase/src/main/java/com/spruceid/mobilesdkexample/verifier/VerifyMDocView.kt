@@ -54,7 +54,6 @@ import com.spruceid.mobile.sdk.IsoMdlReader
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.getPermissions
 import com.spruceid.mobile.sdk.nfc.rememberNfcReaderEngagement
-import com.spruceid.mobile.sdk.rs.AuthenticationStatus
 import com.spruceid.mobile.sdk.rs.MDocItem
 import com.spruceid.mobile.sdk.rs.ReaderHandover
 import com.spruceid.mobilesdkexample.LoadingView
@@ -149,6 +148,34 @@ val ageOver18Elements: Map<String, Map<String, Boolean>> =
         )
     )
 
+/** ISO 18013-5 mobile driver's license doctype. */
+const val MDL_DOC_TYPE = "org.iso.18013.5.1.mDL"
+
+/** What the mdoc reader asks for: which document type, and which data elements. */
+enum class MDocVerificationProfile {
+    /** ISO 18013-5 mobile driver's license. */
+    MDL,
+
+    /** ISO 18013-5 mobile driver's license, requesting only `age_over_18`. */
+    MDL_AGE_OVER_18;
+
+    /** The document type to request. */
+    val docType: String
+        get() = when (this) {
+            MDL, MDL_AGE_OVER_18 -> MDL_DOC_TYPE
+        }
+
+    /**
+     * Requested data elements, keyed by namespace then element identifier. The value is the
+     * reader's intent to retain the element.
+     */
+    val requestedItems: Map<String, Map<String, Boolean>>
+        get() = when (this) {
+            MDL -> defaultElements
+            MDL_AGE_OVER_18 -> ageOver18Elements
+        }
+}
+
 enum class State {
     ENABLE_BLUETOOTH,
     SCANNING,
@@ -163,7 +190,7 @@ enum class State {
 @Composable
 fun VerifyMDocView(
     navController: NavController,
-    checkAgeOver18: Boolean = false
+    profile: MDocVerificationProfile = MDocVerificationProfile.MDL
 ) {
     val verificationActivityLogsViewModel: VerificationActivityLogsViewModel =
         activityHiltViewModel()
@@ -178,8 +205,6 @@ fun VerifyMDocView(
 
     var result by remember { mutableStateOf<Map<String, Map<String, MDocItem>>?>(null) }
     var docTypes by remember { mutableStateOf<List<String>>(emptyList()) }
-    var issuerAuthenticationStatus by remember { mutableStateOf<AuthenticationStatus?>(null) }
-    var deviceAuthenticationStatus by remember { mutableStateOf<AuthenticationStatus?>(null) }
     var responseProcessingErrors by remember { mutableStateOf<String?>(null) }
 
     var isBluetoothEnabled by remember {
@@ -234,8 +259,6 @@ fun VerifyMDocView(
                 if (response != null) {
                     result = response.verifiedResponse
                     docTypes = response.docTypes
-                    issuerAuthenticationStatus = response.issuerAuthentication
-                    deviceAuthenticationStatus = response.deviceAuthentication
                     responseProcessingErrors = response.errors
                 }
                 scanProcessState = State.DONE
@@ -268,16 +291,13 @@ fun VerifyMDocView(
                 reader = IsoMdlReader(
                     bleCallback,
                     handover,
-                    if (checkAgeOver18) {
-                        ageOver18Elements
-                    } else {
-                        defaultElements
-                    },
+                    profile.requestedItems,
                     trustedCertificatesViewModel.trustedCertificates.value.map {
                         it.content
                     },
                     bluetooth!!,
-                    context.applicationContext
+                    context.applicationContext,
+                    profile.docType
                 )
             } catch (e: Exception) {
                 e.localizedMessage?.let { Toast.showError(it) }
@@ -374,8 +394,6 @@ fun VerifyMDocView(
         State.DONE -> VerifierMDocResultView(
             result = result!!,
             docTypes = docTypes,
-            issuerAuthenticationStatus = issuerAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
-            deviceAuthenticationStatus = deviceAuthenticationStatus ?: AuthenticationStatus.UNCHECKED,
             responseProcessingErrors = responseProcessingErrors,
             onClose = ::back,
             logVerification = { title, issuer, status ->

@@ -60,10 +60,10 @@ class _MdlReaderDemoState extends State<MdlReaderDemo>
     },
   };
 
-  /// IACA trust anchors (PEM). Empty list → no chain validation
-  /// (issuerAuthentication will be `invalid` or `unchecked`). Demo leaves
-  /// empty so the trust path is exercised but visibly fails — see the
-  /// trust badge in the response view.
+  /// IACA trust anchors (PEM). Empty list → no chain validation, which shows
+  /// up as an entry in [MdlReadResponse.errors]. Demo leaves empty so the
+  /// trust path is exercised but visibly fails — see the trust badge in the
+  /// response view.
   static const List<String> _trustedRoots = [];
 
   @override
@@ -388,9 +388,10 @@ class _ResponseView extends StatelessWidget {
   final MdlReadResponse response;
   final VoidCallback onReset;
 
-  bool get _trusted =>
-      response.issuerAuthentication == MdlAuthenticationStatus.valid &&
-      response.deviceAuthentication == MdlAuthenticationStatus.valid;
+  /// The verified items are drawn solely from documents that passed every
+  /// check, and a document that failed always contributes at least one entry
+  /// to [MdlReadResponse.errors] — so their absence is the success signal.
+  bool get _trusted => response.errors == null;
 
   Color get _trustColor => _trusted ? Colors.green : Colors.red.shade700;
 
@@ -436,11 +437,6 @@ class _ResponseView extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                           color: _trustColor,
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'issuer: ${response.issuerAuthentication.name}'
-                        '   device: ${response.deviceAuthentication.name}',
                       ),
                     ],
                   ),

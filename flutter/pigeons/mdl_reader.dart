@@ -57,15 +57,6 @@ enum MdlReaderState {
   error,
 }
 
-/// Outcome of authenticity checks. Mirrors Rust `AuthenticationStatus` 1:1.
-///
-/// - [valid] — signature verified AND certificate chain validated to a
-///   trust anchor in the registry passed to start.
-/// - [invalid] — signature failed OR chain validation failed.
-/// - [unchecked] — not yet validated (e.g. parsing failed before validation
-///   could run, or no trust anchors provided).
-enum MdlAuthenticationStatus { valid, invalid, unchecked }
-
 /// Verified response from a successful read.
 ///
 /// The verified items are transported as a JSON string (the canonical Rust
@@ -102,16 +93,22 @@ class MdlReadResponse {
   /// E.g. `["org.iso.18013.5.1.mDL"]`.
   List<String> docTypes;
 
-  /// Outcome of issuer (MSO) signature + cert-chain-to-trust-anchor validation.
-  MdlAuthenticationStatus issuerAuthentication;
-
-  /// Outcome of device authentication (replay protection).
-  MdlAuthenticationStatus deviceAuthentication;
-
-  /// JSON-encoded `Map<String, List<String>>` of per-category errors, or null
-  /// when no errors. Categories include `issuer_authentication_errors`,
-  /// `device_authentication_errors`, `certificate_errors`, `parsing_errors`.
-  /// CRL `revocation_errors` are surfaced here as well (non-fatal).
+  /// JSON-encoded diagnostics, or null when nothing went wrong. Shaped as:
+  /// ```
+  /// {
+  ///   "response": ["..."],                       // response-level failures
+  ///   "documents": { "<claimed doctype>": ["..."] },  // per-document reasons
+  ///   "unrequested": ["<claimed doctype>"]       // arrived unasked, not validated
+  /// }
+  /// ```
+  /// The per-document entries carry the reason a document failed, which the
+  /// response-level list does not: a document failing on its own contributes
+  /// only a bare "documents failed" there.
+  ///
+  /// This is the only signal that something went wrong: the verified items are
+  /// drawn solely from documents that passed every check, and a document that
+  /// failed always contributes at least one reason here. Non-null means show
+  /// it; the verified items should be displayed either way.
   ///
   /// Consumers can `jsonDecode(errors)` if non-null to inspect specifics.
   String? errors;
@@ -119,8 +116,6 @@ class MdlReadResponse {
   MdlReadResponse({
     required this.verifiedResponseJson,
     required this.docTypes,
-    required this.issuerAuthentication,
-    required this.deviceAuthentication,
     this.errors,
   });
 }
@@ -199,13 +194,16 @@ abstract class MdlReader {
   ///     "org.iso.18013.5.1.aamva": { "EDL_credential": false },
   ///   }
   ///   ```
-  ///   The doctype (e.g. `"org.iso.18013.5.1.mDL"`) is derived from the
-  ///   namespaces by the SDK; it is not passed separately.
+  /// @param docType The document type to request, e.g. `"org.iso.18013.5.1.mDL"`
+  ///   or `"org.iso.23220.photoid.1"`. Required, and not inferred from [query]:
+  ///   a request naming the wrong doctype is answered with nothing rather than
+  ///   an error, so the caller must say what it is asking for.
   /// @param trustedRoots List of PEM-encoded IACA root certificates. Empty
-  ///   list disables chain validation; [MdlAuthenticationStatus.invalid]
-  ///   (or [unchecked]) will be returned in that case.
+  ///   list disables chain validation, which surfaces as an entry in
+  ///   [MdlReadResponse.errors].
   void startNfcReader(
     Map<String, Map<String, bool>> query,
+    String docType,
     List<String> trustedRoots,
   );
 
@@ -219,10 +217,12 @@ abstract class MdlReader {
   /// @param qrUri The full QR code payload string scanned from the holder's
   ///   device.
   /// @param query See [startNfcReader].
+  /// @param docType See [startNfcReader].
   /// @param trustedRoots See [startNfcReader].
   void startQrReader(
     String qrUri,
     Map<String, Map<String, bool>> query,
+    String docType,
     List<String> trustedRoots,
   );
 

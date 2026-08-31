@@ -6,14 +6,19 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use isomdl::{
     definitions::{
-        device_request,
-        helpers::{non_empty_map, NonEmptyMap},
+        device_request::{self, ItemsRequest},
+        helpers::{non_empty_map, NonEmptyMap, NonEmptyVec},
         x509::{
             self,
             trust_anchor::{PemTrustAnchor, TrustAnchorRegistry},
+            validation::{AnyDocType, MdocProfile, ValidationOptions},
         },
     },
-    presentation::{authentication::AuthenticationStatus as IsoMdlAuthenticationStatus, reader},
+    presentation::{
+        authentication::ResponseValidationOutcome,
+        reader,
+        reader_utils::{self, ReaderValidationConfig},
+    },
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -192,18 +197,29 @@ impl ReaderHandover {
     }
 }
 
+/// Establish a reader session and build the request for the given document type.
+///
+/// Arguments:
+/// handover: the engagement handover, from a scanned QR code or an NFC exchange.
+/// requested_items: the data elements to request, keyed by namespace then element identifier,
+///                  with the value indicating intent to retain.
+/// trust_anchor_registry: PEM-encoded IACA certificates to validate the issuer against.
+/// doc_type: the document type to request. Required: there is no sensible default, and a request
+///           carrying the wrong doctype is answered with nothing rather than an error, so the
+///           caller must say what it is asking for.
 #[uniffi::export]
 pub fn establish_session(
     handover: Arc<ReaderHandover>,
     requested_items: HashMap<String, HashMap<String, bool>>,
     trust_anchor_registry: Option<Vec<String>>,
+    doc_type: String,
 ) -> Result<MDLReaderSessionData, MDLReaderSessionError> {
     let namespaces: Result<BTreeMap<_, NonEmptyMap<_, _>>, non_empty_map::Error> = requested_items
         .into_iter()
-        .map(|(doc_type, namespaces)| {
-            let namespaces: BTreeMap<_, _> = namespaces.into_iter().collect();
-            match namespaces.try_into() {
-                Ok(n) => Ok((doc_type, n)),
+        .map(|(namespace, elements)| {
+            let elements: BTreeMap<_, _> = elements.into_iter().collect();
+            match elements.try_into() {
+                Ok(n) => Ok((namespace, n)),
                 Err(e) => Err(e),
             }
         })
@@ -223,8 +239,10 @@ pub fn establish_session(
             value: format!("unable to construct TrustAnchorRegistry: {e:?}"),
         })?;
 
+    let items_requests = NonEmptyVec::new(ItemsRequest::new(doc_type, namespaces));
+
     let (manager, request, ble_ident) =
-        reader::SessionManager::establish_session(handover.0.clone(), namespaces, registry)
+        reader::SessionManager::establish_session(handover.0.clone(), items_requests, registry)
             .map_err(|e| MDLReaderSessionError::Generic {
                 value: format!("unable to establish session: {e:?}"),
             })?;
@@ -318,22 +336,6 @@ impl From<&MDocItem> for serde_json::Value {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, uniffi::Enum)]
-pub enum AuthenticationStatus {
-    Valid,
-    Invalid,
-    Unchecked,
-}
-
-impl From<IsoMdlAuthenticationStatus> for AuthenticationStatus {
-    fn from(internal: IsoMdlAuthenticationStatus) -> Self {
-        match internal {
-            IsoMdlAuthenticationStatus::Valid => AuthenticationStatus::Valid,
-            IsoMdlAuthenticationStatus::Invalid => AuthenticationStatus::Invalid,
-            IsoMdlAuthenticationStatus::Unchecked => AuthenticationStatus::Unchecked,
-        }
-    }
-}
 #[derive(uniffi::Record, Debug)]
 pub struct MDLReaderResponseData {
     state: Arc<MDLSessionManager>,
@@ -341,10 +343,6 @@ pub struct MDLReaderResponseData {
     verified_response: HashMap<String, HashMap<String, MDocItem>>,
     /// Document types (doctypes) from the presented credentials.
     pub doc_types: Vec<String>,
-    /// Outcome of issuer authentication.
-    pub issuer_authentication: AuthenticationStatus,
-    /// Outcome of device authentication.
-    pub device_authentication: AuthenticationStatus,
     /// Errors that occurred during response processing.
     pub errors: Option<String>,
 }
@@ -394,61 +392,126 @@ pub fn verified_response_as_json_string(
 }
 
 type VerifiedNamespaces = HashMap<String, HashMap<String, MDocItem>>;
-type VerifiedNamespacesAndErrors = (VerifiedNamespaces, Option<String>);
 
-fn verified_namespaces_and_errors(
-    validated_response: &isomdl::presentation::authentication::ResponseAuthenticationOutcome,
-) -> Result<VerifiedNamespacesAndErrors, MDLReaderResponseError> {
-    let errors = if !validated_response.errors.is_empty() {
-        Some(
-            serde_json::to_string(&validated_response.errors).map_err(|e| {
-                MDLReaderResponseError::Generic {
-                    value: format!("Could not serialze errors: {e:?}"),
-                }
-            })?,
-        )
-    } else {
-        None
-    };
-    let verified_response: Result<_, _> = validated_response
-        .response
-        .iter()
-        .map(|(namespace, items)| {
-            if let Some(items) = items.as_object() {
-                let items = items
-                    .iter()
-                    .map(|(item, value)| (item.clone(), value.clone().into()))
-                    .collect();
-                Ok((namespace.to_string(), items))
-            } else {
-                Err(MDLReaderResponseError::Generic {
-                    value: format!("Items not object, instead: {items:#?}"),
-                })
-            }
-        })
-        .collect();
-    let verified_response = verified_response.map_err(|e| MDLReaderResponseError::Generic {
-        value: format!("Unable to parse response: {e:?}"),
-    })?;
-    Ok((verified_response, errors))
+/// The verified namespaces, the doctypes to display, and any errors, from a validation outcome.
+///
+/// Only documents that passed every check contribute elements: showing a holder's claimed values as
+/// if they were verified would be worse than showing nothing. Doctypes are taken from the
+/// signature-verified MSO for documents that passed, and from the holder's unauthenticated label for
+/// documents that failed -- the latter only so the UI can name what it could not verify, alongside
+/// the errors saying why.
+/// Everything that went wrong with a response, flattened into one diagnostic payload.
+///
+/// The per-document reasons matter as much as the response-level ones: a document that fails on
+/// its own contributes only a bare
+/// [`DocumentsFailed`](isomdl::presentation::authentication::ResponseError::DocumentsFailed) to
+/// the response-level list, so reporting only that leaves a failure with no explanation. This
+/// payload is the *only* signal that a document failed, since elements are drawn solely from
+/// documents that passed.
+#[derive(Serialize, Default)]
+struct ResponseErrors {
+    /// Reasons the response as a whole is not wholly good.
+    response: Vec<String>,
+    /// Per-document failures, keyed by the doctype the holder claimed. Unauthenticated, since a
+    /// document that failed has no verified doctype to key on.
+    documents: BTreeMap<String, Vec<String>>,
+    /// Doctypes that arrived without being asked for. Dropped without validation, so they are
+    /// reported rather than silently discarded.
+    unrequested: Vec<String>,
 }
 
+impl ResponseErrors {
+    /// `None` when there is nothing at all to report, so the field stays absent rather than
+    /// carrying an empty structure that reads as a problem.
+    fn into_json(self) -> Result<Option<String>, serde_json::Error> {
+        if self.response.is_empty() && self.documents.is_empty() && self.unrequested.is_empty() {
+            return Ok(None);
+        }
+        serde_json::to_string(&self).map(Some)
+    }
+}
+
+impl From<&ResponseValidationOutcome> for ResponseErrors {
+    fn from(outcome: &ResponseValidationOutcome) -> Self {
+        let mut documents: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for failed in &outcome.failed {
+            documents
+                .entry(failed.claimed_doc_type.clone())
+                .or_default()
+                .extend(failed.errors.iter().map(ToString::to_string));
+        }
+        Self {
+            response: outcome.errors.iter().map(ToString::to_string).collect(),
+            documents,
+            unrequested: outcome
+                .rejected
+                .iter()
+                .map(|rejected| rejected.claimed_doc_type.clone())
+                .collect(),
+        }
+    }
+}
+
+fn verified_namespaces_and_errors(
+    outcome: &ResponseValidationOutcome,
+) -> Result<(VerifiedNamespaces, Vec<String>, Option<String>), MDLReaderResponseError> {
+    let errors =
+        ResponseErrors::from(outcome)
+            .into_json()
+            .map_err(|e| MDLReaderResponseError::Generic {
+                value: format!("Could not serialize errors: {e:?}"),
+            })?;
+
+    let mut verified_response = VerifiedNamespaces::new();
+    for document in &outcome.documents {
+        for (namespace, elements) in &document.namespaces {
+            let items: HashMap<String, MDocItem> = elements
+                .iter()
+                .map(|(identifier, value)| (identifier.clone(), value.clone().into()))
+                .collect();
+            verified_response
+                .entry(namespace.clone())
+                .or_default()
+                .extend(items);
+        }
+    }
+
+    let doc_types = outcome
+        .documents
+        .iter()
+        .map(|document| document.doc_type.clone())
+        .chain(
+            outcome
+                .failed
+                .iter()
+                .map(|failed| failed.claimed_doc_type.clone()),
+        )
+        .collect();
+
+    Ok((verified_response, doc_types, errors))
+}
+
+/// Arguments:
+/// state: the session established by [`establish_session`]
+/// response: the cbor encoded `DeviceResponse` received from the holder
 #[uniffi::export]
 pub fn handle_response(
     state: Arc<MDLSessionManager>,
     response: Vec<u8>,
 ) -> Result<MDLReaderResponseData, MDLReaderResponseError> {
     let mut state = state.0.clone();
+    // Every credential this SDK generates is signed under the ISO/IEC 18013-5 mDL profile,
+    // whatever its doctype.
+    let profiles = AnyDocType(MdocProfile::MDL);
     // blocking to avoid turning all functions async as revocation checks are currently unused due
     // to `()`
-    let validated_response = super::block_on(state.handle_response(&response, &()));
-    let (verified_response, errors) = verified_namespaces_and_errors(&validated_response)?;
+    let validated_response = super::block_on(state.handle_response(&response, &profiles, &()));
+    let (verified_response, doc_types, errors) =
+        verified_namespaces_and_errors(&validated_response)?;
     Ok(MDLReaderResponseData {
         state: Arc::new(MDLSessionManager(state)),
         verified_response,
-        doc_types: validated_response.doc_types,
-        issuer_authentication: AuthenticationStatus::from(validated_response.issuer_authentication),
-        device_authentication: AuthenticationStatus::from(validated_response.device_authentication),
+        doc_types,
         errors,
     })
 }
@@ -468,10 +531,6 @@ pub struct MDLDeviceResponseVerification {
     verified_response: HashMap<String, HashMap<String, MDocItem>>,
     /// Document types (doctypes) from the presented credentials.
     pub doc_types: Vec<String>,
-    /// Outcome of issuer authentication.
-    pub issuer_authentication: AuthenticationStatus,
-    /// Outcome of device authentication.
-    pub device_authentication: AuthenticationStatus,
     /// Errors that occurred during response processing.
     pub errors: Option<String>,
 }
@@ -505,8 +564,7 @@ pub fn device_response_verification_as_json_string(
 /// trust_anchor_registry: optional list of PEM encoded certificates
 ///
 /// Returns:
-/// An object with the verified response, document types, issuer authentication result,
-/// device authentication result, and an optional error string.
+/// An object with the verified response, document types, and an optional error string.
 #[uniffi::export]
 pub fn verify_device_response(
     device_response: Vec<u8>,
@@ -532,59 +590,136 @@ pub fn verify_device_response(
             value: format!("unable to construct TrustAnchorRegistry: {e:?}"),
         })?;
 
-    // Tries to parse and verify an mDL among the document responses.
-    let (document, x5chain, namespaces) =
-        reader::parse(&device_response).map_err(|e| MDLReaderResponseError::Generic {
-            value: format!("unable to obtain mDL from device response: {e:?}"),
-        })?;
+    // `requested_doc_types` is `None` because the caller supplies a transcript rather than having
+    // built a request through a `SessionManager`, so there is no recorded request to filter
+    // against. `isomdl` treats that as "validate everything that arrived" and records a
+    // `RequestedDocTypesUnknown` warning, which matches what this entry point did before.
+    let profiles = AnyDocType(MdocProfile::MDL);
+    let options = ValidationOptions::default();
+    let config = ReaderValidationConfig {
+        trust_anchors: &registry,
+        requested_doc_types: None,
+        options: &options,
+        profiles: &profiles,
+    };
 
-    let doc_types: Vec<String> = device_response
-        .documents
-        .as_ref()
-        .map(|docs| docs.iter().map(|d| d.doc_type.clone()).collect())
-        .unwrap_or_default();
+    let ephemeral_reader_key: [u8; 32] = if ephemeral_reader_key.is_empty() {
+        [0u8; 32]
+    } else {
+        ephemeral_reader_key
+            .try_into()
+            .map_err(|e: Vec<u8>| MDLReaderResponseError::Generic {
+                value: format!(
+                    "unable to parse ephemeral_reader_key: expected 32 bytes, got {}",
+                    e.len()
+                ),
+            })?
+    };
 
-    let validated_response =
-        super::block_on(isomdl::presentation::reader_utils::validate_response(
-            session_transcript,
-            registry,
-            x5chain,
-            document.clone(),
-            namespaces,
-            doc_types,
-            &(),
-            if ephemeral_reader_key.is_empty() {
-                [0u8; 32]
-            } else {
-                ephemeral_reader_key.try_into().map_err(|e: Vec<u8>| {
-                    MDLReaderResponseError::Generic {
-                        value: format!(
-                            "unable to parse ephemeral_reader_key: expected 32 bytes, got {}",
-                            e.len()
-                        ),
-                    }
-                })?
-            },
-        ));
+    let validated_response = super::block_on(reader_utils::validate_response(
+        &device_response,
+        &session_transcript,
+        &config,
+        &(),
+        &ephemeral_reader_key,
+    ));
 
-    let (verified_response, errors) = verified_namespaces_and_errors(&validated_response)?;
+    let (verified_response, doc_types, errors) =
+        verified_namespaces_and_errors(&validated_response)?;
     Ok(MDLDeviceResponseVerification {
         verified_response,
-        doc_types: validated_response.doc_types,
-        issuer_authentication: AuthenticationStatus::from(validated_response.issuer_authentication),
-        device_authentication: AuthenticationStatus::from(validated_response.device_authentication),
+        doc_types,
         errors,
     })
 }
 
 #[cfg(test)]
 mod tests {
+    use isomdl::presentation::authentication::{
+        DocumentError, FailedDocument, RejectedDocument, ResponseError,
+    };
+
     use super::*;
 
-    /// Device authentication verifies a signature over a `DeviceAuthentication` structure that
-    /// embeds the `SessionTranscript`. For verification to succeed against an externally-supplied
-    /// transcript, [`ProvidedSessionTranscript`] must re-encode it byte-for-byte — so a transparent
-    /// decode/encode round-trip of deterministic CBOR must be the identity.
+    fn outcome() -> ResponseValidationOutcome {
+        ResponseValidationOutcome {
+            documents: Vec::new(),
+            failed: Vec::new(),
+            rejected: Vec::new(),
+            errors: Vec::new(),
+            status: None,
+            document_errors: Vec::new(),
+            warnings: Vec::new(),
+        }
+    }
+
+    /// A failed document with no `mso`, i.e. one that did not get past issuer authentication.
+    fn failed(error: DocumentError) -> FailedDocument {
+        FailedDocument {
+            claimed_doc_type: "org.iso.18013.5.1.mDL".to_string(),
+            errors: NonEmptyVec::new(error),
+            mso: None,
+            namespaces: BTreeMap::new(),
+            warnings: Vec::new(),
+        }
+    }
+
+    /// With no separate authentication statuses, this payload is the only thing that can say a
+    /// document failed -- so a failure must never produce an empty one. It cannot: `errors` here
+    /// is derived from `FailedDocument::errors`, a `NonEmptyVec`, so every failed document
+    /// contributes at least one reason. The top-level `errors` collection is *not* enough on its
+    /// own: it holds only reasons nothing could be evaluated, and is empty for a document that
+    /// failed its own checks.
+    #[test]
+    fn a_failed_document_contributes_no_elements_but_always_reports_a_reason() {
+        let mut outcome = outcome();
+        outcome.failed = vec![failed(DocumentError::IssuerAuthentication {
+            detail: "bad signature".to_string(),
+        })];
+        // What `isomdl` actually reports alongside a self-failed document: a bare marker that
+        // says nothing about why.
+        outcome.errors = vec![ResponseError::DocumentsFailed];
+
+        let (verified, doc_types, errors) =
+            verified_namespaces_and_errors(&outcome).expect("derivation failed");
+
+        assert!(
+            verified.is_empty(),
+            "a document that failed must contribute no elements"
+        );
+        assert_eq!(doc_types, vec!["org.iso.18013.5.1.mDL".to_string()]);
+
+        let errors = errors.expect("a failed document must always be reported");
+        assert!(
+            errors.contains("bad signature"),
+            "the reason must reach the caller: {errors}"
+        );
+    }
+
+    /// A rejected document was never validated, so its claimed doctype must not leak into the
+    /// verified element map or the doctype list -- but it must still be reported, or a response
+    /// that arrived and was dropped looks identical to no response at all.
+    #[test]
+    fn rejected_documents_contribute_no_elements_but_are_still_reported() {
+        let mut rejected_only = outcome();
+        rejected_only.rejected = vec![RejectedDocument {
+            claimed_doc_type: "org.iso.18013.5.1.mDL".to_string(),
+        }];
+        let (verified, doc_types, errors) =
+            verified_namespaces_and_errors(&rejected_only).expect("derivation failed");
+        assert!(verified.is_empty());
+        assert!(doc_types.is_empty());
+        let errors = errors.expect("an unrequested doctype must not be dropped silently");
+        assert!(errors.contains("org.iso.18013.5.1.mDL"), "{errors}");
+    }
+
+    /// Nothing wrong at all reports nothing, so an empty payload never reads as a problem.
+    #[test]
+    fn a_clean_response_reports_no_errors() {
+        let (_, _, errors) = verified_namespaces_and_errors(&outcome()).expect("derivation failed");
+        assert!(errors.is_none());
+    }
+
     #[test]
     fn provided_session_transcript_roundtrips_cbor_verbatim() {
         // A representative, deterministically-encoded session-transcript-shaped value:
