@@ -151,18 +151,74 @@ val ageOver18Elements: Map<String, Map<String, Boolean>> =
 /** ISO 18013-5 mobile driver's license doctype. */
 const val MDL_DOC_TYPE = "org.iso.18013.5.1.mDL"
 
+/** ISO/IEC TS 23220-4 Annex C Photo ID doctype (spelled with a lowercase `id` in the spec). */
+const val PHOTO_ID_DOC_TYPE = "org.iso.23220.photoid.1"
+
+/**
+ * Photo ID data elements, split between the ISO/IEC 23220-2 common namespace (Annex C table 1)
+ * and the Photo ID specific namespace (Annex C table 2).
+ */
+val photoIdElements: Map<String, Map<String, Boolean>> =
+    mapOf(
+        "org.iso.23220.1" to mapOf(
+            // Mandatory
+            "family_name_unicode" to false,
+            "given_name_unicode" to false,
+            "birth_date" to false,
+            "portrait" to false,
+            "issue_date" to false,
+            "expiry_date" to false,
+            "issuing_authority_unicode" to false,
+            "issuing_country" to false,
+            "age_over_18" to false,
+            // Recommended
+            "age_in_years" to false,
+            "age_birth_year" to false,
+            // Optional
+            "portrait_capture_date" to false,
+            "birthplace" to false,
+            "name_at_birth" to false,
+            "resident_address_unicode" to false,
+            "resident_city_unicode" to false,
+            "resident_postal_code" to false,
+            "resident_country" to false,
+            "resident_city_latin1" to false,
+            "sex" to false,
+            "nationality" to false,
+            "document_number" to false,
+            "issuing_subdivision" to false,
+            "family_name_latin1" to false,
+            "given_name_latin1" to false,
+        ),
+        PHOTO_ID_DOC_TYPE to mapOf(
+            "person_id" to false,
+            "birth_country" to false,
+            "birth_state" to false,
+            "birth_city" to false,
+            "administrative_number" to false,
+            "resident_street" to false,
+            "resident_house_number" to false,
+            "travel_document_number" to false,
+            "resident_state" to false,
+        )
+    )
+
 /** What the mdoc reader asks for: which document type, and which data elements. */
 enum class MDocVerificationProfile {
     /** ISO 18013-5 mobile driver's license. */
     MDL,
 
     /** ISO 18013-5 mobile driver's license, requesting only `age_over_18`. */
-    MDL_AGE_OVER_18;
+    MDL_AGE_OVER_18,
+
+    /** ISO/IEC TS 23220-4 Annex C Photo ID. */
+    PHOTO_ID;
 
     /** The document type to request. */
     val docType: String
         get() = when (this) {
             MDL, MDL_AGE_OVER_18 -> MDL_DOC_TYPE
+            PHOTO_ID -> PHOTO_ID_DOC_TYPE
         }
 
     /**
@@ -173,6 +229,7 @@ enum class MDocVerificationProfile {
         get() = when (this) {
             MDL -> defaultElements
             MDL_AGE_OVER_18 -> ageOver18Elements
+            PHOTO_ID -> photoIdElements
         }
 }
 

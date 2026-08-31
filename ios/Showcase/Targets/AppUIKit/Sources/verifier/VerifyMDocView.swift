@@ -14,11 +14,14 @@ public enum MDocVerificationProfile: Hashable {
     case mdl
     /// ISO 18013-5 mobile driver's license, requesting only `age_over_18`.
     case mdlAgeOver18
+    /// ISO/IEC TS 23220-4 Annex C Photo ID.
+    case photoId
 
     /// The document type to request.
     var docType: String {
         switch self {
         case .mdl, .mdlAgeOver18: return mdlDocType
+        case .photoId: return photoIdDocType
         }
     }
 
@@ -28,6 +31,7 @@ public enum MDocVerificationProfile: Hashable {
         switch self {
         case .mdl: return defaultElements
         case .mdlAgeOver18: return ageOver18Elements
+        case .photoId: return photoIdElements
         }
     }
 }
@@ -105,6 +109,55 @@ let ageOver18Elements = [
 
 /// ISO 18013-5 mobile driver's license doctype.
 let mdlDocType = "org.iso.18013.5.1.mDL"
+
+/// ISO/IEC TS 23220-4 Annex C Photo ID doctype (spelled with a lowercase `id` in the spec).
+let photoIdDocType = "org.iso.23220.photoid.1"
+
+/// Photo ID data elements, split between the ISO/IEC 23220-2 common namespace (Annex C table 1)
+/// and the Photo ID specific namespace (Annex C table 2).
+let photoIdElements = [
+    "org.iso.23220.1": [
+        // Mandatory
+        "family_name_unicode": false,
+        "given_name_unicode": false,
+        "birth_date": false,
+        "portrait": false,
+        "issue_date": false,
+        "expiry_date": false,
+        "issuing_authority_unicode": false,
+        "issuing_country": false,
+        "age_over_18": false,
+        // Recommended
+        "age_in_years": false,
+        "age_birth_year": false,
+        // Optional
+        "portrait_capture_date": false,
+        "birthplace": false,
+        "name_at_birth": false,
+        "resident_address_unicode": false,
+        "resident_city_unicode": false,
+        "resident_postal_code": false,
+        "resident_country": false,
+        "resident_city_latin1": false,
+        "sex": false,
+        "nationality": false,
+        "document_number": false,
+        "issuing_subdivision": false,
+        "family_name_latin1": false,
+        "given_name_latin1": false
+    ],
+    "org.iso.23220.photoid.1": [
+        "person_id": false,
+        "birth_country": false,
+        "birth_state": false,
+        "birth_city": false,
+        "administrative_number": false,
+        "resident_street": false,
+        "resident_house_number": false,
+        "travel_document_number": false,
+        "resident_state": false
+    ]
+]
 
 private enum EngagementTab: Int, Hashable {
     case qr = 0
