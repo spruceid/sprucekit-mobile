@@ -11,6 +11,7 @@ import com.spruceid.mobilesdkexample.HomeView
 import com.spruceid.mobilesdkexample.credentials.AddToWalletView
 import com.spruceid.mobilesdkexample.credentials.CredentialDetailsView
 import com.spruceid.mobilesdkexample.verifier.AddVerificationMethodView
+import com.spruceid.mobilesdkexample.verifier.MDocVerificationProfile
 import com.spruceid.mobilesdkexample.verifier.VerifyCwtView
 import com.spruceid.mobilesdkexample.verifier.VerifyDLView
 import com.spruceid.mobilesdkexample.verifier.VerifyDelegatedOid4vpView
@@ -85,7 +86,7 @@ fun SetupNavGraph(
         ) {
             VerifyMDocView(
                 navController,
-                checkAgeOver18 = true
+                profile = MDocVerificationProfile.MDL_AGE_OVER_18
             )
         }
         composable(
