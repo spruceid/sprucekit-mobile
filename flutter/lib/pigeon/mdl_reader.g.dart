@@ -10,9 +10,9 @@ import 'package:flutter/services.dart';
 import 'package:meta/meta.dart' show immutable, protected, visibleForTesting;
 
 Object? _extractReplyValueOrThrow(
-  List<Object?>? replyList,
-  String channelName, {
-  required bool isNullValid,
+    List<Object?>? replyList,
+    String channelName, {
+    required bool isNullValid,
 }) {
   if (replyList == null) {
     throw PlatformException(
@@ -34,11 +34,8 @@ Object? _extractReplyValueOrThrow(
   return replyList.firstOrNull;
 }
 
-List<Object?> wrapResponse({
-  Object? result,
-  PlatformException? error,
-  bool empty = false,
-}) {
+
+List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
   if (empty) {
     return <Object?>[];
   }
@@ -47,7 +44,6 @@ List<Object?> wrapResponse({
   }
   return <Object?>[error.code, error.message, error.details];
 }
-
 bool _deepEquals(Object? a, Object? b) {
   if (identical(a, b)) {
     return true;
@@ -60,9 +56,8 @@ bool _deepEquals(Object? a, Object? b) {
   }
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed.every(
-          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
-        );
+        a.indexed
+            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
   }
   if (a is Map && b is Map) {
     if (a.length != b.length) {
@@ -111,6 +106,7 @@ int _deepHash(Object? value) {
   return value.hashCode;
 }
 
+
 /// Reader-side state for ISO 18013-5 mDL verification.
 ///
 /// State transitions for the NFC engagement path:
@@ -126,41 +122,24 @@ int _deepHash(Object? value) {
 enum MdlReaderState {
   /// No session running.
   uninitialized,
-
   /// NFC hardware is not present on this device.
   nfcUnsupported,
-
   /// NFC adapter exists but is turned off in system settings.
   nfcDisabled,
-
   /// Reader mode is armed and waiting for a holder tap.
   nfcWaitingForTag,
-
   /// A tap has been detected; the APDU handover exchange is in progress.
   nfcExchanging,
-
   /// Engagement (NFC or QR) is done; BLE session is being established.
   bleConnecting,
-
   /// BLE connected; waiting for the holder's device response.
   bleReceivingResponse,
-
   /// Response received, parsed, and verified. The [MdlReaderStateUpdate.response]
   /// field is populated.
   success,
-
   /// Terminal error. The [MdlReaderStateUpdate.error] field is populated.
   error,
 }
-
-/// Outcome of authenticity checks. Mirrors Rust `AuthenticationStatus` 1:1.
-///
-/// - [valid] — signature verified AND certificate chain validated to a
-///   trust anchor in the registry passed to start.
-/// - [invalid] — signature failed OR chain validation failed.
-/// - [unchecked] — not yet validated (e.g. parsing failed before validation
-///   could run, or no trust anchors provided).
-enum MdlAuthenticationStatus { valid, invalid, unchecked }
 
 /// Verified response from a successful read.
 ///
@@ -173,18 +152,27 @@ enum MdlAuthenticationStatus { valid, invalid, unchecked }
 ///      itself via map/array variants) hit an OOM in Pigeon's type analyzer.
 ///
 /// Consumers should `jsonDecode(verifiedResponseJson)` to get a
-/// `Map<String, dynamic>` shaped like:
+/// `List<dynamic>`, one entry per verified document, shaped like:
 /// ```
-/// {
-///   "org.iso.18013.5.1": {
-///     "given_name": "ALICE",
-///     "age_over_21": true,
-///     "portrait": [255, 216, ...],         // JPEG bytes as int array
-///     "driving_privileges": [ { ... } ],
+/// [
+///   {
+///     "docType": "org.iso.18013.5.1.mDL",
+///     "namespaces": {
+///       "org.iso.18013.5.1": {
+///         "given_name": "ALICE",
+///         "age_over_21": true,
+///         "portrait": [255, 216, ...],         // JPEG bytes as int array
+///         "driving_privileges": [ { ... } ],
+///       },
+///       "org.iso.18013.5.1.aamva": { ... },
+///     },
 ///   },
-///   "org.iso.18013.5.1.aamva": { ... },
-/// }
+/// ]
 /// ```
+/// A list rather than a map keyed by doctype: a response may legally carry
+/// several documents, two of which may share a doctype, and keying on it
+/// would drop one of them. Each `docType` comes from that document's
+/// signature-verified MSO, not from the holder's label.
 /// Numeric integer values come through as Dart `int`, booleans as `bool`,
 /// strings as `String`, nested objects as `Map<String, dynamic>`, arrays as
 /// `List<dynamic>`. Byte strings (e.g. `portrait`) arrive as a list of
@@ -192,30 +180,36 @@ enum MdlAuthenticationStatus { valid, invalid, unchecked }
 class MdlReadResponse {
   MdlReadResponse({
     required this.verifiedResponseJson,
-    required this.docTypes,
-    required this.issuerAuthentication,
-    required this.deviceAuthentication,
+    required this.failedDocTypes,
     this.errors,
   });
 
-  /// JSON-encoded `Map<namespace, Map<element, value>>`. See class docs for
-  /// the shape and how to decode.
+  /// JSON-encoded `List<{docType, namespaces}>`, one entry per document that
+  /// passed every check. See class docs for the shape and how to decode.
   String verifiedResponseJson;
 
-  /// Document types (doctypes) from the presented credentials.
-  /// E.g. `["org.iso.18013.5.1.mDL"]`.
-  List<String> docTypes;
+  /// Doctypes claimed by documents that were evaluated and did not pass.
+  ///
+  /// Unauthenticated labels, carried only so the UI can name what it could
+  /// not verify; the reasons are in [errors]. Never decide anything on these.
+  List<String> failedDocTypes;
 
-  /// Outcome of issuer (MSO) signature + cert-chain-to-trust-anchor validation.
-  MdlAuthenticationStatus issuerAuthentication;
-
-  /// Outcome of device authentication (replay protection).
-  MdlAuthenticationStatus deviceAuthentication;
-
-  /// JSON-encoded `Map<String, List<String>>` of per-category errors, or null
-  /// when no errors. Categories include `issuer_authentication_errors`,
-  /// `device_authentication_errors`, `certificate_errors`, `parsing_errors`.
-  /// CRL `revocation_errors` are surfaced here as well (non-fatal).
+  /// JSON-encoded diagnostics, or null when nothing went wrong. Shaped as:
+  /// ```
+  /// {
+  ///   "response": ["..."],                       // response-level failures
+  ///   "documents": { "<claimed doctype>": ["..."] },  // per-document reasons
+  ///   "unrequested": ["<claimed doctype>"]       // arrived unasked, not validated
+  /// }
+  /// ```
+  /// The per-document entries carry the reason a document failed, which the
+  /// response-level list does not: a document failing on its own contributes
+  /// only a bare "documents failed" there.
+  ///
+  /// This is the only signal that something went wrong: the verified items are
+  /// drawn solely from documents that passed every check, and a document that
+  /// failed always contributes at least one reason here. Non-null means show
+  /// it; the verified items should be displayed either way.
   ///
   /// Consumers can `jsonDecode(errors)` if non-null to inspect specifics.
   String? errors;
@@ -223,25 +217,20 @@ class MdlReadResponse {
   List<Object?> _toList() {
     return <Object?>[
       verifiedResponseJson,
-      docTypes,
-      issuerAuthentication,
-      deviceAuthentication,
+      failedDocTypes,
       errors,
     ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static MdlReadResponse decode(Object result) {
     result as List<Object?>;
     return MdlReadResponse(
       verifiedResponseJson: result[0]! as String,
-      docTypes: (result[1]! as List<Object?>).cast<String>(),
-      issuerAuthentication: result[2]! as MdlAuthenticationStatus,
-      deviceAuthentication: result[3]! as MdlAuthenticationStatus,
-      errors: result[4] as String?,
+      failedDocTypes: (result[1]! as List<Object?>).cast<String>(),
+      errors: result[2] as String?,
     );
   }
 
@@ -254,11 +243,7 @@ class MdlReadResponse {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(verifiedResponseJson, other.verifiedResponseJson) &&
-        _deepEquals(docTypes, other.docTypes) &&
-        _deepEquals(issuerAuthentication, other.issuerAuthentication) &&
-        _deepEquals(deviceAuthentication, other.deviceAuthentication) &&
-        _deepEquals(errors, other.errors);
+    return _deepEquals(verifiedResponseJson, other.verifiedResponseJson) && _deepEquals(failedDocTypes, other.failedDocTypes) && _deepEquals(errors, other.errors);
   }
 
   @override
@@ -268,7 +253,11 @@ class MdlReadResponse {
 
 /// State update event from the reader session.
 class MdlReaderStateUpdate {
-  MdlReaderStateUpdate({required this.state, this.response, this.error});
+  MdlReaderStateUpdate({
+    required this.state,
+    this.response,
+    this.error,
+  });
 
   /// Current state of the reader.
   MdlReaderState state;
@@ -281,12 +270,15 @@ class MdlReaderStateUpdate {
   String? error;
 
   List<Object?> _toList() {
-    return <Object?>[state, response, error];
+    return <Object?>[
+      state,
+      response,
+      error,
+    ];
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static MdlReaderStateUpdate decode(Object result) {
     result as List<Object?>;
@@ -306,15 +298,14 @@ class MdlReaderStateUpdate {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(state, other.state) &&
-        _deepEquals(response, other.response) &&
-        _deepEquals(error, other.error);
+    return _deepEquals(state, other.state) && _deepEquals(response, other.response) && _deepEquals(error, other.error);
   }
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -323,17 +314,14 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    } else if (value is MdlReaderState) {
+    }    else if (value is MdlReaderState) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    } else if (value is MdlAuthenticationStatus) {
+    }    else if (value is MdlReadResponse) {
       buffer.putUint8(130);
-      writeValue(buffer, value.index);
-    } else if (value is MdlReadResponse) {
-      buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    } else if (value is MdlReaderStateUpdate) {
-      buffer.putUint8(132);
+    }    else if (value is MdlReaderStateUpdate) {
+      buffer.putUint8(131);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -347,11 +335,8 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : MdlReaderState.values[value];
       case 130:
-        final value = readValue(buffer) as int?;
-        return value == null ? null : MdlAuthenticationStatus.values[value];
-      case 131:
         return MdlReadResponse.decode(readValue(buffer)!);
-      case 132:
+      case 131:
         return MdlReaderStateUpdate.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -372,36 +357,25 @@ abstract class MdlReaderCallback {
   /// the new state is [MdlReaderState.error] or a terminal NFC error state.
   void onStateChange(MdlReaderStateUpdate update);
 
-  static void setUp(
-    MdlReaderCallback? api, {
-    BinaryMessenger? binaryMessenger,
-    String messageChannelSuffix = '',
-  }) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty
-        ? '.$messageChannelSuffix'
-        : '';
+  static void setUp(MdlReaderCallback? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
       final pigeonVar_channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.sprucekit_mobile.MdlReaderCallback.onStateChange$messageChannelSuffix',
-        pigeonChannelCodec,
-        binaryMessenger: binaryMessenger,
-      );
+          'dev.flutter.pigeon.sprucekit_mobile.MdlReaderCallback.onStateChange$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           final List<Object?> args = message! as List<Object?>;
-          final MdlReaderStateUpdate arg_update =
-              args[0]! as MdlReaderStateUpdate;
+          final MdlReaderStateUpdate arg_update = args[0]! as MdlReaderStateUpdate;
           try {
             api.onStateChange(arg_update);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-              error: PlatformException(code: 'error', message: e.toString()),
-            );
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
@@ -432,13 +406,9 @@ class MdlReader {
   /// Constructor for [MdlReader].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  MdlReader({
-    BinaryMessenger? binaryMessenger,
-    String messageChannelSuffix = '',
-  }) : pigeonVar_binaryMessenger = binaryMessenger,
-       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
-           ? '.$messageChannelSuffix'
-           : '';
+  MdlReader({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -455,8 +425,7 @@ class MdlReader {
   /// if `true` is returned the host can call [startNfcReader] but should
   /// also be ready to handle [MdlReaderState.nfcDisabled] (NFC switched off).
   Future<bool> isNfcSupported() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.MdlReader.isNfcSupported$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlReader.isNfcSupported$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -466,10 +435,11 @@ class MdlReader {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: false,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
     return pigeonVar_replyValue! as bool;
   }
 
@@ -479,40 +449,38 @@ class MdlReader {
   /// [MdlReaderCallback.onStateChange]. Any in-flight session is implicitly
   /// cancelled before the new one starts.
   ///
-  /// @param query Requested items, shaped as namespace → element name →
-  ///   `intentToRetain`. For example:
+  /// @param query Requested items, shaped as doctype → namespace → element
+  ///   name → `intentToRetain`. One `DocRequest` is built per doctype, so a
+  ///   reader can ask for several credentials in one exchange. For example:
   ///   ```
   ///   {
-  ///     "org.iso.18013.5.1": { "given_name": false, "portrait": false },
-  ///     "org.iso.18013.5.1.aamva": { "EDL_credential": false },
+  ///     "org.iso.18013.5.1.mDL": {
+  ///       "org.iso.18013.5.1": { "given_name": false, "portrait": false },
+  ///       "org.iso.18013.5.1.aamva": { "EDL_credential": false },
+  ///     },
   ///   }
   ///   ```
-  ///   The doctype (e.g. `"org.iso.18013.5.1.mDL"`) is derived from the
-  ///   namespaces by the SDK; it is not passed separately.
+  ///   At least one doctype is required: a request naming none is answered
+  ///   with nothing rather than an error.
   /// @param trustedRoots List of PEM-encoded IACA root certificates. Empty
-  ///   list disables chain validation; [MdlAuthenticationStatus.invalid]
-  ///   (or [unchecked]) will be returned in that case.
-  Future<void> startNfcReader(
-    Map<String, Map<String, bool>> query,
-    List<String> trustedRoots,
-  ) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.MdlReader.startNfcReader$pigeonVar_messageChannelSuffix';
+  ///   list disables chain validation, which surfaces as an entry in
+  ///   [MdlReadResponse.errors].
+  Future<void> startNfcReader(Map<String, Map<String, Map<String, bool>>> query, List<String> trustedRoots) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlReader.startNfcReader$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[query, trustedRoots],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[query, trustedRoots]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
   /// Start a QR-engagement reader session from a pre-scanned QR code URI.
@@ -526,28 +494,22 @@ class MdlReader {
   ///   device.
   /// @param query See [startNfcReader].
   /// @param trustedRoots See [startNfcReader].
-  Future<void> startQrReader(
-    String qrUri,
-    Map<String, Map<String, bool>> query,
-    List<String> trustedRoots,
-  ) async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.MdlReader.startQrReader$pigeonVar_messageChannelSuffix';
+  Future<void> startQrReader(String qrUri, Map<String, Map<String, Map<String, bool>>> query, List<String> trustedRoots) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlReader.startQrReader$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[qrUri, query, trustedRoots],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[qrUri, query, trustedRoots]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 
   /// Cancel any in-flight session and tear down NFC / BLE handles.
@@ -555,8 +517,7 @@ class MdlReader {
   /// Idempotent. After [cancel] the reader transitions to
   /// [MdlReaderState.uninitialized]; the host may start a new session.
   Future<void> cancel() async {
-    final pigeonVar_channelName =
-        'dev.flutter.pigeon.sprucekit_mobile.MdlReader.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlReader.cancel$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
@@ -566,9 +527,10 @@ class MdlReader {
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
-      pigeonVar_replyList,
-      pigeonVar_channelName,
-      isNullValid: true,
-    );
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
   }
 }

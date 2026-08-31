@@ -2736,7 +2736,7 @@ dependencies = [
 [[package]]
 name = "isomdl"
 version = "0.2.0"
-source = "git+https://github.com/spruceid/isomdl?rev=3ad4471#3ad4471337cc203515c0a8572af7a57612633475"
+source = "git+https://github.com/spruceid/isomdl?rev=fd2612d#fd2612df263e46481c2b0be6129432160ef60e02"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2756,7 +2756,7 @@ dependencies = [
  "hex",
  "hkdf",
  "hmac",
- "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=3ad4471)",
+ "isomdl-macros 0.1.0 (git+https://github.com/spruceid/isomdl?rev=fd2612d)",
  "ndef-rs",
  "p256",
  "p384",
@@ -2782,7 +2782,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=3ad4471#3ad4471337cc203515c0a8572af7a57612633475"
+source = "git+https://github.com/spruceid/isomdl?rev=7608053#76080536badc867d2d674acfca9e5bae6809a54c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2792,7 +2792,7 @@ dependencies = [
 [[package]]
 name = "isomdl-macros"
 version = "0.1.0"
-source = "git+https://github.com/spruceid/isomdl?rev=7608053#76080536badc867d2d674acfca9e5bae6809a54c"
+source = "git+https://github.com/spruceid/isomdl?rev=fd2612d#fd2612df263e46481c2b0be6129432160ef60e02"
 dependencies = [
  "proc-macro2",
  "quote",

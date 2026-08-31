@@ -5,12 +5,14 @@ import SwiftUI
 struct VerifyKiosk: Hashable {}
 
 let kioskElements = [
-    "org.iso.18013.5.1": [
-        "family_name": false,
-        "given_name": false,
-        "birth_date": false,
-        "issue_date": false,
-        "expiry_date": false,
+    mdlDocType: [
+        "org.iso.18013.5.1": [
+            "family_name": false,
+            "given_name": false,
+            "birth_date": false,
+            "issue_date": false,
+            "expiry_date": false,
+        ]
     ]
 ]
 
@@ -214,7 +216,7 @@ public struct KioskReaderView: View {
 
     init(
         uri: String,
-        requestedItems: [String: [String: Bool]],
+        requestedItems: [String: [String: [String: Bool]]],
         trustAnchorRegistry: [String]?,
         onCancel: @escaping () -> Void,
         onStartOver: @escaping () -> Void,
@@ -280,7 +282,7 @@ class KioskScanViewDelegate: ObservableObject & MdocProximityReader.Delegate {
 
     init(
         uri: String,
-        requestedItems: [String: [String: Bool]],
+        requestedItems: [String: [String: [String: Bool]]],
         trustAnchorRegistry: [String]?
     ) {
         self.mdocReader = MdocProximityReader(
