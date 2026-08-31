@@ -212,6 +212,41 @@ enum MdlReaderState: Int {
   case error = 8
 }
 
+/// A certificate profile this SDK ships.
+///
+/// ISO/IEC 18013-5 Annex B's *structure* is credential-agnostic -- IACA root, no sub-CAs, subject
+/// key identifier, key usage, matching country codes. What differs between credential types is
+/// the OID values, and each of these bundles a known set.
+enum MdlBuiltinCertificateProfile: Int {
+  /// ISO/IEC 18013-5 mDL. The profile used when none is configured.
+  case mdl = 0
+  /// AAMVA's mDL profile, which additionally requires `stateOrProvinceName` to match.
+  case aamvaMdl = 1
+  /// The EUDI Person Identification Data profile.
+  case eudiPid = 2
+  /// ISO/IEC TS 23220-4 Annex B, used by the Photo ID profile. Note 23220-4 says a conformant
+  /// profile *may* use these OIDs, not that it must, so a real deployment may define its own.
+  case iso23220 = 3
+}
+
+/// How a relative distinguished name is compared between end-entity certificate and trust anchor.
+enum MdlCertificateRdnRule: Int {
+  /// Compare only when at least one of the two carries the attribute, as ISO/IEC 18013-5
+  /// requires. Absent from both is conformant.
+  case matchIfPresent = 0
+  /// Compare unconditionally, which also fails when the attribute is absent.
+  case required = 1
+}
+
+/// Whether a certificate extension is mandatory.
+enum MdlCertificateExtensionRule: Int {
+  /// The certificate must carry the extension, as ISO/IEC 18013-5 Annex B requires of
+  /// `cRLDistributionPoints` and `issuerAlternativeName`.
+  case required = 0
+  /// The certificate may omit the extension.
+  case optional = 1
+}
+
 /// Verified response from a successful read.
 ///
 /// The verified items are transported as a JSON string (the canonical Rust
@@ -269,12 +304,12 @@ struct MdlReadResponse: Hashable {
   /// ```
   /// The per-document entries carry the reason a document failed, which the
   /// response-level list does not: a document failing on its own contributes
-  /// only a bare "documents failed" there.
+  /// only a bare "documents failed" there. A doctype missing from
+  /// [MdlReader.startNfcReader]'s `certificateProfiles` shows up here.
   ///
   /// This is the only signal that something went wrong: the verified items are
   /// drawn solely from documents that passed every check, and a document that
-  /// failed always contributes at least one reason here. Non-null means show
-  /// it; the verified items should be displayed either way.
+  /// failed always contributes at least one reason here.
   ///
   /// Consumers can `jsonDecode(errors)` if non-null to inspect specifics.
   var errors: String? = nil
@@ -361,6 +396,312 @@ struct MdlReaderStateUpdate: Hashable {
   }
 }
 
+/// The ISO/IEC 18013-5 Annex B document-signer checks, parameterised.
+///
+/// The structural checks and the chain, revocation and trust-purpose rules are Annex B's and are
+/// not configurable: an IACA trust anchor, no sub-CAs, and CRL-based revocation.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct MdlIssuerProfileConfig: Hashable {
+  /// Extended key usage OID the document signer certificate must carry, in dotted form --
+  /// `"1.0.18013.5.1.2"` for an mDL, `"1.0.23220.4.1.2"` for ISO/IEC TS 23220-4.
+  ///
+  /// The certificate's extended key usage must contain this OID and nothing else, so a signer
+  /// shared between two credential types needs one certificate per profile rather than one
+  /// certificate carrying both OIDs.
+  var documentSignerEku: String
+  /// How `stateOrProvinceName` is compared against the trust anchor.
+  var stateOrProvince: MdlCertificateRdnRule
+  /// Whether `cRLDistributionPoints` is mandatory.
+  var crlDistributionPoints: MdlCertificateExtensionRule
+  /// Whether `issuerAlternativeName` is mandatory.
+  var issuerAlternativeName: MdlCertificateExtensionRule
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MdlIssuerProfileConfig? {
+    let documentSignerEku = pigeonVar_list[0] as! String
+    let stateOrProvince = pigeonVar_list[1] as! MdlCertificateRdnRule
+    let crlDistributionPoints = pigeonVar_list[2] as! MdlCertificateExtensionRule
+    let issuerAlternativeName = pigeonVar_list[3] as! MdlCertificateExtensionRule
+
+    return MdlIssuerProfileConfig(
+      documentSignerEku: documentSignerEku,
+      stateOrProvince: stateOrProvince,
+      crlDistributionPoints: crlDistributionPoints,
+      issuerAlternativeName: issuerAlternativeName
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      documentSignerEku,
+      stateOrProvince,
+      crlDistributionPoints,
+      issuerAlternativeName,
+    ]
+  }
+  static func == (lhs: MdlIssuerProfileConfig, rhs: MdlIssuerProfileConfig) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsMdlReader(lhs.documentSignerEku, rhs.documentSignerEku) && deepEqualsMdlReader(lhs.stateOrProvince, rhs.stateOrProvince) && deepEqualsMdlReader(lhs.crlDistributionPoints, rhs.crlDistributionPoints) && deepEqualsMdlReader(lhs.issuerAlternativeName, rhs.issuerAlternativeName)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("MdlIssuerProfileConfig")
+    deepHashMdlReader(value: documentSignerEku, hasher: &hasher)
+    deepHashMdlReader(value: stateOrProvince, hasher: &hasher)
+    deepHashMdlReader(value: crlDistributionPoints, hasher: &hasher)
+    deepHashMdlReader(value: issuerAlternativeName, hasher: &hasher)
+  }
+}
+
+/// The ISO/IEC 18013-5 Annex B reader-certificate checks, parameterised.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct MdlReaderProfileConfig: Hashable {
+  /// Extended key usage OID the reader certificate must carry, in dotted form --
+  /// `"1.0.18013.5.1.6"` for an mDL reader, `"1.0.23220.4.1.6"` for ISO/IEC TS 23220-4.
+  var readerAuthEku: String
+  /// Whether `cRLDistributionPoints` is mandatory.
+  var crlDistributionPoints: MdlCertificateExtensionRule
+  /// Whether `issuerAlternativeName` is mandatory.
+  var issuerAlternativeName: MdlCertificateExtensionRule
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MdlReaderProfileConfig? {
+    let readerAuthEku = pigeonVar_list[0] as! String
+    let crlDistributionPoints = pigeonVar_list[1] as! MdlCertificateExtensionRule
+    let issuerAlternativeName = pigeonVar_list[2] as! MdlCertificateExtensionRule
+
+    return MdlReaderProfileConfig(
+      readerAuthEku: readerAuthEku,
+      crlDistributionPoints: crlDistributionPoints,
+      issuerAlternativeName: issuerAlternativeName
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      readerAuthEku,
+      crlDistributionPoints,
+      issuerAlternativeName,
+    ]
+  }
+  static func == (lhs: MdlReaderProfileConfig, rhs: MdlReaderProfileConfig) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsMdlReader(lhs.readerAuthEku, rhs.readerAuthEku) && deepEqualsMdlReader(lhs.crlDistributionPoints, rhs.crlDistributionPoints) && deepEqualsMdlReader(lhs.issuerAlternativeName, rhs.issuerAlternativeName)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("MdlReaderProfileConfig")
+    deepHashMdlReader(value: readerAuthEku, hasher: &hasher)
+    deepHashMdlReader(value: crlDistributionPoints, hasher: &hasher)
+    deepHashMdlReader(value: issuerAlternativeName, hasher: &hasher)
+  }
+}
+
+/// Rules for document signer certificates of one doctype.
+///
+/// Native callers (Kotlin, Swift) can additionally implement validation
+/// themselves via the `MdocCertificateProfile` interface on the platform SDKs.
+/// That is not offered here: the underlying interface is synchronous and
+/// Pigeon's value-returning calls are not, so a Dart implementation would have
+/// to block a native thread on every certificate validated.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+/// This protocol should not be extended by any user class outside of the generated file.
+protocol MdlIssuerCertificateProfile {
+
+}
+
+/// Validate document signers of this doctype under a profile the SDK ships.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct MdlIssuerBuiltinProfile: MdlIssuerCertificateProfile {
+  var profile: MdlBuiltinCertificateProfile
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MdlIssuerBuiltinProfile? {
+    let profile = pigeonVar_list[0] as! MdlBuiltinCertificateProfile
+
+    return MdlIssuerBuiltinProfile(
+      profile: profile
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      profile
+    ]
+  }
+  static func == (lhs: MdlIssuerBuiltinProfile, rhs: MdlIssuerBuiltinProfile) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsMdlReader(lhs.profile, rhs.profile)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("MdlIssuerBuiltinProfile")
+    deepHashMdlReader(value: profile, hasher: &hasher)
+  }
+}
+
+/// Validate document signers of this doctype under the Annex B checks with
+/// caller-supplied parameters.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct MdlIssuerConfiguredProfile: MdlIssuerCertificateProfile {
+  var config: MdlIssuerProfileConfig
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MdlIssuerConfiguredProfile? {
+    let config = pigeonVar_list[0] as! MdlIssuerProfileConfig
+
+    return MdlIssuerConfiguredProfile(
+      config: config
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      config
+    ]
+  }
+  static func == (lhs: MdlIssuerConfiguredProfile, rhs: MdlIssuerConfiguredProfile) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsMdlReader(lhs.config, rhs.config)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("MdlIssuerConfiguredProfile")
+    deepHashMdlReader(value: config, hasher: &hasher)
+  }
+}
+
+/// Rules for reader certificates of one doctype.
+///
+/// A reader session never exercises this half -- it applies when a *holder*
+/// authenticates an incoming request -- so any value will do.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+/// This protocol should not be extended by any user class outside of the generated file.
+protocol MdlReaderCertificateProfile {
+
+}
+
+/// Validate reader certificates of this doctype under a profile the SDK ships.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct MdlReaderBuiltinProfile: MdlReaderCertificateProfile {
+  var profile: MdlBuiltinCertificateProfile
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MdlReaderBuiltinProfile? {
+    let profile = pigeonVar_list[0] as! MdlBuiltinCertificateProfile
+
+    return MdlReaderBuiltinProfile(
+      profile: profile
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      profile
+    ]
+  }
+  static func == (lhs: MdlReaderBuiltinProfile, rhs: MdlReaderBuiltinProfile) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsMdlReader(lhs.profile, rhs.profile)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("MdlReaderBuiltinProfile")
+    deepHashMdlReader(value: profile, hasher: &hasher)
+  }
+}
+
+/// Validate reader certificates of this doctype under the Annex B checks with
+/// caller-supplied parameters.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct MdlReaderConfiguredProfile: MdlReaderCertificateProfile {
+  var config: MdlReaderProfileConfig
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MdlReaderConfiguredProfile? {
+    let config = pigeonVar_list[0] as! MdlReaderProfileConfig
+
+    return MdlReaderConfiguredProfile(
+      config: config
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      config
+    ]
+  }
+  static func == (lhs: MdlReaderConfiguredProfile, rhs: MdlReaderConfiguredProfile) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsMdlReader(lhs.config, rhs.config)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("MdlReaderConfiguredProfile")
+    deepHashMdlReader(value: config, hasher: &hasher)
+  }
+}
+
+/// The certificate rules for one doctype, both directions.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct MdlCertificateProfiles: Hashable {
+  /// Rules for the document signer certificate that signed a presented credential.
+  var issuer: MdlIssuerCertificateProfile
+  /// Rules for the certificate a reader authenticates its request with.
+  var reader: MdlReaderCertificateProfile
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MdlCertificateProfiles? {
+    let issuer = pigeonVar_list[0] as! MdlIssuerCertificateProfile
+    let reader = pigeonVar_list[1] as! MdlReaderCertificateProfile
+
+    return MdlCertificateProfiles(
+      issuer: issuer,
+      reader: reader
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      issuer,
+      reader,
+    ]
+  }
+  static func == (lhs: MdlCertificateProfiles, rhs: MdlCertificateProfiles) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsMdlReader(lhs.issuer, rhs.issuer) && deepEqualsMdlReader(lhs.reader, rhs.reader)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("MdlCertificateProfiles")
+    deepHashMdlReader(value: issuer, hasher: &hasher)
+    deepHashMdlReader(value: reader, hasher: &hasher)
+  }
+}
+
 private class MdlReaderPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -371,9 +712,41 @@ private class MdlReaderPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 130:
-      return MdlReadResponse.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return MdlBuiltinCertificateProfile(rawValue: enumResultAsInt)
+      }
+      return nil
     case 131:
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return MdlCertificateRdnRule(rawValue: enumResultAsInt)
+      }
+      return nil
+    case 132:
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return MdlCertificateExtensionRule(rawValue: enumResultAsInt)
+      }
+      return nil
+    case 133:
+      return MdlReadResponse.fromList(self.readValue() as! [Any?])
+    case 134:
       return MdlReaderStateUpdate.fromList(self.readValue() as! [Any?])
+    case 135:
+      return MdlIssuerProfileConfig.fromList(self.readValue() as! [Any?])
+    case 136:
+      return MdlReaderProfileConfig.fromList(self.readValue() as! [Any?])
+    case 137:
+      return MdlIssuerBuiltinProfile.fromList(self.readValue() as! [Any?])
+    case 138:
+      return MdlIssuerConfiguredProfile.fromList(self.readValue() as! [Any?])
+    case 139:
+      return MdlReaderBuiltinProfile.fromList(self.readValue() as! [Any?])
+    case 140:
+      return MdlReaderConfiguredProfile.fromList(self.readValue() as! [Any?])
+    case 141:
+      return MdlCertificateProfiles.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -385,11 +758,41 @@ private class MdlReaderPigeonCodecWriter: FlutterStandardWriter {
     if let value = value as? MdlReaderState {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? MdlReadResponse {
+    } else if let value = value as? MdlBuiltinCertificateProfile {
       super.writeByte(130)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? MdlCertificateRdnRule {
+      super.writeByte(131)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? MdlCertificateExtensionRule {
+      super.writeByte(132)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? MdlReadResponse {
+      super.writeByte(133)
       super.writeValue(value.toList())
     } else if let value = value as? MdlReaderStateUpdate {
-      super.writeByte(131)
+      super.writeByte(134)
+      super.writeValue(value.toList())
+    } else if let value = value as? MdlIssuerProfileConfig {
+      super.writeByte(135)
+      super.writeValue(value.toList())
+    } else if let value = value as? MdlReaderProfileConfig {
+      super.writeByte(136)
+      super.writeValue(value.toList())
+    } else if let value = value as? MdlIssuerBuiltinProfile {
+      super.writeByte(137)
+      super.writeValue(value.toList())
+    } else if let value = value as? MdlIssuerConfiguredProfile {
+      super.writeByte(138)
+      super.writeValue(value.toList())
+    } else if let value = value as? MdlReaderBuiltinProfile {
+      super.writeByte(139)
+      super.writeValue(value.toList())
+    } else if let value = value as? MdlReaderConfiguredProfile {
+      super.writeByte(140)
+      super.writeValue(value.toList())
+    } else if let value = value as? MdlCertificateProfiles {
+      super.writeByte(141)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -511,7 +914,13 @@ protocol MdlReader {
   /// @param trustedRoots List of PEM-encoded IACA root certificates. Empty
   ///   list disables chain validation, which surfaces as an entry in
   ///   [MdlReadResponse.errors].
-  func startNfcReader(query: [String: [String: [String: Bool]]], trustedRoots: [String]) throws
+  /// @param certificateProfiles Certificate validation rules, keyed by doctype.
+  ///   Null validates every doctype under the ISO/IEC 18013-5 mDL profile,
+  ///   which is what every caller got before this was configurable. When
+  ///   supplied it must contain an entry for every doctype in [query]: a
+  ///   doctype absent from the map is refused rather than validated under a
+  ///   guess.
+  func startNfcReader(query: [String: [String: [String: Bool]]], trustedRoots: [String], certificateProfiles: [String: MdlCertificateProfiles]?) throws
   /// Start a QR-engagement reader session from a pre-scanned QR code URI.
   ///
   /// The URI typically starts with `mdoc:` (per ISO 18013-5 §8.2.2.3) and
@@ -523,7 +932,8 @@ protocol MdlReader {
   ///   device.
   /// @param query See [startNfcReader].
   /// @param trustedRoots See [startNfcReader].
-  func startQrReader(qrUri: String, query: [String: [String: [String: Bool]]], trustedRoots: [String]) throws
+  /// @param certificateProfiles See [startNfcReader].
+  func startQrReader(qrUri: String, query: [String: [String: [String: Bool]]], trustedRoots: [String], certificateProfiles: [String: MdlCertificateProfiles]?) throws
   /// Cancel any in-flight session and tear down NFC / BLE handles.
   ///
   /// Idempotent. After [cancel] the reader transitions to
@@ -581,14 +991,21 @@ class MdlReaderSetup {
     /// @param trustedRoots List of PEM-encoded IACA root certificates. Empty
     ///   list disables chain validation, which surfaces as an entry in
     ///   [MdlReadResponse.errors].
+    /// @param certificateProfiles Certificate validation rules, keyed by doctype.
+    ///   Null validates every doctype under the ISO/IEC 18013-5 mDL profile,
+    ///   which is what every caller got before this was configurable. When
+    ///   supplied it must contain an entry for every doctype in [query]: a
+    ///   doctype absent from the map is refused rather than validated under a
+    ///   guess.
     let startNfcReaderChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.MdlReader.startNfcReader\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       startNfcReaderChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let queryArg = args[0] as! [String: [String: [String: Bool]]]
         let trustedRootsArg = args[1] as! [String]
+        let certificateProfilesArg: [String: MdlCertificateProfiles]? = nilOrValue(args[2])
         do {
-          try api.startNfcReader(query: queryArg, trustedRoots: trustedRootsArg)
+          try api.startNfcReader(query: queryArg, trustedRoots: trustedRootsArg, certificateProfiles: certificateProfilesArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))
@@ -608,6 +1025,7 @@ class MdlReaderSetup {
     ///   device.
     /// @param query See [startNfcReader].
     /// @param trustedRoots See [startNfcReader].
+    /// @param certificateProfiles See [startNfcReader].
     let startQrReaderChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.sprucekit_mobile.MdlReader.startQrReader\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       startQrReaderChannel.setMessageHandler { message, reply in
@@ -615,8 +1033,9 @@ class MdlReaderSetup {
         let qrUriArg = args[0] as! String
         let queryArg = args[1] as! [String: [String: [String: Bool]]]
         let trustedRootsArg = args[2] as! [String]
+        let certificateProfilesArg: [String: MdlCertificateProfiles]? = nilOrValue(args[3])
         do {
-          try api.startQrReader(qrUri: qrUriArg, query: queryArg, trustedRoots: trustedRootsArg)
+          try api.startQrReader(qrUri: qrUriArg, query: queryArg, trustedRoots: trustedRootsArg, certificateProfiles: certificateProfilesArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))

@@ -9,6 +9,7 @@ public class MdocProximityReader {
                 delegate: Delegate,
                 requestedItems: [String: [String: [String: Bool]]],
                 trustAnchorRegistry: [String]?,
+                certificateProfiles: [String: MdocCertificateProfiles]?,
                 l2capUsage: L2CAPUsage
 
     private var handle: DelegateWrapper?
@@ -20,11 +21,17 @@ public class MdocProximityReader {
     ///     element identifier. One `DocRequest` is built per document type, so a reader can ask
     ///     for several credentials in one exchange. At least one document type is required: a
     ///     request naming none is answered with nothing rather than an error.
+    ///   - certificateProfiles: certificate validation rules per doctype. `nil` validates every
+    ///     doctype under the ISO/IEC 18013-5 mDL profile, which is the behaviour every caller had
+    ///     before this was configurable. Supplying a map also means a doctype absent from it is
+    ///     refused rather than validated under a guess, so it must cover every doctype in
+    ///     `requestedItems`.
     public convenience init(
         fromHolderQrCode payload: String,
         delegate: Delegate,
         requestedItems: [String: [String: [String: Bool]]],
         trustAnchorRegistry: [String]? = nil,
+        certificateProfiles: [String: MdocCertificateProfiles]? = nil,
         l2capUsage: L2CAPUsage = .disableL2CAP,
     ) {
         self.init(
@@ -32,6 +39,7 @@ public class MdocProximityReader {
             delegate: delegate,
             requestedItems: requestedItems,
             trustAnchorRegistry: trustAnchorRegistry,
+            certificateProfiles: certificateProfiles,
             l2capUsage: l2capUsage,
         )
     }
@@ -43,17 +51,24 @@ public class MdocProximityReader {
     ///     element identifier. One `DocRequest` is built per document type, so a reader can ask
     ///     for several credentials in one exchange. At least one document type is required: a
     ///     request naming none is answered with nothing rather than an error.
+    ///   - certificateProfiles: certificate validation rules per doctype. `nil` validates every
+    ///     doctype under the ISO/IEC 18013-5 mDL profile, which is the behaviour every caller had
+    ///     before this was configurable. Supplying a map also means a doctype absent from it is
+    ///     refused rather than validated under a guess, so it must cover every doctype in
+    ///     `requestedItems`.
     public init(
         fromHandover handover: ReaderHandover,
         delegate: Delegate,
         requestedItems: [String: [String: [String: Bool]]],
         trustAnchorRegistry: [String]? = nil,
+        certificateProfiles: [String: MdocCertificateProfiles]? = nil,
         l2capUsage: L2CAPUsage = .disableL2CAP,
     ) {
         self.handover = handover
         self.delegate = delegate
         self.requestedItems = requestedItems
         self.trustAnchorRegistry = trustAnchorRegistry
+        self.certificateProfiles = certificateProfiles
         self.l2capUsage = l2capUsage
         reset()
     }
@@ -77,6 +92,7 @@ public class MdocProximityReader {
         let handle = DelegateWrapper(
             delegate: delegate,
             session: session,
+            certificateProfiles: certificateProfiles
         )
         let transport: Transport
 
@@ -118,6 +134,7 @@ public class MdocProximityReader {
     class DelegateWrapper: NSObject & TransportCallback {
         private let inner: Delegate
         private let session: MdlReaderSessionData
+        private let certificateProfiles: [String: MdocCertificateProfiles]?
 
         private let backgroundQueue = DispatchQueue(
             label: "com.spruceid.mobilesdk.mdoc.proximity.reader",
@@ -148,10 +165,12 @@ public class MdocProximityReader {
         init(
             delegate: Delegate,
             session: MdlReaderSessionData,
+            certificateProfiles: [String: MdocCertificateProfiles]?
         ) {
             backgroundQueue.suspend()
             inner = delegate
             self.session = session
+            self.certificateProfiles = certificateProfiles
             state = .initializing
         }
 
@@ -250,7 +269,8 @@ public class MdocProximityReader {
             do {
                 response = try Response(data: handleResponse(
                     state: session.state,
-                    response: message
+                    response: message,
+                    certificateProfiles: certificateProfiles
                 ))
             } catch let err {
                 print("failed to parse the response")

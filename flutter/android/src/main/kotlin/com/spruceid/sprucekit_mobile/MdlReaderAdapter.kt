@@ -9,8 +9,16 @@ import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.IsoMdlReader
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.nfc.NfcReaderEngagement
+import com.spruceid.mobile.sdk.rs.BuiltinCertificateProfile
+import com.spruceid.mobile.sdk.rs.CertificateExtensionRule
+import com.spruceid.mobile.sdk.rs.CertificateRdnRule
+import com.spruceid.mobile.sdk.rs.IssuerCertificateProfile
+import com.spruceid.mobile.sdk.rs.IssuerProfileConfig
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseData
+import com.spruceid.mobile.sdk.rs.MdocCertificateProfiles
+import com.spruceid.mobile.sdk.rs.ReaderCertificateProfile
 import com.spruceid.mobile.sdk.rs.ReaderHandover
+import com.spruceid.mobile.sdk.rs.ReaderProfileConfig
 import com.spruceid.mobile.sdk.rs.verifiedResponseAsJsonString
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import kotlinx.coroutines.CoroutineScope
@@ -72,6 +80,7 @@ internal class MdlReaderAdapter(
     override fun startNfcReader(
         query: Map<String, Map<String, Map<String, Boolean>>>,
         trustedRoots: List<String>,
+        certificateProfiles: Map<String, MdlCertificateProfiles>?,
     ) {
         // Tear down any previous session first.
         cleanupInternal()
@@ -147,6 +156,7 @@ internal class MdlReaderAdapter(
                         event.handover,
                         query,
                         trustedRoots,
+                        certificateProfiles,
                     )
             }
         }
@@ -163,11 +173,12 @@ internal class MdlReaderAdapter(
         qrUri: String,
         query: Map<String, Map<String, Map<String, Boolean>>>,
         trustedRoots: List<String>,
+        certificateProfiles: Map<String, MdlCertificateProfiles>?,
     ) {
         cleanupInternal()
         try {
             val handover = ReaderHandover.newQr(qrUri)
-            onHandover(handover, query, trustedRoots)
+            onHandover(handover, query, trustedRoots, certificateProfiles)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to build handover from QR URI", e)
             updateState(
@@ -184,6 +195,7 @@ internal class MdlReaderAdapter(
         handover: ReaderHandover,
         query: Map<String, Map<String, Map<String, Boolean>>>,
         trustedRoots: List<String>,
+        certificateProfiles: Map<String, MdlCertificateProfiles>?,
     ) {
         // NFC engagement already auto-deactivated after Success; we keep
         // nfcEngagement around so the lifecycle observer can release it.
@@ -229,6 +241,7 @@ internal class MdlReaderAdapter(
                 trustedRoots,
                 bluetoothManager,
                 context.applicationContext,
+                certificateProfiles?.let { toNativeProfiles(it, query.keys) },
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to construct IsoMdlReader", e)
@@ -388,6 +401,78 @@ internal class MdlReaderAdapter(
             errors = errors,
         )
     }
+
+    /**
+     * Translate the Pigeon profile map into the native SDK's representation.
+     *
+     * Throws rather than falling back to a default profile when the map does not cover every
+     * doctype in [docTypes]: silently substituting mDL rules would validate a credential against
+     * the wrong PKI without saying so. Which rules apply is a sealed choice, so it needs no
+     * validation here.
+     */
+    private fun toNativeProfiles(
+        profiles: Map<String, MdlCertificateProfiles>,
+        docTypes: Set<String>,
+    ): Map<String, MdocCertificateProfiles> {
+        val missing = docTypes - profiles.keys
+        require(missing.isEmpty()) {
+            "certificateProfiles has no entry for requested doctype(s) ${missing.sorted()}; " +
+                "found ${profiles.keys}"
+        }
+        return profiles.mapValues { (_, value) ->
+            MdocCertificateProfiles(
+                value.issuer.toNative(),
+                value.reader.toNative(),
+            )
+        }
+    }
+
+    private fun MdlIssuerCertificateProfile.toNative(): IssuerCertificateProfile =
+        when (this) {
+            is MdlIssuerBuiltinProfile -> IssuerCertificateProfile.Builtin(profile.toNative())
+            is MdlIssuerConfiguredProfile ->
+                IssuerCertificateProfile.Config(
+                    IssuerProfileConfig(
+                        config.documentSignerEku,
+                        config.stateOrProvince.toNative(),
+                        config.crlDistributionPoints.toNative(),
+                        config.issuerAlternativeName.toNative(),
+                    ),
+                )
+        }
+
+    private fun MdlReaderCertificateProfile.toNative(): ReaderCertificateProfile =
+        when (this) {
+            is MdlReaderBuiltinProfile -> ReaderCertificateProfile.Builtin(profile.toNative())
+            is MdlReaderConfiguredProfile ->
+                ReaderCertificateProfile.Config(
+                    ReaderProfileConfig(
+                        config.readerAuthEku,
+                        config.crlDistributionPoints.toNative(),
+                        config.issuerAlternativeName.toNative(),
+                    ),
+                )
+        }
+
+    private fun MdlBuiltinCertificateProfile.toNative(): BuiltinCertificateProfile =
+        when (this) {
+            MdlBuiltinCertificateProfile.MDL -> BuiltinCertificateProfile.MDL
+            MdlBuiltinCertificateProfile.AAMVA_MDL -> BuiltinCertificateProfile.AAMVA_MDL
+            MdlBuiltinCertificateProfile.EUDI_PID -> BuiltinCertificateProfile.EUDI_PID
+            MdlBuiltinCertificateProfile.ISO23220 -> BuiltinCertificateProfile.ISO23220
+        }
+
+    private fun MdlCertificateRdnRule.toNative(): CertificateRdnRule =
+        when (this) {
+            MdlCertificateRdnRule.MATCH_IF_PRESENT -> CertificateRdnRule.MATCH_IF_PRESENT
+            MdlCertificateRdnRule.REQUIRED -> CertificateRdnRule.REQUIRED
+        }
+
+    private fun MdlCertificateExtensionRule.toNative(): CertificateExtensionRule =
+        when (this) {
+            MdlCertificateExtensionRule.REQUIRED -> CertificateExtensionRule.REQUIRED
+            MdlCertificateExtensionRule.OPTIONAL -> CertificateExtensionRule.OPTIONAL
+        }
 
     companion object {
         private const val TAG = "MdlReaderAdapter"
