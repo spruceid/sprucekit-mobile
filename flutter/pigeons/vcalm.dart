@@ -211,6 +211,16 @@ abstract class Vcalm {
   /// The chosen cryptosuite is server-driven.
   ///
   /// @param selected Stable keys of the credentials the user selected
+  /// @param selectedFields Per-query field consent, keyed by VPR query index
+  ///   (the same index [matchedCredentials]/[requestedFields] report). A
+  ///   missing key means "no narrowing" — everything that query named is
+  ///   disclosed; a present-but-empty list means the user deselected every
+  ///   field. Pass an empty map when there is no per-field consent UI. Paths
+  ///   must equal what [requestedFields] returned (plain string equality, no
+  ///   prefix semantics). Narrowing only applies to credentials carrying an
+  ///   `ecdsa-sd-2023` base proof; on the full-disclosure path it is ignored.
+  ///   Keys outside the u32 range are rejected with a [VcalmProblem]
+  ///   (`problemType == "submit-error"`).
   /// @param allowDomainMismatch Proceed even if the VPR `domain` does not match
   ///   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
   ///   user consent — never as a default. A domain mismatch otherwise returns a
@@ -218,6 +228,7 @@ abstract class Vcalm {
   @async
   VcalmStepResult submitPresentation(
     List<VcalmCredentialKey> selected,
+    Map<int, List<String>> selectedFields,
     bool allowDomainMismatch,
   );
 

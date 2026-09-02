@@ -259,10 +259,24 @@ internal class VcalmAdapter(
 
     override fun submitPresentation(
         selected: List<VcalmCredentialKey>,
+        selectedFields: Map<Long, List<String>>,
         allowDomainMismatch: Boolean,
         callback: (Result<VcalmStepResult>) -> Unit
     ) {
-        Log.d(TAG, "submitPresentation: ${selected.size} selected key(s), allowDomainMismatch=$allowDomainMismatch")
+        Log.d(TAG, "submitPresentation: ${selected.size} selected key(s), ${selectedFields.size} narrowed quer(ies), allowDomainMismatch=$allowDomainMismatch")
+        // Rust takes the query index as u32. Reject out-of-range keys loudly —
+        // Long.toUInt() would silently wrap one onto another query's index and
+        // narrow the wrong credential.
+        val badIndex = selectedFields.keys.firstOrNull { it !in 0..0xFFFF_FFFFL }
+        if (badIndex != null) {
+            Log.e(TAG, "submitPresentation: query index $badIndex is outside the u32 range")
+            return callback(Result.success(VcalmProblem(
+                problemType = "submit-error",
+                status = null,
+                title = "Invalid selectedFields query index",
+                detail = "index=$badIndex is outside the u32 range"
+            )))
+        }
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val h = currentHolder()
@@ -271,7 +285,11 @@ internal class VcalmAdapter(
                 // Suite is server-driven — no suite parameter.
                 val creds = selected.mapNotNull { keyMap[it] }
                 Log.d(TAG, "submitPresentation: resolved ${creds.size}/${selected.size} handle(s)")
-                val step = h.submitPresentation(creds, allowDomainMismatch)
+                val step = h.submitPresentation(
+                    creds,
+                    selectedFields.entries.associate { (k, v) -> k.toUInt() to v },
+                    allowDomainMismatch,
+                )
                 Log.d(TAG, "submitPresentation: step=${step::class.simpleName}")
                 callback(Result.success(toPigeonStep(step)))
             } catch (e: VcalmException.DomainChannelMismatch) {

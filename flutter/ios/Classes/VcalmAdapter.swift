@@ -296,11 +296,29 @@ class VcalmAdapter: Vcalm {
 
     func submitPresentation(
         selected: [VcalmCredentialKey],
+        selectedFields: [Int64: [String]],
         allowDomainMismatch: Bool,
         completion: @escaping (Result<VcalmStepResult, Error>) -> Void
     ) {
         Task {
             do {
+                // Rust takes the query index as UInt32. Reject out-of-range keys
+                // loudly — the trapping UInt32(_:) initializer would crash the
+                // host app on a bad key instead of reporting it.
+                var narrowed: [UInt32: [String]] = [:]
+                for (key, fields) in selectedFields {
+                    guard let index = UInt32(exactly: key) else {
+                        log("submitPresentation: query index \(key) is outside the u32 range")
+                        completion(.success(VcalmProblem(
+                            problemType: "submit-error",
+                            status: nil,
+                            title: "Invalid selectedFields query index",
+                            detail: "index=\(key) is outside the u32 range"
+                        )))
+                        return
+                    }
+                    narrowed[index] = fields
+                }
                 guard let holder = currentHolder() else {
                     completion(.success(VcalmProblem(
                         problemType: "no-holder",
@@ -313,11 +331,11 @@ class VcalmAdapter: Vcalm {
                 lock.lock()
                 let resolved = selected.compactMap { self.credentialsByKey[$0] }
                 lock.unlock()
-                log("submitPresentation: resolved \(resolved.count)/\(selected.count) handle(s), allowDomainMismatch=\(allowDomainMismatch)")
+                log("submitPresentation: resolved \(resolved.count)/\(selected.count) handle(s), \(selectedFields.count) narrowed quer(ies), allowDomainMismatch=\(allowDomainMismatch)")
                 // Suite is server-driven — no suite parameter.
                 let step = try await holder.submitPresentation(
                     selectedCredentials: resolved,
-                    selectedFields: [:],
+                    selectedFields: narrowed,
                     allowDomainMismatch: allowDomainMismatch
                 )
                 completion(.success(try await toPigeonStep(step)))
