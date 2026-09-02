@@ -833,12 +833,22 @@ interface Vcalm {
    * The chosen cryptosuite is server-driven.
    *
    * @param selected Stable keys of the credentials the user selected
+   * @param selectedFields Per-query field consent, keyed by VPR query index
+   *   (the same index [matchedCredentials]/[requestedFields] report). A
+   *   missing key means "no narrowing" — everything that query named is
+   *   disclosed; a present-but-empty list means the user deselected every
+   *   field. Pass an empty map when there is no per-field consent UI. Paths
+   *   must equal what [requestedFields] returned (plain string equality, no
+   *   prefix semantics). Narrowing only applies to credentials carrying an
+   *   `ecdsa-sd-2023` base proof; on the full-disclosure path it is ignored.
+   *   Keys outside the u32 range are rejected with a [VcalmProblem]
+   *   (`problemType == "submit-error"`).
    * @param allowDomainMismatch Proceed even if the VPR `domain` does not match
    *   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
    *   user consent — never as a default. A domain mismatch otherwise returns a
    *   [VcalmProblem] with `problemType == "domain-mismatch"`.
    */
-  fun submitPresentation(selected: List<VcalmCredentialKey>, allowDomainMismatch: Boolean, callback: (Result<VcalmStepResult>) -> Unit)
+  fun submitPresentation(selected: List<VcalmCredentialKey>, selectedFields: Map<Long, List<String>>, allowDomainMismatch: Boolean, callback: (Result<VcalmStepResult>) -> Unit)
   /** Preview the credentials offered in the current Offer. */
   fun offeredCredentials(callback: (Result<List<VcalmOfferedCredentialData>>) -> Unit)
   /** Accept the current Offer (verify + store), then advance the exchange. */
@@ -943,8 +953,9 @@ interface Vcalm {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val selectedArg = args[0] as List<VcalmCredentialKey>
-            val allowDomainMismatchArg = args[1] as Boolean
-            api.submitPresentation(selectedArg, allowDomainMismatchArg) { result: Result<VcalmStepResult> ->
+            val selectedFieldsArg = args[1] as Map<Long, List<String>>
+            val allowDomainMismatchArg = args[2] as Boolean
+            api.submitPresentation(selectedArg, selectedFieldsArg, allowDomainMismatchArg) { result: Result<VcalmStepResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(VcalmPigeonUtils.wrapError(error))

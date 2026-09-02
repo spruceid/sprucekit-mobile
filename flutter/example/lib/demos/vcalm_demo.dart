@@ -373,7 +373,13 @@ class _VcalmDemoState extends State<VcalmDemo> {
         'submitPresentation: key=${key.credentialId}, '
         'allowDomainMismatch=$allowDomainMismatch',
       );
-      final step = await _vcalm.submitPresentation([key], allowDomainMismatch);
+      // Empty selectedFields = no per-field consent UI in this demo, so every
+      // requested field is disclosed.
+      final step = await _vcalm.submitPresentation(
+        [key],
+        const {},
+        allowDomainMismatch,
+      );
       _log('submitPresentation step: ${step.runtimeType}');
       if (!mounted) return;
 

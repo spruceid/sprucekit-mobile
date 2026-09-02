@@ -751,11 +751,21 @@ protocol Vcalm {
   /// The chosen cryptosuite is server-driven.
   ///
   /// @param selected Stable keys of the credentials the user selected
+  /// @param selectedFields Per-query field consent, keyed by VPR query index
+  ///   (the same index [matchedCredentials]/[requestedFields] report). A
+  ///   missing key means "no narrowing" — everything that query named is
+  ///   disclosed; a present-but-empty list means the user deselected every
+  ///   field. Pass an empty map when there is no per-field consent UI. Paths
+  ///   must equal what [requestedFields] returned (plain string equality, no
+  ///   prefix semantics). Narrowing only applies to credentials carrying an
+  ///   `ecdsa-sd-2023` base proof; on the full-disclosure path it is ignored.
+  ///   Keys outside the u32 range are rejected with a [VcalmProblem]
+  ///   (`problemType == "submit-error"`).
   /// @param allowDomainMismatch Proceed even if the VPR `domain` does not match
   ///   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
   ///   user consent — never as a default. A domain mismatch otherwise returns a
   ///   [VcalmProblem] with `problemType == "domain-mismatch"`.
-  func submitPresentation(selected: [VcalmCredentialKey], allowDomainMismatch: Bool, completion: @escaping (Result<VcalmStepResult, Error>) -> Void)
+  func submitPresentation(selected: [VcalmCredentialKey], selectedFields: [Int64: [String]], allowDomainMismatch: Bool, completion: @escaping (Result<VcalmStepResult, Error>) -> Void)
   /// Preview the credentials offered in the current Offer.
   func offeredCredentials(completion: @escaping (Result<[VcalmOfferedCredentialData], Error>) -> Void)
   /// Accept the current Offer (verify + store), then advance the exchange.
@@ -864,6 +874,16 @@ class VcalmSetup {
     /// The chosen cryptosuite is server-driven.
     ///
     /// @param selected Stable keys of the credentials the user selected
+    /// @param selectedFields Per-query field consent, keyed by VPR query index
+    ///   (the same index [matchedCredentials]/[requestedFields] report). A
+    ///   missing key means "no narrowing" — everything that query named is
+    ///   disclosed; a present-but-empty list means the user deselected every
+    ///   field. Pass an empty map when there is no per-field consent UI. Paths
+    ///   must equal what [requestedFields] returned (plain string equality, no
+    ///   prefix semantics). Narrowing only applies to credentials carrying an
+    ///   `ecdsa-sd-2023` base proof; on the full-disclosure path it is ignored.
+    ///   Keys outside the u32 range are rejected with a [VcalmProblem]
+    ///   (`problemType == "submit-error"`).
     /// @param allowDomainMismatch Proceed even if the VPR `domain` does not match
     ///   the exchange channel host (§3.4.3.2 anti-replay). Set only after explicit
     ///   user consent — never as a default. A domain mismatch otherwise returns a
@@ -873,8 +893,9 @@ class VcalmSetup {
       submitPresentationChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let selectedArg = args[0] as! [VcalmCredentialKey]
-        let allowDomainMismatchArg = args[1] as! Bool
-        api.submitPresentation(selected: selectedArg, allowDomainMismatch: allowDomainMismatchArg) { result in
+        let selectedFieldsArg = args[1] as! [Int64: [String]]
+        let allowDomainMismatchArg = args[2] as! Bool
+        api.submitPresentation(selected: selectedArg, selectedFields: selectedFieldsArg, allowDomainMismatch: allowDomainMismatchArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
