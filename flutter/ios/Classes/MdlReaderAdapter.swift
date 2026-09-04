@@ -35,6 +35,7 @@ class MdlReaderAdapter: NSObject, MdlReader {
 
     func startNfcReader(
         query: [String: [String: Bool]],
+        docType: String,
         trustedRoots: [String]
     ) throws {
         cleanupInternal()
@@ -94,7 +95,12 @@ class MdlReaderAdapter: NSObject, MdlReader {
             .first()
             .receive(on: DispatchQueue.main)
             .sink { [weak self, weak observable] handover in
-                self?.onHandover(handover, query: query, trustedRoots: trustedRoots)
+                self?.onHandover(
+                    handover,
+                    query: query,
+                    docType: docType,
+                    trustedRoots: trustedRoots
+                )
                 observable?.consumeHandover()
             }
             .store(in: &cancellables)
@@ -105,11 +111,17 @@ class MdlReaderAdapter: NSObject, MdlReader {
     func startQrReader(
         qrUri: String,
         query: [String: [String: Bool]],
+        docType: String,
         trustedRoots: [String]
     ) throws {
         cleanupInternal()
         let handover = ReaderHandover.newQr(qr: qrUri)
-        onHandover(handover, query: query, trustedRoots: trustedRoots)
+        onHandover(
+            handover,
+            query: query,
+            docType: docType,
+            trustedRoots: trustedRoots
+        )
     }
 
     func cancel() throws {
@@ -122,6 +134,7 @@ class MdlReaderAdapter: NSObject, MdlReader {
     private func onHandover(
         _ handover: ReaderHandover,
         query: [String: [String: Bool]],
+        docType: String,
         trustedRoots: [String]
     ) {
         updateState(MdlReaderStateUpdate(state: .bleConnecting))
@@ -130,7 +143,8 @@ class MdlReaderAdapter: NSObject, MdlReader {
             fromHandover: handover,
             delegate: delegate,
             requestedItems: query,
-            trustAnchorRegistry: trustedRoots.isEmpty ? nil : trustedRoots
+            trustAnchorRegistry: trustedRoots.isEmpty ? nil : trustedRoots,
+            docType: docType
         )
     }
 
@@ -209,18 +223,8 @@ class MdlReaderAdapter: NSObject, MdlReader {
         return MdlReadResponse(
             verifiedResponseJson: verifiedJson,
             docTypes: data.docTypes,
-            issuerAuthentication: toPigeon(data.issuerAuthentication),
-            deviceAuthentication: toPigeon(data.deviceAuthentication),
             errors: data.errors
         )
-    }
-
-    private func toPigeon(_ s: AuthenticationStatus) -> MdlAuthenticationStatus {
-        switch s {
-        case .valid: return .valid
-        case .invalid: return .invalid
-        case .unchecked: return .unchecked
-        }
     }
 }
 
