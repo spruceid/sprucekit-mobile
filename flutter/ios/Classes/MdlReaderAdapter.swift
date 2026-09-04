@@ -36,7 +36,8 @@ class MdlReaderAdapter: NSObject, MdlReader {
     func startNfcReader(
         query: [String: [String: Bool]],
         docType: String,
-        trustedRoots: [String]
+        trustedRoots: [String],
+        certificateProfiles: [String: MdlCertificateProfiles]?
     ) throws {
         cleanupInternal()
 
@@ -95,12 +96,26 @@ class MdlReaderAdapter: NSObject, MdlReader {
             .first()
             .receive(on: DispatchQueue.main)
             .sink { [weak self, weak observable] handover in
-                self?.onHandover(
-                    handover,
-                    query: query,
-                    docType: docType,
-                    trustedRoots: trustedRoots
-                )
+                guard let self else { return }
+                do {
+                    try self.onHandover(
+                        handover,
+                        query: query,
+                        docType: docType,
+                        trustedRoots: trustedRoots,
+                        certificateProfiles: certificateProfiles
+                    )
+                } catch {
+                    // A misconfigured certificate profile is only detectable here, after the tap
+                    // succeeded. Report it rather than leaving the session in `bleConnecting`.
+                    // `Error.localizedDescription` would bridge through NSError and lose the
+                    // message, so read it off the concrete type.
+                    self.updateState(MdlReaderStateUpdate(
+                        state: .error,
+                        error: (error as? MdlReaderPigeonError)?.message
+                            ?? error.localizedDescription
+                    ))
+                }
                 observable?.consumeHandover()
             }
             .store(in: &cancellables)
@@ -112,15 +127,17 @@ class MdlReaderAdapter: NSObject, MdlReader {
         qrUri: String,
         query: [String: [String: Bool]],
         docType: String,
-        trustedRoots: [String]
+        trustedRoots: [String],
+        certificateProfiles: [String: MdlCertificateProfiles]?
     ) throws {
         cleanupInternal()
         let handover = ReaderHandover.newQr(qr: qrUri)
-        onHandover(
+        try onHandover(
             handover,
             query: query,
             docType: docType,
-            trustedRoots: trustedRoots
+            trustedRoots: trustedRoots,
+            certificateProfiles: certificateProfiles
         )
     }
 
@@ -135,8 +152,9 @@ class MdlReaderAdapter: NSObject, MdlReader {
         _ handover: ReaderHandover,
         query: [String: [String: Bool]],
         docType: String,
-        trustedRoots: [String]
-    ) {
+        trustedRoots: [String],
+        certificateProfiles: [String: MdlCertificateProfiles]?
+    ) throws {
         updateState(MdlReaderStateUpdate(state: .bleConnecting))
         let delegate = ReaderDelegate(adapter: self)
         self.reader = MdocProximityReader(
@@ -144,8 +162,116 @@ class MdlReaderAdapter: NSObject, MdlReader {
             delegate: delegate,
             requestedItems: query,
             trustAnchorRegistry: trustedRoots.isEmpty ? nil : trustedRoots,
-            docType: docType
+            docType: docType,
+            certificateProfiles: try certificateProfiles.map {
+                try Self.toNative($0, docType: docType)
+            }
         )
+    }
+
+    /// Translate the Pigeon profile map into the native SDK's representation.
+    ///
+    /// Throws rather than falling back to a default profile when the map does not cover
+    /// `docType`: silently substituting mDL rules would validate a credential against the wrong
+    /// PKI without saying so.
+    private static func toNative(
+        _ profiles: [String: MdlCertificateProfiles],
+        docType: String
+    ) throws -> [String: MdocCertificateProfiles] {
+        guard profiles[docType] != nil else {
+            throw MdlReaderPigeonError(
+                code: "certificate-profiles",
+                message: "certificateProfiles has no entry for the requested doctype \(docType); "
+                    + "found \(Array(profiles.keys))",
+                details: nil
+            )
+        }
+        return try profiles.mapValues { profiles in
+            MdocCertificateProfiles(
+                issuer: try toNative(profiles.issuer, docType: docType),
+                reader: try toNative(profiles.reader, docType: docType)
+            )
+        }
+    }
+
+    private static func toNative(
+        _ profile: MdlIssuerCertificateProfile,
+        docType: String
+    ) throws -> IssuerCertificateProfile {
+        // Pigeon renders a Dart sealed class as a Swift protocol rather than an enum, so this
+        // switch cannot be exhaustive. The default arm throws instead of substituting a profile:
+        // an unrecognised case means the Pigeon definitions and this adapter have diverged, and
+        // guessing would validate a credential against rules the caller did not ask for.
+        switch profile {
+        case let profile as MdlIssuerBuiltinProfile:
+            return .builtin(profile: toNative(profile.profile))
+        case let profile as MdlIssuerConfiguredProfile:
+            return .config(config: IssuerProfileConfig(
+                documentSignerEku: profile.config.documentSignerEku,
+                stateOrProvince: toNative(profile.config.stateOrProvince),
+                crlDistributionPoints: toNative(profile.config.crlDistributionPoints),
+                issuerAlternativeName: toNative(profile.config.issuerAlternativeName)
+            ))
+        default:
+            throw profileError("issuer", docType, "is not a recognised profile kind")
+        }
+    }
+
+    private static func toNative(
+        _ profile: MdlReaderCertificateProfile,
+        docType: String
+    ) throws -> ReaderCertificateProfile {
+        switch profile {
+        case let profile as MdlReaderBuiltinProfile:
+            return .builtin(profile: toNative(profile.profile))
+        case let profile as MdlReaderConfiguredProfile:
+            return .config(config: ReaderProfileConfig(
+                readerAuthEku: profile.config.readerAuthEku,
+                crlDistributionPoints: toNative(profile.config.crlDistributionPoints),
+                issuerAlternativeName: toNative(profile.config.issuerAlternativeName)
+            ))
+        default:
+            throw profileError("reader", docType, "is not a recognised profile kind")
+        }
+    }
+
+    private static func profileError(
+        _ half: String,
+        _ docType: String,
+        _ problem: String
+    ) -> MdlReaderPigeonError {
+        MdlReaderPigeonError(
+            code: "certificate-profiles",
+            message: "\(half) profile for \(docType) \(problem)",
+            details: nil
+        )
+    }
+
+    private static func toNative(
+        _ profile: MdlBuiltinCertificateProfile
+    ) -> BuiltinCertificateProfile {
+        switch profile {
+        case .mdl: return .mdl
+        case .aamvaMdl: return .aamvaMdl
+        case .eudiPid: return .eudiPid
+        case .iso23220: return .iso23220
+        }
+    }
+
+    private static func toNative(_ rule: MdlCertificateRdnRule) -> CertificateRdnRule {
+        switch rule {
+        case .matchIfPresent: return .matchIfPresent
+        case .required: return .required
+        }
+    }
+
+    private static func toNative(
+        _ rule: MdlCertificateExtensionRule
+    ) -> CertificateExtensionRule {
+        switch rule {
+        case .required: return .required
+        case .optional: return .optional
+        }
     }
 
     fileprivate func onReaderState(_ state: MdocProximityReader.State) {

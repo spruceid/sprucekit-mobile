@@ -11,7 +11,7 @@ use isomdl::{
         x509::{
             self,
             trust_anchor::{PemTrustAnchor, TrustAnchorRegistry},
-            validation::{AnyDocType, MdocProfile, ValidationOptions},
+            validation::ValidationOptions,
         },
     },
     presentation::{
@@ -22,6 +22,8 @@ use isomdl::{
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use super::profile::{self, MdocCertificateProfiles};
 
 #[derive(uniffi::Record)]
 pub struct ReaderApduHandoverDriverInit {
@@ -405,9 +407,8 @@ type VerifiedNamespaces = HashMap<String, HashMap<String, MDocItem>>;
 /// The per-document reasons matter as much as the response-level ones: a document that fails on
 /// its own contributes only a bare
 /// [`DocumentsFailed`](isomdl::presentation::authentication::ResponseError::DocumentsFailed) to
-/// the response-level list, so reporting only that leaves a failure with no explanation. This
-/// payload is the *only* signal that a document failed, since elements are drawn solely from
-/// documents that passed.
+/// the response-level list, so reporting only that leaves "issuer authentication invalid" with no
+/// explanation. Misconfigured certificate profiles land here, as `no_profile_configured`.
 #[derive(Serialize, Default)]
 struct ResponseErrors {
     /// Reasons the response as a whole is not wholly good.
@@ -494,15 +495,22 @@ fn verified_namespaces_and_errors(
 /// Arguments:
 /// state: the session established by [`establish_session`]
 /// response: the cbor encoded `DeviceResponse` received from the holder
-#[uniffi::export]
+/// certificate_profiles: certificate rules per doctype. `None` validates every doctype under the
+///                       ISO/IEC 18013-5 mDL profile, which is what every credential this SDK
+///                       generates is signed under, including the 23220-4 Photo ID. Supplying a
+///                       map also means a doctype absent from it is refused rather than validated
+///                       under a guess.
+#[uniffi::export(default(certificate_profiles = None))]
 pub fn handle_response(
     state: Arc<MDLSessionManager>,
     response: Vec<u8>,
+    certificate_profiles: Option<HashMap<String, MdocCertificateProfiles>>,
 ) -> Result<MDLReaderResponseData, MDLReaderResponseError> {
     let mut state = state.0.clone();
-    // Every credential this SDK generates is signed under the ISO/IEC 18013-5 mDL profile,
-    // whatever its doctype.
-    let profiles = AnyDocType(MdocProfile::MDL);
+    let profiles =
+        profile::resolve(certificate_profiles).map_err(|e| MDLReaderResponseError::Generic {
+            value: format!("unable to build certificate profiles: {e}"),
+        })?;
     // blocking to avoid turning all functions async as revocation checks are currently unused due
     // to `()`
     let validated_response = super::block_on(state.handle_response(&response, &profiles, &()));
@@ -562,15 +570,17 @@ pub fn device_response_verification_as_json_string(
 /// session_transcript: cbor encoded `isomdl::definitions::session::SessionTranscript`
 /// ephemeral_reader_key: 32-byte private key
 /// trust_anchor_registry: optional list of PEM encoded certificates
+/// certificate_profiles: certificate rules per doctype, as for [`handle_response`]
 ///
 /// Returns:
 /// An object with the verified response, document types, and an optional error string.
-#[uniffi::export]
+#[uniffi::export(default(certificate_profiles = None))]
 pub fn verify_device_response(
     device_response: Vec<u8>,
     session_transcript: Vec<u8>,
     ephemeral_reader_key: Vec<u8>,
     trust_anchor_registry: Option<Vec<String>>,
+    certificate_profiles: Option<HashMap<String, MdocCertificateProfiles>>,
 ) -> Result<MDLDeviceResponseVerification, MDLReaderResponseError> {
     let device_response: isomdl::definitions::DeviceResponse =
         isomdl::cbor::from_slice(&device_response).map_err(|e| {
@@ -594,7 +604,10 @@ pub fn verify_device_response(
     // built a request through a `SessionManager`, so there is no recorded request to filter
     // against. `isomdl` treats that as "validate everything that arrived" and records a
     // `RequestedDocTypesUnknown` warning, which matches what this entry point did before.
-    let profiles = AnyDocType(MdocProfile::MDL);
+    let profiles =
+        profile::resolve(certificate_profiles).map_err(|e| MDLReaderResponseError::Generic {
+            value: format!("unable to build certificate profiles: {e}"),
+        })?;
     let options = ValidationOptions::default();
     let config = ReaderValidationConfig {
         trust_anchors: &registry,
@@ -720,6 +733,37 @@ mod tests {
         assert!(errors.is_none());
     }
 
+    /// Configuring certificate profiles that do not cover the doctype the holder sent is a new
+    /// failure mode, and the only diagnosis a caller gets is this payload. The response-level
+    /// error is a bare `DocumentsFailed`, so without the per-document reason the UI would show
+    /// "issuer authentication invalid" and no explanation at all.
+    #[test]
+    fn a_missing_certificate_profile_is_reported_with_its_reason() {
+        let mut outcome = outcome();
+        outcome.failed = vec![failed(DocumentError::NoProfileConfigured {
+            doc_type: "org.iso.18013.5.1.mDL".to_string(),
+        })];
+        outcome.errors = vec![ResponseError::DocumentsFailed];
+
+        let (_, doc_types, errors) =
+            verified_namespaces_and_errors(&outcome).expect("derivation failed");
+        assert_eq!(doc_types, vec!["org.iso.18013.5.1.mDL".to_string()]);
+
+        let errors = errors.expect("a failed document must be reported");
+        assert!(
+            errors.contains("org.iso.18013.5.1.mDL"),
+            "the doctype whose profile is missing must be named: {errors}"
+        );
+        assert!(
+            errors.contains("profile"),
+            "the reason must survive into the payload, not just `DocumentsFailed`: {errors}"
+        );
+    }
+
+    /// Device authentication verifies a signature over a `DeviceAuthentication` structure that
+    /// embeds the `SessionTranscript`. For verification to succeed against an externally-supplied
+    /// transcript, [`ProvidedSessionTranscript`] must re-encode it byte-for-byte — so a transparent
+    /// decode/encode round-trip of deterministic CBOR must be the identity.
     #[test]
     fn provided_session_transcript_roundtrips_cbor_verbatim() {
         // A representative, deterministically-encoded session-transcript-shaped value:
@@ -744,7 +788,7 @@ mod tests {
     /// An invalid CBOR device response surfaces as an error rather than panicking.
     #[test]
     fn verify_device_response_rejects_malformed_cbor() {
-        let result = verify_device_response(vec![0xff, 0xff, 0xff], vec![0x80], vec![], None);
+        let result = verify_device_response(vec![0xff, 0xff, 0xff], vec![0x80], vec![], None, None);
         assert!(matches!(
             result,
             Err(MDLReaderResponseError::Generic { .. })

@@ -29,16 +29,15 @@ use isomdl::{
         },
         helpers::NonEmptyMap,
         session::{self, Handover},
-        x509::{
-            trust_anchor::TrustAnchorRegistry,
-            validation::{AnyDocType, MdocProfile},
-        },
+        x509::trust_anchor::TrustAnchorRegistry,
         BleOptions, DeviceRetrievalMethod, SessionEstablishment,
     },
     presentation::device::{self, SessionManagerInit},
 };
 use tracing::warn;
 use uuid::Uuid;
+
+use super::profile;
 
 #[derive(uniffi::Object, Debug, Clone)]
 pub struct NegotiatedCarrierInfo(IsoMdlNegotiatedCarrierInfo);
@@ -379,11 +378,12 @@ impl MdlPresentationSession {
                 .clone();
             // blocking to avoid turning all functions async as revocation checks are currently unused due
             // to `()`
-            // The profile governs reader authentication, and the registry passed below is
-            // empty, so no reader can authenticate whatever profile is chosen. Making this
-            // caller-configurable would be a knob with no observable effect until holder-side
-            // reader CA trust anchors are, which is a separate change.
-            let profiles = AnyDocType(MdocProfile::MDL);
+            // Not caller-configurable, unlike the reader side: the profile governs reader
+            // authentication, and the registry passed below is empty, so no reader can
+            // authenticate whatever profile is chosen. A profile parameter here would be a knob
+            // with no observable effect until holder-side reader CA trust anchors are
+            // configurable, which is a separate change.
+            let profiles = profile::ProfileSelection::AnyDocTypeAsMdl;
             super::block_on(engaged.process_session_establishment(
                 session_establishment,
                 TrustAnchorRegistry::default(),
@@ -649,10 +649,7 @@ mod tests {
     use isomdl::{
         definitions::{
             device_request::{self, DataElements},
-            x509::{
-                trust_anchor::{PemTrustAnchor, TrustAnchorRegistry, TrustPurpose},
-                validation::{AnyDocType, MdocProfile},
-            },
+            x509::trust_anchor::{PemTrustAnchor, TrustAnchorRegistry, TrustPurpose},
         },
         presentation::reader,
     };
@@ -751,7 +748,7 @@ mod tests {
         let key = key_manager.get_signing_key(key_alias).unwrap();
         let signature = key.sign(signing_payload).unwrap();
         let response = presentation_session.submit_response(signature).unwrap();
-        let profiles = AnyDocType(MdocProfile::MDL);
+        let profiles = profile::ProfileSelection::AnyDocTypeAsMdl;
         let res = reader_session_manager
             .handle_response(&response, &profiles, &())
             .await;
@@ -838,7 +835,8 @@ mod tests {
         let key = key_manager.get_signing_key(key_alias).unwrap();
         let signature = key.sign(signing_payload).unwrap();
         let response = presentation_session.submit_response(signature).unwrap();
-        let res = crate::reader::handle_response(reader_session_data.state, response).unwrap();
+        let res =
+            crate::reader::handle_response(reader_session_data.state, response, None).unwrap();
         assert_eq!(res.errors, None);
 
         vdc_collection.delete(mdl.id).await.unwrap();
