@@ -173,6 +173,14 @@ fun VerifierHomeBody(
                 }
             )
             VerifierListItem(
+                title = "Photo ID",
+                description = "Verifies an ISO 23220-4 Photo ID by reading a QR code",
+                type = VerifierListItemTagType.SCAN_QR_CODE,
+                modifier = Modifier.clickable {
+                    navController.navigate(Screen.VerifyPhotoIdScreen.route)
+                }
+            )
+            VerifierListItem(
                 title = "Verifiable Credential",
                 description = "Verifies a verifiable credential by reading the verifiable presentation QR code",
                 type = VerifierListItemTagType.SCAN_QR_CODE,

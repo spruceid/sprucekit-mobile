@@ -19483,6 +19483,241 @@ public func FfiConverterTypeTestMdlData_lower(_ value: TestMdlData) -> RustBuffe
 
 
 /**
+ * Test Photo ID data struct to provide dummy data to pass to generating a test Photo ID.
+ *
+ * Elements the Annex C example marks mandatory or recommended are required here; elements it marks
+ * optional are `Option`al so a minimal credential can be issued. Annex C is informative, so treat
+ * this presence split as "what the worked example does", not as a conformance requirement.
+ */
+public struct TestPhotoIdData: Equatable, Hashable {
+    public var familyNameUnicode: String
+    public var givenNameUnicode: String
+    /**
+     * `full-date`, e.g. `"1990-01-01"`.
+     */
+    public var birthDate: String
+    /**
+     * Base64-encoded image, issued as a CBOR byte string.
+     */
+    public var portrait: String
+    /**
+     * `full-date`, e.g. `"2020-01-01"`.
+     */
+    public var issueDate: String
+    /**
+     * `full-date`, e.g. `"2030-01-01"`.
+     */
+    public var expiryDate: String
+    public var issuingAuthorityUnicode: String
+    /**
+     * ISO 3166-1 alpha-2 country code.
+     */
+    public var issuingCountry: String
+    public var ageOver18: Bool
+    public var ageInYears: UInt16
+    public var ageBirthYear: UInt16
+    public var ageOver21: Bool?
+    /**
+     * `tdate`, e.g. `"2020-01-01T12:00:00Z"`.
+     */
+    public var portraitCaptureDate: String?
+    public var birthplace: String?
+    public var nameAtBirth: String?
+    public var residentAddressUnicode: String?
+    public var residentCityUnicode: String?
+    public var residentPostalCode: String?
+    public var residentCountry: String?
+    public var residentCityLatin1: String?
+    public var sex: UInt16?
+    /**
+     * ISO 3166-1 alpha-2 country code. Unlike the EUDI PID, this is a single string.
+     */
+    public var nationality: String?
+    public var documentNumber: String?
+    public var issuingSubdivision: String?
+    public var familyNameLatin1: String?
+    public var givenNameLatin1: String?
+    public var personId: String?
+    public var birthCountry: String?
+    public var birthState: String?
+    public var birthCity: String?
+    public var administrativeNumber: String?
+    public var residentStreet: String?
+    public var residentHouseNumber: String?
+    public var travelDocumentNumber: String?
+    public var residentState: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(familyNameUnicode: String, givenNameUnicode: String, 
+        /**
+         * `full-date`, e.g. `"1990-01-01"`.
+         */birthDate: String, 
+        /**
+         * Base64-encoded image, issued as a CBOR byte string.
+         */portrait: String, 
+        /**
+         * `full-date`, e.g. `"2020-01-01"`.
+         */issueDate: String, 
+        /**
+         * `full-date`, e.g. `"2030-01-01"`.
+         */expiryDate: String, issuingAuthorityUnicode: String, 
+        /**
+         * ISO 3166-1 alpha-2 country code.
+         */issuingCountry: String, ageOver18: Bool, ageInYears: UInt16, ageBirthYear: UInt16, ageOver21: Bool?, 
+        /**
+         * `tdate`, e.g. `"2020-01-01T12:00:00Z"`.
+         */portraitCaptureDate: String?, birthplace: String?, nameAtBirth: String?, residentAddressUnicode: String?, residentCityUnicode: String?, residentPostalCode: String?, residentCountry: String?, residentCityLatin1: String?, sex: UInt16?, 
+        /**
+         * ISO 3166-1 alpha-2 country code. Unlike the EUDI PID, this is a single string.
+         */nationality: String?, documentNumber: String?, issuingSubdivision: String?, familyNameLatin1: String?, givenNameLatin1: String?, personId: String?, birthCountry: String?, birthState: String?, birthCity: String?, administrativeNumber: String?, residentStreet: String?, residentHouseNumber: String?, travelDocumentNumber: String?, residentState: String?) {
+        self.familyNameUnicode = familyNameUnicode
+        self.givenNameUnicode = givenNameUnicode
+        self.birthDate = birthDate
+        self.portrait = portrait
+        self.issueDate = issueDate
+        self.expiryDate = expiryDate
+        self.issuingAuthorityUnicode = issuingAuthorityUnicode
+        self.issuingCountry = issuingCountry
+        self.ageOver18 = ageOver18
+        self.ageInYears = ageInYears
+        self.ageBirthYear = ageBirthYear
+        self.ageOver21 = ageOver21
+        self.portraitCaptureDate = portraitCaptureDate
+        self.birthplace = birthplace
+        self.nameAtBirth = nameAtBirth
+        self.residentAddressUnicode = residentAddressUnicode
+        self.residentCityUnicode = residentCityUnicode
+        self.residentPostalCode = residentPostalCode
+        self.residentCountry = residentCountry
+        self.residentCityLatin1 = residentCityLatin1
+        self.sex = sex
+        self.nationality = nationality
+        self.documentNumber = documentNumber
+        self.issuingSubdivision = issuingSubdivision
+        self.familyNameLatin1 = familyNameLatin1
+        self.givenNameLatin1 = givenNameLatin1
+        self.personId = personId
+        self.birthCountry = birthCountry
+        self.birthState = birthState
+        self.birthCity = birthCity
+        self.administrativeNumber = administrativeNumber
+        self.residentStreet = residentStreet
+        self.residentHouseNumber = residentHouseNumber
+        self.travelDocumentNumber = travelDocumentNumber
+        self.residentState = residentState
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TestPhotoIdData: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTestPhotoIdData: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TestPhotoIdData {
+        return
+            try TestPhotoIdData(
+                familyNameUnicode: FfiConverterString.read(from: &buf), 
+                givenNameUnicode: FfiConverterString.read(from: &buf), 
+                birthDate: FfiConverterString.read(from: &buf), 
+                portrait: FfiConverterString.read(from: &buf), 
+                issueDate: FfiConverterString.read(from: &buf), 
+                expiryDate: FfiConverterString.read(from: &buf), 
+                issuingAuthorityUnicode: FfiConverterString.read(from: &buf), 
+                issuingCountry: FfiConverterString.read(from: &buf), 
+                ageOver18: FfiConverterBool.read(from: &buf), 
+                ageInYears: FfiConverterUInt16.read(from: &buf), 
+                ageBirthYear: FfiConverterUInt16.read(from: &buf), 
+                ageOver21: FfiConverterOptionBool.read(from: &buf), 
+                portraitCaptureDate: FfiConverterOptionString.read(from: &buf), 
+                birthplace: FfiConverterOptionString.read(from: &buf), 
+                nameAtBirth: FfiConverterOptionString.read(from: &buf), 
+                residentAddressUnicode: FfiConverterOptionString.read(from: &buf), 
+                residentCityUnicode: FfiConverterOptionString.read(from: &buf), 
+                residentPostalCode: FfiConverterOptionString.read(from: &buf), 
+                residentCountry: FfiConverterOptionString.read(from: &buf), 
+                residentCityLatin1: FfiConverterOptionString.read(from: &buf), 
+                sex: FfiConverterOptionUInt16.read(from: &buf), 
+                nationality: FfiConverterOptionString.read(from: &buf), 
+                documentNumber: FfiConverterOptionString.read(from: &buf), 
+                issuingSubdivision: FfiConverterOptionString.read(from: &buf), 
+                familyNameLatin1: FfiConverterOptionString.read(from: &buf), 
+                givenNameLatin1: FfiConverterOptionString.read(from: &buf), 
+                personId: FfiConverterOptionString.read(from: &buf), 
+                birthCountry: FfiConverterOptionString.read(from: &buf), 
+                birthState: FfiConverterOptionString.read(from: &buf), 
+                birthCity: FfiConverterOptionString.read(from: &buf), 
+                administrativeNumber: FfiConverterOptionString.read(from: &buf), 
+                residentStreet: FfiConverterOptionString.read(from: &buf), 
+                residentHouseNumber: FfiConverterOptionString.read(from: &buf), 
+                travelDocumentNumber: FfiConverterOptionString.read(from: &buf), 
+                residentState: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TestPhotoIdData, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.familyNameUnicode, into: &buf)
+        FfiConverterString.write(value.givenNameUnicode, into: &buf)
+        FfiConverterString.write(value.birthDate, into: &buf)
+        FfiConverterString.write(value.portrait, into: &buf)
+        FfiConverterString.write(value.issueDate, into: &buf)
+        FfiConverterString.write(value.expiryDate, into: &buf)
+        FfiConverterString.write(value.issuingAuthorityUnicode, into: &buf)
+        FfiConverterString.write(value.issuingCountry, into: &buf)
+        FfiConverterBool.write(value.ageOver18, into: &buf)
+        FfiConverterUInt16.write(value.ageInYears, into: &buf)
+        FfiConverterUInt16.write(value.ageBirthYear, into: &buf)
+        FfiConverterOptionBool.write(value.ageOver21, into: &buf)
+        FfiConverterOptionString.write(value.portraitCaptureDate, into: &buf)
+        FfiConverterOptionString.write(value.birthplace, into: &buf)
+        FfiConverterOptionString.write(value.nameAtBirth, into: &buf)
+        FfiConverterOptionString.write(value.residentAddressUnicode, into: &buf)
+        FfiConverterOptionString.write(value.residentCityUnicode, into: &buf)
+        FfiConverterOptionString.write(value.residentPostalCode, into: &buf)
+        FfiConverterOptionString.write(value.residentCountry, into: &buf)
+        FfiConverterOptionString.write(value.residentCityLatin1, into: &buf)
+        FfiConverterOptionUInt16.write(value.sex, into: &buf)
+        FfiConverterOptionString.write(value.nationality, into: &buf)
+        FfiConverterOptionString.write(value.documentNumber, into: &buf)
+        FfiConverterOptionString.write(value.issuingSubdivision, into: &buf)
+        FfiConverterOptionString.write(value.familyNameLatin1, into: &buf)
+        FfiConverterOptionString.write(value.givenNameLatin1, into: &buf)
+        FfiConverterOptionString.write(value.personId, into: &buf)
+        FfiConverterOptionString.write(value.birthCountry, into: &buf)
+        FfiConverterOptionString.write(value.birthState, into: &buf)
+        FfiConverterOptionString.write(value.birthCity, into: &buf)
+        FfiConverterOptionString.write(value.administrativeNumber, into: &buf)
+        FfiConverterOptionString.write(value.residentStreet, into: &buf)
+        FfiConverterOptionString.write(value.residentHouseNumber, into: &buf)
+        FfiConverterOptionString.write(value.travelDocumentNumber, into: &buf)
+        FfiConverterOptionString.write(value.residentState, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTestPhotoIdData_lift(_ buf: RustBuffer) throws -> TestPhotoIdData {
+    return try FfiConverterTypeTestPhotoIdData.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTestPhotoIdData_lower(_ value: TestPhotoIdData) -> RustBuffer {
+    return FfiConverterTypeTestPhotoIdData.lower(value)
+}
+
+
+/**
  * FFI mirror of [`oid4vci::offer::TxCodeDefinition`].
  *
  * uniffi requires a local `Record` struct with `#[derive(uniffi::Record)]`
@@ -35363,6 +35598,29 @@ public func generateTestMdlWithData(keyManager: KeyStore, keyAlias: KeyAlias, da
 })
 }
 /**
+ * Generate a new test Photo ID with hardcoded values, using the supplied key as the DeviceKey.
+ */
+public func generateTestPhotoId(keyManager: KeyStore, keyAlias: KeyAlias)throws  -> Mdoc  {
+    return try  FfiConverterTypeMdoc_lift(try rustCallWithError(FfiConverterTypeMdlUtilError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_generate_test_photo_id(
+        FfiConverterTypeKeyStore_lower(keyManager),
+        FfiConverterTypeKeyAlias_lower(keyAlias),$0
+    )
+})
+}
+/**
+ * Generate a new test Photo ID from the supplied data, using the supplied key as the DeviceKey.
+ */
+public func generateTestPhotoIdWithData(keyManager: KeyStore, keyAlias: KeyAlias, data: TestPhotoIdData)throws  -> Mdoc  {
+    return try  FfiConverterTypeMdoc_lift(try rustCallWithError(FfiConverterTypeMdlUtilError_lift) {
+    uniffi_mobile_sdk_rs_fn_func_generate_test_photo_id_with_data(
+        FfiConverterTypeKeyStore_lower(keyManager),
+        FfiConverterTypeKeyAlias_lower(keyAlias),
+        FfiConverterTypeTestPhotoIdData_lower(data),$0
+    )
+})
+}
+/**
  * Creates a JWT proof.
  */
 public func createJwtProof(issuer: String?, audience: String, expireInSecs: UInt64?, nonce: String?, signer: JwsSigner)async throws  -> Jws  {
@@ -35633,6 +35891,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl_with_data() != 12531) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_photo_id() != 36539) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_generate_test_photo_id_with_data() != 49170) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_create_jwt_proof() != 10438) {

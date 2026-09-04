@@ -48,12 +48,15 @@ fun VerifierMDocResultView(
     var issuer by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        // Try to find issuing_authority from any namespace
+        // Try to find the issuing authority from any namespace. The element identifier is
+        // namespace-specific: ISO 18013-5 uses `issuing_authority`, ISO 23220-2 uses
+        // `issuing_authority_unicode`.
         for (key in mdoc.keys()) {
             try {
                 val namespace = mdoc.getJSONObject(key)
-                val authority = namespace.optString("issuing_authority", "")
-                if (authority.isNotBlank()) {
+                val authority = listOf("issuing_authority", "issuing_authority_unicode")
+                    .firstNotNullOfOrNull { namespace.optString(it, "").ifBlank { null } }
+                if (authority != null) {
                     issuer = authority
                     break
                 }
