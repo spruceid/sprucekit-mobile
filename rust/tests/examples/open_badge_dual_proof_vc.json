@@ -1,0 +1,56 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/credentials/v2",
+    "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json"
+  ],
+  "credentialSubject": {
+    "achievement": {
+      "achievementType": "Course",
+      "criteria": {
+        "narrative": "Awarded to students who complete all course modules and pass the final assessment.",
+        "type": "Criteria"
+      },
+      "description": "Completion of an introductory data structures course.",
+      "id": "urn:uuid:7c1e64c3-5a92-4f0d-9b1a-2e64d0c3a8f1",
+      "name": "Data Structures 101",
+      "type": [
+        "Achievement"
+      ]
+    },
+    "id": "did:jwk:eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6Imk1TTI2RkE4X0NQdEJLVmFuQkVBRVgtZFlwS3lRMG1IV0tXUWxIb2RHN28iLCJ5IjoiSkw4Y2xBZXY1Vk9ib3lieDFQUXJ6a2hOSmREdExYOVNhSmJHVGxJWkxEZyJ9",
+    "name": "Test Student",
+    "type": [
+      "AchievementSubject"
+    ]
+  },
+  "id": "urn:uuid:cf62d607-5b1d-40e0-8b2b-5a383ef58fa4",
+  "issuer": {
+    "id": "did:web:davis-index-precious-complimentary.trycloudflare.com:signer:test",
+    "name": "Test Signer",
+    "type": "Profile"
+  },
+  "name": "Data Structures 101",
+  "proof": [
+    {
+      "created": "2026-09-11T18:19:07.484Z",
+      "cryptosuite": "ecdsa-rdfc-2019",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "zP1DxHgEHUDsjXYa7E28kmGR6BtqQPbfKPQo2xh5faW1aXhcZDR92RiiTXtYWdoLLdmXS3kNKf7CJmT6CbgXQvHY",
+      "type": "DataIntegrityProof",
+      "verificationMethod": "did:web:davis-index-precious-complimentary.trycloudflare.com:signer:test#e1c5161e-d7bf-4687-9436-7645b7ffe187"
+    },
+    {
+      "created": "2026-09-11T18:19:07.515Z",
+      "cryptosuite": "ecdsa-sd-2023",
+      "proofPurpose": "assertionMethod",
+      "proofValue": "u2V0AhVhAD1NIGRVVig5i4WZ3u845w1_hcpp1kzRSX-YX_7Ds3IC2paFUy2lZxwnD6J1_2vupp6gJFcmrjJgK0KBo7WNfsFgjgCQCCl2-nws8zq8IKomS3owvTTl-jdj2HXNBUbXzyGfmgy9YIJGoJnRliESfnQ8zz1ppzwq93MnPsaOLoPu2np8PV2GviVhAE1NjPKOh-SLRgxNTx1BWuHSAc-Fz08h25TOtflkD4oLAwIM3p66HmeVCt038u34ToXhLZ8-0uxjqq71ZeY4T1lhAqurQk-Kd6PJb-5BBth_9GMcfnPaUJ-ezybCuK1o7aG3q8rabI186JowKop8BZmg_ZrAIyoerrrSjWXPUfFC9llhAiQ6cjj0b3UFxnhhT85sL2HgvPciZd8rLaANm26MDtLY37pGO4FBLVpRyqVvgwNlkqvgbQ7AH_D4GrcQWf0_8HlhAII71fviOIEyiaWCswkj8PXHnT7V1gq5YDXmGUQe9z4ybqrFf1RBOP_bA4AoQfX1DtOjYBMFU-MC1BLC2lQwp81hAboDr-QGqCldWzHEDngKldqhn1s9yUqXIrukGqdoIQ4FJGS-u8nd-ggfcKhcuobVt6OAbYVsXKAQ1yeuRzaLThlhAjSJNNy3ysoiz_Fumo4QkpBT3oQHQohyToPbH6DyYpJ6jwlJrXaU5HujzTeihf2iTL-gJPvRJXUZaGW-puLItbVhAYmyp7kUCyvTBbQO1Y6w6A3vYa5ah7UJTc3VBo1IvbzBM9ltRh-auOLWSVMyQykPD7-5Lgrq_j8SNzywpm4gNH1hAmAeO-23tmm4PT5dukR2JdvDcQV3bKfGqLGJq3t4q_65q92fQcS8JDRrNwLogTBiKlTqPro2eNJJOxq5V5qWcQlhARnWLv9llwtnY1s7eCP5NQZvT1_uTfLIviaQsHDvi3nvHG7SbU5y3Y1q5wxQGlHOfLCUqzRgbsL1K9KAOhoU5s4NnL2lzc3VlcmovdmFsaWRGcm9tdS9jcmVkZW50aWFsU3ViamVjdC9pZA",
+      "type": "DataIntegrityProof",
+      "verificationMethod": "did:web:davis-index-precious-complimentary.trycloudflare.com:signer:test#e1c5161e-d7bf-4687-9436-7645b7ffe187"
+    }
+  ],
+  "type": [
+    "VerifiableCredential",
+    "OpenBadgeCredential"
+  ],
+  "validFrom": "2026-09-11T18:19:07.479801Z"
+}
