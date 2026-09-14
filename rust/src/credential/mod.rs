@@ -123,8 +123,10 @@ impl PresentableCredential {
         })
     }
 
-    /// Return if the credential supports selective disclosure
-    /// SD-JWT formats support selective disclosure
+    /// Return if the credential supports selective disclosure.
+    ///
+    /// SD-JWT formats always do; `ldp_vc` does when the credential carries an
+    /// `ecdsa-sd-2023` base proof to derive presentations from.
     pub fn selective_disclosable(&self) -> bool {
         match &self.inner {
             ParsedCredentialInner::MsoMdoc(_) => false,
@@ -132,7 +134,7 @@ impl PresentableCredential {
             ParsedCredentialInner::JwtVcJsonLd(_) => false,
             ParsedCredentialInner::VCDM2SdJwt(_) => true,
             ParsedCredentialInner::DcSdJwt(_) => true,
-            ParsedCredentialInner::LdpVc(_) => false,
+            ParsedCredentialInner::LdpVc(vc) => vc.selective_disclosable(),
             ParsedCredentialInner::Cwt(_) => false,
             ParsedCredentialInner::OpticalBarcodeCredential(_) => false,
         }
@@ -532,7 +534,10 @@ impl PresentableCredential {
             ParsedCredentialInner::JwtVcJson(vc) | ParsedCredentialInner::JwtVcJsonLd(vc) => {
                 vc.as_vp_token_item(options, None).await
             }
-            ParsedCredentialInner::LdpVc(vc) => vc.as_vp_token_item(options, None).await,
+            ParsedCredentialInner::LdpVc(vc) => {
+                vc.as_vp_token_item(options, self.selected_fields.clone())
+                    .await
+            }
             ParsedCredentialInner::MsoMdoc(mdoc) => {
                 mdoc.as_vp_token_item(options, self.selected_fields.clone())
                     .await
