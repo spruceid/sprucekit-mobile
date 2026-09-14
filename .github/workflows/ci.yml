@@ -83,7 +83,7 @@ jobs:
         run: git diff --exit-code rust/MobileSdkRs/Sources/MobileSdkRs/
 
       - name: Install Homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+        uses: Homebrew/actions/setup-homebrew@main
       - name: Install XCodeGen
         run: brew install xcodegen
       - name: Generate XCode projects
