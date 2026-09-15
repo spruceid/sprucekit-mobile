@@ -1,5 +1,6 @@
 pub mod holder;
 pub mod mcd;
+pub mod profile;
 pub mod reader;
 pub mod util;
 
