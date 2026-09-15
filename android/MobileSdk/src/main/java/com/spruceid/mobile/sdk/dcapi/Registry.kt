@@ -109,11 +109,14 @@ class Registry(
     private fun createMdocEntry(comboId: String, mdoc: Mdoc): MdocEntry {
         val iconBitmap = BitmapFactory.decodeByteArray(icon, 0, icon.size)
 
-        // Get the display name from the credential
-        val givenName = mdoc.details()["org.iso.18013.5.1"]
-            ?.firstOrNull { it.identifier == "given_name" }
+        // Get the display name from the credential. The element identifier is namespace-specific:
+        // ISO 18013-5 uses `given_name`, ISO 23220-2 uses `given_name_unicode`.
+        val givenName = mdoc.details().values
+            .flatten()
+            .firstOrNull { it.identifier in GIVEN_NAME_ELEMENTS }
             ?.value?.replace("\"", "")
-        val title = if (givenName != null) "Driver's License ($givenName)" else "Driver's License"
+        val documentName = DOCUMENT_TYPE_NAMES[mdoc.doctype()] ?: "Credential"
+        val title = if (givenName != null) "$documentName ($givenName)" else documentName
 
         // Build the list of MdocFields
         val fields = mutableListOf<MdocField>()
@@ -170,6 +173,15 @@ class Registry(
             "openid4vp",
             "openid4vp1.0"
         )
+
+        // Titles shown in the credential selection UI, keyed by doctype
+        private val DOCUMENT_TYPE_NAMES = mapOf(
+            "org.iso.18013.5.1.mDL" to "Driver's License",
+            "org.iso.23220.photoid.1" to "Photo ID"
+        )
+
+        // Element identifiers holding the holder's given name, across the namespaces we support
+        private val GIVEN_NAME_ELEMENTS = setOf("given_name", "given_name_unicode")
 
         // Large binary elements to exclude from registry to avoid TransactionTooLargeException
         private val EXCLUDED_ELEMENTS = setOf(

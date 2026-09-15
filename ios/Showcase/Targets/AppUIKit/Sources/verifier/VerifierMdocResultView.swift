@@ -2,6 +2,23 @@ import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import SwiftUI
 
+/// The issuing authority a document claims, or `""`.
+///
+/// The element identifier is namespace-specific: ISO 18013-5 uses `issuing_authority`, ISO
+/// 23220-2 uses `issuing_authority_unicode`. This is the document's own claim about its issuer,
+/// digest-verified along with every other element.
+private func claimedIssuer(in namespaces: [String: GenericJSON]) -> String {
+    for (_, namespaceValue) in namespaces {
+        for identifier in ["issuing_authority", "issuing_authority_unicode"] {
+            if let authority = namespaceValue.dictValue?[identifier]?.toString(),
+               !authority.isEmpty {
+                return authority
+            }
+        }
+    }
+    return ""
+}
+
 /// One verified document, prepared for display.
 private struct MdocResultSection: Identifiable {
     let id: Int
@@ -42,20 +59,10 @@ struct VerifierMdocResultView: View {
         self.logVerification = logVerification
         self.sections = documents.enumerated().map { index, document in
             let elements = convertToGenericJSON(map: document.namespaces).dictValue ?? [:]
-            // Try to find issuing_authority from any namespace. This is the document's own
-            // claim about its issuer, digest-verified along with every other element.
-            var foundIssuer = ""
-            for (_, namespaceValue) in elements {
-                if let authority = namespaceValue.dictValue?["issuing_authority"]?.toString(),
-                   !authority.isEmpty {
-                    foundIssuer = authority
-                    break
-                }
-            }
             return MdocResultSection(
                 id: index,
                 title: credentialTypeDisplayName(for: document.docType),
-                issuer: foundIssuer,
+                issuer: claimedIssuer(in: elements),
                 elements: elements
             )
         }

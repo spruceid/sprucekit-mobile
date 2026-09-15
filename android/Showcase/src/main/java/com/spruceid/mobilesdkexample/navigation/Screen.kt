@@ -8,6 +8,7 @@ const val VERIFY_SD_JWT_PATH = "verify_sd_jwt"
 const val VERIFY_CWT_PATH = "verify_CWT"
 const val VERIFY_MDOC_PATH = "verify_mdoc"
 const val VERIFY_MDL_OVER_18_PATH = "verify_mdl_over_18"
+const val VERIFY_PHOTO_ID_PATH = "verify_photo_id"
 const val VERIFY_KIOSK_PATH = "verify_kiosk"
 const val VERIFY_DELEGATED_OID4VP_PATH = "verify_delegated_oid4vp/{id}"
 const val VERIFIER_SETTINGS_HOME_PATH = "verifier_settings_home"
@@ -37,6 +38,7 @@ sealed class Screen(val route: String) {
     object VerifyCWTScreen : Screen(VERIFY_CWT_PATH)
     object VerifyMDocScreen : Screen(VERIFY_MDOC_PATH)
     object VerifyMDlOver18Screen : Screen(VERIFY_MDL_OVER_18_PATH)
+    object VerifyPhotoIdScreen : Screen(VERIFY_PHOTO_ID_PATH)
     object VerifyKioskScreen : Screen(VERIFY_KIOSK_PATH)
     object VerifyDelegatedOid4vpScreen : Screen(VERIFY_DELEGATED_OID4VP_PATH)
     object VerifierSettingsHomeScreen : Screen(VERIFIER_SETTINGS_HOME_PATH)
