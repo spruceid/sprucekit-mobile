@@ -34,8 +34,10 @@ dart run pigeon --input pigeons/oid4vp.dart
 dart run pigeon --input pigeons/oid4vp_mdoc.dart
 dart run pigeon --input pigeons/credential_pack.dart
 dart run pigeon --input pigeons/mdl_presentation.dart
+dart run pigeon --input pigeons/mdl_reader.dart
 dart run pigeon --input pigeons/spruce_utils.dart
 dart run pigeon --input pigeons/dc_api.dart
+dart run pigeon --input pigeons/vcalm.dart
 ```
 
 ## Key Patterns

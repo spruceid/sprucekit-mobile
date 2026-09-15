@@ -18243,21 +18243,14 @@ public func FfiConverterTypeJwsSignerInfo_lower(_ value: JwsSignerInfo) -> RustB
  */
 public struct MdlDeviceResponseVerification: Equatable, Hashable {
     /**
-     * Contains the namespaces for the mDL directly, without top-level doc types.
+     * The documents that passed every check, each with the elements it disclosed.
      */
-    public var verifiedResponse: [String: [String: MDocItem]]
+    public var documents: [VerifiedDocument]
     /**
-     * Document types (doctypes) from the presented credentials.
+     * Doc types claimed by documents that were evaluated and did not pass. Unauthenticated
+     * labels; see [`MDLReaderResponseData::failed_doc_types`].
      */
-    public var docTypes: [String]
-    /**
-     * Outcome of issuer authentication.
-     */
-    public var issuerAuthentication: AuthenticationStatus
-    /**
-     * Outcome of device authentication.
-     */
-    public var deviceAuthentication: AuthenticationStatus
+    public var failedDocTypes: [String]
     /**
      * Errors that occurred during response processing.
      */
@@ -18267,24 +18260,17 @@ public struct MdlDeviceResponseVerification: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
-         * Contains the namespaces for the mDL directly, without top-level doc types.
-         */verifiedResponse: [String: [String: MDocItem]], 
+         * The documents that passed every check, each with the elements it disclosed.
+         */documents: [VerifiedDocument], 
         /**
-         * Document types (doctypes) from the presented credentials.
-         */docTypes: [String], 
-        /**
-         * Outcome of issuer authentication.
-         */issuerAuthentication: AuthenticationStatus, 
-        /**
-         * Outcome of device authentication.
-         */deviceAuthentication: AuthenticationStatus, 
+         * Doc types claimed by documents that were evaluated and did not pass. Unauthenticated
+         * labels; see [`MDLReaderResponseData::failed_doc_types`].
+         */failedDocTypes: [String], 
         /**
          * Errors that occurred during response processing.
          */errors: String?) {
-        self.verifiedResponse = verifiedResponse
-        self.docTypes = docTypes
-        self.issuerAuthentication = issuerAuthentication
-        self.deviceAuthentication = deviceAuthentication
+        self.documents = documents
+        self.failedDocTypes = failedDocTypes
         self.errors = errors
     }
 
@@ -18304,19 +18290,15 @@ public struct FfiConverterTypeMDLDeviceResponseVerification: FfiConverterRustBuf
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MdlDeviceResponseVerification {
         return
             try MdlDeviceResponseVerification(
-                verifiedResponse: FfiConverterDictionaryStringDictionaryStringTypeMDocItem.read(from: &buf), 
-                docTypes: FfiConverterSequenceString.read(from: &buf), 
-                issuerAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
-                deviceAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
+                documents: FfiConverterSequenceTypeVerifiedDocument.read(from: &buf), 
+                failedDocTypes: FfiConverterSequenceString.read(from: &buf), 
                 errors: FfiConverterOptionString.read(from: &buf)
         )
     }
 
     public static func write(_ value: MdlDeviceResponseVerification, into buf: inout [UInt8]) {
-        FfiConverterDictionaryStringDictionaryStringTypeMDocItem.write(value.verifiedResponse, into: &buf)
-        FfiConverterSequenceString.write(value.docTypes, into: &buf)
-        FfiConverterTypeAuthenticationStatus.write(value.issuerAuthentication, into: &buf)
-        FfiConverterTypeAuthenticationStatus.write(value.deviceAuthentication, into: &buf)
+        FfiConverterSequenceTypeVerifiedDocument.write(value.documents, into: &buf)
+        FfiConverterSequenceString.write(value.failedDocTypes, into: &buf)
         FfiConverterOptionString.write(value.errors, into: &buf)
     }
 }
@@ -18340,21 +18322,16 @@ public func FfiConverterTypeMDLDeviceResponseVerification_lower(_ value: MdlDevi
 public struct MdlReaderResponseData {
     public var state: MdlSessionManager
     /**
-     * Contains the namespaces for the mDL directly, without top-level doc types
+     * The documents that passed every check, each with the elements it disclosed.
      */
-    public var verifiedResponse: [String: [String: MDocItem]]
+    public var documents: [VerifiedDocument]
     /**
-     * Document types (doctypes) from the presented credentials.
+     * Doc types claimed by documents that were evaluated and did not pass.
+     *
+     * Unauthenticated labels, carried only so the UI can name what it could not verify; the
+     * reasons are in [`errors`](Self::errors). Never decide anything on these.
      */
-    public var docTypes: [String]
-    /**
-     * Outcome of issuer authentication.
-     */
-    public var issuerAuthentication: AuthenticationStatus
-    /**
-     * Outcome of device authentication.
-     */
-    public var deviceAuthentication: AuthenticationStatus
+    public var failedDocTypes: [String]
     /**
      * Errors that occurred during response processing.
      */
@@ -18364,25 +18341,20 @@ public struct MdlReaderResponseData {
     // declare one manually.
     public init(state: MdlSessionManager, 
         /**
-         * Contains the namespaces for the mDL directly, without top-level doc types
-         */verifiedResponse: [String: [String: MDocItem]], 
+         * The documents that passed every check, each with the elements it disclosed.
+         */documents: [VerifiedDocument], 
         /**
-         * Document types (doctypes) from the presented credentials.
-         */docTypes: [String], 
-        /**
-         * Outcome of issuer authentication.
-         */issuerAuthentication: AuthenticationStatus, 
-        /**
-         * Outcome of device authentication.
-         */deviceAuthentication: AuthenticationStatus, 
+         * Doc types claimed by documents that were evaluated and did not pass.
+         *
+         * Unauthenticated labels, carried only so the UI can name what it could not verify; the
+         * reasons are in [`errors`](Self::errors). Never decide anything on these.
+         */failedDocTypes: [String], 
         /**
          * Errors that occurred during response processing.
          */errors: String?) {
         self.state = state
-        self.verifiedResponse = verifiedResponse
-        self.docTypes = docTypes
-        self.issuerAuthentication = issuerAuthentication
-        self.deviceAuthentication = deviceAuthentication
+        self.documents = documents
+        self.failedDocTypes = failedDocTypes
         self.errors = errors
     }
 
@@ -18403,20 +18375,16 @@ public struct FfiConverterTypeMDLReaderResponseData: FfiConverterRustBuffer {
         return
             try MdlReaderResponseData(
                 state: FfiConverterTypeMDLSessionManager.read(from: &buf), 
-                verifiedResponse: FfiConverterDictionaryStringDictionaryStringTypeMDocItem.read(from: &buf), 
-                docTypes: FfiConverterSequenceString.read(from: &buf), 
-                issuerAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
-                deviceAuthentication: FfiConverterTypeAuthenticationStatus.read(from: &buf), 
+                documents: FfiConverterSequenceTypeVerifiedDocument.read(from: &buf), 
+                failedDocTypes: FfiConverterSequenceString.read(from: &buf), 
                 errors: FfiConverterOptionString.read(from: &buf)
         )
     }
 
     public static func write(_ value: MdlReaderResponseData, into buf: inout [UInt8]) {
         FfiConverterTypeMDLSessionManager.write(value.state, into: &buf)
-        FfiConverterDictionaryStringDictionaryStringTypeMDocItem.write(value.verifiedResponse, into: &buf)
-        FfiConverterSequenceString.write(value.docTypes, into: &buf)
-        FfiConverterTypeAuthenticationStatus.write(value.issuerAuthentication, into: &buf)
-        FfiConverterTypeAuthenticationStatus.write(value.deviceAuthentication, into: &buf)
+        FfiConverterSequenceTypeVerifiedDocument.write(value.documents, into: &buf)
+        FfiConverterSequenceString.write(value.failedDocTypes, into: &buf)
         FfiConverterOptionString.write(value.errors, into: &buf)
     }
 }
@@ -19884,6 +19852,79 @@ public func FfiConverterTypeVcalmRequestedField_lower(_ value: VcalmRequestedFie
 
 
 /**
+ * One document from a response that passed every check, with the elements it disclosed.
+ *
+ * Kept as its own document rather than merged into the response: a response may legally carry
+ * several credentials, two of which may share a doc type or a namespace, and flattening them
+ * would let one silently overwrite another's elements.
+ */
+public struct VerifiedDocument: Equatable, Hashable {
+    /**
+     * Taken from the signature-verified MSO, not from the holder's label.
+     */
+    public var docType: String
+    /**
+     * The disclosed elements, keyed by namespace then element identifier.
+     */
+    public var namespaces: [String: [String: MDocItem]]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Taken from the signature-verified MSO, not from the holder's label.
+         */docType: String, 
+        /**
+         * The disclosed elements, keyed by namespace then element identifier.
+         */namespaces: [String: [String: MDocItem]]) {
+        self.docType = docType
+        self.namespaces = namespaces
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VerifiedDocument: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVerifiedDocument: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VerifiedDocument {
+        return
+            try VerifiedDocument(
+                docType: FfiConverterString.read(from: &buf), 
+                namespaces: FfiConverterDictionaryStringDictionaryStringTypeMDocItem.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VerifiedDocument, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.docType, into: &buf)
+        FfiConverterDictionaryStringDictionaryStringTypeMDocItem.write(value.namespaces, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVerifiedDocument_lift(_ buf: RustBuffer) throws -> VerifiedDocument {
+    return try FfiConverterTypeVerifiedDocument.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVerifiedDocument_lower(_ value: VerifiedDocument) -> RustBuffer {
+    return FfiConverterTypeVerifiedDocument.lower(value)
+}
+
+
+/**
  * Parameters controlling VP token generation.
  *
  * `audience` and `nonce` are reserved for a future KB-JWT signing path; they
@@ -20613,80 +20654,6 @@ public func FfiConverterTypeApduHandoverInitError_lift(_ buf: RustBuffer) throws
 public func FfiConverterTypeApduHandoverInitError_lower(_ value: ApduHandoverInitError) -> RustBuffer {
     return FfiConverterTypeApduHandoverInitError.lower(value)
 }
-
-// Note that we don't yet support `indirect` for enums.
-// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
-
-public enum AuthenticationStatus: Equatable, Hashable {
-    
-    case valid
-    case invalid
-    case unchecked
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension AuthenticationStatus: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeAuthenticationStatus: FfiConverterRustBuffer {
-    typealias SwiftType = AuthenticationStatus
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AuthenticationStatus {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .valid
-        
-        case 2: return .invalid
-        
-        case 3: return .unchecked
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: AuthenticationStatus, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case .valid:
-            writeInt(&buf, Int32(1))
-        
-        
-        case .invalid:
-            writeInt(&buf, Int32(2))
-        
-        
-        case .unchecked:
-            writeInt(&buf, Int32(3))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeAuthenticationStatus_lift(_ buf: RustBuffer) throws -> AuthenticationStatus {
-    return try FfiConverterTypeAuthenticationStatus.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeAuthenticationStatus_lower(_ value: AuthenticationStatus) -> RustBuffer {
-    return FfiConverterTypeAuthenticationStatus.lower(value)
-}
-
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -33548,6 +33515,31 @@ fileprivate struct FfiConverterSequenceTypeVcalmRequestedField: FfiConverterRust
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeVerifiedDocument: FfiConverterRustBuffer {
+    typealias SwiftType = [VerifiedDocument]
+
+    public static func write(_ value: [VerifiedDocument], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVerifiedDocument.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VerifiedDocument] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VerifiedDocument]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVerifiedDocument.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeAcceptedIssuerEntry: FfiConverterRustBuffer {
     typealias SwiftType = [AcceptedIssuerEntry]
 
@@ -34176,6 +34168,32 @@ fileprivate struct FfiConverterDictionaryStringDictionaryStringSequenceString: F
         for _ in 0..<len {
             let key = try FfiConverterString.read(from: &buf)
             let value = try FfiConverterDictionaryStringSequenceString.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryStringDictionaryStringDictionaryStringBool: FfiConverterRustBuffer {
+    public static func write(_ value: [String: [String: [String: Bool]]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterDictionaryStringDictionaryStringBool.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: [String: [String: Bool]]] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: [String: [String: Bool]]]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterDictionaryStringDictionaryStringBool.read(from: &buf)
             dict[key] = value
         }
         return dict
@@ -35391,15 +35409,32 @@ public func deviceResponseVerificationAsJsonString(response: MdlDeviceResponseVe
     )
 })
 }
-public func establishSession(handover: ReaderHandover, requestedItems: [String: [String: Bool]], trustAnchorRegistry: [String]?)throws  -> MdlReaderSessionData  {
+/**
+ * Establish a reader session and build the request.
+ *
+ * Arguments:
+ * handover: the engagement handover, from a scanned QR code or an NFC exchange.
+ * requested_items: the data elements to request, keyed by document type, then namespace, then
+ * element identifier, with the value indicating intent to retain. One
+ * `DocRequest` is built per document type, so a reader can ask for several
+ * credentials in one exchange. At least one document type is required: a
+ * request carrying none is answered with nothing rather than an error.
+ * trust_anchor_registry: PEM-encoded IACA certificates to validate the issuer against.
+ */
+public func establishSession(handover: ReaderHandover, requestedItems: [String: [String: [String: Bool]]], trustAnchorRegistry: [String]?)throws  -> MdlReaderSessionData  {
     return try  FfiConverterTypeMDLReaderSessionData_lift(try rustCallWithError(FfiConverterTypeMDLReaderSessionError_lift) {
     uniffi_mobile_sdk_rs_fn_func_establish_session(
         FfiConverterTypeReaderHandover_lower(handover),
-        FfiConverterDictionaryStringDictionaryStringBool.lower(requestedItems),
+        FfiConverterDictionaryStringDictionaryStringDictionaryStringBool.lower(requestedItems),
         FfiConverterOptionSequenceString.lower(trustAnchorRegistry),$0
     )
 })
 }
+/**
+ * Arguments:
+ * state: the session established by [`establish_session`]
+ * response: the cbor encoded `DeviceResponse` received from the holder
+ */
 public func handleResponse(state: MdlSessionManager, response: Data)throws  -> MdlReaderResponseData  {
     return try  FfiConverterTypeMDLReaderResponseData_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
     uniffi_mobile_sdk_rs_fn_func_handle_response(
@@ -35437,8 +35472,7 @@ public func verifiedResponseAsJsonString(response: MdlReaderResponseData)throws 
  * trust_anchor_registry: optional list of PEM encoded certificates
  *
  * Returns:
- * An object with the verified response, document types, issuer authentication result,
- * device authentication result, and an optional error string.
+ * An object with the verified response, document types, and an optional error string.
  */
 public func verifyDeviceResponse(deviceResponse: Data, sessionTranscript: Data, ephemeralReaderKey: Data, trustAnchorRegistry: [String]?)throws  -> MdlDeviceResponseVerification  {
     return try  FfiConverterTypeMDLDeviceResponseVerification_lift(try rustCallWithError(FfiConverterTypeMDLReaderResponseError_lift) {
@@ -35725,10 +35759,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_device_response_verification_as_json_string() != 22202) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 7717) {
+    if (uniffi_mobile_sdk_rs_checksum_func_establish_session() != 55708) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 9521) {
+    if (uniffi_mobile_sdk_rs_checksum_func_handle_response() != 61123) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_new_reader_apdu_handover_driver() != 54309) {
@@ -35737,7 +35771,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_func_verified_response_as_json_string() != 44695) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 11409) {
+    if (uniffi_mobile_sdk_rs_checksum_func_verify_device_response() != 44033) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_generate_test_mdl() != 36962) {
