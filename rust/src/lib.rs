@@ -10,6 +10,7 @@ pub mod crypto;
 pub mod did;
 pub mod discover_protocols;
 pub mod haci;
+pub mod http_client;
 pub mod jwk;
 pub mod jws;
 pub mod local_store;

@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use crate::credential::{ParsedCredential, PresentableCredential};
 use crate::crypto::KeyStore;
+use crate::http_client::HttpClient;
 use crate::vdc_collection::VdcCollection;
 
 use super::draft18::{
@@ -1030,11 +1031,11 @@ async fn draft13_resolve_indirection(
     }
 
     if let Some(Value::String(request_uri)) = map.get("request_uri") {
-        let body = reqwest::get(request_uri)
+        let response = HttpClient::shared()
+            .get(request_uri)
             .await
-            .map_err(|e| Oid4vpFacadeError::RequestParsing(format!("request_uri fetch: {e}")))?
-            .text()
-            .await
+            .map_err(|e| Oid4vpFacadeError::RequestParsing(format!("request_uri fetch: {e}")))?;
+        let body = String::from_utf8(response.into_body())
             .map_err(|e| Oid4vpFacadeError::RequestParsing(format!("request_uri body: {e}")))?;
         return draft13_params_from_request_object(&body).ok_or_else(|| {
             Oid4vpFacadeError::RequestParsing("could not parse fetched request object".into())

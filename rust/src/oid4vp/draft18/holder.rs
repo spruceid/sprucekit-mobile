@@ -5,6 +5,7 @@ use super::error::Draft18OID4VPError;
 use super::permission_request::*;
 use super::presentation::Draft18PresentationSigner;
 use crate::credential::ParsedCredential;
+use crate::http_client::HttpClient;
 use crate::vdc_collection::VdcCollection;
 
 use std::collections::HashMap;
@@ -85,7 +86,7 @@ pub struct Draft18Holder {
     pub(crate) metadata: WalletMetadata,
 
     /// HTTP Request Client
-    pub(crate) client: openidvp_draft18::core::util::ReqwestClient,
+    pub(crate) client: HttpClient,
 
     /// A list of trusted DIDs.
     pub(crate) trusted_dids: Vec<String>,
@@ -128,8 +129,7 @@ impl Draft18Holder {
         key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, Draft18OID4VPError> {
-        let client = openidvp_draft18::core::util::ReqwestClient::new()
-            .map_err(|e| Draft18OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
+        let client = HttpClient::shared();
 
         Ok(Arc::new(Self {
             client,
@@ -156,8 +156,7 @@ impl Draft18Holder {
         key_id: String,
         context_map: Option<HashMap<String, String>>,
     ) -> Result<Arc<Self>, Draft18OID4VPError> {
-        let client = openidvp_draft18::core::util::ReqwestClient::new()
-            .map_err(|e| Draft18OID4VPError::HttpClientInitialization(format!("{e:?}")))?;
+        let client = HttpClient::shared();
 
         Ok(Arc::new(Self {
             client,
@@ -242,23 +241,24 @@ impl Draft18Holder {
             .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?
             .map(|state| state.0);
 
+        let body = serde_urlencoded::to_string(AccessDeniedResponse {
+            error: "access_denied",
+            state,
+        })
+        .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
+        let http_request = http::Request::post(request.return_uri().as_str())
+            .header("Prefer", "OID4VP-0.0.20")
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body.into_bytes())
+            .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
         let response = self
             .client
-            .as_ref()
-            .post(request.return_uri().clone())
-            .header("Prefer", "OID4VP-0.0.20")
-            .form(&AccessDeniedResponse {
-                error: "access_denied",
-                state,
-            })
-            .send()
+            .send(http_request)
             .await
             .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
 
         let status = response.status();
-        let body = response
-            .text()
-            .await
+        let body = String::from_utf8(response.into_body())
             .map_err(|e| Draft18OID4VPError::ResponseSubmission(format!("{e:?}")))?;
 
         if !status.is_success() {
@@ -519,7 +519,7 @@ impl RequestVerifier for Draft18Holder {
 }
 
 impl OID4VPWallet for Draft18Holder {
-    type HttpClient = openidvp_draft18::core::util::ReqwestClient;
+    type HttpClient = HttpClient;
 
     fn http_client(&self) -> &Self::HttpClient {
         &self.client
