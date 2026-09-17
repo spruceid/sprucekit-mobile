@@ -1,0 +1,46 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/credentials/v2",
+    "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json"
+  ],
+  "credentialSubject": {
+    "achievement": {
+      "achievementType": "Course",
+      "criteria": {
+        "narrative": "Awarded to students who complete all course modules and pass the final assessment.",
+        "type": "Criteria"
+      },
+      "description": "Completion of an introductory data structures course.",
+      "id": "urn:uuid:7c1e64c3-5a92-4f0d-9b1a-2e64d0c3a8f1",
+      "name": "Data Structures 101",
+      "type": [
+        "Achievement"
+      ]
+    },
+    "id": "did:jwk:eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6Imk1TTI2RkE4X0NQdEJLVmFuQkVBRVgtZFlwS3lRMG1IV0tXUWxIb2RHN28iLCJ5IjoiSkw4Y2xBZXY1Vk9ib3lieDFQUXJ6a2hOSmREdExYOVNhSmJHVGxJWkxEZyJ9",
+    "name": "Test Student",
+    "type": [
+      "AchievementSubject"
+    ]
+  },
+  "id": "urn:uuid:cf62d607-5b1d-40e0-8b2b-5a383ef58fa4",
+  "issuer": {
+    "id": "did:web:davis-index-precious-complimentary.trycloudflare.com:signer:test",
+    "name": "Test Signer",
+    "type": "Profile"
+  },
+  "name": "Data Structures 101",
+  "proof": {
+    "created": "2026-09-11T18:19:07.484Z",
+    "cryptosuite": "ecdsa-rdfc-2019",
+    "proofPurpose": "assertionMethod",
+    "proofValue": "zP1DxHgEHUDsjXYa7E28kmGR6BtqQPbfKPQo2xh5faW1aXhcZDR92RiiTXtYWdoLLdmXS3kNKf7CJmT6CbgXQvHY",
+    "type": "DataIntegrityProof",
+    "verificationMethod": "did:web:davis-index-precious-complimentary.trycloudflare.com:signer:test#e1c5161e-d7bf-4687-9436-7645b7ffe187"
+  },
+  "type": [
+    "VerifiableCredential",
+    "OpenBadgeCredential"
+  ],
+  "validFrom": "2026-09-11T18:19:07.479801Z"
+}

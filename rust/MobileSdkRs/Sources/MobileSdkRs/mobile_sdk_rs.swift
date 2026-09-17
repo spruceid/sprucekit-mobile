@@ -7442,6 +7442,11 @@ public func FfiConverterTypeJsonVc_lower(_ value: JsonVc) -> UInt64 {
 
 /**
  * JSON Web Key.
+ *
+ * The lock is `std`'s, not an async one: it guards plain data, and the
+ * accessors are called synchronously from foreign code on arbitrary threads —
+ * including threads inside a tokio runtime, where a tokio `blocking_read`
+ * panics by design.
  */
 public protocol JwkProtocol: AnyObject, Sendable {
     
@@ -7467,6 +7472,11 @@ public protocol JwkProtocol: AnyObject, Sendable {
 }
 /**
  * JSON Web Key.
+ *
+ * The lock is `std`'s, not an async one: it guards plain data, and the
+ * accessors are called synchronously from foreign code on arbitrary threads —
+ * including threads inside a tokio runtime, where a tokio `blocking_read`
+ * panics by design.
  */
 open class Jwk: JwkProtocol, @unchecked Sendable, Equatable, CustomStringConvertible {
     fileprivate let handle: UInt64
@@ -13206,8 +13216,10 @@ public protocol PresentableCredentialProtocol: AnyObject, Sendable {
     func isMdoc()  -> Bool
     
     /**
-     * Return if the credential supports selective disclosure
-     * SD-JWT formats support selective disclosure
+     * Return if the credential supports selective disclosure.
+     *
+     * SD-JWT formats always do; `ldp_vc` does when the credential carries an
+     * `ecdsa-sd-2023` base proof to derive presentations from.
      */
     func selectiveDisclosable()  -> Bool
     
@@ -13291,8 +13303,10 @@ open func isMdoc() -> Bool  {
 }
     
     /**
-     * Return if the credential supports selective disclosure
-     * SD-JWT formats support selective disclosure
+     * Return if the credential supports selective disclosure.
+     *
+     * SD-JWT formats always do; `ldp_vc` does when the credential carries an
+     * `ecdsa-sd-2023` base proof to derive presentations from.
      */
 open func selectiveDisclosable() -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
@@ -35829,7 +35843,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_is_mdoc() != 32547) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_selective_disclosable() != 1744) {
+    if (uniffi_mobile_sdk_rs_checksum_method_presentablecredential_selective_disclosable() != 21901) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_method_activitylog_add() != 4877) {

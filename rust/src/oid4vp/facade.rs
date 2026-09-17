@@ -1554,6 +1554,135 @@ mod tests {
         assert!(vp_token.contains("AlumniCredential"));
     }
 
+    const DUAL_PROOF_BADGE: &str =
+        include_str!("../../tests/examples/open_badge_dual_proof_vc.json");
+
+    fn dual_proof_badge_credential() -> Arc<ParsedCredential> {
+        let json_vc = JsonVc::new_from_json(DUAL_PROOF_BADGE.to_string()).unwrap();
+        ParsedCredential::new_ldp_vc(json_vc)
+    }
+
+    /// The stored badge as JSON, to compare disclosed members against.
+    fn dual_proof_badge_json() -> Value {
+        serde_json::from_str(DUAL_PROOF_BADGE).unwrap()
+    }
+
+    /// A v1 request for one Open Badge claim, carrying the given
+    /// `vp_formats_supported` value in its client metadata.
+    fn badge_request(vp_formats_supported: Value) -> String {
+        json!({
+            "client_id": "redirect_uri:https://wallet.example/callback",
+            "response_uri": "https://wallet.example/callback",
+            "response_type": "vp_token",
+            "response_mode": "direct_post",
+            "state": "state-badge",
+            "nonce": "nonce-badge",
+            "client_metadata": { "vp_formats_supported": vp_formats_supported },
+            "dcql_query": {
+                "credentials": [{
+                    "id": "badge_0",
+                    "format": "ldp_vc",
+                    "claims": [{ "path": ["credentialSubject", "achievement", "name"] }]
+                }]
+            }
+        })
+        .to_string()
+    }
+
+    /// Run the v1 flow for the dual-proof badge, selecting every requested
+    /// field the way the wallets do, and return the credential embedded in
+    /// the resulting presentation.
+    async fn present_badge(vp_formats_supported: Value) -> Value {
+        let holder = Oid4vpHolder::new_with_credentials(
+            vec![dual_proof_badge_credential()],
+            Vec::new(),
+            Box::new(TestSigner { jwk: load_jwk() }),
+            String::new(),
+            Some(default_ld_json_context()),
+            None,
+        )
+        .await
+        .unwrap();
+
+        let session = holder
+            .start(badge_request(vp_formats_supported))
+            .await
+            .unwrap();
+        let requirement = session.requirements().pop().unwrap();
+        let fields = session
+            .requested_fields(requirement.credentials.first().unwrap())
+            .unwrap();
+
+        let response = session
+            .create_permission_response(
+                requirement.credentials.clone(),
+                vec![fields.iter().map(|field| field.path.clone()).collect()],
+                Oid4vpResponseOptions::default(),
+            )
+            .await
+            .unwrap();
+
+        let vp_token: Value = serde_json::from_str(&response.vp_token().unwrap()).unwrap();
+        let item = &vp_token["badge_0"];
+        let presentation = match item.as_array() {
+            Some(items) => items[0].clone(),
+            None => item.clone(),
+        };
+        match &presentation["verifiableCredential"] {
+            Value::Array(credentials) => credentials[0].clone(),
+            credential => credential.clone(),
+        }
+    }
+
+    /// Cryptosuites of the credential's proof or proof set.
+    fn cryptosuites(credential: &Value) -> Vec<&str> {
+        match &credential["proof"] {
+            Value::Array(proofs) => proofs
+                .iter()
+                .filter_map(|proof| proof["cryptosuite"].as_str())
+                .collect(),
+            proof => proof["cryptosuite"].as_str().into_iter().collect(),
+        }
+    }
+
+    #[tokio::test]
+    async fn facade_v1_derives_when_verifier_declares_no_format_restriction() {
+        let credential = present_badge(json!({})).await;
+
+        assert_eq!(cryptosuites(&credential), ["ecdsa-sd-2023"]);
+        assert_eq!(
+            credential["credentialSubject"]["achievement"]["name"],
+            dual_proof_badge_json()["credentialSubject"]["achievement"]["name"]
+        );
+        assert!(credential["credentialSubject"]["achievement"]
+            .get("description")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn facade_v1_derives_when_verifier_lists_ecdsa_sd_2023() {
+        let credential = present_badge(json!({
+            "ldp_vc": { "proof_type_values": ["ecdsa-rdfc-2019", "ecdsa-sd-2023"] }
+        }))
+        .await;
+
+        assert_eq!(cryptosuites(&credential), ["ecdsa-sd-2023"]);
+        assert!(credential["credentialSubject"]["achievement"]
+            .get("description")
+            .is_none());
+    }
+
+    #[tokio::test]
+    async fn facade_v1_presents_full_credential_when_verifier_only_lists_rdfc() {
+        let credential = present_badge(json!({
+            "ldp_vc": { "proof_type_values": ["ecdsa-rdfc-2019"] }
+        }))
+        .await;
+
+        assert_eq!(cryptosuites(&credential), ["ecdsa-rdfc-2019"]);
+        assert!(credential["credentialSubject"]["achievement"]["description"].is_string());
+    }
+
     #[tokio::test]
     async fn facade_draft18_flow_creates_permission_response() {
         let credential = alumni_credential();
