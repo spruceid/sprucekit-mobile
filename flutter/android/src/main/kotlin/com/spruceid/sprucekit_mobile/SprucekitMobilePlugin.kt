@@ -1,5 +1,6 @@
 package com.spruceid.sprucekit_mobile
 
+import com.spruceid.mobile.sdk.RustHttpClient
 import com.spruceid.mobile.sdk.rs.DynamicCredentialProvider
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -44,6 +45,9 @@ class SprucekitMobilePlugin : FlutterPlugin, ActivityAware {
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         val context = flutterPluginBinding.applicationContext
+
+        // Route Rust HTTP requests through the native client, so proxy settings apply.
+        RustHttpClient.configure()
 
         // Initialize OID4VCI adapter
         oid4vciAdapter = Oid4vciAdapter(context)

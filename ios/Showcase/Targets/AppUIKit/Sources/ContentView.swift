@@ -11,6 +11,8 @@ public struct ContentView: View {
     let credentialPackObservable: CredentialPackObservable
 
     public init() {
+        // Route Rust HTTP requests through the native client, so proxy settings apply.
+        RustHttpClient.configure()
         let bundle = Bundle.main
         // Getting some entitlements values from the plist
         let appGroupId = bundle.object(forInfoDictionaryKey: "storageAppGroup") as? String

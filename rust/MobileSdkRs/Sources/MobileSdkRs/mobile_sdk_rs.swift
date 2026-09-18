@@ -35261,6 +35261,19 @@ public func discoverProtocols(interactionUrl: String)async throws  -> [String: S
             errorHandler: FfiConverterTypeDiscoveryError_lift
         )
 }
+/**
+ * Register the native HTTP client for the Rust layer.
+ *
+ * Call this function once when the app starts. A later call replaces the
+ * registered client. Requests that started before the call keep the client
+ * that they started with.
+ */
+public func configureHttpClient(client: AsyncHttpClient)  {try! rustCall() {
+    uniffi_mobile_sdk_rs_fn_func_configure_http_client(
+        FfiConverterTypeAsyncHttpClient_lower(client),$0
+    )
+}
+}
 public func jwkFromPublicP256(x: Data, y: Data) -> Jwk  {
     return try!  FfiConverterTypeJwk_lift(try! rustCall() {
     uniffi_mobile_sdk_rs_fn_func_jwk_from_public_p256(
@@ -35699,6 +35712,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_discover_protocols() != 50212) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_mobile_sdk_rs_checksum_func_configure_http_client() != 19711) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_mobile_sdk_rs_checksum_func_jwk_from_public_p256() != 27776) {

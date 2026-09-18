@@ -170,7 +170,7 @@ dependencies {
     implementation("com.google.android.play:integrity:1.4.0")
     implementation("org.bitbucket.b_c:jose4j:0.9.6")
     implementation("io.ktor:ktor-client-core:3.2.2")
-    implementation("io.ktor:ktor-client-cio:3.2.2")
+    implementation("io.ktor:ktor-client-okhttp:3.2.2")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20250517")
     androidTestImplementation("com.android.support.test:runner:1.0.2")
