@@ -156,6 +156,11 @@ fun WalletSettingsHomeBody(
             walletActivityLogsViewModel = walletActivityLogsViewModel
         )
 
+        GenerateMockPhotoIdButton(
+            credentialPacksViewModel = credentialPacksViewModel,
+            walletActivityLogsViewModel = walletActivityLogsViewModel
+        )
+
         SettingsHomeItem(
             icon = {
                 Image(

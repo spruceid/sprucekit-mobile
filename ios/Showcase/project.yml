@@ -121,6 +121,7 @@ targets:
           - group.com.spruceid.mobile
         com.apple.developer.identity-document-services.document-provider.mobile-document-types:
           - "org.iso.18013.5.1.mDL"
+          - "org.iso.23220.photoid.1"
         # NFC reader mode for ISO 18013-5 NFC engagement. The "NFC Tag
         # Reading" capability must also be enabled for this App ID in the
         # Apple Developer portal for the entitlement to take effect.
