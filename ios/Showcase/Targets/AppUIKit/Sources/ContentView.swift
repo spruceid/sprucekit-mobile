@@ -103,7 +103,7 @@ public struct ContentView: View {
                         verifyMDocParams in
                         VerifyMDocView(
                             path: $path,
-                            checkAgeOver18: verifyMDocParams.checkAgeOver18
+                            profile: verifyMDocParams.profile
                         )
                     }
                     .navigationDestination(for: VerifyCwt.self) { _ in

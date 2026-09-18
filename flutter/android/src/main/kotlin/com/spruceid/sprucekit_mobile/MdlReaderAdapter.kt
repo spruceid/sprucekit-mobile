@@ -9,7 +9,6 @@ import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.IsoMdlReader
 import com.spruceid.mobile.sdk.getBluetoothManager
 import com.spruceid.mobile.sdk.nfc.NfcReaderEngagement
-import com.spruceid.mobile.sdk.rs.AuthenticationStatus
 import com.spruceid.mobile.sdk.rs.MdlReaderResponseData
 import com.spruceid.mobile.sdk.rs.ReaderHandover
 import com.spruceid.mobile.sdk.rs.verifiedResponseAsJsonString
@@ -71,7 +70,7 @@ internal class MdlReaderAdapter(
 
     @SuppressLint("MissingPermission")
     override fun startNfcReader(
-        query: Map<String, Map<String, Boolean>>,
+        query: Map<String, Map<String, Map<String, Boolean>>>,
         trustedRoots: List<String>,
     ) {
         // Tear down any previous session first.
@@ -144,7 +143,11 @@ internal class MdlReaderAdapter(
                     )
 
                 is NfcReaderEngagement.Event.Success ->
-                    onHandover(event.handover, query, trustedRoots)
+                    onHandover(
+                        event.handover,
+                        query,
+                        trustedRoots,
+                    )
             }
         }
         nfcEngagement = engagement
@@ -158,7 +161,7 @@ internal class MdlReaderAdapter(
     @SuppressLint("MissingPermission")
     override fun startQrReader(
         qrUri: String,
-        query: Map<String, Map<String, Boolean>>,
+        query: Map<String, Map<String, Map<String, Boolean>>>,
         trustedRoots: List<String>,
     ) {
         cleanupInternal()
@@ -179,7 +182,7 @@ internal class MdlReaderAdapter(
     @SuppressLint("MissingPermission")
     private fun onHandover(
         handover: ReaderHandover,
-        query: Map<String, Map<String, Boolean>>,
+        query: Map<String, Map<String, Map<String, Boolean>>>,
         trustedRoots: List<String>,
     ) {
         // NFC engagement already auto-deactivated after Success; we keep
@@ -370,7 +373,7 @@ internal class MdlReaderAdapter(
     /**
      * Serialize [MdlReaderResponseData] into the Pigeon wire shape.
      *
-     * `verifiedResponse` is JSON-encoded via the Rust-side helper rather
+     * The verified documents are JSON-encoded via the Rust-side helper rather
      * than transported as a typed nested map. See [MdlReadResponse] doc
      * for the rationale (Pigeon recursive-type OOM + nested-Map cast bug).
      */
@@ -381,19 +384,10 @@ internal class MdlReaderAdapter(
         val verifiedJson = verifiedResponseAsJsonString(this)
         return MdlReadResponse(
             verifiedResponseJson = verifiedJson,
-            docTypes = docTypes,
-            issuerAuthentication = issuerAuthentication.toPigeon(),
-            deviceAuthentication = deviceAuthentication.toPigeon(),
+            failedDocTypes = failedDocTypes,
             errors = errors,
         )
     }
-
-    private fun AuthenticationStatus.toPigeon(): MdlAuthenticationStatus =
-        when (this) {
-            AuthenticationStatus.VALID -> MdlAuthenticationStatus.VALID
-            AuthenticationStatus.INVALID -> MdlAuthenticationStatus.INVALID
-            AuthenticationStatus.UNCHECKED -> MdlAuthenticationStatus.UNCHECKED
-        }
 
     companion object {
         private const val TAG = "MdlReaderAdapter"
