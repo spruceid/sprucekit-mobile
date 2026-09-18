@@ -141,6 +141,41 @@ enum MdlReaderState {
   error,
 }
 
+/// A certificate profile this SDK ships.
+///
+/// ISO/IEC 18013-5 Annex B's *structure* is credential-agnostic -- IACA root, no sub-CAs, subject
+/// key identifier, key usage, matching country codes. What differs between credential types is
+/// the OID values, and each of these bundles a known set.
+enum MdlBuiltinCertificateProfile {
+  /// ISO/IEC 18013-5 mDL. The profile used when none is configured.
+  mdl,
+  /// AAMVA's mDL profile, which additionally requires `stateOrProvinceName` to match.
+  aamvaMdl,
+  /// The EUDI Person Identification Data profile.
+  eudiPid,
+  /// ISO/IEC TS 23220-4 Annex B, used by the Photo ID profile. Note 23220-4 says a conformant
+  /// profile *may* use these OIDs, not that it must, so a real deployment may define its own.
+  iso23220,
+}
+
+/// How a relative distinguished name is compared between end-entity certificate and trust anchor.
+enum MdlCertificateRdnRule {
+  /// Compare only when at least one of the two carries the attribute, as ISO/IEC 18013-5
+  /// requires. Absent from both is conformant.
+  matchIfPresent,
+  /// Compare unconditionally, which also fails when the attribute is absent.
+  required,
+}
+
+/// Whether a certificate extension is mandatory.
+enum MdlCertificateExtensionRule {
+  /// The certificate must carry the extension, as ISO/IEC 18013-5 Annex B requires of
+  /// `cRLDistributionPoints` and `issuerAlternativeName`.
+  required,
+  /// The certificate may omit the extension.
+  optional,
+}
+
 /// Verified response from a successful read.
 ///
 /// The verified items are transported as a JSON string (the canonical Rust
@@ -204,12 +239,12 @@ class MdlReadResponse {
   /// ```
   /// The per-document entries carry the reason a document failed, which the
   /// response-level list does not: a document failing on its own contributes
-  /// only a bare "documents failed" there.
+  /// only a bare "documents failed" there. A doctype missing from
+  /// [MdlReader.startNfcReader]'s `certificateProfiles` shows up here.
   ///
   /// This is the only signal that something went wrong: the verified items are
   /// drawn solely from documents that passed every check, and a document that
-  /// failed always contributes at least one reason here. Non-null means show
-  /// it; the verified items should be displayed either way.
+  /// failed always contributes at least one reason here.
   ///
   /// Consumers can `jsonDecode(errors)` if non-null to inspect specifics.
   String? errors;
@@ -306,6 +341,360 @@ class MdlReaderStateUpdate {
   int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
 }
 
+/// The ISO/IEC 18013-5 Annex B document-signer checks, parameterised.
+///
+/// The structural checks and the chain, revocation and trust-purpose rules are Annex B's and are
+/// not configurable: an IACA trust anchor, no sub-CAs, and CRL-based revocation.
+class MdlIssuerProfileConfig {
+  MdlIssuerProfileConfig({
+    required this.documentSignerEku,
+    required this.stateOrProvince,
+    required this.crlDistributionPoints,
+    required this.issuerAlternativeName,
+  });
+
+  /// Extended key usage OID the document signer certificate must carry, in dotted form --
+  /// `"1.0.18013.5.1.2"` for an mDL, `"1.0.23220.4.1.2"` for ISO/IEC TS 23220-4.
+  ///
+  /// The certificate's extended key usage must contain this OID and nothing else, so a signer
+  /// shared between two credential types needs one certificate per profile rather than one
+  /// certificate carrying both OIDs.
+  String documentSignerEku;
+
+  /// How `stateOrProvinceName` is compared against the trust anchor.
+  MdlCertificateRdnRule stateOrProvince;
+
+  /// Whether `cRLDistributionPoints` is mandatory.
+  MdlCertificateExtensionRule crlDistributionPoints;
+
+  /// Whether `issuerAlternativeName` is mandatory.
+  MdlCertificateExtensionRule issuerAlternativeName;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      documentSignerEku,
+      stateOrProvince,
+      crlDistributionPoints,
+      issuerAlternativeName,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MdlIssuerProfileConfig decode(Object result) {
+    result as List<Object?>;
+    return MdlIssuerProfileConfig(
+      documentSignerEku: result[0]! as String,
+      stateOrProvince: result[1]! as MdlCertificateRdnRule,
+      crlDistributionPoints: result[2]! as MdlCertificateExtensionRule,
+      issuerAlternativeName: result[3]! as MdlCertificateExtensionRule,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MdlIssuerProfileConfig || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(documentSignerEku, other.documentSignerEku) && _deepEquals(stateOrProvince, other.stateOrProvince) && _deepEquals(crlDistributionPoints, other.crlDistributionPoints) && _deepEquals(issuerAlternativeName, other.issuerAlternativeName);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// The ISO/IEC 18013-5 Annex B reader-certificate checks, parameterised.
+class MdlReaderProfileConfig {
+  MdlReaderProfileConfig({
+    required this.readerAuthEku,
+    required this.crlDistributionPoints,
+    required this.issuerAlternativeName,
+  });
+
+  /// Extended key usage OID the reader certificate must carry, in dotted form --
+  /// `"1.0.18013.5.1.6"` for an mDL reader, `"1.0.23220.4.1.6"` for ISO/IEC TS 23220-4.
+  String readerAuthEku;
+
+  /// Whether `cRLDistributionPoints` is mandatory.
+  MdlCertificateExtensionRule crlDistributionPoints;
+
+  /// Whether `issuerAlternativeName` is mandatory.
+  MdlCertificateExtensionRule issuerAlternativeName;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      readerAuthEku,
+      crlDistributionPoints,
+      issuerAlternativeName,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MdlReaderProfileConfig decode(Object result) {
+    result as List<Object?>;
+    return MdlReaderProfileConfig(
+      readerAuthEku: result[0]! as String,
+      crlDistributionPoints: result[1]! as MdlCertificateExtensionRule,
+      issuerAlternativeName: result[2]! as MdlCertificateExtensionRule,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MdlReaderProfileConfig || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(readerAuthEku, other.readerAuthEku) && _deepEquals(crlDistributionPoints, other.crlDistributionPoints) && _deepEquals(issuerAlternativeName, other.issuerAlternativeName);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// Rules for document signer certificates of one doctype.
+///
+/// Native callers (Kotlin, Swift) can additionally implement validation
+/// themselves via the `MdocCertificateProfile` interface on the platform SDKs.
+/// That is not offered here: the underlying interface is synchronous and
+/// Pigeon's value-returning calls are not, so a Dart implementation would have
+/// to block a native thread on every certificate validated.
+sealed class MdlIssuerCertificateProfile {
+}
+
+/// Validate document signers of this doctype under a profile the SDK ships.
+class MdlIssuerBuiltinProfile extends MdlIssuerCertificateProfile {
+  MdlIssuerBuiltinProfile({
+    required this.profile,
+  });
+
+  MdlBuiltinCertificateProfile profile;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      profile,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MdlIssuerBuiltinProfile decode(Object result) {
+    result as List<Object?>;
+    return MdlIssuerBuiltinProfile(
+      profile: result[0]! as MdlBuiltinCertificateProfile,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MdlIssuerBuiltinProfile || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(profile, other.profile);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// Validate document signers of this doctype under the Annex B checks with
+/// caller-supplied parameters.
+class MdlIssuerConfiguredProfile extends MdlIssuerCertificateProfile {
+  MdlIssuerConfiguredProfile({
+    required this.config,
+  });
+
+  MdlIssuerProfileConfig config;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      config,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MdlIssuerConfiguredProfile decode(Object result) {
+    result as List<Object?>;
+    return MdlIssuerConfiguredProfile(
+      config: result[0]! as MdlIssuerProfileConfig,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MdlIssuerConfiguredProfile || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(config, other.config);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// Rules for reader certificates of one doctype.
+///
+/// A reader session never exercises this half -- it applies when a *holder*
+/// authenticates an incoming request -- so any value will do.
+sealed class MdlReaderCertificateProfile {
+}
+
+/// Validate reader certificates of this doctype under a profile the SDK ships.
+class MdlReaderBuiltinProfile extends MdlReaderCertificateProfile {
+  MdlReaderBuiltinProfile({
+    required this.profile,
+  });
+
+  MdlBuiltinCertificateProfile profile;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      profile,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MdlReaderBuiltinProfile decode(Object result) {
+    result as List<Object?>;
+    return MdlReaderBuiltinProfile(
+      profile: result[0]! as MdlBuiltinCertificateProfile,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MdlReaderBuiltinProfile || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(profile, other.profile);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// Validate reader certificates of this doctype under the Annex B checks with
+/// caller-supplied parameters.
+class MdlReaderConfiguredProfile extends MdlReaderCertificateProfile {
+  MdlReaderConfiguredProfile({
+    required this.config,
+  });
+
+  MdlReaderProfileConfig config;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      config,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MdlReaderConfiguredProfile decode(Object result) {
+    result as List<Object?>;
+    return MdlReaderConfiguredProfile(
+      config: result[0]! as MdlReaderProfileConfig,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MdlReaderConfiguredProfile || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(config, other.config);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
+/// The certificate rules for one doctype, both directions.
+class MdlCertificateProfiles {
+  MdlCertificateProfiles({
+    required this.issuer,
+    required this.reader,
+  });
+
+  /// Rules for the document signer certificate that signed a presented credential.
+  MdlIssuerCertificateProfile issuer;
+
+  /// Rules for the certificate a reader authenticates its request with.
+  MdlReaderCertificateProfile reader;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      issuer,
+      reader,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MdlCertificateProfiles decode(Object result) {
+    result as List<Object?>;
+    return MdlCertificateProfiles(
+      issuer: result[0]! as MdlIssuerCertificateProfile,
+      reader: result[1]! as MdlReaderCertificateProfile,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MdlCertificateProfiles || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(issuer, other.issuer) && _deepEquals(reader, other.reader);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -317,11 +706,41 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is MdlReaderState) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is MdlReadResponse) {
+    }    else if (value is MdlBuiltinCertificateProfile) {
       buffer.putUint8(130);
+      writeValue(buffer, value.index);
+    }    else if (value is MdlCertificateRdnRule) {
+      buffer.putUint8(131);
+      writeValue(buffer, value.index);
+    }    else if (value is MdlCertificateExtensionRule) {
+      buffer.putUint8(132);
+      writeValue(buffer, value.index);
+    }    else if (value is MdlReadResponse) {
+      buffer.putUint8(133);
       writeValue(buffer, value.encode());
     }    else if (value is MdlReaderStateUpdate) {
-      buffer.putUint8(131);
+      buffer.putUint8(134);
+      writeValue(buffer, value.encode());
+    }    else if (value is MdlIssuerProfileConfig) {
+      buffer.putUint8(135);
+      writeValue(buffer, value.encode());
+    }    else if (value is MdlReaderProfileConfig) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    }    else if (value is MdlIssuerBuiltinProfile) {
+      buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    }    else if (value is MdlIssuerConfiguredProfile) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is MdlReaderBuiltinProfile) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is MdlReaderConfiguredProfile) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is MdlCertificateProfiles) {
+      buffer.putUint8(141);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -335,9 +754,32 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : MdlReaderState.values[value];
       case 130:
-        return MdlReadResponse.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : MdlBuiltinCertificateProfile.values[value];
       case 131:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : MdlCertificateRdnRule.values[value];
+      case 132:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : MdlCertificateExtensionRule.values[value];
+      case 133:
+        return MdlReadResponse.decode(readValue(buffer)!);
+      case 134:
         return MdlReaderStateUpdate.decode(readValue(buffer)!);
+      case 135:
+        return MdlIssuerProfileConfig.decode(readValue(buffer)!);
+      case 136:
+        return MdlReaderProfileConfig.decode(readValue(buffer)!);
+      case 137:
+        return MdlIssuerBuiltinProfile.decode(readValue(buffer)!);
+      case 138:
+        return MdlIssuerConfiguredProfile.decode(readValue(buffer)!);
+      case 139:
+        return MdlReaderBuiltinProfile.decode(readValue(buffer)!);
+      case 140:
+        return MdlReaderConfiguredProfile.decode(readValue(buffer)!);
+      case 141:
+        return MdlCertificateProfiles.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -465,14 +907,20 @@ class MdlReader {
   /// @param trustedRoots List of PEM-encoded IACA root certificates. Empty
   ///   list disables chain validation, which surfaces as an entry in
   ///   [MdlReadResponse.errors].
-  Future<void> startNfcReader(Map<String, Map<String, Map<String, bool>>> query, List<String> trustedRoots) async {
+  /// @param certificateProfiles Certificate validation rules, keyed by doctype.
+  ///   Null validates every doctype under the ISO/IEC 18013-5 mDL profile,
+  ///   which is what every caller got before this was configurable. When
+  ///   supplied it must contain an entry for every doctype in [query]: a
+  ///   doctype absent from the map is refused rather than validated under a
+  ///   guess.
+  Future<void> startNfcReader(Map<String, Map<String, Map<String, bool>>> query, List<String> trustedRoots, Map<String, MdlCertificateProfiles>? certificateProfiles) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlReader.startNfcReader$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[query, trustedRoots]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[query, trustedRoots, certificateProfiles]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -494,14 +942,15 @@ class MdlReader {
   ///   device.
   /// @param query See [startNfcReader].
   /// @param trustedRoots See [startNfcReader].
-  Future<void> startQrReader(String qrUri, Map<String, Map<String, Map<String, bool>>> query, List<String> trustedRoots) async {
+  /// @param certificateProfiles See [startNfcReader].
+  Future<void> startQrReader(String qrUri, Map<String, Map<String, Map<String, bool>>> query, List<String> trustedRoots, Map<String, MdlCertificateProfiles>? certificateProfiles) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlReader.startQrReader$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[qrUri, query, trustedRoots]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[qrUri, query, trustedRoots, certificateProfiles]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

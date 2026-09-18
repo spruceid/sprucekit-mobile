@@ -240,6 +240,67 @@ enum class MdlReaderState(val raw: Int) {
 }
 
 /**
+ * A certificate profile this SDK ships.
+ *
+ * ISO/IEC 18013-5 Annex B's *structure* is credential-agnostic -- IACA root, no sub-CAs, subject
+ * key identifier, key usage, matching country codes. What differs between credential types is
+ * the OID values, and each of these bundles a known set.
+ */
+enum class MdlBuiltinCertificateProfile(val raw: Int) {
+  /** ISO/IEC 18013-5 mDL. The profile used when none is configured. */
+  MDL(0),
+  /** AAMVA's mDL profile, which additionally requires `stateOrProvinceName` to match. */
+  AAMVA_MDL(1),
+  /** The EUDI Person Identification Data profile. */
+  EUDI_PID(2),
+  /**
+   * ISO/IEC TS 23220-4 Annex B, used by the Photo ID profile. Note 23220-4 says a conformant
+   * profile *may* use these OIDs, not that it must, so a real deployment may define its own.
+   */
+  ISO23220(3);
+
+  companion object {
+    fun ofRaw(raw: Int): MdlBuiltinCertificateProfile? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** How a relative distinguished name is compared between end-entity certificate and trust anchor. */
+enum class MdlCertificateRdnRule(val raw: Int) {
+  /**
+   * Compare only when at least one of the two carries the attribute, as ISO/IEC 18013-5
+   * requires. Absent from both is conformant.
+   */
+  MATCH_IF_PRESENT(0),
+  /** Compare unconditionally, which also fails when the attribute is absent. */
+  REQUIRED(1);
+
+  companion object {
+    fun ofRaw(raw: Int): MdlCertificateRdnRule? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Whether a certificate extension is mandatory. */
+enum class MdlCertificateExtensionRule(val raw: Int) {
+  /**
+   * The certificate must carry the extension, as ISO/IEC 18013-5 Annex B requires of
+   * `cRLDistributionPoints` and `issuerAlternativeName`.
+   */
+  REQUIRED(0),
+  /** The certificate may omit the extension. */
+  OPTIONAL(1);
+
+  companion object {
+    fun ofRaw(raw: Int): MdlCertificateExtensionRule? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/**
  * Verified response from a successful read.
  *
  * The verified items are transported as a JSON string (the canonical Rust
@@ -303,12 +364,12 @@ data class MdlReadResponse (
    * ```
    * The per-document entries carry the reason a document failed, which the
    * response-level list does not: a document failing on its own contributes
-   * only a bare "documents failed" there.
+   * only a bare "documents failed" there. A doctype missing from
+   * [MdlReader.startNfcReader]'s `certificateProfiles` shows up here.
    *
    * This is the only signal that something went wrong: the verified items are
    * drawn solely from documents that passed every check, and a document that
-   * failed always contributes at least one reason here. Non-null means show
-   * it; the verified items should be displayed either way.
+   * failed always contributes at least one reason here.
    *
    * Consumers can `jsonDecode(errors)` if non-null to inspect specifics.
    */
@@ -401,6 +462,343 @@ data class MdlReaderStateUpdate (
     return result
   }
 }
+
+/**
+ * The ISO/IEC 18013-5 Annex B document-signer checks, parameterised.
+ *
+ * The structural checks and the chain, revocation and trust-purpose rules are Annex B's and are
+ * not configurable: an IACA trust anchor, no sub-CAs, and CRL-based revocation.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MdlIssuerProfileConfig (
+  /**
+   * Extended key usage OID the document signer certificate must carry, in dotted form --
+   * `"1.0.18013.5.1.2"` for an mDL, `"1.0.23220.4.1.2"` for ISO/IEC TS 23220-4.
+   *
+   * The certificate's extended key usage must contain this OID and nothing else, so a signer
+   * shared between two credential types needs one certificate per profile rather than one
+   * certificate carrying both OIDs.
+   */
+  val documentSignerEku: String,
+  /** How `stateOrProvinceName` is compared against the trust anchor. */
+  val stateOrProvince: MdlCertificateRdnRule,
+  /** Whether `cRLDistributionPoints` is mandatory. */
+  val crlDistributionPoints: MdlCertificateExtensionRule,
+  /** Whether `issuerAlternativeName` is mandatory. */
+  val issuerAlternativeName: MdlCertificateExtensionRule
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MdlIssuerProfileConfig {
+      val documentSignerEku = pigeonVar_list[0] as String
+      val stateOrProvince = pigeonVar_list[1] as MdlCertificateRdnRule
+      val crlDistributionPoints = pigeonVar_list[2] as MdlCertificateExtensionRule
+      val issuerAlternativeName = pigeonVar_list[3] as MdlCertificateExtensionRule
+      return MdlIssuerProfileConfig(documentSignerEku, stateOrProvince, crlDistributionPoints, issuerAlternativeName)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      documentSignerEku,
+      stateOrProvince,
+      crlDistributionPoints,
+      issuerAlternativeName,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MdlIssuerProfileConfig
+    return MdlReaderPigeonUtils.deepEquals(this.documentSignerEku, other.documentSignerEku) && MdlReaderPigeonUtils.deepEquals(this.stateOrProvince, other.stateOrProvince) && MdlReaderPigeonUtils.deepEquals(this.crlDistributionPoints, other.crlDistributionPoints) && MdlReaderPigeonUtils.deepEquals(this.issuerAlternativeName, other.issuerAlternativeName)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.documentSignerEku)
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.stateOrProvince)
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.crlDistributionPoints)
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.issuerAlternativeName)
+    return result
+  }
+}
+
+/**
+ * The ISO/IEC 18013-5 Annex B reader-certificate checks, parameterised.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MdlReaderProfileConfig (
+  /**
+   * Extended key usage OID the reader certificate must carry, in dotted form --
+   * `"1.0.18013.5.1.6"` for an mDL reader, `"1.0.23220.4.1.6"` for ISO/IEC TS 23220-4.
+   */
+  val readerAuthEku: String,
+  /** Whether `cRLDistributionPoints` is mandatory. */
+  val crlDistributionPoints: MdlCertificateExtensionRule,
+  /** Whether `issuerAlternativeName` is mandatory. */
+  val issuerAlternativeName: MdlCertificateExtensionRule
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MdlReaderProfileConfig {
+      val readerAuthEku = pigeonVar_list[0] as String
+      val crlDistributionPoints = pigeonVar_list[1] as MdlCertificateExtensionRule
+      val issuerAlternativeName = pigeonVar_list[2] as MdlCertificateExtensionRule
+      return MdlReaderProfileConfig(readerAuthEku, crlDistributionPoints, issuerAlternativeName)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      readerAuthEku,
+      crlDistributionPoints,
+      issuerAlternativeName,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MdlReaderProfileConfig
+    return MdlReaderPigeonUtils.deepEquals(this.readerAuthEku, other.readerAuthEku) && MdlReaderPigeonUtils.deepEquals(this.crlDistributionPoints, other.crlDistributionPoints) && MdlReaderPigeonUtils.deepEquals(this.issuerAlternativeName, other.issuerAlternativeName)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.readerAuthEku)
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.crlDistributionPoints)
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.issuerAlternativeName)
+    return result
+  }
+}
+
+/**
+ * Rules for document signer certificates of one doctype.
+ *
+ * Native callers (Kotlin, Swift) can additionally implement validation
+ * themselves via the `MdocCertificateProfile` interface on the platform SDKs.
+ * That is not offered here: the underlying interface is synchronous and
+ * Pigeon's value-returning calls are not, so a Dart implementation would have
+ * to block a native thread on every certificate validated.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ * This class should not be extended by any user class outside of the generated file.
+ */
+sealed class MdlIssuerCertificateProfile 
+/**
+ * Validate document signers of this doctype under a profile the SDK ships.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MdlIssuerBuiltinProfile (
+  val profile: MdlBuiltinCertificateProfile
+) : MdlIssuerCertificateProfile()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MdlIssuerBuiltinProfile {
+      val profile = pigeonVar_list[0] as MdlBuiltinCertificateProfile
+      return MdlIssuerBuiltinProfile(profile)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      profile,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MdlIssuerBuiltinProfile
+    return MdlReaderPigeonUtils.deepEquals(this.profile, other.profile)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.profile)
+    return result
+  }
+}
+
+/**
+ * Validate document signers of this doctype under the Annex B checks with
+ * caller-supplied parameters.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MdlIssuerConfiguredProfile (
+  val config: MdlIssuerProfileConfig
+) : MdlIssuerCertificateProfile()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MdlIssuerConfiguredProfile {
+      val config = pigeonVar_list[0] as MdlIssuerProfileConfig
+      return MdlIssuerConfiguredProfile(config)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      config,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MdlIssuerConfiguredProfile
+    return MdlReaderPigeonUtils.deepEquals(this.config, other.config)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.config)
+    return result
+  }
+}
+
+/**
+ * Rules for reader certificates of one doctype.
+ *
+ * A reader session never exercises this half -- it applies when a *holder*
+ * authenticates an incoming request -- so any value will do.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ * This class should not be extended by any user class outside of the generated file.
+ */
+sealed class MdlReaderCertificateProfile 
+/**
+ * Validate reader certificates of this doctype under a profile the SDK ships.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MdlReaderBuiltinProfile (
+  val profile: MdlBuiltinCertificateProfile
+) : MdlReaderCertificateProfile()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MdlReaderBuiltinProfile {
+      val profile = pigeonVar_list[0] as MdlBuiltinCertificateProfile
+      return MdlReaderBuiltinProfile(profile)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      profile,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MdlReaderBuiltinProfile
+    return MdlReaderPigeonUtils.deepEquals(this.profile, other.profile)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.profile)
+    return result
+  }
+}
+
+/**
+ * Validate reader certificates of this doctype under the Annex B checks with
+ * caller-supplied parameters.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MdlReaderConfiguredProfile (
+  val config: MdlReaderProfileConfig
+) : MdlReaderCertificateProfile()
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MdlReaderConfiguredProfile {
+      val config = pigeonVar_list[0] as MdlReaderProfileConfig
+      return MdlReaderConfiguredProfile(config)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      config,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MdlReaderConfiguredProfile
+    return MdlReaderPigeonUtils.deepEquals(this.config, other.config)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.config)
+    return result
+  }
+}
+
+/**
+ * The certificate rules for one doctype, both directions.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class MdlCertificateProfiles (
+  /** Rules for the document signer certificate that signed a presented credential. */
+  val issuer: MdlIssuerCertificateProfile,
+  /** Rules for the certificate a reader authenticates its request with. */
+  val reader: MdlReaderCertificateProfile
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): MdlCertificateProfiles {
+      val issuer = pigeonVar_list[0] as MdlIssuerCertificateProfile
+      val reader = pigeonVar_list[1] as MdlReaderCertificateProfile
+      return MdlCertificateProfiles(issuer, reader)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      issuer,
+      reader,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as MdlCertificateProfiles
+    return MdlReaderPigeonUtils.deepEquals(this.issuer, other.issuer) && MdlReaderPigeonUtils.deepEquals(this.reader, other.reader)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.issuer)
+    result = 31 * result + MdlReaderPigeonUtils.deepHash(this.reader)
+    return result
+  }
+}
 private open class MdlReaderPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -410,13 +808,63 @@ private open class MdlReaderPigeonCodec : StandardMessageCodec() {
         }
       }
       130.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          MdlBuiltinCertificateProfile.ofRaw(it.toInt())
+        }
+      }
+      131.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          MdlCertificateRdnRule.ofRaw(it.toInt())
+        }
+      }
+      132.toByte() -> {
+        return (readValue(buffer) as Long?)?.let {
+          MdlCertificateExtensionRule.ofRaw(it.toInt())
+        }
+      }
+      133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           MdlReadResponse.fromList(it)
         }
       }
-      131.toByte() -> {
+      134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           MdlReaderStateUpdate.fromList(it)
+        }
+      }
+      135.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MdlIssuerProfileConfig.fromList(it)
+        }
+      }
+      136.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MdlReaderProfileConfig.fromList(it)
+        }
+      }
+      137.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MdlIssuerBuiltinProfile.fromList(it)
+        }
+      }
+      138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MdlIssuerConfiguredProfile.fromList(it)
+        }
+      }
+      139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MdlReaderBuiltinProfile.fromList(it)
+        }
+      }
+      140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MdlReaderConfiguredProfile.fromList(it)
+        }
+      }
+      141.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MdlCertificateProfiles.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -428,12 +876,52 @@ private open class MdlReaderPigeonCodec : StandardMessageCodec() {
         stream.write(129)
         writeValue(stream, value.raw.toLong())
       }
-      is MdlReadResponse -> {
+      is MdlBuiltinCertificateProfile -> {
         stream.write(130)
+        writeValue(stream, value.raw.toLong())
+      }
+      is MdlCertificateRdnRule -> {
+        stream.write(131)
+        writeValue(stream, value.raw.toLong())
+      }
+      is MdlCertificateExtensionRule -> {
+        stream.write(132)
+        writeValue(stream, value.raw.toLong())
+      }
+      is MdlReadResponse -> {
+        stream.write(133)
         writeValue(stream, value.toList())
       }
       is MdlReaderStateUpdate -> {
-        stream.write(131)
+        stream.write(134)
+        writeValue(stream, value.toList())
+      }
+      is MdlIssuerProfileConfig -> {
+        stream.write(135)
+        writeValue(stream, value.toList())
+      }
+      is MdlReaderProfileConfig -> {
+        stream.write(136)
+        writeValue(stream, value.toList())
+      }
+      is MdlIssuerBuiltinProfile -> {
+        stream.write(137)
+        writeValue(stream, value.toList())
+      }
+      is MdlIssuerConfiguredProfile -> {
+        stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is MdlReaderBuiltinProfile -> {
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is MdlReaderConfiguredProfile -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is MdlCertificateProfiles -> {
+        stream.write(141)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -539,8 +1027,14 @@ interface MdlReader {
    * @param trustedRoots List of PEM-encoded IACA root certificates. Empty
    *   list disables chain validation, which surfaces as an entry in
    *   [MdlReadResponse.errors].
+   * @param certificateProfiles Certificate validation rules, keyed by doctype.
+   *   Null validates every doctype under the ISO/IEC 18013-5 mDL profile,
+   *   which is what every caller got before this was configurable. When
+   *   supplied it must contain an entry for every doctype in [query]: a
+   *   doctype absent from the map is refused rather than validated under a
+   *   guess.
    */
-  fun startNfcReader(query: Map<String, Map<String, Map<String, Boolean>>>, trustedRoots: List<String>)
+  fun startNfcReader(query: Map<String, Map<String, Map<String, Boolean>>>, trustedRoots: List<String>, certificateProfiles: Map<String, MdlCertificateProfiles>?)
   /**
    * Start a QR-engagement reader session from a pre-scanned QR code URI.
    *
@@ -553,8 +1047,9 @@ interface MdlReader {
    *   device.
    * @param query See [startNfcReader].
    * @param trustedRoots See [startNfcReader].
+   * @param certificateProfiles See [startNfcReader].
    */
-  fun startQrReader(qrUri: String, query: Map<String, Map<String, Map<String, Boolean>>>, trustedRoots: List<String>)
+  fun startQrReader(qrUri: String, query: Map<String, Map<String, Map<String, Boolean>>>, trustedRoots: List<String>, certificateProfiles: Map<String, MdlCertificateProfiles>?)
   /**
    * Cancel any in-flight session and tear down NFC / BLE handles.
    *
@@ -594,8 +1089,9 @@ interface MdlReader {
             val args = message as List<Any?>
             val queryArg = args[0] as Map<String, Map<String, Map<String, Boolean>>>
             val trustedRootsArg = args[1] as List<String>
+            val certificateProfilesArg = args[2] as Map<String, MdlCertificateProfiles>?
             val wrapped: List<Any?> = try {
-              api.startNfcReader(queryArg, trustedRootsArg)
+              api.startNfcReader(queryArg, trustedRootsArg, certificateProfilesArg)
               listOf(null)
             } catch (exception: Throwable) {
               MdlReaderPigeonUtils.wrapError(exception)
@@ -614,8 +1110,9 @@ interface MdlReader {
             val qrUriArg = args[0] as String
             val queryArg = args[1] as Map<String, Map<String, Map<String, Boolean>>>
             val trustedRootsArg = args[2] as List<String>
+            val certificateProfilesArg = args[3] as Map<String, MdlCertificateProfiles>?
             val wrapped: List<Any?> = try {
-              api.startQrReader(qrUriArg, queryArg, trustedRootsArg)
+              api.startQrReader(qrUriArg, queryArg, trustedRootsArg, certificateProfilesArg)
               listOf(null)
             } catch (exception: Throwable) {
               MdlReaderPigeonUtils.wrapError(exception)

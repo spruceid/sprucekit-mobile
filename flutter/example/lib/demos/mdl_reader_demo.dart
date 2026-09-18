@@ -166,7 +166,8 @@ class _MdlReaderDemoState extends State<MdlReaderDemo>
       _response = null;
       _error = null;
     });
-    await _reader.startNfcReader(_defaultQuery, _trustedRoots);
+    // `null` certificate profiles: validate every doctype under the mDL profile.
+    await _reader.startNfcReader(_defaultQuery, _trustedRoots, null);
   }
 
   Future<void> _startQrScan() async {
@@ -185,7 +186,7 @@ class _MdlReaderDemoState extends State<MdlReaderDemo>
 
   Future<void> _onQrRead(String content) async {
     setState(() => _isScanningQr = false);
-    await _reader.startQrReader(content, _defaultQuery, _trustedRoots);
+    await _reader.startQrReader(content, _defaultQuery, _trustedRoots, null);
   }
 
   Future<void> _reset() async {
