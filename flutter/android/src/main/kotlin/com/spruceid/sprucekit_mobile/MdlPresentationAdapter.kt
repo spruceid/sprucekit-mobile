@@ -12,6 +12,8 @@ import android.nfc.NfcAdapter
 import android.nfc.cardemulation.CardEmulation
 import android.os.Bundle
 import android.util.Log
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import com.spruceid.mobile.sdk.BLESessionStateDelegate
 import com.spruceid.mobile.sdk.CredentialPresentData
 import com.spruceid.mobile.sdk.IsoMdlPresentation
@@ -42,7 +44,10 @@ internal class MdlPresentationAdapter(
     private val credentialPackAdapter: CredentialPackAdapter
 ) : MdlPresentation {
 
-    private val coroutineScope = CoroutineScope(Dispatchers.Main)
+    // `immediate` runs a block inline when already on the main thread. The
+    // SDK posts NFC callbacks to the main looper, so their state updates land
+    // before a queued cancel() instead of after it.
+    private val coroutineScope = CoroutineScope(Dispatchers.Main.immediate)
 
     private var presentation: IsoMdlPresentation? = null
     private var flutterCallback: MdlPresentationCallback? = null
@@ -69,9 +74,18 @@ internal class MdlPresentationAdapter(
     fun setActivityBinding(binding: ActivityPluginBinding?) {
         activityBinding?.activity?.application?.unregisterActivityLifecycleCallbacks(lifecycleCallbacks)
         activityBinding = binding
-        activityResumed = false
-        val activity = binding?.activity ?: return
+        val activity = binding?.activity
+        if (activity == null) {
+            activityResumed = false
+            return
+        }
+        // The lifecycle callbacks do not replay a resume that already
+        // happened, so seed from the current state. An add-to-app host can
+        // attach the plugin to an Activity that is already resumed.
+        activityResumed = (activity as? LifecycleOwner)
+            ?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) ?: false
         activity.application.registerActivityLifecycleCallbacks(lifecycleCallbacks)
+        applyPreferredService()
     }
 
     /** Releases NFC hooks before the Flutter engine goes away. */
@@ -126,11 +140,7 @@ internal class MdlPresentationAdapter(
             return
         }
 
-        if (!nfc.arm()) {
-            // createPresentation always cancels first, so this is unreachable.
-            callback(Result.success(MdlPresentationError("NFC presentation already armed")))
-            return
-        }
+        check(nfc.arm()) { "coordinator not idle after tearDown" }
 
         NfcPresentationService.listener = nfcListener
         // First contact with card emulation. Nothing touches the NFC stack
@@ -178,10 +188,12 @@ internal class MdlPresentationAdapter(
         try {
             updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SENDING_RESPONSE))
             presentation?.submitNamespaces(selectedNamespaces)
+            releaseNfcAfterSession()
             updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SUCCESS))
             callback(Result.success(MdlPresentationSuccess("Response submitted")))
         } catch (e: Exception) {
             Log.e(TAG, "Failed to submit namespaces", e)
+            releaseNfcAfterSession()
             updateState(MdlPresentationStateUpdate(
                 state = MdlPresentationState.ERROR,
                 error = e.message ?: "Failed to submit namespaces"
@@ -231,6 +243,7 @@ internal class MdlPresentationAdapter(
 
                 override fun error(error: Exception) {
                     Log.e(TAG, "Presentation error: ${error.message}", error)
+                    releaseNfcAfterSession()
                     updateState(MdlPresentationStateUpdate(
                         state = MdlPresentationState.ERROR,
                         error = error.message ?: "Unknown error"
@@ -280,11 +293,13 @@ internal class MdlPresentationAdapter(
         // carrier info as soon as the Handover Select is ready, and the
         // reader still reads the NDEF file after that. A service that goes
         // quiet at this point leaves the reader stuck on the tap.
-        override fun isListening(): Boolean = nfc.phase != NfcEngagementCoordinator.Phase.IDLE
+        override fun isListening(): Boolean = nfc.isListening
 
         override fun onCarrierInfo(carrierInfo: NegotiatedCarrierInfo) {
             if (!nfc.onCarrierInfo()) return
             coroutineScope.launch {
+                // A cancel() can land between the callback and this block.
+                if (nfc.phase != NfcEngagementCoordinator.Phase.ENGAGED) return@launch
                 updateState(MdlPresentationStateUpdate(
                     state = MdlPresentationState.INITIALIZING,
                     nfcPhase = MdlNfcPhase.CONNECTING
@@ -317,6 +332,15 @@ internal class MdlPresentationAdapter(
                 nfcPhase = MdlNfcPhase.UNAVAILABLE
             ))
         }
+    }
+
+    /**
+     * The reader connected over BLE, or the session ended. The NDEF read is
+     * over, so the service stops answering taps. Otherwise the phone keeps
+     * handing out carrier info for a session nothing scans for.
+     */
+    private fun releaseNfcAfterSession() {
+        if (nfc.onSessionEnded()) releaseNfcListening()
     }
 
     /** Forgets the attempt and releases the NFC hooks. */
@@ -418,6 +442,7 @@ internal class MdlPresentationAdapter(
     private fun handleStateUpdate(state: Map<String, Any>) {
         when {
             state.containsKey("timeout") -> {
+                releaseNfcAfterSession()
                 updateState(MdlPresentationStateUpdate(state = MdlPresentationState.TIMEOUT))
             }
 
@@ -430,6 +455,8 @@ internal class MdlPresentationAdapter(
             }
 
             state.containsKey("selectNamespaces") -> {
+                // The reader is on BLE now. NFC has done its job.
+                releaseNfcAfterSession()
                 @Suppress("UNCHECKED_CAST")
                 itemsRequests = state["selectNamespaces"] as List<ItemsRequest>
 
@@ -451,6 +478,7 @@ internal class MdlPresentationAdapter(
             }
 
             state.containsKey("error") -> {
+                releaseNfcAfterSession()
                 updateState(MdlPresentationStateUpdate(
                     state = MdlPresentationState.ERROR,
                     error = state["error"].toString()

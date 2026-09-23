@@ -180,13 +180,10 @@ func deepHashMdlPresentation(value: Any?, hasher: inout Hasher) {
 
 /// Presentation state for ISO 18013-5 mDL presentation
 ///
-/// Migration note: an NFC tap based presentation reports its NFC detail in
+/// An NFC tap based presentation reports its NFC detail in
 /// [MdlPresentationStateUpdate.nfcPhase] and keeps this enum unchanged, so
-/// existing exhaustive switches still compile. The next major release merges
-/// the phases into this enum as `nfcWaitingForTap`, `connectingViaNfc` and
-/// `nfcUnavailable`, and removes `nfcPhase`. Code that reads the NFC detail
-/// through the `MdlPresentationStateUpdate` getters (`isWaitingForNfcTap`,
-/// `isConnectingViaNfc`, `isNfcUnavailable`) needs no change at that point.
+/// existing exhaustive switches still compile. See [MdlNfcPhase] for the
+/// planned merge.
 enum MdlPresentationState: Int {
   /// Initial state, not yet started
   case uninitialized = 0
@@ -216,15 +213,18 @@ enum MdlPresentationState: Int {
 
 /// Where an NFC tap based presentation is, on top of [MdlPresentationState]
 ///
-/// Only set on Android after [MdlPresentation.initializeNfcPresentation].
-/// The main state stays within the existing values, so callers that do not
-/// know about NFC keep working: `initializing` while the tap is pending and
-/// `error` when NFC is turned off.
+/// Set on Android after [MdlPresentation.initializeNfcPresentation]. On iOS
+/// only when the SDK reports `connectingViaNfc`, which the plugin does not
+/// reach today. The main state stays within the existing values, so callers
+/// that do not know about NFC keep working: `initializing` while the tap is
+/// pending and `error` when NFC is turned off.
 ///
-/// Transitional. The next major release folds these values into
-/// [MdlPresentationState] and removes this enum. Read the phase through the
-/// `MdlPresentationStateUpdate` getters, not through this enum, to stay
-/// unaffected by that change.
+/// Transitional. The next major release adds `nfcWaitingForTap`,
+/// `connectingViaNfc` and `nfcUnavailable` to [MdlPresentationState],
+/// removes this enum and the `nfcPhase` field, and reimplements the
+/// `MdlPresentationStateUpdate` getters (`isWaitingForNfcTap`,
+/// `isConnectingViaNfc`, `isNfcUnavailable`) on the state. Code that uses
+/// the getters needs no change at that point.
 enum MdlNfcPhase: Int {
   /// The phone answers reader taps. State is `initializing`.
   case waitingForTap = 0
@@ -367,10 +367,9 @@ struct MdlPresentationStateUpdate: Hashable {
   var itemsRequests: [MdlItemsRequest]? = nil
   /// Error message (only set when state is error)
   var error: String? = nil
-  /// NFC detail for an NFC tap based presentation (Android only)
+  /// NFC detail for an NFC tap based presentation
   ///
-  /// Transitional field, see [MdlNfcPhase]. Prefer the getters
-  /// `isWaitingForNfcTap`, `isConnectingViaNfc` and `isNfcUnavailable`.
+  /// Transitional, see [MdlNfcPhase]. Read it through the getters.
   var nfcPhase: MdlNfcPhase? = nil
 
 

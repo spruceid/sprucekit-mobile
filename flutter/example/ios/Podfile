@@ -1,4 +1,4 @@
-# Platform version must match plugin requirements
+# Xcode 27 needs 15.0 or later.
 platform :ios, '17.6'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.

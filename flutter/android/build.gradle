@@ -80,6 +80,8 @@ android {
         implementation("androidx.savedstate:savedstate:1.2.1")
 
         testImplementation("org.jetbrains.kotlin:kotlin-test")
+        // Gradle 9 stops auto-loading the launcher.
+        testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     }
 
     testOptions {

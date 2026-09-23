@@ -1,6 +1,7 @@
 package com.spruceid.sprucekit_mobile
 
 import android.content.ComponentName
+import android.content.Context
 import com.spruceid.mobile.sdk.nfc.BaseNfcPresentationService
 import com.spruceid.mobile.sdk.nfc.NfcPresentationError
 import com.spruceid.mobile.sdk.rs.NegotiatedCarrierInfo
@@ -51,7 +52,7 @@ class NfcPresentationService : BaseNfcPresentationService() {
         @Volatile
         internal var listener: Listener? = null
 
-        fun componentName(context: android.content.Context): ComponentName =
+        fun componentName(context: Context): ComponentName =
             ComponentName(context, NfcPresentationService::class.java)
     }
 }

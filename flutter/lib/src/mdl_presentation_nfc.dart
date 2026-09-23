@@ -2,11 +2,8 @@ import 'package:sprucekit_mobile/pigeon/mdl_presentation.g.dart';
 
 /// Stable readers for the NFC detail of a presentation state update.
 ///
-/// These getters are the migration path for the NFC states. Today they read
-/// [MdlPresentationStateUpdate.nfcPhase]. When the next major release folds
-/// the NFC phases into [MdlPresentationState], the getters read the state
-/// instead and callers do not change. Code against the getters, not the
-/// field.
+/// Code against these, not against [MdlPresentationStateUpdate.nfcPhase].
+/// See [MdlNfcPhase] for the planned merge into [MdlPresentationState].
 extension MdlPresentationNfcUpdate on MdlPresentationStateUpdate {
   /// The HCE service answers reader taps. Show the tap screen.
   bool get isWaitingForNfcTap => nfcPhase == MdlNfcPhase.waitingForTap;

@@ -60,6 +60,27 @@ class NfcEngagementCoordinatorTest {
     }
 
     @Test
+    fun `a tap after the session ended is not answered`() {
+        coordinator.arm()
+        coordinator.onCarrierInfo()
+        assertTrue(coordinator.isListening)
+        assertTrue(coordinator.onSessionEnded())
+        assertFalse(coordinator.isListening)
+        assertEquals(NfcEngagementCoordinator.Phase.IDLE, coordinator.phase)
+        assertFalse(coordinator.onCarrierInfo())
+        // A second end is not reported again.
+        assertFalse(coordinator.onSessionEnded())
+    }
+
+    @Test
+    fun `session end is ignored before the handover`() {
+        assertFalse(coordinator.onSessionEnded())
+        coordinator.arm()
+        assertFalse(coordinator.onSessionEnded())
+        assertTrue(coordinator.isListening)
+    }
+
+    @Test
     fun `nfc turned off after the handover is not reported`() {
         coordinator.arm()
         coordinator.onCarrierInfo()

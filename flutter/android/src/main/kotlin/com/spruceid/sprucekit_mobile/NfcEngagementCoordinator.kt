@@ -28,6 +28,10 @@ internal class NfcEngagementCoordinator {
     var phase: Phase = Phase.IDLE
         private set
 
+    /** True while the HCE service must answer APDUs. */
+    val isListening: Boolean
+        get() = phase != Phase.IDLE
+
     /** Returns true when this call armed the service. */
     @Synchronized
     fun arm(): Boolean {
@@ -56,6 +60,17 @@ internal class NfcEngagementCoordinator {
     @Synchronized
     fun onNfcTurnedOff(): Boolean {
         if (phase != Phase.ARMED) return false
+        phase = Phase.IDLE
+        return true
+    }
+
+    /**
+     * The BLE session moved past the NFC read: the reader sent its request,
+     * or the session ended. Returns true when the NFC hooks must be released.
+     */
+    @Synchronized
+    fun onSessionEnded(): Boolean {
+        if (phase != Phase.ENGAGED) return false
         phase = Phase.IDLE
         return true
     }
