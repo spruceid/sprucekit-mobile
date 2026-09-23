@@ -1,5 +1,5 @@
 # Platform version must match plugin requirements
-platform :ios, '14.0'
+platform :ios, '17.6'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -58,6 +58,15 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # Xcode 27 refuses deployment targets below 17.6. Some pods still declare
+    # 9.0 to 14.0, so lift them to the platform minimum.
+    target.build_configurations.each do |config|
+      current = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f
+      if current < 17.6
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.6'
+      end
+    end
 
     # Enable permissions for permission_handler
     target.build_configurations.each do |config|

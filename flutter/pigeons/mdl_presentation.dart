@@ -16,6 +16,14 @@ import 'package:pigeon/pigeon.dart';
   ),
 )
 /// Presentation state for ISO 18013-5 mDL presentation
+///
+/// Migration note: an NFC tap based presentation reports its NFC detail in
+/// [MdlPresentationStateUpdate.nfcPhase] and keeps this enum unchanged, so
+/// existing exhaustive switches still compile. The next major release merges
+/// the phases into this enum as `nfcWaitingForTap`, `connectingViaNfc` and
+/// `nfcUnavailable`, and removes `nfcPhase`. Code that reads the NFC detail
+/// through the `MdlPresentationStateUpdate` getters (`isWaitingForNfcTap`,
+/// `isConnectingViaNfc`, `isNfcUnavailable`) needs no change at that point.
 enum MdlPresentationState {
   /// Initial state, not yet started
   uninitialized,
@@ -87,6 +95,29 @@ class MdlItemsRequest {
   MdlItemsRequest({required this.docType, required this.namespaces});
 }
 
+/// Where an NFC tap based presentation is, on top of [MdlPresentationState]
+///
+/// Only set on Android after [MdlPresentation.initializeNfcPresentation].
+/// The main state stays within the existing values, so callers that do not
+/// know about NFC keep working: `initializing` while the tap is pending and
+/// `error` when NFC is turned off.
+///
+/// Transitional. The next major release folds these values into
+/// [MdlPresentationState] and removes this enum. Read the phase through the
+/// `MdlPresentationStateUpdate` getters, not through this enum, to stay
+/// unaffected by that change.
+enum MdlNfcPhase {
+  /// The phone answers reader taps. State is `initializing`.
+  waitingForTap,
+
+  /// The tap delivered the BLE carrier. Connection in progress. State is
+  /// `initializing`.
+  connecting,
+
+  /// NFC was turned off while waiting. State is `error`. Fall back to QR.
+  unavailable,
+}
+
 /// State update event from the presentation session
 class MdlPresentationStateUpdate {
   /// Current state
@@ -101,11 +132,18 @@ class MdlPresentationStateUpdate {
   /// Error message (only set when state is error)
   String? error;
 
+  /// NFC detail for an NFC tap based presentation (Android only)
+  ///
+  /// Transitional field, see [MdlNfcPhase]. Prefer the getters
+  /// `isWaitingForNfcTap`, `isConnectingViaNfc` and `isNfcUnavailable`.
+  MdlNfcPhase? nfcPhase;
+
   MdlPresentationStateUpdate({
     required this.state,
     this.qrCodeUri,
     this.itemsRequests,
     this.error,
+    this.nfcPhase,
   });
 }
 
@@ -145,6 +183,27 @@ abstract class MdlPresentation {
   /// @return Result indicating success or error
   @async
   MdlPresentationResult initializeQrPresentation(
+    String packId,
+    String credentialId,
+  );
+
+  /// Whether this device can present over an NFC tap
+  ///
+  /// True when the device has an NFC adapter that is turned on and
+  /// supports host card emulation. Always false on iOS.
+  bool isNfcPresentationAvailable();
+
+  /// Arm an NFC tap based presentation session
+  ///
+  /// The BLE session starts when a reader taps the phone. The engagement
+  /// uses ISO 18013-5 static handover with BLE central client mode. State
+  /// updates arrive on [MdlPresentationCallback.onStateChange].
+  ///
+  /// @param packId The credential pack ID containing the mDL
+  /// @param credentialId The credential ID of the mDL to present
+  /// @return Result indicating success or error
+  @async
+  MdlPresentationResult initializeNfcPresentation(
     String packId,
     String credentialId,
   );
