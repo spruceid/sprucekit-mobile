@@ -44,10 +44,7 @@ internal class MdlPresentationAdapter(
     private val credentialPackAdapter: CredentialPackAdapter
 ) : MdlPresentation {
 
-    // `immediate` runs a block inline when already on the main thread. The
-    // SDK posts NFC callbacks to the main looper, so their state updates land
-    // before a queued cancel() instead of after it.
-    private val coroutineScope = CoroutineScope(Dispatchers.Main.immediate)
+    private val coroutineScope = CoroutineScope(Dispatchers.Main)
 
     private var presentation: IsoMdlPresentation? = null
     private var flutterCallback: MdlPresentationCallback? = null
@@ -61,6 +58,11 @@ internal class MdlPresentationAdapter(
     private var activityResumed = false
     private var preferredServiceSet = false
     private var nfcStateReceiverRegistered = false
+
+    // Incremented by every disarm. A block launched by an NFC callback
+    // compares the value it captured, so a block queued before a cancel()
+    // or a new session does not act on the session that replaced it.
+    private var nfcGeneration = 0
 
     fun setCallback(callback: MdlPresentationCallback) {
         flutterCallback = callback
@@ -88,13 +90,10 @@ internal class MdlPresentationAdapter(
         applyPreferredService()
     }
 
-    /** Releases NFC hooks before the Flutter engine goes away. */
+    /** Ends the session and releases the NFC hooks before the Flutter engine goes away. */
     fun dispose() {
-        disarmNfc()
+        tearDown()
         setActivityBinding(null)
-        if (NfcPresentationService.listener === nfcListener) {
-            NfcPresentationService.listener = null
-        }
     }
 
     @SuppressLint("MissingPermission")
@@ -118,10 +117,38 @@ internal class MdlPresentationAdapter(
         callback(Result.success(MdlPresentationSuccess("Presentation initialized")))
     }
 
-    override fun isNfcPresentationAvailable(): Boolean {
-        val adapter = NfcAdapter.getDefaultAdapter(context) ?: return false
-        val hce = context.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC_HOST_CARD_EMULATION)
-        return hce && adapter.isEnabled
+    override fun isNfcPresentationAvailable(): Boolean = nfcUnavailableReason() == null
+
+    /**
+     * Null when the phone can answer a reader tap. Otherwise the reason, as
+     * the error message for Dart. Each case has its own text so the wallet
+     * can tell "turn NFC on" from "this phone cannot".
+     */
+    private fun nfcUnavailableReason(): String? {
+        val adapter = NfcAdapter.getDefaultAdapter(context)
+            ?: return "NFC is not supported on this device"
+        if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_NFC_HOST_CARD_EMULATION)) {
+            return "NFC host card emulation is not supported on this device"
+        }
+        if (!isNfcServiceDeclared()) {
+            return "The NFC presentation service is not declared in the app manifest"
+        }
+        if (!adapter.isEnabled) return "NFC is turned off"
+        return null
+    }
+
+    /**
+     * False when the app did not declare the plugin's service in its
+     * manifest. `CardEmulation` returns false for an unknown component and
+     * throws nothing, so without this check the tap screen waits forever.
+     */
+    private fun isNfcServiceDeclared(): Boolean {
+        return try {
+            context.packageManager.getServiceInfo(NfcPresentationService.componentName(context), 0)
+            true
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
     }
 
     override fun initializeNfcPresentation(
@@ -129,8 +156,9 @@ internal class MdlPresentationAdapter(
         credentialId: String,
         callback: (Result<MdlPresentationResult>) -> Unit
     ) {
-        if (!isNfcPresentationAvailable()) {
-            callback(Result.success(MdlPresentationError("NFC is not available on this device")))
+        val unavailable = nfcUnavailableReason()
+        if (unavailable != null) {
+            callback(Result.success(MdlPresentationError(unavailable)))
             return
         }
 
@@ -140,16 +168,23 @@ internal class MdlPresentationAdapter(
             return
         }
 
-        check(nfc.arm()) { "coordinator not idle after tearDown" }
-
-        NfcPresentationService.listener = nfcListener
-        // First contact with card emulation. Nothing touches the NFC stack
-        // before the wallet asks for a tap, so consumers that never use NFC
-        // see no change at app start. init is idempotent.
-        NfcListenManager.init(context, NfcPresentationService.componentName(context))
-        NfcListenManager.userRequested = true
-        registerNfcStateReceiver()
-        applyPreferredService()
+        // Pigeon does not catch exceptions from an async handler, so a
+        // failure here must become an error result, not a crash.
+        try {
+            nfc.arm()
+            NfcPresentationService.listener = nfcListener
+            // Registers the NDEF AID beside the manifest's mdoc AID for the
+            // duration of the tap. init is idempotent.
+            NfcListenManager.init(context, NfcPresentationService.componentName(context))
+            NfcListenManager.userRequested = true
+            registerNfcStateReceiver()
+            applyPreferredService()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to arm NFC presentation", e)
+            tearDown()
+            callback(Result.success(MdlPresentationError("Failed to arm NFC presentation: ${e.message}")))
+            return
+        }
 
         updateState(MdlPresentationStateUpdate(
             state = MdlPresentationState.INITIALIZING,
@@ -188,12 +223,10 @@ internal class MdlPresentationAdapter(
         try {
             updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SENDING_RESPONSE))
             presentation?.submitNamespaces(selectedNamespaces)
-            releaseNfcAfterSession()
             updateState(MdlPresentationStateUpdate(state = MdlPresentationState.SUCCESS))
             callback(Result.success(MdlPresentationSuccess("Response submitted")))
         } catch (e: Exception) {
             Log.e(TAG, "Failed to submit namespaces", e)
-            releaseNfcAfterSession()
             updateState(MdlPresentationStateUpdate(
                 state = MdlPresentationState.ERROR,
                 error = e.message ?: "Failed to submit namespaces"
@@ -271,6 +304,7 @@ internal class MdlPresentationAdapter(
             presentation?.initialize(data)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize presentation", e)
+            releaseNfcAfterSession()
             updateState(MdlPresentationStateUpdate(
                 state = MdlPresentationState.ERROR,
                 error = e.message ?: "Failed to initialize presentation"
@@ -289,17 +323,15 @@ internal class MdlPresentationAdapter(
     // MARK: - NFC
 
     private val nfcListener = object : NfcPresentationService.Listener {
-        // Keep answering APDUs after the handover too. The SDK reports the
-        // carrier info as soon as the Handover Select is ready, and the
-        // reader still reads the NDEF file after that. A service that goes
-        // quiet at this point leaves the reader stuck on the tap.
         override fun isListening(): Boolean = nfc.isListening
 
         override fun onCarrierInfo(carrierInfo: NegotiatedCarrierInfo) {
             if (!nfc.onCarrierInfo()) return
+            val generation = nfcGeneration
             coroutineScope.launch {
-                // A cancel() can land between the callback and this block.
-                if (nfc.phase != NfcEngagementCoordinator.Phase.ENGAGED) return@launch
+                // A cancel() or a new session can land between the callback
+                // and this block.
+                if (generation != nfcGeneration) return@launch
                 updateState(MdlPresentationStateUpdate(
                     state = MdlPresentationState.INITIALIZING,
                     nfcPhase = MdlNfcPhase.CONNECTING
@@ -309,8 +341,16 @@ internal class MdlPresentationAdapter(
         }
 
         override fun onNegotiationFailed(error: NfcPresentationError) {
+            // The phone left the reader before the handover finished. The
+            // user taps again, so the service stays armed.
+            if (error == NfcPresentationError.CONNECTION_CLOSED) {
+                Log.i(TAG, "Reader tap ended early, still waiting for a tap")
+                return
+            }
             if (!nfc.onNegotiationFailed()) return
+            val generation = nfcGeneration
             coroutineScope.launch {
+                if (generation != nfcGeneration) return@launch
                 releaseNfcListening()
                 updateState(MdlPresentationStateUpdate(
                     state = MdlPresentationState.ERROR,
@@ -338,13 +378,19 @@ internal class MdlPresentationAdapter(
      * The reader connected over BLE, or the session ended. The NDEF read is
      * over, so the service stops answering taps. Otherwise the phone keeps
      * handing out carrier info for a session nothing scans for.
+     *
+     * Called from the BLE transport threads. The release touches state that
+     * the lifecycle callbacks and cancel() touch on the main thread, so it
+     * runs there too.
      */
     private fun releaseNfcAfterSession() {
-        if (nfc.onSessionEnded()) releaseNfcListening()
+        if (!nfc.onSessionEnded()) return
+        coroutineScope.launch { releaseNfcListening() }
     }
 
-    /** Forgets the attempt and releases the NFC hooks. */
+    /** Forgets the attempt and releases the NFC hooks. Main thread only. */
     private fun disarmNfc() {
+        nfcGeneration++
         nfc.cancel()
         releaseNfcListening()
     }
@@ -390,10 +436,15 @@ internal class MdlPresentationAdapter(
         val activity = activityBinding?.activity ?: return
         val adapter = NfcAdapter.getDefaultAdapter(activity) ?: return
         val component = NfcPresentationService.componentName(activity)
-        if (CardEmulation.getInstance(adapter).setPreferredService(activity, component)) {
-            preferredServiceSet = true
-        } else {
-            Log.w(TAG, "setPreferredService failed")
+        try {
+            if (CardEmulation.getInstance(adapter).setPreferredService(activity, component)) {
+                preferredServiceSet = true
+            } else {
+                Log.w(TAG, "setPreferredService failed")
+            }
+        } catch (e: IllegalArgumentException) {
+            // The Activity left the resumed state between the check and the call.
+            Log.w(TAG, "setPreferredService rejected", e)
         }
     }
 
@@ -402,8 +453,13 @@ internal class MdlPresentationAdapter(
         preferredServiceSet = false
         val activity = activityBinding?.activity ?: return
         val adapter = NfcAdapter.getDefaultAdapter(activity) ?: return
-        if (!CardEmulation.getInstance(adapter).unsetPreferredService(activity)) {
-            Log.w(TAG, "unsetPreferredService failed")
+        try {
+            if (!CardEmulation.getInstance(adapter).unsetPreferredService(activity)) {
+                Log.w(TAG, "unsetPreferredService failed")
+            }
+        } catch (e: IllegalArgumentException) {
+            // Android already dropped the preference with the Activity.
+            Log.w(TAG, "unsetPreferredService rejected", e)
         }
     }
 

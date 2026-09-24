@@ -110,9 +110,8 @@ int _deepHash(Object? value) {
 /// Presentation state for ISO 18013-5 mDL presentation
 ///
 /// An NFC tap based presentation reports its NFC detail in
-/// [MdlPresentationStateUpdate.nfcPhase] and keeps this enum unchanged, so
-/// existing exhaustive switches still compile. See [MdlNfcPhase] for the
-/// planned merge.
+/// [MdlPresentationStateUpdate.nfcPhase] and uses the values of this enum
+/// for the main state.
 enum MdlPresentationState {
   /// Initial state, not yet started
   uninitialized,
@@ -142,18 +141,12 @@ enum MdlPresentationState {
 
 /// Where an NFC tap based presentation is, on top of [MdlPresentationState]
 ///
-/// Set on Android after [MdlPresentation.initializeNfcPresentation]. On iOS
-/// only when the SDK reports `connectingViaNfc`, which the plugin does not
-/// reach today. The main state stays within the existing values, so callers
-/// that do not know about NFC keep working: `initializing` while the tap is
-/// pending and `error` when NFC is turned off.
-///
-/// Transitional. The next major release adds `nfcWaitingForTap`,
-/// `connectingViaNfc` and `nfcUnavailable` to [MdlPresentationState],
-/// removes this enum and the `nfcPhase` field, and reimplements the
-/// `MdlPresentationStateUpdate` getters (`isWaitingForNfcTap`,
-/// `isConnectingViaNfc`, `isNfcUnavailable`) on the state. Code that uses
-/// the getters needs no change at that point.
+/// Set on Android after [MdlPresentation.initializeNfcPresentation]. The
+/// iOS adapter does not emit it. The main state stays within the existing
+/// values, so callers that do not know about NFC keep working:
+/// `initializing` while the tap is pending and `error` when NFC is turned
+/// off. Read it through the `MdlPresentationStateUpdate` getters
+/// `isWaitingForNfcTap`, `isConnectingViaNfc` and `isNfcUnavailable`.
 enum MdlNfcPhase {
   /// The phone answers reader taps. State is `initializing`.
   waitingForTap,
@@ -330,9 +323,7 @@ class MdlPresentationStateUpdate {
   /// Error message (only set when state is error)
   String? error;
 
-  /// NFC detail for an NFC tap based presentation
-  ///
-  /// Transitional, see [MdlNfcPhase]. Read it through the getters.
+  /// NFC detail for an NFC tap based presentation, see [MdlNfcPhase]
   MdlNfcPhase? nfcPhase;
 
   List<Object?> _toList() {
@@ -601,8 +592,9 @@ class MdlPresentation {
 
   /// Whether this device can present over an NFC tap
   ///
-  /// True when the device has an NFC adapter that is turned on and
-  /// supports host card emulation. Always false on iOS.
+  /// True when the device has an NFC adapter that is turned on, supports
+  /// host card emulation, and the app manifest declares the plugin's NFC
+  /// service. Always false on iOS.
   Future<bool> isNfcPresentationAvailable() async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.isNfcPresentationAvailable$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -626,7 +618,9 @@ class MdlPresentation {
   ///
   /// The BLE session starts when a reader taps the phone. The engagement
   /// uses ISO 18013-5 static handover with BLE central client mode. State
-  /// updates arrive on [MdlPresentationCallback.onStateChange].
+  /// updates arrive on [MdlPresentationCallback.onStateChange]. A phone
+  /// that leaves the reader before the handover finishes stays armed, so
+  /// the user taps again without a restart.
   ///
   /// @param packId The credential pack ID containing the mDL
   /// @param credentialId The credential ID of the mDL to present

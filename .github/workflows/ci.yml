@@ -205,7 +205,10 @@ jobs:
         run: flutter analyze
 
       - name: Format check
-        run: dart format --set-exit-if-changed lib/sprucekit_mobile.dart pigeons/ example/
+        run: dart format --set-exit-if-changed lib/sprucekit_mobile.dart lib/src/ pigeons/ test/ example/
+
+      - name: Test
+        run: flutter test
 
       - name: Install Very Good CLI
         run: dart pub global activate very_good_cli

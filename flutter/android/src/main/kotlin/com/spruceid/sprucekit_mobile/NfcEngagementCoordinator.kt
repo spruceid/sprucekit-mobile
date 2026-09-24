@@ -6,7 +6,7 @@ package com.spruceid.sprucekit_mobile
  * The HCE service, the NFC adapter broadcast, and the Dart side all call into
  * the adapter from different threads and in any order. This class decides
  * which of those events count, so the adapter only maps a `true` result to a
- * state update. It has no Android dependency, so it is unit tested directly.
+ * state update.
  */
 internal class NfcEngagementCoordinator {
     enum class Phase {

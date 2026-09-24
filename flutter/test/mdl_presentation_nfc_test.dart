@@ -8,7 +8,6 @@ void main() {
         state: MdlPresentationState.engagingQrCode,
         qrCodeUri: 'mdoc:abc',
       );
-      expect(update.isNfcEngagement, isFalse);
       expect(update.isWaitingForNfcTap, isFalse);
       expect(update.isConnectingViaNfc, isFalse);
       expect(update.isNfcUnavailable, isFalse);
@@ -22,7 +21,6 @@ void main() {
       expect(update.state, MdlPresentationState.initializing);
       expect(update.isWaitingForNfcTap, isTrue);
       expect(update.isConnectingViaNfc, isFalse);
-      expect(update.isNfcEngagement, isTrue);
     });
 
     test('connecting rides on initializing', () {
