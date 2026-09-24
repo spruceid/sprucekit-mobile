@@ -28,15 +28,29 @@ internal class NfcEngagementCoordinator {
     var phase: Phase = Phase.IDLE
         private set
 
+    /**
+     * Changes on every phase change. A block that runs later captures it
+     * first and compares it before it acts, so work queued for one attempt
+     * never lands on the attempt that replaced it.
+     */
+    @Volatile
+    var generation: Int = 0
+        private set
+
     /** True while the HCE service must answer APDUs. */
     val isListening: Boolean
         get() = phase != Phase.IDLE
+
+    private fun move(to: Phase) {
+        phase = to
+        generation++
+    }
 
     /** Returns true when this call armed the service. */
     @Synchronized
     fun arm(): Boolean {
         if (phase != Phase.IDLE) return false
-        phase = Phase.ARMED
+        move(Phase.ARMED)
         return true
     }
 
@@ -44,7 +58,7 @@ internal class NfcEngagementCoordinator {
     @Synchronized
     fun onCarrierInfo(): Boolean {
         if (phase != Phase.ARMED) return false
-        phase = Phase.ENGAGED
+        move(Phase.ENGAGED)
         return true
     }
 
@@ -52,7 +66,7 @@ internal class NfcEngagementCoordinator {
     @Synchronized
     fun onNegotiationFailed(): Boolean {
         if (phase != Phase.ARMED) return false
-        phase = Phase.IDLE
+        move(Phase.IDLE)
         return true
     }
 
@@ -60,23 +74,30 @@ internal class NfcEngagementCoordinator {
     @Synchronized
     fun onNfcTurnedOff(): Boolean {
         if (phase != Phase.ARMED) return false
-        phase = Phase.IDLE
+        move(Phase.IDLE)
         return true
     }
+
+    /** The generation of the engaged attempt, or null when no attempt is engaged. */
+    @Synchronized
+    fun engagedGeneration(): Int? = if (phase == Phase.ENGAGED) generation else null
 
     /**
      * The BLE session moved past the NFC read: the reader sent its request,
      * or the session ended. Returns true when the NFC hooks must be released.
+     * `generation` pins the call to the attempt it was made for. A different
+     * value means a cancel or a new attempt came first, and nothing happens.
      */
     @Synchronized
-    fun onSessionEnded(): Boolean {
-        if (phase != Phase.ENGAGED) return false
-        phase = Phase.IDLE
+    fun onSessionEnded(generation: Int): Boolean {
+        if (phase != Phase.ENGAGED || this.generation != generation) return false
+        move(Phase.IDLE)
         return true
     }
 
     @Synchronized
     fun cancel() {
-        phase = Phase.IDLE
+        if (phase == Phase.IDLE) return
+        move(Phase.IDLE)
     }
 }

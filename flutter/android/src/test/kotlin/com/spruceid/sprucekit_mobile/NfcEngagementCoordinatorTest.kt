@@ -64,20 +64,57 @@ class NfcEngagementCoordinatorTest {
         coordinator.arm()
         coordinator.onCarrierInfo()
         assertTrue(coordinator.isListening)
-        assertTrue(coordinator.onSessionEnded())
+        val engaged = coordinator.engagedGeneration()
+        assertTrue(engaged != null)
+        assertTrue(coordinator.onSessionEnded(engaged!!))
         assertFalse(coordinator.isListening)
         assertEquals(NfcEngagementCoordinator.Phase.IDLE, coordinator.phase)
         assertFalse(coordinator.onCarrierInfo())
         // A second end is not reported again.
-        assertFalse(coordinator.onSessionEnded())
+        assertFalse(coordinator.onSessionEnded(engaged))
     }
 
     @Test
     fun `session end is ignored before the handover`() {
-        assertFalse(coordinator.onSessionEnded())
+        assertEquals(null, coordinator.engagedGeneration())
+        assertFalse(coordinator.onSessionEnded(coordinator.generation))
         coordinator.arm()
-        assertFalse(coordinator.onSessionEnded())
+        assertEquals(null, coordinator.engagedGeneration())
+        assertFalse(coordinator.onSessionEnded(coordinator.generation))
         assertTrue(coordinator.isListening)
+    }
+
+    @Test
+    fun `a session end for an earlier attempt does not touch the next one`() {
+        coordinator.arm()
+        coordinator.onCarrierInfo()
+        val first = coordinator.engagedGeneration()!!
+        // The wallet cancels and arms again, and the new attempt gets its tap.
+        coordinator.cancel()
+        coordinator.arm()
+        coordinator.onCarrierInfo()
+        assertFalse(coordinator.onSessionEnded(first))
+        assertEquals(NfcEngagementCoordinator.Phase.ENGAGED, coordinator.phase)
+        assertTrue(coordinator.isListening)
+        // The current attempt still ends normally.
+        assertTrue(coordinator.onSessionEnded(coordinator.engagedGeneration()!!))
+    }
+
+    @Test
+    fun `every phase change moves the generation`() {
+        val start = coordinator.generation
+        coordinator.arm()
+        val armed = coordinator.generation
+        assertTrue(armed != start)
+        coordinator.onCarrierInfo()
+        val engaged = coordinator.generation
+        assertTrue(engaged != armed)
+        coordinator.cancel()
+        assertTrue(coordinator.generation != engaged)
+        // A cancel from idle is not a change.
+        val idle = coordinator.generation
+        coordinator.cancel()
+        assertEquals(idle, coordinator.generation)
     }
 
     @Test

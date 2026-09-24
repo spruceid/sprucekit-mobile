@@ -27,6 +27,7 @@ import com.spruceid.mobile.sdk.rs.NegotiatedCarrierInfo
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -58,11 +59,6 @@ internal class MdlPresentationAdapter(
     private var activityResumed = false
     private var preferredServiceSet = false
     private var nfcStateReceiverRegistered = false
-
-    // Incremented by every disarm. A block launched by an NFC callback
-    // compares the value it captured, so a block queued before a cancel()
-    // or a new session does not act on the session that replaced it.
-    private var nfcGeneration = 0
 
     fun setCallback(callback: MdlPresentationCallback) {
         flutterCallback = callback
@@ -327,11 +323,11 @@ internal class MdlPresentationAdapter(
 
         override fun onCarrierInfo(carrierInfo: NegotiatedCarrierInfo) {
             if (!nfc.onCarrierInfo()) return
-            val generation = nfcGeneration
+            val generation = nfc.generation
             coroutineScope.launch {
                 // A cancel() or a new session can land between the callback
-                // and this block.
-                if (generation != nfcGeneration) return@launch
+                // and this block. Either one changes the generation.
+                if (generation != nfc.generation) return@launch
                 updateState(MdlPresentationStateUpdate(
                     state = MdlPresentationState.INITIALIZING,
                     nfcPhase = MdlNfcPhase.CONNECTING
@@ -348,9 +344,9 @@ internal class MdlPresentationAdapter(
                 return
             }
             if (!nfc.onNegotiationFailed()) return
-            val generation = nfcGeneration
+            val generation = nfc.generation
             coroutineScope.launch {
-                if (generation != nfcGeneration) return@launch
+                if (generation != nfc.generation) return@launch
                 releaseNfcListening()
                 updateState(MdlPresentationStateUpdate(
                     state = MdlPresentationState.ERROR,
@@ -381,16 +377,24 @@ internal class MdlPresentationAdapter(
      *
      * Called from the BLE transport threads. The release touches state that
      * the lifecycle callbacks and cancel() touch on the main thread, so it
-     * runs there too.
+     * runs there too. The generation captured here pins the release to this
+     * attempt: a cancel() or a new session in the meantime makes it a no-op.
+     *
+     * `afterMillis` keeps the service answering for a while longer. Some
+     * readers poll NFC again after a successful handover, and the SDK answers
+     * them with the same keys for 5 seconds (see the deferred blocks in
+     * `BaseNfcPresentationService.onDeactivated`).
      */
-    private fun releaseNfcAfterSession() {
-        if (!nfc.onSessionEnded()) return
-        coroutineScope.launch { releaseNfcListening() }
+    private fun releaseNfcAfterSession(afterMillis: Long = 0) {
+        val generation = nfc.engagedGeneration() ?: return
+        coroutineScope.launch {
+            if (afterMillis > 0) delay(afterMillis)
+            if (nfc.onSessionEnded(generation)) releaseNfcListening()
+        }
     }
 
     /** Forgets the attempt and releases the NFC hooks. Main thread only. */
     private fun disarmNfc() {
-        nfcGeneration++
         nfc.cancel()
         releaseNfcListening()
     }
@@ -427,8 +431,9 @@ internal class MdlPresentationAdapter(
      * Makes this service the one Android routes the mdoc AID to while the
      * wallet is on screen, so another wallet with the same AID does not win
      * the tap. Only valid from a resumed Activity, so the lifecycle callbacks
-     * call this again on resume. Stays set through the BLE session, since
-     * readers poll again after the handover.
+     * call this again on resume. Stays set until the NFC hooks are released:
+     * a few seconds after the reader's request arrives over BLE, or when the
+     * session ends.
      */
     private fun applyPreferredService() {
         if (preferredServiceSet || !activityResumed) return
@@ -511,8 +516,9 @@ internal class MdlPresentationAdapter(
             }
 
             state.containsKey("selectNamespaces") -> {
-                // The reader is on BLE now. NFC has done its job.
-                releaseNfcAfterSession()
+                // The reader is on BLE now. Keep answering NFC for the
+                // SDK's re-poll window, then release.
+                releaseNfcAfterSession(afterMillis = NFC_REPOLL_WINDOW_MILLIS)
                 @Suppress("UNCHECKED_CAST")
                 itemsRequests = state["selectNamespaces"] as List<ItemsRequest>
 
@@ -545,5 +551,12 @@ internal class MdlPresentationAdapter(
 
     private companion object {
         const val TAG = "MdlPresentationAdapter"
+
+        /**
+         * How long the HCE service keeps answering after the reader's request
+         * arrived over BLE. Matches the window in which the SDK answers a
+         * second handover request with the same keys.
+         */
+        const val NFC_REPOLL_WINDOW_MILLIS = 5_000L
     }
 }
