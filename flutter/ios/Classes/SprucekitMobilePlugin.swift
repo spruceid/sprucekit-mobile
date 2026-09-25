@@ -1,4 +1,5 @@
 import Flutter
+import SpruceIDMobileSdk
 import SpruceIDMobileSdkRs
 import UIKit
 
@@ -34,6 +35,9 @@ public class SprucekitMobilePlugin: NSObject, FlutterPlugin {
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         let messenger = registrar.messenger()
+
+        // Route Rust HTTP requests through the native client, so proxy settings apply.
+        RustHttpClient.configure()
 
         // Initialize OID4VCI adapter
         let oid4vciAdapter = Oid4vciAdapter()

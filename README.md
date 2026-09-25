@@ -20,6 +20,16 @@ See https://central.sonatype.com/artifact/com.spruceid.mobile.sdk/mobilesdk.
 
 Add `sprucekit_mobile` to your `pubspec.yaml` dependencies. See the [Flutter plugin](./flutter) for details.
 
+### HTTP client and proxies
+
+The Rust layer sends its HTTP requests through the native HTTP client of the platform. The requests then obey the proxy settings and the trust store of the device. Register the client once when the app starts:
+
+- iOS: call `RustHttpClient.configure()` from `SpruceIDMobileSdk`.
+- Android: call `RustHttpClient.configure()` from `com.spruceid.mobile.sdk`.
+- Flutter: the plugin registers the client when it attaches to the engine.
+
+Pass your own `AsyncHttpClient` to `configure` to control the transport. Without the call, the Rust layer uses a built-in client that does not read the device proxy settings. Requests made by `did:web` resolution and by the VCALM crate use their own HTTP client and do not obey the registration yet.
+
 ## Architecture
 
 Our Mobile SDKs use shared code, with most of the logic being written once in Rust, and when not possible, native APIs (e.g. Bluetooth, OS Keychain) are called in native SDKs.
