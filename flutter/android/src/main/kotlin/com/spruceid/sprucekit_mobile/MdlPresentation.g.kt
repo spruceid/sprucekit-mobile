@@ -264,6 +264,40 @@ enum class MdlNfcPhase(val raw: Int) {
 }
 
 /**
+ * Whether an NFC tap presentation can start on this device, and why not
+ *
+ * Returned by [MdlPresentation.getNfcAvailability]. Only [turnedOff] is a
+ * state that the user can change. The other failures are properties of the
+ * platform, the device, or the app build.
+ */
+enum class MdlNfcAvailability(val raw: Int) {
+  /** NFC is on, and [MdlPresentation.initializeNfcPresentation] can arm a tap. */
+  AVAILABLE(0),
+  /**
+   * The device supports NFC presentation, but NFC is turned off. The user
+   * can turn it on in the system settings.
+   */
+  TURNED_OFF(1),
+  /** The platform has no NFC tap presentation. The value on iOS. */
+  UNSUPPORTED_PLATFORM(2),
+  /** The device has no NFC adapter. */
+  NO_ADAPTER(3),
+  /** The device has an NFC adapter but cannot emulate a card. */
+  NO_HOST_CARD_EMULATION(4),
+  /**
+   * The app manifest does not declare the plugin's NFC service. See
+   * README.md.
+   */
+  SERVICE_NOT_DECLARED(5);
+
+  companion object {
+    fun ofRaw(raw: Int): MdlNfcAvailability? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/**
  * Requested item from a namespace
  *
  * Generated class from Pigeon that represents data sent in messages.
@@ -550,31 +584,36 @@ private open class MdlPresentationPigeonCodec : StandardMessageCodec() {
         }
       }
       131.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          MdlNamespaceItem.fromList(it)
+        return (readValue(buffer) as Long?)?.let {
+          MdlNfcAvailability.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MdlNamespaceRequest.fromList(it)
+          MdlNamespaceItem.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MdlItemsRequest.fromList(it)
+          MdlNamespaceRequest.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MdlPresentationStateUpdate.fromList(it)
+          MdlItemsRequest.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          MdlPresentationSuccess.fromList(it)
+          MdlPresentationStateUpdate.fromList(it)
         }
       }
       136.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          MdlPresentationSuccess.fromList(it)
+        }
+      }
+      137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           MdlPresentationError.fromList(it)
         }
@@ -592,28 +631,32 @@ private open class MdlPresentationPigeonCodec : StandardMessageCodec() {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is MdlNamespaceItem -> {
+      is MdlNfcAvailability -> {
         stream.write(131)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is MdlNamespaceRequest -> {
+      is MdlNamespaceItem -> {
         stream.write(132)
         writeValue(stream, value.toList())
       }
-      is MdlItemsRequest -> {
+      is MdlNamespaceRequest -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is MdlPresentationStateUpdate -> {
+      is MdlItemsRequest -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is MdlPresentationSuccess -> {
+      is MdlPresentationStateUpdate -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is MdlPresentationError -> {
+      is MdlPresentationSuccess -> {
         stream.write(136)
+        writeValue(stream, value.toList())
+      }
+      is MdlPresentationError -> {
+        stream.write(137)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -674,9 +717,17 @@ interface MdlPresentation {
    *
    * True when the device has an NFC adapter that is turned on, supports
    * host card emulation, and the app manifest declares the plugin's NFC
-   * service. Always false on iOS.
+   * service. Always false on iOS. Same as [getNfcAvailability] returning
+   * [MdlNfcAvailability.available].
    */
   fun isNfcPresentationAvailable(): Boolean
+  /**
+   * Whether this device can present over an NFC tap, and the reason when it
+   * cannot
+   *
+   * [MdlNfcAvailability.unsupportedPlatform] on iOS.
+   */
+  fun getNfcAvailability(): MdlNfcAvailability
   /**
    * Arm an NFC tap based presentation session
    *
@@ -751,6 +802,21 @@ interface MdlPresentation {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
               listOf(api.isNfcPresentationAvailable())
+            } catch (exception: Throwable) {
+              MdlPresentationPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.sprucekit_mobile.MdlPresentation.getNfcAvailability$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getNfcAvailability())
             } catch (exception: Throwable) {
               MdlPresentationPigeonUtils.wrapError(exception)
             }
