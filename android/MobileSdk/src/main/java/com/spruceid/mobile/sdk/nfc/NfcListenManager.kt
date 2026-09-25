@@ -76,7 +76,7 @@ object NfcListenManager {
                 if (shouldBeListening) {
                     listOf(APDU_AID_MDOC, APDU_AID_NDEF_APPLICATION)
                 } else {
-                    listOf(APDU_AID_NDEF_APPLICATION)
+                    listOf(APDU_AID_MDOC)
                 }
         listenForAPDUs(listenFor)
     }
